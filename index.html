@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="index.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Hello, Roxy!</title>
+  </head>
+  <body>
+    <object id="svg-map" data="resources/testMap3.svg" type="image/svg+xml" onload="svgMapLoaded()"></object>
+    <div id="tooltip"></div>
+    <div class="table-container" id="table-container">
+      <table id="my-table">
+        <tr class="top-row">
+          <th colspan="2">Select a Country</th>
+        </tr>
+        <!-- <tr>
+          <td>Continent:</td>
+          <td>-</td>
+        </tr> -->
+        <tr>
+          <td>Population:</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>Area (km²):</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>Army:</td>
+          <td>-</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>
