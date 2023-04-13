@@ -3,9 +3,7 @@ function svgMapLoaded() {
   
     const svgMap = document.getElementById('svg-map').contentDocument;
     const tooltip = document.getElementById("tooltip");
-    
-    svgMap.addEventListener('wheel', handleMapScroll, { passive: false });
-
+  
     // Add a mouseover event listener to the SVG element
     svgMap.addEventListener("mouseover", function(e) {
       // Get the path element that was hovered over
@@ -87,58 +85,5 @@ function svgMapLoaded() {
       return population.toString();
     }
   }
-
-  function handleMapScroll(event) {
-    const svgMap = document.getElementById('svg-map');
-    const svgRect = svgMap.getBoundingClientRect();
-    const pointerX = event.clientX - svgRect.left;
-    const pointerY = event.clientY - svgRect.top;
-    
-    // Prevent the default scrolling behavior
-    event.preventDefault();
-  
-    // Determine the amount of scrolling
-    const delta = Math.max(-1, Math.min(1, (event.deltaY || -event.detail))) * -1;
-  
-    // Get the current zoom level
-    const currentZoom = svgMap.style.zoom ? parseFloat(svgMap.style.zoom) : 1;
-  
-    // Calculate the new zoom level
-    const newZoom = currentZoom + (delta * 0.1);
-  
-    // Limit the zoom level to between 1 and 2
-    const zoom = Math.min(2, Math.max(1, newZoom));
-  
-    // Calculate the new viewBox coordinates based on the zoom level and pointer position
-    const viewBoxX = (svgRect.width / 2) - ((svgRect.width / (2 * zoom)) + pointerX / zoom);
-    const viewBoxY = (svgRect.height / 2) - ((svgRect.height / (2 * zoom)) + pointerY / zoom);
-
-    const viewBoxWidth = svgRect.width / zoom;
-    const viewBoxHeight = svgRect.height / zoom;
-    const viewBox = `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`;
-  
-    // Set the new zoom level and viewBox
-    svgMap.style.zoom = zoom;
-    svgMap.setAttribute('viewBox', viewBox);
-  
-    // Enable or disable scrolling based on the zoom level
-    svgMap.style.overflow = zoom > 1 ? 'scroll' : 'hidden';
-    
-    // Disable mouse wheel scrolling when the map is zoomed in
-    if (zoom > 1) {
-      svgMap.addEventListener('wheel', disableMouseWheelScroll, { passive: false });
-    } else {
-      svgMap.removeEventListener('wheel', disableMouseWheelScroll);
-    }
-  }
-  
-  function disableMouseWheelScroll(event) {
-    // Prevent the default scrolling behavior
-    event.preventDefault();
-  }
-  
-  
-  
-  
   
   
