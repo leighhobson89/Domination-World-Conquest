@@ -1,13 +1,23 @@
+let red;
+let green;
+let blue;
+let mouseOverFlag = false;
+
 function svgMapLoaded() {
   console.log("page loaded!");
 
   const svgMap = document.getElementById('svg-map').contentDocument;
   const tooltip = document.getElementById("tooltip");
+  let currentPath; // Define a global variable to store the current path element
 
   // Add a mouseover event listener to the SVG element
   svgMap.addEventListener("mouseover", function(e) {
     // Get the path element that was hovered over
     const path = e.target;
+    currentPath = path; // Set the current path element
+
+    // Call the hoverColorChange function
+    hoverColorChange(path, 0);
 
     // Get the name of the country from the "data-name" attribute
     const countryName = path.getAttribute("data-name");
@@ -34,6 +44,7 @@ function svgMapLoaded() {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
     tooltip.style.backgroundColor = "transparent";
+    hoverColorChange(currentPath, 1); // Pass the current path element and set mouseAction to 1
   });
 
   // Add a mousemove event listener to the SVG element
@@ -103,3 +114,46 @@ function formatPopulation(population) {
     return population.toString();
   }
 }
+
+function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, or 1 if mouseout
+  if (path && path.style) {
+    // Get the current fill color
+    let color = path.style.fill;
+
+    // Convert the color to an RGB array
+    let rgb = color.replace(/[^\d,]/g, '').split(',');
+
+    // Convert each RGB component to an integer
+    let r = parseInt(rgb[0], 10);
+    let g = parseInt(rgb[1], 10);
+    let b = parseInt(rgb[2], 10);
+
+    // Increase each RGB component by 30, or set to 255 if already higher than 225
+    if (mouseAction == 0 && !mouseOverFlag) {
+      red = r;
+      green = g;
+      blue = b;
+      r = Math.min(r + 20, 255);
+      g = Math.min(g + 20, 255);
+      b = Math.min(b + 20, 255);
+      mouseOverFlag = true;
+
+      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
+      const svgMap = document.getElementById('svg-map').contentDocument;
+      const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
+      for (let i = 0; i < paths.length; i++) {
+        paths[i].style.fill = 'rgb(' + r + ',' + g + ',' + b + ')';
+      }
+    } else if (mouseAction == 1 && mouseOverFlag) {
+      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
+      const svgMap = document.getElementById('svg-map').contentDocument;
+      const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i])
+        paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;;
+      }
+      mouseOverFlag = false;
+    }
+  }
+}
+
