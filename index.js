@@ -4,13 +4,18 @@ let blue;
 let mouseOverFlag = false;
 let prevPath;
 let clickActionsDone = false;
+let blurNotRunYet = true;
 
 function svgMapLoaded() {
   console.log("page loaded!");
-
   const svgMap = document.getElementById('svg-map').contentDocument;
   const tooltip = document.getElementById("tooltip");
   let currentPath; // Define a global variable to store the current path element
+
+  if (blurNotRunYet) {
+    blurEffect(0); //blur background
+    blurNotRunYet = false;
+  }
 
   // Add a mouseover event listener to the SVG element
   svgMap.addEventListener("mouseover", function(e) {
@@ -172,6 +177,29 @@ function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, o
       }
       mouseOverFlag = false;
     }
+  }
+}
+
+function blurEffect(mode) {
+  if (mode == 0) {
+    // Get the SVG element and create a filter element
+  const svg = document.getElementById('svg-map');
+  const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+  filter.setAttribute('id', 'blur-filter');
+
+  // Create a Gaussian blur element and set its attributes
+  const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+  blur.setAttribute('in', 'SourceGraphic'); // Apply the filter to the entire SVG element
+  blur.setAttribute('stdDeviation', '5'); // Set the amount of blur
+
+  // Append the blur element to the filter element, and the filter element to the SVG element
+  filter.appendChild(blur);
+  svg.appendChild(filter);
+
+  // Apply the filter to the SVG element
+  svg.style.filter = 'url(#blur-filter)';
+  } else if (mode == 1) {
+
   }
 }
 
