@@ -2,6 +2,8 @@ let red;
 let green;
 let blue;
 let mouseOverFlag = false;
+let prevPath;
+let clickActionsDone = false;
 
 function svgMapLoaded() {
   console.log("page loaded!");
@@ -45,6 +47,7 @@ function svgMapLoaded() {
     tooltip.style.display = "none";
     tooltip.style.backgroundColor = "transparent";
     hoverColorChange(currentPath, 1); // Pass the current path element and set mouseAction to 1
+    clickActionsDone = false;
   });
 
   // Add a mousemove event listener to the SVG element
@@ -64,8 +67,19 @@ function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
-      const path = e.target;
-      sendPostRequest(path.getAttribute("data-name"));
+    const path = e.target;
+    if (path.tagName === "path") {
+      if (!clickActionsDone) {
+        sendPostRequest(path.getAttribute("data-name"));
+        path.parentNode.appendChild(path);
+        path.setAttribute('stroke-width', '3');
+      if (prevPath != null) { // Check if a path was previously clicked
+        prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+      }
+      prevPath = path; // Update the previously clicked path
+      clickActionsDone = true;
+      }
+    }
     });
 }
 
@@ -149,8 +163,11 @@ function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, o
       const svgMap = document.getElementById('svg-map').contentDocument;
       const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
       for (let i = 0; i < paths.length; i++) {
-        if (paths[i])
-        paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;;
+        if (paths[i].getAttribute("data-name") == "Russia" && paths[i].getAttribute("special") == 0) { //Kaliningrad special case for colour
+          paths[i].style.fill = `rgb(186, 218, 85)`;
+        } else {
+          paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
+        }
       }
       mouseOverFlag = false;
     }
