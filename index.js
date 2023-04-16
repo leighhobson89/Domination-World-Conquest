@@ -71,16 +71,17 @@ function svgMapLoaded() {
     if (path.tagName === "path") {
       if (!clickActionsDone) {
         sendPostRequest(path.getAttribute("data-name"));
-        path.parentNode.appendChild(path);
+        if (prevPath != null) { // Check if a path was previously clicked
+          prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
+          prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+        }
         path.setAttribute('stroke-width', '3');
-      if (prevPath != null) { // Check if a path was previously clicked
-        prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
-      }
-      prevPath = path; // Update the previously clicked path
-      clickActionsDone = true;
+        path.parentNode.appendChild(path); // Move the clicked path to the end
+        prevPath = path; // Update the previously clicked path
+        clickActionsDone = true;
       }
     }
-    });
+});
 }
 
 window.addEventListener('load', function() {
