@@ -6,7 +6,8 @@ let clickActionsDone = false;
 let blurNotRunYet = true;
 let gameInProgress = false;
 let menuState = true;
-let prevPath;
+let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+prevPath.setAttribute("d", "M0 0 L50 50"); // set a dummy path data
 
 function svgMapLoaded() {
   console.log("Current focus:", document.activeElement);
@@ -227,8 +228,11 @@ function selectCountry(country, escKeyEntry) {
       if (!clickActionsDone) {
         sendPostRequest(country.getAttribute("data-name"));
         if (prevPath != null && !escKeyEntry) { // Check if a path was previously clicked
-          prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
-          prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+          if (prevPath.getAttribute('d') != 'M0 0 L50 50') {
+            prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
+            prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+          }
+
         }
         prevPath = country; // Update the previously clicked path
         clickActionsDone = true;
