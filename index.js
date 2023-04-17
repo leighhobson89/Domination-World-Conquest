@@ -9,6 +9,8 @@ let blurNotRunYet = true;
 function svgMapLoaded() {
   console.log("page loaded!");
   const svgMap = document.getElementById('svg-map').contentDocument;
+  const svg = document.getElementById('svg-map');
+  svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
   let currentPath; // Define a global variable to store the current path element
 
@@ -73,6 +75,7 @@ function svgMapLoaded() {
 
   svgMap.addEventListener("click", function(e) {
     const path = e.target;
+    window.focus();
     if (path.tagName === "path") {
       if (!clickActionsDone) {
         sendPostRequest(path.getAttribute("data-name"));
@@ -158,16 +161,18 @@ function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, o
       b = Math.min(b + 20, 255);
       mouseOverFlag = true;
 
-      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
       const svgMap = document.getElementById('svg-map').contentDocument;
       const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
+
+      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
+      
       for (let i = 0; i < paths.length; i++) {
         paths[i].style.fill = 'rgb(' + r + ',' + g + ',' + b + ')';
       }
     } else if (mouseAction == 1 && mouseOverFlag) {
-      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
       const svgMap = document.getElementById('svg-map').contentDocument;
       const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
+      // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
       for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("data-name") == "Russia" && paths[i].getAttribute("special") == 0) { //Kaliningrad special case for colour
           paths[i].style.fill = `rgb(186, 218, 85)`;
@@ -183,23 +188,30 @@ function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, o
 function blurEffect(mode) {
   if (mode == 0) {
     // Get the SVG element and create a filter element
-  const svg = document.getElementById('svg-map');
-  const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-  filter.setAttribute('id', 'blur-filter');
+    const svg = document.getElementById('svg-map');
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', 'blur-filter');
 
-  // Create a Gaussian blur element and set its attributes
-  const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-  blur.setAttribute('in', 'SourceGraphic'); // Apply the filter to the entire SVG element
-  blur.setAttribute('stdDeviation', '5'); // Set the amount of blur
+    // Create a Gaussian blur element and set its attributes
+    const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+    blur.setAttribute('in', 'SourceGraphic'); // Apply the filter to the entire SVG element
+    blur.setAttribute('stdDeviation', '5'); // Set the amount of blur
 
-  // Append the blur element to the filter element, and the filter element to the SVG element
-  filter.appendChild(blur);
-  svg.appendChild(filter);
+    // Append the blur element to the filter element, and the filter element to the SVG element
+    filter.appendChild(blur);
+    svg.appendChild(filter);
 
-  // Apply the filter to the SVG element
-  svg.style.filter = 'url(#blur-filter)';
+    // Apply the filter to the SVG element
+    svg.style.filter = 'url(#blur-filter)';
   } else if (mode == 1) {
+    // Get the SVG element and the filter element, and remove the filter element
+    const svg = document.getElementById('svg-map');
+    const filter = document.getElementById('blur-filter');
+    svg.removeChild(filter);
 
+    // Reset the SVG element's filter property to 'none'
+    svg.style.filter = 'none';
   }
 }
+
 
