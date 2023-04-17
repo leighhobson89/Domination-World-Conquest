@@ -136,9 +136,24 @@ td {
   background-color: rgb(45, 81, 110);
 }
 
+.option-4 {
+  /* Default styling for the button */
+  background-color: rgb(74, 112, 143);
+}
+
+/* Styling for the button when isPlaying is true */
+.option-4.isPlaying {
+  background-color: green;
+}
+
 .option-4:hover {
   cursor: pointer;
   background-color: rgb(45, 81, 110);
+}
+
+.option-4.isPlaying:hover {
+  cursor: pointer;
+  background-color: rgb(0, 80, 0);
 }
 
 .option-5:hover {
