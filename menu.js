@@ -9,9 +9,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // create the menu options
   const title = document.createElement("td");
-  title.innerText = "Domination:\nWorld Conquest";
+  title.innerText = "Domination:";
   title.classList.add("menu-option");
   title.classList.add("title");
+
+  const subTitle = document.createElement("td");
+  subTitle.innerText = "World Conquest";
+  subTitle.classList.add("menu-option");
+  subTitle.classList.add("subTitle");
 
   const option3 = document.createElement("button");
   option3.innerText = "New Game";
@@ -39,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add the menu options to the menu container
   menuContainer.appendChild(title);
+  menuContainer.appendChild(subTitle);
   menuContainer.appendChild(option3);
   menuContainer.appendChild(option4);
   menuContainer.appendChild(option5);

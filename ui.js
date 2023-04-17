@@ -110,10 +110,10 @@ function sendPostRequest(country) {
      
       if (data[0].startingPop.length > 0) {
         const population = formatPopulation(data[0].startingPop);
-        document.getElementById("my-table").rows[0].cells[2].innerHTML = population;
+        document.getElementById("my-table").rows[0].cells[3].innerHTML = population;
       }
-      document.getElementById("my-table").rows[0].cells[4].innerHTML = data[0].area;
-      document.getElementById("my-table").rows[0].cells[6].innerHTML = data[0].startingArmy;
+      document.getElementById("my-table").rows[0].cells[5].innerHTML = data[0].area;
+      document.getElementById("my-table").rows[0].cells[7].innerHTML = data[0].startingArmy;
     }
   };
   xhr.send("country=" + country);
