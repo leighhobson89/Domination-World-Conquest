@@ -6,13 +6,7 @@ let clickActionsDone = false;
 let blurNotRunYet = true;
 let gameInProgress = false;
 let menuState = true;
-let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-prevPath.setAttribute("style", "fill: rgb(94, 222, 255); stroke: rgb(0, 0, 0); paint-order: fill; cursor: pointer;");
-prevPath.setAttribute("d", "M 2194.141 496.927 L 2198.24 496.312 L 2197.42 500.206 L 2194.141 496.927 Z");
-prevPath.setAttribute("data-name", "Vanuatu");
-prevPath.setAttribute("territory-id", "1");
-console.log(prevPath);
-
+let prevPath;
 
 function svgMapLoaded() {
   console.log("Current focus:", document.activeElement);
@@ -89,7 +83,17 @@ function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
+    if (e.target.tagName === "path") {
     selectCountry(e.target, false);
+  }
+});
+
+svgMap.addEventListener("mousedown", function(e) {
+  e.preventDefault();
+});
+
+svgMap.addEventListener("mouseup", function(e) {
+  e.preventDefault();
 });
 }
 
@@ -216,8 +220,10 @@ function blurEffect(mode) {
 }
 
 function selectCountry(country, escKeyEntry) {
+  const svgMap = document.getElementById('svg-map').contentDocument;
     window.focus();
-    if (country.tagName === "path") {
+    svgMap.documentElement.appendChild(country);
+    country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
         sendPostRequest(country.getAttribute("data-name"));
         if (prevPath != null && !escKeyEntry) { // Check if a path was previously clicked
@@ -227,7 +233,6 @@ function selectCountry(country, escKeyEntry) {
         prevPath = country; // Update the previously clicked path
         clickActionsDone = true;
       }
-    }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -259,7 +264,7 @@ document.addEventListener("DOMContentLoaded", function() {
   option4.setAttribute("id", "toggle-music-btn"); 
 
   const option5 = document.createElement("button");
-  option5.innerText = "Option 5";
+  option5.innerText = "Help";
   option5.classList.add("menu-option");
   option5.classList.add("option-5");
 
@@ -300,9 +305,9 @@ window.addEventListener("keydown", function(event) {
     menuState = true;
   } else if (event.code === "Escape" && gameInProgress && menuState) {
     blurEffect(1);
-    selectCountry(prevPath, true);
     toggleTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
+    selectCountry(prevPath, true);
     menuState = false;
   }
 });
