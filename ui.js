@@ -2,11 +2,17 @@ let red;
 let green;
 let blue;
 let mouseOverFlag = false;
-let prevPath;
 let clickActionsDone = false;
 let blurNotRunYet = true;
 let gameInProgress = false;
 let menuState = true;
+let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+prevPath.setAttribute("style", "fill: rgb(94, 222, 255); stroke: rgb(0, 0, 0); paint-order: fill; cursor: pointer;");
+prevPath.setAttribute("d", "M 2194.141 496.927 L 2198.24 496.312 L 2197.42 500.206 L 2194.141 496.927 Z");
+prevPath.setAttribute("data-name", "Vanuatu");
+prevPath.setAttribute("territory-id", "1");
+console.log(prevPath);
+
 
 function svgMapLoaded() {
   console.log("Current focus:", document.activeElement);
@@ -210,18 +216,15 @@ function blurEffect(mode) {
 }
 
 function selectCountry(country, escKeyEntry) {
-  const path = country;
     window.focus();
-    if (path.tagName === "path") {
+    if (country.tagName === "path") {
       if (!clickActionsDone) {
-        sendPostRequest(path.getAttribute("data-name"));
+        sendPostRequest(country.getAttribute("data-name"));
         if (prevPath != null && !escKeyEntry) { // Check if a path was previously clicked
           prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
           prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
         }
-        path.setAttribute('stroke-width', '3');
-        path.parentNode.appendChild(path); // Move the clicked path to the end
-        prevPath = path; // Update the previously clicked path
+        prevPath = country; // Update the previously clicked path
         clickActionsDone = true;
       }
     }
@@ -247,11 +250,13 @@ document.addEventListener("DOMContentLoaded", function() {
   option3.innerText = "New Game";
   option3.classList.add("menu-option");
   option3.classList.add("option-3");
+  option3.setAttribute("id", "new-game-btn"); 
 
   const option4 = document.createElement("button");
-  option4.innerText = "Option 4";
+  option4.innerText = "Toggle Music";
   option4.classList.add("menu-option");
   option4.classList.add("option-4");
+  option4.setAttribute("id", "toggle-music-btn"); 
 
   const option5 = document.createElement("button");
   option5.innerText = "Option 5";
