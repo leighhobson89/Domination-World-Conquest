@@ -7,7 +7,7 @@ let clickActionsDone = false;
 let blurNotRunYet = true;
 
 function svgMapLoaded() {
-  console.log("page loaded!");
+  console.log("Current focus:", document.activeElement);
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
@@ -18,11 +18,17 @@ function svgMapLoaded() {
     blurEffect(0); //blur background
     blurNotRunYet = false;
   }
+    
+    svgMap.addEventListener("mouseover", function(e) {
+      // Get the element that was hovered over
+      const path = e.target;
+    
+      if (path.tagName === "image") {
+        setTimeout(function() {
+          path.style.cursor = "default";
+        }, 50);
+      }
 
-  // Add a mouseover event listener to the SVG element
-  svgMap.addEventListener("mouseover", function(e) {
-    // Get the path element that was hovered over
-    const path = e.target;
     currentPath = path; // Set the current path element
 
     // Call the hoverColorChange function
@@ -45,11 +51,12 @@ function svgMapLoaded() {
     // Show the tooltip
     tooltip.style.display = "block";
     tooltip.style.backgroundColor = "white";
+
+    path.style.cursor = "pointer";
   });
 
   // Add a mouseout event listener to the SVG element
   svgMap.addEventListener("mouseout", function(e) {
-    // Hide the tooltip
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
     tooltip.style.backgroundColor = "transparent";
@@ -74,21 +81,7 @@ function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
-    const path = e.target;
-    window.focus();
-    if (path.tagName === "path") {
-      if (!clickActionsDone) {
-        sendPostRequest(path.getAttribute("data-name"));
-        if (prevPath != null) { // Check if a path was previously clicked
-          prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
-          prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
-        }
-        path.setAttribute('stroke-width', '3');
-        path.parentNode.appendChild(path); // Move the clicked path to the end
-        prevPath = path; // Update the previously clicked path
-        clickActionsDone = true;
-      }
-    }
+    selectCountry(e.target, false);
 });
 }
 
@@ -212,6 +205,24 @@ function blurEffect(mode) {
     // Reset the SVG element's filter property to 'none'
     svg.style.filter = 'none';
   }
+}
+
+function selectCountry(country, escKeyEntry) {
+  const path = country;
+    window.focus();
+    if (path.tagName === "path") {
+      if (!clickActionsDone) {
+        sendPostRequest(path.getAttribute("data-name"));
+        if (prevPath != null && !escKeyEntry) { // Check if a path was previously clicked
+          prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
+          prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+        }
+        path.setAttribute('stroke-width', '3');
+        path.parentNode.appendChild(path); // Move the clicked path to the end
+        prevPath = path; // Update the previously clicked path
+        clickActionsDone = true;
+      }
+    }
 }
 
 

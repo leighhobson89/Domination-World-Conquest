@@ -47,6 +47,13 @@
   font-weight: bold;
 }
 
+td {
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  font-weight: bold;
+}
+
 #my-table td:first-child {
   width: 60%;
   text-align: left;
@@ -95,26 +102,38 @@
   border: none;
 }
 
-.option-1 {
-  font-size: 6rem;
+.title {
+  font-size: 3rem;
   text-shadow: 4px 4px 6px rgba(0,0,0,0.5);
   border-bottom: 5px solid white;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
 }
 
-.option-2 {
+.option-3 {
   font-size: 4rem;
   border-bottom: 5px solid white;
 }
 
-.option-3 {
+.option-4 {
   border-bottom: 5px solid white;
 }
 
-.option-4 {
+.option-5 {
   border-bottom-left-radius: 10px;
   border-bottom-right-radius: 10px;
+}
+
+.option-3:hover {
+  cursor: pointer;
+}
+
+.option-4:hover {
+  cursor: pointer;
+}
+
+.option-5:hover {
+  cursor: pointer;
 }
 
 
