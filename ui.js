@@ -1,4 +1,5 @@
 let pageLoaded = false;
+let arrayOfArmyProportionsUI;
 let startingArmy;
 let red;
 let green;
@@ -49,8 +50,8 @@ function svgMapLoaded() {
     tooltip.innerHTML = countryName;
 
     // Position the tooltip next to the mouse cursor
-    tooltip.style.left = 10 + x + "px";
-    tooltip.style.top = y + "px";
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
 
     // Show the tooltip
     tooltip.style.display = "block";
@@ -130,9 +131,9 @@ function sendPostRequest(country) {
       document.getElementById("my-table").rows[0].cells[5].innerHTML = data[0].area;
 
       const territoryId = currentPath.getAttribute("territory-id");
-      for (let i = 0; i < arrayOfArmyProportions.length; i++) {
-        if (arrayOfArmyProportions[i].territoryId === territoryId && arrayOfArmyProportions[i].name === data[0].country) {
-          startingArmy = arrayOfArmyProportions[i].armyForCurrentTerritory;
+      for (let i = 0; i < arrayOfArmyProportionsUI.length; i++) {
+        if (arrayOfArmyProportionsUI[i].territoryId === territoryId && arrayOfArmyProportionsUI[i].dataName === data[0].country) {
+          startingArmy = Math.ceil(arrayOfArmyProportionsUI[i].armyForCurrentTerritory);
           break;
         }
       }

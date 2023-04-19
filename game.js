@@ -6,12 +6,13 @@ turnLabel.textContent += turn;
 if (!pageLoaded) {
     Promise.all([listenForPageLoad(), connectAndCreateArmyArray()])
         .then(([pathAreas, armyArray]) => {
-            console.log(arrayOfArmyProportions);
+            arrayOfArmyProportionsUI = arrayOfArmyProportions;
         })
         .catch(error => {
             console.log(error);
         });
 }
+console.log(arrayOfArmyProportions);
 
 function listenForPageLoad() {
     return new Promise((resolve, reject) => {
@@ -46,7 +47,7 @@ function calculatePathAreas(svgFile) {
     for (var i = 0; i < paths.length; i++) {
         var path = paths[i];
         var pathLength = path.getTotalLength();
-        var numPoints = 100; // Change this to increase or decrease the number of points
+        var numPoints = 80; // Change this to increase or decrease the number of points
         var points = [];
         for (var j = 0; j < numPoints; j++) {
             var point = path.getPointAtLength(j / numPoints * pathLength);
@@ -93,7 +94,7 @@ function assignArmyToPaths(pathAreas, armyArray) {
             }).length;
 
             if (numPaths === 1) {
-                percentOfWholeArea = 100;
+                percentOfWholeArea = 1;
             } else {
                 var pathsForDataName = pathAreas.filter(function(path) {
                     return path.dataName === dataName;
