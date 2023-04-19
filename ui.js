@@ -1,5 +1,5 @@
 let pageLoaded = false;
-let arrayOfArmyProportionsUI;
+let arrayOfArmyAndResourceProportionsUI;
 let startingArmy;
 let red;
 let green;
@@ -131,9 +131,9 @@ function sendPostRequest(country) {
       document.getElementById("my-table").rows[0].cells[5].innerHTML = data[0].area;
 
       const territoryId = currentPath.getAttribute("territory-id");
-      for (let i = 0; i < arrayOfArmyProportionsUI.length; i++) {
-        if (arrayOfArmyProportionsUI[i].territoryId === territoryId && arrayOfArmyProportionsUI[i].dataName === data[0].country) {
-          startingArmy = Math.ceil(arrayOfArmyProportionsUI[i].armyForCurrentTerritory);
+      for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
+        if (arrayOfArmyAndResourceProportionsUI[i].territoryId === territoryId && arrayOfArmyAndResourceProportionsUI[i].dataName === data[0].country) {
+          startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
           break;
         }
       }
