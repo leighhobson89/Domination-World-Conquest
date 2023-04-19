@@ -18,7 +18,7 @@ if ($conn->connect_error) {
 }
 
 // Retrieve data for selected country
-$sql = "SELECT country, startingArmy FROM country";
+$sql = "SELECT country, continent, startingArmy, res_gold, res_oil, res_food, res_cons_mats, upgrade_cost_base, dev_index, country_modifier FROM country";
 $result = $conn->query($sql);
 
 // Send data back to frontend
