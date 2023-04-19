@@ -118,17 +118,29 @@ function sendPostRequest(country) {
     if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
       // Parse the response JSON data
       const data = JSON.parse(xhr.responseText);
-      console.log(data);
+
+      // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding country
+      let countryResourceData;
+      for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
+        if (arrayOfArmyAndResourceProportionsUI[i].dataName === country) {
+          countryResourceData = arrayOfArmyAndResourceProportionsUI[i];
+          break;
+        }
+      }
 
       // Update the table with the response data
-      document.getElementById("my-table").rows[0].cells[0].style.whiteSpace = "pre";
-      document.getElementById("my-table").rows[0].cells[0].innerHTML = data[0].country + " (" + data[0].continent + ")";
+      document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
+      document.getElementById("bottom-table").rows[0].cells[0].innerHTML = data[0].country + " (" + data[0].continent + ")";
 
+      document.getElementById("bottom-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
+      document.getElementById("bottom-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
+      document.getElementById("bottom-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
+      document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
       if (data[0].startingPop.length > 0) {
         const population = formatPopulation(data[0].startingPop);
-        document.getElementById("my-table").rows[0].cells[3].innerHTML = population;
+        document.getElementById("bottom-table").rows[0].cells[10].innerHTML = population;
       }
-      document.getElementById("my-table").rows[0].cells[5].innerHTML = data[0].area;
+      document.getElementById("bottom-table").rows[0].cells[12].innerHTML = data[0].area;
 
       const territoryId = currentPath.getAttribute("territory-id");
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
@@ -137,7 +149,7 @@ function sendPostRequest(country) {
           break;
         }
       }
-      document.getElementById("my-table").rows[0].cells[7].innerHTML = startingArmy;
+      document.getElementById("bottom-table").rows[0].cells[14].innerHTML = startingArmy;
     }
   };
   xhr.send("country=" + country);

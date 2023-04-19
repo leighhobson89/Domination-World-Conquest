@@ -33,15 +33,15 @@
   overflow: auto;
 }
 
-#my-table {
+#bottom-table {
   border: none;
   table-layout: fixed;
   width: 100%;
 }
 
-#my-table td {
+#bottom-table td {
   text-align: center;
-  width: 10%;
+  width: 8%;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
   font-weight: bold;
@@ -54,12 +54,17 @@ td {
   font-weight: bold;
 }
 
-#my-table td:first-child {
-  width: 60%;
+#bottom-table td {
+  width: 7%;
+  text-align: center;
+}
+
+#bottom-table td:first-child {
+  width: 30%;
   text-align: left;
 }
 
-#my-table td:last-child {
+#bottom-table td:last-child {
   text-align: left;
 }
 
@@ -164,6 +169,39 @@ td {
   cursor: pointer;
   background-color: rgb(45, 81, 110);
 }
+
+.icon-cell {
+  width: 80px;
+  height: 100%;
+  display: inline-block;
+  vertical-align: middle;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  border: white 5px;
+}
+
+.icon-cell.icon1 {
+  background-image: url('resources/gold.png');
+}
+
+.icon-cell.icon2 {
+  background-image: url('resources/gold.png');
+}
+
+.icon-cell.icon3 {
+  background-image: url('resources/gold.png');
+}
+
+.icon-cell.icon4 {
+  background-image: url('resources/gold.png');
+}
+
+
+
+
+
+
 
 
 
