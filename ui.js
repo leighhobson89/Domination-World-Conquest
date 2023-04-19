@@ -1,6 +1,9 @@
+let pageLoaded = false;
+let startingArmy;
 let red;
 let green;
 let blue;
+let currentPath; // Define a global variable to store the current path element
 let mouseOverFlag = false;
 let clickActionsDone = false;
 let blurNotRunYet = true;
@@ -10,12 +13,10 @@ let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 prevPath.setAttribute("d", "M0 0 L50 50"); // set a dummy path data
 
 function svgMapLoaded() {
-  console.log("Current focus:", document.activeElement);
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
-  let currentPath; // Define a global variable to store the current path element
 
   if (blurNotRunYet) {
     blurEffect(0); //blur background
@@ -96,6 +97,7 @@ svgMap.addEventListener("mousedown", function(e) {
 svgMap.addEventListener("mouseup", function(e) {
   e.preventDefault();
 });
+console.log ("loaded!");
 }
 
 window.addEventListener('load', function() {
@@ -103,13 +105,13 @@ window.addEventListener('load', function() {
 });
 
 function sendPostRequest(country) {
-    // Ensure hovering over a country before sending request
+  // Ensure hovering over a country before sending request
   if (tooltip.innerHTML === "") {
     return;
   }
 
   const xhr = new XMLHttpRequest();
-  xhr.open("POST", "http://localhost:8000/databaseConn.php", true);
+  xhr.open("POST", "http://localhost:8000/getCountryDataForBottomTable.php", true);
   xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   xhr.onreadystatechange = function () {
     if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
@@ -120,17 +122,26 @@ function sendPostRequest(country) {
       // Update the table with the response data
       document.getElementById("my-table").rows[0].cells[0].style.whiteSpace = "pre";
       document.getElementById("my-table").rows[0].cells[0].innerHTML = data[0].country + " (" + data[0].continent + ")";
-     
+
       if (data[0].startingPop.length > 0) {
         const population = formatPopulation(data[0].startingPop);
         document.getElementById("my-table").rows[0].cells[3].innerHTML = population;
       }
       document.getElementById("my-table").rows[0].cells[5].innerHTML = data[0].area;
-      document.getElementById("my-table").rows[0].cells[7].innerHTML = data[0].startingArmy;
+
+      const territoryId = currentPath.getAttribute("territory-id");
+      for (let i = 0; i < arrayOfArmyProportions.length; i++) {
+        if (arrayOfArmyProportions[i].territoryId === territoryId && arrayOfArmyProportions[i].name === data[0].country) {
+          startingArmy = arrayOfArmyProportions[i].armyForCurrentTerritory;
+          break;
+        }
+      }
+      document.getElementById("my-table").rows[0].cells[7].innerHTML = startingArmy;
     }
   };
   xhr.send("country=" + country);
 }
+
 
 function formatPopulation(population) {
   if (population >= 1000000000) {
@@ -290,6 +301,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add the menu container to the HTML body
   document.getElementById("menu-container").appendChild(menuContainer);
+  pageLoaded = true;
 });
 
 function toggleTableContainer(turnOnTable) {
