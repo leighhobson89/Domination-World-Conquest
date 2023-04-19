@@ -1,8 +1,8 @@
-let turn = 0;
+// let turn = 0;
 let arrayOfArmyAndResourceProportions;
 
 const turnLabel = document.getElementById('turn-label');
-turnLabel.textContent += turn;
+// turnLabel.textContent += turn;
 if (!pageLoaded) {
     Promise.all([listenForPageLoad(), connectAndCreateArmyArray()])
         .then(([pathAreas, armyArray]) => {
@@ -13,7 +13,6 @@ if (!pageLoaded) {
             console.log(error);
         });
 }
-console.log(arrayOfArmyAndResourceProportions);
 
 function listenForPageLoad() {
     return new Promise((resolve, reject) => {
@@ -91,6 +90,7 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
             var totalOilForCountry = matchingCountry.totalOilForCountry;
             var totalFoodForCountry = matchingCountry.totalFoodForCountry;
             var totalConsMatsForCountry = matchingCountry.totalConsMatsForCountry;
+            var population = matchingCountry.population;
             var continent = matchingCountry.continente;
             var dev_index = matchingCountry.devIndex;
             var country_modifier = matchingCountry.countryModifier;
@@ -118,10 +118,10 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
 
             // Calculate new army value for current element
             var armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            var GoldForCurrentTerritory = totalGoldForCountry * percentOfWholeArea;
-            var OilForCurrentTerritory = totalOilForCountry * percentOfWholeArea;
-            var FoodForCurrentTerritory = totalFoodForCountry * percentOfWholeArea;
-            var ConsMatsForCurrentTerritory = totalConsMatsForCountry * percentOfWholeArea;
+            var GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000));
+            var OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
+            var FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
+            var ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
 
             // Add updated path data to the new array
             newArrayOfTerritorySpecificArmyAndResources.push({
@@ -156,9 +156,11 @@ function connectAndCreateArmyArray() {
                     const data = JSON.parse(xhr.responseText);
 
                     const armyAndResourceArray = [];
+
                     for (let i = 0; i < data.length; i++) {
                         armyAndResourceArray.push({
                             countryName: data[i].country,
+                            population: data[i].startingPop,
                             totalArmyForCountry: data[i].startingArmy,
                             totalGoldForCountry: data[i].res_gold,
                             totalOilForCountry: data[i].res_oil,
@@ -180,22 +182,25 @@ function connectAndCreateArmyArray() {
 
 function randomiseArmyAndResources(armyResourceArray) {
     armyResourceArray.forEach((country) => {
-        let randomResourceFactor = Math.floor(Math.random() * 60) + 2;
+        let randomGoldFactor = Math.floor(Math.random() * 60) + 2;
+        let randomOilFactor = Math.floor(Math.random() * 80) + 2;
+        let randomFoodFactor = Math.floor(Math.random() * 90) + 2;
+        let randomConsMatsFactor = Math.floor(Math.random() * 70) + 2;
         let randomArmyFactor = Math.floor(Math.random() * 15) + 2;
         let randomAddSubtract = Math.random() < 0.5; //add or subtract
 
         if (randomAddSubtract) {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory + (country.armyForCurrentTerritory * (randomArmyFactor/100));
-            country.goldForCurrentTerritory = country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomResourceFactor/100));
-            country.oilForCurrentTerritory = country.oilForCurrentTerritory + (country.oilForCurrentTerritory * (randomResourceFactor/100));
-            country.foodForCurrentTerritory = country.foodForCurrentTerritory + (country.foodForCurrentTerritory * (randomResourceFactor/100));
-            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory + (country.consMatsForCurrentTerritory * (randomResourceFactor/100));
+            country.goldForCurrentTerritory = (country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomGoldFactor/100))) / country.devIndex;
+            country.oilForCurrentTerritory = country.oilForCurrentTerritory + (country.oilForCurrentTerritory * (randomOilFactor/100));
+            country.foodForCurrentTerritory = country.foodForCurrentTerritory + (country.foodForCurrentTerritory * (randomFoodFactor/100));
+            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory + (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         } else {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory - (country.armyForCurrentTerritory * (randomArmyFactor/100));
-            country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomResourceFactor/100));
-            country.oilForCurrentTerritory = country.oilForCurrentTerritory - (country.oilForCurrentTerritory * (randomResourceFactor/100));
-            country.foodForCurrentTerritory = country.foodForCurrentTerritory - (country.foodForCurrentTerritory * (randomResourceFactor/100));
-            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory - (country.consMatsForCurrentTerritory * (randomResourceFactor/100));
+            country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomGoldFactor/100));
+            country.oilForCurrentTerritory = country.oilForCurrentTerritory - (country.oilForCurrentTerritory * (randomOilFactor/100));
+            country.foodForCurrentTerritory = country.foodForCurrentTerritory - (country.foodForCurrentTerritory * (randomFoodFactor/100));
+            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory - (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         }
     });
     return armyResourceArray;
