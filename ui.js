@@ -12,27 +12,29 @@ let gameInProgress = false;
 let menuState = true;
 let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 prevPath.setAttribute("d", "M0 0 L50 50"); // set a dummy path data
+const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359];
 
 function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
+  svg.focus();
 
   if (blurNotRunYet) {
     blurEffect(0); //blur background
     blurNotRunYet = false;
   }
-    
-    svgMap.addEventListener("mouseover", function(e) {
-      // Get the element that was hovered over
-      const path = e.target;
-    
-      if (path.tagName === "image") {
-        setTimeout(function() {
-          path.style.cursor = "default";
-        }, 50);
-      }
+
+  svgMap.addEventListener("mouseover", function(e) {
+    // Get the element that was hovered over
+    const path = e.target;
+
+    if (path.tagName === "image") {
+      setTimeout(function() {
+        path.style.cursor = "default";
+      }, 50);
+    }
 
     currentPath = path; // Set the current path element
 
@@ -87,19 +89,26 @@ function svgMapLoaded() {
 
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "path") {
-    selectCountry(e.target, false);
-  }
-});
+      selectCountry(e.target, false);
+    }
+  });
 
-svgMap.addEventListener("mousedown", function(e) {
-  e.preventDefault();
-});
+  svgMap.addEventListener("mousedown", function(e) {
+    e.preventDefault();
+  });
 
-svgMap.addEventListener("mouseup", function(e) {
-  e.preventDefault();
-});
-console.log ("loaded!");
+  svgMap.addEventListener("mouseup", function(e) {
+    e.preventDefault();
+  });
+
+  svgMap.addEventListener("wheel", function(e) {
+      console.log('Current focus:', document.activeElement);
+  }, { passive: false });
+
+
+  console.log ("loaded!");
 }
+
 
 window.addEventListener('load', function() {
   svgMapLoaded();
@@ -249,7 +258,6 @@ function blurEffect(mode) {
 
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
-    window.focus();
     svgMap.documentElement.appendChild(country);
     country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
