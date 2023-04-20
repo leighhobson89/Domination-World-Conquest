@@ -28,9 +28,21 @@
   left: 0;
   width: 100%;
   height: 30px;
-  background-color: rgba(74, 112, 143, 0.8);
+  background-color: rgba(81, 121, 153, 0.8);
   border: 3px solid rgb(84, 99, 110);
   overflow: auto;
+}
+
+td {
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  font-weight: bold;
+  /*width: auto;*/
+}
+
+.widerCell {
+  width: 20%;
 }
 
 #bottom-table {
@@ -40,28 +52,18 @@
 }
 
 #bottom-table td {
-  text-align: center;
+  text-align: left;
   width: 8%;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
-  font-weight: bold;
-}
-
-td {
-  text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-  color: white;
-  font-weight: bold;
-}
-
-#bottom-table td {
-  width: 7%;
-  text-align: center;
+  font-weight: normal;
 }
 
 #bottom-table td:first-child {
-  width: 30%;
+  width: 25%;
   text-align: left;
+  font-size: 0.95rem;
+  font-weight: normal;
 }
 
 #bottom-table td:last-child {
@@ -100,7 +102,7 @@ td {
 .menu-option {
   width: 100%;
   height: 25%;
-  background-color: rgb(74, 112, 143);
+  background-color: rgba(81, 121, 153, 0.8);
   color: #ffffff;
   font-size: 1.5rem;
   margin: auto;
@@ -139,7 +141,7 @@ td {
 
 .option-4 {
   font-size: 4rem;
-  background-color: rgb(74, 112, 143);
+  background-color: rgb(81, 121, 153);
 }
 
 .option-4.isPlaying {
@@ -170,31 +172,17 @@ td {
   background-color: rgb(45, 81, 110);
 }
 
-.icon-cell {
-  width: 80px;
-  height: 100%;
-  display: inline-block;
-  vertical-align: middle;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-  border: white 5px;
+.resourceFields {
+  text-align: left;
 }
 
-.icon-cell.icon1 {
-  background-image: url('resources/gold.png');
+.iconCell {
+  width: 25px !important;
 }
 
-.icon-cell.icon2 {
-  background-image: url('resources/gold.png');
-}
-
-.icon-cell.icon3 {
-  background-image: url('resources/gold.png');
-}
-
-.icon-cell.icon4 {
-  background-image: url('resources/gold.png');
+.sizingIcons {
+  height: 20px;
+  width: 23px;
 }
 
 
