@@ -137,15 +137,18 @@ function sendPostRequest(country) {
       document.getElementById("bottom-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
       document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
       if (data[0].startingPop.length > 0) {
-        const population = formatPopulation(data[0].startingPop);
+        const population = formatNumbersToKMB(data[0].startingPop);
         document.getElementById("bottom-table").rows[0].cells[10].innerHTML = population;
       }
-      document.getElementById("bottom-table").rows[0].cells[12].innerHTML = data[0].area;
-
+      if (data[0].area.length > 0) {
+        const area = formatNumbersToKMB(data[0].area);
+        document.getElementById("bottom-table").rows[0].cells[12].innerHTML = area + " (km²)";
+      }
       const territoryId = currentPath.getAttribute("territory-id");
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
         if (arrayOfArmyAndResourceProportionsUI[i].territoryId === territoryId && arrayOfArmyAndResourceProportionsUI[i].dataName === data[0].country) {
           startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
+          startingArmy = formatNumbersToKMB(startingArmy);
           break;
         }
       }
@@ -156,15 +159,15 @@ function sendPostRequest(country) {
 }
 
 
-function formatPopulation(population) {
-  if (population >= 1000000000) {
-    return (population / 1000000000).toFixed(1) + 'B';
-  } else if (population >= 1000000) {
-    return (population / 1000000).toFixed(1) + 'M';
-  } else if (population >= 1000) {
-    return (population / 1000).toFixed(1) + 'k';
+function formatNumbersToKMB(string) {
+  if (string >= 1000000000) {
+    return (string / 1000000000).toFixed(1) + 'B';
+  } else if (string >= 1000000) {
+    return (string / 1000000).toFixed(1) + 'M';
+  } else if (string >= 1000) {
+    return (string / 1000).toFixed(1) + 'k';
   } else {
-    return population.toString();
+    return string.toString();
   }
 }
 
