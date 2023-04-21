@@ -31,7 +31,6 @@ function listenForPageLoad() {
     });
 }
 
-
 function calculatePathAreas(svgFile) {
     // Get all the path elements from the SVG file
     var paths = svgFile.querySelectorAll('path');
@@ -142,7 +141,6 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
     console.log(newArrayOfTerritorySpecificArmyAndResources);
     return newArrayOfTerritorySpecificArmyAndResources;
 }
-
 
 function connectAndCreateArmyArray() {
     return listenForPageLoad().then(pathAreas => {

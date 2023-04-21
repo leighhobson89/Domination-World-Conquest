@@ -70,7 +70,7 @@ window.addEventListener("keydown", function(event) {
     menuState = true;
   } else if (event.code === "Escape" && gameInProgress && menuState) {
     blurEffect(1);
-    selectCountry(prevPath, true);
+    selectCountry(lastClickedPath, true);
     toggleTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
     menuState = false;
