@@ -1,18 +1,31 @@
 let pageLoaded = false;
+
+//variables that receive information for resources of countrys after database reading and calculations, before game starts
 let arrayOfArmyAndResourceProportionsUI;
 let startingArmy;
+let playerCountry;
+
+// Selector variables
+//hover color change variables
 let red;
 let green;
 let blue;
-let currentPath; // Define a global variable to store the current path element
+
+//path selection variables
 let mouseOverFlag = false;
+let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
+let currentPath; // used for hover, and tooltip before user clicks ona country
+
+// Game States
+let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
+let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
 let blurNotRunYet = true;
-let gameInProgress = false;
 let menuState = true;
-let prevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-prevPath.setAttribute("d", "M0 0 L50 50"); // set a dummy path data
-const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359];
+let selectCountryPlayerState = false;
+
+// const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359]; // for zoom function
 
 function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
@@ -89,6 +102,7 @@ function svgMapLoaded() {
 
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "path") {
+      document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(e.target, false);
     }
   });
@@ -103,6 +117,7 @@ function svgMapLoaded() {
 
   svgMap.addEventListener("wheel", function(e) {
       console.log('Current focus:', document.activeElement);
+      console.log(lastClickedPath);
   }, { passive: false });
 
 
@@ -262,19 +277,25 @@ function selectCountry(country, escKeyEntry) {
     country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
         sendPostRequest(country.getAttribute("data-name"));
-        if (prevPath != null && !escKeyEntry) { // Check if a path was previously clicked
-          if (prevPath.getAttribute('d') != 'M0 0 L50 50') {
-            prevPath.parentNode.insertBefore(prevPath, prevPath.parentNode.children[9]);
-            prevPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+        if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
+          if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
+            lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+            lastClickedPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
           }
 
         }
-        prevPath = country; // Update the previously clicked path
+        lastClickedPath = country; // Update the previously clicked path
+        if (selectCountryPlayerState && !escKeyEntry) {
+          adjustTextToFit(document.getElementById('popup-body'), country.getAttribute("data-name"));
+          document.getElementById('popup-confirm').classList.add("greenBackground");
+          document.getElementById('popup-confirm').style.display = "block";
+        }
         clickActionsDone = true;
       }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+  //MENU CONTAINER
   // create the menu container
   const menuContainer = document.createElement("div");
   menuContainer.classList.add("menu-container");
@@ -312,8 +333,13 @@ document.addEventListener("DOMContentLoaded", function() {
     toggleTableContainer(true);
     blurEffect(1);
     document.getElementById("menu-container").style.display = "none";
-    gameInProgress = true;
+    outsideOfMenuAndMapVisible = true;
     menuState = false;
+    selectCountryPlayerState = true;
+    if (selectCountryPlayerState) {
+      popupWithConfirmContainer.style.display = "flex";
+      popupCurrentlyOnScreen = true;
+    }
   });
 
   // add the menu options to the menu container
@@ -325,6 +351,48 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add the menu container to the HTML body
   document.getElementById("menu-container").appendChild(menuContainer);
+
+  //Map Popup With Confirm Button
+  // create the menu container
+  const popupWithConfirmContainer = document.createElement("div");
+  popupWithConfirmContainer.classList.add("popup-with-confirm-container");
+
+  // create the menu options
+  const popupTitle = document.createElement("td");
+  popupTitle.innerText = "Select A Starting Country"; //set in required function
+  popupTitle.classList.add("popup-option");
+  popupTitle.classList.add("popup-option-title");
+  popupTitle.setAttribute("id", "popup-title");
+
+  const popupSubTitle = document.createElement("td");
+  popupSubTitle.innerText = "- - - -"; // set in required function
+  popupSubTitle.classList.add("popup-option");
+  popupSubTitle.classList.add("popup-option-subtitle");
+  popupSubTitle.setAttribute("id", "popup-body");
+
+  const popupConfirm = document.createElement("button");
+  popupConfirm.innerText = "Confirm";
+  popupConfirm.classList.add("popup-option");
+  popupConfirm.classList.add("popup-option-confirm")
+  popupConfirm.setAttribute("id", "popup-confirm");
+
+  // add event listener to popup confirm button
+  popupConfirm.addEventListener("click", function() {
+    document.getElementById("popup-with-confirm-container").style.display = "none";
+    selectCountryPlayerState = false;
+    gameState = true;
+    popupWithConfirmContainer.style.display = "none";
+    popupCurrentlyOnScreen = false;
+    playerCountry = document.getElementById("popup-body").innerHTML;
+    console.log(playerCountry);
+  });
+
+  // add the menu options to the menu container
+  popupWithConfirmContainer.appendChild(popupTitle);
+  popupWithConfirmContainer.appendChild(popupSubTitle);
+  popupWithConfirmContainer.appendChild(popupConfirm);
+
+  document.getElementById("popup-with-confirm-container").appendChild(popupWithConfirmContainer);
   pageLoaded = true;
 });
 
@@ -338,18 +406,88 @@ function toggleTableContainer(turnOnTable) {
 }
 
 window.addEventListener("keydown", function(event) {
-  if (event.code === "Escape" && gameInProgress && !menuState) {
+  const svg = document.getElementById('svg-map');
+  if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
     blurEffect(0);
     document.getElementById("menu-container").style.display = "block";
+    document.getElementById("popup-with-confirm-container").style.display = "none";
     toggleTableContainer(false);
     menuState = true;
-  } else if (event.code === "Escape" && gameInProgress && menuState) {
+  } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
+    if (popupCurrentlyOnScreen) {
+      document.getElementById("popup-with-confirm-container").style.display = "block";
+    }
+    svg.focus();
     blurEffect(1);
     toggleTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
-    selectCountry(prevPath, true);
+    selectCountry(lastClickedPath, true);
     menuState = false;
   }
 });
+
+function adjustTextToFit(elementId, text) {
+  const element = elementId;
+  const maxWidth = element.offsetWidth;
+  const maxHeight = element.offsetHeight;
+  let fontSize = 35; // starting font size
+  let words = text.split(' ');
+
+  while (fontSize > 12) {
+    const lines = [];
+    let currentLine = '';
+    let lineCount = 0;
+
+    // loop through words and distribute them over lines
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine + ' ' + word;
+      const testWidth = getTextWidth(testLine, fontSize);
+
+      if (testWidth > maxWidth && i > 0) {
+        lines.push(currentLine.trim());
+        currentLine = word;
+        lineCount++;
+      } else {
+        currentLine = testLine;
+      }
+
+      // if we've reached the maximum number of lines, break out of loop
+      if (lineCount === 3) {
+        break;
+      }
+    }
+
+    lines.push(currentLine.trim());
+
+    // if the text fits within the maximum height and the number of lines is within the range we want, break out of loop
+    if (getTextHeight(lines, fontSize) <= maxHeight && (lines.length === 1 || lines.length === 2 || lines.length === 3)) {
+      break;
+    } else {
+      fontSize--;
+    }
+  }
+
+  // set the font size and text content
+  element.style.fontSize = fontSize + 'px';
+  element.textContent = words.join(' ');
+}
+
+// helper function to calculate the width of a given text at a given font size
+function getTextWidth(text, fontSize) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = fontSize + 'px Arial';
+  return context.measureText(text).width;
+}
+
+// helper function to calculate the height of a given text at a given font size
+function getTextHeight(lines, fontSize) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = fontSize + 'px Arial';
+  const lineHeight = fontSize * 1.2; // assuming a line height of 1.2em
+  return lines.length * lineHeight;
+}
 
 
