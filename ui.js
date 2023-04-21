@@ -22,6 +22,7 @@ let popupCurrentlyOnScreen = false; // used for handling popups on screen when g
 let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
 let blurNotRunYet = true;
+let gameState = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 
@@ -104,6 +105,7 @@ function svgMapLoaded() {
     if (e.target.tagName === "path") {
       document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(e.target, false);
+      findClosestPaths(e.target);
     }
   });
 
@@ -490,4 +492,38 @@ function getTextHeight(lines, fontSize) {
   return lines.length * lineHeight;
 }
 
+function findClosestPaths(targetPath) {
+  const svgMap = document.getElementById("svg-map").contentDocument;
+  console.log(targetPath.getAttribute("uniqueid"));
+
+  if (!targetPath) {
+    throw new Error(`Could not find path with ID ${targetPathId} in SVG map.`);
+  }
+
+  const allPaths = svgMap.getElementsByTagName("path");
+  const pathCentroids = Array.from(allPaths).map(path => getCentroid(path));
+  const targetCentroid = getCentroid(targetPath);
+
+  const distances = pathCentroids.map(centroid => distance(targetCentroid, centroid));
+  const closestPaths = distances
+      .map((distance, index) => ({ distance, index }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(1, 11)
+      .map(({ index }) => allPaths[index]);
+  for (i = 0; i < closestPaths.length; i++) {
+    console.log(targetPath.getAttribute("data-name") + "'s closest neigbours are: " + closestPaths[i].getAttribute("data-name"));
+  }
+  return closestPaths;
+}
+
+function getCentroid(path) {
+  const bbox = path.getBBox();
+  return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+}
+
+function distance(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
