@@ -233,11 +233,7 @@ function hoverColorChange(path, mouseAction) { //mouseaction = 0 if mouseover, o
       const paths = svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]');
       // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
       for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("data-name") == "Russia" && paths[i].getAttribute("special") == 0) { //Kaliningrad special case for colour
-          paths[i].style.fill = `rgb(186, 218, 85)`;
-        } else {
-          paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
-        }
+        paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
       }
       mouseOverFlag = false;
     }
@@ -509,20 +505,30 @@ function findClosestPaths(targetPath) {
       .map(path => ({ path, distance: getMinimumDistance(targetPoints, getPoints(path)) }))
       .sort((a, b) => a.distance - b.distance);
 
-  const closePaths = closestPaths.filter(({ distance }) => distance < 1).map(({ path }) => path); //adds all countries that touch borders contiguously
+  const closePaths = closestPaths.filter(({ distance }) => distance <= 30).map(({ path }) => {
+    const distance = getMinimumDistance(targetPoints, getPoints(path));
+    let isIsland = path.getAttribute("isIsland") === "true";
+    return { path, isIsland };
+  });
 
-  if (closePaths.length > 0) {  //change this
-    closestPaths = closePaths;
+  let closestIslands = closePaths.filter(({ isIsland }) => isIsland).map(({ path }) => path);
+  let closestPathsLessThan1 = closestPaths.filter(({ distance }) => distance < 1).map(({ path }) => path);
+
+  let resultPaths = closestIslands.concat(closestPathsLessThan1);
+
+  if (resultPaths.length === 0) {
+    console.log("No paths found within 30 distance or less than 1 distance from targetPath.");
   } else {
-    closestPaths = closestPaths.slice(0, 5).map(({ path }) => path);
+    console.log(`Found ${resultPaths.length} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`);
+    resultPaths.forEach((path) => {
+      console.log(`${path.getAttribute("data-name")} is ${path.getAttribute("isIsland") === "true" ? "an island" : "not an island"} and ${getMinimumDistance(targetPoints, getPoints(path)).toFixed(2)} away.`);
+    });
   }
 
-  for (let i = 0; i < closestPaths.length; i++) {
-    console.log(targetPath.getAttribute("data-name") + "'s closest neighbours are: " + closestPaths[i].getAttribute("data-name") + " with a distance of " + getMinimumDistance(targetPoints, getPoints(closestPaths[i])));
-  }
-
-  return closestPaths;
+  return resultPaths;
 }
+
+
 
 
 function getPoints(path) {
