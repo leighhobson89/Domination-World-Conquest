@@ -497,33 +497,60 @@ function findClosestPaths(targetPath) {
   console.log(targetPath.getAttribute("uniqueid"));
 
   if (!targetPath) {
-    throw new Error(`Could not find path with ID ${targetPathId} in SVG map.`);
+    throw new Error(`Could not find path with ID ${targetPath} in SVG map.`);
   }
 
   const allPaths = svgMap.getElementsByTagName("path");
-  const pathCentroids = Array.from(allPaths).map(path => getCentroid(path));
-  const targetCentroid = getCentroid(targetPath);
+  const targetPoints = getPoints(targetPath);
 
-  const distances = pathCentroids.map(centroid => distance(targetCentroid, centroid));
-  const closestPaths = distances
-      .map((distance, index) => ({ distance, index }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(1, 11)
-      .map(({ index }) => allPaths[index]);
-  for (i = 0; i < closestPaths.length; i++) {
-    console.log(targetPath.getAttribute("data-name") + "'s closest neigbours are: " + closestPaths[i].getAttribute("data-name"));
+  let closestPaths = Array.from(allPaths)
+      .filter(path => path !== targetPath)
+      .map(path => ({ path, distance: getMinimumDistance(targetPoints, getPoints(path)) }))
+      .sort((a, b) => a.distance - b.distance);
+
+  const closePaths = closestPaths.filter(({ distance }) => distance < 1).map(({ path }) => path); //adds all countries that touch borders contiguously
+
+  if (closePaths.length > 0) {  //change this
+    closestPaths = closePaths;
+  } else {
+    closestPaths = closestPaths.slice(0, 5).map(({ path }) => path);
   }
+
+  for (let i = 0; i < closestPaths.length; i++) {
+    console.log(targetPath.getAttribute("data-name") + "'s closest neighbours are: " + closestPaths[i].getAttribute("data-name") + " with a distance of " + getMinimumDistance(targetPoints, getPoints(closestPaths[i])));
+  }
+
   return closestPaths;
 }
 
-function getCentroid(path) {
-  const bbox = path.getBBox();
-  return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+
+function getPoints(path) {
+  const pathLength = path.getTotalLength();
+  const points = [];
+
+  for (let i = 0; i < pathLength; i += pathLength / 100) {
+    const point = path.getPointAtLength(i);
+    points.push({ x: point.x, y: point.y });
+  }
+
+  return points;
 }
 
-function distance(a, b) {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy);
+function getMinimumDistance(points1, points2) {
+  let minDistance = Number.MAX_VALUE;
+
+  for (let i = 0; i < points1.length; i++) {
+    for (let j = 0; j < points2.length; j++) {
+      const dx = points1[i].x - points2[j].x;
+      const dy = points1[i].y - points2[j].y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+  }
+
+  return minDistance;
 }
+
 
