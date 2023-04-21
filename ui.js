@@ -492,6 +492,7 @@ function getTextHeight(lines, fontSize) {
   return lines.length * lineHeight;
 }
 
+// helper function to calculate the height of a given text at a given font size
 function findClosestPaths(targetPath) {
   const svgMap = document.getElementById("svg-map").contentDocument;
   console.log(targetPath.getAttribute("uniqueid"));
@@ -552,5 +553,3 @@ function getMinimumDistance(points1, points2) {
 
   return minDistance;
 }
-
-
