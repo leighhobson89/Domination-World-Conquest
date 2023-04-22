@@ -131,7 +131,7 @@ window.addEventListener('load', function() {
   svgMapLoaded();
 });
 
-function sendPostRequest(country) {
+function postRequestForCountryData(country) {
   // Ensure hovering over a country before sending request
   if (tooltip.innerHTML === "") {
     return;
@@ -274,7 +274,7 @@ function selectCountry(country, escKeyEntry) {
     svgMap.documentElement.appendChild(country);
     country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
-        sendPostRequest(country.getAttribute("data-name"));
+        postRequestForCountryData(country.getAttribute("data-name"));
         if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
           if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
             lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
@@ -505,31 +505,31 @@ function findClosestPaths(targetPath) {
       .map(path => ({ path, distance: getMinimumDistance(targetPoints, getPoints(path)) }))
       .sort((a, b) => a.distance - b.distance);
 
-  const closePaths = closestPaths.filter(({ distance }) => distance <= 30).map(({ path }) => {
-    const distance = getMinimumDistance(targetPoints, getPoints(path));
-    let isIsland = path.getAttribute("isIsland") === "true";
-    return { path, isIsland };
-  });
+  let resultPaths = [];
 
-  let closestIslands = closePaths.filter(({ isIsland }) => isIsland).map(({ path }) => path);
-  let closestPathsLessThan1 = closestPaths.filter(({ distance }) => distance < 1).map(({ path }) => path);
+  if (targetPath.getAttribute("isIsland") === "false") {
+    let closestPathsLessThan1 = closestPaths.filter(({ distance, path }) => distance < 1 && path.getAttribute("isIsland") === "false").map(({ path }) => path);
+    let closestPathsUpTo30 = closestPaths.filter(({ distance, path }) => distance <= 30 && distance >= 1 && path.getAttribute("isIsland") === "true").map(({ path }) => path);
+    resultPaths = closestPathsLessThan1.concat(closestPathsUpTo30);
+  } else {
+    resultPaths = closestPaths.filter(({ distance }) => distance <= 30).map(({ path }) => path);
+  }
 
-  let resultPaths = closestIslands.concat(closestPathsLessThan1);
+  // add paths with matching "data-name" attribute
+  const matchingPaths = Array.from(allPaths).filter(path => (path.getAttribute("data-name") === targetPath.getAttribute("data-name")) && (path.getAttribute("territory-id") !== (targetPath.getAttribute("territory-id"))));
+  resultPaths.push(...matchingPaths);
 
   if (resultPaths.length === 0) {
     console.log("No paths found within 30 distance or less than 1 distance from targetPath.");
   } else {
     console.log(`Found ${resultPaths.length} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`);
     resultPaths.forEach((path) => {
-      console.log(`${path.getAttribute("data-name")} is ${path.getAttribute("isIsland") === "true" ? "an island" : "not an island"} and ${getMinimumDistance(targetPoints, getPoints(path)).toFixed(2)} away.`);
+      console.log(`${path.getAttribute("data-name")}'s territory ${path.getAttribute("territory-id")} is ${path.getAttribute("isIsland") === "true" ? "an island" : "not an island"} and ${getMinimumDistance(targetPoints, getPoints(path)).toFixed(2)} away.`);
     });
   }
 
   return resultPaths;
 }
-
-
-
 
 function getPoints(path) {
   const pathLength = path.getTotalLength();
