@@ -16,6 +16,7 @@ let mouseOverFlag = false;
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
 let currentPath; // used for hover, and tooltip before user clicks ona country
+let validDestinationsArray; //populated with valid interaction territories when a particular territory is selected
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -105,7 +106,10 @@ function svgMapLoaded() {
     if (e.target.tagName === "path") {
       document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(e.target, false);
-      findClosestPaths(e.target);
+      validDestinationsArray = findClosestPaths(e.target);
+      validDestinationsArray = findCentroidsFromArrayOfPaths(validDestinationsArray);
+      drawArrowsFromArray(validDestinationsArray);
+      svg.focus();
     }
   });
 
@@ -501,35 +505,83 @@ function findClosestPaths(targetPath) {
   const targetPoints = getPoints(targetPath);
 
   let closestPaths = Array.from(allPaths)
-      .filter(path => path !== targetPath)
-      .map(path => ({ path, distance: getMinimumDistance(targetPoints, getPoints(path)) }))
+      .filter((path) => path !== targetPath)
+      .map((path) => ({
+        path,
+        distance: getMinimumDistance(targetPoints, getPoints(path)),
+      }))
       .sort((a, b) => a.distance - b.distance);
 
   let resultPaths = [];
 
+  // add targetPath to the beginning of the resultPaths array
+  resultPaths.unshift(targetPath);
+
   if (targetPath.getAttribute("isIsland") === "false") {
-    let closestPathsLessThan1 = closestPaths.filter(({ distance, path }) => distance < 1 && path.getAttribute("isIsland") === "false").map(({ path }) => path);
-    let closestPathsUpTo30 = closestPaths.filter(({ distance, path }) => distance <= 30 && distance >= 1 && path.getAttribute("isIsland") === "true").map(({ path }) => path);
-    resultPaths = closestPathsLessThan1.concat(closestPathsUpTo30);
+    let closestPathsLessThan1 = closestPaths
+        .filter(
+            ({ distance, path }) =>
+                distance < 1 && path.getAttribute("isIsland") === "false"
+        )
+        .map(({ path }) => path);
+    let closestPathsUpTo30 = closestPaths
+        .filter(
+            ({ distance, path }) =>
+                distance <= 30 && distance >= 1 && path.getAttribute("isIsland") === "true"
+        )
+        .map(({ path }) => path);
+    resultPaths = resultPaths.concat(closestPathsLessThan1, closestPathsUpTo30);
   } else {
-    resultPaths = closestPaths.filter(({ distance }) => distance <= 30).map(({ path }) => path);
+    resultPaths = resultPaths.concat(
+        closestPaths
+            .filter(({ distance }) => distance <= 30)
+            .map(({ path }) => path)
+    );
   }
 
   // add paths with matching "data-name" attribute
-  const matchingPaths = Array.from(allPaths).filter(path => (path.getAttribute("data-name") === targetPath.getAttribute("data-name")) && (path.getAttribute("territory-id") !== (targetPath.getAttribute("territory-id"))));
+  const matchingPaths = Array.from(allPaths).filter(
+      (path) =>
+          path.getAttribute("data-name") === targetPath.getAttribute("data-name") &&
+          path.getAttribute("territory-id") !== targetPath.getAttribute("territory-id")
+  );
   resultPaths.push(...matchingPaths);
 
-  if (resultPaths.length === 0) {
-    console.log("No paths found within 30 distance or less than 1 distance from targetPath.");
+  // Remove duplicates while keeping the first occurrence of an element that has the attribute value of "uniqueid" equal to the first element of the array
+  const uniqueIds = new Set();
+  const uniqueResultPaths = [resultPaths[0]];
+  uniqueIds.add(resultPaths[0].getAttribute("uniqueid"));
+
+  for (let i = 1; i < resultPaths.length; i++) {
+    const uniqueid = resultPaths[i].getAttribute("uniqueid");
+    if (!uniqueIds.has(uniqueid)) {
+      uniqueResultPaths.push(resultPaths[i]);
+      uniqueIds.add(uniqueid);
+    }
+  }
+
+  resultPaths = uniqueResultPaths;
+
+  if (resultPaths.length === 1) {
+    console.log(
+        `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute(
+            "data-name"
+        )}.`
+    );
   } else {
-    console.log(`Found ${resultPaths.length} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`);
-    resultPaths.forEach((path) => {
-      console.log(`${path.getAttribute("data-name")}'s territory ${path.getAttribute("territory-id")} is ${path.getAttribute("isIsland") === "true" ? "an island" : "not an island"} and ${getMinimumDistance(targetPoints, getPoints(path)).toFixed(2)} away.`);
-    });
+    console.log(
+        `Found ${
+            resultPaths.length - 1
+        } paths within 30 distance or less than 1 distance from ${targetPath.getAttribute(
+            "data-name"
+        )}:`
+    );
   }
 
   return resultPaths;
 }
+
+
 
 function getPoints(path) {
   const pathLength = path.getTotalLength();
@@ -559,3 +611,105 @@ function getMinimumDistance(points1, points2) {
 
   return minDistance;
 }
+
+function findCentroidsFromArrayOfPaths(resultPaths) {
+  let pathBBoxCoords;
+  let centerBboxCoords = {};
+  let returnArray = [];
+  resultPaths.forEach((path) => {
+    pathBBoxCoords = path.getBBox();
+
+    //calculate center of path's bounding box
+    centerBboxCoords.x = pathBBoxCoords.width / 2 + pathBBoxCoords.x;
+    centerBboxCoords.y = pathBBoxCoords.height / 2 + pathBBoxCoords.y;
+
+    // push uniqueid, x and y values as an array to returnArray
+    returnArray.push([path.getAttribute("uniqueid"), centerBboxCoords.x, centerBboxCoords.y]);
+  });
+
+  return returnArray;
+}
+
+function drawArrowsFromArray(arr) {
+  if (arr.length < 2) {
+    throw new Error("Array must contain at least 2 elements");
+  }
+
+  const svgns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgns, "svg");
+  svg.setAttribute("viewBox", "312.805 -162.358 1947.089 1000.359");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.style.position = "absolute";
+  svg.style.top = "0";
+  svg.style.left = "0";
+  svg.style.zIndex = "9999";
+
+  let x1 = arr[0][1];
+  let y1 = arr[0][2];
+
+  for (let i = 1; i < arr.length; i++) {
+    const x2 = arr[i][1];
+    const y2 = arr[i][2];
+
+    const arrow = document.createElementNS(svgns, "path");
+    arrow.setAttribute("stroke", "white");
+    arrow.setAttribute("stroke-width", "2");
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+
+    const arrowLength = "10";
+    const arrowWidth = "6";
+    const arrowOffset = "4";
+    const arrowRefY = "3";
+
+    const arrowPoints = [
+      [0, 0],
+      [arrowLength, arrowWidth / 2],
+      [arrowLength, -arrowWidth / 2]
+    ];
+
+    const arrowTransform = [
+      `translate(${x2},${y2})`,
+      `rotate(${angle * 180 / Math.PI})`,
+      `translate(${-arrowOffset},0)`
+    ];
+
+    arrow.setAttribute("d", `M${x1},${y1} L${x2},${y2}`);
+    arrow.setAttribute("marker-end", `url(#arrow-${i})`);
+
+    const defs = document.createElementNS(svgns, "defs");
+    const marker = document.createElementNS(svgns, "marker");
+    marker.setAttribute("id", `arrow-${i}`);
+    marker.setAttribute("markerWidth", arrowWidth);
+    marker.setAttribute("markerHeight", arrowWidth);
+    marker.setAttribute("refX", arrowLength);
+    marker.setAttribute("refY", arrowRefY);
+    marker.setAttribute("orient", "auto");
+    marker.setAttribute("markerUnits", "strokeWidth");
+
+    const arrowPolygon = document.createElementNS(svgns, "polygon");
+    arrowPolygon.setAttribute("points", arrowPoints.map(p => p.join(",")).join(" "));
+    arrowPolygon.setAttribute("fill", "white");
+
+    marker.appendChild(arrowPolygon);
+    defs.appendChild(marker);
+
+    arrow.setAttribute("transform", arrowTransform.join(" "));
+    svg.appendChild(arrow);
+    svg.appendChild(defs);
+
+    x1 = x2;
+    y1 = y2;
+  }
+
+  document.body.appendChild(svg);
+}
+
+
+
+
+
+
