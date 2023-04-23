@@ -114,7 +114,7 @@ function svgMapLoaded() {
         validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray);
+        drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray);
       }
     }
   });
@@ -644,7 +644,8 @@ function getBboxCoordsAndPushUniqueID(path) {
 }
 
 
-function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray) {
+function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray) {
+  let intersects = false;
   console.log(destCoordsArray);
   if (arrowGroup) {
     targetPath.parentNode.removeChild(arrowGroup); // append the group to the parent node of the country
@@ -659,14 +660,31 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
   let x1 = centerCoordsTargetPath[0][1];
   let y1 = centerCoordsTargetPath[0][2];
 
-  for (let i = 1; i < destCoordsArray.length; i++) {
+  for (let i = 0; i < destinationPathObjectArray.length; i++) {
+    const line = document.createElementNS(svgns, "path");
+    line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
+    console.log("Checking " + targetPath.getAttribute("data-name") + " with " + destinationPathObjectArray[i].getAttribute("data-name") + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "]...");
+    for (let j = 0; j < destinationPathObjectArray.length; j++) {
+      intersects = false;
+      if (destinationPathObjectArray[i] !== targetPath && destinationPathObjectArray[i] !== destinationPathObjectArray[j]) { // only check other paths
+        console.log("Seeing if line intersects with " + destinationPathObjectArray[j].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "]");
+        const intersection = intersect(targetPath, destinationPathObjectArray[i], destinationPathObjectArray[j], line);
+        console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "] resulted in an intersection reading of " + intersection + ".")
+        if (intersection) {
+          intersects = true;
+          console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + "line is obstructed");
+          break;
+        }
+      }
+    }
 
-    const arrow = document.createElementNS(svgns, "path");
-    arrow.setAttribute("stroke", "white");
-    arrow.setAttribute("stroke-width", "1");
-    arrow.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
+    if (!intersects) {
+      line.setAttribute("stroke", "white");
+      line.setAttribute("stroke-width", "1");
 
-    arrowGroup.appendChild(arrow); // append each arrow path to the group
+
+      arrowGroup.appendChild(line); // append each arrow path to the group
+    }
 
   }
 
@@ -696,6 +714,53 @@ function getClosestPointsDestinationPaths(coord, paths) {
 
   return closestPoints;
 }
+
+// A function to check if a line intersects a path
+function intersect(path1, path2, pathToCheck, line) {
+  const d = line.getAttribute('d');
+  const values = d.match(/[ML]\d+\.?\d*,\d+\.?\d*/g);
+  const x1 = parseInt(values[0].substring(1).split(',')[0]);
+  const y1 = parseInt(values[0].substring(1).split(',')[1]);
+  const x2 = parseInt(values[1].substring(1).split(',')[0]);
+  const y2 = parseInt(values[1].substring(1).split(',')[1]);
+  const lineCoords = { x1, y1, x2, y2 };
+
+  // Convert the paths and line to arrays of coordinates
+  const path1Coords = getPathCoords(path1);
+  const path2Coords = getPathCoords(path2);
+  const pathToCheckCoords = getPathCoords(pathToCheck);
+
+  // Check if any segment of the line intersects any segment of the path
+  for (let i = 0; i < pathToCheckCoords.length - 1; i++) {
+    if (segmentsIntersect(lineCoords.x1, lineCoords.y1, lineCoords.x2, lineCoords.y2, pathToCheckCoords[i][0], pathToCheckCoords[i][1], pathToCheckCoords[i+1][0], pathToCheckCoords[i+1][1])) {
+      console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+
+// A function to convert an SVG path to an array of coordinates
+function getPathCoords(path) {
+  const pathLength = path.getTotalLength();
+  const coords = [];
+  for (let i = 0; i < pathLength; i += 1) {
+    const point = path.getPointAtLength(i);
+    coords.push([point.x, point.y]);
+  }
+  coords.push([path.getPointAtLength(pathLength - 1).x, path.getPointAtLength(pathLength - 1).y]);
+  return coords;
+}
+
+function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const ua = ((x4-x3)*(y1-y3)-(y4-y3)*(x1-x3))/((y4-y3)*(x2-x1)-(x4-x3)*(y2-y1));
+  const ub = ((x2-x1)*(y1-y3)-(y2-y1)*(x1-x3))/((y4-y3)*(x2-x1)-(x4-x3)*(y2-y1));
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
 
 
 
