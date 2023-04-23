@@ -1,4 +1,6 @@
 let pageLoaded = false;
+const svgns = "http://www.w3.org/2000/svg";
+let arrowGroup;
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 let arrayOfArmyAndResourceProportionsUI;
@@ -105,11 +107,11 @@ function svgMapLoaded() {
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "path") {
       document.getElementById("popup-confirm").style.opacity = 1;
-      selectCountry(e.target, false);
       validDestinationsArray = findClosestPaths(e.target);
+      selectCountry(e.target, false);
       validDestinationsArray = findCentroidsFromArrayOfPaths(validDestinationsArray);
-      drawArrowsFromArray(validDestinationsArray);
-      svg.focus();
+      drawArrowsFromArray(e.target,validDestinationsArray);
+
     }
   });
 
@@ -125,7 +127,6 @@ function svgMapLoaded() {
       console.log('Current focus:', document.activeElement);
       console.log(lastClickedPath);
   }, { passive: false });
-
 
   console.log ("loaded!");
 }
@@ -630,20 +631,17 @@ function findCentroidsFromArrayOfPaths(resultPaths) {
   return returnArray;
 }
 
-function drawArrowsFromArray(arr) {
+function drawArrowsFromArray(country, arr) {
+
+  if (arrowGroup) {
+    country.parentNode.removeChild(arrowGroup); // append the group to the parent node of the country
+  }
+
+  arrowGroup = document.createElementNS(svgns, "g"); // create a new group element
+
   if (arr.length < 2) {
     throw new Error("Array must contain at least 2 elements");
   }
-
-  const svgns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(svgns, "svg");
-  svg.setAttribute("viewBox", "312.805 -162.358 1947.089 1000.359");
-  svg.setAttribute("width", "100%");
-  svg.setAttribute("height", "100%");
-  svg.style.position = "absolute";
-  svg.style.top = "0";
-  svg.style.left = "0";
-  svg.style.zIndex = "9999";
 
   let x1 = arr[0][1];
   let y1 = arr[0][2];
@@ -653,60 +651,18 @@ function drawArrowsFromArray(arr) {
     const y2 = arr[i][2];
 
     const arrow = document.createElementNS(svgns, "path");
-    arrow.setAttribute("stroke", "white");
-    arrow.setAttribute("stroke-width", "2");
-
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const angle = Math.atan2(dy, dx);
-
-    const arrowLength = "10";
-    const arrowWidth = "6";
-    const arrowOffset = "4";
-    const arrowRefY = "3";
-
-    const arrowPoints = [
-      [0, 0],
-      [arrowLength, arrowWidth / 2],
-      [arrowLength, -arrowWidth / 2]
-    ];
-
-    const arrowTransform = [
-      `translate(${x2},${y2})`,
-      `rotate(${angle * 180 / Math.PI})`,
-      `translate(${-arrowOffset},0)`
-    ];
-
+    arrow.setAttribute("stroke", "black");
+    arrow.setAttribute("stroke-width", "1");
     arrow.setAttribute("d", `M${x1},${y1} L${x2},${y2}`);
-    arrow.setAttribute("marker-end", `url(#arrow-${i})`);
 
-    const defs = document.createElementNS(svgns, "defs");
-    const marker = document.createElementNS(svgns, "marker");
-    marker.setAttribute("id", `arrow-${i}`);
-    marker.setAttribute("markerWidth", arrowWidth);
-    marker.setAttribute("markerHeight", arrowWidth);
-    marker.setAttribute("refX", arrowLength);
-    marker.setAttribute("refY", arrowRefY);
-    marker.setAttribute("orient", "auto");
-    marker.setAttribute("markerUnits", "strokeWidth");
+    arrowGroup.appendChild(arrow); // append each arrow path to the group
 
-    const arrowPolygon = document.createElementNS(svgns, "polygon");
-    arrowPolygon.setAttribute("points", arrowPoints.map(p => p.join(",")).join(" "));
-    arrowPolygon.setAttribute("fill", "white");
-
-    marker.appendChild(arrowPolygon);
-    defs.appendChild(marker);
-
-    arrow.setAttribute("transform", arrowTransform.join(" "));
-    svg.appendChild(arrow);
-    svg.appendChild(defs);
-
-    x1 = x2;
-    y1 = y2;
   }
 
-  document.body.appendChild(svg);
+  country.parentNode.appendChild(arrowGroup); // append the group to the parent node of the country
 }
+
+
 
 
 
