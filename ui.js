@@ -645,8 +645,8 @@ function getBboxCoordsAndPushUniqueID(path) {
 
 
 function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray) {
+
   let intersects = false;
-  console.log(destCoordsArray);
   if (arrowGroup) {
     targetPath.parentNode.removeChild(arrowGroup); // append the group to the parent node of the country
   }
@@ -663,26 +663,33 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
   for (let i = 0; i < destinationPathObjectArray.length; i++) {
     const line = document.createElementNS(svgns, "path");
     line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
-    console.log("Checking " + targetPath.getAttribute("data-name") + " with " + destinationPathObjectArray[i].getAttribute("data-name") + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "]...");
     for (let j = 0; j < destinationPathObjectArray.length; j++) {
       intersects = false;
       if (destinationPathObjectArray[i] !== targetPath && destinationPathObjectArray[i] !== destinationPathObjectArray[j]) { // only check other paths
         console.log("Seeing if line intersects with " + destinationPathObjectArray[j].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "]");
-        const intersection = intersect(targetPath, destinationPathObjectArray[i], destinationPathObjectArray[j], line);
-        console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "] resulted in an intersection reading of " + intersection + ".")
-        if (intersection) {
-          intersects = true;
-          console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + "line is obstructed");
-          break;
+        if (destinationPathObjectArray[i].getAttribute("uniqueid") !== destinationPathObjectArray[j].getAttribute("uniqueid")) {
+          const intersection = intersect(targetPath, destinationPathObjectArray[i], destinationPathObjectArray[j], line);
+          console.log("It's " + intersection + " that it hit " + destinationPathObjectArray[j].getAttribute("data-name") + " [" + destinationPathObjectArray[j].getAttribute("territory-id") + "] on the way to " + destinationPathObjectArray[i].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "].");
+          if (intersection) {
+            intersects = true;
+            console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + "line is obstructed");
+            break;
+          }
+        }
+      } else {
+        intersects = true;
+        if (targetPath.getAttribute("isIsland") === "true") {
+          intersects = false;
         }
       }
     }
+    console.log(intersects);
 
     if (!intersects) {
       line.setAttribute("stroke", "white");
       line.setAttribute("stroke-width", "1");
 
-
+      //targetPath.parentNode.appendChild(line); // append the group to the parent node of the country //remove debug
       arrowGroup.appendChild(line); // append each arrow path to the group
     }
 
@@ -718,11 +725,13 @@ function getClosestPointsDestinationPaths(coord, paths) {
 // A function to check if a line intersects a path
 function intersect(path1, path2, pathToCheck, line) {
   const d = line.getAttribute('d');
-  const values = d.match(/[ML]\d+\.?\d*,\d+\.?\d*/g);
-  const x1 = parseInt(values[0].substring(1).split(',')[0]);
-  const y1 = parseInt(values[0].substring(1).split(',')[1]);
-  const x2 = parseInt(values[1].substring(1).split(',')[0]);
-  const y2 = parseInt(values[1].substring(1).split(',')[1]);
+  const values = d.match(/[ML]-?\d+\.?\d*,-?\d+\.?\d*/g);
+  console.log(values[0] + " : " + values[1]);
+  const x1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[0]);
+  const y1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[1]);
+  const x2 = parseFloat(values[1].substring(values[1][0] === '-' ? 0 : 1).split(',')[0]);
+  const y2 = parseFloat(values[1].substring(values[1][0] === '-' ? 0 : 1).split(',')[1]);
+
   const lineCoords = { x1, y1, x2, y2 };
 
   // Convert the paths and line to arrays of coordinates
@@ -732,14 +741,23 @@ function intersect(path1, path2, pathToCheck, line) {
 
   // Check if any segment of the line intersects any segment of the path
   for (let i = 0; i < pathToCheckCoords.length - 1; i++) {
-    if (segmentsIntersect(lineCoords.x1, lineCoords.y1, lineCoords.x2, lineCoords.y2, pathToCheckCoords[i][0], pathToCheckCoords[i][1], pathToCheckCoords[i+1][0], pathToCheckCoords[i+1][1])) {
-      console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
-      return true;
+    const x1 = pathToCheckCoords[i][0];
+    const y1 = pathToCheckCoords[i][1];
+    const x2 = pathToCheckCoords[i+1][0];
+    const y2 = pathToCheckCoords[i+1][1];
+
+    // Check if the intersection point matches any coordinate in path1Coords
+    if ((!path1Coords.some(([px, py]) => (px === x1 && py === y1) || (px === x2 && py === y2))) && path1.getAttribute("data-name") !== path2.getAttribute("data-name")) {
+      if (segmentsIntersect(lineCoords.x1, lineCoords.y1, lineCoords.x2, lineCoords.y2, x1, y1, x2, y2)) {
+        console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
+        return true;
+      }
     }
   }
 
   return false;
 }
+
 
 
 
@@ -755,11 +773,27 @@ function getPathCoords(path) {
   return coords;
 }
 
-function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const ua = ((x4-x3)*(y1-y3)-(y4-y3)*(x1-x3))/((y4-y3)*(x2-x1)-(x4-x3)*(y2-y1));
-  const ub = ((x2-x1)*(y1-y3)-(y2-y1)*(x1-x3))/((y4-y3)*(x2-x1)-(x4-x3)*(y2-y1));
-  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+function segmentsIntersect(lineCoordsx1, lineCoordsy1, lineCoordsx2, lineCoordsy2, pathToCheckCoordsx1, pathToCheckCoordsy1, pathToCheckCoordsx2, pathToCheckCoordsy2) {
+
+  // Calculate the intersection point of the two lines
+  const ua = ((pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy1-pathToCheckCoordsy1)-(pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx1-pathToCheckCoordsx1))/((pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx2-lineCoordsx1)-(pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy2-lineCoordsy1));
+
+  const ub = ((lineCoordsx2-lineCoordsx1)*(lineCoordsy1-pathToCheckCoordsy1)-(lineCoordsy2-lineCoordsy1)*(lineCoordsx1-pathToCheckCoordsx1))/((pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx2-lineCoordsx1)-(pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy2-lineCoordsy1));
+
+  // Check if the intersection point is within the bounds of both lines and more than 2 distance units away from the start of the lines
+  if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+    const intersectionPointx = lineCoordsx1 + ua * (lineCoordsx2 - lineCoordsx1);
+    const intersectionPointy = lineCoordsy1 + ua * (lineCoordsy2 - lineCoordsy1);
+    const distanceFromStart = Math.sqrt((intersectionPointx - lineCoordsx1) ** 2 + (intersectionPointy - lineCoordsy1) ** 2);
+    if (distanceFromStart > 2) {
+      return true;
+    }
+  }
+
+  // If the intersection point is not within the bounds of both lines or within 2 distance units of the start of the lines, return false
+  return false;
 }
+
 
 
 
