@@ -20,6 +20,7 @@ lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, 
 let currentPath; // used for hover, and tooltip before user clicks ona country
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
+let closestDistancesArray;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -112,9 +113,10 @@ function svgMapLoaded() {
       selectCountry(e.target, false);
       if (gameState) {
         validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
+        closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray);
+        drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
       }
     }
   });
@@ -514,16 +516,17 @@ function findClosestPaths(targetPath) {
       .filter((path) => path !== targetPath)
       .map((path) => {
         const points = getPoints(path);
+        const distance = getMinimumDistance(targetPoints, points);
         return {
           path,
-          distance: getMinimumDistance(targetPoints, points),
           pointsDestPath: points,
+          distance,
         };
       })
       .sort((a, b) => a.distance - b.distance);
 
   // add targetPath to the beginning of the resultPaths array
-  resultsPaths.unshift([targetPath, getPoints(targetPath)]);
+  resultsPaths.unshift([targetPath, getPoints(targetPath), closestPaths[0].distance]);
 
   if (targetPath.getAttribute("isIsland") === "false") {
     let closestPathsLessThan1 = closestPaths
@@ -531,19 +534,26 @@ function findClosestPaths(targetPath) {
             ({ distance, path }) =>
                 distance < 1 && path.getAttribute("isIsland") === "false"
         )
-        .map(({ path, pointsDestPath }) => [path, pointsDestPath]);
+        .map(({ path, pointsDestPath, distance }) => [path, pointsDestPath, distance]);
     let closestPathsUpTo30 = closestPaths
         .filter(
             ({ distance, path }) =>
                 distance <= 30 && distance >= 1 && path.getAttribute("isIsland") === "true"
         )
-        .map(({ path, pointsDestPath }) => [path, pointsDestPath]);
-    resultsPaths = resultsPaths.concat(closestPathsLessThan1, closestPathsUpTo30);
+        .map(({ path, pointsDestPath, distance }) => [path, pointsDestPath, distance]);
+    let sameCountryDiffTerritory = closestPaths
+        .filter(
+            ({ distance, path }) =>
+                path.getAttribute("data-name") === targetPath.getAttribute("data-name")
+        )
+        .map(({ path, pointsDestPath, distance }) => [path, pointsDestPath, distance]);
+
+    resultsPaths = resultsPaths.concat(closestPathsLessThan1, closestPathsUpTo30, sameCountryDiffTerritory);
   } else {
     resultsPaths = resultsPaths.concat(
         closestPaths
             .filter(({ distance }) => distance <= 30)
-            .map(({ path, pointsDestPath }) => [path, pointsDestPath])
+            .map(({ path, pointsDestPath, distance }) => [path, pointsDestPath, distance])
     );
   }
 
@@ -553,17 +563,17 @@ function findClosestPaths(targetPath) {
           path.getAttribute("data-name") === targetPath.getAttribute("data-name") &&
           path.getAttribute("territory-id") !== targetPath.getAttribute("territory-id")
   );
-  resultsPaths.push(...matchingPaths.map((path) => [path, getPoints(path)]));
+  resultsPaths.push(...matchingPaths.map((path) => [path, getPoints(path), getMinimumDistance(path)]));
 
   // Remove duplicates while keeping the first occurrence of an element that has the attribute value of "uniqueid" equal to the first element of the array
   const uniqueIds = new Set();
-  const uniqueResultsPaths = [[resultsPaths[0][0], resultsPaths[0][1]]];
+  const uniqueResultsPaths = [[resultsPaths[0][0], resultsPaths[0][1], resultsPaths[0][2]]];
   uniqueIds.add(resultsPaths[0][0].getAttribute("uniqueid"));
 
   for (let i = 1; i < resultsPaths.length; i++) {
     const uniqueid = resultsPaths[i][0].getAttribute("uniqueid");
     if (!uniqueIds.has(uniqueid)) {
-      uniqueResultsPaths.push([resultsPaths[i][0], resultsPaths[i][1]]);
+      uniqueResultsPaths.push([resultsPaths[i][0], resultsPaths[i][1], resultsPaths[i][2]]);
       uniqueIds.add(uniqueid);
     }
   }
@@ -571,11 +581,14 @@ function findClosestPaths(targetPath) {
   resultsPaths = uniqueResultsPaths;
   if (resultsPaths.length === 1) {
     console.log(
-        `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}.`
+        `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute(
+            "data-name"
+        )}.`
     );
   } else {
     console.log(
-        `Found ${resultsPaths.length - 1} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`
+        `Found ${resultsPaths.length - 1
+} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`
     );
     console.log(`First path with uniqueid ${resultsPaths[0][0].getAttribute("uniqueid")} has data-name value of ${resultsPaths[0][0].getAttribute("data-name")} and territory-id value of ${resultsPaths[0][0].getAttribute("territory-id")}`);
   }
@@ -644,11 +657,16 @@ function getBboxCoordsAndPushUniqueID(path) {
 }
 
 
-function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray) {
+function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
+  //targetPath - path object of country clicked on
+  //centerCoordsTargetPath - x,y of center of country clicked on
+  //destCoordsArray - nearest x,y point of every country that can possibly be visited prior to checking intersects and its distance
+  //destinationPathObjectArray - array of every countrys path object that can possibly be visited prior to checking intersects
+  //distances - array of every countrys closest distance to targetPath's center
 
-  let intersects = false;
+  let intersects;
   if (arrowGroup) {
-    targetPath.parentNode.removeChild(arrowGroup); // append the group to the parent node of the country
+    targetPath.parentNode.removeChild(arrowGroup); //remove old country when new one clicked on
   }
 
   arrowGroup = document.createElementNS(svgns, "g"); // create a new group element
@@ -661,38 +679,66 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
   let y1 = centerCoordsTargetPath[0][2];
 
   for (let i = 0; i < destinationPathObjectArray.length; i++) {
-    const line = document.createElementNS(svgns, "path");
-    line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
-    for (let j = 0; j < destinationPathObjectArray.length; j++) {
-      intersects = false;
-      if (destinationPathObjectArray[i] !== targetPath && destinationPathObjectArray[i] !== destinationPathObjectArray[j]) { // only check other paths
-        console.log("Seeing if line intersects with " + destinationPathObjectArray[j].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "]");
-        if (destinationPathObjectArray[i].getAttribute("uniqueid") !== destinationPathObjectArray[j].getAttribute("uniqueid")) {
-          const intersection = intersect(targetPath, destinationPathObjectArray[i], destinationPathObjectArray[j], line);
-          console.log("It's " + intersection + " that it hit " + destinationPathObjectArray[j].getAttribute("data-name") + " [" + destinationPathObjectArray[j].getAttribute("territory-id") + "] on the way to " + destinationPathObjectArray[i].getAttribute("data-name") + " [" + destinationPathObjectArray[i].getAttribute("territory-id") + "].");
+    const targetName = targetPath.getAttribute("data-name");
+    const destName = destinationPathObjectArray[i].getAttribute("data-name");
+    const targetId = targetPath.getAttribute("uniqueid");
+    const destId = destinationPathObjectArray[i].getAttribute("uniqueid");
+
+    if (targetId === destId) {
+      console.log(targetName + " [" + targetId + "] and " + destName + " [" + destId + "] are the same territory, skipping!");
+    } else {
+      const line = document.createElementNS(svgns, "path");
+      line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
+
+      if (distances[i] < 1) { //if touches borders then always draws a line
+        console.log(targetName + " touches borders with " + destName + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "] so definitely a line here");
+        intersects = false;
+      } else if (targetName === destName) {
+        console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
+        intersects = false;
+      } else {
+        let intersects = false;
+        for (let j = 0; j < destinationPathObjectArray.length; j++) {
+          if (i === j) {
+            continue;
+          }
+
+          const destObjI = destinationPathObjectArray[i];
+          const destObjJ = destinationPathObjectArray[j];
+
+          if (destObjI.getAttribute("uniqueid") === destObjJ.getAttribute("uniqueid")) {
+            continue;
+          }
+
+          if (destObjI === targetPath || destObjI === destObjJ) {
+            if (targetPath.getAttribute("isIsland") !== "true") {
+              intersects = true;
+              break;
+            } else {
+              continue;
+            }
+          }
+
+          if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
+            intersects = false;
+            break;
+          }
+
+          const intersection = intersect(targetPath, destObjI, destObjJ, line);
+          console.log(`It's ${intersection} that it hit ${destObjJ.getAttribute("data-name")} [${destObjJ.getAttribute("territory-id")}] on the way to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}].`);
           if (intersection) {
             intersects = true;
-            console.log(targetPath.getAttribute("data-name") + " to " + destinationPathObjectArray[i].getAttribute("data-name") + "line is obstructed");
+            console.log(`${targetName} [${targetPath.getAttribute("territory-id")}] to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}] line is obstructed`);
             break;
           }
         }
-      } else {
-        intersects = true;
-        if (targetPath.getAttribute("isIsland") === "true") {
-          intersects = false;
-        }
+      }
+      if (!intersects) {
+        line.setAttribute("stroke", "white");
+        line.setAttribute("stroke-width", "1");
+        arrowGroup.appendChild(line);
       }
     }
-    console.log(intersects);
-
-    if (!intersects) {
-      line.setAttribute("stroke", "white");
-      line.setAttribute("stroke-width", "1");
-
-      //targetPath.parentNode.appendChild(line); // append the group to the parent node of the country //remove debug
-      arrowGroup.appendChild(line); // append each arrow path to the group
-    }
-
   }
 
   targetPath.parentNode.appendChild(arrowGroup); // append the group to the parent node of the country
@@ -711,7 +757,10 @@ function getClosestPointsDestinationPaths(coord, paths) {
       const distance = Math.sqrt((coord[0][1] - point.x) ** 2 + (coord[0][2] - point.y) ** 2);
 
       if (distance < closestDistance) {
-        closestPoint = point;
+        closestPoint = {
+          x: point.x,
+          y: point.y,
+        };
         closestDistance = distance;
       }
     }
@@ -721,6 +770,7 @@ function getClosestPointsDestinationPaths(coord, paths) {
 
   return closestPoints;
 }
+
 
 // A function to check if a line intersects a path
 function intersect(path1, path2, pathToCheck, line) {
@@ -757,9 +807,6 @@ function intersect(path1, path2, pathToCheck, line) {
 
   return false;
 }
-
-
-
 
 // A function to convert an SVG path to an array of coordinates
 function getPathCoords(path) {
