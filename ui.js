@@ -123,8 +123,8 @@ function svgMapLoaded() {
         closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        //arrayOfDestinationCountries.length = 0; // empty the country array before adding new ones in next function below
-        drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+        HighlightInteractableCountriesAfterSelectingOne(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+        console.log(arrayOfDestinationCountries);
       }
     }
   });
@@ -643,20 +643,6 @@ function findClosestPaths(targetPath) {
   }
 
   resultsPaths = uniqueResultsPaths;
-  if (resultsPaths.length === 1) {
-    // console.log(
-    //     `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute(
-    //         "data-name"
-    //     )}.`
-    // );
-  } else {
-    // console.log(
-    //     `Found ${resultsPaths.length - 1
-// } paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`
-    // );
-    // console.log(`First path with uniqueid ${resultsPaths[0][0].getAttribute("uniqueid")} has data-name value of ${resultsPaths[0][0].getAttribute("data-name")} and territory-id value of ${resultsPaths[0][0].getAttribute("territory-id")}`);
-  }
-
 
   return resultsPaths;
 }
@@ -721,13 +707,7 @@ function getBboxCoordsAndPushUniqueID(path) {
 }
 
 
-function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
-  //targetPath - path object of country clicked on
-  //centerCoordsTargetPath - x,y of center of country clicked on
-  //destCoordsArray - nearest x,y point of every country that can possibly be visited prior to checking intersects and its distance
-  //destinationPathObjectArray - array of every countrys path object that can possibly be visited prior to checking intersects
-  //distances - array of every countrys closest distance to targetPath's center
-  let intersects;
+function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
 
   if (destCoordsArray.length < 1) {
     throw new Error("Array must contain at least 1 element");
@@ -751,17 +731,11 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
       const line = document.createElementNS(svgns, "path");
       line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
       if (distances[i] < 1) { //if touches borders then always draws a line
-        // console.log(targetName + " touches borders with " + destName + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "] so definitely a line here");
-        intersects = false;
         changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); //change color of touching countrys
-        continue;
-      } else if (targetName === destName) {
+      } else if (targetName === destName) { //if another territory of same country, then change color
         // console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
-        intersects = false;
         changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); // change color of all territories of clicked country
-        continue;
       } else {
-        let intersects = false;
         for (let j = 0; j < destinationPathObjectArray.length; j++) {
           if (i === j) {
             continue;
@@ -774,30 +748,11 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
             continue;
           }
 
-          if (destObjI === targetPath || destObjI === destObjJ) {
-            if (targetPath.getAttribute("isIsland") !== "true") {
-              intersects = true;
-              break;
-            }
-          }
-
-          if (targetPath.getAttribute("isIsland") === "true") {
-            changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
-          }
+          changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
 
           if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
-            intersects = false;
             break;
           }
-
-          const intersection = intersect(targetPath, destObjI, destObjJ, line);
-          // console.log(`It's ${intersection} that it hit ${destObjJ.getAttribute("data-name")} [${destObjJ.getAttribute("territory-id")}] on the way to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}].`);
-          if (intersection) {
-            intersects = true;
-            // console.log(`${targetName} [${targetPath.getAttribute("territory-id")}] to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}] line is obstructed`);
-            break;
-          }
-          changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
         }
       }
     }
@@ -829,76 +784,6 @@ function getClosestPointsDestinationPaths(coord, paths) {
   }
 
   return closestPoints;
-}
-
-
-// A function to check if a line intersects a path
-function intersect(path1, path2, pathToCheck, line) {
-  const d = line.getAttribute('d');
-  const values = d.match(/[ML]-?\d+\.?\d*,-?\d+\.?\d*/g);
-  // console.log(values[0] + " : " + values[1]);
-  const x1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[0]);
-  const y1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[1]);
-  const x2 = parseFloat(values[1].substring(values[1][0] === '-' ? 0 : 1).split(',')[0]);
-  const y2 = parseFloat(values[1].substring(values[1][0] === '-' ? 0 : 1).split(',')[1]);
-
-  const lineCoords = { x1, y1, x2, y2 };
-
-  // Convert the paths and line to arrays of coordinates
-  const path1Coords = getPathCoords(path1);
-  const path2Coords = getPathCoords(path2);
-  const pathToCheckCoords = getPathCoords(pathToCheck);
-
-  // Check if any segment of the line intersects any segment of the path
-  for (let i = 0; i < pathToCheckCoords.length - 1; i++) {
-    const x1 = pathToCheckCoords[i][0];
-    const y1 = pathToCheckCoords[i][1];
-    const x2 = pathToCheckCoords[i+1][0];
-    const y2 = pathToCheckCoords[i+1][1];
-
-    // Check if the intersection point matches any coordinate in path1Coords
-    if ((!path1Coords.some(([px, py]) => (px === x1 && py === y1) || (px === x2 && py === y2))) && path1.getAttribute("data-name") !== path2.getAttribute("data-name")) {
-      if (segmentsIntersect(lineCoords.x1, lineCoords.y1, lineCoords.x2, lineCoords.y2, x1, y1, x2, y2)) {
-        // console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-// A function to convert an SVG path to an array of coordinates
-function getPathCoords(path) {
-  const pathLength = path.getTotalLength();
-  const coords = [];
-  for (let i = 0; i < pathLength; i += 1) {
-    const point = path.getPointAtLength(i);
-    coords.push([point.x, point.y]);
-  }
-  coords.push([path.getPointAtLength(pathLength - 1).x, path.getPointAtLength(pathLength - 1).y]);
-  return coords;
-}
-
-function segmentsIntersect(lineCoordsx1, lineCoordsy1, lineCoordsx2, lineCoordsy2, pathToCheckCoordsx1, pathToCheckCoordsy1, pathToCheckCoordsx2, pathToCheckCoordsy2) {
-
-  // Calculate the intersection point of the two lines
-  const ua = ((pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy1-pathToCheckCoordsy1)-(pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx1-pathToCheckCoordsx1))/((pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx2-lineCoordsx1)-(pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy2-lineCoordsy1));
-
-  const ub = ((lineCoordsx2-lineCoordsx1)*(lineCoordsy1-pathToCheckCoordsy1)-(lineCoordsy2-lineCoordsy1)*(lineCoordsx1-pathToCheckCoordsx1))/((pathToCheckCoordsy2-pathToCheckCoordsy1)*(lineCoordsx2-lineCoordsx1)-(pathToCheckCoordsx2-pathToCheckCoordsx1)*(lineCoordsy2-lineCoordsy1));
-
-  // Check if the intersection point is within the bounds of both lines and more than 2 distance units away from the start of the lines
-  if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
-    const intersectionPointx = lineCoordsx1 + ua * (lineCoordsx2 - lineCoordsx1);
-    const intersectionPointy = lineCoordsy1 + ua * (lineCoordsy2 - lineCoordsy1);
-    const distanceFromStart = Math.sqrt((intersectionPointx - lineCoordsx1) ** 2 + (intersectionPointy - lineCoordsy1) ** 2);
-    if (distanceFromStart > 2) {
-      return true;
-    }
-  }
-
-  // If the intersection point is not within the bounds of both lines or within 2 distance units of the start of the lines, return false
-  return false;
 }
 
 function changeCountryColor(pathObj, attributeString, rgbValue) {
