@@ -138,7 +138,7 @@ function svgMapLoaded() {
   });
 
   svgMap.addEventListener("wheel", function(e) {
-      console.log('Current focus:', document.activeElement);
+      // console.log('Current focus:', document.activeElement);
   }, { passive: false });
 
   console.log ("loaded!");
@@ -216,7 +216,6 @@ function formatNumbersToKMB(string) {
 }
 
 function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseaction = 0 if mouseover, or 1 if mouseout
-  console.log("Pre mouse action 2 " + arrayOfDestinationCountries); //correct when reaches here just need to restore color of these paths
   if (path !== currentSelectedPath && !arrayOfDestinationCountries.includes(path)) {
     if ((path && path.style) && (mouseAction === 0 || mouseAction === 1)) {
       // Get the current fill color
@@ -243,7 +242,6 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         const svgMap = document.getElementById('svg-map').contentDocument;
         const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
             .filter(p => !arrayOfDestinationCountries.includes(p));
-        console.log("after filter" + arrayOfDestinationCountries);
 
         // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
 
@@ -263,6 +261,10 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
     }
   }
   if (mouseAction === 2) {
+    const svgMap = document.getElementById('svg-map').contentDocument;
+    const paths = Array.from(svgMap.querySelectorAll('path'));
+    let tempArray = [];
+
     for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
       let pathObj = currentlySelectedColorsArray[i][0];
       let colorStr = currentlySelectedColorsArray[i][1];
@@ -270,19 +272,45 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
       let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
       let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
 
+      for (let j = 0; j < paths.length; j++) {
+        let otherPathObj = paths[j];
+        if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+          let uniqueid = pathObj.getAttribute("uniqueid");
+          let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
+          if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+            tempArray.push([otherPathObj, colorStr]);
+          }
+        }
+      }
+
       let match = rgbRegExp.exec(colorStr);
       let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
 
       if (i === 0) {
-        // Modify the RGB values of the first element
         let newColorStr = match.slice(1).map((color) => {
           let newColorVal = Number(color.trim()) - 20;
-          return newColorVal > 255 ? 255 : newColorVal; // ensure new color value is within 0-255 range
+          return newColorVal > 255 ? 255 : newColorVal;
         }).join(", ");
         newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
       }
 
       pathObj.setAttribute("style", newStyleValue);
+    }
+
+    if (currentSelectedPath !== null) {
+      tempArray = tempArray.filter(element => element[0].getAttribute("data-name") === currentSelectedPath.getAttribute("data-name"));
+      tempArray.forEach((item) => {
+        let rgbRegExpTemp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
+        let pathObjTemp = item[0];
+        let styleTemp = pathObjTemp.getAttribute("style");
+        let matchTemp = rgbRegExpTemp.exec(styleTemp);
+        let newColorStrTemp = matchTemp.slice(1).map((color) => {
+          let newColorValTemp = Number(color.trim()) - 20;
+          return newColorValTemp < 0 ? 0 : newColorValTemp;
+        }).join(", ");
+        let newStyleValueTemp = styleTemp.replace(rgbRegExpTemp, `fill: rgb(${newColorStrTemp})`);
+        item[0].setAttribute("style", newStyleValueTemp);
+      });
     }
   }
 }
@@ -538,7 +566,7 @@ function getTextHeight(lines, fontSize) {
 // helper function to calculate the height of a given text at a given font size
 function findClosestPaths(targetPath) {
   const svgMap = document.getElementById("svg-map").contentDocument;
-  console.log(targetPath.getAttribute("uniqueid"));
+  // console.log(targetPath.getAttribute("uniqueid"));
 
   if (!targetPath) {
     throw new Error(`Could not find path with ID ${targetPath} in SVG map.`);
@@ -616,17 +644,17 @@ function findClosestPaths(targetPath) {
 
   resultsPaths = uniqueResultsPaths;
   if (resultsPaths.length === 1) {
-    console.log(
-        `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute(
-            "data-name"
-        )}.`
-    );
+    // console.log(
+    //     `No other paths found within 30 distance or less than 1 distance from ${targetPath.getAttribute(
+    //         "data-name"
+    //     )}.`
+    // );
   } else {
-    console.log(
-        `Found ${resultsPaths.length - 1
-} paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`
-    );
-    console.log(`First path with uniqueid ${resultsPaths[0][0].getAttribute("uniqueid")} has data-name value of ${resultsPaths[0][0].getAttribute("data-name")} and territory-id value of ${resultsPaths[0][0].getAttribute("territory-id")}`);
+    // console.log(
+    //     `Found ${resultsPaths.length - 1
+// } paths within 30 distance or less than 1 distance from ${targetPath.getAttribute("data-name")}:`
+    // );
+    // console.log(`First path with uniqueid ${resultsPaths[0][0].getAttribute("uniqueid")} has data-name value of ${resultsPaths[0][0].getAttribute("data-name")} and territory-id value of ${resultsPaths[0][0].getAttribute("territory-id")}`);
   }
 
 
@@ -715,7 +743,7 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
     const destId = destinationPathObjectArray[i].getAttribute("uniqueid");
     const destStyle = destinationPathObjectArray[i].getAttribute("style");
 
-    changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255"); //change color of country clicked on
+    changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255", false); //change color of country clicked on
 
     if (targetId === destId) {
       // console.log(targetName + " [" + targetId + "] and " + destName + " [" + destId + "] are the same territory, skipping!");
@@ -763,10 +791,10 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
           }
 
           const intersection = intersect(targetPath, destObjI, destObjJ, line);
-          console.log(`It's ${intersection} that it hit ${destObjJ.getAttribute("data-name")} [${destObjJ.getAttribute("territory-id")}] on the way to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}].`);
+          // console.log(`It's ${intersection} that it hit ${destObjJ.getAttribute("data-name")} [${destObjJ.getAttribute("territory-id")}] on the way to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}].`);
           if (intersection) {
             intersects = true;
-            console.log(`${targetName} [${targetPath.getAttribute("territory-id")}] to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}] line is obstructed`);
+            // console.log(`${targetName} [${targetPath.getAttribute("territory-id")}] to ${destObjI.getAttribute("data-name")} [${destObjI.getAttribute("territory-id")}] line is obstructed`);
             break;
           }
           changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
@@ -808,7 +836,7 @@ function getClosestPointsDestinationPaths(coord, paths) {
 function intersect(path1, path2, pathToCheck, line) {
   const d = line.getAttribute('d');
   const values = d.match(/[ML]-?\d+\.?\d*,-?\d+\.?\d*/g);
-  console.log(values[0] + " : " + values[1]);
+  // console.log(values[0] + " : " + values[1]);
   const x1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[0]);
   const y1 = parseFloat(values[0].substring(values[0][0] === '-' ? 0 : 1).split(',')[1]);
   const x2 = parseFloat(values[1].substring(values[1][0] === '-' ? 0 : 1).split(',')[0]);
@@ -831,7 +859,7 @@ function intersect(path1, path2, pathToCheck, line) {
     // Check if the intersection point matches any coordinate in path1Coords
     if ((!path1Coords.some(([px, py]) => (px === x1 && py === y1) || (px === x2 && py === y2))) && path1.getAttribute("data-name") !== path2.getAttribute("data-name")) {
       if (segmentsIntersect(lineCoords.x1, lineCoords.y1, lineCoords.x2, lineCoords.y2, x1, y1, x2, y2)) {
-        console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
+        // console.log('Intersection found:', i, pathToCheckCoords[i], pathToCheckCoords[i+1]);
         return true;
       }
     }
