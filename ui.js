@@ -111,17 +111,19 @@ function svgMapLoaded() {
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "path") {
       document.getElementById("popup-confirm").style.opacity = 1;
-      validDestinationsAndClosestPointArray = findClosestPaths(e.target);
       selectCountry(e.target, false);
       if (gameState) {
         currentPath = e.target;
+        validDestinationsAndClosestPointArray = findClosestPaths(e.target);
         hoverColorChange(lastClickedPath, 2, currentlySelectedColorsArray);
+        currentlySelectedColorsArray.length = 0;
         currentSelectedPath = currentPath;
         validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
+        arrayOfDestinationCountries = validDestinationsArray;
         closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        arrayOfDestinationCountries.length = 0; // empty the country array before adding new ones in next function below
+        //arrayOfDestinationCountries.length = 0; // empty the country array before adding new ones in next function below
         drawArrowsFromArray(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
       }
     }
@@ -214,6 +216,7 @@ function formatNumbersToKMB(string) {
 }
 
 function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseaction = 0 if mouseover, or 1 if mouseout
+  console.log("Pre mouse action 2 " + arrayOfDestinationCountries); //correct when reaches here just need to restore color of these paths
   if (path !== currentSelectedPath && !arrayOfDestinationCountries.includes(path)) {
     if ((path && path.style) && (mouseAction === 0 || mouseAction === 1)) {
       // Get the current fill color
@@ -240,6 +243,7 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         const svgMap = document.getElementById('svg-map').contentDocument;
         const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
             .filter(p => !arrayOfDestinationCountries.includes(p));
+        console.log("after filter" + arrayOfDestinationCountries);
 
         // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
 
@@ -257,34 +261,28 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         mouseOverFlag = false;
       }
     }
-    if (mouseAction === 2) {
-      for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
-        let pathObj = currentlySelectedColorsArray[i][0];
-        let colorStr = currentlySelectedColorsArray[i][1];
-        let rgbRegExp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
-        let match = rgbRegExp.exec(colorStr);
-        let newStyleValue = pathObj.getAttribute("style").replace(rgbRegExp, function(match, r, g, b) {
-          return `fill: rgb(${r}, ${g}, ${b})`;
-        });
+  }
+  if (mouseAction === 2) {
+    for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
+      let pathObj = currentlySelectedColorsArray[i][0];
+      let colorStr = currentlySelectedColorsArray[i][1];
+      let rgbRegExp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
+      let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
+      let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
 
-        if (i === 0) {
-          // Modify the RGB values of the first element
-          let newColorStr = match.slice(1).map((color) => {
-            let newColorVal = Number(color.trim()) - 20;
-            return newColorVal > 255 ? 255 : newColorVal; // ensure new color value is within 0-255 range
-          }).join(", ");
-          newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
-        }
+      let match = rgbRegExp.exec(colorStr);
+      let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
 
-        pathObj.setAttribute("style", newStyleValue);
-        console.log(currentlySelectedColorsArray[0]);
+      if (i === 0) {
+        // Modify the RGB values of the first element
+        let newColorStr = match.slice(1).map((color) => {
+          let newColorVal = Number(color.trim()) - 20;
+          return newColorVal > 255 ? 255 : newColorVal; // ensure new color value is within 0-255 range
+        }).join(", ");
+        newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
       }
 
-
-
-
-
-
+      pathObj.setAttribute("style", newStyleValue);
     }
   }
 }
@@ -720,17 +718,17 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
     changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255"); //change color of country clicked on
 
     if (targetId === destId) {
-      console.log(targetName + " [" + targetId + "] and " + destName + " [" + destId + "] are the same territory, skipping!");
+      // console.log(targetName + " [" + targetId + "] and " + destName + " [" + destId + "] are the same territory, skipping!");
     } else {
       const line = document.createElementNS(svgns, "path");
       line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
       if (distances[i] < 1) { //if touches borders then always draws a line
-        console.log(targetName + " touches borders with " + destName + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "] so definitely a line here");
+        // console.log(targetName + " touches borders with " + destName + "[" + destinationPathObjectArray[i].getAttribute("territory-id") + "] so definitely a line here");
         intersects = false;
         changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); //change color of touching countrys
         continue;
       } else if (targetName === destName) {
-        console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
+        // console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
         intersects = false;
         changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); // change color of all territories of clicked country
         continue;
@@ -755,7 +753,7 @@ function drawArrowsFromArray(targetPath, centerCoordsTargetPath, destCoordsArray
             }
           }
 
-          if (targetPath.getAttribute("isIsland") == "true") {
+          if (targetPath.getAttribute("isIsland") === "true") {
             changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
           }
 
