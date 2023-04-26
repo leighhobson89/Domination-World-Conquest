@@ -124,7 +124,6 @@ function svgMapLoaded() {
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
         HighlightInteractableCountriesAfterSelectingOne(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
-        console.log(arrayOfDestinationCountries);
       }
     }
   });
@@ -141,7 +140,7 @@ function svgMapLoaded() {
       // console.log('Current focus:', document.activeElement);
   }, { passive: false });
 
-  console.log ("loaded!");
+  // console.log ("loaded!");
 }
 
 
@@ -234,9 +233,12 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         red = r;
         green = g;
         blue = b;
-        r = Math.min(r + 20, 255);
-        g = Math.min(g + 20, 255);
-        b = Math.min(b + 20, 255);
+        if (!currentPath) {
+          r = Math.min(r + 20, 255);
+          g = Math.min(g + 20, 255);
+          b = Math.min(b + 20, 255);
+        }
+
         mouseOverFlag = true;
 
         const svgMap = document.getElementById('svg-map').contentDocument;
@@ -261,6 +263,10 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
     }
   }
   if (mouseAction === 2) {
+    red = undefined;
+    green = undefined;
+    blue = undefined;
+
     const svgMap = document.getElementById('svg-map').contentDocument;
     const paths = Array.from(svgMap.querySelectorAll('path'));
     let tempArray = [];
@@ -286,14 +292,18 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
       let match = rgbRegExp.exec(colorStr);
       let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
 
-      if (i === 0) {
-        let newColorStr = match.slice(1).map((color) => {
-          let newColorVal = Number(color.trim()) - 20;
+      if (i === 0 && paths.length > 1) {
+        let newColorVal;
+          let newColorStr = match.slice(1).map((color) => {
+          if (pathObj !== currentSelectedPath) {
+            newColorVal = Number(color.trim()) - 20;
+          } else {
+            newColorVal = Number(color.trim());
+          }
           return newColorVal > 255 ? 255 : newColorVal;
         }).join(", ");
         newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
       }
-
       pathObj.setAttribute("style", newStyleValue);
     }
 
@@ -305,7 +315,7 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         let styleTemp = pathObjTemp.getAttribute("style");
         let matchTemp = rgbRegExpTemp.exec(styleTemp);
         let newColorStrTemp = matchTemp.slice(1).map((color) => {
-          let newColorValTemp = Number(color.trim()) - 20;
+          let newColorValTemp = Number(color.trim()) - 0;
           return newColorValTemp < 0 ? 0 : newColorValTemp;
         }).join(", ");
         let newStyleValueTemp = styleTemp.replace(rgbRegExpTemp, `fill: rgb(${newColorStrTemp})`);
@@ -563,7 +573,6 @@ function getTextHeight(lines, fontSize) {
   return lines.length * lineHeight;
 }
 
-// helper function to calculate the height of a given text at a given font size
 function findClosestPaths(targetPath) {
   const svgMap = document.getElementById("svg-map").contentDocument;
   // console.log(targetPath.getAttribute("uniqueid"));
@@ -588,7 +597,6 @@ function findClosestPaths(targetPath) {
         };
       })
       .sort((a, b) => a.distance - b.distance);
-
   // add targetPath to the beginning of the resultPaths array
   resultsPaths.unshift([targetPath, getPoints(targetPath), closestPaths[0].distance]);
 
