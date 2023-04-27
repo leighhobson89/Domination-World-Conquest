@@ -1,10 +1,12 @@
-let pageLoaded = false;
+import { manualInteractionExceptions } from './manualExceptionsForInteractions.js';
+
+export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
 let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
-let arrayOfArmyAndResourceProportionsUI;
+export let arrayOfArmyAndResourceProportionsUI;
 let startingArmy;
 let playerCountry;
 
@@ -35,7 +37,7 @@ let selectCountryPlayerState = false;
 
 // const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359]; // for zoom function
 
-function svgMapLoaded() {
+export default function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
@@ -46,6 +48,8 @@ function svgMapLoaded() {
     blurEffect(0); //blur background
     blurNotRunYet = false;
   }
+
+  console.log(manualInteractionExceptions);
 
   svgMap.addEventListener("mouseover", function(e) {
     // Get the element that was hovered over
@@ -151,8 +155,10 @@ function svgMapLoaded() {
       // console.log('Current focus:', document.activeElement);
   }, { passive: false });
 
-  // console.log ("loaded!");
+  console.log ("loaded!");
 }
+
+window.svgMapLoaded = svgMapLoaded();
 
 
 window.addEventListener('load', function() {
@@ -765,7 +771,6 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
           continue;
         }
 
-        console.log(destObjI.getAttribute("isisland") + " " + targetPath.getAttribute("isisland"))
         if (destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") {
           changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
         }
@@ -777,13 +782,14 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     }
   }
   validDestinationsArray.length = 0;
-  for (i = 0; i < paths.length; i++) {
+
+  for (let i = 0; i < paths.length; i++) {
     if (paths[i].getAttribute("style").includes("fill: rgb(255,255,255)")) {
       validDestinationsArray.push(paths[i]);
     }
   }
 
-  for (i = 0; i < validDestinationsArray.length; i++) {
+  for (let i = 0; i < validDestinationsArray.length; i++) {
     let styleAttr = validDestinationsArray[i].getAttribute("style");
     styleAttr = styleAttr.replace("stroke-width: 1", "stroke-width: 3");
     validDestinationsArray[i].setAttribute("style", styleAttr);
