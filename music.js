@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let firstTime;
     if (musicButton) {
         musicButton.addEventListener("click", function() {
-            if (isPlaying == undefined) {
+            if (isPlaying === undefined) {
                 firstTime = true;
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");
                 isPlaying = true;
@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (newGameButton) {
         newGameButton.addEventListener("click", function() {
-            if (isPlaying == undefined) {
+            if (isPlaying === undefined) {
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");
                 isPlaying = true;
                 audio.play();

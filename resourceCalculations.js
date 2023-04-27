@@ -1,8 +1,8 @@
 import { pageLoaded } from "./ui.js";
-import {arrayOfArmyAndResourceProportionsUI} from "./ui.js";
 
 // let turn = 0;
 let arrayOfArmyAndResourceProportions;
+export let arrayOfArmyAndResourceProportionsUI;
 
 const turnLabel = document.getElementById('turn-label');
 // turnLabel.textContent += turn;
