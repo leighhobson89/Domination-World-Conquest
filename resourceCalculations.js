@@ -1,3 +1,6 @@
+import { pageLoaded } from "./ui.js";
+import {arrayOfArmyAndResourceProportionsUI} from "./ui.js";
+
 // let turn = 0;
 let arrayOfArmyAndResourceProportions;
 
