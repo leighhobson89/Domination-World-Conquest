@@ -1,5 +1,5 @@
-import { manualInteractionExceptions } from './manualExceptionsForInteractions.js';
 import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
+import { findMatchingCountries } from './manualExceptionsForInteractions.js';
 
 
 export let pageLoaded = false;
@@ -129,8 +129,6 @@ export function svgMapLoaded() {
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
         validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
-        let focusedElement = document.activeElement;
-        console.log(focusedElement);
 
         //all this is for the console log below it
         let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
@@ -734,7 +732,7 @@ function getBboxCoordsAndPushUniqueID(path) {
 
 
 function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
-
+  let manualExceptionsArray = [];
   const svgMap = document.getElementById("svg-map").contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
 
@@ -744,6 +742,18 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
 
   let x1 = centerCoordsTargetPath[0][1];
   let y1 = centerCoordsTargetPath[0][2];
+
+  manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
+
+  if (manualExceptionsArray.length > 0) {
+    console.log(manualExceptionsArray);
+    for (const pathObject of manualExceptionsArray) {
+      changeCountryColor(pathObject[0], pathObject[0].getAttribute("style"), "255,255,255");
+    }
+  }
+
+
+
 
   for (let i = 0; i < destinationPathObjectArray.length; i++) {
     const targetName = targetPath.getAttribute("data-name");
@@ -790,11 +800,12 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     }
   }
 
-  for (let i = 0; i < validDestinationsArray.length; i++) {
-    let styleAttr = validDestinationsArray[i].getAttribute("style");
-    styleAttr = styleAttr.replace("stroke-width: 1", "stroke-width: 3");
-    validDestinationsArray[i].setAttribute("style", styleAttr);
-  }
+  // for (let i = 0; i < validDestinationsArray.length; i++) {
+  //   let styleAttr = validDestinationsArray[i].getAttribute("style");
+  //   styleAttr = styleAttr.replace("stroke-width: 1", "stroke-width: 3");
+  //   validDestinationsArray[i].setAttribute("style", styleAttr);
+  // }
+
   return validDestinationsArray;
 }
 
@@ -832,9 +843,11 @@ function changeCountryColor(pathObj, attributeString, rgbValue) {
     let rgbValueArr = rgbValue.split(",");
     return "fill: rgb(" + rgbValueArr.join(",") + ")";
   });
+  console.log(pathObj);
   pathObj.setAttribute("style", newStyleValue);
 
   // Push the original color to the array
+
   currentlySelectedColorsArray.push([pathObj, originalColor]);
 
   // Remove any elements containing "255, 255, 255"

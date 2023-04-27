@@ -1,4 +1,4 @@
-export const manualInteractionExceptions = new Map([
+const manualInteractionExceptions = new Map([
     //OCEANIA
     //Extreme East Islands
     [338, [333,334,336,337]],
@@ -80,10 +80,9 @@ export const manualInteractionExceptions = new Map([
     [8, [79]],
     [79, [8]],
 
-    //Spain and Balearics with Algeria
+    //Spain with Algeria
     [5, [67]],
-    [6, [67]],
-    [67, [5,6]],
+    [67, [5]],
 
     //Morocco with Spain, Portugal and Gibraltar
     [78, [28,5,69]],
@@ -125,3 +124,32 @@ export const manualInteractionExceptions = new Map([
     [84, [27]],
     [83, [27]]
 ]);
+
+export function findMatchingCountries(pathObj) {
+    const matchingCountries = [];
+
+    for (const [uniqueId, countries] of manualInteractionExceptions) {
+        if (uniqueId.toString() === pathObj.getAttribute("uniqueid")) {
+            const svgMap = document.getElementById("svg-map").contentDocument;
+            const paths = svgMap.getElementsByTagName("path");
+
+            const matchingPaths = [];
+            const matchingIds = countries.map(id => id.toString());
+
+            for (const path of paths) {
+                const pathId = path.getAttribute("uniqueid");
+                if (matchingIds.includes(pathId)) {
+                    matchingPaths.push(path);
+                }
+            }
+
+            matchingCountries.push(matchingPaths);
+            break;
+        }
+    }
+
+    return matchingCountries;
+}
+
+
+
