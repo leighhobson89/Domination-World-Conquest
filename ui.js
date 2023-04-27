@@ -294,27 +294,29 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
       let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
       let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
 
-      for (let j = 0; j < paths.length; j++) {
-        let otherPathObj = paths[j];
-        if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-          let uniqueid = pathObj.getAttribute("uniqueid");
-          let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
-          if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-            tempArray.push([otherPathObj, colorStr]);
+      if (!currentlySelectedColorsArray[i][2]) { //if is not manual exception
+        for (let j = 0; j < paths.length; j++) {
+          let otherPathObj = paths[j];
+          if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+            let uniqueid = pathObj.getAttribute("uniqueid");
+            let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
+            if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+              tempArray.push([otherPathObj, colorStr]);
+            }
           }
         }
       }
-
+      
       let match = rgbRegExp.exec(colorStr);
       let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
 
-      if (i === 0 && paths.length > 1) {
+      if (i === 0 && paths.length > 1) { 
         let newColorVal;
           let newColorStr = match.slice(1).map((color) => {
-          if (pathObj !== currentSelectedPath) {
-            newColorVal = Number(color.trim()) - 20;
-          } else {
+          if (currentlySelectedColorsArray[i][2] || pathObj === currentSelectedPath) {
             newColorVal = Number(color.trim());
+          } else {
+            newColorVal = Number(color.trim()) - 20;
           }
           return newColorVal > 255 ? 255 : newColorVal;
         }).join(", ");
@@ -372,13 +374,35 @@ function blurEffect(mode) {
 
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
-    svgMap.documentElement.appendChild(country);
+  const svg = document.getElementById('svg-map');
+    if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
+      const allPaths = svgMap.getElementsByTagName("path");
+      for (let i = 0; i < allPaths.length; i++) {
+        if (allPaths[i].getAttribute("data-name") === "Lesotho") {
+          svgMap.documentElement.appendChild(allPaths[i]);
+          for (let j = 0; j < allPaths.length; j++) {
+            if (allPaths[j].getAttribute("data-name") === "South Africa") {
+              console.log(allPaths[i] + allPaths[j]);
+              lastClickedPath.parentNode.insertBefore(allPaths[j], lastClickedPath.parentNode.lastChild);
+              break;
+            }
+          }
+          break;
+        }
+      }
+    } else {
+      svgMap.documentElement.appendChild(country);
+    }
     country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
         postRequestForCountryData(country.getAttribute("data-name"));
         if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
           if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
-            lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+            if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
+              lastClickedPath.parentNode.appendChild(lastClickedPath);
+            } else {
+              lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+            }
             lastClickedPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
           }
 
@@ -746,9 +770,8 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
   manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
 
   if (manualExceptionsArray.length > 0) {
-    console.log(manualExceptionsArray);
-    for (const pathObject of manualExceptionsArray) {
-      changeCountryColor(pathObject[0], pathObject[0].getAttribute("style"), "255,255,255");
+    for (let i = 0; i < manualExceptionsArray.length; i++) {
+      changeCountryColor(manualExceptionsArray[i], manualExceptionsArray[i].getAttribute("style"), "255,255,255", true);
     }
   }
 
@@ -760,15 +783,15 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     const destName = destinationPathObjectArray[i].getAttribute("data-name");
     const destStyle = destinationPathObjectArray[i].getAttribute("style");
 
-    changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255"); //change color of country clicked on
+    changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255", false); //change color of country clicked on
 
     const line = document.createElementNS(svgns, "path");
     line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
     if (distances[i] < 1) { //if touches borders then always draws a line
-      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); //change color of touching countrys
+      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false); //change color of touching countrys
     } else if (targetName === destName) { //if another territory of same country, then change color
       // console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
-      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255"); // change color of all territories of clicked country
+      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false); // change color of all territories of clicked country
     } else {
       for (let j = 0; j < destinationPathObjectArray.length; j++) {
         if (i === j) {
@@ -783,7 +806,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
         }
 
         if (destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") {
-          changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255");
+          changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false);
         }
 
         if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
@@ -836,19 +859,19 @@ function getClosestPointsDestinationPaths(coord, paths) {
   return closestPoints;
 }
 
-function changeCountryColor(pathObj, attributeString, rgbValue) {
+function changeCountryColor(pathObj, attributeString, rgbValue, isManualException) {
   let rgbRegExp = /fill: rgb\(\s*\d{1,3},\s*\d{1,3},\s*\d{1,3}\s*\)/;
   let originalColor = attributeString.match(/fill:\s*rgb\((\s*\d{1,3},){2}\s*\d{1,3}\)/)[0];
   let newStyleValue = attributeString.replace(rgbRegExp, function(match) {
     let rgbValueArr = rgbValue.split(",");
     return "fill: rgb(" + rgbValueArr.join(",") + ")";
   });
-  console.log(pathObj);
+  
   pathObj.setAttribute("style", newStyleValue);
 
   // Push the original color to the array
 
-  currentlySelectedColorsArray.push([pathObj, originalColor]);
+  currentlySelectedColorsArray.push([pathObj, originalColor, isManualException]);
 
   // Remove any elements containing "255, 255, 255"
   let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1];
