@@ -1,4 +1,6 @@
 import { manualInteractionExceptions } from './manualExceptionsForInteractions.js';
+import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
+
 
 export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
@@ -6,7 +8,6 @@ let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
-export let arrayOfArmyAndResourceProportionsUI;
 let startingArmy;
 let playerCountry;
 
@@ -37,7 +38,7 @@ let selectCountryPlayerState = false;
 
 // const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359]; // for zoom function
 
-export default function svgMapLoaded() {
+export function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
@@ -49,7 +50,7 @@ export default function svgMapLoaded() {
     blurNotRunYet = false;
   }
 
-  console.log(manualInteractionExceptions);
+  //console.log(manualInteractionExceptions);
 
   svgMap.addEventListener("mouseover", function(e) {
     // Get the element that was hovered over
@@ -128,6 +129,8 @@ export default function svgMapLoaded() {
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
         validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+        let focusedElement = document.activeElement;
+        console.log(focusedElement);
 
         //all this is for the console log below it
         let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
@@ -158,12 +161,10 @@ export default function svgMapLoaded() {
   console.log ("loaded!");
 }
 
-window.svgMapLoaded = svgMapLoaded();
 
-
-window.addEventListener('load', function() {
-  svgMapLoaded();
-});
+// window.addEventListener('load', function() {
+//   svgMapLoaded();
+// });
 
 function postRequestForCountryData(country) {
   // Ensure hovering over a country before sending request
