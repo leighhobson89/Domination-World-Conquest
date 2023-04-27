@@ -718,7 +718,7 @@ function findCentroidsFromArrayOfPaths(targetPath) {
 }
 
 function getBboxCoordsAndPushUniqueID(path) {
-  let returnArray = [];
+  let bBoxArray = [];
   let pathBBoxCoords;
   let centerBboxCoords = {};
   pathBBoxCoords = path.getBBox();
@@ -727,9 +727,9 @@ function getBboxCoordsAndPushUniqueID(path) {
   centerBboxCoords.x = pathBBoxCoords.width / 2 + pathBBoxCoords.x;
   centerBboxCoords.y = pathBBoxCoords.height / 2 + pathBBoxCoords.y;
 
-  // push uniqueid, x and y values as an array to returnArray
-  returnArray.push([path.getAttribute("uniqueid"), centerBboxCoords.x, centerBboxCoords.y]);
-  return returnArray;
+  // push uniqueid, x and y values as an array to bBoxArray
+  bBoxArray.push([path.getAttribute("uniqueid"), centerBboxCoords.x, centerBboxCoords.y]);
+  return bBoxArray;
 }
 
 
