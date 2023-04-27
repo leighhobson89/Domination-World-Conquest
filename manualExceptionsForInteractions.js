@@ -139,15 +139,12 @@ export function findMatchingCountries(pathObj) {
             for (const path of paths) {
                 const pathId = path.getAttribute("uniqueid");
                 if (matchingIds.includes(pathId)) {
-                    matchingPaths.push(path);
+                    matchingCountries.push(path);
                 }
             }
-
-            matchingCountries.push(matchingPaths);
             break;
         }
     }
-
     return matchingCountries;
 }
 
