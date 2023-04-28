@@ -12,11 +12,14 @@ let currentlySelectedColorsArray = [];
 let tempTurnPhase = currentTurnPhase;
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
-export let startingArmy;
+export let exportArmy;
 export let exportPop;
 export let exportArea;
 export let playerCountry;
-export let countryResourceData;
+export let totalGold = 0;
+export let totalOil = 0;
+export let totalFood = 0;
+export let totalConsMats = 0;
 
 // Selector variables
 //hover color change variables
@@ -185,14 +188,20 @@ function postRequestForCountryData(country, countryPath) {
     if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
       // Parse the response JSON data
       const data = JSON.parse(xhr.responseText);
-      let area = 0;
+      let territoryArea = 0;
       let totalArea = 0;
+      let totalArmy = 0;
+      let startingArmy = 0;
       let territoryPop = 0;
 
       // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
         if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
-          countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);          
+          countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
+          totalGold += newArrayOfTerritorySpecificArmyAndResources[i].goldForCurrentTerritory;
+          totalOil += newArrayOfTerritorySpecificArmyAndResources[i].oilForCurrentTerritory;
+          totalFood += newArrayOfTerritorySpecificArmyAndResources[i].foodForCurrentTerritory;
+          totalConsMats += newArrayOfTerritorySpecificArmyAndResources[i].consMatsForCurrentTerritory;    
         }
       }
 
@@ -216,25 +225,28 @@ function postRequestForCountryData(country, countryPath) {
             totalArea += newArrayOfTerritorySpecificArmyAndResources[i].area;
           }
         }
+       
         for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-            console.log(population + " " + totalArea + " " + newArrayOfTerritorySpecificArmyAndResources[i].area)
             territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
             document.getElementById("bottom-table").rows[0].cells[10].innerHTML = territoryPop;
+            exportPop = formatNumbersToKMB(population);
             break;
           }
         }      
       }
+
       if (data[0].area.length > 0) {
         for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-            exportArea = newArrayOfTerritorySpecificArmyAndResources[i].area;
-            area = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
-            document.getElementById("bottom-table").rows[0].cells[12].innerHTML = area + " (km²)";
+            exportArea = formatNumbersToKMB(totalArea);
+            territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
+            document.getElementById("bottom-table").rows[0].cells[12].innerHTML = territoryArea + " (km²)";
             break;
           }
         }
       }
+
       const territoryId = currentPath.getAttribute("territory-id");
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
         if (arrayOfArmyAndResourceProportionsUI[i].territoryId === territoryId && arrayOfArmyAndResourceProportionsUI[i].dataName === data[0].country) {
@@ -244,6 +256,13 @@ function postRequestForCountryData(country, countryPath) {
         }
       }
       document.getElementById("bottom-table").rows[0].cells[14].innerHTML = startingArmy;
+      
+      for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+        if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
+          totalArmy += newArrayOfTerritorySpecificArmyAndResources[i].armyForCurrentTerritory;
+        }
+      }
+      exportArmy = formatNumbersToKMB(totalArmy);
     }
   };
   xhr.send("country=" + country);
