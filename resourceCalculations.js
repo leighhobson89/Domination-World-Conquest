@@ -1,8 +1,15 @@
-// let turn = 0;
-let arrayOfArmyAndResourceProportions;
+import { pageLoaded } from './ui.js';
+import { currentTurn } from './gameTurnsLoop.js';
+import { countryResourceData } from './ui.js';
+import { exportPop } from './ui.js';
+import { exportArea } from './ui.js';
+import { startingArmy } from './ui.js';
 
-const turnLabel = document.getElementById('turn-label');
-// turnLabel.textContent += turn;
+let arrayOfArmyAndResourceProportions;
+export let arrayOfArmyAndResourceProportionsUI;
+export const newArrayOfTerritorySpecificArmyAndResources = [];
+
+/* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
     Promise.all([listenForPageLoad(), connectAndCreateArmyArray()])
         .then(([pathAreas, armyArray]) => {
@@ -20,8 +27,8 @@ function listenForPageLoad() {
             if (pageLoaded === true) {
                 console.log(pageLoaded);
 
-                var svgFile = document.getElementById('svg-map').contentDocument;
-                var pathAreas = calculatePathAreas(svgFile);
+                let svgFile = document.getElementById('svg-map').contentDocument;
+                let pathAreas = calculatePathAreas(svgFile);
 
                 clearInterval(intervalId);
 
@@ -32,98 +39,109 @@ function listenForPageLoad() {
 }
 
 function calculatePathAreas(svgFile) {
+    let pathAreas = [];
     // Get all the path elements from the SVG file
-    var paths = svgFile.querySelectorAll('path');
+    const paths = svgFile.querySelectorAll('path');
 
     // Calculate the total length of all paths
-    var totalLength = 0;
+    let totalLength = 0;
     for (var i = 0; i < paths.length; i++) {
         totalLength += paths[i].getTotalLength();
     }
 
     // Calculate the area of each path and store it in an array
-    var pathAreas = [];
-    for (var i = 0; i < paths.length; i++) {
-        var path = paths[i];
-        var pathLength = path.getTotalLength();
-        var numPoints = 80; // Change this to increase or decrease the number of points
-        var points = [];
-        for (var j = 0; j < numPoints; j++) {
-            var point = path.getPointAtLength(j / numPoints * pathLength);
+    let totalArea = 0;
+    for (let i = 0; i < paths.length; i++) {
+        let path = paths[i];
+        let pathLength = path.getTotalLength();
+        let numPoints = 80; // Change this to increase or decrease the number of points
+        let points = [];
+        for (let j = 0; j < numPoints; j++) {
+            let point = path.getPointAtLength(j / numPoints * pathLength);
             points.push({ x: point.x, y: point.y });
         }
-        var area = 0;
-        for (var j = 0; j < points.length; j++) {
-            var k = (j + 1) % points.length;
+        let area = 0;
+        for (let j = 0; j < points.length; j++) {
+            let k = (j + 1) % points.length;
             area += points[j].x * points[k].y - points[j].y * points[k].x;
         }
         area = Math.abs(area / 2);
-        var pathArea = area * (136067649 / totalLength);
-        var dataName = path.getAttribute('data-name');
-        var territoryId = path.getAttribute('territory-id');
-        pathAreas.push({ dataName: dataName, territoryId: territoryId, area: pathArea });
+        totalArea += area;
+        let uniqueId = path.getAttribute('uniqueid');
+        let dataName = path.getAttribute('data-name');
+        let territoryId = path.getAttribute('territory-id');
+        pathAreas.push({ uniqueId: uniqueId, dataName: dataName, territoryId: territoryId, area: area });
     }
-
+    
+    // Calculate the scaling factor
+    let scalingFactor = 136067649 / totalArea;
+    
+    // Scale the area of each path to its actual area in km2
+    for (let i = 0; i < pathAreas.length; i++) {
+        pathAreas[i].area *= scalingFactor;
+    }
+    
     // Return the array of path areas
     return pathAreas;
 }
 
 function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
     // Create a new array to store the updated path data
-    const newArrayOfTerritorySpecificArmyAndResources = [];
 
     // Loop through each element in pathAreas array
-    for (var i = 0; i < pathAreas.length; i++) {
-        var dataName = pathAreas[i].dataName;
-        var territoryId = pathAreas[i].territoryId;
-        var area = pathAreas[i].area;
+    for (let i = 0; i < pathAreas.length; i++) {
+        let uniqueId = pathAreas[i].uniqueId;
+        let dataName = pathAreas[i].dataName;
+        let territoryId = pathAreas[i].territoryId;
+        let area = pathAreas[i].area;
 
         // Find matching country in armyArray
-        var matchingCountry = armyResourcesDataArray.find(function(country) {
+        let matchingCountry = armyResourcesDataArray.find(function(country) {
             return country.countryName === dataName;
         });
 
         if (matchingCountry) {
-            var totalArmyForCountry = matchingCountry.totalArmyForCountry;
-            var totalGoldForCountry = matchingCountry.totalGoldForCountry;
-            var totalOilForCountry = matchingCountry.totalOilForCountry;
-            var totalFoodForCountry = matchingCountry.totalFoodForCountry;
-            var totalConsMatsForCountry = matchingCountry.totalConsMatsForCountry;
-            var population = matchingCountry.population;
-            var continent = matchingCountry.continente;
-            var dev_index = matchingCountry.devIndex;
-            var country_modifier = matchingCountry.countryModifier;
-            var percentOfWholeArea = 0;
+            let totalArmyForCountry = matchingCountry.totalArmyForCountry;
+            let totalGoldForCountry = matchingCountry.totalGoldForCountry;
+            let totalOilForCountry = matchingCountry.totalOilForCountry;
+            let totalFoodForCountry = matchingCountry.totalFoodForCountry;
+            let totalConsMatsForCountry = matchingCountry.totalConsMatsForCountry;
+            let population = matchingCountry.population;
+            let continent = matchingCountry.continente;
+            let dev_index = matchingCountry.devIndex;
+            let country_modifier = matchingCountry.countryModifier;
+            let percentOfWholeArea = 0;
 
             // Calculate percentOfWholeArea based on number of paths per dataName
-            var numPaths = pathAreas.filter(function(path) {
+            let numPaths = pathAreas.filter(function(path) {
                 return path.dataName === dataName;
             }).length;
 
             if (numPaths === 1) {
                 percentOfWholeArea = 1;
             } else {
-                var pathsForDataName = pathAreas.filter(function(path) {
+                let pathsForDataName = pathAreas.filter(function(path) {
                     return path.dataName === dataName;
                 });
-                var areaSum = pathsForDataName.reduce(function(acc, path) {
+                let areaSum = pathsForDataName.reduce(function(acc, path) {
                     return acc + path.area;
                 }, 0);
-                var areaForTerritoryId = pathsForDataName.find(function(path) {
+                let areaForTerritoryId = pathsForDataName.find(function(path) {
                     return path.territoryId === territoryId;
                 }).area;
                 percentOfWholeArea = areaForTerritoryId / areaSum;
             }
 
             // Calculate new army value for current element
-            var armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            var GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000));
-            var OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
-            var FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
-            var ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
+            let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
+            let GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000));
+            let OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
+            let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
+            let ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
 
             // Add updated path data to the new array
             newArrayOfTerritorySpecificArmyAndResources.push({
+                uniqueId: uniqueId,
                 dataName: dataName,
                 territoryId: territoryId,
                 area: area,
@@ -202,6 +220,60 @@ function randomiseArmyAndResources(armyResourceArray) {
         }
     });
     return armyResourceArray;
+}
+
+export function newTurnResources(playerCountry) {
+    let totalGold = 0;
+    let totalOil;
+    let totalFood;
+    let totalConsMats;
+    let totalArea;
+    let totalPop;
+    let totalArmy;
+    let playerDevIndex;
+
+    //read all paths and add all those with "owner = 'player'" to an array
+    const svgMap = document.getElementById('svg-map').contentDocument;
+    const paths = Array.from(svgMap.querySelectorAll('path'));
+    let playerOwnedTerritories = [];
+
+    for (const path of paths) {
+        if (path.getAttribute("owner") === "player") {
+            playerOwnedTerritories.push(path);
+        }
+    }
+    for (let i = 0; i < playerOwnedTerritories.length; i++) {
+        console.log("Player owns:" + playerOwnedTerritories[i].getAttribute("data-name") + " [" + playerOwnedTerritories[i].getAttribute("territory-id") + "]");
+    }
+
+    if (currentTurn === 1) {
+        document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
+/*      document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory); */
+        document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
+        document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
+        document.getElementById("top-table").rows[0].cells[14].innerHTML = startingArmy;
+    } else {
+        console.log(arrayOfArmyAndResourceProportionsUI);
+        //add up resources from all territories and put in top-table
+        for (let i = 0; i < playerOwnedTerritories.length; i++) {
+            for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
+                if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportionsUI[j].uniqueId) {
+                    //todo                    
+                }
+            }
+        }
+        console.log("New Total Gold: " + totalGold);
+    }
+    
+    //for each territory in the array apply calculations based on population, 
+    //area, dev_index, country_modifier, upgrade level to augment the various resource levels
+    //apply a bonus for total area of all owned territories
+    //add these values to the existing values
+    //set these new totals in the table
+    //return a popup to the user with a confirm button to remove it, stating what the player gained that turn
 }
 
 
