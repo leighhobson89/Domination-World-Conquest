@@ -1,6 +1,6 @@
 import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
 import { findMatchingCountries } from './manualExceptionsForInteractions.js';
-import { initialiseGameLoop } from './gameTurnsLoop.js';
+import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 
 
@@ -11,8 +11,11 @@ let currentlySelectedColorsArray = [];
 let tempTurnPhase = currentTurnPhase;
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
-let startingArmy;
+export let startingArmy;
+export let exportPop;
+export let exportArea;
 export let playerCountry;
+export let countryResourceData;
 
 // Selector variables
 //hover color change variables
@@ -182,7 +185,6 @@ function postRequestForCountryData(country) {
       const data = JSON.parse(xhr.responseText);
 
       // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding country
-      let countryResourceData;
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
         if (arrayOfArmyAndResourceProportionsUI[i].dataName === country) {
           countryResourceData = arrayOfArmyAndResourceProportionsUI[i];
@@ -200,10 +202,12 @@ function postRequestForCountryData(country) {
       document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
       if (data[0].startingPop.length > 0) {
         const population = formatNumbersToKMB(data[0].startingPop);
+        exportPop = population;
         document.getElementById("bottom-table").rows[0].cells[10].innerHTML = population;
       }
       if (data[0].area.length > 0) {
         const area = formatNumbersToKMB(data[0].area);
+        exportArea = area;
         document.getElementById("bottom-table").rows[0].cells[12].innerHTML = area + " (km²)";
       }
       const territoryId = currentPath.getAttribute("territory-id");
@@ -508,7 +512,8 @@ document.addEventListener("DOMContentLoaded", function() {
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
       playerCountry = document.getElementById("popup-body").innerHTML;
-      initialiseGameLoop();
+      initialiseGame();
+      document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
       popupSubTitle.innerText = "TO DO"; // set in required function
       popupConfirm.innerText = "DEPLOY";
@@ -547,7 +552,7 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 function toggleTableContainer(turnOnTable) {
-  var tableContainer = document.getElementById("table-container");
+  var tableContainer = document.getElementById("bottom-table-container");
   if (turnOnTable) {
     tableContainer.style.display = "block";
   } else if (!turnOnTable) {
