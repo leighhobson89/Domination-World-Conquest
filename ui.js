@@ -1,15 +1,18 @@
 import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
 import { findMatchingCountries } from './manualExceptionsForInteractions.js';
+import { initialiseGameLoop } from './gameTurnsLoop.js';
+import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 
 
 export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
 let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
+let tempTurnPhase = currentTurnPhase;
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 let startingArmy;
-let playerCountry;
+export let playerCountry;
 
 // Selector variables
 //hover color change variables
@@ -32,7 +35,7 @@ let popupCurrentlyOnScreen = false; // used for handling popups on screen when g
 let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
 let blurNotRunYet = true;
-let gameState = false;
+let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 
@@ -117,7 +120,7 @@ export function svgMapLoaded() {
     if (e.target.tagName === "path") {
       document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(e.target, false);
-      if (gameState) {
+      if (countrySelectedAndGameStarted) {
         currentPath = e.target;
         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
         hoverColorChange(lastClickedPath, 2, currentlySelectedColorsArray);
@@ -434,25 +437,25 @@ document.addEventListener("DOMContentLoaded", function() {
   subTitle.classList.add("menu-option");
   subTitle.classList.add("subTitle");
 
-  const option3 = document.createElement("button");
-  option3.innerText = "New Game";
-  option3.classList.add("menu-option");
-  option3.classList.add("option-3");
-  option3.setAttribute("id", "new-game-btn"); 
+  const newGameButton = document.createElement("button");
+  newGameButton.innerText = "New Game";
+  newGameButton.classList.add("menu-option");
+  newGameButton.classList.add("option-3");
+  newGameButton.setAttribute("id", "new-game-btn"); 
 
-  const option4 = document.createElement("button");
-  option4.innerText = "Toggle Music";
-  option4.classList.add("menu-option");
-  option4.classList.add("option-4");
-  option4.setAttribute("id", "toggle-music-btn"); 
+  const toggleMusicButton = document.createElement("button");
+  toggleMusicButton.innerText = "Toggle Music";
+  toggleMusicButton.classList.add("menu-option");
+  toggleMusicButton.classList.add("option-4");
+  toggleMusicButton.setAttribute("id", "toggle-music-btn"); 
 
-  const option5 = document.createElement("button");
-  option5.innerText = "Help";
-  option5.classList.add("menu-option");
-  option5.classList.add("option-5");
+  const helpButton = document.createElement("button");
+  helpButton.innerText = "Help";
+  helpButton.classList.add("menu-option");
+  helpButton.classList.add("option-5");
 
   // add event listener to New Game button
-  option3.addEventListener("click", function() {
+  newGameButton.addEventListener("click", function() {
     toggleTableContainer(true);
     blurEffect(1);
     document.getElementById("menu-container").style.display = "none";
@@ -468,9 +471,9 @@ document.addEventListener("DOMContentLoaded", function() {
   // add the menu options to the menu container
   menuContainer.appendChild(title);
   menuContainer.appendChild(subTitle);
-  menuContainer.appendChild(option3);
-  menuContainer.appendChild(option4);
-  menuContainer.appendChild(option5);
+  menuContainer.appendChild(newGameButton);
+  menuContainer.appendChild(toggleMusicButton);
+  menuContainer.appendChild(helpButton);
 
   // add the menu container to the HTML body
   document.getElementById("menu-container").appendChild(menuContainer);
@@ -501,13 +504,37 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to popup confirm button
   popupConfirm.addEventListener("click", function() {
-    document.getElementById("popup-with-confirm-container").style.display = "none";
-    selectCountryPlayerState = false;
-    gameState = true;
-    popupWithConfirmContainer.style.display = "none";
-    popupCurrentlyOnScreen = false;
-    playerCountry = document.getElementById("popup-body").innerHTML;
-    console.log(playerCountry);
+    if (selectCountryPlayerState) {
+      selectCountryPlayerState = false;
+      countrySelectedAndGameStarted = true;
+      playerCountry = document.getElementById("popup-body").innerHTML;
+      initialiseGameLoop();
+      popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
+      popupSubTitle.innerText = "TO DO"; // set in required function
+      popupConfirm.innerText = "DEPLOY";
+      tempTurnPhase++;
+    } else if (countrySelectedAndGameStarted && tempTurnPhase == 0) {
+      popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
+      popupSubTitle.innerText = "TO DO"; // set in required function
+      popupConfirm.innerText = "DEPLOY";
+      modifyCurrentTurnPhase(tempTurnPhase);
+      tempTurnPhase++; 
+    } else if (countrySelectedAndGameStarted && tempTurnPhase == 1) {
+      popupTitle.innerText = "Deploy Phase"; //set in required function
+      popupConfirm.innerText = "MOVE / ATTACK";
+      modifyCurrentTurnPhase(tempTurnPhase);
+      tempTurnPhase++;
+    } else if (countrySelectedAndGameStarted && tempTurnPhase == 2) {
+      popupTitle.innerText = "Move / Attack Phase"; //set in required function
+      popupConfirm.innerText = "END TURN";
+      modifyCurrentTurnPhase(tempTurnPhase);
+      tempTurnPhase++;
+    } else if (countrySelectedAndGameStarted && tempTurnPhase == 3) {
+      popupTitle.innerText = "AI turn"; //set in required function
+      popupConfirm.innerText = "AI Moving...";
+      modifyCurrentTurnPhase(tempTurnPhase);
+      tempTurnPhase = 0;
+    }
   });
 
   // add the menu options to the menu container
