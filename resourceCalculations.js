@@ -1,9 +1,9 @@
 import { pageLoaded } from './ui.js';
 import { currentTurn } from './gameTurnsLoop.js';
-import { countryResourceData } from './ui.js';
 import { exportPop } from './ui.js';
 import { exportArea } from './ui.js';
-import { startingArmy } from './ui.js';
+import { exportArmy } from './ui.js';
+import { totalGold, totalOil, totalFood, totalConsMats } from './ui.js';
 
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
@@ -223,13 +223,6 @@ function randomiseArmyAndResources(armyResourceArray) {
 }
 
 export function newTurnResources(playerCountry) {
-    let totalGold = 0;
-    let totalOil;
-    let totalFood;
-    let totalConsMats;
-    let totalArea;
-    let totalPop;
-    let totalArmy;
     let playerDevIndex;
 
     //read all paths and add all those with "owner = 'player'" to an array
@@ -248,13 +241,13 @@ export function newTurnResources(playerCountry) {
 
     if (currentTurn === 1) {
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-/*      document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
-        document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
-        document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
-        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory); */
+        document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(totalGold);
+        document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(totalOil);
+        document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(totalFood);
+        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(totalConsMats);
         document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
         document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
-        document.getElementById("top-table").rows[0].cells[14].innerHTML = startingArmy;
+        document.getElementById("top-table").rows[0].cells[14].innerHTML = exportArmy;
     } else {
         console.log(arrayOfArmyAndResourceProportionsUI);
         //add up resources from all territories and put in top-table
