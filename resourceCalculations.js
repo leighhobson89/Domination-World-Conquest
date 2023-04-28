@@ -7,8 +7,9 @@ import { startingArmy } from './ui.js';
 
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
+export const newArrayOfTerritorySpecificArmyAndResources = [];
 
-const turnLabel = document.getElementById('turn-label');
+/* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
     Promise.all([listenForPageLoad(), connectAndCreateArmyArray()])
         .then(([pathAreas, armyArray]) => {
@@ -38,6 +39,7 @@ function listenForPageLoad() {
 }
 
 function calculatePathAreas(svgFile) {
+    let pathAreas = [];
     // Get all the path elements from the SVG file
     const paths = svgFile.querySelectorAll('path');
 
@@ -48,7 +50,7 @@ function calculatePathAreas(svgFile) {
     }
 
     // Calculate the area of each path and store it in an array
-    let pathAreas = [];
+    let totalArea = 0;
     for (let i = 0; i < paths.length; i++) {
         let path = paths[i];
         let pathLength = path.getTotalLength();
@@ -64,20 +66,27 @@ function calculatePathAreas(svgFile) {
             area += points[j].x * points[k].y - points[j].y * points[k].x;
         }
         area = Math.abs(area / 2);
-        let pathArea = area * (136067649 / totalLength);
+        totalArea += area;
         let uniqueId = path.getAttribute('uniqueid');
         let dataName = path.getAttribute('data-name');
         let territoryId = path.getAttribute('territory-id');
-        pathAreas.push({ uniqueId: uniqueId, dataName: dataName, territoryId: territoryId, area: pathArea });
+        pathAreas.push({ uniqueId: uniqueId, dataName: dataName, territoryId: territoryId, area: area });
     }
-
+    
+    // Calculate the scaling factor
+    let scalingFactor = 136067649 / totalArea;
+    
+    // Scale the area of each path to its actual area in km2
+    for (let i = 0; i < pathAreas.length; i++) {
+        pathAreas[i].area *= scalingFactor;
+    }
+    
     // Return the array of path areas
     return pathAreas;
 }
 
 function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
     // Create a new array to store the updated path data
-    const newArrayOfTerritorySpecificArmyAndResources = [];
 
     // Loop through each element in pathAreas array
     for (let i = 0; i < pathAreas.length; i++) {
@@ -239,10 +248,10 @@ export function newTurnResources(playerCountry) {
 
     if (currentTurn === 1) {
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
+/*      document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
         document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
         document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
-        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory); */
         document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
         document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
         document.getElementById("top-table").rows[0].cells[14].innerHTML = startingArmy;
