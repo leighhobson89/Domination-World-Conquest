@@ -2,6 +2,7 @@ import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
 import { findMatchingCountries } from './manualExceptionsForInteractions.js';
 import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
+import { newArrayOfTerritorySpecificArmyAndResources } from './resourceCalculations.js';
 
 
 export let pageLoaded = false;
@@ -170,7 +171,8 @@ export function svgMapLoaded() {
 //   svgMapLoaded();
 // });
 
-function postRequestForCountryData(country) {
+function postRequestForCountryData(country, countryPath) {
+  let countryResourceData  = [];
   // Ensure hovering over a country before sending request
   if (tooltip.innerHTML === "") {
     return;
@@ -183,12 +185,14 @@ function postRequestForCountryData(country) {
     if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
       // Parse the response JSON data
       const data = JSON.parse(xhr.responseText);
+      let area = 0;
+      let totalArea = 0;
+      let territoryPop = 0;
 
-      // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding country
+      // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-        if (arrayOfArmyAndResourceProportionsUI[i].dataName === country) {
-          countryResourceData = arrayOfArmyAndResourceProportionsUI[i];
-          break;
+        if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
+          countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);          
         }
       }
 
@@ -196,19 +200,40 @@ function postRequestForCountryData(country) {
       document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
       document.getElementById("bottom-table").rows[0].cells[0].innerHTML = data[0].country + " (" + data[0].continent + ")";
 
-      document.getElementById("bottom-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
-      document.getElementById("bottom-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
-      document.getElementById("bottom-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
-      document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
+      for (let i = 0; i < countryResourceData.length; i++) {
+        if (countryResourceData[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+          document.getElementById("bottom-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData[i].goldForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData[i].oilForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData[i].foodForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData[i].consMatsForCurrentTerritory);
+        }
+      }
+
       if (data[0].startingPop.length > 0) {
-        const population = formatNumbersToKMB(data[0].startingPop);
-        exportPop = population;
-        document.getElementById("bottom-table").rows[0].cells[10].innerHTML = population;
+        const population = data[0].startingPop;
+        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+          if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
+            totalArea += newArrayOfTerritorySpecificArmyAndResources[i].area;
+          }
+        }
+        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+          if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+            console.log(population + " " + totalArea + " " + newArrayOfTerritorySpecificArmyAndResources[i].area)
+            territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
+            document.getElementById("bottom-table").rows[0].cells[10].innerHTML = territoryPop;
+            break;
+          }
+        }      
       }
       if (data[0].area.length > 0) {
-        const area = formatNumbersToKMB(data[0].area);
-        exportArea = area;
-        document.getElementById("bottom-table").rows[0].cells[12].innerHTML = area + " (km²)";
+        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+          if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+            exportArea = newArrayOfTerritorySpecificArmyAndResources[i].area;
+            area = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
+            document.getElementById("bottom-table").rows[0].cells[12].innerHTML = area + " (km²)";
+            break;
+          }
+        }
       }
       const territoryId = currentPath.getAttribute("territory-id");
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
@@ -402,7 +427,7 @@ function selectCountry(country, escKeyEntry) {
     }
     country.setAttribute('stroke-width', '3');
       if (!clickActionsDone) {
-        postRequestForCountryData(country.getAttribute("data-name"));
+        postRequestForCountryData(country.getAttribute("data-name"), country);
         if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
           if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
             if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
