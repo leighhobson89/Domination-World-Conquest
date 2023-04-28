@@ -239,13 +239,13 @@ export function newTurnResources(playerCountry) {
 
     if (currentTurn === 1) {
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-    document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
-      document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
-      document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
-      document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
-      document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
-      document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
-      document.getElementById("top-table").rows[0].cells[14].innerHTML = startingArmy;
+        document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData.goldForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData.oilForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData.foodForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData.consMatsForCurrentTerritory);
+        document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
+        document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
+        document.getElementById("top-table").rows[0].cells[14].innerHTML = startingArmy;
     } else {
         console.log(arrayOfArmyAndResourceProportionsUI);
         //add up resources from all territories and put in top-table
