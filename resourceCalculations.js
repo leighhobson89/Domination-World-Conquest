@@ -132,9 +132,27 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
                 percentOfWholeArea = areaForTerritoryId / areaSum;
             }
 
+            let continentModifier;
+            if (continent === "Europe") {
+                continentModifier = 15;
+            } else if (continent === "North America") {
+                continentModifier = 15;
+            } else if (continent === "Asia") {
+                continentModifier = 1;
+            } else if (continent === "Oceania") {
+                continentModifier = 1;
+            } else if (continent === "South America") {
+                continentModifier = 1.8;
+            } else if (continent === "Africa") {
+                continentModifier = 2;
+            }
+            console.log("continentModfier: " + continentModifier);
+
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            let GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000));
+            /* let GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000)); */
+            //Starting gold = (population * development index) + (area * development index) / 10
+            let GoldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (population/50000)) * continentModifier);
             let OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
             let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
             let ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
@@ -198,7 +216,7 @@ function connectAndCreateArmyArray() {
 
 function randomiseArmyAndResources(armyResourceArray) {
     armyResourceArray.forEach((country) => {
-        let randomGoldFactor = Math.floor(Math.random() * 60) + 2;
+        let randomGoldFactor = Math.floor(Math.random() * 20) + 2;
         let randomOilFactor = Math.floor(Math.random() * 80) + 2;
         let randomFoodFactor = Math.floor(Math.random() * 90) + 2;
         let randomConsMatsFactor = Math.floor(Math.random() * 70) + 2;
