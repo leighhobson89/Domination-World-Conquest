@@ -514,6 +514,11 @@ document.addEventListener("DOMContentLoaded", function() {
       popupWithConfirmContainer.style.display = "flex";
       popupCurrentlyOnScreen = true;
     }
+    const svgMap = document.getElementById('svg-map').contentDocument;
+  const allPaths = svgMap.getElementsByTagName("path");
+    for (let i = 0; i < allPaths.length; i++) {
+      console.log(allPaths[i].getAttribute("data-name"))
+    }
   });
 
   // add the menu options to the menu container
