@@ -450,7 +450,6 @@ function selectCountry(country, escKeyEntry) {
           svgMap.documentElement.appendChild(allPaths[i]);
           for (let j = 0; j < allPaths.length; j++) {
             if (allPaths[j].getAttribute("data-name") === "South Africa") {
-              console.log(allPaths[i] + allPaths[j]);
               lastClickedPath.parentNode.insertBefore(allPaths[j], lastClickedPath.parentNode.lastChild);
               break;
             }
@@ -530,11 +529,6 @@ document.addEventListener("DOMContentLoaded", function() {
     if (selectCountryPlayerState) {
       popupWithConfirmContainer.style.display = "flex";
       popupCurrentlyOnScreen = true;
-    }
-    const svgMap = document.getElementById('svg-map').contentDocument;
-  const allPaths = svgMap.getElementsByTagName("path");
-    for (let i = 0; i < allPaths.length; i++) {
-      console.log(allPaths[i].getAttribute("data-name"))
     }
   });
 

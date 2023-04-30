@@ -25,7 +25,6 @@ function listenForPageLoad() {
     return new Promise((resolve, reject) => {
         let intervalId = setInterval(function() {
             if (pageLoaded === true) {
-                console.log(pageLoaded);
 
                 let svgFile = document.getElementById('svg-map').contentDocument;
                 let pathAreas = calculatePathAreas(svgFile);
@@ -146,7 +145,6 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
             } else if (continent === "Africa") {
                 continentModifier = 2;
             }
-            console.log("continentModfier: " + continentModifier);
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
@@ -172,7 +170,6 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
             });
         }
     }
-    console.log(newArrayOfTerritorySpecificArmyAndResources);
     return newArrayOfTerritorySpecificArmyAndResources;
 }
 
@@ -247,7 +244,7 @@ export function newTurnResources(playerCountry) {
     let playerOwnedTerritories = [];
 
     for (const path of paths) {
-        if (path.getAttribute("owner") === "player") {
+        if (path.getAttribute("owner") === "Player") {
             playerOwnedTerritories.push(path);
         }
     }
@@ -265,7 +262,6 @@ export function newTurnResources(playerCountry) {
         document.getElementById("top-table").rows[0].cells[13].innerHTML = exportArea + " (km²)";
         document.getElementById("top-table").rows[0].cells[15].innerHTML = exportArmy;
     } else {
-        console.log(arrayOfArmyAndResourceProportionsUI);
         //add up resources from all territories and put in top-table
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
@@ -274,7 +270,7 @@ export function newTurnResources(playerCountry) {
                 }
             }
         }
-        console.log("New Total Gold: " + totalGold);
+        console.log("New Total Gold: " + exportGold);
     }
     
     //for each territory in the array apply calculations based on population, 
