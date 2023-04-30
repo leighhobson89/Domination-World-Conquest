@@ -15,11 +15,11 @@ let tempTurnPhase = currentTurnPhase;
 export let exportArmy;
 export let exportPop;
 export let exportArea;
+export let exportGold;
+export let exportOil;
+export let exportFood;
+export let exportConsMats;
 export let playerCountry;
-export let totalGold = 0;
-export let totalOil = 0;
-export let totalFood = 0;
-export let totalConsMats = 0;
 
 // Selector variables
 //hover color change variables
@@ -148,7 +148,6 @@ export function svgMapLoaded() {
             logStr += ", ";
           }
         }
-        console.log(logStr);
         //
       }
     }
@@ -194,6 +193,16 @@ function postRequestForCountryData(country, countryPath) {
       let startingArmy = 0;
       let territoryPop = 0;
 
+      let totalGold = 0;
+      let totalOil = 0;
+      let totalFood = 0;
+      let totalConsMats = 0;
+
+      exportGold = 0;
+      exportOil = 0;
+      exportFood = 0;
+      exportConsMats = 0;
+
       // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
       for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
         if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
@@ -205,16 +214,24 @@ function postRequestForCountryData(country, countryPath) {
         }
       }
 
+      exportGold = totalGold;
+      exportOil = totalOil;
+      exportFood = totalFood;
+      exportConsMats = totalConsMats;
+
       // Update the table with the response data
       document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-      document.getElementById("bottom-table").rows[0].cells[0].innerHTML = data[0].country + " (" + data[0].continent + ")";
+
+      setFlag(countryPath.getAttribute("data-name"),2); //set flag for territory clicked on (bottom table)
+
+      document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + data[0].continent + ")";
 
       for (let i = 0; i < countryResourceData.length; i++) {
         if (countryResourceData[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-          document.getElementById("bottom-table").rows[0].cells[2].innerHTML = Math.ceil(countryResourceData[i].goldForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[4].innerHTML = Math.ceil(countryResourceData[i].oilForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[6].innerHTML = Math.ceil(countryResourceData[i].foodForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(countryResourceData[i].consMatsForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(countryResourceData[i].goldForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(countryResourceData[i].oilForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(countryResourceData[i].foodForCurrentTerritory);
+          document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(countryResourceData[i].consMatsForCurrentTerritory);
         }
       }
 
@@ -229,7 +246,7 @@ function postRequestForCountryData(country, countryPath) {
         for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
             territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
-            document.getElementById("bottom-table").rows[0].cells[10].innerHTML = territoryPop;
+            document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
             exportPop = formatNumbersToKMB(population);
             break;
           }
@@ -241,7 +258,7 @@ function postRequestForCountryData(country, countryPath) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
             exportArea = formatNumbersToKMB(totalArea);
             territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
-            document.getElementById("bottom-table").rows[0].cells[12].innerHTML = territoryArea + " (km²)";
+            document.getElementById("bottom-table").rows[0].cells[13].innerHTML = territoryArea + " (km²)";
             break;
           }
         }
@@ -255,7 +272,7 @@ function postRequestForCountryData(country, countryPath) {
           break;
         }
       }
-      document.getElementById("bottom-table").rows[0].cells[14].innerHTML = startingArmy;
+      document.getElementById("bottom-table").rows[0].cells[15].innerHTML = startingArmy;
       
       for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
         if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
@@ -277,7 +294,7 @@ function formatNumbersToKMB(string) {
   } else if (string >= 1000) {
     return (string / 1000).toFixed(1) + 'k';
   } else {
-    return string.toString();
+    return string.toFixed(0);
   }
 }
 
@@ -561,6 +578,7 @@ document.addEventListener("DOMContentLoaded", function() {
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
       playerCountry = document.getElementById("popup-body").innerHTML;
+      setFlag(playerCountry,1); //set playerflag in top table
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
@@ -959,6 +977,20 @@ function changeCountryColor(pathObj, attributeString, rgbValue, isManualExceptio
   if (lastElem[1] === "fill: rgb(255,255,255)") {
     currentlySelectedColorsArray.pop();
   }
+}
+
+function setFlag(country, topOrBottom) {
+  let flagElement;
+  if (topOrBottom === 1) {
+    flagElement = document.getElementById("flag-top");
+  } else if (topOrBottom === 2) {
+    flagElement = document.getElementById("flag-bottom");   
+  }
+  const img = document.createElement('img');
+  img.classList.add("flag");
+  flagElement.innerHTML = '';
+  img.src = `./resources/flags/${country}.png`;
+  flagElement.appendChild(img);
 }
 
 

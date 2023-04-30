@@ -12,7 +12,7 @@ export function initialiseGame() {
 
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
-            path.setAttribute("owner", "player"); //set player as the owner of the territory they select
+            path.setAttribute("owner", "Player"); //set player as the owner of the territory they select
         }
     }
 
