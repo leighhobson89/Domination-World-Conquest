@@ -3,7 +3,7 @@ import { currentTurn } from './gameTurnsLoop.js';
 import { exportPop } from './ui.js';
 import { exportArea } from './ui.js';
 import { exportArmy } from './ui.js';
-import { totalGold, totalOil, totalFood, totalConsMats } from './ui.js';
+import { exportGold, exportOil, exportFood, exportConsMats } from './ui.js';
 
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
@@ -150,8 +150,6 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            /* let GoldForCurrentTerritory = totalGoldForCountry * (percentOfWholeArea * (population/10000000)); */
-            //Starting gold = (population * development index) + (area * development index) / 10
             let GoldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (population/50000)) * continentModifier);
             let OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
             let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
@@ -254,18 +252,18 @@ export function newTurnResources(playerCountry) {
         }
     }
     for (let i = 0; i < playerOwnedTerritories.length; i++) {
-        console.log("Player owns:" + playerOwnedTerritories[i].getAttribute("data-name") + " [" + playerOwnedTerritories[i].getAttribute("territory-id") + "]");
+        console.log("Player owns:" + playerOwnedTerritories[i].getAttribute("territory-name") + " [" + playerOwnedTerritories[i].getAttribute("territory-id") + "]");
     }
 
     if (currentTurn === 1) {
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("top-table").rows[0].cells[2].innerHTML = Math.ceil(totalGold);
-        document.getElementById("top-table").rows[0].cells[4].innerHTML = Math.ceil(totalOil);
-        document.getElementById("top-table").rows[0].cells[6].innerHTML = Math.ceil(totalFood);
-        document.getElementById("top-table").rows[0].cells[8].innerHTML = Math.ceil(totalConsMats);
-        document.getElementById("top-table").rows[0].cells[10].innerHTML = exportPop;
-        document.getElementById("top-table").rows[0].cells[12].innerHTML = exportArea + " (km²)";
-        document.getElementById("top-table").rows[0].cells[14].innerHTML = exportArmy;
+        document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(exportGold);
+        document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(exportOil);
+        document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(exportFood);
+        document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(exportConsMats);
+        document.getElementById("top-table").rows[0].cells[11].innerHTML = exportPop;
+        document.getElementById("top-table").rows[0].cells[13].innerHTML = exportArea + " (km²)";
+        document.getElementById("top-table").rows[0].cells[15].innerHTML = exportArmy;
     } else {
         console.log(arrayOfArmyAndResourceProportionsUI);
         //add up resources from all territories and put in top-table
