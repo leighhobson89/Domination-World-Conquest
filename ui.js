@@ -39,9 +39,9 @@ let closestDistancesArray;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
+let UICurrentlyOnScreen = false;
 let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
-let blurNotRunYet = true;
 let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
@@ -54,11 +54,6 @@ export function svgMapLoaded() {
   svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
   svg.focus();
-
-  if (blurNotRunYet) {
-    blurEffect(0); //blur background
-    blurNotRunYet = false;
-  }
 
   //console.log(manualInteractionExceptions);
 
@@ -78,7 +73,7 @@ export function svgMapLoaded() {
     hoverColorChange(path, 0);
 
     // Get the name of the country from the "data-name" attribute
-    const countryName = path.getAttribute("data-name");
+    const countryName = path.getAttribute("owner");
 
     // Get the coordinates of the mouse cursor
     const x = e.clientX;
@@ -411,35 +406,6 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
   }
 }
 
-function blurEffect(mode) {
-  if (mode == 0) {
-    // Get the SVG element and create a filter element
-    const svg = document.getElementById('svg-map');
-    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-    filter.setAttribute('id', 'blur-filter');
-
-    // Create a Gaussian blur element and set its attributes
-    const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-    blur.setAttribute('in', 'SourceGraphic'); // Apply the filter to the entire SVG element
-    blur.setAttribute('stdDeviation', '5'); // Set the amount of blur
-
-    // Append the blur element to the filter element, and the filter element to the SVG element
-    filter.appendChild(blur);
-    svg.appendChild(filter);
-
-    // Apply the filter to the SVG element
-    svg.style.filter = 'url(#blur-filter)';
-  } else if (mode == 1) {
-    // Get the SVG element and the filter element, and remove the filter element
-    const svg = document.getElementById('svg-map');
-    const filter = document.getElementById('blur-filter');
-    svg.removeChild(filter);
-
-    // Reset the SVG element's filter property to 'none'
-    svg.style.filter = 'none';
-  }
-}
-
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
@@ -521,7 +487,6 @@ document.addEventListener("DOMContentLoaded", function() {
   // add event listener to New Game button
   newGameButton.addEventListener("click", function() {
     toggleTableContainer(true);
-    blurEffect(1);
     document.getElementById("menu-container").style.display = "none";
     outsideOfMenuAndMapVisible = true;
     menuState = false;
@@ -563,8 +528,20 @@ document.addEventListener("DOMContentLoaded", function() {
   const popupConfirm = document.createElement("button");
   popupConfirm.innerText = "Confirm";
   popupConfirm.classList.add("popup-option");
-  popupConfirm.classList.add("popup-option-confirm")
+  popupConfirm.classList.add("popup-option-confirm");
   popupConfirm.setAttribute("id", "popup-confirm");
+
+  const UIToggleButton = document.createElement("button");
+  UIToggleButton.innerText = "Menu";
+  UIToggleButton.classList.add("UI-option");
+  UIToggleButton.setAttribute("id", "UIToggleButton");
+
+  UIToggleButton.addEventListener("click", function() {
+    toggleUIMenu();
+  });
+
+  document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
+  
 
   // add event listener to popup confirm button
   popupConfirm.addEventListener("click", function() {
@@ -573,6 +550,7 @@ document.addEventListener("DOMContentLoaded", function() {
       countrySelectedAndGameStarted = true;
       playerCountry = document.getElementById("popup-body").innerHTML;
       setFlag(playerCountry,1); //set playerflag in top table
+      toggleUIButton(true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
@@ -624,17 +602,19 @@ function toggleTableContainer(turnOnTable) {
 window.addEventListener("keydown", function(event) {
   const svg = document.getElementById('svg-map');
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
-    blurEffect(0);
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";
+    document.getElementById("main-ui-container").style.display = "none";
     toggleTableContainer(false);
     menuState = true;
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
     if (popupCurrentlyOnScreen) {
       document.getElementById("popup-with-confirm-container").style.display = "block";
     }
+    if (UICurrentlyOnScreen) {
+      document.getElementById("main-ui-container").style.display = "flex";
+    }
     svg.focus();
-    blurEffect(1);
     toggleTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
     selectCountry(lastClickedPath, true);
@@ -987,6 +967,30 @@ function setFlag(country, topOrBottom) {
   flagElement.appendChild(img);
 }
 
+function toggleUIButton(makeVisible = false) {
+  if (makeVisible) {
+    document.getElementById("UIButtonContainer").style.display = "block";
+  } else {
+    document.getElementById("UIButtonContainer").style.display = "none";
+  }
+}
+
+function toggleUIMenu() {
+  console.log(document.getElementById("main-ui-container").style.display);
+  if (document.getElementById("main-ui-container").style.display) {
+    if(document.getElementById("main-ui-container").style.display !== "none") {
+      document.getElementById("main-ui-container").style.display = "none";
+      UICurrentlyOnScreen = false;
+    } else {
+      document.getElementById("main-ui-container").style.display = "flex";
+      UICurrentlyOnScreen = true;
+    }
+    
+  } else {
+    document.getElementById("main-ui-container").style.display = "flex";
+    UICurrentlyOnScreen = true;
+  }
+}
 
 
 

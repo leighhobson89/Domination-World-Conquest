@@ -19,7 +19,21 @@
 </head>
 <body>
 <object id="svg-map" data="resources/svgMaster.svg" type="image/svg+xml"></object>
-<div id="menu-container"></div>
+<div id="main-ui-container" class="blur-background">
+    <div id="tab-buttons">
+      <button class="tab-button active">Territory</button>
+      <button class="tab-button">Army</button>
+    </div>
+    <div id="content">
+      <div id="info-panel">
+        Info panel content here
+      </div>
+      <div id="selection-panel">
+        Selection panel content here
+      </div>
+    </div>
+  </div>
+<div id="menu-container" class="blur-background"></div>
 <div id="popup-with-confirm-container"></div>
 <div id="tooltip"></div>
 <div class="top-table-container" id="top-table-container">
@@ -44,6 +58,7 @@
         </tr>
     </table>
 </div>
+<div id="UIButtonContainer"></div>
 <div class="bottom-table-container" id="bottom-table-container">
     <table id="bottom-table">
         <tr class="top-row">
