@@ -9,7 +9,7 @@ export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
 let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
-let tempTurnPhase = currentTurnPhase;
+let turnPhase = currentTurnPhase;
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let exportArmy;
@@ -31,7 +31,7 @@ let blue;
 let mouseOverFlag = false;
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
-let currentPath; // used for hover, and tooltip before user clicks ona country
+let currentPath; // used for hover, and tooltip before user clicks on a country
 let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
@@ -120,10 +120,11 @@ export function svgMapLoaded() {
 
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "path") {
+      currentPath = e.target;
       document.getElementById("popup-confirm").style.opacity = 1;
-      selectCountry(e.target, false);
+      selectCountry(currentPath, false);
       if (countrySelectedAndGameStarted) {
-        currentPath = e.target;
+        if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
         hoverColorChange(lastClickedPath, 2, currentlySelectedColorsArray);
         currentlySelectedColorsArray.length = 0;
@@ -145,6 +146,7 @@ export function svgMapLoaded() {
         }
         //
       }
+        }
     }
   });
 
@@ -294,117 +296,117 @@ function formatNumbersToKMB(string) {
 }
 
 function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseaction = 0 if mouseover, or 1 if mouseout
-  if (path !== currentSelectedPath && !arrayOfDestinationCountries.includes(path)) {
-    if ((path && path.style) && (mouseAction === 0 || mouseAction === 1)) {
-      // Get the current fill color
-      let color = path.style.fill;
+    if (path !== currentSelectedPath && !arrayOfDestinationCountries.includes(path)) {
+      if ((path && path.style) && (mouseAction === 0 || mouseAction === 1)) {
+        // Get the current fill color
+        let color = path.style.fill;
 
-      // Convert the color to an RGB array
-      let rgb = color.replace(/[^\d,]/g, '').split(',');
+        // Convert the color to an RGB array
+        let rgb = color.replace(/[^\d,]/g, '').split(',');
 
-      // Convert each RGB component to an integer
-      let r = parseInt(rgb[0], 10);
-      let g = parseInt(rgb[1], 10);
-      let b = parseInt(rgb[2], 10);
+        // Convert each RGB component to an integer
+        let r = parseInt(rgb[0], 10);
+        let g = parseInt(rgb[1], 10);
+        let b = parseInt(rgb[2], 10);
 
-      // Increase each RGB component by 30, or set to 255 if already higher than 225
-      if (mouseAction === 0 && !mouseOverFlag) {
-        red = r;
-        green = g;
-        blue = b;
+        // Increase each RGB component by 30, or set to 255 if already higher than 225
+        if (mouseAction === 0 && !mouseOverFlag) {
+          red = r;
+          green = g;
+          blue = b;
         if (!currentPath) {
-          r = Math.min(r + 20, 255);
-          g = Math.min(g + 20, 255);
-          b = Math.min(b + 20, 255);
+            r = Math.min(r + 20, 255);
+            g = Math.min(g + 20, 255);
+            b = Math.min(b + 20, 255);
+          }
+
+          mouseOverFlag = true;
+
+          const svgMap = document.getElementById('svg-map').contentDocument;
+          const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
+              .filter(p => !arrayOfDestinationCountries.includes(p));
+
+          // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
+
+          for (let i = 0; i < paths.length; i++) {
+            paths[i].style.fill = 'rgb(' + r + ',' + g + ',' + b + ')';
+          }
+        } else if (mouseAction === 1 && mouseOverFlag) {
+          const svgMap = document.getElementById('svg-map').contentDocument;
+          const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
+              .filter(p => !arrayOfDestinationCountries.includes(p));
+          // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
+          for (let i = 0; i < paths.length; i++) {
+            paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
+          }
+          mouseOverFlag = false;
         }
-
-        mouseOverFlag = true;
-
-        const svgMap = document.getElementById('svg-map').contentDocument;
-        const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
-            .filter(p => !arrayOfDestinationCountries.includes(p));
-
-        // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
-
-        for (let i = 0; i < paths.length; i++) {
-          paths[i].style.fill = 'rgb(' + r + ',' + g + ',' + b + ')';
-        }
-      } else if (mouseAction === 1 && mouseOverFlag) {
-        const svgMap = document.getElementById('svg-map').contentDocument;
-        const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
-            .filter(p => !arrayOfDestinationCountries.includes(p));
-        // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
-        for (let i = 0; i < paths.length; i++) {
-          paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
-        }
-        mouseOverFlag = false;
       }
     }
-  }
-  if (mouseAction === 2) {
-    red = undefined;
-    green = undefined;
-    blue = undefined;
+    if (mouseAction === 2) {
+      red = undefined;
+      green = undefined;
+      blue = undefined;
 
-    const svgMap = document.getElementById('svg-map').contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
-    let tempArray = [];
+      const svgMap = document.getElementById('svg-map').contentDocument;
+      const paths = Array.from(svgMap.querySelectorAll('path'));
+      let tempArray = [];
 
-    for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
-      let pathObj = currentlySelectedColorsArray[i][0];
-      let colorStr = currentlySelectedColorsArray[i][1];
-      let rgbRegExp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
-      let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
-      let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
+      for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
+        let pathObj = currentlySelectedColorsArray[i][0];
+        let colorStr = currentlySelectedColorsArray[i][1];
+        let rgbRegExp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
+        let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
+        let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
 
-      if (!currentlySelectedColorsArray[i][2]) { //if is not manual exception
-        for (let j = 0; j < paths.length; j++) {
-          let otherPathObj = paths[j];
-          if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-            let uniqueid = pathObj.getAttribute("uniqueid");
-            let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
-            if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-              tempArray.push([otherPathObj, colorStr]);
+        if (!currentlySelectedColorsArray[i][2]) { //if is not manual exception
+          for (let j = 0; j < paths.length; j++) {
+            let otherPathObj = paths[j];
+            if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+              let uniqueid = pathObj.getAttribute("uniqueid");
+              let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
+              if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
+                tempArray.push([otherPathObj, colorStr]);
+              }
             }
           }
         }
-      }
-      
-      let match = rgbRegExp.exec(colorStr);
-      let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
+        
+        let match = rgbRegExp.exec(colorStr);
+        let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
 
-      if (i === 0 && paths.length > 1) { 
-        let newColorVal;
-          let newColorStr = match.slice(1).map((color) => {
-          if (currentlySelectedColorsArray[i][2] || pathObj === currentSelectedPath) {
-            newColorVal = Number(color.trim());
-          } else {
-            newColorVal = Number(color.trim()) - 20;
-          }
-          return newColorVal > 255 ? 255 : newColorVal;
-        }).join(", ");
-        newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
+        if (i === 0 && paths.length > 1) { 
+          let newColorVal;
+            let newColorStr = match.slice(1).map((color) => {
+            if (currentlySelectedColorsArray[i][2] || pathObj === currentSelectedPath) {
+              newColorVal = Number(color.trim());
+            } else {
+              newColorVal = Number(color.trim()) - 20;
+            }
+            return newColorVal > 255 ? 255 : newColorVal;
+          }).join(", ");
+          newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
+        }
+        pathObj.setAttribute("style", newStyleValue);
       }
-      pathObj.setAttribute("style", newStyleValue);
-    }
 
-    if (currentSelectedPath !== null) {
-      tempArray = tempArray.filter(element => element[0].getAttribute("data-name") === currentSelectedPath.getAttribute("data-name"));
-      tempArray.forEach((item) => {
-        let rgbRegExpTemp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
-        let pathObjTemp = item[0];
-        let styleTemp = pathObjTemp.getAttribute("style");
-        let matchTemp = rgbRegExpTemp.exec(styleTemp);
-        let newColorStrTemp = matchTemp.slice(1).map((color) => {
-          let newColorValTemp = Number(color.trim()) - 0;
-          return newColorValTemp < 0 ? 0 : newColorValTemp;
-        }).join(", ");
-        let newStyleValueTemp = styleTemp.replace(rgbRegExpTemp, `fill: rgb(${newColorStrTemp})`);
-        item[0].setAttribute("style", newStyleValueTemp);
-      });
+      if (currentSelectedPath !== null) {
+        tempArray = tempArray.filter(element => element[0].getAttribute("data-name") === currentSelectedPath.getAttribute("data-name"));
+        tempArray.forEach((item) => {
+          let rgbRegExpTemp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
+          let pathObjTemp = item[0];
+          let styleTemp = pathObjTemp.getAttribute("style");
+          let matchTemp = rgbRegExpTemp.exec(styleTemp);
+          let newColorStrTemp = matchTemp.slice(1).map((color) => {
+            let newColorValTemp = Number(color.trim()) - 0;
+            return newColorValTemp < 0 ? 0 : newColorValTemp;
+          }).join(", ");
+          let newStyleValueTemp = styleTemp.replace(rgbRegExpTemp, `fill: rgb(${newColorStrTemp})`);
+          item[0].setAttribute("style", newStyleValueTemp);
+        });
+      }
     }
   }
-}
 
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
@@ -556,28 +558,28 @@ document.addEventListener("DOMContentLoaded", function() {
       popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
       popupSubTitle.innerText = "TO DO"; // set in required function
       popupConfirm.innerText = "DEPLOY";
-      tempTurnPhase++;
-    } else if (countrySelectedAndGameStarted && tempTurnPhase == 0) {
+      turnPhase++;
+    } else if (countrySelectedAndGameStarted && turnPhase == 0) {
       popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
       popupSubTitle.innerText = "TO DO"; // set in required function
       popupConfirm.innerText = "DEPLOY";
-      modifyCurrentTurnPhase(tempTurnPhase);
-      tempTurnPhase++; 
-    } else if (countrySelectedAndGameStarted && tempTurnPhase == 1) {
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase++; 
+    } else if (countrySelectedAndGameStarted && turnPhase == 1) {
       popupTitle.innerText = "Deploy Phase"; //set in required function
       popupConfirm.innerText = "MOVE / ATTACK";
-      modifyCurrentTurnPhase(tempTurnPhase);
-      tempTurnPhase++;
-    } else if (countrySelectedAndGameStarted && tempTurnPhase == 2) {
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase++;
+    } else if (countrySelectedAndGameStarted && turnPhase == 2) {
       popupTitle.innerText = "Move / Attack Phase"; //set in required function
       popupConfirm.innerText = "END TURN";
-      modifyCurrentTurnPhase(tempTurnPhase);
-      tempTurnPhase++;
-    } else if (countrySelectedAndGameStarted && tempTurnPhase == 3) {
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase++;
+    } else if (countrySelectedAndGameStarted && turnPhase == 3) {
       popupTitle.innerText = "AI turn"; //set in required function
       popupConfirm.innerText = "AI Moving...";
-      modifyCurrentTurnPhase(tempTurnPhase);
-      tempTurnPhase = 0;
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase = 0;
     }
   });
 
@@ -991,6 +993,65 @@ function toggleUIMenu() {
     UICurrentlyOnScreen = true;
   }
 }
+
+
+  function setFlagOnPaths() {
+    const svgMap = document.getElementById('svg-map').contentDocument;
+    const svg = svgMap.querySelector('svg');
+    const paths = Array.from(svgMap.querySelectorAll('path'));
+
+    // create the pattern element
+    let pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+    pattern.setAttribute('id', 'image');
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+
+    for (const path of paths) {
+      // calculate the bounding box of the path
+      let bbox = path.getBBox();
+      let width = bbox.width;
+      let height = bbox.height;
+      let x = bbox.x;
+      let y = bbox.y;
+
+      // create the image element inside the pattern
+      let image = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      const flagURL = "./flags/" + path.getAttribute("data-name") + ".png";
+      image.setAttribute('href', flagURL);
+      image.setAttribute('x', x);
+      image.setAttribute('y', y);
+      image.setAttribute('width', width);
+      image.setAttribute('height', height);
+
+      // add the image to the pattern
+      pattern.appendChild(image);
+    }
+
+    // set the width and height of the pattern to the bounding box of the paths
+    let bbox = paths[0].getBBox();
+    pattern.setAttribute('width', bbox.width);
+    pattern.setAttribute('height', bbox.height);
+
+    // create the defs element and add the pattern to it
+    let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+
+    // set the path fill attribute to the pattern
+    paths.forEach(path => path.setAttribute('fill', 'url(#image)'));
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

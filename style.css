@@ -182,7 +182,7 @@ td {
   height: 40%;
   position: fixed;
   bottom: 10%;
-  left: 2%;
+  left: 5px;
   border-radius: 10px;
   display: none;
   flex-direction: column;
