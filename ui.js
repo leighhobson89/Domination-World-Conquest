@@ -314,11 +314,12 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
           red = r;
           green = g;
           blue = b;
-        if (!currentPath) {
+
+        /* if (!currentPath) { */
             r = Math.min(r + 20, 255);
             g = Math.min(g + 20, 255);
             b = Math.min(b + 20, 255);
-          }
+          /* } */
 
           mouseOverFlag = true;
 
@@ -374,18 +375,31 @@ function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseac
         
         let match = rgbRegExp.exec(colorStr);
         let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
+        let newColorVal;
+        if (pathObj !== currentSelectedPath && paths.length > 1) { //OTHER PATHS THAT WERE WHITE BUT NOT SELECTED
+          
+          let newColorStr = match.slice(1).map((color) => {
 
-        if (i === 0 && paths.length > 1) { 
-          let newColorVal;
-            let newColorStr = match.slice(1).map((color) => {
-            if (currentlySelectedColorsArray[i][2] || pathObj === currentSelectedPath) {
-              newColorVal = Number(color.trim());
-            } else {
-              newColorVal = Number(color.trim()) - 20;
-            }
-            return newColorVal > 255 ? 255 : newColorVal;
+          if (pathObj.getAttribute("data-name") === currentSelectedPath.getAttribute("data-name")) {
+            newColorVal = Number(color.trim()) - 20;
+          } else {
+            newColorVal = Number(color.trim());
+          }
+        
+          return newColorVal > 255 ? 255 : newColorVal;
           }).join(", ");
+
           newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
+
+        } else { //SELECTED PATH
+          let newColorStr = match.slice(1).map((color) => {
+
+            newColorVal = Number(color.trim()) - 20;
+          
+            return newColorVal > 255 ? 255 : newColorVal;
+            }).join(", ");
+
+            newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
         }
         pathObj.setAttribute("style", newStyleValue);
       }
