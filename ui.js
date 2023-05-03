@@ -36,7 +36,6 @@ let validDestinationsAndClosestPointArray; //populated with valid interaction te
 let validDestinationsArray;
 let closestDistancesArray;
 let hoveredNonWhiteTerritory = false;
-let calledAlreadyChangeColor = false;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -744,7 +743,6 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     const destName = destinationPathObjectArray[i].getAttribute("data-name");
 
     if (destinationPathObjectArray[i] === targetPath) {
-      calledAlreadyChangeColor = true;
       changeCountryColor(targetPath, false, "255,255,255"); //change color of country clicked on
     }
 
@@ -778,7 +776,6 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
       }
     }
   }
-  calledAlreadyChangeColor = false;
   validDestinationsArray.length = 0;
 
   for (let i = 0; i < paths.length; i++) {
