@@ -7,16 +7,15 @@ import { newArrayOfTerritorySpecificArmyAndResources } from './resourceCalculati
 
 export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
-let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
-const continentColorArray = [["Africa", [235, 234, 20]], 
+const continentColorArray = [["Africa", [233, 234, 20]], 
                             ["Asia", [203, 58, 22]],
                             ["Europe", [186, 218, 85]],
                             ["North America", [83, 107, 205]],
                             ["South America", [193, 83, 205]],
-                            ["Oceania", [74, 202, 235]]];
+                            ["Oceania", [74, 202, 233]]];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let exportArmy;
@@ -28,14 +27,7 @@ export let exportFood;
 export let exportConsMats;
 export let playerCountry;
 
-// Selector variables
-//hover color change variables
-let red;
-let green;
-let blue;
-
 //path selection variables
-let mouseOverFlag = false;
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
 let currentPath; // used for hover, and tooltip before user clicks on a country
@@ -43,6 +35,8 @@ let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
 let closestDistancesArray;
+let hoveredNonWhiteTerritory = false;
+let calledAlreadyChangeColor = false;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -133,11 +127,11 @@ export function svgMapLoaded() {
       if (countrySelectedAndGameStarted) {
         if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
-        hoverColorChange(lastClickedPath, 2, currentlySelectedColorsArray);
+        hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
+        //changeColorSelectedAndInteractableCountries(currentlySelectedColorsArray);
         currentlySelectedColorsArray.length = 0;
         currentSelectedPath = currentPath;
         validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
-        arrayOfDestinationCountries = validDestinationsArray;
         closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
@@ -151,7 +145,7 @@ export function svgMapLoaded() {
             logStr += ", ";
           }
         }
-        //
+        console.log(logStr);
       }
         }
     }
@@ -302,133 +296,6 @@ function formatNumbersToKMB(string) {
     return string.toFixed(0);
   }
 }
-
-function hoverColorChange(path, mouseAction, currentColorArray = []) { //mouseaction = 0 if mouseover, or 1 if mouseout
-    if (path !== currentSelectedPath && !arrayOfDestinationCountries.includes(path)) {
-      if ((path && path.style) && (mouseAction === 0 || mouseAction === 1)) {
-        // Get the current fill color
-        let color = path.style.fill;
-
-        // Convert the color to an RGB array
-        let rgb = color.replace(/[^\d,]/g, '').split(',');
-
-        // Convert each RGB component to an integer
-        let r = parseInt(rgb[0], 10);
-        let g = parseInt(rgb[1], 10);
-        let b = parseInt(rgb[2], 10);
-
-        // Increase each RGB component by 30, or set to 255 if already higher than 225
-        if (mouseAction === 0 && !mouseOverFlag) {
-          red = r;
-          green = g;
-          blue = b;
-
-        /* if (!currentPath) { */
-            r = Math.min(r + 20, 255);
-            g = Math.min(g + 20, 255);
-            b = Math.min(b + 20, 255);
-          /* } */
-
-          mouseOverFlag = true;
-
-          const svgMap = document.getElementById('svg-map').contentDocument;
-          const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
-              .filter(p => !arrayOfDestinationCountries.includes(p));
-
-          // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
-
-          for (let i = 0; i < paths.length; i++) {
-            paths[i].style.fill = 'rgb(' + r + ',' + g + ',' + b + ')';
-          }
-        } else if (mouseAction === 1 && mouseOverFlag) {
-          const svgMap = document.getElementById('svg-map').contentDocument;
-          const paths = Array.from(svgMap.querySelectorAll('path[data-name="' + path.getAttribute("data-name") + '"]'))
-              .filter(p => !arrayOfDestinationCountries.includes(p));
-          // Loop through all paths in the SVG and change the fill color of the ones that have a "data-name" attribute that matches the one of the hovered path
-          for (let i = 0; i < paths.length; i++) {
-            paths[i].style.fill = `rgb(${red}, ${green}, ${blue})`;
-          }
-          mouseOverFlag = false;
-        }
-      }
-    }
-    if (mouseAction === 2) {
-      red = undefined;
-      green = undefined;
-      blue = undefined;
-
-      const svgMap = document.getElementById('svg-map').contentDocument;
-      const paths = Array.from(svgMap.querySelectorAll('path'));
-      let tempArray = [];
-
-      for (let i = 0; i < currentlySelectedColorsArray.length; i++) {
-        let pathObj = currentlySelectedColorsArray[i][0];
-        let colorStr = currentlySelectedColorsArray[i][1];
-        let rgbRegExp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
-        let matchCurrentColor = rgbRegExp.exec(pathObj.getAttribute("style"));
-        let currentColor = matchCurrentColor ? matchCurrentColor[0] : '';
-
-        if (!currentlySelectedColorsArray[i][2]) { //if is not manual exception
-          for (let j = 0; j < paths.length; j++) {
-            let otherPathObj = paths[j];
-            if (otherPathObj !== pathObj && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-              let uniqueid = pathObj.getAttribute("uniqueid");
-              let isAlreadyAdded = tempArray.some(item => item[0].getAttribute("uniqueid") === uniqueid);
-              if (!isAlreadyAdded && otherPathObj.getAttribute("data-name") === pathObj.getAttribute("data-name")) {
-                tempArray.push([otherPathObj, colorStr]);
-              }
-            }
-          }
-        }
-        
-        let match = rgbRegExp.exec(colorStr);
-        let newStyleValue = pathObj.getAttribute("style").replace(currentColor, match[0]);
-        let newColorVal;
-        if (pathObj !== currentSelectedPath && paths.length > 1) { //OTHER PATHS THAT WERE WHITE BUT NOT SELECTED
-          
-          let newColorStr = match.slice(1).map((color) => {
-
-          if (pathObj.getAttribute("data-name") === currentSelectedPath.getAttribute("data-name")) {
-            newColorVal = Number(color.trim()) - 20;
-          } else {
-            newColorVal = Number(color.trim());
-          }
-        
-          return newColorVal > 255 ? 255 : newColorVal;
-          }).join(", ");
-
-          newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
-
-        } else { //SELECTED PATH
-          let newColorStr = match.slice(1).map((color) => {
-
-            newColorVal = Number(color.trim()) - 20;
-          
-            return newColorVal > 255 ? 255 : newColorVal;
-            }).join(", ");
-
-            newStyleValue = newStyleValue.replace(rgbRegExp, `fill: rgb(${newColorStr})`);
-        }
-        pathObj.setAttribute("style", newStyleValue);
-      }
-
-      if (currentSelectedPath !== null) {
-        tempArray = tempArray.filter(element => element[0].getAttribute("data-name") === currentSelectedPath.getAttribute("data-name"));
-        tempArray.forEach((item) => {
-          let rgbRegExpTemp = /fill: rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)/;
-          let pathObjTemp = item[0];
-          let styleTemp = pathObjTemp.getAttribute("style");
-          let matchTemp = rgbRegExpTemp.exec(styleTemp);
-          let newColorStrTemp = matchTemp.slice(1).map((color) => {
-            let newColorValTemp = Number(color.trim()) - 0;
-            return newColorValTemp < 0 ? 0 : newColorValTemp;
-          }).join(", ");
-          let newStyleValueTemp = styleTemp.replace(rgbRegExpTemp, `fill: rgb(${newColorStrTemp})`);
-          item[0].setAttribute("style", newStyleValueTemp);
-        });
-      }
-    }
-  }
 
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
@@ -868,27 +735,26 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
 
   if (manualExceptionsArray.length > 0) {
     for (let i = 0; i < manualExceptionsArray.length; i++) {
-      changeCountryColor(manualExceptionsArray[i], manualExceptionsArray[i].getAttribute("style"), "255,255,255", true);
+      changeCountryColor(manualExceptionsArray[i], true, "255,255,255");
     }
   }
-
-
-
 
   for (let i = 0; i < destinationPathObjectArray.length; i++) {
     const targetName = targetPath.getAttribute("data-name");
     const destName = destinationPathObjectArray[i].getAttribute("data-name");
-    const destStyle = destinationPathObjectArray[i].getAttribute("style");
 
-    changeCountryColor(targetPath, targetPath.getAttribute("style"), "255,255,255", false); //change color of country clicked on
+    if (destinationPathObjectArray[i] === targetPath) {
+      calledAlreadyChangeColor = true;
+      changeCountryColor(targetPath, false, "255,255,255"); //change color of country clicked on
+    }
 
     const line = document.createElementNS(svgns, "path");
     line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
-    if (distances[i] < 1) { //if touches borders then always draws a line
-      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false); //change color of touching countrys
-    } else if (targetName === destName) { //if another territory of same country, then change color
+    if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
+      changeCountryColor(destinationPathObjectArray[i], false, "255,255,255"); //change color of touching countrys
+    } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
       // console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
-      changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false); // change color of all territories of clicked country
+      changeCountryColor(destinationPathObjectArray[i], false, "255,255,255"); // change color of all territories of clicked country
     } else {
       for (let j = 0; j < destinationPathObjectArray.length; j++) {
         if (i === j) {
@@ -902,8 +768,8 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
           continue;
         }
 
-        if (destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") {
-          changeCountryColor(destinationPathObjectArray[i], destStyle, "255,255,255", false);
+        if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
+          changeCountryColor(destinationPathObjectArray[i], false, "255,255,255");
         }
 
         if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
@@ -912,10 +778,11 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
       }
     }
   }
+  calledAlreadyChangeColor = false;
   validDestinationsArray.length = 0;
 
   for (let i = 0; i < paths.length; i++) {
-    if (paths[i].getAttribute("style").includes("fill: rgb(255,255,255)")) {
+    if (paths[i].getAttribute("fill") === "rgb(255, 255, 255)") {
       validDestinationsArray.push(paths[i]);
     }
   }
@@ -956,23 +823,37 @@ function getClosestPointsDestinationPaths(coord, paths) {
   return closestPoints;
 }
 
-function changeCountryColor(pathObj, attributeString, rgbValue, isManualException) {
-  let rgbRegExp = /fill: rgb\(\s*\d{1,3},\s*\d{1,3},\s*\d{1,3}\s*\)/;
-  let originalColor = attributeString.match(/fill:\s*rgb\((\s*\d{1,3},){2}\s*\d{1,3}\)/)[0];
-  let newStyleValue = attributeString.replace(rgbRegExp, function(match) {
-    let rgbValueArr = rgbValue.split(",");
-    return "fill: rgb(" + rgbValueArr.join(",") + ")";
-  });
-  
-  pathObj.setAttribute("style", newStyleValue);
+function changeCountryColor(pathObj, isManualException, newRgbValue) {
+  let originalColor = pathObj.getAttribute("fill");
+  let rgbValues = originalColor.match(/\d{1,3}/g);
+  let newRgbValues;
+
+  if (pathObj === currentSelectedPath && hoveredNonWhiteTerritory) {
+    let [r, g, b] = rgbValues;
+
+    r -= 20;
+    g -= 20;
+    b -= 20;
+    
+    originalColor = "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  newRgbValues = newRgbValue.split(",");
+    
+    rgbValues.forEach((value, index) => {
+      rgbValues[index] = parseInt(newRgbValues[index].trim());
+    });
+
+    let newFillAttribute = "rgb(" + rgbValues.join(", ") + ")";
+    pathObj.setAttribute("fill", newFillAttribute);
 
   // Push the original color to the array
-
+    
   currentlySelectedColorsArray.push([pathObj, originalColor, isManualException]);
 
   // Remove any elements containing "255, 255, 255"
-  let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1];
-  if (lastElem[1] === "fill: rgb(255,255,255)") {
+  let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1][1];
+  if (lastElem === "rgb(255, 255, 255)") {
     currentlySelectedColorsArray.pop();
   }
 }
@@ -1027,48 +908,39 @@ function toggleUIMenu() {
     });
   }
 
-  function hoverOverTerritory(territory, mouseAction) {
+  function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = []) {
     if (territory.hasAttribute("fill")) {
-      const fillValue = territory.getAttribute("fill");
-      const rgbValues = fillValue.match(/\d+/g).map(Number);
+      let fillValue = territory.getAttribute("fill");
+      let rgbValues = fillValue.match(/\d+/g).map(Number);
       let [r, g, b] = rgbValues;
-      if (mouseAction === "mouseOver") {
+      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) {
+        hoveredNonWhiteTerritory = true;
         r += 20;
         g += 20;
         b += 20;
-      } else if (mouseAction === "mouseOut") {
+        territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+        console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
+      } else if (mouseAction === "mouseOut"  && r <= 254 && g <= 254 && b <= 254) {
+        hoveredNonWhiteTerritory = false;
         r -= 20;
         g -= 20;
         b -= 20;
+        territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+        console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
+      } else if (mouseAction === "clickCountry") {
+        if (arrayOfSelectedCountries.length > 0) {
+          hoveredNonWhiteTerritory = false;
+          for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
+              let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
+              arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
+          }
+        } else {
+          console.log("array empty");
+          console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
+        }
       }
-      territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
     } else {
       console.log("Svg Hovered");
+      console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
