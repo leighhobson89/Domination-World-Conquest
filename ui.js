@@ -155,6 +155,8 @@ export function svgMapLoaded() {
         } else if (currentTurnPhase === 3) {
           
         }
+      } else { //if on country selection screen
+        document.getElementsByClassName("popup-option-color")[0].style.display = "block";
       }                                                                                                       
     }
   });
@@ -326,6 +328,7 @@ function selectCountry(country, escKeyEntry) {
       svgMap.documentElement.appendChild(country);
     }
     country.setAttribute('stroke-width', '3');
+    country.setAttribute('fill', 'rgb(255,255,255)');
       if (!clickActionsDone) {
         postRequestForCountryData(country.getAttribute("data-name"), country);
         if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
@@ -418,8 +421,15 @@ document.addEventListener("DOMContentLoaded", function() {
   popupTitle.classList.add("popup-option-title");
   popupTitle.setAttribute("id", "popup-title");
 
+  const colorPicker = document.createElement("label");
+  colorPicker.innerText = "Select Player Color";
+  colorPicker.classList.add("popup-option");
+  colorPicker.classList.add("popup-option-color");
+  colorPicker.setAttribute("id", "popup-color");
+  colorPicker.setAttribute("for", "player-color-picker");
+
   const popupSubTitle = document.createElement("td");
-  popupSubTitle.innerText = "- - - -"; // set in required function
+  popupSubTitle.innerText = "- - - -";
   popupSubTitle.classList.add("popup-option");
   popupSubTitle.classList.add("popup-option-subtitle");
   popupSubTitle.setAttribute("id", "popup-body");
@@ -440,6 +450,15 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
+
+  colorPicker.addEventListener("click", function() {
+    document.getElementById("player-color-picker").style.display = "block";
+  });
+
+document.getElementById("player-color-picker").addEventListener('change', function() {
+  console.log(lastClickedPath.getAttribute("fill"));
+  lastClickedPath.setAttribute("fill", document.getElementById("player-color-picker").value);
+});
   
 
   // add event listener to popup confirm button
@@ -484,6 +503,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add the menu options to the menu container
   popupWithConfirmContainer.appendChild(popupTitle);
+  popupWithConfirmContainer.appendChild(colorPicker);
   popupWithConfirmContainer.appendChild(popupSubTitle);
   popupWithConfirmContainer.appendChild(popupConfirm);
 
