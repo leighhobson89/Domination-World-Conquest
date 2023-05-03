@@ -10,13 +10,6 @@ const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
-const continentColorArray = [["Africa", [233, 234, 20]], 
-                            ["Asia", [203, 58, 22]],
-                            ["Europe", [186, 218, 85]],
-                            ["North America", [83, 107, 205]],
-                            ["South America", [193, 83, 205]],
-                            ["Oceania", [74, 202, 233]]];
-
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let exportArmy;
 export let exportPop;
@@ -26,6 +19,14 @@ export let exportOil;
 export let exportFood;
 export let exportConsMats;
 export let playerCountry;
+
+let currentMapColorArray = []; //current state of map at start of new turn
+const continentColorArray = [["Africa", [233, 234, 20]], 
+                            ["Asia", [203, 58, 22]],
+                            ["Europe", [186, 218, 85]],
+                            ["North America", [83, 107, 205]],
+                            ["South America", [193, 83, 205]],
+                            ["Oceania", [74, 202, 233]]];
 
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -124,10 +125,11 @@ export function svgMapLoaded() {
       document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(currentPath, false);
       if (countrySelectedAndGameStarted) {
-        if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
+        if (currentTurnPhase === 0) {
+          
+        } else if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
         hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
-        //changeColorSelectedAndInteractableCountries(currentlySelectedColorsArray);
         currentlySelectedColorsArray.length = 0;
         currentSelectedPath = currentPath;
         validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
@@ -143,10 +145,12 @@ export function svgMapLoaded() {
           if (i < validDestinationsArray.length - 1) {
             logStr += ", ";
           }
-        }
+        }                           
         console.log(logStr);
-      }
+        } else if (currentTurnPhase === 3) {
+          
         }
+      }                                                                                                       
     }
   });
 
@@ -443,28 +447,30 @@ document.addEventListener("DOMContentLoaded", function() {
       toggleUIButton(true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
-      popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
-      popupSubTitle.innerText = "TO DO"; // set in required function
+      popupTitle.innerText = "Buy / Upgrade Phase";
+      popupSubTitle.innerText = "TO DO";
       popupConfirm.innerText = "DEPLOY";
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
-      popupTitle.innerText = "Buy / Upgrade Phase"; //set in required function
-      popupSubTitle.innerText = "TO DO"; // set in required function
+      popupTitle.innerText = "Buy / Upgrade Phase";
+      popupSubTitle.innerText = "TO DO";
       popupConfirm.innerText = "DEPLOY";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++; 
     } else if (countrySelectedAndGameStarted && turnPhase == 1) {
-      popupTitle.innerText = "Deploy Phase"; //set in required function
+      currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
+      popupTitle.innerText = "Deploy Phase";
       popupConfirm.innerText = "MOVE / ATTACK";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-      popupTitle.innerText = "Move / Attack Phase"; //set in required function
+      popupTitle.innerText = "Move / Attack Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 3) {
-      popupTitle.innerText = "AI turn"; //set in required function
+      restoreMapColorState(currentMapColorArray); //Add to this feature once attack implemented and territories can change color
+      popupTitle.innerText = "AI turn";
       popupConfirm.innerText = "AI Moving...";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase = 0;
@@ -942,3 +948,33 @@ function toggleUIMenu() {
       console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
     }
   }
+
+  function saveMapColorState() {
+    const svgMap = document.getElementById('svg-map').contentDocument;
+    const paths = Array.from(svgMap.querySelectorAll('path'));
+
+    const fillArray = [];
+
+    for (let i = 0; i < paths.length; i++) {
+      const uniqueId = paths[i].getAttribute('uniqueid');
+      const fillValue = paths[i].getAttribute('fill');
+      if (uniqueId && fillValue) {
+        fillArray.push([uniqueId, fillValue]);
+      }
+    }
+
+    return fillArray;
+}
+
+function restoreMapColorState(array) {
+  const svgMap = document.getElementById('svg-map').contentDocument;
+  const paths = Array.from(svgMap.querySelectorAll('path'));
+
+  paths.forEach(path => { //for each path, loop through the currentMapArray and find the match and set the color back
+    for (let i = 0; i < array.length; i++) {
+      if (array[i][0] == path.getAttribute("uniqueid")) {
+        path.setAttribute("fill", array[i][1]);
+      }
+    }
+  });
+}
