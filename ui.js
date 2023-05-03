@@ -36,7 +36,7 @@ let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
 let closestDistancesArray;
-let hoveredNonWhiteTerritory = false;
+let hoveredNonInteractableAndNonSelectedTerritory = false;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -120,33 +120,38 @@ export function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
+    if (e.target.tagName === "rect" && currentTurnPhase >= 2) { // if user clicks on sea then clear selection colors
+      restoreMapColorState(currentMapColorArray);
+    }
     if (e.target.tagName === "path") {
       currentPath = e.target;
       document.getElementById("popup-confirm").style.opacity = 1;
       selectCountry(currentPath, false);
       if (countrySelectedAndGameStarted) {
-        if (currentTurnPhase === 0) {
-          
-        } else if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
-        validDestinationsAndClosestPointArray = findClosestPaths(e.target);
-        hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
-        currentlySelectedColorsArray.length = 0;
-        currentSelectedPath = currentPath;
-        validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
-        closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
-        let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
-        let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+        if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
+          validDestinationsAndClosestPointArray = findClosestPaths(e.target);
+          if (!currentPath.hasAttribute("fill")) { 
+            
+          } else {
+            hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
+            currentlySelectedColorsArray.length = 0;
+            currentSelectedPath = currentPath;
+            validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
+            closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
+            let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
+            let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
+            validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
 
-        //all this is for the console log below it
-        let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
-        for (let i = 0; i < validDestinationsArray.length; i++) {
-          logStr += validDestinationsArray[i].getAttribute("data-name") + "[" + validDestinationsArray[i].getAttribute("territory-id") + "]";
-          if (i < validDestinationsArray.length - 1) {
-            logStr += ", ";
-          }
-        }                           
-        console.log(logStr);
+            //all this is for the console log below it
+            let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
+            for (let i = 0; i < validDestinationsArray.length; i++) {
+              logStr += validDestinationsArray[i].getAttribute("data-name") + "[" + validDestinationsArray[i].getAttribute("territory-id") + "]";
+              if (i < validDestinationsArray.length - 1) {
+                logStr += ", ";
+              }
+            }                           
+            console.log(logStr);
+          }        
         } else if (currentTurnPhase === 3) {
           
         }
@@ -831,7 +836,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
   let rgbValues = originalColor.match(/\d{1,3}/g);
   let newRgbValues;
 
-  if (pathObj === currentSelectedPath && hoveredNonWhiteTerritory) {
+  if (pathObj === currentSelectedPath && hoveredNonInteractableAndNonSelectedTerritory) {
     let [r, g, b] = rgbValues;
 
     r -= 20;
@@ -840,7 +845,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
     
     originalColor = "rgb(" + r + "," + g + "," + b + ")";
 
-    hoveredNonWhiteTerritory = false;
+    hoveredNonInteractableAndNonSelectedTerritory = false;
   }
 
   newRgbValues = newRgbValue.split(",");
@@ -918,21 +923,19 @@ function toggleUIMenu() {
       let fillValue = territory.getAttribute("fill");
       let rgbValues = fillValue.match(/\d+/g).map(Number);
       let [r, g, b] = rgbValues;
-      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) {
-        hoveredNonWhiteTerritory = true;
+      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when hovering (doesnt run on selected or interactable territories)
+        hoveredNonInteractableAndNonSelectedTerritory = true;
         r += 20;
         g += 20;
         b += 20;
         territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-        console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
-      } else if (mouseAction === "mouseOut"  && r <= 254 && g <= 254 && b <= 254) {
-        hoveredNonWhiteTerritory = false;
+      } else if (mouseAction === "mouseOut"  && r <= 254 && g <= 254 && b <= 254) { //this handles color change when leaving a hover (doesnt run on selected or interactable territories)
+        hoveredNonInteractableAndNonSelectedTerritory = false;
         r -= 20;
         g -= 20;
         b -= 20;
         territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-        console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
-      } else if (mouseAction === "clickCountry") {
+      } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
         if (arrayOfSelectedCountries.length > 0) {
           for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
             let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
@@ -940,12 +943,10 @@ function toggleUIMenu() {
           }
         } else {
           console.log("array empty");
-          console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
         }
       }
     } else {
       console.log("Svg Hovered");
-      console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
     }
   }
 
@@ -967,6 +968,8 @@ function toggleUIMenu() {
 }
 
 function restoreMapColorState(array) {
+  validDestinationsArray.length = 0;
+  currentlySelectedColorsArray.length = 0;
   const svgMap = document.getElementById('svg-map').contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
 
