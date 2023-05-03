@@ -11,6 +11,13 @@ let arrayOfDestinationCountries = [];
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
+const continentColorArray = [["Africa", [235, 234, 20]], 
+                            ["Asia", [203, 58, 22]],
+                            ["Europe", [186, 218, 85]],
+                            ["North America", [83, 107, 205]],
+                            ["South America", [193, 83, 205]],
+                            ["Oceania", [74, 202, 235]]];
+
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let exportArmy;
 export let exportPop;
@@ -70,7 +77,7 @@ export function svgMapLoaded() {
     currentPath = path; // Set the current path element
 
     // Call the hoverColorChange function
-    hoverColorChange(path, 0);
+    hoverOverTerritory(path, "mouseOver");
 
     // Get the name of the country from the "data-name" attribute
     const countryName = path.getAttribute("owner");
@@ -98,7 +105,7 @@ export function svgMapLoaded() {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
     tooltip.style.backgroundColor = "transparent";
-    hoverColorChange(currentPath, 1); // Pass the current path element and set mouseAction to 1
+    hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
     clickActionsDone = false;
   });
 
@@ -162,6 +169,7 @@ export function svgMapLoaded() {
       // console.log('Current focus:', document.activeElement);
   }, { passive: false });
 
+  colorMapAtBeginningOfGame();
   console.log ("loaded!");
 }
 
@@ -1008,50 +1016,35 @@ function toggleUIMenu() {
   }
 }
 
-
-  function setFlagOnPaths() {
+  function colorMapAtBeginningOfGame() {
     const svgMap = document.getElementById('svg-map').contentDocument;
-    const svg = svgMap.querySelector('svg');
     const paths = Array.from(svgMap.querySelectorAll('path'));
 
-    // create the pattern element
-    let pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
-    pattern.setAttribute('id', 'image');
-    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    paths.forEach(path => {
+      const continent = path.getAttribute("continent");
+      const color = continentColorArray.find(item => item[0] === continent)[1];
+      path.setAttribute("fill", `rgb(${color[0]},${color[1]},${color[2]})`);
+    });
+  }
 
-    for (const path of paths) {
-      // calculate the bounding box of the path
-      let bbox = path.getBBox();
-      let width = bbox.width;
-      let height = bbox.height;
-      let x = bbox.x;
-      let y = bbox.y;
-
-      // create the image element inside the pattern
-      let image = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-      const flagURL = "./flags/" + path.getAttribute("data-name") + ".png";
-      image.setAttribute('href', flagURL);
-      image.setAttribute('x', x);
-      image.setAttribute('y', y);
-      image.setAttribute('width', width);
-      image.setAttribute('height', height);
-
-      // add the image to the pattern
-      pattern.appendChild(image);
+  function hoverOverTerritory(territory, mouseAction) {
+    if (territory.hasAttribute("fill")) {
+      const fillValue = territory.getAttribute("fill");
+      const rgbValues = fillValue.match(/\d+/g).map(Number);
+      let [r, g, b] = rgbValues;
+      if (mouseAction === "mouseOver") {
+        r += 20;
+        g += 20;
+        b += 20;
+      } else if (mouseAction === "mouseOut") {
+        r -= 20;
+        g -= 20;
+        b -= 20;
+      }
+      territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+    } else {
+      console.log("Svg Hovered");
     }
-
-    // set the width and height of the pattern to the bounding box of the paths
-    let bbox = paths[0].getBBox();
-    pattern.setAttribute('width', bbox.width);
-    pattern.setAttribute('height', bbox.height);
-
-    // create the defs element and add the pattern to it
-    let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.appendChild(pattern);
-    svg.appendChild(defs);
-
-    // set the path fill attribute to the pattern
-    paths.forEach(path => path.setAttribute('fill', 'url(#image)'));
   }
 
 
