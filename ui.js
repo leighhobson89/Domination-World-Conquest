@@ -135,7 +135,7 @@ export function svgMapLoaded() {
         closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-        validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(e.target, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+        validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
 
         //all this is for the console log below it
         let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
@@ -836,6 +836,8 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
     b -= 20;
     
     originalColor = "rgb(" + r + "," + g + "," + b + ")";
+
+    hoveredNonWhiteTerritory = false;
   }
 
   newRgbValues = newRgbValue.split(",");
@@ -929,10 +931,9 @@ function toggleUIMenu() {
         console.log("hoveredNonWhiteFlag = " + hoveredNonWhiteTerritory);
       } else if (mouseAction === "clickCountry") {
         if (arrayOfSelectedCountries.length > 0) {
-          hoveredNonWhiteTerritory = false;
           for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
-              let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
-              arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
+            let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
+            arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
           }
         } else {
           console.log("array empty");
