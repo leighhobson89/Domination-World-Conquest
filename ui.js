@@ -144,16 +144,6 @@ export function svgMapLoaded() {
             if (e.target.getAttribute("owner") === "Player") {
               validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
             }
-
-            //all this is for the console log below it
-            let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
-            for (let i = 0; i < validDestinationsArray.length; i++) {
-              logStr += validDestinationsArray[i].getAttribute("data-name") + "[" + validDestinationsArray[i].getAttribute("territory-id") + "]";
-              if (i < validDestinationsArray.length - 1) {
-                logStr += ", ";
-              }
-            }                           
-            console.log(logStr);
           }        
         } else if (currentTurnPhase === 3) {
           
@@ -338,7 +328,7 @@ function selectCountry(country, escKeyEntry) {
       if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
         if (playerColour == undefined) {
           paths[i].setAttribute('fill', 'rgb(254,254,254)');
-          playerColour = "rgb(254,254,254";
+          playerColour = "rgb(254,254,254)";
         } else {
           paths[i].setAttribute('fill', playerColour);
         }
@@ -814,6 +804,13 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
   const svgMap = document.getElementById("svg-map").contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
 
+  const pattern = svgMap.getElementById('diagonal-lines');
+  const rect = pattern.querySelector('rect');
+  const line = pattern.querySelector('line');
+  rect.setAttribute('fill', targetPath.getAttribute("fill"));
+
+  console.log(pattern);
+
   if (destCoordsArray.length < 1) {
     throw new Error("Array must contain at least 1 element");
   }
@@ -825,7 +822,8 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
 
   if (manualExceptionsArray.length > 0) {
     for (let i = 0; i < manualExceptionsArray.length; i++) {
-      changeCountryColor(manualExceptionsArray[i], true, "255,255,255");
+      line.setAttribute('stroke', manualExceptionsArray[i].getAttribute("fill"));
+      changeCountryColor(manualExceptionsArray[i], true, "url(#diagonal-lines)");
     }
   }
 
@@ -833,17 +831,23 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     const targetName = targetPath.getAttribute("data-name");
     const destName = destinationPathObjectArray[i].getAttribute("data-name");
 
+    const pattern2 = svgMap.getElementById('diagonal-lines2');
+    const rect2 = pattern2.querySelector('rect');
+    const line2 = pattern2.querySelector('line'); //same as line but lost scope inside for loop
+
+    rect2.setAttribute('fill', targetPath.getAttribute("fill"));
+    line2.setAttribute('stroke', destinationPathObjectArray[i].getAttribute("fill"));
+
     if (destinationPathObjectArray[i] === targetPath) {
-      changeCountryColor(targetPath, false, "255,255,255"); //change color of country clicked on
+      /* changeCountryColor(targetPath, false, "url(#diagonal-lines)"); */ //change color of country clicked on
     }
 
     const line = document.createElementNS(svgns, "path");
     line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
     if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
-      changeCountryColor(destinationPathObjectArray[i], false, "255,255,255"); //change color of touching countrys
+      changeCountryColor(destinationPathObjectArray[i], false, "url(#diagonal-lines2)"); //change color of touching countrys
     } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
-      // console.log("target " + targetName + " and destination " + destName + " are same country, so definitely a line here!");
-      changeCountryColor(destinationPathObjectArray[i], false, "255,255,255"); // change color of all territories of clicked country
+      changeCountryColor(destinationPathObjectArray[i], false, playerColour);
     } else {
       for (let j = 0; j < destinationPathObjectArray.length; j++) {
         if (i === j) {
@@ -858,7 +862,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
         }
 
         if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
-          changeCountryColor(destinationPathObjectArray[i], false, "255,255,255");
+          changeCountryColor(destinationPathObjectArray[i], false, "url(#diagonal-lines)");
         }
 
         if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
@@ -870,7 +874,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
   validDestinationsArray.length = 0;
 
   for (let i = 0; i < paths.length; i++) {
-    if (paths[i].getAttribute("fill") === "rgb(255, 255, 255)") {
+    if (paths[i].getAttribute("fill").startsWith("url")) {
       validDestinationsArray.push(paths[i]);
     }
   }
@@ -922,33 +926,40 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
     r -= 20;
     g -= 20;
     b -= 20;
-    
+
     originalColor = "rgb(" + r + "," + g + "," + b + ")";
 
     hoveredNonInteractableAndNonSelectedTerritory = false;
   }
 
-  newRgbValues = newRgbValue.split(",");
-    
-  rgbValues.forEach((value, index) => {
-    rgbValues[index] = parseInt(newRgbValues[index].trim());
-  });
+  if (newRgbValue.startsWith("url")) { //if a pattern
+    pathObj.setAttribute("fill", newRgbValue);
+  } else {
 
-  let newFillAttribute = "rgb(" + rgbValues.join(",") + ")";
-  pathObj.setAttribute("fill", newFillAttribute);
+    newRgbValue = newRgbValue.replace(/[^\d,]/g, ''); // remove non-digit and non-comma characters
+    newRgbValues = newRgbValue.split(",").map(Number); // split by comma and convert to numbers
+
+    rgbValues.forEach((value, index) => {
+      rgbValues[index] = parseInt(newRgbValues[index].trim());
+    });
+
+    let newFillAttribute = "rgb(" + rgbValues.join(",") + ")";
+    pathObj.setAttribute("fill", newFillAttribute);
+  }
 
   // Push the original color to the array
-    
+
   currentlySelectedColorsArray.push([pathObj, originalColor, isManualException]);
 
-  // Remove any elements containing "255, 255, 255"
+  // Remove any elements containing new value that was passed in
   let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1][1];
-  newRgbValue = "rgb(" + newRgbValue + ")";
+  if (!newRgbValue.startsWith("url")) {
+    newRgbValue = "rgb(" + newRgbValue + ")";
   if (lastElem === newRgbValue) {
     currentlySelectedColorsArray.pop();
   }
+  }
 }
-
 
 function setFlag(country, topOrBottom) {
   let flagElement;
