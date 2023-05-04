@@ -19,6 +19,7 @@ export let exportOil;
 export let exportFood;
 export let exportConsMats;
 export let playerCountry;
+export let playerColour;
 
 let currentMapColorArray = []; //current state of map at start of new turn
 const continentColorArray = [["Africa", [233, 234, 20]], 
@@ -156,7 +157,7 @@ export function svgMapLoaded() {
           
         }
       } else { //if on country selection screen
-        document.getElementsByClassName("popup-option-color")[0].style.display = "block";
+        document.getElementById("popup-color").style.display = "block";
       }                                                                                                       
     }
   });
@@ -309,48 +310,84 @@ function formatNumbersToKMB(string) {
 
 function selectCountry(country, escKeyEntry) {
   const svgMap = document.getElementById('svg-map').contentDocument;
-  const svg = document.getElementById('svg-map');
-    if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
-      const allPaths = svgMap.getElementsByTagName("path");
-      for (let i = 0; i < allPaths.length; i++) {
-        if (allPaths[i].getAttribute("data-name") === "Lesotho") {
-          svgMap.documentElement.appendChild(allPaths[i]);
-          for (let j = 0; j < allPaths.length; j++) {
-            if (allPaths[j].getAttribute("data-name") === "South Africa") {
-              lastClickedPath.parentNode.insertBefore(allPaths[j], lastClickedPath.parentNode.lastChild);
-              break;
-            }
+  const paths = svgMap.getElementsByTagName("path");
+  
+  if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
+    for (let i = 0; i < paths.length; i++) {
+      if (paths[i].getAttribute("data-name") === "Lesotho") {
+        svgMap.documentElement.appendChild(paths[i]);
+        for (let j = 0; j < paths.length; j++) {
+          if (paths[j].getAttribute("data-name") === "South Africa") {
+            lastClickedPath.parentNode.insertBefore(paths[j], lastClickedPath.parentNode.lastChild);
+            break;
           }
-          break;
         }
+        break;
       }
-    } else {
-      svgMap.documentElement.appendChild(country);
     }
-    country.setAttribute('stroke-width', '3');
-    country.setAttribute('fill', 'rgb(255,255,255)');
-      if (!clickActionsDone) {
-        postRequestForCountryData(country.getAttribute("data-name"), country);
-        if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
-          if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
-            if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
-              lastClickedPath.parentNode.appendChild(lastClickedPath);
-            } else {
-              lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
-            }
-            lastClickedPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
-          }
-
+  } else {
+    svgMap.documentElement.appendChild(country);
+  }
+  
+  country.setAttribute('stroke-width', '3');
+  
+  if (selectCountryPlayerState) {
+    for (let i = 0; i < paths.length; i++) {
+      if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
+        if (playerColour == undefined) {
+          paths[i].setAttribute('fill', 'rgb(255,255,255)');
+        } else {
+          paths[i].setAttribute('fill', playerColour);
         }
-        lastClickedPath = country; // Update the previously clicked path
-        if (selectCountryPlayerState && !escKeyEntry) {
-          adjustTextToFit(document.getElementById('popup-body'), country.getAttribute("data-name"));
-          document.getElementById('popup-confirm').classList.add("greenBackground");
-          document.getElementById('popup-confirm').style.display = "block";
-        }
-        clickActionsDone = true;
       }
+    }
+  } else {
+    for (let i = 0; i < paths.length; i++) {
+      if (paths[i].getAttribute("owner") === "Player") {
+        paths[i].setAttribute('fill', playerColour);
+      }
+    }
+  }
+  
+  if (lastClickedPath.hasAttribute("fill")) {
+    
+    for (let i = 0; i < paths.length; i++) {
+      if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
+        paths[i].setAttribute('fill', playerColour);
+      } else if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
+        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
+      }
+    }
+  }
+  
+  console.log(country.getAttribute("uniqueid") + " lastclickedpath: " + lastClickedPath.getAttribute("uniqueid"));
+  
+  if (!clickActionsDone) {
+    postRequestForCountryData(country.getAttribute("data-name"), country);
+    
+    if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
+      if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
+        if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
+          lastClickedPath.parentNode.appendChild(lastClickedPath);
+        } else {
+          lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+        }
+        lastClickedPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+      }
+    }
+    
+    lastClickedPath = country; // Update the previously clicked path
+    
+    if (selectCountryPlayerState && !escKeyEntry) {
+      adjustTextToFit(document.getElementById('popup-body'), country.getAttribute("data-name"));
+      document.getElementById('popup-confirm').classList.add("greenBackground");
+      document.getElementById('popup-confirm').style.display = "block";
+    }
+    
+    clickActionsDone = true;
+  }
 }
+
 
 document.addEventListener("DOMContentLoaded", function() {
   //MENU CONTAINER
@@ -455,10 +492,29 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("player-color-picker").style.display = "block";
   });
 
-document.getElementById("player-color-picker").addEventListener('change', function() {
-  console.log(lastClickedPath.getAttribute("fill"));
-  lastClickedPath.setAttribute("fill", document.getElementById("player-color-picker").value);
-});
+  document.getElementById("player-color-picker").addEventListener('change', function() {
+    const svgMap = document.getElementById("svg-map").contentDocument;
+    const paths = Array.from(svgMap.querySelectorAll('path'));
+    playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
+    restoreMapColorState(currentMapColorArray);
+    if (selectCountryPlayerState) {
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) {
+          paths[i].setAttribute("fill", playerColour);
+        }
+      }
+      document.getElementById("popup-body").style.color = playerColour;
+    } else if (countrySelectedAndGameStarted) {
+      paths.forEach(path => {
+        if (path.getAttribute("owner") === "Player") {  
+          path.setAttribute("fill", playerColour);
+        }
+      });
+      currentMapColorArray = saveMapColorState();
+      document.getElementById("popup-body").style.color = playerColour;
+    }
+    
+  });
   
 
   // add event listener to popup confirm button
@@ -488,6 +544,7 @@ document.getElementById("player-color-picker").addEventListener('change', functi
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 2) {
+      currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
       popupTitle.innerText = "Move / Attack Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
@@ -988,7 +1045,10 @@ function toggleUIMenu() {
 }
 
 function restoreMapColorState(array) {
-  validDestinationsArray.length = 0;
+  if (validDestinationsArray !== undefined) {
+    validDestinationsArray.length = 0;
+  }
+  
   currentlySelectedColorsArray.length = 0;
   const svgMap = document.getElementById('svg-map').contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
@@ -999,5 +1059,33 @@ function restoreMapColorState(array) {
         path.setAttribute("fill", array[i][1]);
       }
     }
-  });
+  }); 
 }
+
+function fillPathBasedOnContinent(path) {
+  const continentAttribute = path.getAttribute("continent");
+  const entry = continentColorArray.find(
+  entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
+);
+if (entry) {
+  const color = entry[1];
+  return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+}
+}
+
+function convertHexValuetoRGB(value) {
+  // Strip the "#" prefix if present
+  const hex = value.replace(/^#/, "");
+  // Convert the hex string to an integer
+  const intValue = parseInt(hex, 16);
+  // Extract the red, green, and blue color components from the integer
+  const red = (intValue >> 16) & 0xff;
+  const green = (intValue >> 8) & 0xff;
+  const blue = intValue & 0xff;
+  // Construct the RGB string and return it
+  return `rgb(${red},${green},${blue})`;
+}
+
+
+
+
