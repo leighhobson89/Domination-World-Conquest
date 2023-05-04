@@ -141,7 +141,9 @@ export function svgMapLoaded() {
             closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
             let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
             let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-            validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+            if (e.target.getAttribute("owner") === "Player") {
+              validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+            }
 
             //all this is for the console log below it
             let logStr = "Selected country is: " + currentSelectedPath.getAttribute("data-name") + " [" + validDestinationsArray[0].getAttribute("territory-id") + "] and interactable countries are: ";
@@ -335,7 +337,8 @@ function selectCountry(country, escKeyEntry) {
     for (let i = 0; i < paths.length; i++) {
       if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
         if (playerColour == undefined) {
-          paths[i].setAttribute('fill', 'rgb(255,255,255)');
+          paths[i].setAttribute('fill', 'rgb(254,254,254)');
+          playerColour = "rgb(254,254,254";
         } else {
           paths[i].setAttribute('fill', playerColour);
         }
@@ -497,13 +500,13 @@ document.addEventListener("DOMContentLoaded", function() {
     const paths = Array.from(svgMap.querySelectorAll('path'));
     playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
     restoreMapColorState(currentMapColorArray);
+    document.getElementById("popup-color").style.color = playerColour;
     if (selectCountryPlayerState) {
       for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) {
           paths[i].setAttribute("fill", playerColour);
         }
       }
-      document.getElementById("popup-body").style.color = playerColour;
     } else if (countrySelectedAndGameStarted) {
       paths.forEach(path => {
         if (path.getAttribute("owner") === "Player") {  
@@ -511,7 +514,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       });
       currentMapColorArray = saveMapColorState();
-      document.getElementById("popup-body").style.color = playerColour;
     }
     
   });
@@ -522,18 +524,19 @@ document.addEventListener("DOMContentLoaded", function() {
     if (selectCountryPlayerState) {
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
+      document.getElementById("popup-color").style.color = playerColour;
       playerCountry = document.getElementById("popup-body").innerHTML;
       setFlag(playerCountry,1); //set playerflag in top table
       toggleUIButton(true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase";
-      popupSubTitle.innerText = "TO DO";
+      popupSubTitle.innerText = "";
       popupConfirm.innerText = "DEPLOY";
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
       popupTitle.innerText = "Buy / Upgrade Phase";
-      popupSubTitle.innerText = "TO DO";
+      popupSubTitle.innerText = "";
       popupConfirm.innerText = "DEPLOY";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++; 
@@ -927,12 +930,12 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
 
   newRgbValues = newRgbValue.split(",");
     
-    rgbValues.forEach((value, index) => {
-      rgbValues[index] = parseInt(newRgbValues[index].trim());
-    });
+  rgbValues.forEach((value, index) => {
+    rgbValues[index] = parseInt(newRgbValues[index].trim());
+  });
 
-    let newFillAttribute = "rgb(" + rgbValues.join(", ") + ")";
-    pathObj.setAttribute("fill", newFillAttribute);
+  let newFillAttribute = "rgb(" + rgbValues.join(",") + ")";
+  pathObj.setAttribute("fill", newFillAttribute);
 
   // Push the original color to the array
     
@@ -940,13 +943,16 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
 
   // Remove any elements containing "255, 255, 255"
   let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1][1];
-  if (lastElem === "rgb(255, 255, 255)") {
+  newRgbValue = "rgb(" + newRgbValue + ")";
+  if (lastElem === newRgbValue) {
     currentlySelectedColorsArray.pop();
   }
 }
 
+
 function setFlag(country, topOrBottom) {
   let flagElement;
+  let popupBodyElement = document.getElementById("popup-body");
   if (topOrBottom === 1) {
     flagElement = document.getElementById("flag-top");
   } else if (topOrBottom === 2) {
@@ -957,6 +963,11 @@ function setFlag(country, topOrBottom) {
   flagElement.innerHTML = '';
   img.src = `./resources/flags/${country}.png`;
   flagElement.appendChild(img);
+  if (selectCountryPlayerState) {
+    popupBodyElement.style.background = `rgba(0, 0, 0, 0.5) url(${img.src}) no-repeat`;
+    popupBodyElement.style.backgroundSize = "100% 100%";
+    popupBodyElement.style.backgroundPosition = "center";
+  }
 }
 
 function toggleUIButton(makeVisible = false) {

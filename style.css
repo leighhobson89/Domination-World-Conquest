@@ -261,11 +261,13 @@ td {
   height: 40%;
   display: flex;
   align-items: center;
-  border-bottom-left-radius: 10px;
+  vertical-align: text-bottom;
   border-bottom-right-radius: 10px;
   color: white;
   line-height: 1.1;
   justify-content: center;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
 }
 
 .title {
