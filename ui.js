@@ -47,6 +47,7 @@ let clickActionsDone = false;
 let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
+let UIButtonCurrentlyOnScreen = false;
 
 // const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359]; // for zoom function
 
@@ -323,7 +324,7 @@ function selectCountry(country, escKeyEntry) {
   
   country.setAttribute('stroke-width', '3');
   
-  if (selectCountryPlayerState) {
+  if (selectCountryPlayerState && !escKeyEntry) {
     for (let i = 0; i < paths.length; i++) {
       if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
         if (playerColour == undefined) {
@@ -334,7 +335,7 @@ function selectCountry(country, escKeyEntry) {
         }
       }
     }
-  } else {
+  } else if (!selectCountryPlayerState && !escKeyEntry) {
     for (let i = 0; i < paths.length; i++) {
       if (paths[i].getAttribute("owner") === "Player") {
         paths[i].setAttribute('fill', playerColour);
@@ -342,7 +343,7 @@ function selectCountry(country, escKeyEntry) {
     }
   }
   
-  if (lastClickedPath.hasAttribute("fill")) {
+  if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
     
     for (let i = 0; i < paths.length; i++) {
       if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
@@ -418,16 +419,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to New Game button
   newGameButton.addEventListener("click", function() {
+    resetGameState();
+  });
+
+  function resetGameState() {
     toggleTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
     outsideOfMenuAndMapVisible = true;
     menuState = false;
+    countrySelectedAndGameStarted = false;
     selectCountryPlayerState = true;
-    if (selectCountryPlayerState) {
-      popupWithConfirmContainer.style.display = "flex";
-      popupCurrentlyOnScreen = true;
-    }
-  });
+    popupWithConfirmContainer.style.display = "flex";
+    popupCurrentlyOnScreen = true;
+  }
 
   // add the menu options to the menu container
   menuContainer.appendChild(title);
@@ -505,7 +509,6 @@ document.addEventListener("DOMContentLoaded", function() {
       });
       currentMapColorArray = saveMapColorState();
     }
-    
   });
   
 
@@ -517,6 +520,7 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("popup-color").style.color = playerColour;
       playerCountry = document.getElementById("popup-body").innerHTML;
       setFlag(playerCountry,1); //set playerflag in top table
+      UIButtonCurrentlyOnScreen = true;
       toggleUIButton(true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
@@ -578,10 +582,15 @@ window.addEventListener("keydown", function(event) {
     document.getElementById("main-ui-container").style.display = "none";
     toggleTableContainer(false);
     menuState = true;
+    toggleUIButton(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
     if (popupCurrentlyOnScreen) {
-      document.getElementById("popup-with-confirm-container").style.display = "block";
+      document.getElementById("popup-with-confirm-container").style.display = "flex";
     }
+    if (UIButtonCurrentlyOnScreen) {
+      toggleUIButton(true);
+    }
+    
     if (UICurrentlyOnScreen) {
       document.getElementById("main-ui-container").style.display = "flex";
     }
@@ -1002,7 +1011,7 @@ function setFlag(country, topOrBottom) {
   }
 }
 
-function toggleUIButton(makeVisible = false) {
+function toggleUIButton(makeVisible) {
   if (makeVisible) {
     document.getElementById("UIButtonContainer").style.display = "block";
   } else {
