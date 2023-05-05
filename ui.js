@@ -38,6 +38,7 @@ let validDestinationsAndClosestPointArray; //populated with valid interaction te
 let validDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
+let colorArray;
 
 // Game States
 let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -167,7 +168,11 @@ export function svgMapLoaded() {
       // console.log('Current focus:', document.activeElement);
   }, { passive: false });
 
-  colorMapAtBeginningOfGame();
+  /* colorMapAtBeginningOfGame(); */
+  /* randomiseColorsOfPathsOnLoad(); */
+  colorArray = generateDistinctRGBs();
+  assignFillColorsToSVGPaths(colorArray);
+  
   console.log ("loaded!");
 }
 
@@ -349,7 +354,7 @@ function selectCountry(country, escKeyEntry) {
       if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
         paths[i].setAttribute('fill', playerColour);
       } else if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
-        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
+        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
       }
     }
   }
@@ -1125,6 +1130,26 @@ if (entry) {
 }
 }
 
+function randomiseColorsOfPathsOnLoad() {
+  const svgMap = document.getElementById('svg-map').contentDocument;
+  const paths = Array.from(svgMap.querySelectorAll('path'));
+
+  let randomRgbValue; 
+
+  paths.forEach(path => {
+    randomRgbValue = generateRandomRGB();
+    path.setAttribute("fill", randomRgbValue);
+  });
+}
+
+function generateRandomRGB() {
+  const val1 = Math.floor(Math.random() * 235) + 1;
+  const val2 = Math.floor(Math.random() * 235) + 1;
+  const val3 = Math.floor(Math.random() * 235) + 1;
+  const rgbString = `rgb(${val1}, ${val2}, ${val3})`;
+  return rgbString;
+}
+
 function convertHexValuetoRGB(value) {
   // Strip the "#" prefix if present
   const hex = value.replace(/^#/, "");
@@ -1137,6 +1162,60 @@ function convertHexValuetoRGB(value) {
   // Construct the RGB string and return it
   return `rgb(${red},${green},${blue})`;
 }
+
+colorArray = generateDistinctRGBs();
+
+function generateDistinctRGBs() {
+  const result = [];
+  for (let i = 0; i < 16; i++) {
+    let val1, val2, val3;
+    do {
+      val1 = Math.floor(Math.random() * 235) + 1;
+      val2 = Math.floor(Math.random() * 235) + 1;
+      val3 = Math.floor(Math.random() * 235) + 1;
+    } while (result.some(color => (
+      Math.abs(val1 - color[0]) < 60 &&
+      Math.abs(val2 - color[1]) < 60 &&
+      Math.abs(val3 - color[2]) < 60
+    )));
+    result.push([val1, val2, val3]);
+  }
+  return result.map(color => `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+}
+
+function assignFillColorsToSVGPaths(colorArray) {
+
+  const svgMap = document.getElementById("svg-map").contentDocument;
+  const paths = svgMap.getElementsByTagName("path");
+
+  // Calculate the number of paths per group
+  const numPaths = paths.length;
+  const numGroups = colorArray.length;
+  const pathsPerGroup = Math.floor(numPaths / numGroups);
+  const remainder = numPaths % numGroups;
+
+  // Assign a random number to each path element
+  const assignedNumbers = Array.from({ length: numPaths }, (_, i) => i);
+  for (let i = assignedNumbers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [assignedNumbers[i], assignedNumbers[j]] = [assignedNumbers[j], assignedNumbers[i]];
+  }
+
+  // Assign "fill" attribute to each path element based on assigned number
+  let groupIndex = 0;
+  let groupCount = 0;
+  for (let i = 0; i < numPaths; i++) {
+    const assignedNumber = assignedNumbers[i];
+    if (assignedNumber >= groupCount) {
+      groupIndex++;
+      groupCount += groupIndex <= remainder ? pathsPerGroup + 1 : pathsPerGroup;
+    }
+    const colorIndex = assignedNumber % numGroups;
+    paths[i].setAttribute("fill", colorArray[colorIndex]);
+  }
+}
+
+
 
 
 
