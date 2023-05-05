@@ -804,12 +804,12 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
   const svgMap = document.getElementById("svg-map").contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
 
-  const pattern = svgMap.getElementById('diagonal-lines');
-  const rect = pattern.querySelector('rect');
-  const line = pattern.querySelector('line');
-  rect.setAttribute('fill', targetPath.getAttribute("fill"));
+  const defs = svgMap.querySelector('defs');
+  const patterns = defs.querySelectorAll('pattern');
 
-  console.log(pattern);
+  for (let i = 0; i < patterns.length; i++) { //remove all patterns before creating new ones
+    defs.removeChild(patterns[i]);
+  }
 
   if (destCoordsArray.length < 1) {
     throw new Error("Array must contain at least 1 element");
@@ -817,13 +817,14 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
 
   let x1 = centerCoordsTargetPath[0][1];
   let y1 = centerCoordsTargetPath[0][2];
+  let count = 0;
 
   manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
 
-  if (manualExceptionsArray.length > 0) {
+  if (manualExceptionsArray.length > 0) { //works correctly
     for (let i = 0; i < manualExceptionsArray.length; i++) {
-      line.setAttribute('stroke', manualExceptionsArray[i].getAttribute("fill"));
-      changeCountryColor(manualExceptionsArray[i], true, "url(#diagonal-lines)");
+      changeCountryColor(manualExceptionsArray[i], true, "pattern", count);
+      count++;
     }
   }
 
@@ -831,23 +832,14 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     const targetName = targetPath.getAttribute("data-name");
     const destName = destinationPathObjectArray[i].getAttribute("data-name");
 
-    const pattern2 = svgMap.getElementById('diagonal-lines2');
-    const rect2 = pattern2.querySelector('rect');
-    const line2 = pattern2.querySelector('line'); //same as line but lost scope inside for loop
-
-    rect2.setAttribute('fill', targetPath.getAttribute("fill"));
-    line2.setAttribute('stroke', destinationPathObjectArray[i].getAttribute("fill"));
-
-    if (destinationPathObjectArray[i] === targetPath) {
-      /* changeCountryColor(targetPath, false, "url(#diagonal-lines)"); */ //change color of country clicked on
-    }
-
     const line = document.createElementNS(svgns, "path");
     line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
     if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
-      changeCountryColor(destinationPathObjectArray[i], false, "url(#diagonal-lines2)"); //change color of touching countrys
+      changeCountryColor(destinationPathObjectArray[i], false, "pattern", count); //change color of touching countrys
+      count++;
     } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
-      changeCountryColor(destinationPathObjectArray[i], false, playerColour);
+      changeCountryColor(destinationPathObjectArray[i], false, playerColour, count);
+      count++;
     } else {
       for (let j = 0; j < destinationPathObjectArray.length; j++) {
         if (i === j) {
@@ -862,7 +854,8 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
         }
 
         if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
-          changeCountryColor(destinationPathObjectArray[i], false, "url(#diagonal-lines)");
+          changeCountryColor(destinationPathObjectArray[i], false, "pattern", count);
+          count++;
         }
 
         if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
@@ -915,7 +908,8 @@ function getClosestPointsDestinationPaths(coord, paths) {
   return closestPoints;
 }
 
-function changeCountryColor(pathObj, isManualException, newRgbValue) {
+function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
+  const svgMap = document.getElementById("svg-map").contentDocument;
   let originalColor = pathObj.getAttribute("fill");
   let rgbValues = originalColor.match(/\d{1,3}/g);
   let newRgbValues;
@@ -932,19 +926,46 @@ function changeCountryColor(pathObj, isManualException, newRgbValue) {
     hoveredNonInteractableAndNonSelectedTerritory = false;
   }
 
-  if (newRgbValue.startsWith("url")) { //if a pattern
-    pathObj.setAttribute("fill", newRgbValue);
+  if (newRgbValue.startsWith("pattern")) { //if a pattern
+      const fillColor = pathObj.getAttribute('fill');
+
+      // create a new pattern element
+      const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+      pattern.setAttribute('id', 'diagonal-lines' + count);
+      pattern.setAttribute('width', '20');
+      pattern.setAttribute('height', '20');
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.setAttribute('patternTransform', 'rotate(135)');
+
+      // create the first line element with the stroke color matching the fill color
+      const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line1.setAttribute('x1', '0');
+      line1.setAttribute('y1', '5');
+      line1.setAttribute('x2', '20');
+      line1.setAttribute('y2', '5');
+      line1.setAttribute('stroke-width', '10');
+      line1.setAttribute('stroke', fillColor);
+      pattern.appendChild(line1);
+
+      // create the second line element with a constant white stroke color
+      const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line2.setAttribute('x1', '0');
+      line2.setAttribute('y1', '15');
+      line2.setAttribute('x2', '20');
+      line2.setAttribute('y2', '15');
+      line2.setAttribute('stroke-width', '10');
+      line2.setAttribute('stroke', playerColour);
+      pattern.appendChild(line2);
+
+      // add the pattern element to the defs section of the SVG
+      const defs = svgMap.querySelector('defs');
+      defs.appendChild(pattern);
+
+      // apply the pattern to the path element
+      pathObj.setAttribute('fill', 'url(#' + pattern.getAttribute("id") + ')');
+      console.log
   } else {
-
-    newRgbValue = newRgbValue.replace(/[^\d,]/g, ''); // remove non-digit and non-comma characters
-    newRgbValues = newRgbValue.split(",").map(Number); // split by comma and convert to numbers
-
-    rgbValues.forEach((value, index) => {
-      rgbValues[index] = parseInt(newRgbValues[index].trim());
-    });
-
-    let newFillAttribute = "rgb(" + rgbValues.join(",") + ")";
-    pathObj.setAttribute("fill", newFillAttribute);
+    pathObj.setAttribute("fill", newRgbValue);
   }
 
   // Push the original color to the array
