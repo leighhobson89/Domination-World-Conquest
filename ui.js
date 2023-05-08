@@ -29,6 +29,8 @@ const continentColorArray = [["Africa", [233, 234, 20]],
                             ["South America", [193, 83, 205]],
                             ["Oceania", [74, 202, 233]]];
 
+let teamColorArray = [];
+
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
@@ -50,7 +52,20 @@ let menuState = true;
 let selectCountryPlayerState = false;
 let UIButtonCurrentlyOnScreen = false;
 
-// const defaultViewBox = [312.805, -162.358, 1947.089, 1000.359]; // for zoom function
+//This determines how the map will be colored for different game modes
+let mapMode = 1; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
+
+//Zoom variables
+let zoomLevel = 1;
+const maxZoomLevel = 4;
+let originalViewBoxX = 312;
+let originalViewBoxY = -207;
+let originalViewBoxWidth = 1947;
+let originalViewBoxHeight = 1040;
+let viewBoxWidth = originalViewBoxWidth;
+let viewBoxHeight = originalViewBoxHeight;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 export function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
@@ -106,22 +121,6 @@ export function svgMapLoaded() {
     clickActionsDone = false;
   });
 
-  // Add a mousemove event listener to the SVG element
-  svgMap.addEventListener("mousemove", function(e) {
-    // Check if the mouse is currently over a country with a tooltip
-    if (tooltip.innerHTML !== "") {
-      // Set the display property of the tooltip to "block" to show it
-      tooltip.style.display = "block";
-      // Set the background color of the tooltip to white
-      tooltip.style.backgroundColor = "white";
-    } else {
-      // Set the display property of the tooltip to "none" to hide it
-      tooltip.style.display = "none";
-      // Set the background color of the tooltip to transparent
-      tooltip.style.backgroundColor = "transparent";
-    }
-  });
-
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "rect" && currentTurnPhase >= 2) { // if user clicks on sea then clear selection colors
       restoreMapColorState(currentMapColorArray);
@@ -156,30 +155,44 @@ export function svgMapLoaded() {
     }
   });
 
-  svgMap.addEventListener("mousedown", function(e) {
-    e.preventDefault();
+  svgMap.addEventListener("wheel", zoomMap);
+
+  svgMap.addEventListener('mousedown', function(event) {
+    if (event.button === 0 && zoomLevel > 1) {
+      lastMouseX = event.clientX;
+      lastMouseY = event.clientY;
+      event.preventDefault();
+    }
+  });
+  
+  svgMap.addEventListener('mousemove', function(event) {
+    if (tooltip.innerHTML !== "") {
+      tooltip.style.display = "block";
+      tooltip.style.backgroundColor = "white";
+    } else {
+      tooltip.style.display = "none";
+      tooltip.style.backgroundColor = "transparent";
+    }
+
+    panMap(event);
+  });
+  
+  svgMap.addEventListener('mouseup', function(event) {
+    if (event.button === 0) {
+    }
   });
 
-  svgMap.addEventListener("mouseup", function(e) {
-    e.preventDefault();
-  });
-
-  svgMap.addEventListener("wheel", function(e) {
-      // console.log('Current focus:', document.activeElement);
-  }, { passive: false });
-
-  /* colorMapAtBeginningOfGame(); */
-  /* randomiseColorsOfPathsOnLoad(); */
-  colorArray = generateDistinctRGBs();
-  assignFillColorsToSVGPaths(colorArray);
+  if (mapMode === 0) { // standard continent coloring
+    colorMapAtBeginningOfGame();
+  } else if (mapMode === 1) { //random with team assignment
+    colorArray = generateDistinctRGBs();
+    assignTeamAndFillColorToSVGPaths(colorArray);
+  } else if (mapMode === 2) {
+    randomiseColorsOfPathsOnLoad(); // totally random
+  }
   
   console.log ("loaded!");
 }
-
-
-// window.addEventListener('load', function() {
-//   svgMapLoaded();
-// });
 
 function postRequestForCountryData(country, countryPath) {
   let countryResourceData  = [];
@@ -354,7 +367,12 @@ function selectCountry(country, escKeyEntry) {
       if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
         paths[i].setAttribute('fill', playerColour);
       } else if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
-        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
+        if (mapMode === 0) {
+          paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
+        }
+        if (mapMode === 1) {
+          fillPathBasedOnTeam(paths[i]);
+        }
       }
     }
   }
@@ -1183,8 +1201,7 @@ function generateDistinctRGBs() {
   return result.map(color => `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
 }
 
-function assignFillColorsToSVGPaths(colorArray) {
-
+function assignTeamAndFillColorToSVGPaths(colorArray) {
   const svgMap = document.getElementById("svg-map").contentDocument;
   const paths = svgMap.getElementsByTagName("path");
 
@@ -1201,7 +1218,7 @@ function assignFillColorsToSVGPaths(colorArray) {
     [assignedNumbers[i], assignedNumbers[j]] = [assignedNumbers[j], assignedNumbers[i]];
   }
 
-  // Assign "fill" attribute to each path element based on assigned number
+  // Assign "fill" and "Team" attributes to each path element based on assigned number
   let groupIndex = 0;
   let groupCount = 0;
   for (let i = 0; i < numPaths; i++) {
@@ -1211,12 +1228,137 @@ function assignFillColorsToSVGPaths(colorArray) {
       groupCount += groupIndex <= remainder ? pathsPerGroup + 1 : pathsPerGroup;
     }
     const colorIndex = assignedNumber % numGroups;
-    paths[i].setAttribute("fill", colorArray[colorIndex]);
+    const colorString = colorArray[colorIndex];
+    paths[i].setAttribute("fill", colorString);
+    paths[i].setAttribute("team", colorIndex);
+    
+    // add color index and color string to teamColorArray if color index is not already present
+    let isPresent = false;
+    for (let j = 0; j < teamColorArray.length; j++) {
+      if (teamColorArray[j][0] === colorIndex) {
+        isPresent = true;
+        break;
+      }
+    }
+    if (!isPresent) {
+      teamColorArray.push([colorIndex, colorString]);
+    }
+    teamColorArray.sort((a, b) => a[0] - b[0]);
   }
 }
 
 
+function zoomMap(event) {
+  const svg = document.getElementById("svg-map").contentDocument;
+  const svgTag = svg.querySelector('svg');
+  const delta = Math.sign(event.deltaY);
+  
+  if (delta < 0 && zoomLevel < maxZoomLevel) {
+    zoomLevel++;
+  } else if (delta > 0 && zoomLevel > 1) {
+    zoomLevel--;
+  }
+  
+  const mouseX = event.clientX - svgTag.getBoundingClientRect().left;
+  const mouseY = event.clientY - svgTag.getBoundingClientRect().top;
+  
+  let newWidth, newHeight;
+  
+  if (zoomLevel === 1) {
+    newWidth = originalViewBoxWidth;
+    newHeight = originalViewBoxHeight;
+  } else if (zoomLevel === 2) {
+    newWidth = originalViewBoxWidth * 0.75;
+    newHeight = originalViewBoxHeight * 0.75;
+  } else if (zoomLevel === 3) {
+    newWidth = originalViewBoxWidth * 0.5;
+    newHeight = originalViewBoxHeight * 0.5;
+  } else {
+    newWidth = originalViewBoxWidth * 0.3;
+    newHeight = originalViewBoxHeight * 0.3;
+  }
+  
+  const maxLeft = originalViewBoxX + originalViewBoxWidth - newWidth;
+  const minLeft = originalViewBoxX;
+  let newLeft = originalViewBoxX + ((mouseX / viewBoxWidth) * originalViewBoxWidth) - (newWidth / 2);
+  newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+  
+  const maxTop = originalViewBoxY + originalViewBoxHeight - newHeight;
+  const minTop = originalViewBoxY;
+  let newTop = originalViewBoxY + ((mouseY / viewBoxHeight) * originalViewBoxHeight) - (newHeight / 2);
+  newTop = Math.max(minTop, Math.min(maxTop, newTop));
+  
+  const newViewBox = `${newLeft} ${newTop} ${newWidth} ${newHeight}`;
 
+  console.log(`newWidth: ${newWidth}, newHeight: ${newHeight}, newLeft: ${newLeft}, newTop: ${newTop}, newViewBox: ${newViewBox}`);
+  console.log(zoomLevel);
+  // Set the new viewBox attribute on your SVG element
+  svgTag.setAttribute("viewBox", newViewBox);
+  
+  // Set the initial viewBox when fully zoomed out
+  if (zoomLevel === 1) {
+    svgTag.setAttribute("viewBox", `${originalViewBoxX} ${originalViewBoxY} ${originalViewBoxWidth} ${originalViewBoxHeight}`);
+  }
+  lastMouseX = mouseX;
+  lastMouseY = mouseY;
+}
 
+function panMap(event) {
+  const svgTag = document.getElementById("svg-map").contentDocument.querySelector('svg');
 
+  if (zoomLevel > 1 && event.buttons === 1) {
+    event.preventDefault();
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    const dx = (mouseX - lastMouseX) * 2;
+    const dy = (mouseY - lastMouseY) * 2;
 
+    const viewBoxValues = svgTag.getAttribute("viewBox").split(" ");
+    const currentViewBoxX = parseFloat(viewBoxValues[0]);
+    const currentViewBoxY = parseFloat(viewBoxValues[1]);
+    const currentViewBoxWidth = parseFloat(viewBoxValues[2]);
+    const currentViewBoxHeight = parseFloat(viewBoxValues[3]);
+    const originalViewBoxX = parseFloat(svgTag.getAttribute("data-original-x"));
+    const originalViewBoxY = parseFloat(svgTag.getAttribute("data-original-y"));
+    const originalViewBoxWidth = parseFloat(svgTag.getAttribute("data-original-width"));
+
+    const newWidth = currentViewBoxWidth / zoomLevel;
+    const newHeight = currentViewBoxHeight / zoomLevel;
+    let newLeft = currentViewBoxX - dx / zoomLevel;
+    let newTop = currentViewBoxY - dy / zoomLevel;
+
+    const maxLeft = originalViewBoxX + originalViewBoxWidth - newWidth;
+    const minLeft = originalViewBoxX;
+    if (newLeft < minLeft) {
+      newLeft = minLeft;
+    } else if (newLeft > maxLeft) {
+      newLeft = maxLeft;
+    }
+
+    const maxTop = originalViewBoxY + originalViewBoxHeight - newHeight;
+    const minTop = originalViewBoxY;
+    if (newTop < minTop) {
+      newTop = minTop;
+    } else if (newTop > maxTop) {
+      newTop = maxTop;
+    }
+
+    if (newLeft !== currentViewBoxX || newTop !== currentViewBoxY) {
+      const newViewBox = `${newLeft} ${newTop} ${currentViewBoxWidth} ${currentViewBoxHeight}`;
+      svgTag.setAttribute("viewBox", newViewBox);
+    }
+
+    // Disable scrollbar functionality
+    document.body.style.overflow = "hidden";
+
+    // Update last mouse position
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
+  }
+}
+
+function fillPathBasedOnTeam(path) {
+  const team = parseInt(path.getAttribute("team"));
+  const color = teamColorArray.find((c) => c[0] === team)[1];
+  path.setAttribute("fill", color);
+}
