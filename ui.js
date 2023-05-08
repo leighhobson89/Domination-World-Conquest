@@ -20,6 +20,10 @@ export let exportFood;
 export let exportConsMats;
 export let playerCountry;
 export let playerColour;
+export let exportPopUnformatted;
+export let exportAreaUnformatted;
+export let exportArmyUnformatted;
+export let territoryPopUnformatted;
 
 let currentMapColorArray = []; //current state of map at start of new turn
 const continentColorArray = [["Africa", [233, 234, 20]], 
@@ -53,7 +57,7 @@ let selectCountryPlayerState = false;
 let UIButtonCurrentlyOnScreen = false;
 
 //This determines how the map will be colored for different game modes
-let mapMode = 1; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
+let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
 
 //Zoom variables
 let zoomLevel = 1;
@@ -66,6 +70,7 @@ let viewBoxWidth = originalViewBoxWidth;
 let viewBoxHeight = originalViewBoxHeight;
 let lastMouseX = 0;
 let lastMouseY = 0;
+let isDragging = false;
 
 export function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
@@ -159,6 +164,7 @@ export function svgMapLoaded() {
 
   svgMap.addEventListener('mousedown', function(event) {
     if (event.button === 0 && zoomLevel > 1) {
+      isDragging = true;
       lastMouseX = event.clientX;
       lastMouseY = event.clientY;
       event.preventDefault();
@@ -178,7 +184,8 @@ export function svgMapLoaded() {
   });
   
   svgMap.addEventListener('mouseup', function(event) {
-    if (event.button === 0) {
+    if (event.button === 0 && isDragging) {
+      isDragging = false;
     }
   });
 
@@ -267,8 +274,10 @@ function postRequestForCountryData(country, countryPath) {
         for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
             territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
+            territoryPopUnformatted = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
             document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
             exportPop = formatNumbersToKMB(population);
+            exportPopUnformatted = population;
             break;
           }
         }      
@@ -278,6 +287,7 @@ function postRequestForCountryData(country, countryPath) {
         for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
           if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
             exportArea = formatNumbersToKMB(totalArea);
+            exportAreaUnformatted = totalArea;
             territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
             document.getElementById("bottom-table").rows[0].cells[13].innerHTML = territoryArea + " (km²)";
             break;
@@ -301,13 +311,14 @@ function postRequestForCountryData(country, countryPath) {
         }
       }
       exportArmy = formatNumbersToKMB(totalArmy);
+      exportArmyUnformatted = totalArmy;
     }
   };
   xhr.send("country=" + country);
 }
 
 
-function formatNumbersToKMB(string) {
+export function formatNumbersToKMB(string) {
   if (string >= 1000000000) {
     return (string / 1000000000).toFixed(1) + 'B';
   } else if (string >= 1000000) {
