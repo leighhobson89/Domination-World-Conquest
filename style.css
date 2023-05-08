@@ -260,16 +260,16 @@ td {
 .popup-option-subtitle {
   height: 40%;
   display: flex;
-  align-items: center;
-  vertical-align: text-bottom;
   border-bottom-left-radius: 10px;
   border-bottom-right-radius: 10px;
   color: white;
   line-height: 1.1;
   justify-content: center;
+  align-items: flex-end;
   -webkit-text-stroke-width: 1px;
   -webkit-text-stroke-color: black;
 }
+
 
 .title {
   color: yellow;

@@ -1,13 +1,16 @@
 import { pageLoaded } from './ui.js';
 import { currentTurn } from './gameTurnsLoop.js';
-import { exportPop } from './ui.js';
-import { exportArea } from './ui.js';
-import { exportArmy } from './ui.js';
+import { territoryPopUnformatted, exportPop, exportPopUnformatted } from './ui.js';
+import { exportArea, exportAreaUnformatted } from './ui.js';
+import { exportArmy, exportArmyUnformatted } from './ui.js';
 import { exportGold, exportOil, exportFood, exportConsMats } from './ui.js';
+import { formatNumbersToKMB } from './ui.js';
 
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
 export const newArrayOfTerritorySpecificArmyAndResources = [];
+
+let totalPlayerResources = [];
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -237,6 +240,12 @@ function randomiseArmyAndResources(armyResourceArray) {
 
 export function newTurnResources(playerCountry) {
     let playerDevIndex;
+    let goldChange;
+    let oilChange;
+    let foodChange;
+    let consMatsChange;
+    let popChange;
+    let totalPopChange = [];
 
     //read all paths and add all those with "owner = 'player'" to an array
     const svgMap = document.getElementById('svg-map').contentDocument;
@@ -261,16 +270,40 @@ export function newTurnResources(playerCountry) {
         document.getElementById("top-table").rows[0].cells[11].innerHTML = exportPop;
         document.getElementById("top-table").rows[0].cells[13].innerHTML = exportArea + " (km²)";
         document.getElementById("top-table").rows[0].cells[15].innerHTML = exportArmy;
+
+        totalPlayerResources = [exportGold, exportOil, exportFood, exportConsMats, parseInt(exportPopUnformatted), exportAreaUnformatted, exportArmyUnformatted];
     } else {
         //add up resources from all territories and put in top-table
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
                 if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportionsUI[j].uniqueId) {
-                    //todo                    
+                    //call functions to update each resource per territory  
+                    popChange = calculatePopulationIncrease(territoryPopUnformatted, arrayOfArmyAndResourceProportionsUI[j].area, parseFloat(arrayOfArmyAndResourceProportionsUI[j].devIndex));         
+                    totalPopChange.push(popChange);
                 }
             }
         }
-        console.log("New Total Gold: " + exportGold);
+
+        totalPopChange = totalPopChange.reduce((a, b) => a + b, 0);
+
+        totalPlayerResources[0] += goldChange;
+        totalPlayerResources[1] += oilChange;
+        totalPlayerResources[2] += foodChange;
+        totalPlayerResources[3] += consMatsChange;
+        totalPlayerResources[4] += totalPopChange;
+        //totalPlayerResources[5] = //count up all player territories' areas 
+        //totalPlayerResources[6] = //army wont change on turn flip
+
+        document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
+        document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0]);
+        document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[1]);
+        document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[2]);
+        document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[3]);
+        document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(Math.ceil(totalPlayerResources[4]));
+/*         document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[5] + " (km²)");
+        document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[6]); */
+
+        console.log(totalPlayerResources[4]);
     }
     
     //for each territory in the array apply calculations based on population, 
@@ -279,7 +312,16 @@ export function newTurnResources(playerCountry) {
     //add these values to the existing values
     //set these new totals in the table
     //return a popup to the user with a confirm button to remove it, stating what the player gained that turn
-}
+
+    function calculatePopulationIncrease(currentPopulation, territoryArea, developmentIndex) {
+        const baseIncrease = Math.sqrt(territoryArea) * 100; // Base increase based on territory area
+        const devIndexModifier = 1 - developmentIndex; // Development index modifier
+        const totalIncrease = baseIncrease * devIndexModifier; // Total increase factoring in development index
+        
+        const populationIncrease = totalIncrease * (currentPopulation / 1000000); // Population increase proportional to current population
+        return populationIncrease;
+      }
+    }
 
 
 
