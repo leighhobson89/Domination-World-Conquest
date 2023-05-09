@@ -3,6 +3,7 @@ import { findMatchingCountries } from './manualExceptionsForInteractions.js';
 import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { newArrayOfTerritorySpecificArmyAndResources } from './resourceCalculations.js';
+import { allowSelectionOfCountry } from './resourceCalculations.js';
 
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 
@@ -147,7 +148,9 @@ export function svgMapLoaded() {
     if (e.target.tagName === "path") {
       currentPath = e.target;
       document.getElementById("popup-confirm").style.opacity = 1;
-      selectCountry(currentPath, false);
+      if (allowSelectionOfCountry) {
+        selectCountry(currentPath, false);
+      }
       if (countrySelectedAndGameStarted) {
         if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
           validDestinationsAndClosestPointArray = findClosestPaths(e.target);

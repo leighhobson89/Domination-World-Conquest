@@ -8,6 +8,7 @@ import { setFlag } from './ui.js';
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
 export const newArrayOfTerritorySpecificArmyAndResources = [];
+export let allowSelectionOfCountry = false;
 
 let totalPlayerResources = [];
 let continentModifier;
@@ -23,7 +24,7 @@ let totalConsMats = 0;
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
-    Promise.all([listenForPageLoad(), createArrayOfInitialData()])
+    Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
             arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);
             arrayOfArmyAndResourceProportionsUI = arrayOfArmyAndResourceProportions;
@@ -33,13 +34,14 @@ if (!pageLoaded) {
         });
 }
 
-function listenForPageLoad() {
+function calculatePathAreasWhenPageLoaded() {
     return new Promise((resolve, reject) => {
         let intervalId = setInterval(function() {
             if (pageLoaded === true) {
 
                 let svgFile = document.getElementById('svg-map').contentDocument;
                 let pathAreas = calculatePathAreas(svgFile);
+                allowSelectionOfCountry = true;
 
                 clearInterval(intervalId);
 
@@ -179,7 +181,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 }
 
 function createArrayOfInitialData() {
-    return listenForPageLoad().then(pathAreas => {
+    return calculatePathAreasWhenPageLoaded().then(pathAreas => {
         return new Promise((resolve, reject) => {
             arrayOfArmyAndResourceProportions = assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState);
             resolve(arrayOfArmyAndResourceProportions);
