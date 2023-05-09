@@ -1159,6 +1159,7 @@ function assignTeamAndFillColorToSVGPaths(colorArray) {
 
 
 function zoomMap(event) {
+  let doingTheZoom = true;
   const svg = document.getElementById("svg-map").contentDocument;
   const svgTag = svg.querySelector('svg');
   const delta = Math.sign(event.deltaY);
@@ -1167,13 +1168,15 @@ function zoomMap(event) {
     zoomLevel++;
   } else if (delta > 0 && zoomLevel > 1) {
     zoomLevel--;
+  } else {
+    doingTheZoom = false;
   }
   
-  const mouseX = event.clientX - svgTag.getBoundingClientRect().left;
+  if (doingTheZoom) {
+    const mouseX = event.clientX - svgTag.getBoundingClientRect().left;
   const mouseY = event.clientY - svgTag.getBoundingClientRect().top;
   
   let newWidth, newHeight;
-  
   if (zoomLevel === 1) {
     newWidth = originalViewBoxWidth;
     newHeight = originalViewBoxHeight;
@@ -1183,7 +1186,7 @@ function zoomMap(event) {
   } else if (zoomLevel === 3) {
     newWidth = originalViewBoxWidth * 0.5;
     newHeight = originalViewBoxHeight * 0.5;
-  } else {
+  } else if (zoomLevel === 4) {
     newWidth = originalViewBoxWidth * 0.3;
     newHeight = originalViewBoxHeight * 0.3;
   }
@@ -1211,6 +1214,7 @@ function zoomMap(event) {
   }
   lastMouseX = mouseX;
   lastMouseY = mouseY;
+  }
 }
 
 function panMap(event) {
