@@ -4,11 +4,15 @@ import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { newArrayOfTerritorySpecificArmyAndResources } from './resourceCalculations.js';
 
+import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
+
 
 export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
+
+export let dataTableCountriesInitialState = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let exportArmy;
@@ -72,14 +76,24 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
 
+export function formatNumbersToKMB(string) {
+  if (string >= 1000000000) {
+    return (string / 1000000000).toFixed(1) + 'B';
+  } else if (string >= 1000000) {
+    return (string / 1000000).toFixed(1) + 'M';
+  } else if (string >= 1000) {
+    return (string / 1000).toFixed(1) + 'k';
+  } else {
+    return string.toFixed(0);
+  }
+}
+
 export function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
   svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
   svg.focus();
-
-  //console.log(manualInteractionExceptions);
 
   svgMap.addEventListener("mouseover", function(e) {
     // Get the element that was hovered over
@@ -198,136 +212,21 @@ export function svgMapLoaded() {
     randomiseColorsOfPathsOnLoad(); // totally random
   }
   
-  console.log ("loaded!");
+  console.log ("loaded!"); 
+  readDatabaseAndCreateDataArray();
+  console.log(dataTableCountriesInitialState);
 }
 
-function postRequestForCountryData(country, countryPath) {
-  let countryResourceData  = [];
-  // Ensure hovering over a country before sending request
-  if (tooltip.innerHTML === "") {
-    return;
-  }
+function readDatabaseAndCreateDataArray() {
 
   const xhr = new XMLHttpRequest();
-  xhr.open("POST", "http://localhost:8000/getCountryDataForBottomTable.php", true);
-  xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+  xhr.open("GET", "http://localhost:8000/getWholeCountryTable.php", false);
   xhr.onreadystatechange = function () {
     if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-      // Parse the response JSON data
-      const data = JSON.parse(xhr.responseText);
-      let territoryArea = 0;
-      let totalArea = 0;
-      let totalArmy = 0;
-      let startingArmy = 0;
-      let territoryPop = 0;
-
-      let totalGold = 0;
-      let totalOil = 0;
-      let totalFood = 0;
-      let totalConsMats = 0;
-
-      exportGold = 0;
-      exportOil = 0;
-      exportFood = 0;
-      exportConsMats = 0;
-
-      // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
-      for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-        if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
-          countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
-          totalGold += newArrayOfTerritorySpecificArmyAndResources[i].goldForCurrentTerritory;
-          totalOil += newArrayOfTerritorySpecificArmyAndResources[i].oilForCurrentTerritory;
-          totalFood += newArrayOfTerritorySpecificArmyAndResources[i].foodForCurrentTerritory;
-          totalConsMats += newArrayOfTerritorySpecificArmyAndResources[i].consMatsForCurrentTerritory;    
-        }
-      }
-
-      exportGold = totalGold;
-      exportOil = totalOil;
-      exportFood = totalFood;
-      exportConsMats = totalConsMats;
-
-      // Update the table with the response data
-      document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-
-      setFlag(countryPath.getAttribute("data-name"),2); //set flag for territory clicked on (bottom table)
-
-      document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + data[0].continent + ")";
-
-      for (let i = 0; i < countryResourceData.length; i++) {
-        if (countryResourceData[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-          document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(countryResourceData[i].goldForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(countryResourceData[i].oilForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(countryResourceData[i].foodForCurrentTerritory);
-          document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(countryResourceData[i].consMatsForCurrentTerritory);
-        }
-      }
-
-      if (data[0].startingPop.length > 0) {
-        const population = data[0].startingPop;
-        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-          if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
-            totalArea += newArrayOfTerritorySpecificArmyAndResources[i].area;
-          }
-        }
-       
-        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-          if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-            territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
-            territoryPopUnformatted = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
-            document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
-            exportPop = formatNumbersToKMB(population);
-            exportPopUnformatted = population;
-            break;
-          }
-        }      
-      }
-
-      if (data[0].area.length > 0) {
-        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-          if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-            exportArea = formatNumbersToKMB(totalArea);
-            exportAreaUnformatted = totalArea;
-            territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
-            document.getElementById("bottom-table").rows[0].cells[13].innerHTML = territoryArea + " (km²)";
-            break;
-          }
-        }
-      }
-
-      const territoryId = currentPath.getAttribute("territory-id");
-      for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-        if (arrayOfArmyAndResourceProportionsUI[i].territoryId === territoryId && arrayOfArmyAndResourceProportionsUI[i].dataName === data[0].country) {
-          startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
-          startingArmy = formatNumbersToKMB(startingArmy);
-          break;
-        }
-      }
-      document.getElementById("bottom-table").rows[0].cells[15].innerHTML = startingArmy;
-      
-      for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-        if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
-          totalArmy += newArrayOfTerritorySpecificArmyAndResources[i].armyForCurrentTerritory;
-        }
-      }
-      exportArmy = formatNumbersToKMB(totalArmy);
-      exportArmyUnformatted = totalArmy;
+      dataTableCountriesInitialState = JSON.parse(xhr.responseText); //whole response of country table in this constant
     }
   };
-  xhr.send("country=" + country);
-}
-
-
-export function formatNumbersToKMB(string) {
-  if (string >= 1000000000) {
-    return (string / 1000000000).toFixed(1) + 'B';
-  } else if (string >= 1000000) {
-    return (string / 1000000).toFixed(1) + 'M';
-  } else if (string >= 1000) {
-    return (string / 1000).toFixed(1) + 'k';
-  } else {
-    return string.toFixed(0);
-  }
+  xhr.send();
 }
 
 function selectCountry(country, escKeyEntry) {
@@ -391,7 +290,7 @@ function selectCountry(country, escKeyEntry) {
   console.log(country.getAttribute("uniqueid") + " lastclickedpath: " + lastClickedPath.getAttribute("uniqueid"));
   
   if (!clickActionsDone) {
-    postRequestForCountryData(country.getAttribute("data-name"), country);
+    populateBottomTableWhenSelectingACountry(country);
     
     if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
       if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
@@ -1025,7 +924,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
   }
 }
 
-function setFlag(country, topOrBottom) {
+export function setFlag(country, topOrBottom) {
   let flagElement;
   let popupBodyElement = document.getElementById("popup-body");
   if (topOrBottom === 1) {
