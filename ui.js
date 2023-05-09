@@ -276,12 +276,21 @@ function selectCountry(country, escKeyEntry) {
     for (let i = 0; i < paths.length; i++) {
       if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
         paths[i].setAttribute('fill', playerColour);
-      } else if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
+      } else if (!selectCountryPlayerState && (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
         if (mapMode === 0) {
           paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
         }
         if (mapMode === 1) {
           fillPathBasedOnTeam(paths[i]);
+        }
+      } 
+      else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
+        for (let j = 0; j < paths.length; j++) {
+          if (paths[j].getAttribute("data-name") !== undefined) {
+            if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name")) {
+              paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+            }
+          }
         }
       }
     }
