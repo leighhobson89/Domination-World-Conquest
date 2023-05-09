@@ -8,7 +8,7 @@ import { setFlag } from './ui.js';
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
 export const newArrayOfTerritorySpecificArmyAndResources = [];
-export let allowSelectionOfCountry = false; //h
+export let allowSelectionOfCountry = false;
 
 let totalPlayerResources = [];
 let continentModifier;
