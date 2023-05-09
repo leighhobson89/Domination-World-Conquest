@@ -43,7 +43,7 @@ let teamColorArray = [];
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
-let currentPath; // used for hover, and tooltip before user clicks on a country
+export let currentPath; // used for hover, and tooltip before user clicks on a country
 let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
