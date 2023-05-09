@@ -332,8 +332,6 @@ export function newTurnResources(playerCountry) {
       }
     }
 
-    //-----------------------------------------------------------------------------------------------
-
     export function populateBottomTableWhenSelectingACountry(countryPath) {
         let countryResourceData  = [];
     
@@ -348,7 +346,7 @@ export function newTurnResources(playerCountry) {
         totalConsMats = 0;
         totalArea = 0;
         totalArmy = 0;
-           
+
         // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
         for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
             if (arrayOfArmyAndResourceProportionsUI[i].dataName === currentPath.getAttribute("data-name")) {
