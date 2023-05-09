@@ -1,10 +1,9 @@
 import { pageLoaded } from './ui.js';
 import { currentTurn } from './gameTurnsLoop.js';
-import { territoryPopUnformatted, exportPop, exportPopUnformatted } from './ui.js';
-import { exportArea, exportAreaUnformatted } from './ui.js';
-import { exportArmy, exportArmyUnformatted } from './ui.js';
-import { exportGold, exportOil, exportFood, exportConsMats } from './ui.js';
 import { formatNumbersToKMB } from './ui.js';
+import { dataTableCountriesInitialState } from './ui.js';
+import { setFlag } from './ui.js';
+
 
 let arrayOfArmyAndResourceProportions;
 export let arrayOfArmyAndResourceProportionsUI;
@@ -13,9 +12,18 @@ export const newArrayOfTerritorySpecificArmyAndResources = [];
 let totalPlayerResources = [];
 let continentModifier;
 
+let startingPop;
+let totalPop;
+let totalArea = 0;
+let totalArmy = 0;
+let totalGold = 0;
+let totalOil = 0;
+let totalFood = 0;
+let totalConsMats = 0;
+
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
-    Promise.all([listenForPageLoad(), connectAndCreateArmyArray()])
+    Promise.all([listenForPageLoad(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
             arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);
             arrayOfArmyAndResourceProportionsUI = arrayOfArmyAndResourceProportions;
@@ -46,14 +54,8 @@ function calculatePathAreas(svgFile) {
     // Get all the path elements from the SVG file
     const paths = svgFile.querySelectorAll('path');
 
-    // Calculate the total length of all paths
-    let totalLength = 0;
-    for (var i = 0; i < paths.length; i++) {
-        totalLength += paths[i].getTotalLength();
-    }
-
     // Calculate the area of each path and store it in an array
-    let totalArea = 0;
+    let totalAreaPath = 0;
     for (let i = 0; i < paths.length; i++) {
         let path = paths[i];
         let pathLength = path.getTotalLength();
@@ -69,7 +71,7 @@ function calculatePathAreas(svgFile) {
             area += points[j].x * points[k].y - points[j].y * points[k].x;
         }
         area = Math.abs(area / 2);
-        totalArea += area;
+        totalAreaPath += area;
         let uniqueId = path.getAttribute('uniqueid');
         let dataName = path.getAttribute('data-name');
         let territoryId = path.getAttribute('territory-id');
@@ -77,7 +79,7 @@ function calculatePathAreas(svgFile) {
     }
     
     // Calculate the scaling factor
-    let scalingFactor = 136067649 / totalArea;
+    let scalingFactor = 136067649 / totalAreaPath;
     
     // Scale the area of each path to its actual area in km2
     for (let i = 0; i < pathAreas.length; i++) {
@@ -88,7 +90,7 @@ function calculatePathAreas(svgFile) {
     return pathAreas;
 }
 
-function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
+function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState) {
     // Create a new array to store the updated path data
 
     // Loop through each element in pathAreas array
@@ -99,20 +101,20 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
         let area = pathAreas[i].area;
 
         // Find matching country in armyArray
-        let matchingCountry = armyResourcesDataArray.find(function(country) {
-            return country.countryName === dataName;
+        let matchingCountry = dataTableCountriesInitialState.find(function(country) {
+            return country.country === dataName;
         });
 
         if (matchingCountry) {
-            let totalArmyForCountry = matchingCountry.totalArmyForCountry;
-            let totalGoldForCountry = matchingCountry.totalGoldForCountry;
-            let totalOilForCountry = matchingCountry.totalOilForCountry;
-            let totalFoodForCountry = matchingCountry.totalFoodForCountry;
-            let totalConsMatsForCountry = matchingCountry.totalConsMatsForCountry;
-            let population = matchingCountry.population;
-            let continent = matchingCountry.continente;
-            let dev_index = matchingCountry.devIndex;
-            let country_modifier = matchingCountry.countryModifier;
+            let totalArmyForCountry = matchingCountry.startingArmy;
+            let totalGoldForCountry = matchingCountry.res_gold;
+            let totalOilForCountry = matchingCountry.res_oil;
+            let totalFoodForCountry = matchingCountry.res_food;
+            let totalConsMatsForCountry = matchingCountry.res_cons_mats;
+            let population = matchingCountry.startingPop;
+            let continent = matchingCountry.continent;
+            let dev_index = matchingCountry.dev_index;
+            let country_modifier = matchingCountry.country_modifier;
             let percentOfWholeArea = 0;
 
             // Calculate percentOfWholeArea based on number of paths per dataName
@@ -176,38 +178,11 @@ function assignArmyAndResourcesToPaths(pathAreas, armyResourcesDataArray) {
     return newArrayOfTerritorySpecificArmyAndResources;
 }
 
-function connectAndCreateArmyArray() {
+function createArrayOfInitialData() {
     return listenForPageLoad().then(pathAreas => {
         return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", "http://localhost:8000/getCountryDataForArmyAndResourceCalculation.php", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            xhr.onreadystatechange = function () {
-                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-                    // Parse the response JSON data
-                    const data = JSON.parse(xhr.responseText);
-
-                    const armyAndResourceArray = [];
-
-                    for (let i = 0; i < data.length; i++) {
-                        armyAndResourceArray.push({
-                            countryName: data[i].country,
-                            population: data[i].startingPop,
-                            totalArmyForCountry: data[i].startingArmy,
-                            totalGoldForCountry: data[i].res_gold,
-                            totalOilForCountry: data[i].res_oil,
-                            totalFoodForCountry: data[i].res_food,
-                            totalConsMatsForCountry: data[i].res_cons_mats,
-                            continente: data[i].continent,
-                            devIndex: data[i].dev_index,
-                            countryModifier: data[i].country_modifier
-                        });
-                    }
-                    arrayOfArmyAndResourceProportions = assignArmyAndResourcesToPaths(pathAreas, armyAndResourceArray);
-                    resolve(arrayOfArmyAndResourceProportions);
-                }
-            };
-            xhr.send();
+            arrayOfArmyAndResourceProportions = assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState);
+            resolve(arrayOfArmyAndResourceProportions);
         });
     });
 }
@@ -244,7 +219,7 @@ export function newTurnResources(playerCountry) {
     let totalFoodChange = [];
     let totalConsMatsChange = [];
     let totalPopChange = [];
-    let totalArea = [];
+    let totalAreaArray = [];
     let changeArrayForTerritory = [];
 
     //read all paths and add all those with "owner = 'player'" to an array
@@ -263,15 +238,15 @@ export function newTurnResources(playerCountry) {
 
     if (currentTurn === 1) {
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(exportGold);
-        document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(exportOil);
-        document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(exportFood);
-        document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(exportConsMats);
-        document.getElementById("top-table").rows[0].cells[11].innerHTML = exportPop;
-        document.getElementById("top-table").rows[0].cells[13].innerHTML = exportArea + " (km²)";
-        document.getElementById("top-table").rows[0].cells[15].innerHTML = exportArmy;
+        document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalGold);
+        document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalOil);
+        document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalFood);
+        document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalConsMats);
+        document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(startingPop);
+        document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(parseFloat(totalArea + " (km²)"));
+        document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalArmy);
 
-        totalPlayerResources = [exportGold, exportOil, exportFood, exportConsMats, parseInt(exportPopUnformatted), exportAreaUnformatted, exportArmyUnformatted];
+        totalPlayerResources = [totalGold, totalOil, totalFood, totalConsMats, parseInt(startingPop), totalArea, totalArmy];
     } else {
         //add up resources from all territories and put in top-table
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
@@ -287,7 +262,7 @@ export function newTurnResources(playerCountry) {
                     //population
                     totalPopChange.push(changeArrayForTerritory[4]);
                     //area
-                    totalArea.push(arrayOfArmyAndResourceProportionsUI[j].area);
+                    totalAreaArray.push(arrayOfArmyAndResourceProportionsUI[j].area);
 
                     arrayOfArmyAndResourceProportionsUI[j].goldForCurrentTerritory = changeArrayForTerritory[0];
                     arrayOfArmyAndResourceProportionsUI[j].oilForCurrentTerritory = changeArrayForTerritory[1];
@@ -302,14 +277,14 @@ export function newTurnResources(playerCountry) {
         totalFoodChange = totalFoodChange.reduce((a, b) => a + b, 0);
         totalConsMatsChange = totalConsMatsChange.reduce((a, b) => a + b, 0);
         totalPopChange = totalPopChange.reduce((a, b) => a + b, 0);
-        totalArea = totalArea.reduce((a, b) => a + b, 0);
+        totalAreaArray = totalAreaArray.reduce((a, b) => a + b, 0);
 
         totalPlayerResources[0] += totalGoldChange;
         totalPlayerResources[1] += totalOilChange;
         totalPlayerResources[2] += totalFoodChange;
         totalPlayerResources[3] += totalConsMatsChange;
         totalPlayerResources[4] += totalPopChange;
-        totalPlayerResources[5] = totalArea;
+        totalPlayerResources[5] = totalAreaArray;
         //totalPlayerResources[6] = //army wont change on turn flip
 
         document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
@@ -353,6 +328,85 @@ export function newTurnResources(playerCountry) {
         return changeArray;
       }
     }
+
+    //-----------------------------------------------------------------------------------------------
+
+    export function populateBottomTableWhenSelectingACountry(countryPath) {
+        let countryResourceData  = [];
+      
+        // Parse the response JSON data
+        let territoryArea;
+        let startingArmy;
+        let territoryPop;
+        let territoryPopUnformatted;
+    
+        // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
+        for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
+            if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
+            countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
+            totalGold += newArrayOfTerritorySpecificArmyAndResources[i].goldForCurrentTerritory;
+            totalOil += newArrayOfTerritorySpecificArmyAndResources[i].oilForCurrentTerritory;
+            totalFood += newArrayOfTerritorySpecificArmyAndResources[i].foodForCurrentTerritory;
+            totalConsMats += newArrayOfTerritorySpecificArmyAndResources[i].consMatsForCurrentTerritory;    
+            }
+        }
+    
+        // Update the table with the response data
+        document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
+    
+        setFlag(countryPath.getAttribute("data-name"),2); //set flag for territory clicked on (bottom table)
+
+        for (let i = 0; i < dataTableCountriesInitialState.length; i++) {
+            if (dataTableCountriesInitialState[i].country === countryPath.getAttribute("data-name")) {
+                for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+                    if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
+                    totalArmy += newArrayOfTerritorySpecificArmyAndResources[i].armyForCurrentTerritory;
+                    totalArea += newArrayOfTerritorySpecificArmyAndResources[i].area;
+                    }
+                }
+                
+                document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + dataTableCountriesInitialState[i].continent + ")";
+
+                const population = dataTableCountriesInitialState[i].startingPop;
+                startingPop = population;
+                for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+                    if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+                        territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
+                        territoryPopUnformatted = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
+                        break;
+                    }
+                }
+                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
+                
+                for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
+                    if (dataTableCountriesInitialState)
+                    if (arrayOfArmyAndResourceProportionsUI[i].territoryId === countryPath.getAttribute("territory-id") && arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
+                    startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
+                    startingArmy = formatNumbersToKMB(startingArmy);
+                    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = startingArmy;
+                    break;
+                    }
+                }
+            }
+        }
+    
+        for (let i = 0; i < countryResourceData.length; i++) {
+            if (countryResourceData[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+            document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(countryResourceData[i].goldForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(countryResourceData[i].oilForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(countryResourceData[i].foodForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(countryResourceData[i].consMatsForCurrentTerritory);
+            }
+        }  
+    
+        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
+            if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+                territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
+                document.getElementById("bottom-table").rows[0].cells[13].innerHTML = territoryArea + " (km²)";
+                break;
+            }
+        }          
+    };
 
 
 
