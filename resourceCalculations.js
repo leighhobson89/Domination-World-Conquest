@@ -3,6 +3,7 @@ import { currentTurn } from './gameTurnsLoop.js';
 import { formatNumbersToKMB } from './ui.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
+import { currentPath } from './ui.js';
 
 
 let arrayOfArmyAndResourceProportions;
@@ -249,7 +250,7 @@ export function newTurnResources(playerCountry) {
         document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalArmy);
 
         totalPlayerResources = [totalGold, totalOil, totalFood, totalConsMats, parseInt(startingPop), totalArea, totalArmy];
-    } else {
+    } else if (currentTurn > 1) {
         //add up resources from all territories and put in top-table
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
@@ -335,16 +336,22 @@ export function newTurnResources(playerCountry) {
 
     export function populateBottomTableWhenSelectingACountry(countryPath) {
         let countryResourceData  = [];
-      
-        // Parse the response JSON data
+    
         let territoryArea;
         let startingArmy;
         let territoryPop;
         let territoryPopUnformatted;
-    
+
+        totalGold = 0;
+        totalOil = 0;
+        totalFood = 0;
+        totalConsMats = 0;
+        totalArea = 0;
+        totalArmy = 0;
+           
         // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
         for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-            if (arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
+            if (arrayOfArmyAndResourceProportionsUI[i].dataName === currentPath.getAttribute("data-name")) {
             countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
             totalGold += newArrayOfTerritorySpecificArmyAndResources[i].goldForCurrentTerritory;
             totalOil += newArrayOfTerritorySpecificArmyAndResources[i].oilForCurrentTerritory;
