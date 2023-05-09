@@ -22,6 +22,7 @@ let totalGold = 0;
 let totalOil = 0;
 let totalFood = 0;
 let totalConsMats = 0;
+let territoryPopulation;
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -256,7 +257,7 @@ export function newTurnResources(playerCountry) {
             for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
                 if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportionsUI[j].uniqueId) {
                     //call functions to update players country:
-                    changeArrayForTerritory = calculateTerritoryResourceIncomesEachTurn(territoryPopUnformatted, arrayOfArmyAndResourceProportionsUI[j].area, parseFloat(arrayOfArmyAndResourceProportionsUI[j].devIndex), arrayOfArmyAndResourceProportionsUI[j].continent);        
+                    changeArrayForTerritory = calculateTerritoryResourceIncomesEachTurn(territoryPopulation, arrayOfArmyAndResourceProportionsUI[j].area, parseFloat(arrayOfArmyAndResourceProportionsUI[j].devIndex), arrayOfArmyAndResourceProportionsUI[j].continent);        
                     //resources
                     totalGoldChange.push(changeArrayForTerritory[0]);
                     totalOilChange.push(changeArrayForTerritory[1]);
@@ -338,7 +339,6 @@ export function newTurnResources(playerCountry) {
         let territoryArea;
         let startingArmy;
         let territoryPop;
-        let territoryPopUnformatted;
 
         totalGold = 0;
         totalOil = 0;
@@ -379,7 +379,7 @@ export function newTurnResources(playerCountry) {
                 for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
                     if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
                         territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
-                        territoryPopUnformatted = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
+                        territoryPopulation = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
                         break;
                     }
                 }
