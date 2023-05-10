@@ -63,18 +63,6 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
 
-export function formatNumbersToKMB(string) {
-  if (string >= 1000000000) {
-    return (string / 1000000000).toFixed(1) + 'B';
-  } else if (string >= 1000000) {
-    return (string / 1000000).toFixed(1) + 'M';
-  } else if (string >= 1000) {
-    return (string / 1000).toFixed(1) + 'k';
-  } else {
-    return string.toFixed(0);
-  }
-}
-
 export function svgMapLoaded() {
   const svgMap = document.getElementById('svg-map').contentDocument;
   const svg = document.getElementById('svg-map');
@@ -174,7 +162,7 @@ export function svgMapLoaded() {
     }
   });
   
-  svgMap.addEventListener('mousemove', function(event) {
+  svgMap.addEventListener('mousemove', function(e) {
     if (tooltip.innerHTML !== "") {
       tooltip.style.display = "block";
       tooltip.style.backgroundColor = "white";
@@ -182,12 +170,11 @@ export function svgMapLoaded() {
       tooltip.style.display = "none";
       tooltip.style.backgroundColor = "transparent";
     }
-
-    panMap(event);
+    panMap(e);
   });
   
-  svgMap.addEventListener('mouseup', function(event) {
-    if (event.button === 0 && isDragging) {
+  svgMap.addEventListener('mouseup', function(e) {
+    if (e.button === 0 && isDragging) {
       isDragging = false;
     }
   });
@@ -202,12 +189,10 @@ export function svgMapLoaded() {
   }
   
   console.log ("loaded!"); 
-  readDatabaseAndCreateDataArray();
-  console.log(dataTableCountriesInitialState);
+  readDatabaseAndCreateDataArray(); //import all country data from database
 }
 
 function readDatabaseAndCreateDataArray() {
-
   const xhr = new XMLHttpRequest();
   xhr.open("GET", "http://localhost:8000/getWholeCountryTable.php", false);
   xhr.onreadystatechange = function () {
@@ -239,7 +224,7 @@ function selectCountry(country, escKeyEntry) {
     svgMap.documentElement.appendChild(country);
   }
   
-  country.setAttribute('stroke-width', '3');
+  setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked
   
   if (selectCountryPlayerState && !escKeyEntry) {
     for (let i = 0; i < paths.length; i++) {
@@ -272,12 +257,14 @@ function selectCountry(country, escKeyEntry) {
         if (mapMode === 1) {
           fillPathBasedOnTeam(paths[i]);
         }
+        setStrokeWidth(paths[i], "1");
       } 
       else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
         for (let j = 0; j < paths.length; j++) {
           if (paths[j].getAttribute("data-name") !== undefined) {
             if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name")) {
               paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+              setStrokeWidth(paths[j], "1");
             }
           }
         }
@@ -285,22 +272,21 @@ function selectCountry(country, escKeyEntry) {
     }
   }
   
-  console.log(country.getAttribute("uniqueid") + " lastclickedpath: " + lastClickedPath.getAttribute("uniqueid"));
-  
   if (!clickActionsDone) {
     populateBottomTableWhenSelectingACountry(country);
     
-    if (lastClickedPath != null && !escKeyEntry) { // Check if a path was previously clicked
+    if (lastClickedPath != null && !escKeyEntry) {
       if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
         if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
           lastClickedPath.parentNode.appendChild(lastClickedPath);
         } else {
           lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
         }
-        lastClickedPath.setAttribute('stroke-width', '1'); // Set the stroke-width attribute of the previous path to "1"
+        if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player") {
+          setStrokeWidth(lastClickedPath, "1");
+        }
       }
     }
-    
     lastClickedPath = country; // Update the previously clicked path
     
     if (selectCountryPlayerState && !escKeyEntry) {
@@ -311,6 +297,7 @@ function selectCountry(country, escKeyEntry) {
     
     clickActionsDone = true;
   }
+  window.focus();
 }
 
 
@@ -354,7 +341,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   function resetGameState() {
-    toggleTableContainer(true);
+    toggleBottomTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
     outsideOfMenuAndMapVisible = true;
     menuState = false;
@@ -496,7 +483,7 @@ document.addEventListener("DOMContentLoaded", function() {
   pageLoaded = true;
 });
 
-function toggleTableContainer(turnOnTable) {
+function toggleBottomTableContainer(turnOnTable) {
   var tableContainer = document.getElementById("bottom-table-container");
   if (turnOnTable) {
     tableContainer.style.display = "block";
@@ -505,13 +492,23 @@ function toggleTableContainer(turnOnTable) {
   }
 }
 
-window.addEventListener("keydown", function(event) {
+function toggleTopTableContainer(turnOnTable) {
+  var tableContainer = document.getElementById("top-table-container");
+  if (turnOnTable) {
+    tableContainer.style.display = "block";
+  } else if (!turnOnTable) {
+    tableContainer.style.display = "none";
+  }
+}
+
+document.addEventListener("keydown", function(event) {
   const svg = document.getElementById('svg-map');
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";
     document.getElementById("main-ui-container").style.display = "none";
-    toggleTableContainer(false);
+    toggleBottomTableContainer(false);
+    toggleTopTableContainer(false);
     menuState = true;
     toggleUIButton(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
@@ -521,14 +518,17 @@ window.addEventListener("keydown", function(event) {
     if (UIButtonCurrentlyOnScreen) {
       toggleUIButton(true);
     }
-    
     if (UICurrentlyOnScreen) {
       document.getElementById("main-ui-container").style.display = "flex";
     }
-    svg.focus();
-    toggleTableContainer(true);
+    if (countrySelectedAndGameStarted) {
+      toggleTopTableContainer(true);
+    }    
+    toggleBottomTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
-    selectCountry(lastClickedPath, true);
+    if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
+      selectCountry(lastClickedPath, true);
+    }
     menuState = false;
   }
 });
@@ -679,8 +679,6 @@ function findClosestPaths(targetPath) {
   return resultsPaths;
 }
 
-
-
 function getPoints(path) {
   const pathLength = path.getTotalLength();
   const points = [];
@@ -737,7 +735,6 @@ function getBboxCoordsAndPushUniqueID(path) {
   bBoxArray.push([path.getAttribute("uniqueid"), centerBboxCoords.x, centerBboxCoords.y]);
   return bBoxArray;
 }
-
 
 function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
   let manualExceptionsArray = [];
@@ -812,11 +809,9 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
     }
   }
 
-  // for (let i = 0; i < validDestinationsArray.length; i++) {
-  //   let styleAttr = validDestinationsArray[i].getAttribute("style");
-  //   styleAttr = styleAttr.replace("stroke-width: 1", "stroke-width: 3");
-  //   validDestinationsArray[i].setAttribute("style", styleAttr);
-  // }
+  for (let i = 0; i < validDestinationsArray.length; i++) {
+    setStrokeWidth(validDestinationsArray[i],"3");
+  }
 
   return validDestinationsArray;
 }
@@ -1000,6 +995,7 @@ function toggleUIMenu() {
           for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
             let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
             arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
+            setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
           }
         } else {
           console.log("array empty");
@@ -1153,7 +1149,6 @@ function assignTeamAndFillColorToSVGPaths(colorArray) {
   }
 }
 
-
 function zoomMap(event) {
   let doingTheZoom = true;
   const svg = document.getElementById("svg-map").contentDocument;
@@ -1271,4 +1266,8 @@ function fillPathBasedOnTeam(path) {
   const team = parseInt(path.getAttribute("team"));
   const color = teamColorArray.find((c) => c[0] === team)[1];
   path.setAttribute("fill", color);
+}
+
+function setStrokeWidth(path, stroke) {
+  path.setAttribute("stroke-width", stroke)
 }
