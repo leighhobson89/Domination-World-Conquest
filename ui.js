@@ -4,13 +4,18 @@ import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 
-
-export let pageLoaded = false;
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
 export let dataTableCountriesInitialState = [];
+export let pageLoaded = false;
+
+export let svg = [];
+export let svgMap = [];
+export let paths = [];
+export let defs = [];
+export let patterns = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let playerCountry;
@@ -64,8 +69,12 @@ let lastMouseY = 0;
 let isDragging = false;
 
 export function svgMapLoaded() {
-  const svgMap = document.getElementById('svg-map').contentDocument;
-  const svg = document.getElementById('svg-map');
+  //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
+  svg = document.getElementById('svg-map');
+  svgMap = document.getElementById('svg-map').contentDocument;
+  const svgTag = svgMap.querySelector('svg');
+  paths = Array.from(svgMap.querySelectorAll('path'));
+  //-----------------------------------------------------------------//
   svg.setAttribute("tabindex", "0");
   const tooltip = document.getElementById("tooltip");
   svg.focus();
@@ -203,10 +212,7 @@ function readDatabaseAndCreateDataArray() {
   xhr.send();
 }
 
-function selectCountry(country, escKeyEntry) {
-  const svgMap = document.getElementById('svg-map').contentDocument;
-  const paths = svgMap.getElementsByTagName("path");
-  
+function selectCountry(country, escKeyEntry) {  
   if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
     for (let i = 0; i < paths.length; i++) {
       if (paths[i].getAttribute("data-name") === "Lesotho") {
@@ -408,8 +414,6 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById("player-color-picker").addEventListener('change', function() {
-    const svgMap = document.getElementById("svg-map").contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
     playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
     restoreMapColorState(currentMapColorArray);
     document.getElementById("popup-color").style.color = playerColour;
@@ -502,7 +506,6 @@ function toggleTopTableContainer(turnOnTable) {
 }
 
 document.addEventListener("keydown", function(event) {
-  const svg = document.getElementById('svg-map');
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";
@@ -598,18 +601,14 @@ function getTextHeight(lines, fontSize) {
 }
 
 function findClosestPaths(targetPath) {
-  const svgMap = document.getElementById("svg-map").contentDocument;
-  // console.log(targetPath.getAttribute("uniqueid"));
-
   if (!targetPath) {
     throw new Error(`Could not find path with ID ${targetPath} in SVG map.`);
   }
 
-  const allPaths = svgMap.getElementsByTagName("path");
   const targetPoints = getPoints(targetPath);
   let resultsPaths = [];
 
-  let closestPaths = Array.from(allPaths)
+  let closestPaths = Array.from(paths)
       .filter((path) => path !== targetPath)
       .map((path) => {
         const points = getPoints(path);
@@ -654,7 +653,7 @@ function findClosestPaths(targetPath) {
   }
 
   // add paths with matching "data-name" attribute
-  const matchingPaths = Array.from(allPaths).filter(
+  const matchingPaths = Array.from(paths).filter(
       (path) =>
           path.getAttribute("data-name") === targetPath.getAttribute("data-name") &&
           path.getAttribute("territory-id") !== targetPath.getAttribute("territory-id")
@@ -738,11 +737,9 @@ function getBboxCoordsAndPushUniqueID(path) {
 
 function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
   let manualExceptionsArray = [];
-  const svgMap = document.getElementById("svg-map").contentDocument;
-  const paths = Array.from(svgMap.querySelectorAll('path'));
 
-  const defs = svgMap.querySelector('defs');
-  const patterns = defs.querySelectorAll('pattern');
+  defs = svgMap.querySelector('defs');
+  patterns = defs.querySelectorAll('pattern');
 
   for (let i = 0; i < patterns.length; i++) { //remove all patterns before creating new ones
     defs.removeChild(patterns[i]);
@@ -844,7 +841,6 @@ function getClosestPointsDestinationPaths(coord, paths) {
 }
 
 function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
-  const svgMap = document.getElementById("svg-map").contentDocument;
   let originalColor = pathObj.getAttribute("fill");
   let rgbValues = originalColor.match(/\d{1,3}/g);
   let newRgbValues;
@@ -893,7 +889,6 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
       pattern.appendChild(line2);
 
       // add the pattern element to the defs section of the SVG
-      const defs = svgMap.querySelector('defs');
       defs.appendChild(pattern);
 
       // apply the pattern to the path element
@@ -963,9 +958,6 @@ function toggleUIMenu() {
 }
 
   function colorMapAtBeginningOfGame() {
-    const svgMap = document.getElementById('svg-map').contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
-
     paths.forEach(path => {
       const continent = path.getAttribute("continent");
       const color = continentColorArray.find(item => item[0] === continent)[1];
@@ -1005,9 +997,6 @@ function toggleUIMenu() {
   }
 
   function saveMapColorState() {
-    const svgMap = document.getElementById('svg-map').contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
-
     const fillArray = [];
 
     for (let i = 0; i < paths.length; i++) {
@@ -1027,9 +1016,6 @@ function restoreMapColorState(array) {
   }
   
   currentlySelectedColorsArray.length = 0;
-  const svgMap = document.getElementById('svg-map').contentDocument;
-  const paths = Array.from(svgMap.querySelectorAll('path'));
-
   paths.forEach(path => { //for each path, loop through the currentMapArray and find the match and set the color back
     for (let i = 0; i < array.length; i++) {
       if (array[i][0] == path.getAttribute("uniqueid")) {
@@ -1051,9 +1037,6 @@ if (entry) {
 }
 
 function randomiseColorsOfPathsOnLoad() {
-  const svgMap = document.getElementById('svg-map').contentDocument;
-  const paths = Array.from(svgMap.querySelectorAll('path'));
-
   let randomRgbValue; 
 
   paths.forEach(path => {
@@ -1104,9 +1087,6 @@ function generateDistinctRGBs() {
 }
 
 function assignTeamAndFillColorToSVGPaths(colorArray) {
-  const svgMap = document.getElementById("svg-map").contentDocument;
-  const paths = svgMap.getElementsByTagName("path");
-
   // Calculate the number of paths per group
   const numPaths = paths.length;
   const numGroups = colorArray.length;
@@ -1151,8 +1131,6 @@ function assignTeamAndFillColorToSVGPaths(colorArray) {
 
 function zoomMap(event) {
   let doingTheZoom = true;
-  const svg = document.getElementById("svg-map").contentDocument;
-  const svgTag = svg.querySelector('svg');
   const delta = Math.sign(event.deltaY);
   
   if (delta < 0 && zoomLevel < maxZoomLevel) {
@@ -1209,8 +1187,6 @@ function zoomMap(event) {
 }
 
 function panMap(event) {
-  const svgTag = document.getElementById("svg-map").contentDocument.querySelector('svg');
-
   if (zoomLevel > 1 && event.buttons === 1) {
     event.preventDefault();
     const mouseX = event.clientX;

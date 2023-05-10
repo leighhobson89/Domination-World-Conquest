@@ -4,11 +4,11 @@ import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentPath } from './ui.js';
 import { playerCountry } from './ui.js';
+import { svg, svgMap, paths } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 
 let arrayOfArmyAndResourceProportions;
-
 let totalPlayerResources = [];
 let continentModifier;
 
@@ -21,6 +21,7 @@ let totalOil = 0;
 let totalFood = 0;
 let totalConsMats = 0;
 let territoryPopulation;
+
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -38,29 +39,25 @@ function calculatePathAreasWhenPageLoaded() {
         let intervalId = setInterval(function() {
             if (pageLoaded === true) {
 
-                let svgFile = document.getElementById('svg-map').contentDocument;
-                let pathAreas = calculatePathAreas(svgFile);
+                let pathAreas = calculatePathAreas();
                 allowSelectionOfCountry = true;
 
                 clearInterval(intervalId);
 
                 resolve(pathAreas);
             }
-        }, 1000); // check every 1 second
+        }, 800);
     });
 }
 
-function calculatePathAreas(svgFile) {
+function calculatePathAreas() {
     let pathAreas = [];
-    // Get all the path elements from the SVG file
-    const paths = svgFile.querySelectorAll('path');
 
-    // Calculate the area of each path and store it in an array
     let totalAreaPath = 0;
     for (let i = 0; i < paths.length; i++) {
         let path = paths[i];
         let pathLength = path.getTotalLength();
-        let numPoints = 80; // Change this to increase or decrease the number of points
+        let numPoints = 80;
         let points = [];
         for (let j = 0; j < numPoints; j++) {
             let point = path.getPointAtLength(j / numPoints * pathLength);
@@ -79,15 +76,12 @@ function calculatePathAreas(svgFile) {
         pathAreas.push({ uniqueId: uniqueId, dataName: dataName, territoryId: territoryId, area: area });
     }
     
-    // Calculate the scaling factor
     let scalingFactor = 136067649 / totalAreaPath;
     
-    // Scale the area of each path to its actual area in km2
     for (let i = 0; i < pathAreas.length; i++) {
         pathAreas[i].area *= scalingFactor;
     }
     
-    // Return the array of path areas
     return pathAreas;
 }
 
@@ -223,12 +217,9 @@ export function newTurnResources(playerCountry) {
     let totalPopChange = [];
     let totalAreaArray = [];
     let changeArrayForTerritory = [];
-
-    //read all paths and add all those with "owner = 'player'" to an array
-    const svgMap = document.getElementById('svg-map').contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
     let playerOwnedTerritories = [];
 
+    //read all paths and add all those with "owner = 'player'" to an array
     for (const path of paths) {
         if (path.getAttribute("owner") === "Player") {
             playerOwnedTerritories.push(path);
