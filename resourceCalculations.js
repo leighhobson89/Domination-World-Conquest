@@ -4,12 +4,12 @@ import { formatNumbersToKMB } from './ui.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentPath } from './ui.js';
+import { playerCountry } from './ui.js';
 
+export let allowSelectionOfCountry = false;
 
 let arrayOfArmyAndResourceProportions;
-export let arrayOfArmyAndResourceProportionsUI;
-export const newArrayOfTerritorySpecificArmyAndResources = [];
-export let allowSelectionOfCountry = false;
+let arrayOfArmyAndResourceProportionsUI;
 
 let totalPlayerResources = [];
 let continentModifier;
@@ -28,7 +28,7 @@ let territoryPopulation;
 if (!pageLoaded) {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
-            arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);
+            arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);            
             arrayOfArmyAndResourceProportionsUI = arrayOfArmyAndResourceProportions;
         })
         .catch(error => {
@@ -95,6 +95,7 @@ function calculatePathAreas(svgFile) {
 }
 
 function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState) {
+    let arrayOfArmyAndResourceProportions = [];
     // Create a new array to store the updated path data
 
     // Loop through each element in pathAreas array
@@ -163,7 +164,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
 
             // Add updated path data to the new array
-            newArrayOfTerritorySpecificArmyAndResources.push({
+            arrayOfArmyAndResourceProportions.push({
                 uniqueId: uniqueId,
                 dataName: dataName,
                 territoryId: territoryId,
@@ -179,7 +180,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             });
         }
     }
-    return newArrayOfTerritorySpecificArmyAndResources;
+    return arrayOfArmyAndResourceProportions;
 }
 
 function createArrayOfInitialData() {
@@ -247,7 +248,7 @@ export function newTurnResources(playerCountry) {
         document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalFood);
         document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalConsMats);
         document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(startingPop);
-        document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(parseFloat(totalArea + " (km²)"));
+        document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalArea) + " (km²)";
         document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalArmy);
 
         totalPlayerResources = [totalGold, totalOil, totalFood, totalConsMats, parseInt(startingPop), totalArea, totalArmy];
@@ -257,6 +258,7 @@ export function newTurnResources(playerCountry) {
             for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
                 if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportionsUI[j].uniqueId) {
                     //call functions to update players country:
+                    console.log(playerOwnedTerritories[i].getAttribute("data-name") + playerOwnedTerritories[i].getAttribute("territory-id"));
                     changeArrayForTerritory = calculateTerritoryResourceIncomesEachTurn(territoryPopulation, arrayOfArmyAndResourceProportionsUI[j].area, parseFloat(arrayOfArmyAndResourceProportionsUI[j].devIndex), arrayOfArmyAndResourceProportionsUI[j].continent);        
                     //resources
                     totalGoldChange.push(changeArrayForTerritory[0]);
@@ -305,8 +307,9 @@ export function newTurnResources(playerCountry) {
     
     //set these new totals in the table
     //return a popup to the user with a confirm button to remove it, stating what the player gained that turn
+}
 
-    function calculateTerritoryResourceIncomesEachTurn(currentPop, territoryArea, devIndex, continent) {
+    function calculateTerritoryResourceIncomesEachTurn(territoryPopulation, territoryArea, devIndex, continent) {
         let continentModifier;
         if (continent === "Europe") {
             continentModifier = 1;
@@ -323,14 +326,13 @@ export function newTurnResources(playerCountry) {
         }
 
         let changeArray = [0,0,0,0,0];
-        const baseIncrease = Math.sqrt(territoryArea) * 100;
-        changeArray[0] = totalPlayerResources[0] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 1000000000));
-        changeArray[1] = totalPlayerResources[1] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 1000000000));
-        changeArray[2] = totalPlayerResources[2] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 1000000000));
-        changeArray[3] = totalPlayerResources[3] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 1000000000));
-        changeArray[4] = totalPlayerResources[4] + ((baseIncrease * (1 - devIndex * continentModifier)) * (currentPop / 1000000));
+        changeArray[0] = 0;
+       /*  changeArray[1] = totalPlayerResources[2] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 100000000000));
+        changeArray[2] = totalPlayerResources[2] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 100000000000));
+        changeArray[3] = totalPlayerResources[3] + ((baseIncrease * continentModifier * devIndex) * (currentPop / 100000000000)); */
+        changeArray[4] = totalPlayerResources[1] + calculatePopulationIncrease(territoryPopulation, territoryArea, devIndex, totalPlayerResources[2]);
+        console.log(changeArray[4] + "increase for playerCountry of: " + playerCountry);
         return changeArray;
-      }
     }
 
     export function populateBottomTableWhenSelectingACountry(countryPath) {
@@ -351,10 +353,10 @@ export function newTurnResources(playerCountry) {
         for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
             if (arrayOfArmyAndResourceProportionsUI[i].dataName === currentPath.getAttribute("data-name")) {
             countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
-            totalGold += newArrayOfTerritorySpecificArmyAndResources[i].goldForCurrentTerritory;
-            totalOil += newArrayOfTerritorySpecificArmyAndResources[i].oilForCurrentTerritory;
-            totalFood += newArrayOfTerritorySpecificArmyAndResources[i].foodForCurrentTerritory;
-            totalConsMats += newArrayOfTerritorySpecificArmyAndResources[i].consMatsForCurrentTerritory;    
+            totalGold += arrayOfArmyAndResourceProportions[i].goldForCurrentTerritory;
+            totalOil += arrayOfArmyAndResourceProportions[i].oilForCurrentTerritory;
+            totalFood += arrayOfArmyAndResourceProportions[i].foodForCurrentTerritory;
+            totalConsMats += arrayOfArmyAndResourceProportions[i].consMatsForCurrentTerritory;    
             }
         }
     
@@ -365,10 +367,10 @@ export function newTurnResources(playerCountry) {
 
         for (let i = 0; i < dataTableCountriesInitialState.length; i++) {
             if (dataTableCountriesInitialState[i].country === countryPath.getAttribute("data-name")) {
-                for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-                    if (newArrayOfTerritorySpecificArmyAndResources[i].dataName === countryPath.getAttribute("data-name")) {
-                    totalArmy += newArrayOfTerritorySpecificArmyAndResources[i].armyForCurrentTerritory;
-                    totalArea += newArrayOfTerritorySpecificArmyAndResources[i].area;
+                for (let i = 0; i < arrayOfArmyAndResourceProportions.length; i++) {
+                    if (arrayOfArmyAndResourceProportions[i].dataName === countryPath.getAttribute("data-name")) {
+                    totalArmy += arrayOfArmyAndResourceProportions[i].armyForCurrentTerritory;
+                    totalArea += arrayOfArmyAndResourceProportions[i].area;
                     }
                 }
                 
@@ -376,17 +378,16 @@ export function newTurnResources(playerCountry) {
 
                 const population = dataTableCountriesInitialState[i].startingPop;
                 startingPop = population;
-                for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-                    if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-                        territoryPop = formatNumbersToKMB((population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area);
-                        territoryPopulation = (population / totalArea) * newArrayOfTerritorySpecificArmyAndResources[i].area; 
+                for (let i = 0; i < arrayOfArmyAndResourceProportions.length; i++) {
+                    if (arrayOfArmyAndResourceProportions[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+                        territoryPop = formatNumbersToKMB((population / totalArea) * arrayOfArmyAndResourceProportions[i].area);
+                        territoryPopulation = (population / totalArea) * arrayOfArmyAndResourceProportions[i].area; 
                         break;
                     }
                 }
                 document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
                 
                 for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-                    if (dataTableCountriesInitialState)
                     if (arrayOfArmyAndResourceProportionsUI[i].territoryId === countryPath.getAttribute("territory-id") && arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
                     startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
                     startingArmy = formatNumbersToKMB(startingArmy);
@@ -406,21 +407,35 @@ export function newTurnResources(playerCountry) {
             }
         }  
     
-        for (let i = 0; i < newArrayOfTerritorySpecificArmyAndResources.length; i++) {
-            if (newArrayOfTerritorySpecificArmyAndResources[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-                territoryArea = formatNumbersToKMB(newArrayOfTerritorySpecificArmyAndResources[i].area);
+        for (let i = 0; i < arrayOfArmyAndResourceProportions.length; i++) {
+            if (arrayOfArmyAndResourceProportions[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+                territoryArea = formatNumbersToKMB(arrayOfArmyAndResourceProportions[i].area);
                 document.getElementById("bottom-table").rows[0].cells[13].innerHTML = territoryArea + " (km²)";
                 break;
             }
         }          
-    };
+    }
 
+    function calculatePopulationIncrease(uniqueid, territoryPopulation, area, devIndex, food) {
 
-
-
-
-
-
-
-
-
+        let foodCapacity = food * 1000;
+        let populationGrowth = (territoryPopulation + foodCapacity - food * 500) / 100 * (1 - devIndex / 4);
+        
+        if (populationGrowth < 0) { // If there is a food shortage, population will shrink based on the shortage
+          territoryPopulation += populationGrowth;
+        } else if (populationGrowth > foodCapacity - territoryPopulation) { // Limit growth to food capacity
+          territoryPopulation = foodCapacity;
+        } else {
+          territoryPopulation += populationGrowth;
+        }
+        
+        let result = territoryPopulation - territoryPopulation / (1 + Math.exp(-devIndex * 10)) + area / 10000;
+        
+        if (area <= 22000 || territoryPopulation <= 100000) { // Apply *10 scaling factor for small situations
+          result *= 10;
+        } else if (area >= 6070000 || territoryPopulation >= 300000000) { // Apply /5 scaling factor for large situations
+          result /= 5;
+        }
+      
+        return result;
+      }
