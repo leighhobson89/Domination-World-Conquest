@@ -1,10 +1,7 @@
-import { arrayOfArmyAndResourceProportionsUI } from './resourceCalculations.js';
 import { findMatchingCountries } from './manualExceptionsForInteractions.js';
 import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
-import { newArrayOfTerritorySpecificArmyAndResources } from './resourceCalculations.js';
 import { allowSelectionOfCountry } from './resourceCalculations.js';
-
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 
 
@@ -1019,9 +1016,7 @@ function toggleUIMenu() {
           console.log("array empty");
         }
       }
-    } else {
-      console.log("Svg Hovered");
-    }
+    } 
   }
 
   function saveMapColorState() {
