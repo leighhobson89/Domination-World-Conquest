@@ -13,6 +13,7 @@ export let pageLoaded = false;
 
 export let svg = [];
 export let svgMap = [];
+export let svgTag = [];
 export let paths = [];
 export let defs = [];
 export let patterns = [];
@@ -72,7 +73,7 @@ export function svgMapLoaded() {
   //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
   svg = document.getElementById('svg-map');
   svgMap = document.getElementById('svg-map').contentDocument;
-  const svgTag = svgMap.querySelector('svg');
+  svgTag = svgMap.querySelector('svg');
   paths = Array.from(svgMap.querySelectorAll('path'));
   //-----------------------------------------------------------------//
   svg.setAttribute("tabindex", "0");
