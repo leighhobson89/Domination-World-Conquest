@@ -1,6 +1,5 @@
 import { pageLoaded } from './ui.js';
 import { currentTurn } from './gameTurnsLoop.js';
-import { formatNumbersToKMB } from './ui.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentPath } from './ui.js';
@@ -9,7 +8,6 @@ import { playerCountry } from './ui.js';
 export let allowSelectionOfCountry = false;
 
 let arrayOfArmyAndResourceProportions;
-let arrayOfArmyAndResourceProportionsUI;
 
 let totalPlayerResources = [];
 let continentModifier;
@@ -28,8 +26,7 @@ let territoryPopulation;
 if (!pageLoaded) {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
-            arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);            
-            arrayOfArmyAndResourceProportionsUI = arrayOfArmyAndResourceProportions;
+            arrayOfArmyAndResourceProportions = randomiseArmyAndResources(arrayOfArmyAndResourceProportions);
         })
         .catch(error => {
             console.log(error);
@@ -438,4 +435,16 @@ export function newTurnResources(playerCountry) {
         }
       
         return result;
+      }
+
+      function formatNumbersToKMB(string) {
+        if (string >= 1000000000) {
+          return (string / 1000000000).toFixed(1) + 'B';
+        } else if (string >= 1000000) {
+          return (string / 1000000).toFixed(1) + 'M';
+        } else if (string >= 1000) {
+          return (string / 1000).toFixed(1) + 'k';
+        } else {
+          return string.toFixed(0);
+        }
       }
