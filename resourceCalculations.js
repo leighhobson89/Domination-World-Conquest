@@ -255,11 +255,11 @@ export function newTurnResources(playerCountry) {
     } else if (currentTurn > 1) {
         //add up resources from all territories and put in top-table
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
-            for (let j = 0; j < arrayOfArmyAndResourceProportionsUI.length; j++) {
-                if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportionsUI[j].uniqueId) {
+            for (let j = 0; j < arrayOfArmyAndResourceProportions.length; j++) {
+                if (playerOwnedTerritories[i].getAttribute("uniqueid") === arrayOfArmyAndResourceProportions[j].uniqueId) {
                     //call functions to update players country:
                     console.log(playerOwnedTerritories[i].getAttribute("data-name") + playerOwnedTerritories[i].getAttribute("territory-id"));
-                    changeArrayForTerritory = calculateTerritoryResourceIncomesEachTurn(territoryPopulation, arrayOfArmyAndResourceProportionsUI[j].area, parseFloat(arrayOfArmyAndResourceProportionsUI[j].devIndex), arrayOfArmyAndResourceProportionsUI[j].continent);        
+                    changeArrayForTerritory = calculateTerritoryResourceIncomesEachTurn(territoryPopulation, arrayOfArmyAndResourceProportions[j].area, parseFloat(arrayOfArmyAndResourceProportions[j].devIndex), arrayOfArmyAndResourceProportions[j].continent);        
                     //resources
                     totalGoldChange.push(changeArrayForTerritory[0]);
                     totalOilChange.push(changeArrayForTerritory[1]);
@@ -268,12 +268,12 @@ export function newTurnResources(playerCountry) {
                     //population
                     totalPopChange.push(changeArrayForTerritory[4]);
                     //area
-                    totalAreaArray.push(arrayOfArmyAndResourceProportionsUI[j].area);
+                    totalAreaArray.push(arrayOfArmyAndResourceProportions[j].area);
 
-                    arrayOfArmyAndResourceProportionsUI[j].goldForCurrentTerritory = changeArrayForTerritory[0];
-                    arrayOfArmyAndResourceProportionsUI[j].oilForCurrentTerritory = changeArrayForTerritory[1];
-                    arrayOfArmyAndResourceProportionsUI[j].foodForCurrentTerritory = changeArrayForTerritory[2];
-                    arrayOfArmyAndResourceProportionsUI[j].consMatsForCurrentTerritory = changeArrayForTerritory[3];
+                    arrayOfArmyAndResourceProportions[j].goldForCurrentTerritory = changeArrayForTerritory[0];
+                    arrayOfArmyAndResourceProportions[j].oilForCurrentTerritory = changeArrayForTerritory[1];
+                    arrayOfArmyAndResourceProportions[j].foodForCurrentTerritory = changeArrayForTerritory[2];
+                    arrayOfArmyAndResourceProportions[j].consMatsForCurrentTerritory = changeArrayForTerritory[3];
                 }
             }
         }
@@ -349,10 +349,10 @@ export function newTurnResources(playerCountry) {
         totalArea = 0;
         totalArmy = 0;
 
-        // Loop through arrayOfArmyAndResourceProportionsUI to find the data for the corresponding territories of the country
-        for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-            if (arrayOfArmyAndResourceProportionsUI[i].dataName === currentPath.getAttribute("data-name")) {
-            countryResourceData.push(arrayOfArmyAndResourceProportionsUI[i]);      
+        // Loop through arrayOfArmyAndResourceProportions to find the data for the corresponding territories of the country
+        for (let i = 0; i < arrayOfArmyAndResourceProportions.length; i++) {
+            if (arrayOfArmyAndResourceProportions[i].dataName === currentPath.getAttribute("data-name")) {
+            countryResourceData.push(arrayOfArmyAndResourceProportions[i]);      
             totalGold += arrayOfArmyAndResourceProportions[i].goldForCurrentTerritory;
             totalOil += arrayOfArmyAndResourceProportions[i].oilForCurrentTerritory;
             totalFood += arrayOfArmyAndResourceProportions[i].foodForCurrentTerritory;
@@ -387,9 +387,9 @@ export function newTurnResources(playerCountry) {
                 }
                 document.getElementById("bottom-table").rows[0].cells[11].innerHTML = territoryPop;
                 
-                for (let i = 0; i < arrayOfArmyAndResourceProportionsUI.length; i++) {
-                    if (arrayOfArmyAndResourceProportionsUI[i].territoryId === countryPath.getAttribute("territory-id") && arrayOfArmyAndResourceProportionsUI[i].dataName === countryPath.getAttribute("data-name")) {
-                    startingArmy = Math.ceil(arrayOfArmyAndResourceProportionsUI[i].armyForCurrentTerritory);
+                for (let i = 0; i < arrayOfArmyAndResourceProportions.length; i++) {
+                    if (arrayOfArmyAndResourceProportions[i].territoryId === countryPath.getAttribute("territory-id") && arrayOfArmyAndResourceProportions[i].dataName === countryPath.getAttribute("data-name")) {
+                    startingArmy = Math.ceil(arrayOfArmyAndResourceProportions[i].armyForCurrentTerritory);
                     startingArmy = formatNumbersToKMB(startingArmy);
                     document.getElementById("bottom-table").rows[0].cells[15].innerHTML = startingArmy;
                     break;

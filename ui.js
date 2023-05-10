@@ -13,19 +13,8 @@ let turnPhase = currentTurnPhase;
 export let dataTableCountriesInitialState = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
-export let exportArmy;
-export let exportPop;
-export let exportArea;
-export let exportGold;
-export let exportOil;
-export let exportFood;
-export let exportConsMats;
 export let playerCountry;
 export let playerColour;
-export let exportPopUnformatted;
-export let exportAreaUnformatted;
-export let exportArmyUnformatted;
-export let territoryPopUnformatted;
 
 let currentMapColorArray = []; //current state of map at start of new turn
 const continentColorArray = [["Africa", [233, 234, 20]], 
