@@ -35,8 +35,8 @@ let teamColorArray = [];
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
-export let currentPath; // used for hover, and tooltip before user clicks on a country
-let currentSelectedPath;
+let currentPath; // used for hover, and tooltip before user clicks on a country
+export let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
 let closestDistancesArray;
@@ -135,6 +135,7 @@ export function svgMapLoaded() {
       if (allowSelectionOfCountry) {
         selectCountry(currentPath, false);
       }
+      currentSelectedPath = currentPath;
       if (countrySelectedAndGameStarted) {
         if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
           validDestinationsAndClosestPointArray = findClosestPaths(e.target);
@@ -143,7 +144,6 @@ export function svgMapLoaded() {
           } else {
             hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
             currentlySelectedColorsArray.length = 0;
-            currentSelectedPath = currentPath;
             validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
             closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
             let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
