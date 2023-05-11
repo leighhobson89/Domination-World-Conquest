@@ -21,7 +21,7 @@ export function initialiseGame() {
 }
 
 function gameLoop() {
-    newTurnResources(playerCountry);
+    newTurnResources();
     console.log("Turn " + currentTurn + " has started!");
     // Handle player turn
     handleSpendUpgradePhase().then(() => {
