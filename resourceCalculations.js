@@ -172,7 +172,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
             let goldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
-            let oilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
+            let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
+            let oilCapacity = oilForCurrentTerritory;
             let foodForCurrentTerritory = productiveTerritoryPop / 10000; //set food to balance with population at beginning
             let foodCapacity = productiveTerritoryPop; //set food capacity as permanent value until territory upgraded
             let consMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
@@ -190,6 +191,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 armyForCurrentTerritory: armyForCurrentTerritory,
                 goldForCurrentTerritory: goldForCurrentTerritory,
                 oilForCurrentTerritory: oilForCurrentTerritory,
+                oilCapacity: oilCapacity,
                 foodForCurrentTerritory: foodForCurrentTerritory,
                 foodCapacity: foodCapacity,
                 consMatsForCurrentTerritory: consMatsForCurrentTerritory,
@@ -222,12 +224,10 @@ function randomiseArmyAndResources(armyResourceArray) {
         if (randomAddSubtract) {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory + (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = (country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomGoldFactor/100))) / country.devIndex;
-            country.oilForCurrentTerritory = country.oilForCurrentTerritory + (country.oilForCurrentTerritory * (randomOilFactor/100));
             country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory + (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         } else {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory - (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomGoldFactor/100));
-            country.oilForCurrentTerritory = country.oilForCurrentTerritory - (country.oilForCurrentTerritory * (randomOilFactor/100));
             country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory - (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         }
     });
@@ -281,7 +281,7 @@ export function newTurnResources() {
                     changePop = calculatePopulationChange(); */
 
                     changeGold = 10;
-                    changeOil = 10;
+                    changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i]);
                     changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i]);
                     changeConsMats = 10;
                     changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
@@ -295,6 +295,39 @@ export function newTurnResources() {
                 }
             }
         }
+    }
+
+    function calculateOilChange(territory) {
+        let oilChange = 0;
+
+        if (randomEventHappening && randomEvent === "Oil Well Fire") { //oil disaster
+            const isRandomlyTrue = Math.random() >= 0.5;
+            if (isRandomlyTrue) {
+                let tempOil = territory.oilForCurrentTerritory;
+                territory.oilForCurrentTerritory /= 1.5;
+                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its oil!");
+                console.log("It had " + tempOil + " but now it has " + territory.oilForCurrentTerritory);
+            } else {
+                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+            }
+        }
+
+        //if oil is below oil capacity then grow at 10% per turn
+        if (!randomEventHappening && territory.oilCapacity > (territory.oilForCurrentTerritory)) {
+            const oilDifference = territory.oilCapacity - (territory.oilForCurrentTerritory);
+            oilChange = (Math.ceil(oilDifference * 0.1));
+          }
+
+          //if oil is above oil capacity then lose it at 10% per turn until it balances
+          if (!randomEventHappening && territory.oilCapacity < (territory.oilForCurrentTerritory)) {
+            const oilDifference = (territory.oilForCurrentTerritory) - territory.oilCapacity;
+            oilChange = -(Math.ceil(oilDifference * 0.1));
+        }
+
+        /* if (territory.oilWells > 0) { //implement when do upgrading code
+        } */
+
+        return oilChange;
     }
 
     function calculateFoodChange(territory) { 
@@ -435,4 +468,28 @@ export function newTurnResources() {
             document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
         }
+    }
+
+    function initialOilCalculation(path, area) {
+        let developmentIndex = parseFloat(path.dev_index);
+        let continentModifier;
+
+        if (path.continent === "Europe") {
+            continentModifier = 0.9;
+        } else if (path.continent === "North America") {
+            continentModifier = 1.3;
+        } else if (path.continent === "Africa") {
+            continentModifier = 1.8;
+        } else if (path.continent === "South America") {
+            continentModifier = 1.6;
+        } else if (path.continent === "Oceania") {
+            continentModifier = 0.8;
+        } else if (path.continent === "Asia") {
+            continentModifier = 1.1;
+        }
+
+        const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
+        const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
+        const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
+        return term1 + term2 + term3;
     }
