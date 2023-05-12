@@ -125,7 +125,7 @@ function handleSpendUpgradePhase() {
 function selectRandomEvent() {
     const events = [
       "Food Disaster",
-      "Option 2",
+      "Oil Well Fire",
       "Option 3",
       "Option 4",
       "Option 5",
@@ -137,5 +137,5 @@ function selectRandomEvent() {
     ];
     const randomIndex = Math.floor(Math.random() * events.length);
     /* return events[randomIndex]; */
-    return events[0]; //food disaster
+    return events[1]; //oil disaster
 }
