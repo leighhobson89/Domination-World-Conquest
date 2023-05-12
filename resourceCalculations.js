@@ -108,6 +108,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let totalConsMatsForCountry = matchingCountry.res_cons_mats;
             let startingPop = parseInt(matchingCountry.startingPop);
             let territoryPopulation;
+            let productiveTerritoryPop;
             let continent = matchingCountry.continent;
             let dev_index = matchingCountry.dev_index;
             let percentOfWholeArea = 0;
@@ -148,13 +149,14 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             }
 
             // Calculate population of each territory based on the startingPop for the whole country it belongs to
-            territoryPopulation = startingPop * percentOfWholeArea; 
+            territoryPopulation = startingPop * percentOfWholeArea;
+            productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index)
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            let GoldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (startingPop/50000)) * continentModifier);
+            let GoldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
             let OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
-            let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/100000));
+            let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/200000));
             let ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
 
             // Add updated path data to the new array
@@ -163,6 +165,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 dataName: dataName,
                 territoryId: territoryId,
                 territoryPopulation: territoryPopulation,
+                productiveTerritoryPop: productiveTerritoryPop,
                 area: area,
                 continent: continent,
                 armyForCurrentTerritory: armyForCurrentTerritory,
@@ -191,7 +194,7 @@ function randomiseArmyAndResources(armyResourceArray) {
     armyResourceArray.forEach((country) => {
         let randomGoldFactor = Math.floor(Math.random() * 20) + 2;
         let randomOilFactor = Math.floor(Math.random() * 80) + 2;
-        let randomFoodFactor = Math.floor(Math.random() * 90) + 2;
+        let randomFoodFactor = Math.floor(Math.random() * 10) + 2;
         let randomConsMatsFactor = Math.floor(Math.random() * 70) + 2;
         let randomArmyFactor = Math.floor(Math.random() * 15) + 2;
         let randomAddSubtract = Math.random() < 0.5; //add or subtract
@@ -270,34 +273,33 @@ export function newTurnResources() {
                     mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
                     mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
                     mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
+                    mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
                 }
             }
         }
     }
 
     function calculatePopulationChange(territory) {
-
-        let foodCapacity = territory.foodForCurrentTerritory * 1000;
-        let populationGrowth = (territory.territoryPopulation + foodCapacity - territory.foodForCurrentTerritory * 500) / 100 * (1 - territory.devIndex / 4);
-        
-        if (populationGrowth < 0) {
-            territory.territoryPopulation += populationGrowth;
-        } else if (populationGrowth > foodCapacity - territory.territoryPopulation) {
-            territory.territoryPopulation = foodCapacity;
+        const foodCapacity = territory.foodForCurrentTerritory * 10000;
+        const currentPopulation = territory.productiveTerritoryPop;
+        const devIndex = territory.devIndex;
+      
+        let populationChange = 0;
+      
+        if (foodCapacity < currentPopulation) {
+          // Starvation situation
+          const foodShortage = Math.ceil((currentPopulation - foodCapacity) / 1000);
+          populationChange = -Math.min(foodShortage * 500, currentPopulation);
         } else {
-            territory.territoryPopulation += populationGrowth;
-        }
-        
-        let result = territory.territoryPopulation - territory.territoryPopulation / (1 + Math.exp(- territory.devIndex * 10)) + territory.area / 10000;
-        
-        if (territory.area <= 22000 || territory.territoryPopulation <= 100000) {
-          result *= 10;
-        } else if (territory.area >= 6070000 || territory.territoryPopulation >= 300000000) {
-          result /= 5;
+          // Growth situation
+          const maxGrowth = foodCapacity - currentPopulation;
+          const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
+          populationChange = Math.min(maxGrowth, growthPotential);
         }
       
-        return result;
-      }
+        return populationChange;
+      }      
+      
 
     function formatNumbersToKMB(string) {
         if (string >= 1000000000) {
@@ -317,6 +319,7 @@ export function newTurnResources() {
         let totalFood = 0;
         let totalConsMats = 0;
         let totalPop = 0;
+        let totalProdPop = 0;
         let totalArea = 0;
         let totalArmy = 0;
 
@@ -328,6 +331,7 @@ export function newTurnResources() {
                     totalFood += mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory;
                     totalConsMats += mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory;
                     totalPop += mainArrayOfTerritoriesAndResources[i].territoryPopulation;
+                    totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
                     totalArea += mainArrayOfTerritoriesAndResources[i].area;
                     totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
                     if (path === currentSelectedPath && currentTurn !== 1) {
@@ -345,6 +349,7 @@ export function newTurnResources() {
             totalFood: totalFood,
             totalConsMats: totalConsMats,
             totalPop: totalPop,
+            totalProdPop: totalProdPop,
             totalArea: totalArea,
             totalArmy: totalArmy});
 
@@ -354,7 +359,7 @@ export function newTurnResources() {
         document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil);
         document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood);
         document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
-        document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+        document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop);
         document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
         document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
     }
@@ -376,7 +381,7 @@ export function newTurnResources() {
                 document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
                 document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
                 document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.territoryPopulation);
+                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop);
                 document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
                 document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
             } else { //turn update resources for selected territory
@@ -385,7 +390,7 @@ export function newTurnResources() {
             document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
             document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
             document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
-            document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.territoryPopulation);
+            document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop);
             document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
         }
