@@ -81,6 +81,10 @@
   overflow: auto;
 }
 
+.population {
+  font-size: 0.75rem;
+}
+
 td {
   text-align: center;
   font-family: Arial, Helvetica, sans-serif;
