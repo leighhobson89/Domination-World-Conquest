@@ -1,5 +1,5 @@
 import { pageLoaded } from './ui.js';
-import { currentTurn } from './gameTurnsLoop.js';
+import { currentTurn, randomEvent, randomEventHappening } from './gameTurnsLoop.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentSelectedPath } from './ui.js';
@@ -21,6 +21,16 @@ if (!pageLoaded) {
         .catch(error => {
             console.log(error);
         });
+}
+
+export function getPlayerTerritories() {
+    playerOwnedTerritories.length = 0;
+
+    for (const path of paths) {
+        if (path.getAttribute("owner") === "Player") {
+            playerOwnedTerritories.push(path);
+        }
+    }
 }
 
 export function populateBottomTableWhenSelectingACountry(countryPath) {
@@ -93,6 +103,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         let uniqueId = pathAreas[i].uniqueId;
         let dataName = pathAreas[i].dataName;
         let territoryId = pathAreas[i].territoryId;
+        let territoryName;
         let area = pathAreas[i].area;
 
         // Find matching country in armyArray
@@ -148,31 +159,40 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 continentModifier = 2;
             }
 
+            for (const path of paths) {
+                if (path.getAttribute("uniqueid") === uniqueId) {
+                    territoryName = path.getAttribute("territory-name");
+                }
+            }
+
             // Calculate population of each territory based on the startingPop for the whole country it belongs to
             territoryPopulation = startingPop * percentOfWholeArea;
             productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index)
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            let GoldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
-            let OilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
-            let FoodForCurrentTerritory = totalFoodForCountry * (percentOfWholeArea * (area/200000));
-            let ConsMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
+            let goldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
+            let oilForCurrentTerritory = totalOilForCountry * (percentOfWholeArea * (area/100000));
+            let foodForCurrentTerritory = productiveTerritoryPop / 10000; //set food to balance with population at beginning
+            let foodCapacity = productiveTerritoryPop; //set food capacity as permanent value until territory upgraded
+            let consMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
 
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
                 uniqueId: uniqueId,
                 dataName: dataName,
                 territoryId: territoryId,
+                territoryName: territoryName,
                 territoryPopulation: territoryPopulation,
                 productiveTerritoryPop: productiveTerritoryPop,
                 area: area,
                 continent: continent,
                 armyForCurrentTerritory: armyForCurrentTerritory,
-                goldForCurrentTerritory: GoldForCurrentTerritory,
-                oilForCurrentTerritory: OilForCurrentTerritory,
-                foodForCurrentTerritory: FoodForCurrentTerritory,
-                consMatsForCurrentTerritory: ConsMatsForCurrentTerritory,
+                goldForCurrentTerritory: goldForCurrentTerritory,
+                oilForCurrentTerritory: oilForCurrentTerritory,
+                foodForCurrentTerritory: foodForCurrentTerritory,
+                foodCapacity: foodCapacity,
+                consMatsForCurrentTerritory: consMatsForCurrentTerritory,
                 devIndex: dev_index,
                 continentModifier: continentModifier
             });
@@ -203,13 +223,11 @@ function randomiseArmyAndResources(armyResourceArray) {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory + (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = (country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomGoldFactor/100))) / country.devIndex;
             country.oilForCurrentTerritory = country.oilForCurrentTerritory + (country.oilForCurrentTerritory * (randomOilFactor/100));
-            country.foodForCurrentTerritory = country.foodForCurrentTerritory + (country.foodForCurrentTerritory * (randomFoodFactor/100));
             country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory + (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         } else {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory - (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomGoldFactor/100));
             country.oilForCurrentTerritory = country.oilForCurrentTerritory - (country.oilForCurrentTerritory * (randomOilFactor/100));
-            country.foodForCurrentTerritory = country.foodForCurrentTerritory - (country.foodForCurrentTerritory * (randomFoodFactor/100));
             country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory - (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         }
     });
@@ -264,7 +282,7 @@ export function newTurnResources() {
 
                     changeGold = 10;
                     changeOil = 10;
-                    changeFood = 10;
+                    changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i]);
                     changeConsMats = 10;
                     changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
 
@@ -279,20 +297,53 @@ export function newTurnResources() {
         }
     }
 
+    function calculateFoodChange(territory) { 
+        let foodChange = 0;
+
+        if (randomEventHappening && randomEvent === "Food Disaster") { //food disaster
+            const isRandomlyTrue = Math.random() >= 0.5;
+            if (isRandomlyTrue) {
+                let tempFood = territory.foodForCurrentTerritory;
+                territory.foodForCurrentTerritory /= 2;
+                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its food!");
+                console.log("It had " + tempFood + " but now it has " + territory.foodForCurrentTerritory);
+            } else {
+                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+            }
+        }
+
+        //if food is below food capacity then grow at 10% per turn
+        if (!randomEventHappening && territory.foodCapacity > (territory.foodForCurrentTerritory * 10000)) {
+            const foodDifference = territory.foodCapacity - (territory.foodForCurrentTerritory * 10000);
+            foodChange = (Math.ceil(foodDifference * 0.1) / 10000);
+          }
+
+          //if food is above food capacity then lose it at 10% per turn until it balances
+          if (!randomEventHappening && territory.foodCapacity < (territory.foodForCurrentTerritory * 10000)) {
+            const foodDifference = (territory.foodForCurrentTerritory * 10000) - territory.foodCapacity;
+            foodChange = -(Math.ceil(foodDifference * 0.1) / 10000);
+        }
+          
+      
+        /* if (territory.farms > 0) { //implement when do upgrading code
+        } */
+      
+        return foodChange;
+      }     
+
     function calculatePopulationChange(territory) {
-        const foodCapacity = territory.foodForCurrentTerritory * 10000;
         const currentPopulation = territory.productiveTerritoryPop;
         const devIndex = territory.devIndex;
       
         let populationChange = 0;
       
-        if (foodCapacity < currentPopulation) {
+        if ((territory.foodForCurrentTerritory * 10000) < currentPopulation) {
           // Starvation situation
-          const foodShortage = Math.ceil((currentPopulation - foodCapacity) / 1000);
+          const foodShortage = Math.ceil((currentPopulation - territory.foodForCurrentTerritory) / 1000);
           populationChange = -Math.min(foodShortage * 500, currentPopulation);
         } else {
           // Growth situation
-          const maxGrowth = foodCapacity - currentPopulation;
+          const maxGrowth = (territory.foodForCurrentTerritory * 10000) - currentPopulation;
           const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
           populationChange = Math.min(maxGrowth, growthPotential);
         }
@@ -362,16 +413,6 @@ export function newTurnResources() {
         document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
         document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
         document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
-    }
-
-    function getPlayerTerritories() {
-        playerOwnedTerritories.length = 0;
-
-        for (const path of paths) {
-            if (path.getAttribute("owner") === "Player") {
-                playerOwnedTerritories.push(path);
-            }
-        }
     }
 
     function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
