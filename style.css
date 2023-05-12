@@ -81,10 +81,6 @@
   overflow: auto;
 }
 
-.population {
-  font-size: 0.75rem;
-}
-
 td {
   text-align: center;
   font-family: Arial, Helvetica, sans-serif;
@@ -346,6 +342,17 @@ td {
 .resourceFields {
   text-align: left;
   width: 2% !important;
+}
+
+.population {
+  text-align: left;
+  width: 3% !important;
+}
+
+.area {
+  text-align: left;
+  width: 2% !important;
+  font-size: 0.78rem;
 }
 
 .iconCell {
