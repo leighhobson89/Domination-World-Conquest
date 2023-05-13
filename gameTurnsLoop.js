@@ -126,7 +126,7 @@ function selectRandomEvent() {
     const events = [
       "Food Disaster",
       "Oil Well Fire",
-      "Option 3",
+      "Forest Fire",
       "Option 4",
       "Option 5",
       "Option 6",
@@ -136,6 +136,5 @@ function selectRandomEvent() {
       "Option 10"
     ];
     const randomIndex = Math.floor(Math.random() * events.length);
-    /* return events[randomIndex]; */
-    return events[1]; //oil disaster
+    return events[randomIndex];
 }

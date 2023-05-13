@@ -178,7 +178,7 @@ td {
 }
 
 .popup-with-confirm-container {
-  width: 18%;
+  width: 15%;
   height: 40%;
   position: fixed;
   bottom: 8%;
@@ -375,7 +375,8 @@ td {
 
 /* -------------------------------------------- MAIN UI --------------------------------------------- */
 
-#main-ui-container {
+.main-ui-container {
+  display: none;
   position: fixed;
   top: 50%;
   left: 60%;
@@ -393,7 +394,7 @@ td {
   font-size: 0.9rem;
 }
 
-#tab-buttons {
+.tab-buttons {
   display: flex;
   padding-top: 5px;
   padding-bottom: 5px;
@@ -417,19 +418,21 @@ td {
   background-color: rgb(81, 121, 153);
 }
 
-#content {
+.content-window {
   display: flex;
   flex-grow: 1;
 }
 
-#info-panel {
-  flex-basis: 70%;
+.info-panel {
+  flex-basis: 100%;
   padding: 10px;
   overflow-y: auto;
+  opacity: 0.5;
 }
 
 #selection-panel {
-  flex-basis: 30%;
+  display: none;
+  flex-basis: 20%;
   padding: 10px;
   border-left: 3px solid rgb(84, 99, 110);
   overflow-y: auto;
