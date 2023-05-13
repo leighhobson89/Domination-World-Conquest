@@ -33,12 +33,6 @@
   overflow: auto;
 }
 
-#top-table {
-  border: none;
-  table-layout: fixed;
-  width: 100%;
-}
-
 #top-table td {
   text-align: left;
   width: 8%;
@@ -375,7 +369,7 @@ td {
 
 /* -------------------------------------------- MAIN UI --------------------------------------------- */
 
-.main-ui-container {
+#main-ui-container {
   display: none;
   position: fixed;
   top: 50%;
@@ -410,7 +404,6 @@ td {
   border: 3px solid rgb(84, 99, 110);
   transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
-
 }
 
 .tab-button.active {
