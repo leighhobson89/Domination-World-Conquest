@@ -406,7 +406,12 @@ document.addEventListener("DOMContentLoaded", function() {
   UIToggleButton.setAttribute("id", "UIToggleButton");
 
   UIToggleButton.addEventListener("click", function() {
-    toggleUIMenu();
+    if (UICurrentlyOnScreen) {
+      toggleUIMenu(false);
+    } else {
+      toggleUIMenu(true);
+    }
+    
   });
 
   document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
@@ -492,9 +497,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   //MAIN UI
   const mainUIContainer = document.createElement("div");
-  mainUIContainer.classList.add("main-ui-container");
   mainUIContainer.classList.add("blur-background");
-  mainUIContainer.setAttribute("id", "main-ui-container");
 
   // create the menu options
   const tabButtons = document.createElement("div");
@@ -504,10 +507,12 @@ document.addEventListener("DOMContentLoaded", function() {
   const territoryButton = document.createElement("button");
   territoryButton.classList.add("tab-button");
   territoryButton.setAttribute("id", "territoryButton");
+  territoryButton.innerHTML = "Territories";
 
   const armyButton = document.createElement("button");
   armyButton.classList.add("tab-button");
   armyButton.setAttribute("id", "armyButton");
+  armyButton.innerHTML = "Military";
 
   const contentWindow = document.createElement("div");
   contentWindow.classList.add("content-window");
@@ -998,20 +1003,15 @@ function toggleUIButton(makeVisible) {
   }
 }
 
-function toggleUIMenu() {
-  if (document.getElementById("main-ui-container").style.display) {
-    if(document.getElementById("main-ui-container").style.display !== "none") {
+  function toggleUIMenu(makeVisible) {
+    console.log(document.getElementById("main-ui-container").style.display);
+    if (makeVisible) {
+      document.getElementById("main-ui-container").style.display = "block";
+      UICurrentlyOnScreen = true;
+    } else {
       document.getElementById("main-ui-container").style.display = "none";
       UICurrentlyOnScreen = false;
-    } else {
-      document.getElementById("main-ui-container").style.display = "flex";
-      UICurrentlyOnScreen = true;
     }
-    
-  } else {
-    document.getElementById("main-ui-container").style.display = "flex";
-    UICurrentlyOnScreen = true;
-  }
 }
 
   function colorMapAtBeginningOfGame() {
