@@ -21,6 +21,7 @@ export let patterns = [];
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let playerCountry;
 export let playerColour;
+export let flag;
 
 let currentMapColorArray = []; //current state of map at start of new turn
 const continentColorArray = [["Africa", [233, 234, 20]], 
@@ -368,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // add the menu container to the HTML body
   document.getElementById("menu-container").appendChild(menuContainer);
 
-  //Map Popup With Confirm Button
+  //MAP POPUP WITH CONFIRM BUTTON
   // create the menu container
   const popupWithConfirmContainer = document.createElement("div");
   popupWithConfirmContainer.classList.add("popup-with-confirm-container");
@@ -441,8 +442,11 @@ document.addEventListener("DOMContentLoaded", function() {
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
       document.getElementById("popup-color").style.color = playerColour;
+      popupSubTitle.style.opacity = "0.5";
       playerCountry = document.getElementById("popup-body").innerHTML;
-      setFlag(playerCountry,1); //set playerflag in top table
+      flag = playerCountry;
+      setFlag(flag,1); //set playerflag in top table
+      setFlag(flag, 3); //set playerflag in ui info panel
       UIButtonCurrentlyOnScreen = true;
       toggleUIButton(true);
       initialiseGame();
@@ -485,6 +489,47 @@ document.addEventListener("DOMContentLoaded", function() {
   popupWithConfirmContainer.appendChild(popupConfirm);
 
   document.getElementById("popup-with-confirm-container").appendChild(popupWithConfirmContainer);
+
+  //MAIN UI
+  const mainUIContainer = document.createElement("div");
+  mainUIContainer.classList.add("main-ui-container");
+  mainUIContainer.classList.add("blur-background");
+  mainUIContainer.setAttribute("id", "main-ui-container");
+
+  // create the menu options
+  const tabButtons = document.createElement("div");
+  tabButtons.classList.add("tab-buttons");
+  tabButtons.setAttribute("id", "tab-buttons");
+
+  const territoryButton = document.createElement("button");
+  territoryButton.classList.add("tab-button");
+  territoryButton.setAttribute("id", "territoryButton");
+
+  const armyButton = document.createElement("button");
+  armyButton.classList.add("tab-button");
+  armyButton.setAttribute("id", "armyButton");
+
+  const contentWindow = document.createElement("div");
+  contentWindow.classList.add("content-window");
+  contentWindow.setAttribute("id", "content-window");
+
+  const infoPanel = document.createElement("div");
+  infoPanel.classList.add("info-panel");
+  infoPanel.setAttribute("id", "info-panel");
+
+  const selectionPanel = document.createElement("div");
+  selectionPanel.classList.add("selection-panel");
+  selectionPanel.setAttribute("id", "selection-panel");
+
+  mainUIContainer.appendChild(tabButtons);
+  tabButtons.appendChild(territoryButton);
+  tabButtons.appendChild(armyButton);
+  mainUIContainer.appendChild(contentWindow);
+  contentWindow.appendChild(infoPanel);
+  contentWindow.appendChild(selectionPanel);
+
+  document.getElementById("main-ui-container").appendChild(mainUIContainer);
+
   pageLoaded = true;
 });
 
@@ -913,23 +958,35 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
   }
 }
 
-export function setFlag(country, topOrBottom) {
+export function setFlag(flag, place) {
   let flagElement;
   let popupBodyElement = document.getElementById("popup-body");
-  if (topOrBottom === 1) {
+  if (place === 1) { //top table
     flagElement = document.getElementById("flag-top");
-  } else if (topOrBottom === 2) {
+  } else if (place === 2) { //bottom table
     flagElement = document.getElementById("flag-bottom");   
+  } else if (place === 3) { //UI info panel
+    flagElement = document.getElementById("info-panel"); 
   }
   const img = document.createElement('img');
   img.classList.add("flag");
   flagElement.innerHTML = '';
-  img.src = `./resources/flags/${country}.png`;
-  flagElement.appendChild(img);
+  img.src = `./resources/flags/${flag}.png`;
+
+  if (place !== 3) {
+    flagElement.appendChild(img);
+  }
+
   if (selectCountryPlayerState) {
     popupBodyElement.style.background = `rgba(0, 0, 0, 0.5) url(${img.src}) no-repeat`;
     popupBodyElement.style.backgroundSize = "100% 100%";
     popupBodyElement.style.backgroundPosition = "center";
+  }
+
+  if (place === 3) { //UI info panel
+    document.getElementById("info-panel").style.background = `rgba(0, 0, 0, 0.5) url(${img.src}) no-repeat`;
+    document.getElementById("info-panel").style.backgroundSize = "100% 100%";
+    document.getElementById("info-panel").style.backgroundPosition = "center";
   }
 }
 
@@ -942,7 +999,6 @@ function toggleUIButton(makeVisible) {
 }
 
 function toggleUIMenu() {
-  console.log(document.getElementById("main-ui-container").style.display);
   if (document.getElementById("main-ui-container").style.display) {
     if(document.getElementById("main-ui-container").style.display !== "none") {
       document.getElementById("main-ui-container").style.display = "none";

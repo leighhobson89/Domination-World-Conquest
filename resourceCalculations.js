@@ -176,7 +176,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilCapacity = oilForCurrentTerritory;
             let foodForCurrentTerritory = productiveTerritoryPop / 10000; //set food to balance with population at beginning
             let foodCapacity = productiveTerritoryPop; //set food capacity as permanent value until territory upgraded
-            let consMatsForCurrentTerritory = totalConsMatsForCountry * (percentOfWholeArea * (area/100000));
+            let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
+            let consMatsCapacity = consMatsForCurrentTerritory;
 
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
@@ -195,6 +196,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 foodForCurrentTerritory: foodForCurrentTerritory,
                 foodCapacity: foodCapacity,
                 consMatsForCurrentTerritory: consMatsForCurrentTerritory,
+                consMatsCapacity: consMatsCapacity,
                 devIndex: dev_index,
                 continentModifier: continentModifier
             });
@@ -224,11 +226,9 @@ function randomiseArmyAndResources(armyResourceArray) {
         if (randomAddSubtract) {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory + (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = (country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomGoldFactor/100))) / country.devIndex;
-            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory + (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         } else {
             country.armyForCurrentTerritory = country.armyForCurrentTerritory - (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomGoldFactor/100));
-            country.consMatsForCurrentTerritory = country.consMatsForCurrentTerritory - (country.consMatsForCurrentTerritory * (randomConsMatsFactor/100));
         }
     });
     return armyResourceArray;
@@ -283,7 +283,7 @@ export function newTurnResources() {
                     changeGold = 10;
                     changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i]);
                     changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i]);
-                    changeConsMats = 10;
+                    changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i]);
                     changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
 
                     mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
@@ -295,6 +295,39 @@ export function newTurnResources() {
                 }
             }
         }
+    }
+
+    function calculateConsMatsChange(territory) {
+        let consMatsChange = 0;
+
+        if (randomEventHappening && randomEvent === "Forest Fire") { //ConsMats disaster
+            const isRandomlyTrue = Math.random() >= 0.5;
+            if (isRandomlyTrue) {
+                let tempConsMats = territory.consMatsForCurrentTerritory;
+                territory.consMatsForCurrentTerritory /= 1.5;
+                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its construction materials!");
+                console.log("It had " + tempConsMats + " but now it has " + territory.consMatsForCurrentTerritory);
+            } else {
+                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+            }
+        }
+
+        //if consMats is below consMats capacity then grow at 10% per turn
+        if (!randomEventHappening && territory.consMatslCapacity > (territory.consMatsForCurrentTerritory)) {
+            const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
+            consMatsChange = (Math.ceil(consMatsDifference * 0.1));
+          }
+
+          //if consMats is above consMats capacity then lose it at 10% per turn until it balances
+          if (!randomEventHappening && territory.consMatsCapacity < (territory.consMatsForCurrentTerritory)) {
+            const consMatsDifference = (territory.consMatsForCurrentTerritory) - territory.consMatsCapacity;
+            consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
+        }
+
+        /* if (territory.forests > 0) { //implement when do upgrading code
+        } */
+
+        return consMatsChange;
     }
 
     function calculateOilChange(territory) {
@@ -486,6 +519,30 @@ export function newTurnResources() {
             continentModifier = 0.8;
         } else if (path.continent === "Asia") {
             continentModifier = 1.1;
+        }
+
+        const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
+        const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
+        const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
+        return term1 + term2 + term3;
+    }
+
+    function initialConsMatsCalculation(path, area) {
+        let developmentIndex = parseFloat(path.dev_index);
+        let continentModifier;
+
+        if (path.continent === "Europe") {
+            continentModifier = 1.2;
+        } else if (path.continent === "North America") {
+            continentModifier = 1.6;
+        } else if (path.continent === "Africa") {
+            continentModifier = 1.3;
+        } else if (path.continent === "South America") {
+            continentModifier = 1.8;
+        } else if (path.continent === "Oceania") {
+            continentModifier = 0.8;
+        } else if (path.continent === "Asia") {
+            continentModifier = 1.8;
         }
 
         const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
