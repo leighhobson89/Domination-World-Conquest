@@ -86,6 +86,10 @@ td {
   width: 20%;
 }
 
+.widerCellUITable {
+  width: 30% !important;
+}
+
 #bottom-table {
   border: none;
   table-layout: fixed;
@@ -469,7 +473,7 @@ td {
   left: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.3;
+  opacity: 0.2;
   z-index: -1;
   background: rgba(0, 0, 0, 0.5) no-repeat center / 100% 100%;
   background-image: var(--bg-image);
@@ -513,16 +517,27 @@ td {
 .ui-table-row {
   width: 100%;
   display: flex;
-  margin-bottom: 5px;
+  justify-content: space-between;
+  background-color: rgba(45, 81, 110, 0.5);
 }
 
+.ui-table-row:hover {
+  cursor: pointer;
+  background-color: rgb(81, 121, 153);
+  transition: all 0.3s ease;
+}
+
+
 .ui-table-column {
+  align-items: center;
   width: calc(100% / 9);
   height: 40px;
-  margin-right: 5px;
   cursor: pointer;
   color: white;
   display: flex;
+  /* border-right: white solid 1px; */
+  padding-left: 5px;
+  padding-right: 5px;
 }
 
 ::-webkit-scrollbar {
