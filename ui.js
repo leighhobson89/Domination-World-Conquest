@@ -1379,6 +1379,10 @@ function drawUITable(uiTableContainer, territoryOrArmyTable) {
   const headerColumns = ["Territory","Army","Population","Area","Gold","Oil","Food","Construction Materials", "Upgrade"];
   for (let j = 0; j < headerColumns.length; j++) {
     const headerColumn = document.createElement("div");
+    if (j === 0) {
+      headerColumn.style.width = "30%";
+    } else {
+    }
     headerColumn.classList.add("ui-table-column");
     headerColumn.textContent = headerColumns[j];
     headerRow.appendChild(headerColumn);
@@ -1395,6 +1399,7 @@ function drawUITable(uiTableContainer, territoryOrArmyTable) {
       const column = document.createElement("div");
       column.classList.add("ui-table-column");
       if (j === 0) {
+        column.style.width = "30%";
         // Set the value of the first column to the "territory-name" attribute
         const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
         column.textContent = territoryName;
