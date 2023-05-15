@@ -1350,6 +1350,7 @@ function setStrokeWidth(path, stroke) {
 }
 
 function drawTable(uiTableContainer) {
+  uiTableContainer.innerHTML = "";
   uiTableContainer.style.display = "block";
   // Create table element
   const table = document.createElement("table");
