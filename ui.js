@@ -4,6 +4,7 @@ import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 import { playerOwnedTerritories } from './resourceCalculations.js';
+import { mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -533,6 +534,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   xButton.addEventListener("click", function() {
     toggleUIMenu(false);
+    territoryButton.classList.remove("active");
+    armyButton.classList.remove("active");
     uiTable.style.display = "none";
     
   });
@@ -1351,32 +1354,85 @@ function setStrokeWidth(path, stroke) {
 }
 
 function drawUITable(uiTableContainer, territoryOrArmyTable) {
-  console.log(playerOwnedTerritories);
   uiTableContainer.innerHTML = "";
   uiTableContainer.style.display = "flex";
+
+  playerOwnedTerritories.sort((a, b) => {
+    const nameA = a.getAttribute("territory-name").toUpperCase();
+    const nameB = b.getAttribute("territory-name").toUpperCase();
+    if (nameA < nameB) {
+      return -1;
+    }
+    if (nameA > nameB) {
+      return 1;
+    }
+    return 0;
+  });
   // Create table element
   const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.tableLayout = "fixed";
+
+  // Create first row
+  const headerRow = document.createElement("div");
+  headerRow.classList.add("ui-table-row");
+  const headerColumns = ["Territory","Army","Population","Area","Gold","Oil","Food","Construction Materials", "Upgrade"];
+  for (let j = 0; j < headerColumns.length; j++) {
+    const headerColumn = document.createElement("div");
+    headerColumn.classList.add("ui-table-column");
+    headerColumn.textContent = headerColumns[j];
+    headerRow.appendChild(headerColumn);
+  }
+  table.appendChild(headerRow);
 
   // Create rows
   for (let i = 0; i < playerOwnedTerritories.length; i++) {
     const row = document.createElement("div");
     row.classList.add("ui-table-row");
 
-    // Create first column
-    const firstColumn = document.createElement("div");
-    firstColumn.classList.add("ui-table-column");
-    firstColumn.innerHTML = playerOwnedTerritories[i].getAttribute("territory-name");
-    row.appendChild(firstColumn);
-
-    // Create rest of the columns
-    for (let j = 1; j < 12; j++) {
+    // Create columns
+    for (let j = 0; j < 9; j++) {
       const column = document.createElement("div");
       column.classList.add("ui-table-column");
-      column.addEventListener("mouseover", () => {
-        column.style.backgroundColor = "yellow";
+      if (j === 0) {
+        // Set the value of the first column to the "territory-name" attribute
+        const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+        column.textContent = territoryName;
+      } else {
+        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+        const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+        switch (j) {
+          case 1:
+            column.textContent = Math.ceil(territoryData.armyForCurrentTerritory);
+            break;
+          case 2:
+            column.textContent = Math.ceil(territoryData.territoryPopulation);
+            break;
+          case 3:
+            column.textContent = Math.ceil(territoryData.area);
+            break;
+          case 4:
+            column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+            break;
+          case 5:
+            column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+            break;
+          case 6:
+            column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
+            break;
+          case 7:
+            column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
+            break;
+          case 8:
+            column.textContent = "Upgrade";
+            break;
+        }
+      }
+      row.addEventListener("mouseover", () => {
+        
       });
-      column.addEventListener("mouseout", () => {
-        column.style.backgroundColor = "white";
+      row.addEventListener("mouseout", () => {
+        
       });
       row.appendChild(column);
     }
@@ -1384,3 +1440,5 @@ function drawUITable(uiTableContainer, territoryOrArmyTable) {
   }
   uiTableContainer.appendChild(table);
 }
+
+
