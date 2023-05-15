@@ -509,14 +509,39 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.setAttribute("id", "territoryButton");
   territoryButton.innerHTML = "Territories";
 
+  territoryButton.addEventListener("click", function() {
+    territoryButton.classList.add("tab-button");
+    uiButtons(territoryButton, infoPanel);
+  });
+
   const armyButton = document.createElement("button");
   armyButton.classList.add("tab-button");
   armyButton.setAttribute("id", "armyButton");
   armyButton.innerHTML = "Military";
 
+  armyButton.addEventListener("click", function() {
+    uiButtons(armyButton, infoPanel);
+  });
+
+  
+
+  const xButton = document.createElement("button");
+  xButton.classList.add("x-button");
+  xButton.setAttribute("id", "xButton");
+  xButton.innerHTML = "X";
+
+  xButton.addEventListener("click", function() {
+    toggleUIMenu(false);
+    
+  });
+
   const contentWindow = document.createElement("div");
   contentWindow.classList.add("content-window");
   contentWindow.setAttribute("id", "content-window");
+
+  const beforeInfoPanel = document.createElement("div");
+  beforeInfoPanel.classList.add("info-panel::before");
+  beforeInfoPanel.setAttribute("id", "beforeInfoPanel");
 
   const infoPanel = document.createElement("div");
   infoPanel.classList.add("info-panel");
@@ -529,9 +554,11 @@ document.addEventListener("DOMContentLoaded", function() {
   mainUIContainer.appendChild(tabButtons);
   tabButtons.appendChild(territoryButton);
   tabButtons.appendChild(armyButton);
+  tabButtons.appendChild(xButton);
   mainUIContainer.appendChild(contentWindow);
   contentWindow.appendChild(infoPanel);
   contentWindow.appendChild(selectionPanel);
+  infoPanel.insertBefore(beforeInfoPanel, infoPanel.firstChild);
 
   document.getElementById("main-ui-container").appendChild(mainUIContainer);
 
@@ -966,6 +993,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
 export function setFlag(flag, place) {
   let flagElement;
   let popupBodyElement = document.getElementById("popup-body");
+  let beforeInfoPanel = document.getElementById("beforeInfoPanel");
   if (place === 1) { //top table
     flagElement = document.getElementById("flag-top");
   } else if (place === 2) { //bottom table
@@ -983,15 +1011,26 @@ export function setFlag(flag, place) {
   }
 
   if (selectCountryPlayerState) {
-    popupBodyElement.style.background = `rgba(0, 0, 0, 0.5) url(${img.src}) no-repeat`;
+    popupBodyElement.style.backgroundImage = `url(${img.src})`;
     popupBodyElement.style.backgroundSize = "100% 100%";
     popupBodyElement.style.backgroundPosition = "center";
   }
 
   if (place === 3) { //UI info panel
-    document.getElementById("info-panel").style.background = `rgba(0, 0, 0, 0.5) url(${img.src}) no-repeat`;
-    document.getElementById("info-panel").style.backgroundSize = "100% 100%";
-    document.getElementById("info-panel").style.backgroundPosition = "center";
+    const beforeInfoPanel = document.querySelector(".info-panel");
+    beforeInfoPanel.style.setProperty('--bg-image', `url(${img.src})`);
+  }
+}
+
+function uiButtons(button, infoPanel) {
+  if (button === territoryButton) {
+    territoryButton.classList.add("active");
+    armyButton.classList.remove("active");
+    infoPanel.innerHTML = "Territories";
+  } else if (button === armyButton) {
+    armyButton.classList.add("active");
+    territoryButton.classList.remove("active");
+    infoPanel.innerHTML = "Armies";
   }
 }
 
@@ -1004,12 +1043,13 @@ function toggleUIButton(makeVisible) {
 }
 
   function toggleUIMenu(makeVisible) {
-    console.log(document.getElementById("main-ui-container").style.display);
     if (makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
+      svg.style.pointerEvents = 'none';
       UICurrentlyOnScreen = true;
     } else {
       document.getElementById("main-ui-container").style.display = "none";
+      svg.style.pointerEvents = 'auto';
       UICurrentlyOnScreen = false;
     }
 }

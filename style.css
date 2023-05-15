@@ -164,11 +164,13 @@ td {
   font-weight: normal;
   border: 1px solid white;
   border-radius: 10px;
+  transition: all 0.3s ease;
 }
 
 .UI-option:hover {
   cursor: pointer;
   background-color: rgb(0, 85, 0);
+  transition: all 0.3s ease;
 }
 
 .popup-with-confirm-container {
@@ -215,11 +217,13 @@ td {
 
 .popup-option-confirm.greenBackground {
   background-color: green;
+  transition: all 0.3s ease;
 }
 
 .popup-option-confirm.greenBackground:hover {
   cursor: pointer;
   background-color: rgb(0, 85, 0);
+  transition: all 0.3s ease;
 }
 
 .popup-option-color {
@@ -281,51 +285,60 @@ td {
 
 .option-3 {
   font-size: 4rem;
-  
+  transition: all 0.3s ease;
 }
 
 .option-5 {
   font-size: 4rem;
   border-bottom-left-radius: 10px;
   border-bottom-right-radius: 10px;
+  transition: all 0.3s ease;
 }
 
 .option-3:hover {
   cursor: pointer;
   background-color: rgb(45, 81, 110);
+  transition: all 0.3s ease;
 }
 
 .option-4 {
   font-size: 4rem;
   background-color: rgb(81, 121, 153);
+  transition: all 0.3s ease;
 }
 
 .option-4.isPlaying {
   background-color: green;
+  transition: all 0.3s ease;
 }
 
 .option-4.isNotPlaying {
   background-color: red;
+  transition: all 0.3s ease;
 }
 
 .option-4:hover {
   cursor: pointer;
   background-color: rgb(45, 81, 110);
+  transition: all 0.3s ease;
 }
 
 .option-4.isPlaying:hover {
   cursor: pointer;
   background-color: rgb(0, 85, 0);
+  transition: all 0.3s ease;
 }
 
 .option-4.isNotPlaying:hover {
   cursor: pointer;
   background-color: rgb(85, 0, 0);
+  transition: all 0.3s ease;
 }
 
 .option-5:hover {
   cursor: pointer;
   background-color: rgb(45, 81, 110);
+  transition: all 0.3s ease;
 }
 
 .confirm-button {
@@ -376,20 +389,21 @@ td {
   left: 60%;
   transform: translate(-50%, -50%);
   width: 70%;
-  height: 80%;
+  height: 80vh;
   background-color: rgba(81, 121, 153, 0.9);
   border: 3px solid rgb(84, 99, 110);
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  display: none;
   flex-direction: column;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 .tab-buttons {
   display: flex;
+  justify-content: space-between;
   padding-top: 5px;
   padding-bottom: 5px;
   background-color: rgba(54, 93, 125, 0.8);
@@ -404,23 +418,61 @@ td {
   border: 3px solid rgb(84, 99, 110);
   transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
+  width: 50%;
 }
 
-.tab-button.active {
+.x-button {
+  cursor: pointer;
+  padding: 5px;
+  font-size: 0.9rem;
+  font-weight: bold;
   color: white;
+  border: 3px solid rgb(84, 99, 110);
+  transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
 }
 
+.tab-button:hover {
+  background-color: rgb(111, 151, 183);
+}
+
+.x-button:hover {
+  background-color: rgb(111, 151, 183);
+}
+
+
+.tab-button.active {
+  color: white;
+  background-color: rgb(111, 151, 183);
+  border: 3px solid rgb(84, 99, 110);
+}
+
 .content-window {
+  height: 445px;
   display: flex;
   flex-grow: 1;
+  overflow: auto;
+  box-sizing: border-box;
 }
 
 .info-panel {
+  position: relative;
   flex-basis: 100%;
   padding: 10px;
   overflow-y: auto;
-  opacity: 0.5;
+}
+
+.info-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.5) no-repeat center / 100% 100%;
+  background-image: var(--bg-image);
 }
 
 #selection-panel {
@@ -439,6 +491,7 @@ td {
   height: 100%;
   backdrop-filter: blur(5px); /* adjust the amount of blur */
 }
+
 
 
 
