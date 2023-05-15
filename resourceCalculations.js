@@ -8,7 +8,7 @@ import { paths } from './ui.js';
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
 
-let mainArrayOfTerritoriesAndResources = [];
+export let mainArrayOfTerritoriesAndResources = [];
 let totalPlayerResources = [];
 let continentModifier;
 
