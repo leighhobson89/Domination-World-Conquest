@@ -6,10 +6,10 @@ import { currentSelectedPath } from './ui.js';
 import { paths } from './ui.js';
 
 export let allowSelectionOfCountry = false;
+export let playerOwnedTerritories = [];
 
 let mainArrayOfTerritoriesAndResources = [];
 let totalPlayerResources = [];
-let playerOwnedTerritories = [];
 let continentModifier;
 
 /* const turnLabel = document.getElementById('turn-label'); */

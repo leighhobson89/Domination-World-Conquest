@@ -3,6 +3,7 @@ import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
+import { playerOwnedTerritories } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -512,7 +513,7 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.addEventListener("click", function() {
     territoryButton.classList.add("tab-button");
     uiButtons(territoryButton, infoPanel);
-    drawTable(uiTable);
+    drawUITable(uiTable, 1);
   });
 
   const armyButton = document.createElement("button");
@@ -522,7 +523,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   armyButton.addEventListener("click", function() {
     uiButtons(armyButton, infoPanel);
-    drawTable(uiTable);
+    drawUITable(uiTable, 2);
   });
 
   const xButton = document.createElement("button");
@@ -1349,33 +1350,37 @@ function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
 }
 
-function drawTable(uiTableContainer) {
+function drawUITable(uiTableContainer, territoryOrArmyTable) {
+  console.log(playerOwnedTerritories);
   uiTableContainer.innerHTML = "";
-  uiTableContainer.style.display = "block";
+  uiTableContainer.style.display = "flex";
   // Create table element
   const table = document.createElement("table");
 
   // Create rows
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < playerOwnedTerritories.length; i++) {
     const row = document.createElement("div");
-    row.classList.add("row");
+    row.classList.add("ui-table-row");
 
-    // Create columns
-    for (let j = 0; j < 12; j++) {
+    // Create first column
+    const firstColumn = document.createElement("div");
+    firstColumn.classList.add("ui-table-column");
+    firstColumn.innerHTML = playerOwnedTerritories[i].getAttribute("territory-name");
+    row.appendChild(firstColumn);
+
+    // Create rest of the columns
+    for (let j = 1; j < 12; j++) {
       const column = document.createElement("div");
-      column.classList.add("column");
+      column.classList.add("ui-table-column");
       column.addEventListener("mouseover", () => {
         column.style.backgroundColor = "yellow";
       });
       column.addEventListener("mouseout", () => {
-        column.style.backgroundColor = "black";
+        column.style.backgroundColor = "white";
       });
-      
       row.appendChild(column);
     }
-
     table.appendChild(row);
   }
-
   uiTableContainer.appendChild(table);
 }
