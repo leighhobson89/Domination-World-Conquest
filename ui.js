@@ -512,6 +512,7 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.addEventListener("click", function() {
     territoryButton.classList.add("tab-button");
     uiButtons(territoryButton, infoPanel);
+    drawTable(uiTable);
   });
 
   const armyButton = document.createElement("button");
@@ -521,9 +522,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   armyButton.addEventListener("click", function() {
     uiButtons(armyButton, infoPanel);
+    drawTable(uiTable);
   });
-
-  
 
   const xButton = document.createElement("button");
   xButton.classList.add("x-button");
@@ -532,6 +532,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   xButton.addEventListener("click", function() {
     toggleUIMenu(false);
+    uiTable.style.display = "none";
     
   });
 
@@ -547,6 +548,10 @@ document.addEventListener("DOMContentLoaded", function() {
   infoPanel.classList.add("info-panel");
   infoPanel.setAttribute("id", "info-panel");
 
+  const uiTable = document.createElement("div");
+  uiTable.classList.add("ui-table");
+  uiTable.setAttribute("id", "uiTable");
+
   const selectionPanel = document.createElement("div");
   selectionPanel.classList.add("selection-panel");
   selectionPanel.setAttribute("id", "selection-panel");
@@ -558,6 +563,7 @@ document.addEventListener("DOMContentLoaded", function() {
   mainUIContainer.appendChild(contentWindow);
   contentWindow.appendChild(infoPanel);
   contentWindow.appendChild(selectionPanel);
+  infoPanel.appendChild(uiTable);
   infoPanel.insertBefore(beforeInfoPanel, infoPanel.firstChild);
 
   document.getElementById("main-ui-container").appendChild(mainUIContainer);
@@ -1003,10 +1009,10 @@ export function setFlag(flag, place) {
   }
   const img = document.createElement('img');
   img.classList.add("flag");
-  flagElement.innerHTML = '';
   img.src = `./resources/flags/${flag}.png`;
 
   if (place !== 3) {
+    flagElement.innerHTML = '';
     flagElement.appendChild(img);
   }
 
@@ -1026,11 +1032,9 @@ function uiButtons(button, infoPanel) {
   if (button === territoryButton) {
     territoryButton.classList.add("active");
     armyButton.classList.remove("active");
-    infoPanel.innerHTML = "Territories";
   } else if (button === armyButton) {
     armyButton.classList.add("active");
     territoryButton.classList.remove("active");
-    infoPanel.innerHTML = "Armies";
   }
 }
 
@@ -1343,4 +1347,34 @@ function fillPathBasedOnTeam(path) {
 
 function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
+}
+
+function drawTable(uiTableContainer) {
+  uiTableContainer.style.display = "block";
+  // Create table element
+  const table = document.createElement("table");
+
+  // Create rows
+  for (let i = 0; i < 5; i++) {
+    const row = document.createElement("div");
+    row.classList.add("row");
+
+    // Create columns
+    for (let j = 0; j < 12; j++) {
+      const column = document.createElement("div");
+      column.classList.add("column");
+      column.addEventListener("mouseover", () => {
+        column.style.backgroundColor = "yellow";
+      });
+      column.addEventListener("mouseout", () => {
+        column.style.backgroundColor = "black";
+      });
+      
+      row.appendChild(column);
+    }
+
+    table.appendChild(row);
+  }
+
+  uiTableContainer.appendChild(table);
 }
