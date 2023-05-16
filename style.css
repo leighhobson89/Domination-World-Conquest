@@ -12,9 +12,11 @@
   padding: 5px;
   font-family: sans-serif;
   font-size: 14px;
-  color: black;
-  background-color: white;
+  color: white;
+  background-color: rgb(111, 151, 183);
   border-radius: 5px;
+  border: rgb(84, 99, 110) solid 2px;
+  opacity: 0.9;
   z-index: 1;
 }
 
