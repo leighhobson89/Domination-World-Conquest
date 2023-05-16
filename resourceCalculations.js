@@ -745,11 +745,10 @@ export function newTurnResources() {
             <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
             <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
             <div>Area: ${area}</div>
-            
             <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
             <div>Oil Cap: ${Math.ceil(oilCap)}</div>
             <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
-            <div>Food Cap: ${Math.ceil(foodCap)}</div>
+            <div>Food Cap: ${formatNumbersToKMB(foodCap)}</div>
             <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
             <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
         `;
