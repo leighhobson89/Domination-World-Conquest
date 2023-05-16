@@ -770,7 +770,7 @@ export function newTurnResources() {
         row.style.cursor = "pointer";
       }
 
-      function colourTableText(table, territory, totalArray) {
+      function colourTableText(table, territory) {
         /* let changeGold = calculateGoldChange(territory); */
         let changeOil = calculateOilChange(territory);
         let changeFood = calculateFoodChange(territory);
