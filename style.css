@@ -518,10 +518,18 @@ td {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  border-bottom: 3px white solid;
   background-color: rgba(45, 81, 110, 0.5);
 }
 
-.ui-table-row:hover {
+.ui-table-row-hoverable {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  background-color: rgba(45, 81, 110, 0.7);
+}
+
+.ui-table-row-hoverable:hover {
   cursor: pointer;
   background-color: rgb(81, 121, 153);
   transition: all 0.3s ease;
@@ -535,7 +543,6 @@ td {
   cursor: pointer;
   color: white;
   display: flex;
-  /* border-right: white solid 1px; */
   padding-left: 5px;
   padding-right: 5px;
 }
@@ -549,6 +556,17 @@ td {
   background-color: rgb(81, 121, 153);
 }
 
+.upgrade-button {
+  cursor: pointer;
+}
+
+.upgrade-button:hover {
+  filter: brightness(120%);
+}
+
+.sizeUpgradeButton {
+  width: 90%;
+}
 
 
 
