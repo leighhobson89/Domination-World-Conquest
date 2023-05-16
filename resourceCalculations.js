@@ -761,11 +761,23 @@ export function newTurnResources() {
             <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
         `;
 
-        //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
+        // Get the last div in the row
+        const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
+        console.log(event.target);
 
-      
-        // Set the content of the tooltip
-        tooltip.innerHTML = tooltipContent;
+        // Check if the mouse is hovering over the last div
+        if (event.target === lastDiv) {
+            if (currentTurnPhase == 0) {
+                tooltip.innerHTML = "Click To Upgrade!";
+            } else {
+                tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
+            }
+        } else {
+            // Set the content of the tooltip based on the territory data
+            tooltip.innerHTML = tooltipContent;
+        }
+
+        //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
       
         // Position the tooltip next to the mouse cursor
         tooltip.style.left = x - 40 + "px";
