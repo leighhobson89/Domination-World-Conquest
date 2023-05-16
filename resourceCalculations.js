@@ -11,6 +11,7 @@ export let playerOwnedTerritories = [];
 export let mainArrayOfTerritoriesAndResources = [];
 let totalPlayerResources = [];
 let continentModifier;
+let tooltip = document.getElementById("tooltip");
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -661,12 +662,16 @@ export function newTurnResources() {
                 break;
             }
         }
-        row.addEventListener("mouseover", () => {
+        row.addEventListener("mouseover", (e) => {
+            const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+            const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
 
+            tooltipUITerritoryRow(row, territoryData, e);
         });
         row.addEventListener("mouseout", () => {
-
-        });
+            tooltip.style.display = "none";
+            row.style.cursor = "default";
+          });
         row.appendChild(column);
         }
         table.appendChild(row);
@@ -674,4 +679,79 @@ export function newTurnResources() {
             
         }
         uiTableContainer.appendChild(table);
+      }
+
+      function tooltipUITerritoryRow(row, territoryData, event) {
+        // Get the coordinates of the mouse cursor
+        const x = event.clientX;
+        const y = event.clientY;
+      
+        // Set the content of the tooltip based on the territory data
+        const territoryName = row.querySelector(".ui-table-column").textContent;
+        const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
+        const prodPopulation = territoryData.productiveTerritoryPop;
+        const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
+        const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
+        const oil = calculateOilChange(territoryData);
+        const oilCap = territoryData.oilCapacity;
+        const food = calculateFoodChange(territoryData);
+        const foodCap = territoryData.foodCapacity;
+        const consMats = calculateConsMatsChange(territoryData);
+        const consMatsCap = territoryData.consMatsCapacity;
+      
+        let oilNextTurnValue = Math.ceil(oil);
+        let foodNextTurnValue = Math.ceil(food);
+        const consMatsNextTurnValue = Math.ceil(consMats);
+
+        let oilNextTurnStyle = "";
+        let foodNextTurnStyle = "";
+        let consMatsNextTurnStyle = "";
+        oilNextTurnStyle = "font-weight: bold; color: black;";
+        foodNextTurnStyle = "font-weight: bold; color: black;";
+        consMatsNextTurnStyle = "font-weight: bold; color: black;";
+
+        if (oilNextTurnValue > 0) {
+        oilNextTurnStyle = "color: green;";
+        } else if (oilNextTurnValue < 0) {
+        oilNextTurnStyle = "color: red;";
+        }
+
+        if (foodNextTurnValue > 0) {
+        foodNextTurnStyle = "color: green;";
+        } else if (foodNextTurnValue < 0) {
+        foodNextTurnStyle = "color: red;";
+        }
+
+        if (consMatsNextTurnValue > 0) {
+        consMatsNextTurnStyle = "color: green;";
+        } else if (consMatsNextTurnValue < 0) {
+        consMatsNextTurnStyle = "color: red;";
+        }
+
+        const tooltipContent = `
+            <div>Territory: ${territoryName}</div>
+            <div>Army: ${army}</div>
+            <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
+            <div>Area: ${area}</div>
+            <div>Gold Next Turn: ${gold}</div>
+            <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
+            <div>Oil Cap: ${Math.ceil(oilCap)}</div>
+            <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
+            <div>Food Cap: ${Math.ceil(foodCap)}</div>
+            <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
+            <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
+        `;
+
+      
+        // Set the content of the tooltip
+        tooltip.innerHTML = tooltipContent;
+      
+        // Position the tooltip next to the mouse cursor
+        tooltip.style.left = x - 40 + "px";
+        tooltip.style.top = 25 + y + "px";
+      
+        // Show the tooltip
+        tooltip.style.display = "block";
+      
+        row.style.cursor = "pointer";
       }

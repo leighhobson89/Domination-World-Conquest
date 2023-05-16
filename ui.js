@@ -115,7 +115,6 @@ export function svgMapLoaded() {
 
     // Show the tooltip
     tooltip.style.display = "block";
-    tooltip.style.backgroundColor = "white";
 
     path.style.cursor = "pointer";
   });
@@ -124,7 +123,6 @@ export function svgMapLoaded() {
   svgMap.addEventListener("mouseout", function(e) {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
-    tooltip.style.backgroundColor = "transparent";
     hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
     clickActionsDone = false;
   });
@@ -179,10 +177,8 @@ export function svgMapLoaded() {
   svgMap.addEventListener('mousemove', function(e) {
     if (tooltip.innerHTML !== "") {
       tooltip.style.display = "block";
-      tooltip.style.backgroundColor = "white";
     } else {
       tooltip.style.display = "none";
-      tooltip.style.backgroundColor = "transparent";
     }
     panMap(e);
   });
