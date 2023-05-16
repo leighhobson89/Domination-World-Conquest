@@ -1,5 +1,5 @@
 import { pageLoaded } from './ui.js';
-import { currentTurn, randomEvent, randomEventHappening } from './gameTurnsLoop.js';
+import { currentTurn, currentTurnPhase, randomEvent, randomEventHappening } from './gameTurnsLoop.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentSelectedPath } from './ui.js';
@@ -640,23 +640,31 @@ export function newTurnResources() {
                   column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
                   break;
                 case 8:
+                const upgradeButtonImageElement = document.createElement("img");
                 // Create upgrade button div
                 const upgradeButtonDiv = document.createElement("div");
-                upgradeButtonDiv.classList.add("upgrade-button");
+                if (currentTurnPhase === 0) {
+                    upgradeButtonDiv.classList.add("upgrade-button");
+                    upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                } else {
+                    upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
+                }
         
                 // Create upgrade button image element
-                const upgradeButtonImageElement = document.createElement("img");
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
-                upgradeButtonImageElement.alt = "Upgrade Button";
+                upgradeButtonImageElement.alt = "Upgrade Territory";
                 upgradeButtonImageElement.classList.add("sizeUpgradeButton");
 
                 // Add event listeners for click and mouseup events
                 upgradeButtonDiv.addEventListener("mousedown", () => {
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+                if (currentTurnPhase === 0) {
+                    upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+                }
                 });
 
                 upgradeButtonDiv.addEventListener("mouseup", () => {
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                if (currentTurnPhase === 0) {
+                    upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                }
                 });
 
                 upgradeButtonDiv.appendChild(upgradeButtonImageElement);

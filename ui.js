@@ -928,7 +928,6 @@ function getClosestPointsDestinationPaths(coord, paths) {
 function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
   let originalColor = pathObj.getAttribute("fill");
   let rgbValues = originalColor.match(/\d{1,3}/g);
-  let newRgbValues;
 
   if (pathObj === currentSelectedPath && hoveredNonInteractableAndNonSelectedTerritory) {
     let [r, g, b] = rgbValues;
@@ -1000,7 +999,6 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
 export function setFlag(flag, place) {
   let flagElement;
   let popupBodyElement = document.getElementById("popup-body");
-  let beforeInfoPanel = document.getElementById("beforeInfoPanel");
   if (place === 1) { //top table
     flagElement = document.getElementById("flag-top");
   } else if (place === 2) { //bottom table
@@ -1052,10 +1050,14 @@ function toggleUIButton(makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
       svg.style.pointerEvents = 'none';
       UICurrentlyOnScreen = true;
+      toggleUIButton(false);
+      document.getElementById("popup-with-confirm-container").style.display = "none";
     } else {
       document.getElementById("main-ui-container").style.display = "none";
       svg.style.pointerEvents = 'auto';
       UICurrentlyOnScreen = false;
+      toggleUIButton(true);
+      document.getElementById("popup-with-confirm-container").style.display = "block";
     }
 }
 
