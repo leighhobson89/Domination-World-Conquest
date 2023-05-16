@@ -571,27 +571,29 @@ export function newTurnResources() {
         headerRow.classList.add("ui-table-row");
         const headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
         const imageSources = ["flagUIIcon.png", "army.png", "prodPopulation.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
-      
+
         for (let j = 0; j < headerColumns.length; j++) {
-          const headerColumn = document.createElement("div");
-      
-          if (j === 0) {
+        const headerColumn = document.createElement("div");
+
+        if (j === 0) {
             headerColumn.style.width = "30%";
-          }
-      
-          headerColumn.classList.add("ui-table-column");
-      
-          // Create an <img> tag with the image source
-          const imageSource = "/resources/" + imageSources[j];
-          const imageElement = document.createElement("img");
-          imageElement.src = imageSource;
-          imageElement.alt = headerColumns[j];
-          imageElement.classList.add("sizingIcons");
-      
-          headerColumn.appendChild(imageElement);
-          headerRow.appendChild(headerColumn);
+        } else {
+            headerColumn.classList.add("centerIcons");
         }
-      
+
+        headerColumn.classList.add("ui-table-column");
+
+        // Create an <img> tag with the image source
+        const imageSource = "/resources/" + imageSources[j];
+        const imageElement = document.createElement("img");
+        imageElement.src = imageSource;
+        imageElement.alt = headerColumns[j];
+        imageElement.classList.add("sizingIcons");
+
+        headerColumn.appendChild(imageElement);
+        headerRow.appendChild(headerColumn);
+        }
+
         table.appendChild(headerRow);
       
         // Create rows
@@ -609,6 +611,7 @@ export function newTurnResources() {
               const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
               column.textContent = territoryName;
             } else {
+                column.classList.add("centerIcons");
               const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
               const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
               switch (j) {
@@ -633,7 +636,6 @@ export function newTurnResources() {
                 case 7:
                   column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
                   break;
-      
                 case 8:
                 // Create upgrade button div
                 const upgradeButtonDiv = document.createElement("div");
