@@ -484,6 +484,7 @@ export function newTurnResources() {
 
     function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
         if (userClickingANewTerritory) {
+                colourTableText(document.getElementById("bottom-table"), territory);
                 document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
                 document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
                 document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
@@ -493,6 +494,7 @@ export function newTurnResources() {
                 document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
                 document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
             } else { //turn update resources for selected territory
+            colourTableText(document.getElementById("bottom-table"), territory);
             document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + territory.continent + ")";
             document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
             document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
@@ -690,50 +692,60 @@ export function newTurnResources() {
         const territoryName = row.querySelector(".ui-table-column").textContent;
         const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
         const prodPopulation = territoryData.productiveTerritoryPop;
+        const popNextTurnValue = Math.ceil(calculatePopulationChange(territoryData));
         const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
         const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
-        const oil = calculateOilChange(territoryData);
+        /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
+        const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData));
         const oilCap = territoryData.oilCapacity;
-        const food = calculateFoodChange(territoryData);
+        const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData));
         const foodCap = territoryData.foodCapacity;
-        const consMats = calculateConsMatsChange(territoryData);
+        const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData));
         const consMatsCap = territoryData.consMatsCapacity;
-      
-        let oilNextTurnValue = Math.ceil(oil);
-        let foodNextTurnValue = Math.ceil(food);
-        const consMatsNextTurnValue = Math.ceil(consMats);
 
-        let oilNextTurnStyle = "";
-        let foodNextTurnStyle = "";
-        let consMatsNextTurnStyle = "";
-        oilNextTurnStyle = "font-weight: bold; color: black;";
-        foodNextTurnStyle = "font-weight: bold; color: black;";
-        consMatsNextTurnStyle = "font-weight: bold; color: black;";
+        /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
+        let popNextTurnStyle = "font-weight: bold; color: black;";
+        let oilNextTurnStyle = "font-weight: bold; color: black;";
+        let foodNextTurnStyle = "font-weight: bold; color: black;";
+        let consMatsNextTurnStyle = "font-weight: bold; color: black;";
+
+        if (popNextTurnValue > 0) {
+            popNextTurnStyle = "color: rgb(0,235,0);";
+        } else if (popNextTurnValue < 0) {
+            popNextTurnStyle = "color: rgb(235,160,160);";
+        }
+
+        /* if (goldNextTurnValue > 0) {
+            goldNextTurnStyle = "color: rgb(0,235,0);";
+        } else if (goldNextTurnValue < 0) {
+            goldNextTurnStyle = "color: rgb(235,160,160);";
+        } */
 
         if (oilNextTurnValue > 0) {
-        oilNextTurnStyle = "color: green;";
+            oilNextTurnStyle = "color: rgb(0,235,0);";
         } else if (oilNextTurnValue < 0) {
-        oilNextTurnStyle = "color: red;";
+            oilNextTurnStyle = "color: rgb(235,160,160);";
         }
 
         if (foodNextTurnValue > 0) {
-        foodNextTurnStyle = "color: green;";
+            foodNextTurnStyle = "color: rgb(0,235,0);";
         } else if (foodNextTurnValue < 0) {
-        foodNextTurnStyle = "color: red;";
+            foodNextTurnStyle = "color: rgb(235,160,160);";
         }
 
         if (consMatsNextTurnValue > 0) {
-        consMatsNextTurnStyle = "color: green;";
+            consMatsNextTurnStyle = "color: rgb(0,235,0);";
         } else if (consMatsNextTurnValue < 0) {
-        consMatsNextTurnStyle = "color: red;";
+            consMatsNextTurnStyle = "color: rgb(235,160,160);";
         }
 
         const tooltipContent = `
             <div>Territory: ${territoryName}</div>
             <div>Army: ${army}</div>
             <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
+            <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
             <div>Area: ${area}</div>
-            <div>Gold Next Turn: ${gold}</div>
+            
             <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
             <div>Oil Cap: ${Math.ceil(oilCap)}</div>
             <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
@@ -741,6 +753,8 @@ export function newTurnResources() {
             <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
             <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
         `;
+
+        //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
       
         // Set the content of the tooltip
@@ -755,3 +769,67 @@ export function newTurnResources() {
       
         row.style.cursor = "pointer";
       }
+
+      function colourTableText(table, territory, totalArray) {
+        /* let changeGold = calculateGoldChange(territory); */
+        let changeOil = calculateOilChange(territory);
+        let changeFood = calculateFoodChange(territory);
+        let changeConsMats = calculateConsMatsChange(territory);
+        let changePop = calculatePopulationChange(territory);
+
+        /* const goldCell = table.rows[0].cells[3]; */
+        const oilCell = table.rows[0].cells[5];
+        const foodCell = table.rows[0].cells[7];
+        const consMatsCell = table.rows[0].cells[9];
+        const popCell = table.rows[0].cells[11];
+
+        /* goldCell.style.color = "white"; */
+        popCell.style.color = "white";
+        oilCell.style.color = "white";
+        foodCell.style.color = "white";
+        consMatsCell.style.color = "white";        
+
+        if (table === document.getElementById("bottom-table")) {
+            if (changePop < 0) {
+                popCell.style.color = "rgb(235,160,160)";
+            } else if (changePop > 0) {
+                popCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeOil < 0) {
+                oilCell.style.color = "rgb(235,160,160)";
+            } else if (changeOil > 0) {
+                oilCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeFood < 0) {
+                foodCell.style.color = "rgb(235,160,160)";
+            } else if (changeFood > 0) {
+                foodCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeConsMats < 0) {
+                consMatsCell.style.color = "rgb(235,160,160)";
+            } else if (changeConsMats > 0) {
+                consMatsCell.style.color = "rgb(0,235,0)";
+            }
+        } else if (table === "top") {
+            if (changePop < 0) {
+                popCell.style.color = "rgb(235,160,160)";
+            } else if (changePop > 0) {
+                popCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeOil < 0) {
+                oilCell.style.color = "rgb(235,160,160)";
+            } else if (changeOil > 0) {
+                oilCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeFood < 0) {
+                foodCell.style.color = "rgb(235,160,160)";
+            } else if (changeFood > 0) {
+                foodCell.style.color = "rgb(0,235,0)";
+            }
+            if (changeConsMats < 0) {
+                consMatsCell.style.color = "rgb(235,160,160)";
+            } else if (changeConsMats > 0) {
+                consMatsCell.style.color = "rgb(0,235,0)";
+            }
+        }
+    }
