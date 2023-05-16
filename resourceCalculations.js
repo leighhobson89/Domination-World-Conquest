@@ -550,3 +550,126 @@ export function newTurnResources() {
         const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
         return term1 + term2 + term3;
     }
+
+    export function drawUITable(uiTableContainer, territoryOrArmyTable) {
+        uiTableContainer.innerHTML = "";
+        uiTableContainer.style.display = "flex";
+      
+        playerOwnedTerritories.sort((a, b) => {
+          const idA = parseInt(a.getAttribute("territory-id"));
+          const idB = parseInt(b.getAttribute("territory-id"));
+          return idA - idB;
+        });
+      
+        // Create table element
+        const table = document.createElement("table");
+        table.style.width = "100%";
+        table.style.tableLayout = "fixed";
+      
+        // Create first row
+        const headerRow = document.createElement("div");
+        headerRow.classList.add("ui-table-row");
+        const headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
+        const imageSources = ["flagUIIcon.png", "army.png", "prodPopulation.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
+      
+        for (let j = 0; j < headerColumns.length; j++) {
+          const headerColumn = document.createElement("div");
+      
+          if (j === 0) {
+            headerColumn.style.width = "30%";
+          }
+      
+          headerColumn.classList.add("ui-table-column");
+      
+          // Create an <img> tag with the image source
+          const imageSource = "/resources/" + imageSources[j];
+          const imageElement = document.createElement("img");
+          imageElement.src = imageSource;
+          imageElement.alt = headerColumns[j];
+          imageElement.classList.add("sizingIcons");
+      
+          headerColumn.appendChild(imageElement);
+          headerRow.appendChild(headerColumn);
+        }
+      
+        table.appendChild(headerRow);
+      
+        // Create rows
+        for (let i = 0; i < playerOwnedTerritories.length; i++) {
+          const row = document.createElement("div");
+          row.classList.add("ui-table-row-hoverable");
+      
+          // Create columns
+          for (let j = 0; j < 9; j++) {
+            const column = document.createElement("div");
+            column.classList.add("ui-table-column");
+            if (j === 0) {
+              column.style.width = "30%";
+              // Set the value of the first column to the "territory-name" attribute
+              const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+              column.textContent = territoryName;
+            } else {
+              const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+              const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+              switch (j) {
+                case 1:
+                  column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
+                  break;
+                case 2:
+                  column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
+                  break;
+                case 3:
+                  column.textContent = formatNumbersToKMB(territoryData.area);
+                  break;
+                case 4:
+                  column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                  break;
+                case 5:
+                  column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                  break;
+                case 6:
+                  column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
+                  break;
+                case 7:
+                  column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
+                  break;
+      
+                case 8:
+                // Create upgrade button div
+                const upgradeButtonDiv = document.createElement("div");
+                upgradeButtonDiv.classList.add("upgrade-button");
+        
+                // Create upgrade button image element
+                const upgradeButtonImageElement = document.createElement("img");
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                upgradeButtonImageElement.alt = "Upgrade Button";
+                upgradeButtonImageElement.classList.add("sizeUpgradeButton");
+
+                // Add event listeners for click and mouseup events
+                upgradeButtonDiv.addEventListener("mousedown", () => {
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+                });
+
+                upgradeButtonDiv.addEventListener("mouseup", () => {
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                });
+
+                upgradeButtonDiv.appendChild(upgradeButtonImageElement);
+                column.appendChild(upgradeButtonDiv);
+                break;
+            }
+        }
+        row.addEventListener("mouseover", () => {
+
+        });
+        row.addEventListener("mouseout", () => {
+
+        });
+        row.appendChild(column);
+        }
+        table.appendChild(row);
+
+            
+        }
+        uiTableContainer.appendChild(table);
+      }
