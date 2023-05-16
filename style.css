@@ -568,6 +568,12 @@ td {
   width: 90%;
 }
 
+.centerIcons{
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
 
 
 
