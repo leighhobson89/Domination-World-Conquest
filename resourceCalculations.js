@@ -4,6 +4,7 @@ import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
 import { currentSelectedPath } from './ui.js';
 import { paths } from './ui.js';
+import { playSoundClip } from './sfx.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -657,6 +658,7 @@ export function newTurnResources() {
                 // Add event listeners for click and mouseup events
                 upgradeButtonDiv.addEventListener("mousedown", () => {
                 if (currentTurnPhase === 0) {
+                    playSoundClip();
                     upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
                 }
                 });

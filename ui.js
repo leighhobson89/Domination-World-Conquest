@@ -6,6 +6,7 @@ import { populateBottomTableWhenSelectingACountry } from './resourceCalculations
 import { playerOwnedTerritories } from './resourceCalculations.js';
 import { mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 import { drawUITable } from './resourceCalculations.js';
+import { playSoundClip } from './sfx.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -344,6 +345,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to New Game button
   newGameButton.addEventListener("click", function() {
+    playSoundClip();
     resetGameState();
   });
 
@@ -400,11 +402,12 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.setAttribute("id", "popup-confirm");
 
   const UIToggleButton = document.createElement("img");
-  UIToggleButton.src = "/resources/globeButtonUI.png"; // Set the image source URL
+  UIToggleButton.src = "/resources/globeNoStandButtonUI.png"; // Set the image source URL
   UIToggleButton.classList.add("UI-option");
   UIToggleButton.setAttribute("id", "UIToggleButton");
 
   UIToggleButton.addEventListener("click", function() {
+    playSoundClip();
     if (UICurrentlyOnScreen) {
       toggleUIMenu(false);
     } else {
@@ -416,6 +419,7 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
 
   colorPicker.addEventListener("click", function() {
+    playSoundClip();
     document.getElementById("player-color-picker").style.display = "block";
   });
 
@@ -442,6 +446,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to popup confirm button
   popupConfirm.addEventListener("click", function() {
+    playSoundClip();
     if (selectCountryPlayerState) {
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
@@ -509,6 +514,7 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.innerHTML = "Territories";
 
   territoryButton.addEventListener("click", function() {
+    playSoundClip();
     territoryButton.classList.add("tab-button");
     uiButtons(territoryButton, infoPanel);
     drawUITable(uiTable, 1);
@@ -520,6 +526,7 @@ document.addEventListener("DOMContentLoaded", function() {
   armyButton.innerHTML = "Military";
 
   armyButton.addEventListener("click", function() {
+    playSoundClip();
     uiButtons(armyButton, infoPanel);
     drawUITable(uiTable, 2);
   });
@@ -530,6 +537,7 @@ document.addEventListener("DOMContentLoaded", function() {
   xButton.innerHTML = "X";
 
   xButton.addEventListener("click", function() {
+    playSoundClip();
     toggleUIMenu(false);
     territoryButton.classList.remove("active");
     armyButton.classList.remove("active");
@@ -591,6 +599,7 @@ function toggleTopTableContainer(turnOnTable) {
 }
 
 document.addEventListener("keydown", function(event) {
+  playSoundClip();
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";

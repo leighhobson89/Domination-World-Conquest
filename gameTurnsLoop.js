@@ -43,7 +43,7 @@ function gameLoop() {
       handleDeployPhase().then(() => {
         // Handle move/attack phase
         handleMoveAttackPhase().then(() => {
-                    // Handle AI turn
+          // Handle AI turn
           handleAITurn().then(() => {
             // Increment turn counter
             currentTurn++;

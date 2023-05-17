@@ -1,5 +1,7 @@
+import { playSoundClip } from './sfx.js'
+
 // create an audio element and add the source of the music file
-const audio = new Audio('resources/musicGame.mp3');
+const audio = new Audio('resources/music/musicGame.mp3');
 
 let isPlaying;
 
@@ -13,6 +15,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let firstTime;
     if (musicButton) {
         musicButton.addEventListener("click", function() {
+            playSoundClip();
             if (isPlaying === undefined) {
                 firstTime = true;
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");
