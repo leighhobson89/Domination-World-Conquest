@@ -782,14 +782,13 @@ export function newTurnResources() {
         //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
       
         const tooltipHeight = tooltip.offsetHeight;
-        const verticalThreshold = tooltipHeight + 25; // Add extra padding if needed
+        const verticalThreshold = tooltipHeight + 25;
 
         if (window.innerHeight - y < verticalThreshold) {
-        // Move the tooltip up by its vertical dimension
+
         tooltip.style.left = x - 40 + "px";
         tooltip.style.top = y - tooltipHeight + "px";
         } else {
-        // Position the tooltip next to the mouse cursor without moving it vertically
         tooltip.style.left = x - 40 + "px";
         tooltip.style.top = 25 + y + "px";
         }
