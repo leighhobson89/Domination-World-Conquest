@@ -103,21 +103,38 @@ export function svgMapLoaded() {
     // Get the name of the country from the "data-name" attribute
     const countryName = path.getAttribute("owner");
 
-    // Get the coordinates of the mouse cursor
-    const x = e.clientX;
-    const y = e.clientY;
+// Add an event listener for mousemove on the path element
+path.addEventListener("mousemove", function(e) {
+  const x = e.clientX;
+  const y = e.clientY;
 
-    // Set the content of the tooltip
-    tooltip.innerHTML = countryName;
+  // Set the content of the tooltip
+  tooltip.innerHTML = countryName;
 
-    // Position the tooltip next to the mouse cursor
-    tooltip.style.left = x - 40 + "px";
-    tooltip.style.top = 25 + y + "px";
+  // Check if the mouse pointer is less than 300px from the bottom of the screen
+if (window.innerHeight - y < 100) {
+  // Move the tooltip up by 300px
+  tooltip.style.left = x - 40 + "px";
+  tooltip.style.top = y - 30 + "px";
+} else {
+  // Position the tooltip next to the mouse cursor without moving it vertically
+  tooltip.style.left = x - 40 + "px";
+  tooltip.style.top = 25 + y + "px";
+}
 
-    // Show the tooltip
-    tooltip.style.display = "block";
+  // Show the tooltip
+  tooltip.style.display = "block";
+});
 
-    path.style.cursor = "pointer";
+// Add an event listener for mouseout on the path element
+path.addEventListener("mouseout", function() {
+  // Hide the tooltip when the mouse leaves the path
+  tooltip.style.display = "none";
+});
+
+path.style.cursor = "pointer";
+
+
   });
 
   // Add a mouseout event listener to the SVG element
