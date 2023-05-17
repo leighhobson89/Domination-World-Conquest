@@ -176,8 +176,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let goldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
-            let foodForCurrentTerritory = productiveTerritoryPop / 10000; //set food to balance with population at beginning
-            let foodCapacity = productiveTerritoryPop; //set food capacity as permanent value until territory upgraded
+            let foodForCurrentTerritory = territoryPopulation / 10000; //set food to balance with population at beginning
+            let foodCapacity = territoryPopulation; //set food capacity as permanent value until territory upgraded
             let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
             let consMatsCapacity = consMatsForCurrentTerritory;
 
@@ -283,9 +283,9 @@ export function newTurnResources() {
                     changePop = calculatePopulationChange(); */
 
                     changeGold = 10;
-                    changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i]);
-                    changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i]);
-                    changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i]);
+                    changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
                     changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
 
                     mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
@@ -299,10 +299,10 @@ export function newTurnResources() {
         }
     }
 
-    function calculateConsMatsChange(territory) {
+    function calculateConsMatsChange(territory, isSimulation) {
         let consMatsChange = 0;
 
-        if (randomEventHappening && randomEvent === "Forest Fire") { //ConsMats disaster
+        if (randomEventHappening && randomEvent === "Forest Fire" && !isSimulation) { //ConsMats disaster
             const isRandomlyTrue = Math.random() >= 0.5;
             if (isRandomlyTrue) {
                 let tempConsMats = territory.consMatsForCurrentTerritory;
@@ -332,10 +332,10 @@ export function newTurnResources() {
         return consMatsChange;
     }
 
-    function calculateOilChange(territory) {
+    function calculateOilChange(territory, isSimulation) {
         let oilChange = 0;
 
-        if (randomEventHappening && randomEvent === "Oil Well Fire") { //oil disaster
+        if (randomEventHappening && randomEvent === "Oil Well Fire" && !isSimulation) { //oil disaster
             const isRandomlyTrue = Math.random() >= 0.5;
             if (isRandomlyTrue) {
                 let tempOil = territory.oilForCurrentTerritory;
@@ -365,10 +365,10 @@ export function newTurnResources() {
         return oilChange;
     }
 
-    function calculateFoodChange(territory) { 
+    function calculateFoodChange(territory, isSimulation) { 
         let foodChange = 0;
 
-        if (randomEventHappening && randomEvent === "Food Disaster") { //food disaster
+        if (randomEventHappening && randomEvent === "Food Disaster" && !isSimulation) { //food disaster
             const isRandomlyTrue = Math.random() >= 0.5;
             if (isRandomlyTrue) {
                 let tempFood = territory.foodForCurrentTerritory;
@@ -399,25 +399,34 @@ export function newTurnResources() {
         return foodChange;
       }     
 
-    function calculatePopulationChange(territory) {
-        const currentPopulation = territory.productiveTerritoryPop;
-        const devIndex = territory.devIndex;
-      
-        let populationChange = 0;
-      
-        if ((territory.foodForCurrentTerritory * 10000) < currentPopulation) {
-          // Starvation situation
-          const foodShortage = Math.ceil((currentPopulation - territory.foodForCurrentTerritory) / 1000);
-          populationChange = -Math.min(foodShortage * 500, currentPopulation);
+      function calculatePopulationChange(territory) {
+        if (!randomEventHappening) {
+            const currentPopulation = territory.territoryPopulation;
+            const devIndex = territory.devIndex;
+            const foodForCurrentTerritory = territory.foodForCurrentTerritory;
+        
+            let populationChange = 0;
+        
+            if (foodForCurrentTerritory * 10000 < currentPopulation) {
+            // Starvation situation
+            const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
+            const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
+        
+            populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+            } else {
+            // Growth situation
+            const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
+            const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
+        
+            populationChange = Math.min(maxGrowth, growthPotential);
+            }
+        
+            return populationChange;
         } else {
-          // Growth situation
-          const maxGrowth = (territory.foodForCurrentTerritory * 10000) - currentPopulation;
-          const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
-          populationChange = Math.min(maxGrowth, growthPotential);
+            return 0; //if random event just happened for food, dont lose any people immediately til the next turn so user can process it
         }
-      
-        return populationChange;
-      }      
+      }
+       
       
 
     function formatNumbersToKMB(string) {
@@ -702,15 +711,15 @@ export function newTurnResources() {
         const territoryName = row.querySelector(".ui-table-column").textContent;
         const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
         const prodPopulation = territoryData.productiveTerritoryPop;
-        const popNextTurnValue = Math.ceil(calculatePopulationChange(territoryData));
+        const popNextTurnValue = calculatePopulationChange(territoryData);
         const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
         const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
         /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
-        const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData));
+        const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
         const oilCap = territoryData.oilCapacity;
-        const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData));
+        const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData, true));
         const foodCap = territoryData.foodCapacity;
-        const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData));
+        const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData, true));
         const consMatsCap = territoryData.consMatsCapacity;
 
         /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
@@ -802,9 +811,9 @@ export function newTurnResources() {
 
       function colourTableText(table, territory) {
         /* let changeGold = calculateGoldChange(territory); */
-        let changeOil = calculateOilChange(territory);
-        let changeFood = calculateFoodChange(territory);
-        let changeConsMats = calculateConsMatsChange(territory);
+        let changeOil = calculateOilChange(territory, true);
+        let changeFood = calculateFoodChange(territory, true);
+        let changeConsMats = calculateConsMatsChange(territory, true);
         let changePop = calculatePopulationChange(territory);
 
         /* const goldCell = table.rows[0].cells[3]; */
@@ -819,47 +828,26 @@ export function newTurnResources() {
         foodCell.style.color = "white";
         consMatsCell.style.color = "white";        
 
-        if (table === document.getElementById("bottom-table")) {
-            if (changePop < 0) {
-                popCell.style.color = "rgb(235,160,160)";
-            } else if (changePop > 0) {
-                popCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeOil < 0) {
-                oilCell.style.color = "rgb(235,160,160)";
-            } else if (changeOil > 0) {
-                oilCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeFood < 0) {
-                foodCell.style.color = "rgb(235,160,160)";
-            } else if (changeFood > 0) {
-                foodCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeConsMats < 0) {
-                consMatsCell.style.color = "rgb(235,160,160)";
-            } else if (changeConsMats > 0) {
-                consMatsCell.style.color = "rgb(0,235,0)";
-            }
-        } else if (table === "top") {
-            if (changePop < 0) {
-                popCell.style.color = "rgb(235,160,160)";
-            } else if (changePop > 0) {
-                popCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeOil < 0) {
-                oilCell.style.color = "rgb(235,160,160)";
-            } else if (changeOil > 0) {
-                oilCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeFood < 0) {
-                foodCell.style.color = "rgb(235,160,160)";
-            } else if (changeFood > 0) {
-                foodCell.style.color = "rgb(0,235,0)";
-            }
-            if (changeConsMats < 0) {
-                consMatsCell.style.color = "rgb(235,160,160)";
-            } else if (changeConsMats > 0) {
-                consMatsCell.style.color = "rgb(0,235,0)";
-            }
+    if (table === document.getElementById("bottom-table")) {
+        if (changePop < -1) {
+            popCell.style.color = "rgb(235,160,160)";
+        } else if (changePop > 1) {
+            popCell.style.color = "rgb(0,235,0)";
+        }
+        if (changeOil < -1) {
+            oilCell.style.color = "rgb(235,160,160)";
+        } else if (changeOil > 1) {
+            oilCell.style.color = "rgb(0,235,0)";
+        }
+        if (changeFood < -1) {
+            foodCell.style.color = "rgb(235,160,160)";
+        } else if (changeFood > 1) {
+            foodCell.style.color = "rgb(0,235,0)";
+        }
+        if (changeConsMats < -1) {
+            consMatsCell.style.color = "rgb(235,160,160)";
+        } else if (changeConsMats > 1) {
+            consMatsCell.style.color = "rgb(0,235,0)";
         }
     }
+}

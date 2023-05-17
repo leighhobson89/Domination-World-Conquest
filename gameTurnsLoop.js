@@ -136,5 +136,6 @@ function selectRandomEvent() {
       "Option 10"
     ];
     const randomIndex = Math.floor(Math.random() * events.length);
-    return events[randomIndex];
+    /* return events[randomIndex]; */
+    return events[0];
 }
