@@ -399,8 +399,8 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.classList.add("popup-option-confirm");
   popupConfirm.setAttribute("id", "popup-confirm");
 
-  const UIToggleButton = document.createElement("button");
-  UIToggleButton.innerText = "Menu";
+  const UIToggleButton = document.createElement("img");
+  UIToggleButton.src = "/resources/globeButtonUI.png"; // Set the image source URL
   UIToggleButton.classList.add("UI-option");
   UIToggleButton.setAttribute("id", "UIToggleButton");
 
