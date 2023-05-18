@@ -57,6 +57,7 @@ let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 let UIButtonCurrentlyOnScreen = false;
+let UpgradeWindowCurrentlyOnScreen = false;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -520,7 +521,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const mainUIContainer = document.createElement("div");
   mainUIContainer.classList.add("blur-background");
 
-  // create the menu options
   const tabButtons = document.createElement("div");
   tabButtons.classList.add("tab-buttons");
   tabButtons.setAttribute("id", "tab-buttons");
@@ -594,6 +594,70 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("main-ui-container").appendChild(mainUIContainer);
 
+  //UPGRADE WINDOW
+
+  const upgradeContainer = document.createElement("div");
+  upgradeContainer.classList.add("blur-background");
+
+  const navBarUpgradeWindow = document.createElement("div");
+  navBarUpgradeWindow.classList.add("navbar-upgrade-window");
+  navBarUpgradeWindow.setAttribute("id", "navbar-upgrade-window");
+
+  const leftColumn = document.createElement("div");
+  leftColumn.classList.add("left-column");
+  leftColumn.innerHTML = "";
+
+  const centerColumn = document.createElement("div");
+  centerColumn.classList.add("center-column");
+  centerColumn.innerHTML = "Upgrade Territory";
+
+  const rightColumn = document.createElement("div");
+  rightColumn.classList.add("right-column");
+  rightColumn.innerHTML = "";
+
+  const subtitleUpgradeWindow = document.createElement("div");
+  subtitleUpgradeWindow.classList.add("subtitle-upgrade-window");
+  subtitleUpgradeWindow.setAttribute("id", "subtitle-upgrade-window");
+
+  const xButtonUpgrade = document.createElement("button");
+  xButtonUpgrade.classList.add("x-button");
+  xButtonUpgrade.setAttribute("id", "xButton");
+  xButtonUpgrade.innerHTML = "X";
+
+  xButtonUpgrade.addEventListener("click", function() {
+    playSoundClip();
+    toggleUpgradeMenu(false);    
+  });
+
+  const contentWindowUpgrade = document.createElement("div");
+  contentWindowUpgrade.classList.add("content-window-upgrade");
+  contentWindowUpgrade.setAttribute("id", "content-window-upgrade");
+
+  const beforeInfoPanelUpgradeWindow = document.createElement("div");
+  beforeInfoPanelUpgradeWindow.classList.add("info-panel-upgrade::before");
+  beforeInfoPanelUpgradeWindow.setAttribute("id", "beforeInfoPanelUpgradeWindow");
+
+  const infoPanelUpgradeWindow = document.createElement("div");
+  infoPanelUpgradeWindow.classList.add("info-panel-upgrade");
+  infoPanelUpgradeWindow.setAttribute("id", "info-panel-upgrade");
+
+  const upgradeTable = document.createElement("div");
+  upgradeTable.classList.add("upgrade-table");
+  upgradeTable.setAttribute("id", "upgrade-table");
+
+  upgradeContainer.appendChild(navBarUpgradeWindow);
+  navBarUpgradeWindow.appendChild(leftColumn);
+  navBarUpgradeWindow.appendChild(centerColumn);
+  navBarUpgradeWindow.appendChild(rightColumn);
+  rightColumn.appendChild(xButtonUpgrade);
+  upgradeContainer.appendChild(subtitleUpgradeWindow);
+  upgradeContainer.appendChild(contentWindowUpgrade);
+  contentWindowUpgrade.appendChild(infoPanelUpgradeWindow);
+  infoPanelUpgradeWindow.appendChild(upgradeTable);
+  infoPanelUpgradeWindow.insertBefore(beforeInfoPanelUpgradeWindow, infoPanelUpgradeWindow.firstChild);
+
+  document.getElementById("upgrade-container").appendChild(upgradeContainer);
+
   pageLoaded = true;
 });
 
@@ -621,16 +685,21 @@ document.addEventListener("keydown", function(event) {
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";
     document.getElementById("main-ui-container").style.display = "none";
+    document.getElementById("upgrade-container").style.display = "none";
     toggleBottomTableContainer(false);
     toggleTopTableContainer(false);
     menuState = true;
     toggleUIButton(false);
+    toggleUpgradeMenu(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
     if (popupCurrentlyOnScreen) {
       document.getElementById("popup-with-confirm-container").style.display = "flex";
     }
     if (UIButtonCurrentlyOnScreen) {
       toggleUIButton(true);
+    }
+    if (UpgradeWindowCurrentlyOnScreen) {
+      toggleUpgradeMenu(true);
     }
     if (UICurrentlyOnScreen) {
       document.getElementById("main-ui-container").style.display = "flex";
@@ -1003,7 +1072,6 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
 
       // apply the pattern to the path element
       pathObj.setAttribute('fill', 'url(#' + pattern.getAttribute("id") + ')');
-      console.log
   } else {
     pathObj.setAttribute("fill", newRgbValue);
   }
@@ -1085,6 +1153,19 @@ function toggleUIButton(makeVisible) {
       toggleUIButton(true);
       document.getElementById("popup-with-confirm-container").style.display = "block";
     }
+}
+
+export function toggleUpgradeMenu(makeVisible, territory) {
+  if (makeVisible) {
+    document.getElementById("upgrade-container").style.display = "block";
+    document.getElementById("main-ui-container").style.pointerEvents = 'none';
+    UpgradeWindowCurrentlyOnScreen = true;
+    document.getElementById("subtitle-upgrade-window").innerHTML = territory.territoryName;
+  } else {
+    document.getElementById("upgrade-container").style.display = "none";
+    document.getElementById("main-ui-container").style.pointerEvents = 'auto';
+    UpgradeWindowCurrentlyOnScreen = false;
+  }
 }
 
   function colorMapAtBeginningOfGame() {
@@ -1302,8 +1383,6 @@ function zoomMap(event) {
   
   const newViewBox = `${newLeft} ${newTop} ${newWidth} ${newHeight}`;
 
-  console.log(`newWidth: ${newWidth}, newHeight: ${newHeight}, newLeft: ${newLeft}, newTop: ${newTop}, newViewBox: ${newViewBox}`);
-  console.log(zoomLevel);
   // Set the new viewBox attribute on your SVG element
   svgTag.setAttribute("viewBox", newViewBox);
   

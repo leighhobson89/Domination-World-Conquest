@@ -5,6 +5,7 @@ import { setFlag } from './ui.js';
 import { currentSelectedPath } from './ui.js';
 import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
+import { toggleUpgradeMenu } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -674,6 +675,7 @@ export function newTurnResources() {
 
                 upgradeButtonDiv.addEventListener("mouseup", () => {
                 if (currentTurnPhase === 0) {
+                    toggleUpgradeMenu(true, territoryData);
                     upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
                 }
                 });
@@ -774,7 +776,6 @@ export function newTurnResources() {
 
         // Get the last div in the row
         const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
-        console.log(event.target);
 
         // Check if the mouse is hovering over the last div
         if (event.target === lastDiv) {
