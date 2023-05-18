@@ -1115,9 +1115,9 @@ export function setFlag(flag, place) {
     popupBodyElement.style.backgroundPosition = "center";
   }
 
-  if (place === 3) { //UI info panel
-    const beforeInfoPanel = document.querySelector(".info-panel");
-    beforeInfoPanel.style.setProperty('--bg-image', `url(${img.src})`);
+  if (place === 3) { //UI panels
+    document.querySelector(".info-panel").style.setProperty('--bg-image', `url(${img.src})`);
+    document.querySelector(".info-panel-upgrade").style.setProperty('--bg-image', `url(${img.src})`);
   }
 }
 

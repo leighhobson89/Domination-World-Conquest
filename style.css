@@ -436,6 +436,7 @@ td {
   border: 3px solid rgb(84, 99, 110);
   transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
+  margin-right: 7px;
 }
 
 .tab-button:hover {
@@ -633,6 +634,7 @@ td {
   align-items: center;
   letter-spacing: 1px;
   font-weight: bolder;
+  border-bottom: solid 3px white;
 }
 
 .content-window-upgrade {
@@ -665,6 +667,17 @@ td {
 .info-panel-upgrade > * {
   position: relative;
   z-index: 1;
+}
+
+.upgrade-row {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+.upgrade-row:last-child {
+  border-bottom: none; /* Remove bottom border for the last row */
 }
 
 
