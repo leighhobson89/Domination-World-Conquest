@@ -126,7 +126,7 @@ function selectRandomEvent() {
     const events = [
       "Food Disaster",
       "Oil Well Fire",
-      "Forest Fire",
+      "Warehouse Fire",
       "Option 4",
       "Option 5",
       "Option 6",
