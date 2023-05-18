@@ -603,21 +603,64 @@ document.addEventListener("DOMContentLoaded", function() {
   navBarUpgradeWindow.classList.add("navbar-upgrade-window");
   navBarUpgradeWindow.setAttribute("id", "navbar-upgrade-window");
 
-  const leftColumn = document.createElement("div");
-  leftColumn.classList.add("left-column");
-  leftColumn.innerHTML = "";
+  const navBarLeftColumn = document.createElement("div");
+  navBarLeftColumn.classList.add("left-column");
+  navBarLeftColumn.innerHTML = "";
 
-  const centerColumn = document.createElement("div");
-  centerColumn.classList.add("center-column");
-  centerColumn.innerHTML = "Upgrade Territory";
+  const navBarCenterColumn = document.createElement("div");
+  navBarCenterColumn.classList.add("center-column");
+  navBarCenterColumn.innerHTML = "Upgrade Territory";
 
-  const rightColumn = document.createElement("div");
-  rightColumn.classList.add("right-column");
-  rightColumn.innerHTML = "";
+  const navBarRightColumn = document.createElement("div");
+  navBarRightColumn.classList.add("right-column");
+  navBarRightColumn.innerHTML = "";
 
   const subtitleUpgradeWindow = document.createElement("div");
   subtitleUpgradeWindow.classList.add("subtitle-upgrade-window");
   subtitleUpgradeWindow.setAttribute("id", "subtitle-upgrade-window");
+
+  const keyBarUpgradeWindow = document.createElement("div");
+  keyBarUpgradeWindow.classList.add("key-bar-upgrade-window");
+  keyBarUpgradeWindow.setAttribute("id", "key-bar-upgrade-window");
+
+  const keyBarColumn0 = document.createElement("div");
+  keyBarColumn0.classList.add("key-bar-column0");
+  keyBarColumn0.innerHTML = "";
+
+  const keyBarColumn1 = document.createElement("div");
+  keyBarColumn1.classList.add("key-bar-column1");
+  keyBarColumn1.innerHTML = "Type";
+
+  const keyBarColumn2 = document.createElement("div");
+  keyBarColumn2.classList.add("key-bar-column2");
+  keyBarColumn2.innerHTML = "Effect";
+
+  const keyBarColumn3 = document.createElement("div");
+  keyBarColumn3.classList.add("key-bar-column3");
+  let imageSource = "/resources/gold.png";
+  let imageElement = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Gold";
+  imageElement.classList.add("sizingIcons");
+  keyBarColumn3.appendChild(imageElement);
+
+  const keyBarColumn4 = document.createElement("div");
+  keyBarColumn4.classList.add("key-bar-column3");
+  imageSource = "/resources/consMats.png";
+  imageElement = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Gold";
+  imageElement.classList.add("sizingIcons");
+  keyBarColumn4.appendChild(imageElement);
+
+  const keyBarColumn5 = document.createElement("div");
+  keyBarColumn5.classList.add("key-bar-column4");
+  imageSource = "/resources/upgrade.png";
+  imageElement = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Upgrade";
+  imageElement.classList.add("sizingIcons");
+  keyBarColumn5.appendChild(imageElement);
 
   const xButtonUpgrade = document.createElement("button");
   xButtonUpgrade.classList.add("x-button");
@@ -646,11 +689,18 @@ document.addEventListener("DOMContentLoaded", function() {
   upgradeTable.setAttribute("id", "upgrade-table");
 
   upgradeContainer.appendChild(navBarUpgradeWindow);
-  navBarUpgradeWindow.appendChild(leftColumn);
-  navBarUpgradeWindow.appendChild(centerColumn);
-  navBarUpgradeWindow.appendChild(rightColumn);
-  rightColumn.appendChild(xButtonUpgrade);
+  navBarUpgradeWindow.appendChild(navBarLeftColumn);
+  navBarUpgradeWindow.appendChild(navBarCenterColumn);
+  navBarUpgradeWindow.appendChild(navBarRightColumn);
+  navBarRightColumn.appendChild(xButtonUpgrade);
   upgradeContainer.appendChild(subtitleUpgradeWindow);
+  upgradeContainer.appendChild(keyBarUpgradeWindow);
+  keyBarUpgradeWindow.appendChild(keyBarColumn0);
+  keyBarUpgradeWindow.appendChild(keyBarColumn1);
+  keyBarUpgradeWindow.appendChild(keyBarColumn2);
+  keyBarUpgradeWindow.appendChild(keyBarColumn3);
+  keyBarUpgradeWindow.appendChild(keyBarColumn4);
+  keyBarUpgradeWindow.appendChild(keyBarColumn5);
   upgradeContainer.appendChild(contentWindowUpgrade);
   contentWindowUpgrade.appendChild(infoPanelUpgradeWindow);
   infoPanelUpgradeWindow.appendChild(upgradeTable);

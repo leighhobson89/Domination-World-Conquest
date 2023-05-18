@@ -866,44 +866,135 @@ function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
   
     // Calculate the cost of upgrades
-    const farmCost = 200 + (200 * territory.farmsBuilt);
-    const forestCost = 200 + (200 * territory.forestsBuilt);
-    const oilWellCost = 300 + (300 * territory.oilWellsBuilt);
-    const fortCost = 500 + (500 * territory.oilWellsBuilt);
+    const farmGoldCost = 200 + (200 * territory.farmsBuilt);
+    const farmConsMatsCost = 1000 + (1000 * territory.farmsBuilt);
+    const forestGoldCost = 200 + (200 * territory.forestsBuilt);
+    const forestConsMatsCost = 1000 + (1000 * territory.forestsBuilt);
+    const oilWellGoldCost = 300 + (300 * territory.oilWellsBuilt);
+    const oilWellConsMatsCost = 2000 + (2000 * territory.oilWellsBuilt);
+    const fortGoldCost = 500 + (500 * territory.oilWellsBuilt);
+    const fortConsMatsCost = 5000 + (5000 * territory.fortsBuilt);
   
-    // Check if the territory has enough gold for each upgrade
-    const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmCost;
-    const hasEnoughGoldForForest = territory.goldForCurrentTerritory >= forestCost;
-    const hasEnoughGoldForOilWell = territory.goldForCurrentTerritory >= oilWellCost;
-    const hasEnoughGoldForFort = territory.goldForCurrentTerritory >= fortCost;
+    // Check if the territory has enough gold and consMats for each upgrade
+    const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
+    const hasEnoughGoldForForest = territory.goldForCurrentTerritory >= forestGoldCost;
+    const hasEnoughGoldForOilWell = territory.goldForCurrentTerritory >= oilWellGoldCost;
+    const hasEnoughGoldForFort = territory.goldForCurrentTerritory >= fortGoldCost;
   
-    // Create the upgrade row objects based on the availability and gold condition
-    if (hasEnoughGoldForFarm) {
-      availableUpgrades.push({ type: 'Farm', cost: farmCost, effect: "Increases food cap by x%", condition: 'Can Build' });
+    const hasEnoughConsMatsForFarm = territory.consMatsForCurrentTerritory >= farmConsMatsCost;
+    const hasEnoughConsMatsForForest = territory.consMatsForCurrentTerritory >= forestConsMatsCost;
+    const hasEnoughConsMatsForOilWell = territory.consMatsForCurrentTerritory >= oilWellConsMatsCost;
+    const hasEnoughConsMatsForFort = territory.consMatsForCurrentTerritory >= fortConsMatsCost;
+  
+    // Create the upgrade row objects based on the availability and gold/consMats conditions
+    if (hasEnoughGoldForFarm && hasEnoughConsMatsForFarm) {
+      availableUpgrades.push({
+        type: 'Farm',
+        goldCost: farmGoldCost,
+        consMatsCost: farmConsMatsCost,
+        effect: "Food cap. +10%",
+        condition: 'Can Build'
+      });
+    } else if (!hasEnoughGoldForFarm) {
+      availableUpgrades.push({
+        type: 'Farm',
+        goldCost: farmGoldCost,
+        consMatsCost: farmConsMatsCost,
+        effect: "Food cap. +10%",
+        condition: 'Not enough gold'
+      });
     } else {
-      availableUpgrades.push({ type: 'Farm', cost: farmCost, effect: "Increases food cap by x%", condition: 'Not enough gold' });
+      availableUpgrades.push({
+        type: 'Farm',
+        goldCost: farmGoldCost,
+        consMatsCost: farmConsMatsCost,
+        effect: "Food cap. +10%",
+        condition: 'Not enough consMats'
+      });
     }
   
-    if (hasEnoughGoldForForest) {
-      availableUpgrades.push({ type: 'Forest', cost: forestCost, effect: "Increases consMats cap by x%", condition: 'Can Build' });
+    if (hasEnoughGoldForForest && hasEnoughConsMatsForForest) {
+      availableUpgrades.push({
+        type: 'Forest',
+        goldCost: forestGoldCost,
+        consMatsCost: forestConsMatsCost,
+        effect: "Cons Mats cap. +10%",
+        condition: 'Can Build'
+      });
+    } else if (!hasEnoughGoldForForest) {
+      availableUpgrades.push({
+        type: 'Forest',
+        goldCost: forestGoldCost,
+        consMatsCost: forestConsMatsCost,
+        effect: "Cons Mats cap. +10%",
+        condition: 'Not enough gold'
+      });
     } else {
-      availableUpgrades.push({ type: 'Forest', cost: forestCost, effect: "Increases consMats cap by x%", condition: 'Not enough gold' });
+      availableUpgrades.push({
+        type: 'Forest',
+        goldCost: forestGoldCost,
+        consMatsCost: forestConsMatsCost,
+        effect: "Cons Mats cap. +10%",
+        condition: 'Not enough consMats'
+      });
     }
   
-    if (hasEnoughGoldForOilWell) {
-      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, effect: "Increases oil cap by x%", condition: 'Can Build' });
+    if (hasEnoughGoldForOilWell && hasEnoughConsMatsForOilWell) {
+      availableUpgrades.push({
+        type: 'Oil Well',
+        goldCost: oilWellGoldCost,
+        consMatsCost: oilWellConsMatsCost,
+        effect: "Oil cap. +10%",
+        condition: 'Can Build'
+      });
+    } else if (!hasEnoughGoldForOilWell) {
+      availableUpgrades.push({
+        type: 'Oil Well',
+        goldCost: oilWellGoldCost,
+        consMatsCost: oilWellConsMatsCost,
+        effect: "Oil cap. +10%",
+        condition: 'Not enough gold'
+      });
     } else {
-      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, effect: "Increases oil cap by x%", condition: 'Not enough gold' });
+      availableUpgrades.push({
+        type: 'Oil Well',
+        goldCost: oilWellGoldCost,
+        consMatsCost: oilWellConsMatsCost,
+        effect: "Oil cap. +10%",
+        condition: 'Not enough consMats'
+      });
     }
-
-    if (hasEnoughGoldForFort) {
-        availableUpgrades.push({ type: 'Fort', cost: fortCost, effect: "Increases defence by x%", condition: 'Can Build' });
-      } else {
-        availableUpgrades.push({ type: 'Fort', cost: fortCost, effect: "Increases defence by x%", condition: 'Not enough gold' });
-      }
+  
+    if (hasEnoughGoldForFort && hasEnoughConsMatsForFort) {
+      availableUpgrades.push({
+        type: 'Fort',
+        goldCost: fortGoldCost,
+        consMatsCost: fortConsMatsCost,
+        effect: "Defence +10%",
+        condition: 'Can Build'
+      });
+    } else if (!hasEnoughGoldForFort) {
+      availableUpgrades.push({
+        type: 'Fort',
+        goldCost: fortGoldCost,
+        consMatsCost: fortConsMatsCost,
+        effect: "Defence +10%",
+        condition: 'Not enough gold'
+      });
+    } else {
+      availableUpgrades.push({
+        type: 'Fort',
+        goldCost: fortGoldCost,
+        consMatsCost: fortConsMatsCost,
+        effect: "Defence +10%",
+        condition: 'Not enough consMats'
+      });
+    }
   
     return availableUpgrades;
   }
+  
+  
   
   function populateUpgradeTable(territory) {
     const upgradeTable = document.getElementById("upgrade-table");
@@ -921,7 +1012,7 @@ function calculateAvailableUpgrades(territory) {
     const imageColumn = document.createElement("div");
     imageColumn.classList.add("upgrade-column");
     const image = document.createElement("img");
-    image.src = getImagePath(upgradeRow.type); // Call a function to get the image path based on the upgrade type
+    image.src = getImagePath(upgradeRow.type, upgradeRow.condition); // Call a function to get the image path based on the upgrade type
     imageColumn.appendChild(image);
   
     // Create and populate other columns
@@ -935,11 +1026,15 @@ function calculateAvailableUpgrades(territory) {
   
     const column3 = document.createElement("div");
     column3.classList.add("upgrade-column");
-    column3.textContent = upgradeRow.cost;
+    column3.textContent = upgradeRow.goldCost;
   
     const column4 = document.createElement("div");
     column4.classList.add("upgrade-column");
-    column4.textContent = "+/- Buttons";
+    column4.textContent = upgradeRow.consMatsCost;
+
+    const column5 = document.createElement("div");
+    column5.classList.add("upgrade-column");
+    column5.textContent = "+/- Buttons";
   
     // Add columns to the row
     row.appendChild(imageColumn);
@@ -947,24 +1042,38 @@ function calculateAvailableUpgrades(territory) {
     row.appendChild(column2);
     row.appendChild(column3);
     row.appendChild(column4);
+    row.appendChild(column5);
   
     // Add the row to the table
     upgradeTable.appendChild(row);
   });
   }
 
-  function getImagePath(type) {
-    switch (type) {
-      case 'Farm':
-        return '/resources/farmIcon.png';
-      case 'Oil Well':
-        return '/resources/oilWellIcon.png';
-      case 'Forest':
-        return '/resources/forestIcon.png';
-      case 'Fort':
-        return '/resources/fortIcon.png';
-      default:
-        return 'defaultIcon.png';
+  function getImagePath(type, condition) {
+    if (type === "Farm") {
+        if (condition === "Can Build") {
+            return '/resources/farmIcon.png';
+        } else if (condition === "Not enough gold") {
+            return '/resources/farmIconGrey.png';
+        }
+    } else if (type === "Oil Well") {
+        if (condition === "Can Build") {
+            return '/resources/oilWellIcon.png';
+        } else if (condition === "Not enough gold") {
+            return '/resources/oilWellIconGrey.png';
+        }
+    } else if (type === "Forest") {
+        if (condition === "Can Build") {
+            return '/resources/forestIcon.png';
+        } else if (condition === "Not enough gold") {
+            return '/resources/forestIconGrey.png';
+        }
+    } else if (type === "Fort") {
+        if (condition === "Can Build") {
+            return '/resources/fortIcon.png';
+        } else if (condition === "Not enough gold") {
+            return '/resources/fortIconGrey.png';
+        }
     }
   } 
   
