@@ -879,27 +879,27 @@ function calculateAvailableUpgrades(territory) {
   
     // Create the upgrade row objects based on the availability and gold condition
     if (hasEnoughGoldForFarm) {
-      availableUpgrades.push({ type: 'Farm', cost: farmCost, condition: 'Can Build' });
+      availableUpgrades.push({ type: 'Farm', cost: farmCost, effect: "Increases food cap by x%", condition: 'Can Build' });
     } else {
-      availableUpgrades.push({ type: 'Farm', cost: farmCost, condition: 'Not enough gold' });
+      availableUpgrades.push({ type: 'Farm', cost: farmCost, effect: "Increases food cap by x%", condition: 'Not enough gold' });
     }
   
     if (hasEnoughGoldForForest) {
-      availableUpgrades.push({ type: 'Forest', cost: forestCost, condition: 'Can Build' });
+      availableUpgrades.push({ type: 'Forest', cost: forestCost, effect: "Increases consMats cap by x%", condition: 'Can Build' });
     } else {
-      availableUpgrades.push({ type: 'Forest', cost: forestCost, condition: 'Not enough gold' });
+      availableUpgrades.push({ type: 'Forest', cost: forestCost, effect: "Increases consMats cap by x%", condition: 'Not enough gold' });
     }
   
     if (hasEnoughGoldForOilWell) {
-      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, condition: 'Can Build' });
+      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, effect: "Increases oil cap by x%", condition: 'Can Build' });
     } else {
-      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, condition: 'Not enough gold' });
+      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, effect: "Increases oil cap by x%", condition: 'Not enough gold' });
     }
 
     if (hasEnoughGoldForFort) {
-        availableUpgrades.push({ type: 'Fort', cost: fortCost, condition: 'Can Build' });
+        availableUpgrades.push({ type: 'Fort', cost: fortCost, effect: "Increases defence by x%", condition: 'Can Build' });
       } else {
-        availableUpgrades.push({ type: 'Fort', cost: fortCost, condition: 'Not enough gold' });
+        availableUpgrades.push({ type: 'Fort', cost: fortCost, effect: "Increases defence by x%", condition: 'Not enough gold' });
       }
   
     return availableUpgrades;
@@ -913,20 +913,41 @@ function calculateAvailableUpgrades(territory) {
     upgradeTable.innerHTML = "";
   
     // Populate the table with available upgrade rows
-    availableUpgrades.forEach((upgradeRow) => {
-      const row = document.createElement("div");
-      row.classList.add("upgrade-row");
+availableUpgrades.forEach((upgradeRow) => {
+    const row = document.createElement("div");
+    row.classList.add("upgrade-row");
   
-      // Populate each column with the respective values
-      for (const propertyName in upgradeRow) {
-        const column = document.createElement("div");
-        column.classList.add("upgrade-column");
-        column.innerHTML = upgradeRow[propertyName];
-        row.appendChild(column);
-      }
+    // Create and populate the "X" column
+    const column0 = document.createElement("div");
+    column0.classList.add("upgrade-column");
+    column0.textContent = "X";
   
-      // Add the row to the table
-      upgradeTable.appendChild(row);
-    });
+    // Create and populate other columns
+    const column1 = document.createElement("div");
+    column1.classList.add("upgrade-column");
+    column1.textContent = upgradeRow.type;
+  
+    const column2 = document.createElement("div");
+    column2.classList.add("upgrade-column");
+    column2.textContent = upgradeRow.effect;
+
+    const column3 = document.createElement("div");
+    column3.classList.add("upgrade-column");
+    column3.textContent = upgradeRow.cost;
+
+    const column4 = document.createElement("div");
+    column4.classList.add("upgrade-column");
+    column4.textContent = "+/- Buttons";
+  
+    // Add columns to the row
+    row.appendChild(column0);
+    row.appendChild(column1);
+    row.appendChild(column2);
+    row.appendChild(column3);
+    row.appendChild(column4);
+  
+    // Add the row to the table
+    upgradeTable.appendChild(row);
+  });
   }
   

@@ -486,14 +486,6 @@ td {
   z-index: 1;
 }
 
-#selection-panel {
-  display: none;
-  flex-basis: 0%;
-  padding: 10px;
-  border-left: 3px solid rgb(84, 99, 110);
-  overflow-y: auto;
-}
-
 .blur-background {
   position: absolute;
   top: 0;
@@ -669,16 +661,33 @@ td {
   z-index: 1;
 }
 
+.upgrade-table {
+  height: 300px; /* Adjust the height as needed */
+  display: flex;
+  flex-direction: column;
+}
+
 .upgrade-row {
+  height: 23%;
   display: flex;
   align-items: center;
   padding: 10px;
-  border-bottom: 1px solid #ccc;
+}
+
+.upgrade-row:hover {
+  cursor: pointer;
+  background-color: rgb(81, 121, 153);
+  transition: all 0.3s ease;
 }
 
 .upgrade-row:last-child {
   border-bottom: none; /* Remove bottom border for the last row */
 }
+
+.upgrade-column {
+  padding: 10px;
+}
+
 
 
 
