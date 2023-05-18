@@ -181,6 +181,10 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let foodCapacity = territoryPopulation; //set food capacity as permanent value until territory upgraded
             let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
             let consMatsCapacity = consMatsForCurrentTerritory;
+            let farmsBuilt = 0;
+            let oilWellsBuilt = 0;
+            let forestsBuilt = 0;
+            let fortsBuilt = 0;
 
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
@@ -201,7 +205,11 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 consMatsForCurrentTerritory: consMatsForCurrentTerritory,
                 consMatsCapacity: consMatsCapacity,
                 devIndex: dev_index,
-                continentModifier: continentModifier
+                continentModifier: continentModifier,
+                farmsBuilt: farmsBuilt,
+                oilWellsBuilt: oilWellsBuilt,
+                forestsBuilt: forestsBuilt,
+                fortsBuilt: fortsBuilt
             });
         }
     }
@@ -244,269 +252,259 @@ export function newTurnResources() {
     }
 
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
-    }
+}
     
     //todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
 
-    function calculateTerritoryResourceIncomesEachTurn() {
-        let changeGold;
-        let changeOil;
-        let changeFood;
-        let changeConsMats;
-        let changePop;
+function calculateTerritoryResourceIncomesEachTurn() {
+    let changeGold;
+    let changeOil;
+    let changeFood;
+    let changeConsMats;
+    let changePop;
 
-        //continent modifier or possibly handle upgrades in future
+    //continent modifier or possibly handle upgrades in future
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        //set each turn so that we can make exceptions ater due to upgrades when introduced that code but HC for now
+        if (mainArrayOfTerritoriesAndResources[i].continent === "Europe") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 1;
+        } else if (mainArrayOfTerritoriesAndResources[i].continent === "North America") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 1;
+        } else if (mainArrayOfTerritoriesAndResources[i].continent === "Asia") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 0.7;
+        } else if (mainArrayOfTerritoriesAndResources[i].continent === "Oceania") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 0.6;
+        } else if (mainArrayOfTerritoriesAndResources[i].continent === "South America") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 0.6;
+        } else if (mainArrayOfTerritoriesAndResources[i].continent === "Africa") {
+            mainArrayOfTerritoriesAndResources[i].continentModifier = 0.5;
+        } 
+    }
+
+    //loop to update all new values for new turn
+    for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            //set each turn so that we can make exceptions ater due to upgrades when introduced that code but HC for now
-            if (mainArrayOfTerritoriesAndResources[i].continent === "Europe") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 1;
-            } else if (mainArrayOfTerritoriesAndResources[i].continent === "North America") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 1;
-            } else if (mainArrayOfTerritoriesAndResources[i].continent === "Asia") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 0.7;
-            } else if (mainArrayOfTerritoriesAndResources[i].continent === "Oceania") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 0.6;
-            } else if (mainArrayOfTerritoriesAndResources[i].continent === "South America") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 0.6;
-            } else if (mainArrayOfTerritoriesAndResources[i].continent === "Africa") {
-                mainArrayOfTerritoriesAndResources[i].continentModifier = 0.5;
-            } 
-        }
+            if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            /*    changeGold = calculateGoldChange();
+                changeOil = calculateOilChange();
+                changeFood = calculateFoodChange();
+                changeConsMats = calculateConsMatsChange();
+                changePop = calculatePopulationChange(); */
 
-        //loop to update all new values for new turn
-        for (const path of paths) {
-            for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-                if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-/*                  changeGold = calculateGoldChange();
-                    changeOil = calculateOilChange();
-                    changeFood = calculateFoodChange();
-                    changeConsMats = calculateConsMatsChange();
-                    changePop = calculatePopulationChange(); */
+                changeGold = 10;
+                changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
+                changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
+                changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
+                changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
 
-                    changeGold = 10;
-                    changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
-                    changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
-                    changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
-                    changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
-
-                    mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
-                    mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
-                    mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
-                    mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
-                    mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
-                    mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-                }
+                mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
+                mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
+                mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
+                mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
+                mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
+                mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
             }
         }
     }
+}
 
-    function calculateConsMatsChange(territory, isSimulation) {
-        let consMatsChange = 0;
+function calculateConsMatsChange(territory, isSimulation) {
+    let consMatsChange = 0;
 
-        if (randomEventHappening && randomEvent === "Forest Fire" && !isSimulation) { //ConsMats disaster
-            const isRandomlyTrue = Math.random() >= 0.5;
-            if (isRandomlyTrue) {
-                let tempConsMats = territory.consMatsForCurrentTerritory;
-                territory.consMatsForCurrentTerritory /= 1.5;
-                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its construction materials!");
-                console.log("It had " + tempConsMats + " but now it has " + territory.consMatsForCurrentTerritory);
-            } else {
-                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-            }
-        }
-
-        //if consMats is below consMats capacity then grow at 10% per turn
-        if (!randomEventHappening && territory.consMatslCapacity > (territory.consMatsForCurrentTerritory)) {
-            const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
-            consMatsChange = (Math.ceil(consMatsDifference * 0.1));
-          }
-
-          //if consMats is above consMats capacity then lose it at 10% per turn until it balances
-          if (!randomEventHappening && territory.consMatsCapacity < (territory.consMatsForCurrentTerritory)) {
-            const consMatsDifference = (territory.consMatsForCurrentTerritory) - territory.consMatsCapacity;
-            consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
-        }
-
-        /* if (territory.forests > 0) { //implement when do upgrading code
-        } */
-
-        return consMatsChange;
-    }
-
-    function calculateOilChange(territory, isSimulation) {
-        let oilChange = 0;
-
-        if (randomEventHappening && randomEvent === "Oil Well Fire" && !isSimulation) { //oil disaster
-            const isRandomlyTrue = Math.random() >= 0.5;
-            if (isRandomlyTrue) {
-                let tempOil = territory.oilForCurrentTerritory;
-                territory.oilForCurrentTerritory /= 1.5;
-                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its oil!");
-                console.log("It had " + tempOil + " but now it has " + territory.oilForCurrentTerritory);
-            } else {
-                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-            }
-        }
-
-        //if oil is below oil capacity then grow at 10% per turn
-        if (!randomEventHappening && territory.oilCapacity > (territory.oilForCurrentTerritory)) {
-            const oilDifference = territory.oilCapacity - (territory.oilForCurrentTerritory);
-            oilChange = (Math.ceil(oilDifference * 0.1));
-          }
-
-          //if oil is above oil capacity then lose it at 10% per turn until it balances
-          if (!randomEventHappening && territory.oilCapacity < (territory.oilForCurrentTerritory)) {
-            const oilDifference = (territory.oilForCurrentTerritory) - territory.oilCapacity;
-            oilChange = -(Math.ceil(oilDifference * 0.1));
-        }
-
-        /* if (territory.oilWells > 0) { //implement when do upgrading code
-        } */
-
-        return oilChange;
-    }
-
-    function calculateFoodChange(territory, isSimulation) { 
-        let foodChange = 0;
-
-        if (randomEventHappening && randomEvent === "Food Disaster" && !isSimulation) { //food disaster
-            const isRandomlyTrue = Math.random() >= 0.5;
-            if (isRandomlyTrue) {
-                let tempFood = territory.foodForCurrentTerritory;
-                territory.foodForCurrentTerritory /= 2;
-                console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its food!");
-                console.log("It had " + tempFood + " but now it has " + territory.foodForCurrentTerritory);
-            } else {
-                console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-            }
-        }
-
-        //if food is below food capacity then grow at 10% per turn
-        if (!randomEventHappening && territory.foodCapacity > (territory.foodForCurrentTerritory * 10000)) {
-            const foodDifference = territory.foodCapacity - (territory.foodForCurrentTerritory * 10000);
-            foodChange = (Math.ceil(foodDifference * 0.1) / 10000);
-          }
-
-          //if food is above food capacity then lose it at 10% per turn until it balances
-          if (!randomEventHappening && territory.foodCapacity < (territory.foodForCurrentTerritory * 10000)) {
-            const foodDifference = (territory.foodForCurrentTerritory * 10000) - territory.foodCapacity;
-            foodChange = -(Math.ceil(foodDifference * 0.1) / 10000);
-        }
-          
-      
-        /* if (territory.farms > 0) { //implement when do upgrading code
-        } */
-      
-        return foodChange;
-      }     
-
-      function calculatePopulationChange(territory) {
-        if (!randomEventHappening) {
-            const currentPopulation = territory.territoryPopulation;
-            const devIndex = territory.devIndex;
-            const foodForCurrentTerritory = territory.foodForCurrentTerritory;
-        
-            let populationChange = 0;
-        
-            if (foodForCurrentTerritory * 10000 < currentPopulation) {
-            // Starvation situation
-            const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
-            const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
-        
-            populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
-            } else {
-            // Growth situation
-            const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
-            const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
-        
-            populationChange = Math.min(maxGrowth, growthPotential);
-            }
-        
-            return populationChange;
+    if (randomEventHappening && randomEvent === "Forest Fire" && !isSimulation) { //ConsMats disaster
+        const isRandomlyTrue = Math.random() >= 0.5;
+        if (isRandomlyTrue) {
+            let tempConsMats = territory.consMatsForCurrentTerritory;
+            territory.consMatsForCurrentTerritory /= 1.5;
+            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its construction materials!");
+            console.log("It had " + tempConsMats + " but now it has " + territory.consMatsForCurrentTerritory);
         } else {
-            return 0; //if random event just happened for food, dont lose any people immediately til the next turn so user can process it
+            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
         }
-      }
+    }
+
+    //if consMats is below consMats capacity then grow at 10% per turn
+    if (!randomEventHappening && territory.consMatslCapacity > (territory.consMatsForCurrentTerritory)) {
+        const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
+        consMatsChange = (Math.ceil(consMatsDifference * 0.1));
+        }
+
+        //if consMats is above consMats capacity then lose it at 10% per turn until it balances
+        if (!randomEventHappening && territory.consMatsCapacity < (territory.consMatsForCurrentTerritory)) {
+        const consMatsDifference = (territory.consMatsForCurrentTerritory) - territory.consMatsCapacity;
+        consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
+    }
+
+    /* if (territory.forests > 0) { //implement when do upgrading code
+    } */
+
+    return consMatsChange;
+}
+
+function calculateOilChange(territory, isSimulation) {
+    let oilChange = 0;
+
+    if (randomEventHappening && randomEvent === "Oil Well Fire" && !isSimulation) { //oil disaster
+        const isRandomlyTrue = Math.random() >= 0.5;
+        if (isRandomlyTrue) {
+            let tempOil = territory.oilForCurrentTerritory;
+            territory.oilForCurrentTerritory /= 1.5;
+            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its oil!");
+            console.log("It had " + tempOil + " but now it has " + territory.oilForCurrentTerritory);
+        } else {
+            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+        }
+    }
+
+    //if oil is below oil capacity then grow at 10% per turn
+    if (!randomEventHappening && territory.oilCapacity > (territory.oilForCurrentTerritory)) {
+        const oilDifference = territory.oilCapacity - (territory.oilForCurrentTerritory);
+        oilChange = (Math.ceil(oilDifference * 0.1));
+        }
+
+        //if oil is above oil capacity then lose it at 10% per turn until it balances
+        if (!randomEventHappening && territory.oilCapacity < (territory.oilForCurrentTerritory)) {
+        const oilDifference = (territory.oilForCurrentTerritory) - territory.oilCapacity;
+        oilChange = -(Math.ceil(oilDifference * 0.1));
+    }
+
+    /* if (territory.oilWells > 0) { //implement when do upgrading code
+    } */
+
+    return oilChange;
+}
+
+function calculateFoodChange(territory, isSimulation) { 
+    let foodChange = 0;
+
+    if (randomEventHappening && randomEvent === "Food Disaster" && !isSimulation) { //food disaster
+        const isRandomlyTrue = Math.random() >= 0.5;
+        if (isRandomlyTrue) {
+            let tempFood = territory.foodForCurrentTerritory;
+            territory.foodForCurrentTerritory /= 2;
+            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its food!");
+            console.log("It had " + tempFood + " but now it has " + territory.foodForCurrentTerritory);
+        } else {
+            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+        }
+    }
+
+    //if food is below food capacity then grow at 10% per turn
+    if (!randomEventHappening && territory.foodCapacity > (territory.foodForCurrentTerritory * 10000)) {
+        const foodDifference = territory.foodCapacity - (territory.foodForCurrentTerritory * 10000);
+        foodChange = (Math.ceil(foodDifference * 0.1) / 10000);
+        }
+
+        //if food is above food capacity then lose it at 10% per turn until it balances
+        if (!randomEventHappening && territory.foodCapacity < (territory.foodForCurrentTerritory * 10000)) {
+        const foodDifference = (territory.foodForCurrentTerritory * 10000) - territory.foodCapacity;
+        foodChange = -(Math.ceil(foodDifference * 0.1) / 10000);
+    }
+        
+    
+    /* if (territory.farms > 0) { //implement when do upgrading code
+    } */
+    
+    return foodChange;
+}     
+
+function calculatePopulationChange(territory) {
+    if (!randomEventHappening) {
+        const currentPopulation = territory.territoryPopulation;
+        const devIndex = territory.devIndex;
+        const foodForCurrentTerritory = territory.foodForCurrentTerritory;
+
+        let populationChange = 0;
+
+        if (foodForCurrentTerritory * 10000 < currentPopulation) {
+        // Starvation situation
+        const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
+        const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
+
+        populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+        } else {
+        // Growth situation
+        const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
+        const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
+
+        populationChange = Math.min(maxGrowth, growthPotential);
+        }
+
+        return populationChange;
+    } else {
+        return 0; //if random event just happened for food, dont lose any people immediately til the next turn so user can process it
+    }
+}
        
       
 
-    function formatNumbersToKMB(string) {
-        if (string >= 1000000000) {
-            return (string / 1000000000).toFixed(1) + 'B';
-        } else if (string >= 1000000) {
-            return (string / 1000000).toFixed(1) + 'M';
-        } else if (string >= 1000) {
-            return (string / 1000).toFixed(1) + 'k';
-        } else {
-            return string.toFixed(0);
-        }
+function formatNumbersToKMB(string) {
+    if (string >= 1000000000) {
+        return (string / 1000000000).toFixed(1) + 'B';
+    } else if (string >= 1000000) {
+        return (string / 1000000).toFixed(1) + 'M';
+    } else if (string >= 1000) {
+        return (string / 1000).toFixed(1) + 'k';
+    } else {
+        return string.toFixed(0);
     }
+}
 
-    function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
-        let totalGold = 0;
-        let totalOil = 0;
-        let totalFood = 0;
-        let totalConsMats = 0;
-        let totalPop = 0;
-        let totalProdPop = 0;
-        let totalArea = 0;
-        let totalArmy = 0;
+function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
+    let totalGold = 0;
+    let totalOil = 0;
+    let totalFood = 0;
+    let totalConsMats = 0;
+    let totalPop = 0;
+    let totalProdPop = 0;
+    let totalArea = 0;
+    let totalArmy = 0;
 
-        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            for (const path of paths) {
-                if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-                    totalGold += mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory;
-                    totalOil += mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory;
-                    totalFood += mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory;
-                    totalConsMats += mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory;
-                    totalPop += mainArrayOfTerritoriesAndResources[i].territoryPopulation;
-                    totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
-                    totalArea += mainArrayOfTerritoriesAndResources[i].area;
-                    totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
-                    if (path === currentSelectedPath && currentTurn !== 1) {
-                        writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
-                    }
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        for (const path of paths) {
+            if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+                totalGold += mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory;
+                totalOil += mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory;
+                totalFood += mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory;
+                totalConsMats += mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory;
+                totalPop += mainArrayOfTerritoriesAndResources[i].territoryPopulation;
+                totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
+                totalArea += mainArrayOfTerritoriesAndResources[i].area;
+                totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
+                if (path === currentSelectedPath && currentTurn !== 1) {
+                    writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
             }
         }
-
-        totalPlayerResources.length = 0;
-
-        totalPlayerResources.push({
-            totalGold: totalGold,
-            totalOil: totalOil,
-            totalFood: totalFood,
-            totalConsMats: totalConsMats,
-            totalPop: totalPop,
-            totalProdPop: totalProdPop,
-            totalArea: totalArea,
-            totalArmy: totalArmy});
-
-        //write new data to top table
-        document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
-        document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil);
-        document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood);
-        document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
-        document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
-        document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
-        document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
     }
 
-    function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
-        if (userClickingANewTerritory) {
-                colourTableText(document.getElementById("bottom-table"), territory);
-                document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-                document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
-                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
-            } else { //turn update resources for selected territory
+    totalPlayerResources.length = 0;
+
+    totalPlayerResources.push({
+        totalGold: totalGold,
+        totalOil: totalOil,
+        totalFood: totalFood,
+        totalConsMats: totalConsMats,
+        totalPop: totalPop,
+        totalProdPop: totalProdPop,
+        totalArea: totalArea,
+        totalArmy: totalArmy});
+
+    //write new data to top table
+    document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
+    document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil);
+    document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood);
+    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
+    document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
+    document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
+    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+}
+
+function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
+    if (userClickingANewTerritory) {
             colourTableText(document.getElementById("bottom-table"), territory);
-            document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + territory.continent + ")";
+            document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
             document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
             document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
             document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
@@ -514,320 +512,331 @@ export function newTurnResources() {
             document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
             document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
-        }
+        } else { //turn update resources for selected territory
+        colourTableText(document.getElementById("bottom-table"), territory);
+        document.getElementById("bottom-table").rows[0].cells[1].innerHTML = countryPath.getAttribute("territory-name") + " (" + territory.continent + ")";
+        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
+        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+    }
+}
+
+function initialOilCalculation(path, area) {
+    let developmentIndex = parseFloat(path.dev_index);
+    let continentModifier;
+
+    if (path.continent === "Europe") {
+        continentModifier = 0.9;
+    } else if (path.continent === "North America") {
+        continentModifier = 1.3;
+    } else if (path.continent === "Africa") {
+        continentModifier = 1.8;
+    } else if (path.continent === "South America") {
+        continentModifier = 1.6;
+    } else if (path.continent === "Oceania") {
+        continentModifier = 0.8;
+    } else if (path.continent === "Asia") {
+        continentModifier = 1.1;
     }
 
-    function initialOilCalculation(path, area) {
-        let developmentIndex = parseFloat(path.dev_index);
-        let continentModifier;
+    const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
+    const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
+    const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
+    return term1 + term2 + term3;
+}
 
-        if (path.continent === "Europe") {
-            continentModifier = 0.9;
-        } else if (path.continent === "North America") {
-            continentModifier = 1.3;
-        } else if (path.continent === "Africa") {
-            continentModifier = 1.8;
-        } else if (path.continent === "South America") {
-            continentModifier = 1.6;
-        } else if (path.continent === "Oceania") {
-            continentModifier = 0.8;
-        } else if (path.continent === "Asia") {
-            continentModifier = 1.1;
-        }
+function initialConsMatsCalculation(path, area) {
+    let developmentIndex = parseFloat(path.dev_index);
+    let continentModifier;
 
-        const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
-        const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
-        const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
-        return term1 + term2 + term3;
+    if (path.continent === "Europe") {
+        continentModifier = 1.2;
+    } else if (path.continent === "North America") {
+        continentModifier = 1.6;
+    } else if (path.continent === "Africa") {
+        continentModifier = 1.3;
+    } else if (path.continent === "South America") {
+        continentModifier = 1.8;
+    } else if (path.continent === "Oceania") {
+        continentModifier = 0.8;
+    } else if (path.continent === "Asia") {
+        continentModifier = 1.8;
     }
 
-    function initialConsMatsCalculation(path, area) {
-        let developmentIndex = parseFloat(path.dev_index);
-        let continentModifier;
+    const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
+    const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
+    const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
+    return term1 + term2 + term3;
+}
 
-        if (path.continent === "Europe") {
-            continentModifier = 1.2;
-        } else if (path.continent === "North America") {
-            continentModifier = 1.6;
-        } else if (path.continent === "Africa") {
-            continentModifier = 1.3;
-        } else if (path.continent === "South America") {
-            continentModifier = 1.8;
-        } else if (path.continent === "Oceania") {
-            continentModifier = 0.8;
-        } else if (path.continent === "Asia") {
-            continentModifier = 1.8;
-        }
+export function drawUITable(uiTableContainer, territoryOrArmyTable) {
+    uiTableContainer.innerHTML = "";
+    uiTableContainer.style.display = "flex";
+    
+    playerOwnedTerritories.sort((a, b) => {
+        const idA = parseInt(a.getAttribute("territory-id"));
+        const idB = parseInt(b.getAttribute("territory-id"));
+        return idA - idB;
+    });
+    
+    // Create table element
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.tableLayout = "fixed";
+    
+    // Create first row
+    const headerRow = document.createElement("div");
+    headerRow.classList.add("ui-table-row");
+    const headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
+    const imageSources = ["flagUIIcon.png", "army.png", "prodPopulation.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
 
-        const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
-        const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
-        const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
-        return term1 + term2 + term3;
+    for (let j = 0; j < headerColumns.length; j++) {
+    const headerColumn = document.createElement("div");
+
+    if (j === 0) {
+        headerColumn.style.width = "30%";
+    } else {
+        headerColumn.classList.add("centerIcons");
     }
 
-    export function drawUITable(uiTableContainer, territoryOrArmyTable) {
-        uiTableContainer.innerHTML = "";
-        uiTableContainer.style.display = "flex";
-      
-        playerOwnedTerritories.sort((a, b) => {
-          const idA = parseInt(a.getAttribute("territory-id"));
-          const idB = parseInt(b.getAttribute("territory-id"));
-          return idA - idB;
-        });
-      
-        // Create table element
-        const table = document.createElement("table");
-        table.style.width = "100%";
-        table.style.tableLayout = "fixed";
-      
-        // Create first row
-        const headerRow = document.createElement("div");
-        headerRow.classList.add("ui-table-row");
-        const headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
-        const imageSources = ["flagUIIcon.png", "army.png", "prodPopulation.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
+    headerColumn.classList.add("ui-table-column");
 
-        for (let j = 0; j < headerColumns.length; j++) {
-        const headerColumn = document.createElement("div");
+    // Create an <img> tag with the image source
+    const imageSource = "/resources/" + imageSources[j];
+    const imageElement = document.createElement("img");
+    imageElement.src = imageSource;
+    imageElement.alt = headerColumns[j];
+    imageElement.classList.add("sizingIcons");
 
+    headerColumn.appendChild(imageElement);
+    headerRow.appendChild(headerColumn);
+    }
+
+    table.appendChild(headerRow);
+    
+    // Create rows
+    for (let i = 0; i < playerOwnedTerritories.length; i++) {
+        const row = document.createElement("div");
+        row.classList.add("ui-table-row-hoverable");
+    
+        // Create columns
+        for (let j = 0; j < 9; j++) {
+        const column = document.createElement("div");
+        column.classList.add("ui-table-column");
         if (j === 0) {
-            headerColumn.style.width = "30%";
+            column.style.width = "30%";
+            // Set the value of the first column to the "territory-name" attribute
+            const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+            column.textContent = territoryName;
         } else {
-            headerColumn.classList.add("centerIcons");
-        }
-
-        headerColumn.classList.add("ui-table-column");
-
-        // Create an <img> tag with the image source
-        const imageSource = "/resources/" + imageSources[j];
-        const imageElement = document.createElement("img");
-        imageElement.src = imageSource;
-        imageElement.alt = headerColumns[j];
-        imageElement.classList.add("sizingIcons");
-
-        headerColumn.appendChild(imageElement);
-        headerRow.appendChild(headerColumn);
-        }
-
-        table.appendChild(headerRow);
-      
-        // Create rows
-        for (let i = 0; i < playerOwnedTerritories.length; i++) {
-          const row = document.createElement("div");
-          row.classList.add("ui-table-row-hoverable");
-      
-          // Create columns
-          for (let j = 0; j < 9; j++) {
-            const column = document.createElement("div");
-            column.classList.add("ui-table-column");
-            if (j === 0) {
-              column.style.width = "30%";
-              // Set the value of the first column to the "territory-name" attribute
-              const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-              column.textContent = territoryName;
-            } else {
-                column.classList.add("centerIcons");
-              const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-              const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
-              switch (j) {
-                case 1:
-                  column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
-                  break;
-                case 2:
-                  column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
-                  break;
-                case 3:
-                  column.textContent = formatNumbersToKMB(territoryData.area);
-                  break;
-                case 4:
-                  column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
-                  break;
-                case 5:
-                  column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
-                  break;
-                case 6:
-                  column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
-                  break;
-                case 7:
-                  column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
-                  break;
-                case 8:
-                const upgradeButtonImageElement = document.createElement("img");
-                // Create upgrade button div
-                const upgradeButtonDiv = document.createElement("div");
-                if (currentTurnPhase === 0) {
-                    upgradeButtonDiv.classList.add("upgrade-button");
-                    upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
-                } else {
-                    upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
-                }
-        
-                // Create upgrade button image element
-                upgradeButtonImageElement.alt = "Upgrade Territory";
-                upgradeButtonImageElement.classList.add("sizeUpgradeButton");
-
-                // Add event listeners for click and mouseup events
-                upgradeButtonDiv.addEventListener("mousedown", () => {
-                if (currentTurnPhase === 0) {
-                    playSoundClip();
-                    upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
-                }
-                });
-
-                upgradeButtonDiv.addEventListener("mouseup", () => {
-                if (currentTurnPhase === 0) {
-                    toggleUpgradeMenu(true, territoryData);
-                    upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
-                }
-                });
-
-                upgradeButtonDiv.appendChild(upgradeButtonImageElement);
-                column.appendChild(upgradeButtonDiv);
-                break;
-            }
-        }
-        row.addEventListener("mouseover", (e) => {
+            column.classList.add("centerIcons");
             const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-            const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
-
-            tooltipUITerritoryRow(row, territoryData, e);
-        });
-        row.addEventListener("mouseout", () => {
-            tooltip.style.display = "none";
-            row.style.cursor = "default";
-          });
-        row.appendChild(column);
-        }
-        table.appendChild(row);
-
-            
-        }
-        uiTableContainer.appendChild(table);
-      }
-
-      function tooltipUITerritoryRow(row, territoryData, event) {
-        // Get the coordinates of the mouse cursor
-        const x = event.clientX;
-        const y = event.clientY;
-      
-        // Set the content of the tooltip based on the territory data
-        const territoryName = row.querySelector(".ui-table-column").textContent;
-        const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
-        const prodPopulation = territoryData.productiveTerritoryPop;
-        const popNextTurnValue = calculatePopulationChange(territoryData);
-        const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
-        const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
-        /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
-        const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
-        const oilCap = territoryData.oilCapacity;
-        const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData, true));
-        const foodCap = territoryData.foodCapacity;
-        const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData, true));
-        const consMatsCap = territoryData.consMatsCapacity;
-
-        /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
-        let popNextTurnStyle = "font-weight: bold; color: black;";
-        let oilNextTurnStyle = "font-weight: bold; color: black;";
-        let foodNextTurnStyle = "font-weight: bold; color: black;";
-        let consMatsNextTurnStyle = "font-weight: bold; color: black;";
-
-        if (popNextTurnValue > 0) {
-            popNextTurnStyle = "color: rgb(0,235,0);";
-        } else if (popNextTurnValue < 0) {
-            popNextTurnStyle = "color: rgb(235,160,160);";
-        }
-
-        /* if (goldNextTurnValue > 0) {
-            goldNextTurnStyle = "color: rgb(0,235,0);";
-        } else if (goldNextTurnValue < 0) {
-            goldNextTurnStyle = "color: rgb(235,160,160);";
-        } */
-
-        if (oilNextTurnValue > 0) {
-            oilNextTurnStyle = "color: rgb(0,235,0);";
-        } else if (oilNextTurnValue < 0) {
-            oilNextTurnStyle = "color: rgb(235,160,160);";
-        }
-
-        if (foodNextTurnValue > 0) {
-            foodNextTurnStyle = "color: rgb(0,235,0);";
-        } else if (foodNextTurnValue < 0) {
-            foodNextTurnStyle = "color: rgb(235,160,160);";
-        }
-
-        if (consMatsNextTurnValue > 0) {
-            consMatsNextTurnStyle = "color: rgb(0,235,0);";
-        } else if (consMatsNextTurnValue < 0) {
-            consMatsNextTurnStyle = "color: rgb(235,160,160);";
-        }
-
-        const tooltipContent = `
-            <div>Territory: ${territoryName}</div>
-            <div>Army: ${army}</div>
-            <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
-            <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
-            <div>Area: ${area}</div>
-            <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
-            <div>Oil Cap: ${Math.ceil(oilCap)}</div>
-            <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
-            <div>Food Cap: ${formatNumbersToKMB(foodCap)}</div>
-            <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
-            <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
-        `;
-
-        // Get the last div in the row
-        const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
-
-        // Check if the mouse is hovering over the last div
-        if (event.target === lastDiv) {
-            if (currentTurnPhase == 0) {
-                tooltip.innerHTML = "Click To Upgrade!";
+            const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+            switch (j) {
+            case 1:
+                column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
+                break;
+            case 2:
+                column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
+                break;
+            case 3:
+                column.textContent = formatNumbersToKMB(territoryData.area);
+                break;
+            case 4:
+                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                break;
+            case 5:
+                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                break;
+            case 6:
+                column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
+                break;
+            case 7:
+                column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
+                break;
+            case 8:
+            const upgradeButtonImageElement = document.createElement("img");
+            // Create upgrade button div
+            const upgradeButtonDiv = document.createElement("div");
+            if (currentTurnPhase === 0) {
+                upgradeButtonDiv.classList.add("upgrade-button");
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
             } else {
-                tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
+                upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
             }
-        } else {
-            // Set the content of the tooltip based on the territory data
-            tooltip.innerHTML = tooltipContent;
+    
+            // Create upgrade button image element
+            upgradeButtonImageElement.alt = "Upgrade Territory";
+            upgradeButtonImageElement.classList.add("sizeUpgradeButton");
+
+            // Add event listeners for click and mouseup events
+            upgradeButtonDiv.addEventListener("mousedown", () => {
+            if (currentTurnPhase === 0) {
+                playSoundClip();
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+            }
+            });
+
+            upgradeButtonDiv.addEventListener("mouseup", () => {
+            if (currentTurnPhase === 0) {
+                populateUpgradeTable(territoryData);
+                toggleUpgradeMenu(true, territoryData);
+                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+            }
+            });
+
+            upgradeButtonDiv.appendChild(upgradeButtonImageElement);
+            column.appendChild(upgradeButtonDiv);
+            break;
         }
+    }
+    row.addEventListener("mouseover", (e) => {
+        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
 
-        //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
-      
-        const tooltipHeight = tooltip.offsetHeight;
-        const verticalThreshold = tooltipHeight + 25;
+        tooltipUITerritoryRow(row, territoryData, e);
+    });
+    row.addEventListener("mouseout", () => {
+        tooltip.style.display = "none";
+        row.style.cursor = "default";
+        });
+    row.appendChild(column);
+    }
+    table.appendChild(row);
 
-        if (window.innerHeight - y < verticalThreshold) {
+        
+    }
+    uiTableContainer.appendChild(table);
+}
 
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y - tooltipHeight + "px";
+function tooltipUITerritoryRow(row, territoryData, event) {
+    // Get the coordinates of the mouse cursor
+    const x = event.clientX;
+    const y = event.clientY;
+
+    // Set the content of the tooltip based on the territory data
+    const territoryName = row.querySelector(".ui-table-column").textContent;
+    const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
+    const prodPopulation = territoryData.productiveTerritoryPop;
+    const popNextTurnValue = calculatePopulationChange(territoryData);
+    const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
+    const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
+    /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
+    const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
+    const oilCap = territoryData.oilCapacity;
+    const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData, true));
+    const foodCap = territoryData.foodCapacity;
+    const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData, true));
+    const consMatsCap = territoryData.consMatsCapacity;
+
+    /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
+    let popNextTurnStyle = "font-weight: bold; color: black;";
+    let oilNextTurnStyle = "font-weight: bold; color: black;";
+    let foodNextTurnStyle = "font-weight: bold; color: black;";
+    let consMatsNextTurnStyle = "font-weight: bold; color: black;";
+
+    if (popNextTurnValue > 0) {
+        popNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (popNextTurnValue < 0) {
+        popNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    /* if (goldNextTurnValue > 0) {
+        goldNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (goldNextTurnValue < 0) {
+        goldNextTurnStyle = "color: rgb(235,160,160);";
+    } */
+
+    if (oilNextTurnValue > 0) {
+        oilNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (oilNextTurnValue < 0) {
+        oilNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    if (foodNextTurnValue > 0) {
+        foodNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (foodNextTurnValue < 0) {
+        foodNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    if (consMatsNextTurnValue > 0) {
+        consMatsNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (consMatsNextTurnValue < 0) {
+        consMatsNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    const tooltipContent = `
+        <div>Territory: ${territoryName}</div>
+        <div>Army: ${army}</div>
+        <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
+        <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
+        <div>Area: ${area}</div>
+        <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
+        <div>Oil Cap: ${Math.ceil(oilCap)}</div>
+        <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
+        <div>Food Cap: ${formatNumbersToKMB(foodCap)}</div>
+        <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
+        <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
+    `;
+
+    // Get the last div in the row
+    const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
+
+    // Check if the mouse is hovering over the last div
+    if (event.target === lastDiv) {
+        if (currentTurnPhase == 0) {
+            tooltip.innerHTML = "Click To Upgrade!";
         } else {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = 25 + y + "px";
+            tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
         }
+    } else {
+        // Set the content of the tooltip based on the territory data
+        tooltip.innerHTML = tooltipContent;
+    }
 
-      
-        // Show the tooltip
-        tooltip.style.display = "block";
-      
-        row.style.cursor = "pointer";
-      }
+    //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
-      function colourTableText(table, territory) {
-        /* let changeGold = calculateGoldChange(territory); */
-        let changeOil = calculateOilChange(territory, true);
-        let changeFood = calculateFoodChange(territory, true);
-        let changeConsMats = calculateConsMatsChange(territory, true);
-        let changePop = calculatePopulationChange(territory);
+    const tooltipHeight = tooltip.offsetHeight;
+    const verticalThreshold = tooltipHeight + 25;
 
-        /* const goldCell = table.rows[0].cells[3]; */
-        const oilCell = table.rows[0].cells[5];
-        const foodCell = table.rows[0].cells[7];
-        const consMatsCell = table.rows[0].cells[9];
-        const popCell = table.rows[0].cells[11];
+    if (window.innerHeight - y < verticalThreshold) {
 
-        /* goldCell.style.color = "white"; */
-        popCell.style.color = "white";
-        oilCell.style.color = "white";
-        foodCell.style.color = "white";
-        consMatsCell.style.color = "white";        
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = y - tooltipHeight + "px";
+    } else {
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
+    }
+
+
+    // Show the tooltip
+    tooltip.style.display = "block";
+
+    row.style.cursor = "pointer";
+}
+
+function colourTableText(table, territory) {
+    /* let changeGold = calculateGoldChange(territory); */
+    let changeOil = calculateOilChange(territory, true);
+    let changeFood = calculateFoodChange(territory, true);
+    let changeConsMats = calculateConsMatsChange(territory, true);
+    let changePop = calculatePopulationChange(territory);
+
+    /* const goldCell = table.rows[0].cells[3]; */
+    const oilCell = table.rows[0].cells[5];
+    const foodCell = table.rows[0].cells[7];
+    const consMatsCell = table.rows[0].cells[9];
+    const popCell = table.rows[0].cells[11];
+
+    /* goldCell.style.color = "white"; */
+    popCell.style.color = "white";
+    oilCell.style.color = "white";
+    foodCell.style.color = "white";
+    consMatsCell.style.color = "white";        
 
     if (table === document.getElementById("bottom-table")) {
         if (changePop < -1) {
@@ -852,3 +861,72 @@ export function newTurnResources() {
         }
     }
 }
+
+function calculateAvailableUpgrades(territory) {
+    const availableUpgrades = [];
+  
+    // Calculate the cost of upgrades
+    const farmCost = 200 + (200 * territory.farmsBuilt);
+    const forestCost = 200 + (200 * territory.forestsBuilt);
+    const oilWellCost = 300 + (300 * territory.oilWellsBuilt);
+    const fortCost = 500 + (500 * territory.oilWellsBuilt);
+  
+    // Check if the territory has enough gold for each upgrade
+    const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmCost;
+    const hasEnoughGoldForForest = territory.goldForCurrentTerritory >= forestCost;
+    const hasEnoughGoldForOilWell = territory.goldForCurrentTerritory >= oilWellCost;
+    const hasEnoughGoldForFort = territory.goldForCurrentTerritory >= fortCost;
+  
+    // Create the upgrade row objects based on the availability and gold condition
+    if (hasEnoughGoldForFarm) {
+      availableUpgrades.push({ type: 'Farm', cost: farmCost, condition: 'Can Build' });
+    } else {
+      availableUpgrades.push({ type: 'Farm', cost: farmCost, condition: 'Not enough gold' });
+    }
+  
+    if (hasEnoughGoldForForest) {
+      availableUpgrades.push({ type: 'Forest', cost: forestCost, condition: 'Can Build' });
+    } else {
+      availableUpgrades.push({ type: 'Forest', cost: forestCost, condition: 'Not enough gold' });
+    }
+  
+    if (hasEnoughGoldForOilWell) {
+      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, condition: 'Can Build' });
+    } else {
+      availableUpgrades.push({ type: 'Oil Well', cost: oilWellCost, condition: 'Not enough gold' });
+    }
+
+    if (hasEnoughGoldForFort) {
+        availableUpgrades.push({ type: 'Fort', cost: fortCost, condition: 'Can Build' });
+      } else {
+        availableUpgrades.push({ type: 'Fort', cost: fortCost, condition: 'Not enough gold' });
+      }
+  
+    return availableUpgrades;
+  }
+  
+  function populateUpgradeTable(territory) {
+    const upgradeTable = document.getElementById("upgrade-table");
+  
+    // Calculate available upgrades
+    const availableUpgrades = calculateAvailableUpgrades(territory);
+    upgradeTable.innerHTML = "";
+  
+    // Populate the table with available upgrade rows
+    availableUpgrades.forEach((upgradeRow) => {
+      const row = document.createElement("div");
+      row.classList.add("upgrade-row");
+  
+      // Populate each column with the respective values
+      for (const propertyName in upgradeRow) {
+        const column = document.createElement("div");
+        column.classList.add("upgrade-column");
+        column.innerHTML = upgradeRow[propertyName];
+        row.appendChild(column);
+      }
+  
+      // Add the row to the table
+      upgradeTable.appendChild(row);
+    });
+  }
+  
