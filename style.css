@@ -652,8 +652,8 @@ td {
   height: 100%;
   opacity: 0.1;
   z-index: -1;
-  background: rgba(54, 93, 125, 0.5) no-repeat center / 100% 100%;
-  background-image: var(--bg-image);
+  background: rgba(54, 93, 125, 1.0) no-repeat center / 100% 100%;
+  /* background-image: var(--bg-image); */
 }
 
 .info-panel-upgrade > * {
@@ -677,13 +677,13 @@ td {
 
 .upgrade-row img {
   width: 69px;
-  height: 70px;
+  height: 100%;
   opacity: 0.7;
 }
 
 .upgrade-row:hover {
   cursor: pointer;
-  background-color: rgb(81, 121, 153);
+  background-color: rgb(111, 151, 183);
   transition: all 0.3s ease;
 }
 
