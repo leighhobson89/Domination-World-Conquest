@@ -913,14 +913,16 @@ function calculateAvailableUpgrades(territory) {
     upgradeTable.innerHTML = "";
   
     // Populate the table with available upgrade rows
-availableUpgrades.forEach((upgradeRow) => {
+    availableUpgrades.forEach((upgradeRow) => {
     const row = document.createElement("div");
     row.classList.add("upgrade-row");
   
-    // Create and populate the "X" column
-    const column0 = document.createElement("div");
-    column0.classList.add("upgrade-column");
-    column0.textContent = "X";
+    // Create and populate the image column
+    const imageColumn = document.createElement("div");
+    imageColumn.classList.add("upgrade-column");
+    const image = document.createElement("img");
+    image.src = getImagePath(upgradeRow.type); // Call a function to get the image path based on the upgrade type
+    imageColumn.appendChild(image);
   
     // Create and populate other columns
     const column1 = document.createElement("div");
@@ -930,17 +932,17 @@ availableUpgrades.forEach((upgradeRow) => {
     const column2 = document.createElement("div");
     column2.classList.add("upgrade-column");
     column2.textContent = upgradeRow.effect;
-
+  
     const column3 = document.createElement("div");
     column3.classList.add("upgrade-column");
     column3.textContent = upgradeRow.cost;
-
+  
     const column4 = document.createElement("div");
     column4.classList.add("upgrade-column");
     column4.textContent = "+/- Buttons";
   
     // Add columns to the row
-    row.appendChild(column0);
+    row.appendChild(imageColumn);
     row.appendChild(column1);
     row.appendChild(column2);
     row.appendChild(column3);
@@ -950,4 +952,20 @@ availableUpgrades.forEach((upgradeRow) => {
     upgradeTable.appendChild(row);
   });
   }
+
+  function getImagePath(type) {
+    switch (type) {
+      case 'Farm':
+        return '/resources/farmIcon.png';
+      case 'Oil Well':
+        return '/resources/oilWellIcon.png';
+      case 'Forest':
+        return '/resources/forestIcon.png';
+      case 'Fort':
+        return '/resources/fortIcon.png';
+      default:
+        return 'defaultIcon.png';
+    }
+  } 
+  
   
