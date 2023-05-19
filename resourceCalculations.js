@@ -1076,9 +1076,24 @@ function calculateAvailableUpgrades(territory) {
     column5.appendChild(column5A);
     column5.appendChild(column5Wrapper);
   
-    // Add the row to the table
     upgradeTable.appendChild(row);
+
+    imageMinus.addEventListener("click", () => {
+        if (parseInt(textField.value) > 0) {
+            incrementDecrementUpgrades(textField, -1);
+        }
+    });
+  
+    imagePlus.addEventListener("click", () => {
+        incrementDecrementUpgrades(textField, 1);
+    });
   });
+  }
+
+  function incrementDecrementUpgrades(textField, value) {
+    const currentValue = parseInt(textField.value);
+    const newValue = currentValue + value;
+    textField.value = newValue.toString();
   }
 
   function getImagePath(type, condition) {
