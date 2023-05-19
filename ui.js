@@ -837,7 +837,7 @@ function getTextHeight(lines, fontSize) {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   context.font = fontSize + 'px Arial';
-  const lineHeight = fontSize * 1.2; // assuming a line height of 1.2em
+  const lineHeight = fontSize * 1.2;
   return lines.length * lineHeight;
 }
 
