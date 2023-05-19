@@ -645,7 +645,7 @@ document.addEventListener("DOMContentLoaded", function() {
   keyBarColumn3.appendChild(imageElement);
 
   const keyBarColumn4 = document.createElement("div");
-  keyBarColumn4.classList.add("key-bar-column3");
+  keyBarColumn4.classList.add("key-bar-column4");
   imageSource = "/resources/consMats.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
@@ -654,7 +654,7 @@ document.addEventListener("DOMContentLoaded", function() {
   keyBarColumn4.appendChild(imageElement);
 
   const keyBarColumn5 = document.createElement("div");
-  keyBarColumn5.classList.add("key-bar-column4");
+  keyBarColumn5.classList.add("key-bar-column5");
   imageSource = "/resources/upgrade.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
@@ -688,6 +688,15 @@ document.addEventListener("DOMContentLoaded", function() {
   upgradeTable.classList.add("upgrade-table");
   upgradeTable.setAttribute("id", "upgrade-table");
 
+  const bottomBarUpgradeWindow = document.createElement("div");
+  bottomBarUpgradeWindow.classList.add("bottom-bar-upgrade-window");
+  bottomBarUpgradeWindow.setAttribute("id", "bottom-bar-upgrade-window");
+
+  const bottomBarConfirmButton = document.createElement("button");
+  bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
+  bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
+  bottomBarConfirmButton.innerHTML = "Confirm";
+
   upgradeContainer.appendChild(navBarUpgradeWindow);
   navBarUpgradeWindow.appendChild(navBarLeftColumn);
   navBarUpgradeWindow.appendChild(navBarCenterColumn);
@@ -705,6 +714,8 @@ document.addEventListener("DOMContentLoaded", function() {
   contentWindowUpgrade.appendChild(infoPanelUpgradeWindow);
   infoPanelUpgradeWindow.appendChild(upgradeTable);
   infoPanelUpgradeWindow.insertBefore(beforeInfoPanelUpgradeWindow, infoPanelUpgradeWindow.firstChild);
+  infoPanelUpgradeWindow.appendChild(bottomBarUpgradeWindow);
+  bottomBarUpgradeWindow.appendChild(bottomBarConfirmButton);
 
   document.getElementById("upgrade-container").appendChild(upgradeContainer);
 

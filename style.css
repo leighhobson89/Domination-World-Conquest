@@ -377,6 +377,11 @@ td {
   width: 23px;
 }
 
+.size-quantity-buttons {
+  height: 15px;
+  width: 15px;
+}
+
 .flag {
   width: 30px;
   height: 20px;
@@ -573,13 +578,13 @@ td {
 #upgrade-container {
   display: none;
   position: fixed;
-  top: 45%;
+  top: 51%;
   left: 40%;
   transform: translate(-50%, -50%);
   width: 50%;
-  height: 80vh;
+  height: 500px;
   background-color: rgba(81, 121, 153, 0.9);
-  border: 3px solid rgb(84, 99, 110);
+  border: 3px solid rgb(111, 151, 183);
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
   flex-direction: column;
@@ -626,67 +631,63 @@ td {
   align-items: center;
   letter-spacing: 1px;
   font-weight: bolder;
-  border-bottom: solid 3px white;
+  border-bottom: solid 2px rgb(111, 151, 183);
 }
 
 .key-bar-upgrade-window {
+  width: 100%;
   display: flex;
   padding-top: 5px;
   padding-bottom: 5px;
   background-color: rgba(54, 93, 125, 0.8);
-  justify-content: center;
   align-items: center;
 }
 
 .key-bar-column0 {
-  width: 69px;
-  justify-content: center;
+  width: 70px;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-column1 {
-  width: 10%;
+  width: 12%;
   padding: 10px;
-  justify-content: center;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-column2 {
-  width: 25%;
+  width: 30%;
   padding: 10px;
-  justify-content: center;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-column3 {
-  width: 15%;
+  width: 4%;
   padding: 10px;
-  justify-content: center;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-column4 {
-  width: 15%;
+  width: 12%;
   padding: 10px;
-  justify-content: center;
   align-items: center;
   text-align: center;
+  justify-content: center;
 }
 
 .key-bar-column5 {
+  display: flex;
   width: 15%;
-  padding: 10px;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
 .content-window-upgrade {
-  height: 345px;
+  height: 370px;
   display: flex;
   flex-grow: 1;
   overflow: auto;
@@ -709,7 +710,6 @@ td {
   opacity: 0.1;
   z-index: -1;
   background: rgba(54, 93, 125, 1.0) no-repeat center / 100% 100%;
-  /* background-image: var(--bg-image); */
 }
 
 .info-panel-upgrade > * {
@@ -728,7 +728,9 @@ td {
   display: flex;
   align-items: center;
   padding: 2px;
-  border-bottom: 2px solid rgb(54, 93, 125);
+  /* border-bottom: 2px solid rgb(111, 151, 183); */
+  border-top: 2px solid rgb(111, 151, 183);
+  background-color: rgb(54, 93, 125, 0.8);
 }
 
 .upgrade-row img {
@@ -737,39 +739,107 @@ td {
   opacity: 0.7;
 }
 
-.upgrade-row:hover {
-  cursor: pointer;
-  background-color: rgb(111, 151, 183);
-  transition: all 0.3s ease;
-}
-
 .upgrade-column:first-child {
   padding: 0px;
   width: 70px;
 }
 
 .upgrade-column:nth-child(2) {
-  width: 10%;
+  width: 12%;
+  text-align: center;
 }
 
 .upgrade-column:nth-child(3) {
-  width: 35%;
+  width: 30%;
+  text-align: center;
 }
 
 .upgrade-column:nth-child(4) {
-  width: 15%;
+  width: 7%;
 }
 
 .upgrade-column:nth-child(5) {
-  width: 15%;
+  width: 8%;
 }
 
 .upgrade-column:nth-child(6) {
-  width: 15%;
+  display: flex;
+  justify-content: space-between;
+  width: 60px;
 }
 
 .upgrade-column {
   padding: 10px;
+}
+
+.column5A {
+  width: 20px;
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.column5-wrapper {
+  display: flex;
+  align-items: center;
+  width: 25px;
+}
+
+.column5B {
+  padding: 0px;
+  align-items: center;
+  display: flex;
+  width: 15px;
+}
+
+.column5B input[type="text"] {
+  width: 15px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  background-color: rgba(54, 93, 125, 0.8);
+  margin-left: 2px;
+  margin-right: 2px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.column5C {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 20px;
+}
+
+.bottom-bar-upgrade-window {
+  border-top: 2px solid rgb(111, 151, 183);
+  width: 100%;
+  display: flex;
+  background-color: rgba(54, 93, 125, 0.8);
+  align-items: center;
+}
+
+.bottom-bar-confirm-button {
+  color: white;
+  font-weight: bold;
+  font-size: 1.5rem;;
+  width: 100%;
+  height: 68px;
+  display: flex;
+  background-color: rgba(54, 93, 125, 0.8);
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  border: none;
+}
+
+.bottom-bar-confirm-button:hover {
+  background-color: rgba(84, 123, 155, 0.8);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 
