@@ -683,7 +683,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
 
             upgradeButtonDiv.addEventListener("mouseup", () => {
             if (currentTurnPhase === 0) {
-                populateUpgradeTable(territoryData);
+                populateUpgradeTable(territoryData, true);
                 toggleUpgradeMenu(true, territoryData);
                 upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
             }
@@ -994,7 +994,7 @@ function calculateAvailableUpgrades(territory) {
     return availableUpgrades;
   }
   
-  function populateUpgradeTable(territory) {
+  function populateUpgradeTable(territory, justOpenedUpgradeWindow) {
     const upgradeTable = document.getElementById("upgrade-table");
   
     // Calculate available upgrades
@@ -1024,11 +1024,19 @@ function calculateAvailableUpgrades(territory) {
   
     const column3 = document.createElement("div");
     column3.classList.add("upgrade-column");
-    column3.textContent = upgradeRow.goldCost;
+    if (justOpenedUpgradeWindow) {
+        column3.textContent = 0;
+    } else {
+        column3.textContent = upgradeRow.goldCost;
+    }
   
     const column4 = document.createElement("div");
     column4.classList.add("upgrade-column");
-    column4.textContent = upgradeRow.consMatsCost;
+    if (justOpenedUpgradeWindow) {
+        column4.textContent = 0;
+    } else {
+        column4.textContent = upgradeRow.consMatsCost; 
+    }
 
     const column5 = document.createElement("div");
     column5.classList.add("upgrade-column");
@@ -1080,21 +1088,58 @@ function calculateAvailableUpgrades(territory) {
 
     imageMinus.addEventListener("click", () => {
         if (parseInt(textField.value) > 0) {
-            incrementDecrementUpgrades(textField, -1);
+            incrementDecrementUpgrades(textField, -1, upgradeRow.type);
         }
     });
   
     imagePlus.addEventListener("click", () => {
-        incrementDecrementUpgrades(textField, 1);
+        incrementDecrementUpgrades(textField, 1, upgradeRow.type);
     });
   });
+  justOpenedUpgradeWindow = false;
   }
 
-  function incrementDecrementUpgrades(textField, value) {
-    const currentValue = parseInt(textField.value);
-    const newValue = currentValue + value;
-    textField.value = newValue.toString();
+  function incrementDecrementUpgrades(textField, increment, upgradeType) {
+    let currentValue = parseInt(textField.value);
+    currentValue += increment;
+    if (currentValue < 0) {
+      currentValue = 0;
+    }
+    textField.value = currentValue.toString();
+  
+    // Update gold and consMats costs based on upgrade type
+    const upgradeRow = textField.parentNode.parentNode.parentNode.parentNode;
+    const goldCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(4)");
+    const consMatsCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(5)");
+  
+    switch (upgradeType) {
+      case "Farm":
+      case "Forest":
+        const farmGoldIncrement = 200;
+        const farmConsMatsIncrement = 1000;
+        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * farmGoldIncrement);
+        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * farmConsMatsIncrement);
+        break;
+  
+      case "Oil Well":
+        const oilWellGoldIncrement = 300;
+        const oilWellConsMatsIncrement = 2000;
+        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * oilWellGoldIncrement);
+        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * oilWellConsMatsIncrement);
+        break;
+  
+      case "Fort":
+        const fortGoldIncrement = 500;
+        const fortConsMatsIncrement = 5000;
+        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * fortGoldIncrement);
+        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * fortConsMatsIncrement);
+        break;
+  
+      default:
+        break;
+    }
   }
+  
 
   function getImagePath(type, condition) {
     if (type === "Farm") {
