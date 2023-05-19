@@ -994,8 +994,6 @@ function calculateAvailableUpgrades(territory) {
     return availableUpgrades;
   }
   
-  
-  
   function populateUpgradeTable(territory) {
     const upgradeTable = document.getElementById("upgrade-table");
   
@@ -1011,7 +1009,7 @@ function calculateAvailableUpgrades(territory) {
     // Create and populate the image column
     const imageColumn = document.createElement("div");
     imageColumn.classList.add("upgrade-column");
-    const image = document.createElement("img");
+    let image = document.createElement("img");
     image.src = getImagePath(upgradeRow.type, upgradeRow.condition); // Call a function to get the image path based on the upgrade type
     imageColumn.appendChild(image);
   
@@ -1034,7 +1032,37 @@ function calculateAvailableUpgrades(territory) {
 
     const column5 = document.createElement("div");
     column5.classList.add("upgrade-column");
-    column5.textContent = "+/- Buttons";
+    column5.textContent = "";
+
+    const column5A = document.createElement("div");
+    column5A.classList.add("upgrade-column");
+    column5A.classList.add("column5A");
+    const imageMinus = document.createElement("img");
+    imageMinus.src = "/resources/minusButton.png";
+    imageMinus.style.height = "21px";
+    imageMinus.style.width = "21px";
+    column5A.appendChild(imageMinus);
+
+    const column5Wrapper = document.createElement("div");
+    column5Wrapper.classList.add("column5-wrapper");
+
+    const column5B = document.createElement("div");
+    column5B.classList.add("upgrade-column");
+    column5B.classList.add("column5B");
+    const textField = document.createElement("input");
+    textField.type = "text";
+    textField.value = "0";
+    column5B.appendChild(textField);
+
+    const column5C = document.createElement("div");
+    column5C.classList.add("upgrade-column");
+    column5C.classList.add("column5C");
+    const imagePlus = document.createElement("img");
+    imagePlus.src = "/resources/plusButton.png";
+    imagePlus.style.height = "21px";
+    imagePlus.style.width = "21px";
+    column5C.appendChild(imagePlus);
+
   
     // Add columns to the row
     row.appendChild(imageColumn);
@@ -1043,6 +1071,10 @@ function calculateAvailableUpgrades(territory) {
     row.appendChild(column3);
     row.appendChild(column4);
     row.appendChild(column5);
+    column5Wrapper.appendChild(column5B);
+    column5Wrapper.appendChild(column5C);
+    column5.appendChild(column5A);
+    column5.appendChild(column5Wrapper);
   
     // Add the row to the table
     upgradeTable.appendChild(row);
@@ -1053,25 +1085,25 @@ function calculateAvailableUpgrades(territory) {
     if (type === "Farm") {
         if (condition === "Can Build") {
             return '/resources/farmIcon.png';
-        } else if (condition === "Not enough gold") {
+        } else {
             return '/resources/farmIconGrey.png';
         }
     } else if (type === "Oil Well") {
         if (condition === "Can Build") {
             return '/resources/oilWellIcon.png';
-        } else if (condition === "Not enough gold") {
+        } else {
             return '/resources/oilWellIconGrey.png';
         }
     } else if (type === "Forest") {
         if (condition === "Can Build") {
             return '/resources/forestIcon.png';
-        } else if (condition === "Not enough gold") {
+        } else {
             return '/resources/forestIconGrey.png';
         }
     } else if (type === "Fort") {
         if (condition === "Can Build") {
             return '/resources/fortIcon.png';
-        } else if (condition === "Not enough gold") {
+        } else {
             return '/resources/fortIconGrey.png';
         }
     }
