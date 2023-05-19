@@ -683,7 +683,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
 
             upgradeButtonDiv.addEventListener("mouseup", () => {
             if (currentTurnPhase === 0) {
-                populateUpgradeTable(territoryData, true);
+                populateUpgradeTable(territoryData);
                 toggleUpgradeMenu(true, territoryData);
                 upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
             }
@@ -864,6 +864,11 @@ function colourTableText(table, territory) {
 
 function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
+
+    territory.farmsBuilt = 2;
+    territory.forestsBuilt = 2;
+    territory.oilWellsBuilt = 2;
+    territory.fortsBuilt = 2;
   
     // Calculate the cost of upgrades
     const farmGoldCost = 200 + (200 * territory.farmsBuilt);
@@ -994,7 +999,7 @@ function calculateAvailableUpgrades(territory) {
     return availableUpgrades;
   }
   
-  function populateUpgradeTable(territory, justOpenedUpgradeWindow) {
+  function populateUpgradeTable(territory) {
     const upgradeTable = document.getElementById("upgrade-table");
   
     // Calculate available upgrades
@@ -1024,19 +1029,11 @@ function calculateAvailableUpgrades(territory) {
   
     const column3 = document.createElement("div");
     column3.classList.add("upgrade-column");
-    if (justOpenedUpgradeWindow) {
-        column3.textContent = 0;
-    } else {
-        column3.textContent = upgradeRow.goldCost;
-    }
-  
+    column3.textContent = 0;
     const column4 = document.createElement("div");
     column4.classList.add("upgrade-column");
-    if (justOpenedUpgradeWindow) {
-        column4.textContent = 0;
-    } else {
-        column4.textContent = upgradeRow.consMatsCost; 
-    }
+    column4.textContent = 0;
+
 
     const column5 = document.createElement("div");
     column5.classList.add("upgrade-column");
@@ -1088,57 +1085,83 @@ function calculateAvailableUpgrades(territory) {
 
     imageMinus.addEventListener("click", () => {
         if (parseInt(textField.value) > 0) {
-            incrementDecrementUpgrades(textField, -1, upgradeRow.type);
+            incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
         }
     });
   
     imagePlus.addEventListener("click", () => {
-        incrementDecrementUpgrades(textField, 1, upgradeRow.type);
+        incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
     });
   });
-  justOpenedUpgradeWindow = false;
   }
 
-  function incrementDecrementUpgrades(textField, increment, upgradeType) {
-    let currentValue = parseInt(textField.value);
-    currentValue += increment;
-    if (currentValue < 0) {
-      currentValue = 0;
+  function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
+    let currentValueQuantity = parseInt(textField.value);
+    currentValueQuantity += increment;
+    if (currentValueQuantity < 0) {
+      currentValueQuantity = 0;
     }
-    textField.value = currentValue.toString();
+    textField.value = currentValueQuantity.toString();
   
-    // Update gold and consMats costs based on upgrade type
+    // Update gold and consMats costs based on upgrade type and number of upgrades already built
     const upgradeRow = textField.parentNode.parentNode.parentNode.parentNode;
     const goldCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(4)");
     const consMatsCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(5)");
   
+    let goldBaseCost;
+    let consMatsBaseCost;
+    let upgradesBuilt;
+
+    let farmsBuilt = territory.farmsBuilt;
+    let forestsBuilt = territory.forestsBuilt;
+    let oilWellsBuilt = territory.oilWellsBuilt;
+    let fortsBuilt = territory.fortsBuilt;
+  
     switch (upgradeType) {
       case "Farm":
+        upgradesBuilt = farmsBuilt;
+        goldBaseCost = 200;
+        consMatsBaseCost = 1000;
+        farmsBuilt += increment;
+        break;
       case "Forest":
-        const farmGoldIncrement = 200;
-        const farmConsMatsIncrement = 1000;
-        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * farmGoldIncrement);
-        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * farmConsMatsIncrement);
+        upgradesBuilt = forestsBuilt;
+        goldBaseCost = 200;
+        consMatsBaseCost = 1000;
+        forestsBuilt += increment;
         break;
-  
       case "Oil Well":
-        const oilWellGoldIncrement = 300;
-        const oilWellConsMatsIncrement = 2000;
-        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * oilWellGoldIncrement);
-        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * oilWellConsMatsIncrement);
+        upgradesBuilt = oilWellsBuilt;
+        goldBaseCost = 300;
+        consMatsBaseCost = 2000;
+        oilWellsBuilt += increment;
         break;
-  
       case "Fort":
-        const fortGoldIncrement = 500;
-        const fortConsMatsIncrement = 5000;
-        goldCostElement.textContent = parseInt(goldCostElement.textContent) + (increment * fortGoldIncrement);
-        consMatsCostElement.textContent = parseInt(consMatsCostElement.textContent) + (increment * fortConsMatsIncrement);
-        break;
-  
-      default:
+        upgradesBuilt = fortsBuilt;
+        goldBaseCost = 500;
+        consMatsBaseCost = 5000;
+        fortsBuilt += increment;
         break;
     }
+  
+    let goldCost = goldBaseCost;
+    let consMatsCost = consMatsBaseCost;
+
+    for (let i = 0; i < currentValueQuantity-1; i++) {
+    goldCost += goldBaseCost + (upgradesBuilt * goldBaseCost);
+    consMatsCost += consMatsBaseCost + (upgradesBuilt * consMatsBaseCost);
+    upgradesBuilt++;
+    }
+    
+    if (currentValueQuantity === 0) {
+        goldCost = 0;
+        consMatsCost = 0;
+    }
+
+    goldCostElement.textContent = goldCost;
+    consMatsCostElement.textContent = consMatsCost;
   }
+  
   
 
   function getImagePath(type, condition) {
