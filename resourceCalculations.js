@@ -1123,32 +1123,32 @@ function calculateAvailableUpgrades(territory) {
         goldBaseCost = 200;
         consMatsBaseCost = 1000;
         farmsBuilt += increment;
-        goldCost = goldBaseCost * currentValueQuantityTemp;
-        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
         break;
       case "Forest":
         currentValueQuantityTemp += forestsBuilt;
         goldBaseCost = 200;
         consMatsBaseCost = 1000;
         forestsBuilt += increment;
-        goldCost = goldBaseCost * currentValueQuantityTemp;
-        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
         break;
       case "Oil Well":
         currentValueQuantityTemp += oilWellsBuilt;
         goldBaseCost = 300;
         consMatsBaseCost = 2000;
         oilWellsBuilt += increment;
-        goldCost = goldBaseCost * currentValueQuantityTemp;
-        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
         break;
       case "Fort":
         currentValueQuantityTemp += fortsBuilt;
         goldBaseCost = 500;
         consMatsBaseCost = 5000;
         fortsBuilt += increment;
-        goldCost = goldBaseCost * currentValueQuantityTemp;
-        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
         break;
     }
   
