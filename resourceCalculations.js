@@ -866,14 +866,15 @@ function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
   
     // Calculate the cost of upgrades
-    const farmGoldCost = 200 * territory.farmsBuilt;
-    const farmConsMatsCost = 1000 * territory.farmsBuilt;
-    const forestGoldCost = 200 * territory.forestsBuilt;
-    const forestConsMatsCost = 1000 * territory.forestsBuilt;
-    const oilWellGoldCost = 300 * territory.oilWellsBuilt;
-    const oilWellConsMatsCost = 2000 * territory.oilWellsBuilt;
-    const fortGoldCost = 500 * territory.oilWellsBuilt;
-    const fortConsMatsCost = 5000 * territory.fortsBuilt;
+    const farmGoldCost = Math.max(200 * territory.farmsBuilt, 200 * 1);
+    const farmConsMatsCost = Math.max(1000 * territory.farmsBuilt, 1000 * 1);
+    const forestGoldCost = Math.max(200 * territory.forestsBuilt, 200 * 1);
+    const forestConsMatsCost = Math.max(1000 * territory.forestsBuilt, 1000 * 1);
+    const oilWellGoldCost = Math.max(300 * territory.oilWellsBuilt, 300 * 1);
+    const oilWellConsMatsCost = Math.max(2000 * territory.oilWellsBuilt, 2000 * 1);
+    const fortGoldCost = Math.max(500 * territory.oilWellsBuilt, 500 * 1);
+    const fortConsMatsCost = Math.max(5000 * territory.fortsBuilt, 5000 * 1);
+
   
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
@@ -1038,7 +1039,11 @@ function calculateAvailableUpgrades(territory) {
     column5A.classList.add("upgrade-column");
     column5A.classList.add("column5A");
     const imageMinus = document.createElement("img");
-    imageMinus.src = "/resources/minusButton.png";
+    if (upgradeRow.condition === "Can Build") {
+        imageMinus.src = "/resources/minusButton.png";
+    } else {
+        imageMinus.src = "/resources/minusButtonGrey.png";
+    }
     imageMinus.style.height = "21px";
     imageMinus.style.width = "21px";
     column5A.appendChild(imageMinus);
@@ -1058,7 +1063,11 @@ function calculateAvailableUpgrades(territory) {
     column5C.classList.add("upgrade-column");
     column5C.classList.add("column5C");
     const imagePlus = document.createElement("img");
-    imagePlus.src = "/resources/plusButton.png";
+    if (upgradeRow.condition === "Can Build") {
+        imagePlus.src = "/resources/plusButton.png";
+    } else {
+        imagePlus.src = "/resources/plusButtonGrey.png";
+    }
     imagePlus.style.height = "21px";
     imagePlus.style.width = "21px";
     column5C.appendChild(imagePlus);
@@ -1079,13 +1088,17 @@ function calculateAvailableUpgrades(territory) {
     upgradeTable.appendChild(row);
 
     imageMinus.addEventListener("click", () => {
-        if (parseInt(textField.value) > 0) {
-            incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+        if (imagePlus.src.includes("/resources/plusButton.png")) {
+            if (parseInt(textField.value) > 0) {
+                incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+            }
         }
     });
   
     imagePlus.addEventListener("click", () => {
-        incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+        if (imageMinus.src.includes("/resources/minusButton.png")) {
+            incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+        }
     });
   });
   }
