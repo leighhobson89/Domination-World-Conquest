@@ -864,21 +864,16 @@ function colourTableText(table, territory) {
 
 function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
-
-    territory.farmsBuilt = 2;
-    territory.forestsBuilt = 2;
-    territory.oilWellsBuilt = 2;
-    territory.fortsBuilt = 2;
   
     // Calculate the cost of upgrades
-    const farmGoldCost = 200 + (200 * territory.farmsBuilt);
-    const farmConsMatsCost = 1000 + (1000 * territory.farmsBuilt);
-    const forestGoldCost = 200 + (200 * territory.forestsBuilt);
-    const forestConsMatsCost = 1000 + (1000 * territory.forestsBuilt);
-    const oilWellGoldCost = 300 + (300 * territory.oilWellsBuilt);
-    const oilWellConsMatsCost = 2000 + (2000 * territory.oilWellsBuilt);
-    const fortGoldCost = 500 + (500 * territory.oilWellsBuilt);
-    const fortConsMatsCost = 5000 + (5000 * territory.fortsBuilt);
+    const farmGoldCost = 200 * territory.farmsBuilt;
+    const farmConsMatsCost = 1000 * territory.farmsBuilt;
+    const forestGoldCost = 200 * territory.forestsBuilt;
+    const forestConsMatsCost = 1000 * territory.forestsBuilt;
+    const oilWellGoldCost = 300 * territory.oilWellsBuilt;
+    const oilWellConsMatsCost = 2000 * territory.oilWellsBuilt;
+    const fortGoldCost = 500 * territory.oilWellsBuilt;
+    const fortConsMatsCost = 5000 * territory.fortsBuilt;
   
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
@@ -1098,10 +1093,13 @@ function calculateAvailableUpgrades(territory) {
   function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
     let currentValueQuantity = parseInt(textField.value);
     currentValueQuantity += increment;
+    
     if (currentValueQuantity < 0) {
       currentValueQuantity = 0;
     }
     textField.value = currentValueQuantity.toString();
+
+    let currentValueQuantityTemp = currentValueQuantity;
   
     // Update gold and consMats costs based on upgrade type and number of upgrades already built
     const upgradeRow = textField.parentNode.parentNode.parentNode.parentNode;
@@ -1110,58 +1108,58 @@ function calculateAvailableUpgrades(territory) {
   
     let goldBaseCost;
     let consMatsBaseCost;
-    let upgradesBuilt;
-
+  
     let farmsBuilt = territory.farmsBuilt;
     let forestsBuilt = territory.forestsBuilt;
     let oilWellsBuilt = territory.oilWellsBuilt;
     let fortsBuilt = territory.fortsBuilt;
   
+    let goldCost;
+    let consMatsCost;
+
     switch (upgradeType) {
       case "Farm":
-        upgradesBuilt = farmsBuilt;
+        currentValueQuantityTemp += farmsBuilt;
         goldBaseCost = 200;
         consMatsBaseCost = 1000;
         farmsBuilt += increment;
+        goldCost = goldBaseCost * currentValueQuantityTemp;
+        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
         break;
       case "Forest":
-        upgradesBuilt = forestsBuilt;
+        currentValueQuantityTemp += forestsBuilt;
         goldBaseCost = 200;
         consMatsBaseCost = 1000;
         forestsBuilt += increment;
+        goldCost = goldBaseCost * currentValueQuantityTemp;
+        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
         break;
       case "Oil Well":
-        upgradesBuilt = oilWellsBuilt;
+        currentValueQuantityTemp += oilWellsBuilt;
         goldBaseCost = 300;
         consMatsBaseCost = 2000;
         oilWellsBuilt += increment;
+        goldCost = goldBaseCost * currentValueQuantityTemp;
+        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
         break;
       case "Fort":
-        upgradesBuilt = fortsBuilt;
+        currentValueQuantityTemp += fortsBuilt;
         goldBaseCost = 500;
         consMatsBaseCost = 5000;
         fortsBuilt += increment;
+        goldCost = goldBaseCost * currentValueQuantityTemp;
+        consMatsCost = consMatsBaseCost * currentValueQuantityTemp;
         break;
     }
   
-    let goldCost = goldBaseCost;
-    let consMatsCost = consMatsBaseCost;
-
-    for (let i = 0; i < currentValueQuantity-1; i++) {
-    goldCost += goldBaseCost + (upgradesBuilt * goldBaseCost);
-    consMatsCost += consMatsBaseCost + (upgradesBuilt * consMatsBaseCost);
-    upgradesBuilt++;
-    }
-    
     if (currentValueQuantity === 0) {
-        goldCost = 0;
-        consMatsCost = 0;
+      goldCost = 0;
+      consMatsCost = 0;
     }
-
+  
     goldCostElement.textContent = goldCost;
     consMatsCostElement.textContent = consMatsCost;
   }
-  
   
 
   function getImagePath(type, condition) {
