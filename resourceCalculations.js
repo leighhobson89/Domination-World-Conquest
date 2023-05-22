@@ -14,6 +14,7 @@ export let mainArrayOfTerritoriesAndResources = [];
 let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
+let simulatedCostsAll = [0,0,0,0,0,0,0,0];
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -996,6 +997,7 @@ function calculateAvailableUpgrades(territory) {
   }
   
   function populateUpgradeTable(territory) {
+    let simulatedCosts;
     const upgradeTable = document.getElementById("upgrade-table");
   
     // Calculate available upgrades
@@ -1088,30 +1090,82 @@ function calculateAvailableUpgrades(territory) {
     upgradeTable.appendChild(row);
 
     imageMinus.addEventListener("click", () => {
-        if (imagePlus.src.includes("/resources/plusButton.png")) {
+        if (imageMinus.src.includes("/resources/minusButton.png")) {
             if (parseInt(textField.value) > 0) {
-                incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+                simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+                switch (simulatedCosts[2]) {
+                    case "Farm":
+                      simulatedCostsAll[0] = simulatedCosts[0];
+                      simulatedCostsAll[1] = simulatedCosts[1];
+                      break;
+                    case "Forest":
+                      simulatedCostsAll[2] = simulatedCosts[0];
+                      simulatedCostsAll[3] = simulatedCosts[1];
+                      break;
+                    case "Oil Well":
+                      simulatedCostsAll[4] = simulatedCosts[0];
+                      simulatedCostsAll[5] = simulatedCosts[1];
+                      break;
+                    case "Fort":
+                      simulatedCostsAll[6] = simulatedCosts[0];
+                      simulatedCostsAll[7] = simulatedCosts[1];
+                      break;
+                  }
+                  console.log(simulatedCostsAll);
             }
         }
     });
   
     imagePlus.addEventListener("click", () => {
-        if (imageMinus.src.includes("/resources/minusButton.png")) {
-            incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+        if (imagePlus.src.includes("/resources/plusButton.png")) {
+          simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+          switch (simulatedCosts[2]) {
+            case "Farm":
+              simulatedCostsAll[0] = simulatedCosts[0];
+              simulatedCostsAll[1] = simulatedCosts[1];
+              if (totalPlayerResources[0].totalGold < simulatedCostsAll[0] || totalPlayerResources.totalConsMats < simulatedCostsAll[1]) {
+                console.log("Farm greyed Out");
+              }
+              break;
+            case "Forest":
+              simulatedCostsAll[2] = simulatedCosts[0];
+              simulatedCostsAll[3] = simulatedCosts[1];
+              if (totalPlayerResources[0].totalGold < simulatedCostsAll[2] || totalPlayerResources.totalConsMats < simulatedCostsAll[3]) {
+                console.log("Forest greyed Out");
+              }
+              break;
+            case "Oil Well":
+              simulatedCostsAll[4] = simulatedCosts[0];
+              simulatedCostsAll[5] = simulatedCosts[1];
+              if (totalPlayerResources[0].totalGold < simulatedCostsAll[4] || totalPlayerResources.totalConsMats < simulatedCostsAll[5]) {
+                console.log("Oil Well greyed Out");
+              }
+              break;
+            case "Fort":
+              simulatedCostsAll[6] = simulatedCosts[0];
+              simulatedCostsAll[7] = simulatedCosts[1];
+              if (totalPlayerResources[0].totalGold < simulatedCostsAll[6] || totalPlayerResources.totalConsMats < simulatedCostsAll[7]) {
+                console.log("Fort greyed Out");
+              }
+              break;
+          }
+      
+          console.log(simulatedCostsAll);
         }
-    });
+      });
+      
   });
   }
 
   function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
     let currentValueQuantity = parseInt(textField.value);
     currentValueQuantity += increment;
-    
+  
     if (currentValueQuantity < 0) {
       currentValueQuantity = 0;
     }
     textField.value = currentValueQuantity.toString();
-
+  
     let currentValueQuantityTemp = currentValueQuantity;
   
     // Update gold and consMats costs based on upgrade type and number of upgrades already built
@@ -1129,7 +1183,8 @@ function calculateAvailableUpgrades(territory) {
   
     let goldCost;
     let consMatsCost;
-
+    let simulationCosts = []; // Array to store simulated costs
+  
     switch (upgradeType) {
       case "Farm":
         currentValueQuantityTemp += farmsBuilt;
@@ -1172,7 +1227,22 @@ function calculateAvailableUpgrades(territory) {
   
     goldCostElement.textContent = goldCost;
     consMatsCostElement.textContent = consMatsCost;
+  
+      // Simulate next increment and store costs in array
+      currentValueQuantityTemp += increment;
+      const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+      const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+      const simulatedUpgradeType = upgradeType;
+      simulationCosts.push(simulatedGoldCost);
+      simulationCosts.push(simulatedConsMatsCost);
+      simulationCosts.push(simulatedUpgradeType); // Include the upgrade type in the array
+      return simulationCosts;
   }
+  
+  
+
+  
+  
   
 
   function getImagePath(type, condition) {
@@ -1201,6 +1271,7 @@ function calculateAvailableUpgrades(territory) {
             return '/resources/fortIconGrey.png';
         }
     }
-  } 
+  }
+  
   
   
