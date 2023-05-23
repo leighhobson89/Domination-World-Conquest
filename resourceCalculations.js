@@ -999,6 +999,10 @@ function calculateAvailableUpgrades(territory) {
   function populateUpgradeTable(territory) {
     let simulatedCosts;
     const upgradeTable = document.getElementById("upgrade-table");
+    let totalGoldPrice = 0;
+    let totalConsMats = 0;
+    let totalSimulatedGoldPrice = 0;
+    let totalSimulatedConsMatsPrice = 0;
   
     // Calculate available upgrades
     const availableUpgrades = calculateAvailableUpgrades(territory);
@@ -1089,10 +1093,37 @@ function calculateAvailableUpgrades(territory) {
   
     upgradeTable.appendChild(row);
 
+    const goldCost = upgradeRow.goldCost || 0;
+    const consMatsCost = upgradeRow.consMatsCost || 0;
+
+    totalGoldPrice += goldCost; 
+    totalConsMats += consMatsCost; 
+
+    simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, true);
+
+    switch (simulatedCosts[2]) {
+        case "Farm":
+          simulatedCostsAll[0] = simulatedCosts[0];
+          simulatedCostsAll[1] = simulatedCosts[1];
+          break;
+        case "Forest":
+          simulatedCostsAll[2] = simulatedCosts[0];
+          simulatedCostsAll[3] = simulatedCosts[1];
+          break;
+        case "Oil Well":
+          simulatedCostsAll[4] = simulatedCosts[0];
+          simulatedCostsAll[5] = simulatedCosts[1];
+          break;
+        case "Fort":
+          simulatedCostsAll[6] = simulatedCosts[0];
+          simulatedCostsAll[7] = simulatedCosts[1];
+          break;
+      }
+
     imageMinus.addEventListener("click", () => {
         if (imageMinus.src.includes("/resources/minusButton.png")) {
             if (parseInt(textField.value) > 0) {
-                simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+                simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, false);
                 switch (simulatedCosts[2]) {
                     case "Farm":
                       simulatedCostsAll[0] = simulatedCosts[0];
@@ -1111,6 +1142,14 @@ function calculateAvailableUpgrades(territory) {
                       simulatedCostsAll[7] = simulatedCosts[1];
                       break;
                   }
+
+                    totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
+                    totalConsMats = calculateTotalConsMats(upgradeTable);
+
+                    console.log(simulatedCostsAll);
+                    console.log("Total Gold Price:", totalGoldPrice);
+                    console.log("Total ConsMats:", totalConsMats);
+
                   if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[0] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[1])) {
                     console.log("Farm NOT greyed Out");
                     imagePlus.src = "/resources/plusButton.png";
@@ -1131,14 +1170,13 @@ function calculateAvailableUpgrades(territory) {
                     imagePlus.src = "/resources/plusButton.png";
                     image.src = "/resources/fortIcon.png";
                   }
-                  console.log(simulatedCostsAll);
             }
         }
     });
   
     imagePlus.addEventListener("click", () => {
         if (imagePlus.src.includes("/resources/plusButton.png")) {
-          simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+          simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory, false);
           switch (simulatedCosts[2]) {
             case "Farm":
               simulatedCostsAll[0] = simulatedCosts[0];
@@ -1157,6 +1195,19 @@ function calculateAvailableUpgrades(territory) {
               simulatedCostsAll[7] = simulatedCosts[1];
               break;
           }
+
+            totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
+            totalConsMats = calculateTotalConsMats(upgradeTable);
+
+            totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
+            totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
+
+            console.log(simulatedCostsAll);
+            console.log("Total Gold Price:", totalGoldPrice);
+            console.log("Total ConsMats:", totalConsMats);
+            console.log("Total SimGold Price:", totalSimulatedGoldPrice);
+            console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
+
           if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[0] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[1])) {
             console.log("Farm greyed Out");
             imagePlus.src = "/resources/plusButtonGrey.png";
@@ -1177,22 +1228,23 @@ function calculateAvailableUpgrades(territory) {
             imagePlus.src = "/resources/plusButtonGrey.png";
             image.src = "/resources/fortIconGrey.png";
           }
-      
-          console.log(simulatedCostsAll);
         }
       });
-      
   });
+  console.log(simulatedCostsAll);
   }
 
-  function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
+  function incrementDecrementUpgrades(textField, increment, upgradeType, territory, simOnly) {
     let currentValueQuantity = parseInt(textField.value);
     currentValueQuantity += increment;
   
     if (currentValueQuantity < 0) {
       currentValueQuantity = 0;
     }
-    textField.value = currentValueQuantity.toString();
+
+    if (!simOnly) {
+        textField.value = currentValueQuantity.toString();
+    }
   
     let currentValueQuantityTemp = currentValueQuantity;
   
@@ -1253,8 +1305,11 @@ function calculateAvailableUpgrades(territory) {
       consMatsCost = 0;
     }
   
-    goldCostElement.textContent = goldCost;
-    consMatsCostElement.textContent = consMatsCost;
+    if (!simOnly) {
+        goldCostElement.textContent = goldCost;
+        consMatsCostElement.textContent = consMatsCost;
+    }
+    
   
       // Simulate next increment and store costs in array
       currentValueQuantityTemp += increment;
@@ -1299,6 +1354,29 @@ function calculateAvailableUpgrades(territory) {
             return '/resources/fortIconGrey.png';
         }
     }
+  }
+
+  
+  // Function to calculate the total gold price for all rows
+  function calculateTotalGoldPrice(upgradeTable) {
+    let totalGold = 0;
+    const goldElements = upgradeTable.querySelectorAll(".upgrade-column:nth-child(4)");
+    goldElements.forEach((goldElement) => {
+      const goldCost = parseInt(goldElement.textContent) || 0;
+      totalGold += goldCost;
+    });
+    return totalGold;
+  }
+
+  // Function to calculate the total consMats for all rows
+  function calculateTotalConsMats(upgradeTable) {
+    let totalConsMats = 0;
+    const consMatsElements = upgradeTable.querySelectorAll(".upgrade-column:nth-child(5)");
+    consMatsElements.forEach((consMatsElement) => {
+      const consMatsCost = parseInt(consMatsElement.textContent) || 0;
+      totalConsMats += consMatsCost;
+    });
+    return totalConsMats;
   }
   
   
