@@ -1157,10 +1157,24 @@ function calculateAvailableUpgrades(territory) {
                 checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
 
                 if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+                    console.log("atLeastOneRowWithValueGreaterThanOne = true")
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    } else if (allRowsWithValueZero(upgradeTable)) {
-                        document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                }
+                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                        this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
+                    });
+                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                        this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    });
+                } else if (allRowsWithValueZero(upgradeTable)) {
+                    console.log("allRowsWithValueZero = true")
+                    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+                    });
+                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    });
+                } 
             }
         }
     });
@@ -1206,25 +1220,24 @@ function calculateAvailableUpgrades(territory) {
         checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
 
         if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+            console.log("atLeastOneRowWithValueGreaterThanOne = true")
             document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-        } else if (allRowsWithValueZero(upgradeTable)) {
-            document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-        }
-        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
-            this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
-        });
-
-        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
-            // Restore the original background color based on the conditions
-            if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+            document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
+            });
+            document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
                 this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-            } else if (allRowsWithValueZero(upgradeTable)) {
+            });
+        } else if (allRowsWithValueZero(upgradeTable)) {
+            console.log("allRowsWithValueZero = true")
+            document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+            document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+            });
+            document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
                 this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
-                    this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-                });
-            }
-        });
+            });
+        }                       
         }
       });
   });
