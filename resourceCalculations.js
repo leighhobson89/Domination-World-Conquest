@@ -9,8 +9,10 @@ import { toggleUpgradeMenu } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
-
 export let mainArrayOfTerritoriesAndResources = [];
+let totalGoldPrice = 0;
+let totalConsMats = 0;
+
 let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
@@ -999,8 +1001,6 @@ function calculateAvailableUpgrades(territory) {
   function populateUpgradeTable(territory) {
     let simulatedCosts;
     const upgradeTable = document.getElementById("upgrade-table");
-    let totalGoldPrice = 0;
-    let totalConsMats = 0;
     let totalSimulatedGoldPrice = 0;
     let totalSimulatedConsMatsPrice = 0;
   
@@ -1143,15 +1143,24 @@ function calculateAvailableUpgrades(territory) {
                       break;
                   }
 
-                    totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
-                    totalConsMats = calculateTotalConsMats(upgradeTable);
+                totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
+                totalConsMats = calculateTotalConsMats(upgradeTable);
 
-                    console.log(simulatedCostsAll);
-                    console.log("Total Gold Price:", totalGoldPrice);
-                    console.log("Total ConsMats:", totalConsMats);
+                document.getElementById("prices-info-column2").innerHTML = totalGoldPrice;
+                document.getElementById("prices-info-column4").innerHTML = totalConsMats;
 
-                  //code to check greying out here
-                  checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
+                console.log(simulatedCostsAll);
+                console.log("Total Gold Price:", totalGoldPrice);
+                console.log("Total ConsMats:", totalConsMats);
+
+                //code to check greying out here
+                checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
+
+                if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+                    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    } else if (allRowsWithValueZero(upgradeTable)) {
+                        document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                }
             }
         }
     });
@@ -1178,20 +1187,44 @@ function calculateAvailableUpgrades(territory) {
               break;
           }
 
-            totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
-            totalConsMats = calculateTotalConsMats(upgradeTable);
+        totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
+        totalConsMats = calculateTotalConsMats(upgradeTable);
 
-            totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
-            totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
+        document.getElementById("prices-info-column2").innerHTML = totalGoldPrice;
+        document.getElementById("prices-info-column4").innerHTML = totalConsMats;
 
-            console.log(simulatedCostsAll);
-            console.log("Total Gold Price:", totalGoldPrice);
-            console.log("Total ConsMats:", totalConsMats);
-            console.log("Total SimGold Price:", totalSimulatedGoldPrice);
-            console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
+        totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
+        totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
 
-          //code to check greying out here
-          checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
+        console.log(simulatedCostsAll);
+        console.log("Total Gold Price:", totalGoldPrice);
+        console.log("Total ConsMats:", totalConsMats);
+        console.log("Total SimGold Price:", totalSimulatedGoldPrice);
+        console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
+
+        //code to check greying out here
+        checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
+
+        if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+            document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+        } else if (allRowsWithValueZero(upgradeTable)) {
+            document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+        }
+        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+            this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
+        });
+
+        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+            // Restore the original background color based on the conditions
+            if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+                this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+            } else if (allRowsWithValueZero(upgradeTable)) {
+                this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                    this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+                });
+            }
+        });
         }
       });
   });
@@ -1415,6 +1448,30 @@ function calculateAvailableUpgrades(territory) {
         });
     }   
   }
+
+  // Function to check if at least one row has a textField value greater than 1
+  function atLeastOneRowWithValueGreaterThanOne(upgradeTable) {
+    const rows = upgradeTable.getElementsByClassName("upgrade-row");
+    for (let i = 0; i < rows.length; i++) {
+        const textField = rows[i].querySelector(".column5B input");
+        if (parseInt(textField.value) >= 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Function to check if all rows have a textField value of 0
+function allRowsWithValueZero(upgradeTable) {
+    const rows = upgradeTable.getElementsByClassName(".upgrade-row");
+    for (let i = 0; i < rows.length; i++) {
+        const textField = rows[i].querySelector(".column5B input");
+        if (parseInt(textField.value) !== 0) {
+            return false;
+        }
+    }
+    return true;
+}
   
   
   
