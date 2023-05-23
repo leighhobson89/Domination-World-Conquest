@@ -1111,22 +1111,22 @@ function calculateAvailableUpgrades(territory) {
                       simulatedCostsAll[7] = simulatedCosts[1];
                       break;
                   }
-                  if (totalPlayerResources[0].totalGold >= simulatedCostsAll[0] && totalPlayerResources.totalConsMats >= simulatedCostsAll[1]) {
+                  if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[0] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[1])) {
                     console.log("Farm NOT greyed Out");
                     imagePlus.src = "/resources/plusButton.png";
                     image.src = "/resources/farmIcon.png";
                   }
-                  if (totalPlayerResources[0].totalGold >= simulatedCostsAll[2] && totalPlayerResources.totalConsMats >= simulatedCostsAll[3]) {
+                  if (image.src.includes ("/forestIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[2] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[3])) {
                     console.log("Forest NOT greyed Out");
                     imagePlus.src = "/resources/plusButton.png";
                     image.src = "/resources/forestIcon.png";
                   }
-                  if (totalPlayerResources[0].totalGold >= simulatedCostsAll[4] && totalPlayerResources.totalConsMats >= simulatedCostsAll[5]) {
+                  if (image.src.includes ("/oilWellIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[4] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[5])) {
                     console.log("Oil Well NOT greyed Out");
                     imagePlus.src = "/resources/plusButton.png";
                     image.src = "/resources/oilWellIcon.png";
                   }
-                  if (totalPlayerResources[0].totalGold >= simulatedCostsAll[6] && totalPlayerResources.totalConsMats >= simulatedCostsAll[7]){
+                  if (image.src.includes ("/fortIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[6] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[7])){
                     console.log("Fort NOT greyed Out");
                     imagePlus.src = "/resources/plusButton.png";
                     image.src = "/resources/fortIcon.png";
@@ -1157,22 +1157,22 @@ function calculateAvailableUpgrades(territory) {
               simulatedCostsAll[7] = simulatedCosts[1];
               break;
           }
-          if (totalPlayerResources[0].totalGold < simulatedCostsAll[0] || totalPlayerResources.totalConsMats < simulatedCostsAll[1]) {
+          if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[0] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[1])) {
             console.log("Farm greyed Out");
             imagePlus.src = "/resources/plusButtonGrey.png";
             image.src = "/resources/farmIconGrey.png";
           }
-          if (totalPlayerResources[0].totalGold < simulatedCostsAll[2] || totalPlayerResources.totalConsMats < simulatedCostsAll[3]) {
+          if (image.src.includes ("/forestIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[2] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[3])) {
             console.log("Forest greyed Out");
             imagePlus.src = "/resources/plusButtonGrey.png";
             image.src = "/resources/forestIconGrey.png";
           }
-          if (totalPlayerResources[0].totalGold < simulatedCostsAll[4] || totalPlayerResources.totalConsMats < simulatedCostsAll[5]) {
+          if (image.src.includes ("/oilWellIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[4] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[5])) {
             console.log("Oil Well greyed Out");
             imagePlus.src = "/resources/plusButtonGrey.png";
             image.src = "/resources/oilWellIconGrey.png";
           }
-          if (totalPlayerResources[0].totalGold < simulatedCostsAll[6] || totalPlayerResources.totalConsMats < simulatedCostsAll[7]) {
+          if (image.src.includes ("/fortIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[6] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[7])) {
             console.log("Fort greyed Out");
             imagePlus.src = "/resources/plusButtonGrey.png";
             image.src = "/resources/fortIconGrey.png";
