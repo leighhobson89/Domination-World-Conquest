@@ -1150,26 +1150,8 @@ function calculateAvailableUpgrades(territory) {
                     console.log("Total Gold Price:", totalGoldPrice);
                     console.log("Total ConsMats:", totalConsMats);
 
-                  if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[0] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[1])) {
-                    console.log("Farm NOT greyed Out");
-                    imagePlus.src = "/resources/plusButton.png";
-                    image.src = "/resources/farmIcon.png";
-                  }
-                  if (image.src.includes ("/forestIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[2] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[3])) {
-                    console.log("Forest NOT greyed Out");
-                    imagePlus.src = "/resources/plusButton.png";
-                    image.src = "/resources/forestIcon.png";
-                  }
-                  if (image.src.includes ("/oilWellIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[4] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[5])) {
-                    console.log("Oil Well NOT greyed Out");
-                    imagePlus.src = "/resources/plusButton.png";
-                    image.src = "/resources/oilWellIcon.png";
-                  }
-                  if (image.src.includes ("/fortIcon") && (totalPlayerResources[0].totalGold >= simulatedCostsAll[6] && totalPlayerResources[0].totalConsMats >= simulatedCostsAll[7])){
-                    console.log("Fort NOT greyed Out");
-                    imagePlus.src = "/resources/plusButton.png";
-                    image.src = "/resources/fortIcon.png";
-                  }
+                  //code to check greying out here
+                  checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
             }
         }
     });
@@ -1208,26 +1190,8 @@ function calculateAvailableUpgrades(territory) {
             console.log("Total SimGold Price:", totalSimulatedGoldPrice);
             console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
 
-          if (image.src.includes ("/farmIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[0] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[1])) {
-            console.log("Farm greyed Out");
-            imagePlus.src = "/resources/plusButtonGrey.png";
-            image.src = "/resources/farmIconGrey.png";
-          }
-          if (image.src.includes ("/forestIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[2] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[3])) {
-            console.log("Forest greyed Out");
-            imagePlus.src = "/resources/plusButtonGrey.png";
-            image.src = "/resources/forestIconGrey.png";
-          }
-          if (image.src.includes ("/oilWellIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[4] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[5])) {
-            console.log("Oil Well greyed Out");
-            imagePlus.src = "/resources/plusButtonGrey.png";
-            image.src = "/resources/oilWellIconGrey.png";
-          }
-          if (image.src.includes ("/fortIcon") && (totalPlayerResources[0].totalGold < simulatedCostsAll[6] || totalPlayerResources[0].totalConsMats < simulatedCostsAll[7])) {
-            console.log("Fort greyed Out");
-            imagePlus.src = "/resources/plusButtonGrey.png";
-            image.src = "/resources/fortIconGrey.png";
-          }
+          //code to check greying out here
+          checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
         }
       });
   });
@@ -1378,6 +1342,89 @@ function calculateAvailableUpgrades(territory) {
     });
     return totalConsMats;
   }
+
+  function checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button) {
+    const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
+    const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
+  
+    if (button === "plus") {
+      simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+        if (totalPlayerResources[0].totalGold - totalGoldPrice < simulatedGoldElement) {
+            const rowIndex = index + 1;
+            console.log(rowIndex);
+            const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
+          
+            // Get the image element in the first column
+            const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
+            if (imageElement) {
+                if (!imageElement.src.includes('Grey.png')) {
+                    imageElement.src = imageElement.src.replace('.png', 'Grey.png');
+                }
+            }
+          
+            // Get the plus button image in the fifth column
+            const plusButton = upgradeRow.querySelector('.column5C img');
+            if (plusButton) {
+              if (!plusButton.src.includes('Grey.png')) {
+                plusButton.src = plusButton.src.replace('.png', 'Grey.png');
+              }
+            }
+          }     
+      });
+      simulatedConsMatsElements.forEach((simulatedConsMatsElement, index) => {
+        if (totalPlayerResources[0].totalConsMats - totalConsMats < simulatedConsMatsElement) {
+            const rowIndex = index + 1;
+            console.log(rowIndex);
+            const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
+          
+            // Get the image element in the first column
+            const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
+            if (imageElement) {
+                if (!imageElement.src.includes('Grey.png')) {
+                    imageElement.src = imageElement.src.replace('.png', 'Grey.png');
+                }
+            }
+            // Get the plus button image in the fifth column
+            const plusButton = upgradeRow.querySelector('.column5C img');
+            if (plusButton) {
+              // Update the plus button source
+              if (!plusButton.src.includes('Grey.png')) {
+                plusButton.src = plusButton.src.replace('.png', 'Grey.png');
+              }
+            }
+          }     
+      });
+    } else if (button === "minus") {
+        simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+            const rowIndex = index + 1;
+            const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
+    
+            // Get the image element in the first column
+            const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
+    
+            // Get the plus button image in the fifth column
+            const plusButton = upgradeRow.querySelector('.column5C img');
+    
+            const simulatedConsMatsElement = simulatedConsMatsElements[index];
+    
+            if (
+                totalPlayerResources[0].totalGold - totalGoldPrice >= simulatedGoldElement &&
+                totalPlayerResources[0].totalConsMats - totalConsMats >= simulatedConsMatsElement
+            ) {
+                // Both conditions are true, ungrey the row
+                if (imageElement && imageElement.src.includes('Grey.png')) {
+                    imageElement.src = imageElement.src.replace('Grey.png', '.png');
+                }
+                if (plusButton && plusButton.src.includes('Grey.png')) {
+                    plusButton.src = plusButton.src.replace('Grey.png', '.png');
+                }
+            }
+        });
+    }   
+  }
+  
+  
+  
   
   
   
