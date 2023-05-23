@@ -692,6 +692,10 @@ document.addEventListener("DOMContentLoaded", function() {
   bottomBarUpgradeWindow.classList.add("bottom-bar-upgrade-window");
   bottomBarUpgradeWindow.setAttribute("id", "bottom-bar-upgrade-window");
 
+  const pricesInfoWindow = document.createElement("div");
+  pricesInfoWindow.classList.add("prices-info-window");
+  pricesInfoWindow.setAttribute("id", "prices-info-window");
+
   const bottomBarConfirmButton = document.createElement("button");
   bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
   bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
@@ -715,6 +719,7 @@ document.addEventListener("DOMContentLoaded", function() {
   infoPanelUpgradeWindow.appendChild(upgradeTable);
   infoPanelUpgradeWindow.insertBefore(beforeInfoPanelUpgradeWindow, infoPanelUpgradeWindow.firstChild);
   infoPanelUpgradeWindow.appendChild(bottomBarUpgradeWindow);
+  bottomBarUpgradeWindow.appendChild(pricesInfoWindow);
   bottomBarUpgradeWindow.appendChild(bottomBarConfirmButton);
 
   document.getElementById("upgrade-container").appendChild(upgradeContainer);
