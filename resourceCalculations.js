@@ -1274,9 +1274,8 @@ function calculateAvailableUpgrades(territory) {
         consMatsCostElement.textContent = consMatsCost;
     }
     
-  
       // Simulate next increment and store costs in array
-      currentValueQuantityTemp += increment;
+      currentValueQuantityTemp += Math.abs(increment); //always simulate clicking plus i.e. upward direction
       const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
       const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
       const simulatedUpgradeType = upgradeType;
@@ -1285,12 +1284,6 @@ function calculateAvailableUpgrades(territory) {
       simulationCosts.push(simulatedUpgradeType); // Include the upgrade type in the array
       return simulationCosts;
   }
-  
-  
-
-  
-  
-  
 
   function getImagePath(type, condition) {
     if (type === "Farm") {
