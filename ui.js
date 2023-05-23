@@ -649,7 +649,7 @@ document.addEventListener("DOMContentLoaded", function() {
   imageSource = "/resources/consMats.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
-  imageElement.alt = "Gold";
+  imageElement.alt = "Construction Materials";
   imageElement.classList.add("sizingIcons");
   keyBarColumn4.appendChild(imageElement);
 
@@ -696,6 +696,46 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesInfoWindow.classList.add("prices-info-window");
   pricesInfoWindow.setAttribute("id", "prices-info-window");
 
+  const pricesInfoCol0 = document.createElement("div");
+  pricesInfoCol0.classList.add("prices-info-column");
+  pricesInfoCol0.classList.add("prices-info-col0-padding");
+  pricesInfoCol0.setAttribute("id", "prices-info-column0");
+  pricesInfoCol0.innerHTML = "Total:";
+
+  const pricesInfoCol1 = document.createElement("div");
+  pricesInfoCol1.classList.add("prices-info-column");
+  pricesInfoCol1.classList.add("prices-info-icon-justification");
+  pricesInfoCol1.setAttribute("id", "prices-info-column1");
+  imageSource = "/resources/gold.png";
+  imageElement = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Gold";
+  imageElement.classList.add("sizingIcons");
+  pricesInfoCol1.appendChild(imageElement);
+
+  const pricesInfoCol2 = document.createElement("div");
+  pricesInfoCol2.classList.add("prices-info-column");
+  pricesInfoCol2.classList.add("prices-info-total-justification");
+  pricesInfoCol2.setAttribute("id", "prices-info-column2");
+  pricesInfoCol2.innerHTML = 0;
+
+  const pricesInfoCol3 = document.createElement("div");
+  pricesInfoCol3.classList.add("prices-info-column");
+  pricesInfoCol3.classList.add("prices-info-icon-justification");
+  pricesInfoCol3.setAttribute("id", "prices-info-column3");
+  imageSource = "/resources/consMats.png";
+  imageElement = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Construction Materials";
+  imageElement.classList.add("sizingIcons");
+  pricesInfoCol3.appendChild(imageElement);
+
+  const pricesInfoCol4 = document.createElement("div");
+  pricesInfoCol4.classList.add("prices-info-column");
+  pricesInfoCol4.classList.add("prices-info-total-justification");
+  pricesInfoCol4.setAttribute("id", "prices-info-column4");
+  pricesInfoCol4.innerHTML = 0;
+
   const bottomBarConfirmButton = document.createElement("button");
   bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
   bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
@@ -720,6 +760,11 @@ document.addEventListener("DOMContentLoaded", function() {
   infoPanelUpgradeWindow.insertBefore(beforeInfoPanelUpgradeWindow, infoPanelUpgradeWindow.firstChild);
   infoPanelUpgradeWindow.appendChild(bottomBarUpgradeWindow);
   bottomBarUpgradeWindow.appendChild(pricesInfoWindow);
+  pricesInfoWindow.appendChild(pricesInfoCol0);
+  pricesInfoWindow.appendChild(pricesInfoCol1);
+  pricesInfoWindow.appendChild(pricesInfoCol2);
+  pricesInfoWindow.appendChild(pricesInfoCol3);
+  pricesInfoWindow.appendChild(pricesInfoCol4);
   bottomBarUpgradeWindow.appendChild(bottomBarConfirmButton);
 
   document.getElementById("upgrade-container").appendChild(upgradeContainer);

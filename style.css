@@ -825,7 +825,7 @@ td {
 .bottom-bar-confirm-button {
   color: white;
   font-weight: bold;
-  font-size: 1.5rem;;
+  font-size: 1.5rem;
   width: 60%;
   height: 68px;
   display: flex;
@@ -847,11 +847,35 @@ td {
   width: 40%;
   height: 68px;
   background-color: rgba(54, 93, 125, 0.8);
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
   flex: 1;
 }
+
+.prices-info-column {
+  color: white;
+  font-weight: bold;
+  font-size: 1.0rem;
+  width: 20%;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.prices-info-col0-padding {
+  padding-left: 5px;
+}
+
+.prices-info-icon-justification {
+  justify-content: flex-end;
+  padding-right: 5px;
+}
+
+.prices-info-total-justification {
+  justify-content: flex-start;
+  padding-left: 5px;
+}
+
 
 
 
