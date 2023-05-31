@@ -999,6 +999,17 @@ function calculateAvailableUpgrades(territory) {
   }
   
   function populateUpgradeTable(territory) {
+    //reset confirm button status and totals when opening upgrade window
+    document.getElementById("prices-info-column2").innerHTML = "0";
+    document.getElementById("prices-info-column4").innerHTML = "0";
+    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+    });
+    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    });
+
     let simulatedCosts;
     const upgradeTable = document.getElementById("upgrade-table");
     let totalSimulatedGoldPrice = 0;
@@ -1154,7 +1165,7 @@ function calculateAvailableUpgrades(territory) {
                 console.log("Total ConsMats:", totalConsMats);
 
                 //code to check greying out here
-                checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
+                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
 
                 if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
                     console.log("atLeastOneRowWithValueGreaterThanOne = true")
@@ -1217,10 +1228,9 @@ function calculateAvailableUpgrades(territory) {
         console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
 
         //code to check greying out here
-        checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
+        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
 
         if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
-            console.log("atLeastOneRowWithValueGreaterThanOne = true")
             document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
                 this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
@@ -1229,7 +1239,6 @@ function calculateAvailableUpgrades(territory) {
                 this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             });
         } else if (allRowsWithValueZero(upgradeTable)) {
-            console.log("allRowsWithValueZero = true")
             document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
             document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
                 this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
@@ -1382,13 +1391,13 @@ function calculateAvailableUpgrades(territory) {
     return totalConsMats;
   }
 
-  function checkRowsForGreyingOut(totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button) {
+  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button) {
     const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
   
     if (button === "plus") {
       simulatedgoldElements.forEach((simulatedGoldElement, index) => {
-        if (totalPlayerResources[0].totalGold - totalGoldPrice < simulatedGoldElement) {
+        if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement) {
             const rowIndex = index + 1;
             console.log(rowIndex);
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
@@ -1411,7 +1420,7 @@ function calculateAvailableUpgrades(territory) {
           }     
       });
       simulatedConsMatsElements.forEach((simulatedConsMatsElement, index) => {
-        if (totalPlayerResources[0].totalConsMats - totalConsMats < simulatedConsMatsElement) {
+        if (territory.consMatsForCurrentTerritory - totalConsMats < simulatedConsMatsElement) {
             const rowIndex = index + 1;
             console.log(rowIndex);
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
@@ -1447,8 +1456,8 @@ function calculateAvailableUpgrades(territory) {
             const simulatedConsMatsElement = simulatedConsMatsElements[index];
     
             if (
-                totalPlayerResources[0].totalGold - totalGoldPrice >= simulatedGoldElement &&
-                totalPlayerResources[0].totalConsMats - totalConsMats >= simulatedConsMatsElement
+                territory.goldForCurrentTerritory - totalGoldPrice >= simulatedGoldElement &&
+                territory.consMatsForCurrentTerritory - totalConsMats >= simulatedConsMatsElement
             ) {
                 // Both conditions are true, ungrey the row
                 if (imageElement && imageElement.src.includes('Grey.png')) {
