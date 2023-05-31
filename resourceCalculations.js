@@ -580,6 +580,8 @@ function initialConsMatsCalculation(path, area) {
 }
 
 export function drawUITable(uiTableContainer, territoryOrArmyTable) {
+    let imageSources;
+    let headerColumns;
     uiTableContainer.innerHTML = "";
     uiTableContainer.style.display = "flex";
     
@@ -593,12 +595,17 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
     const table = document.createElement("table");
     table.style.width = "100%";
     table.style.tableLayout = "fixed";
-    
-    // Create first row
+
     const headerRow = document.createElement("div");
     headerRow.classList.add("ui-table-row");
-    const headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
-    const imageSources = ["flagUIIcon.png", "army.png", "prodPopulation.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
+
+    if (territoryOrArmyTable === 1) { // Create first row territory button
+        headerColumns = ["Territory", "Army", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
+        imageSources = ["flagUIIcon.png", "army.png", "population.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
+    } else if (territoryOrArmyTable === 2) {
+        headerColumns = ["Territory", "ProductivePopulation", "Infantry", "Assault", "Air", "Naval", "Gold", "Oil", "Buy"];
+        imageSources = ["flagUIIcon.png", "prodPopulation.png", "infantry.png", "assault.png", "air.png", "naval.png", "gold.png", "oil.png", "buy.png"];
+    }
 
     for (let j = 0; j < headerColumns.length; j++) {
     const headerColumn = document.createElement("div");
@@ -628,91 +635,97 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
     for (let i = 0; i < playerOwnedTerritories.length; i++) {
         const row = document.createElement("div");
         row.classList.add("ui-table-row-hoverable");
-    
-        // Create columns
-        for (let j = 0; j < 9; j++) {
-        const column = document.createElement("div");
-        column.classList.add("ui-table-column");
-        if (j === 0) {
-            column.style.width = "30%";
-            // Set the value of the first column to the "territory-name" attribute
-            const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-            column.textContent = territoryName;
-        } else {
-            column.classList.add("centerIcons");
-            const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-            const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
-            switch (j) {
-            case 1:
-                column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
-                break;
-            case 2:
-                column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
-                break;
-            case 3:
-                column.textContent = formatNumbersToKMB(territoryData.area);
-                break;
-            case 4:
-                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
-                break;
-            case 5:
-                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
-                break;
-            case 6:
-                column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
-                break;
-            case 7:
-                column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
-                break;
-            case 8:
-            const upgradeButtonImageElement = document.createElement("img");
-            // Create upgrade button div
-            const upgradeButtonDiv = document.createElement("div");
-            if (currentTurnPhase === 0) {
-                upgradeButtonDiv.classList.add("upgrade-button");
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
-            } else {
-                upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
-            }
-    
-            // Create upgrade button image element
-            upgradeButtonImageElement.alt = "Upgrade Territory";
-            upgradeButtonImageElement.classList.add("sizeUpgradeButton");
 
-            // Add event listeners for click and mouseup events
-            upgradeButtonDiv.addEventListener("mousedown", () => {
-            if (currentTurnPhase === 0) {
-                playSoundClip();
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+        if (territoryOrArmyTable === 1) { //setup territory table
+            // Create columns
+            for (let j = 0; j < 9; j++) {
+                const column = document.createElement("div");
+                column.classList.add("ui-table-column");
+                if (j === 0) {
+                    column.style.width = "30%";
+                    // Set the value of the first column to the "territory-name" attribute
+                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+                    column.textContent = territoryName;
+                } else {
+                    column.classList.add("centerIcons");
+                    const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                    const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+                    switch (j) {
+                    case 1:
+                        column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
+                        break;
+                    case 2:
+                        column.textContent = formatNumbersToKMB(territoryData.territoryPopulation);
+                        break;
+                    case 3:
+                        column.textContent = formatNumbersToKMB(territoryData.area);
+                        break;
+                    case 4:
+                        column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                        break;
+                    case 5:
+                        column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                        break;
+                    case 6:
+                        column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
+                        break;
+                    case 7:
+                        column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
+                        break;
+                    case 8:
+                    const upgradeButtonImageElement = document.createElement("img");
+                    // Create upgrade button div
+                    const upgradeButtonDiv = document.createElement("div");
+                    if (currentTurnPhase === 0) {
+                        upgradeButtonDiv.classList.add("upgrade-button");
+                        upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                    } else {
+                        upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
+                    }
+            
+                    // Create upgrade button image element
+                    upgradeButtonImageElement.alt = "Upgrade Territory";
+                    upgradeButtonImageElement.classList.add("sizeUpgradeButton");
+        
+                    // Add event listeners for click and mouseup events
+                    upgradeButtonDiv.addEventListener("mousedown", () => {
+                    if (currentTurnPhase === 0) {
+                        playSoundClip();
+                        upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+                    }
+                    });
+        
+                    upgradeButtonDiv.addEventListener("mouseup", () => {
+                    if (currentTurnPhase === 0) {
+                        populateUpgradeTable(territoryData);
+                        toggleUpgradeMenu(true, territoryData);
+                        currentlySelectedTerritoryForUpgrades = territoryData;
+                        upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                    }
+                    });
+        
+                    upgradeButtonDiv.appendChild(upgradeButtonImageElement);
+                    column.appendChild(upgradeButtonDiv);
+                    break;
+                }
             }
+            row.addEventListener("mouseover", (e) => {
+                const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
+        
+                tooltipUITerritoryRow(row, territoryData, e);
             });
-
-            upgradeButtonDiv.addEventListener("mouseup", () => {
-            if (currentTurnPhase === 0) {
-                populateUpgradeTable(territoryData);
-                toggleUpgradeMenu(true, territoryData);
-                currentlySelectedTerritoryForUpgrades = territoryData;
-                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+            row.addEventListener("mouseout", () => {
+                tooltip.style.display = "none";
+                row.style.cursor = "default";
+                });
+            row.appendChild(column);
             }
-            });
+        } else if (territoryOrArmyTable === 2) { //setup army table
 
-            upgradeButtonDiv.appendChild(upgradeButtonImageElement);
-            column.appendChild(upgradeButtonDiv);
-            break;
         }
-    }
-    row.addEventListener("mouseover", (e) => {
-        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
-
-        tooltipUITerritoryRow(row, territoryData, e);
-    });
-    row.addEventListener("mouseout", () => {
-        tooltip.style.display = "none";
-        row.style.cursor = "default";
-        });
-    row.appendChild(column);
-    }
+    
+        
     table.appendChild(row);
 
         
