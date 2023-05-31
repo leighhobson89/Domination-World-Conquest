@@ -739,7 +739,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const bottomBarConfirmButton = document.createElement("button");
   bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
   bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
-  bottomBarConfirmButton.innerHTML = "Confirm";
+  bottomBarConfirmButton.innerHTML = "Cancel";
 
   upgradeContainer.appendChild(navBarUpgradeWindow);
   navBarUpgradeWindow.appendChild(navBarLeftColumn);
