@@ -741,6 +741,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const consMatsCap = territoryData.consMatsCapacity;
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
+    let blackStyle = "font-weight: bold; color: black;";
     let popNextTurnStyle = "font-weight: bold; color: black;";
     let oilNextTurnStyle = "font-weight: bold; color: black;";
     let foodNextTurnStyle = "font-weight: bold; color: black;";
@@ -776,9 +777,16 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         consMatsNextTurnStyle = "color: rgb(235,160,160);";
     }
 
+    const bonusPercentageFarms = territoryData.farmsBuilt > 0 ? territoryData.farmsBuilt * 10 : 0;
+    const bonusPercentageForests = territoryData.forestsBuilt > 0 ? territoryData.forestsBuilt * 10 : 0;
+    const bonusPercentageOilWells = territoryData.oilWellsBuilt > 0 ? territoryData.oilWellsBuilt * 10 : 0;
+    const bonusPercentageForts = territoryData.fortsBuilt > 0 ? territoryData.fortsBuilt * 10 : 0;
+
     const tooltipContent = `
-        <div>Territory: ${territoryName}</div>
+        <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
         <div>Army: ${army}</div>
+        <div>Defense Bonus Multiplier: <span style="${blackStyle}">x${territoryData.defenseBonus}</span></div>
+        <br />
         <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
         <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
         <div>Area: ${area}</div>
@@ -788,6 +796,11 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         <div>Food Cap: ${formatNumbersToKMB(foodCap)}</div>
         <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
         <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
+        <br />
+        <div>Farms: <span style="${blackStyle}">${territoryData.farmsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageFarms}%</span> Food Cap.)</div>
+        <div>Forests: <span style="${blackStyle}">${territoryData.forestsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForests}%</span> Cons. Mats. Cap.)</div>
+        <div>Oil Wells: <span style="${blackStyle}">${territoryData.oilWellsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageOilWells}%</span> Oil Cap.)</div>
+        <div>Forts: <span style="${blackStyle}">${territoryData.fortsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForts}%</span> Def. Bonus)</div>
     `;
 
     // Get the last div in the row
