@@ -533,7 +533,7 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.addEventListener("click", function() {
     playSoundClip();
     territoryButton.classList.add("tab-button");
-    uiButtons(territoryButton, infoPanel);
+    uiButtons(territoryButton);
     drawUITable(uiTable, 1);
   });
 
@@ -544,7 +544,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   armyButton.addEventListener("click", function() {
     playSoundClip();
-    uiButtons(armyButton, infoPanel);
+    uiButtons(armyButton);
     drawUITable(uiTable, 2);
   });
 
@@ -1243,7 +1243,7 @@ export function setFlag(flag, place) {
   }
 }
 
-function uiButtons(button, infoPanel) {
+function uiButtons(button) {
   if (button === territoryButton) {
     territoryButton.classList.add("active");
     armyButton.classList.remove("active");
