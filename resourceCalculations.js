@@ -185,6 +185,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let foodCapacity = territoryPopulation; //set food capacity as permanent value until territory upgraded
             let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
             let consMatsCapacity = consMatsForCurrentTerritory;
+            let defenseBonus = 1;
             let farmsBuilt = 0;
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
@@ -213,7 +214,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 farmsBuilt: farmsBuilt,
                 oilWellsBuilt: oilWellsBuilt,
                 forestsBuilt: forestsBuilt,
-                fortsBuilt: fortsBuilt
+                fortsBuilt: fortsBuilt,
+                defenseBonus: defenseBonus
             });
         }
     }
@@ -871,16 +873,15 @@ function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
   
     // Calculate the cost of upgrades
-    const farmGoldCost = Math.max(200 * territory.farmsBuilt, 200 * 1);
-    const farmConsMatsCost = Math.max(1000 * territory.farmsBuilt, 1000 * 1);
-    const forestGoldCost = Math.max(200 * territory.forestsBuilt, 200 * 1);
-    const forestConsMatsCost = Math.max(1000 * territory.forestsBuilt, 1000 * 1);
-    const oilWellGoldCost = Math.max(300 * territory.oilWellsBuilt, 300 * 1);
-    const oilWellConsMatsCost = Math.max(2000 * territory.oilWellsBuilt, 2000 * 1);
-    const fortGoldCost = Math.max(500 * territory.oilWellsBuilt, 500 * 1);
-    const fortConsMatsCost = Math.max(5000 * territory.fortsBuilt, 5000 * 1);
+    const farmGoldCost = Math.max(simulatedCostsAll[0], 200 * 1);
+    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 1000 * 1);
+    const forestGoldCost = Math.max(simulatedCostsAll[2], 200 * 1);
+    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 1000 * 1);
+    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 300 * 1);
+    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 2000 * 1);
+    const fortGoldCost = Math.max(simulatedCostsAll[6], 500 * 1);
+    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 5000 * 1);
 
-  
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
     const hasEnoughGoldForForest = territory.goldForCurrentTerritory >= forestGoldCost;
@@ -1402,7 +1403,6 @@ function calculateAvailableUpgrades(territory) {
       simulatedgoldElements.forEach((simulatedGoldElement, index) => {
         if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement) {
             const rowIndex = index + 1;
-            console.log(rowIndex);
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
           
             // Get the image element in the first column
@@ -1498,34 +1498,55 @@ function allRowsWithValueZero(upgradeTable) {
     return true;
 }
 
-export function addPlayerUpgrades(upgradeTable, territory, totalGoldPrice, totalConsMats) {
+export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalConsMatsCost) {
     //push upgrades in table to an array
     let upgradeArray = [];
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
         const textField = rows[i].querySelector(".column5B input");
         upgradeArray.push(textField.value);
+        textField.value = "0";
     }
-    
-    //add new upgrades to territory
-    territory.farmsBuilt += parseInt(upgradeArray[0]);
-    territory.forestsBuilt += parseInt(upgradeArray[1]);
-    territory.oilWellsBuilt += parseInt(upgradeArray[2]);
-    territory.fortsBuilt += parseInt(upgradeArray[3]);
 
-    //subtract cost from territory resources
-    territory.goldForCurrentTerritory -= totalGoldPrice;
-    territory.consMatsForCurrentTerritory -= totalConsMats;
+    //update total player resources
+    totalPlayerResources[0].totalGold -= totalGoldCost;
+    totalPlayerResources[0].totalConsMats -= totalConsMatsCost;
+    
+    //update main array
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
+            mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
+            mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
+            mainArrayOfTerritoriesAndResources[i].farmsBuilt += parseInt(upgradeArray[0]);
+            mainArrayOfTerritoriesAndResources[i].forestsBuilt += parseInt(upgradeArray[1]);
+            mainArrayOfTerritoriesAndResources[i].oilWellsBuilt += parseInt(upgradeArray[2]);
+            mainArrayOfTerritoriesAndResources[i].fortsBuilt += parseInt(upgradeArray[3]);
+            if (mainArrayOfTerritoriesAndResources[i].farmsBuilt > 0) {
+                mainArrayOfTerritoriesAndResources[i].foodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity + (mainArrayOfTerritoriesAndResources[i].foodCapacity * ((territory.farmsBuilt * 10) / 100)); //calculate new foodCapacity
+            }
+            if (mainArrayOfTerritoriesAndResources[i].forestsBuilt > 0) {
+                mainArrayOfTerritoriesAndResources[i].consMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity + (mainArrayOfTerritoriesAndResources[i].consMatsCapacity * ((territory.forestsBuilt * 10) / 100)); //calculate new consMatsCapacity
+            }
+            if (mainArrayOfTerritoriesAndResources[i].oilWellsBuilt > 0) {
+                mainArrayOfTerritoriesAndResources[i].oilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity + (mainArrayOfTerritoriesAndResources[i].oilCapacity * ((territory.oilWellsBuilt * 10) / 100)); //calculate new oilCapacity
+            }
+            if (mainArrayOfTerritoriesAndResources[i].fortsBuilt > 0) {
+                mainArrayOfTerritoriesAndResources[i].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus + (mainArrayOfTerritoriesAndResources[i].defenseBonus * ((territory.fortsBuilt * 10) / 100)); //calculate new defenseBonus
+            }
+        }
+    }
 
     //update bottom table for selected territory
     document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
     document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
 
     //update top table for selected territory
-    
-    //update any arrays
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
+    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
 
     //close upgrade window for selected territory
+    totalGoldPrice = 0;
+    totalConsMats = 0;
 }
   
   
