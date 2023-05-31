@@ -747,6 +747,7 @@ document.addEventListener("DOMContentLoaded", function() {
       toggleUpgradeMenu(false);
     } else if (bottomBarConfirmButton.innerHTML === "Confirm") {
       addPlayerUpgrades(document.getElementById("upgrade-table"), currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats);
+      toggleUpgradeMenu(false);
     }
   });
 
