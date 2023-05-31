@@ -3,8 +3,8 @@ import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
-import { playerOwnedTerritories } from './resourceCalculations.js';
-import { mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
+import { currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats } from './resourceCalculations.js';
+import { addPlayerUpgrades } from './resourceCalculations.js';
 import { drawUITable } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
 
@@ -740,6 +740,16 @@ document.addEventListener("DOMContentLoaded", function() {
   bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
   bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
   bottomBarConfirmButton.innerHTML = "Cancel";
+
+  bottomBarConfirmButton.addEventListener("click", function() {
+    playSoundClip();
+    if (bottomBarConfirmButton.innerHTML === "Cancel") {
+      toggleUpgradeMenu(false);
+    } else if (bottomBarConfirmButton.innerHTML === "Confirm") {
+      addPlayerUpgrades(document.getElementById("upgrade-table"), currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats);
+    }
+  });
+
 
   upgradeContainer.appendChild(navBarUpgradeWindow);
   navBarUpgradeWindow.appendChild(navBarLeftColumn);

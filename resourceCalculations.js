@@ -10,8 +10,9 @@ import { toggleUpgradeMenu } from './ui.js';
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
 export let mainArrayOfTerritoriesAndResources = [];
-let totalGoldPrice = 0;
-let totalConsMats = 0;
+export let currentlySelectedTerritoryForUpgrades;
+export let totalGoldPrice = 0;
+export let totalConsMats = 0;
 
 let totalPlayerResources = [];
 let continentModifier;
@@ -688,6 +689,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
             if (currentTurnPhase === 0) {
                 populateUpgradeTable(territoryData);
                 toggleUpgradeMenu(true, territoryData);
+                currentlySelectedTerritoryForUpgrades = territoryData;
                 upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
             }
             });
@@ -1251,7 +1253,7 @@ function calculateAvailableUpgrades(territory) {
         }
       });
   });
-  console.log(simulatedCostsAll);
+  //console.log(simulatedCostsAll);
   }
 
   function incrementDecrementUpgrades(textField, increment, upgradeType, territory, simOnly) {
@@ -1486,7 +1488,7 @@ function calculateAvailableUpgrades(territory) {
 
 // Function to check if all rows have a textField value of 0
 function allRowsWithValueZero(upgradeTable) {
-    const rows = upgradeTable.getElementsByClassName(".upgrade-row");
+    const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
         const textField = rows[i].querySelector(".column5B input");
         if (parseInt(textField.value) !== 0) {
@@ -1494,6 +1496,36 @@ function allRowsWithValueZero(upgradeTable) {
         }
     }
     return true;
+}
+
+export function addPlayerUpgrades(upgradeTable, territory, totalGoldPrice, totalConsMats) {
+    //push upgrades in table to an array
+    let upgradeArray = [];
+    const rows = upgradeTable.getElementsByClassName("upgrade-row");
+    for (let i = 0; i < rows.length; i++) {
+        const textField = rows[i].querySelector(".column5B input");
+        upgradeArray.push(textField.value);
+    }
+    
+    //add new upgrades to territory
+    territory.farmsBuilt += parseInt(upgradeArray[0]);
+    territory.forestsBuilt += parseInt(upgradeArray[1]);
+    territory.oilWellsBuilt += parseInt(upgradeArray[2]);
+    territory.fortsBuilt += parseInt(upgradeArray[3]);
+
+    //subtract cost from territory resources
+    territory.goldForCurrentTerritory -= totalGoldPrice;
+    territory.consMatsForCurrentTerritory -= totalConsMats;
+
+    //update bottom table for selected territory
+    document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+    document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+
+    //update top table for selected territory
+    
+    //update any arrays
+
+    //close upgrade window for selected territory
 }
   
   
