@@ -337,7 +337,7 @@ function calculateConsMatsChange(territory, isSimulation) {
     }
 
     //if consMats is below consMats capacity then grow at 10% per turn
-    if (!randomEventHappening && territory.consMatslCapacity > (territory.consMatsForCurrentTerritory)) {
+    if (!randomEventHappening && territory.consMatsCapacity > (territory.consMatsForCurrentTerritory)) {
         const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
         consMatsChange = (Math.ceil(consMatsDifference * 0.1));
         }
@@ -807,6 +807,92 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
     uiTableContainer.appendChild(table);
 }
 
+function tooltipUpgradeTerritoryRow(territoryData, event) {
+    // Get the coordinates of the mouse cursor
+    const x = event.clientX;
+    const y = event.clientY;
+
+    const territoryName = territoryData.territoryName;
+    let type;
+    let amountAlreadyBuilt;
+    let nextUpgradeCostGold;
+    let nextUpgradeCostConsMats;
+
+    const upgradeTable = document.getElementById("upgrade-table");
+    const upgradeRows = upgradeTable.getElementsByClassName("upgrade-row");
+
+    for (let i = 0; i < upgradeRows.length; i++) {
+        const upgradeRow = upgradeRows[i];
+        const upgradeColumn = upgradeRow.getElementsByClassName("upgrade-column")[1];
+
+        switch (upgradeColumn.innerHTML) {
+            case "Farm":
+                type = "Farm";
+                amountAlreadyBuilt = territoryData.farmsBuilt;
+                nextUpgradeCostGold = simulatedCostsAll[0];
+                nextUpgradeCostConsMats = simulatedCostsAll[1];
+                break;
+            case "Forest":
+                type = "Forest";
+                amountAlreadyBuilt = territoryData.forestsBuilt;
+                nextUpgradeCostGold = simulatedCostsAll[2];
+                nextUpgradeCostConsMats = simulatedCostsAll[3];
+                break;
+            case "Oil Well":
+                type = "Oil Well";
+                amountAlreadyBuilt = territoryData.oilWellsBuilt;
+                nextUpgradeCostGold = simulatedCostsAll[4];
+                nextUpgradeCostConsMats = simulatedCostsAll[5];
+                break;
+            case "Fort":
+                type = "Fort";
+                amountAlreadyBuilt = territoryData.fortsBuilt;
+                nextUpgradeCostGold = simulatedCostsAll[6];
+                nextUpgradeCostConsMats = simulatedCostsAll[7];
+                break;
+        }
+        break;
+    }
+
+    let currentEffect;
+    if (amountAlreadyBuilt > 0) {
+        currentEffect = amountAlreadyBuilt + "0% -> ";
+    } else if (amountAlreadyBuilt === 0) {
+        currentEffect = "0% -> ";
+    }
+
+    let blackStyle = "font-weight: bold; color: black;";
+    let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
+
+    const tooltipContent = `
+        <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
+        <div>Upgrade Type: ${type}</div>
+        <br />
+        <div>Currently Built In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
+        <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${amountAlreadyBuilt + 1}0%</span></div>
+        <br />
+        <div>Cost Of Next Upgrade (Gold): <span style="${blackStyle}">${nextUpgradeCostGold}</span></div>
+        <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${blackStyle}">${nextUpgradeCostConsMats}</span></div>
+    `;
+
+    tooltip.innerHTML = tooltipContent;
+
+    const tooltipHeight = tooltip.offsetHeight;
+    const verticalThreshold = tooltipHeight + 25;
+
+    if (window.innerHeight - y < verticalThreshold) {
+
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = y - tooltipHeight + "px";
+    } else {
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
+    }
+
+    // Show the tooltip
+    tooltip.style.display = "block";
+}
+
 function tooltipUITerritoryRow(row, territoryData, event) {
     // Get the coordinates of the mouse cursor
     const x = event.clientX;
@@ -1211,6 +1297,13 @@ function calculateAvailableUpgrades(territory) {
     column5.appendChild(column5Wrapper);
   
     upgradeTable.appendChild(row);
+
+    row.addEventListener("mouseover", (e) => {
+        tooltipUpgradeTerritoryRow(territory, e);
+    });
+    row.addEventListener("mouseout", () => {
+        tooltip.style.display = "none";
+        });
 
     const goldCost = upgradeRow.goldCost || 0;
     const consMatsCost = upgradeRow.consMatsCost || 0;
