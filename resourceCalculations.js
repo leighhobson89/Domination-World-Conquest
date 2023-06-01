@@ -23,7 +23,7 @@ let simulatedCostsAll = [0,0,0,0,0,0,0,0];
 if (!pageLoaded) {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
-            mainArrayOfTerritoriesAndResources = randomiseArmyAndResources(mainArrayOfTerritoriesAndResources);
+            mainArrayOfTerritoriesAndResources = randomiseInitialGold(mainArrayOfTerritoriesAndResources);
         })
         .catch(error => {
             console.log(error);
@@ -247,24 +247,18 @@ function createArrayOfInitialData() {
     });
 }
 
-function randomiseArmyAndResources(armyResourceArray) {
-    armyResourceArray.forEach((country) => {
+function randomiseInitialGold(mainArrayOfTerritoriesAndResources) {
+    mainArrayOfTerritoriesAndResources.forEach((country) => {
         let randomGoldFactor = Math.floor(Math.random() * 20) + 2;
-        let randomOilFactor = Math.floor(Math.random() * 80) + 2;
-        let randomFoodFactor = Math.floor(Math.random() * 10) + 2;
-        let randomConsMatsFactor = Math.floor(Math.random() * 70) + 2;
-        let randomArmyFactor = Math.floor(Math.random() * 15) + 2;
         let randomAddSubtract = Math.random() < 0.5; //add or subtract
 
         if (randomAddSubtract) {
-            country.armyForCurrentTerritory = country.armyForCurrentTerritory + (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = (country.goldForCurrentTerritory + (country.goldForCurrentTerritory * (randomGoldFactor/100))) / country.devIndex;
         } else {
-            country.armyForCurrentTerritory = country.armyForCurrentTerritory - (country.armyForCurrentTerritory * (randomArmyFactor/100));
             country.goldForCurrentTerritory = country.goldForCurrentTerritory - (country.goldForCurrentTerritory * (randomGoldFactor/100));
         }
     });
-    return armyResourceArray;
+    return mainArrayOfTerritoriesAndResources;
 }
 
 export function newTurnResources() {
