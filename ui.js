@@ -1277,6 +1277,10 @@ function toggleUIButton(makeVisible) {
     }
 }
 
+export function toggleBuyMenu(makeVisible, territory) {
+  console.log("toggleBuyMenu Function");
+}
+
 export function toggleUpgradeMenu(makeVisible, territory) {
   if (makeVisible) {
     document.getElementById("upgrade-container").style.display = "block";

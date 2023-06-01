@@ -559,11 +559,23 @@ td {
   cursor: pointer;
 }
 
+.buy-button {
+  cursor: pointer;
+}
+
 .upgrade-button:hover {
   filter: brightness(120%);
 }
 
+.buy-button:hover {
+  filter: brightness(120%);
+}
+
 .sizeUpgradeButton {
+  width: 90%;
+}
+
+.sizeBuyButton {
   width: 90%;
 }
 
