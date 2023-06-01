@@ -336,10 +336,10 @@ function calculateConsMatsChange(territory, isSimulation) {
         }
     }
 
-    //if consMats is below consMats capacity then grow at 10% per turn
+    //if consMats is below consMats capacity then grow at 25% per turn
     if (!randomEventHappening && territory.consMatsCapacity > (territory.consMatsForCurrentTerritory)) {
         const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
-        consMatsChange = (Math.ceil(consMatsDifference * 0.1));
+        consMatsChange = (Math.ceil(consMatsDifference * 0.25));
         }
 
         //if consMats is above consMats capacity then lose it at 10% per turn until it balances
@@ -366,10 +366,10 @@ function calculateOilChange(territory, isSimulation) {
         }
     }
 
-    //if oil is below oil capacity then grow at 10% per turn
+    //if oil is below oil capacity then grow at 30% per turn
     if (!randomEventHappening && territory.oilCapacity > (territory.oilForCurrentTerritory)) {
         const oilDifference = territory.oilCapacity - (territory.oilForCurrentTerritory);
-        oilChange = (Math.ceil(oilDifference * 0.1));
+        oilChange = (Math.ceil(oilDifference * 0.3));
         }
 
         //if oil is above oil capacity then lose it at 10% per turn until it balances
@@ -396,10 +396,10 @@ function calculateFoodChange(territory, isSimulation) {
         }
     }
 
-    //if food is below food capacity then grow at 10% per turn
+    //if food is below food capacity then grow at 20% per turn
     if (!randomEventHappening && territory.foodCapacity > (territory.foodForCurrentTerritory * 10000)) {
         const foodDifference = territory.foodCapacity - (territory.foodForCurrentTerritory * 10000);
-        foodChange = (Math.ceil(foodDifference * 0.1) / 10000);
+        foodChange = (Math.ceil(foodDifference * 0.2) / 10000);
         }
 
         //if food is above food capacity then lose it at 10% per turn until it balances
@@ -807,92 +807,122 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
     uiTableContainer.appendChild(table);
 }
 
-function tooltipUpgradeTerritoryRow(territoryData, event) {
+function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     // Get the coordinates of the mouse cursor
     const x = event.clientX;
     const y = event.clientY;
-
+  
     const territoryName = territoryData.territoryName;
     let type;
+    let upgrade;
     let amountAlreadyBuilt;
     let nextUpgradeCostGold;
     let nextUpgradeCostConsMats;
-
-    const upgradeTable = document.getElementById("upgrade-table");
-    const upgradeRows = upgradeTable.getElementsByClassName("upgrade-row");
-
-    for (let i = 0; i < upgradeRows.length; i++) {
-        const upgradeRow = upgradeRows[i];
-        const upgradeColumn = upgradeRow.getElementsByClassName("upgrade-column")[1];
-
-        switch (upgradeColumn.innerHTML) {
-            case "Farm":
-                type = "Farm";
-                amountAlreadyBuilt = territoryData.farmsBuilt;
-                nextUpgradeCostGold = simulatedCostsAll[0];
-                nextUpgradeCostConsMats = simulatedCostsAll[1];
-                break;
-            case "Forest":
-                type = "Forest";
-                amountAlreadyBuilt = territoryData.forestsBuilt;
-                nextUpgradeCostGold = simulatedCostsAll[2];
-                nextUpgradeCostConsMats = simulatedCostsAll[3];
-                break;
-            case "Oil Well":
-                type = "Oil Well";
-                amountAlreadyBuilt = territoryData.oilWellsBuilt;
-                nextUpgradeCostGold = simulatedCostsAll[4];
-                nextUpgradeCostConsMats = simulatedCostsAll[5];
-                break;
-            case "Fort":
-                type = "Fort";
-                amountAlreadyBuilt = territoryData.fortsBuilt;
-                nextUpgradeCostGold = simulatedCostsAll[6];
-                nextUpgradeCostConsMats = simulatedCostsAll[7];
-                break;
-        }
-        break;
+  
+    const upgradeRow = event.currentTarget.closest('.upgrade-row');
+    if (!upgradeRow) {
+      // No parent row found, exit the function
+      return;
     }
-
+  
+    const upgradeColumn = upgradeRow.querySelector('.upgrade-column:nth-child(2)');
+    const upgradeType = upgradeColumn.innerHTML.trim();
+  
+    if (!upgradeType) {
+      // No upgrade type found, exit the function
+      return;
+    }
+  
+    switch (upgradeType) {
+      case "Farm":
+        type = "Farm";
+        amountAlreadyBuilt = territoryData.farmsBuilt;
+        nextUpgradeCostGold = simulatedCostsAll[0];
+        nextUpgradeCostConsMats = simulatedCostsAll[1];
+        upgrade = availableUpgrades[0];
+        break;
+      case "Forest":
+        type = "Forest";
+        amountAlreadyBuilt = territoryData.forestsBuilt;
+        nextUpgradeCostGold = simulatedCostsAll[2];
+        nextUpgradeCostConsMats = simulatedCostsAll[3];
+        upgrade = availableUpgrades[1];
+        break;
+      case "Oil Well":
+        type = "Oil Well";
+        amountAlreadyBuilt = territoryData.oilWellsBuilt;
+        nextUpgradeCostGold = simulatedCostsAll[4];
+        nextUpgradeCostConsMats = simulatedCostsAll[5];
+        upgrade = availableUpgrades[2];
+        break;
+      case "Fort":
+        type = "Fort";
+        amountAlreadyBuilt = territoryData.fortsBuilt;
+        nextUpgradeCostGold = simulatedCostsAll[6];
+        nextUpgradeCostConsMats = simulatedCostsAll[7];
+        upgrade = availableUpgrades[3];
+        break;
+      default:
+        // Invalid upgrade type, exit the function
+        return;
+    }
+  
     let currentEffect;
     if (amountAlreadyBuilt > 0) {
-        currentEffect = amountAlreadyBuilt + "0% -> ";
+      currentEffect = amountAlreadyBuilt + "0% -> ";
     } else if (amountAlreadyBuilt === 0) {
-        currentEffect = "0% -> ";
+      currentEffect = "0% -> ";
     }
-
+  
     let blackStyle = "font-weight: bold; color: black;";
     let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
+    let redStyle = "font-weight: bold; color: rgb(235,0,0);";
 
+    let buildAvailabilityStyle;
+
+    if (upgrade.condition === "Can Build") {
+        buildAvailabilityStyle = greenStyle;
+    } else {
+        buildAvailabilityStyle = redStyle;
+    }
+  
     const tooltipContent = `
-        <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
-        <div>Upgrade Type: ${type}</div>
-        <br />
-        <div>Currently Built In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
-        <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${amountAlreadyBuilt + 1}0%</span></div>
-        <br />
-        <div>Cost Of Next Upgrade (Gold): <span style="${blackStyle}">${nextUpgradeCostGold}</span></div>
-        <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${blackStyle}">${nextUpgradeCostConsMats}</span></div>
+      <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
+      <div>Upgrade Type: ${type}</div>
+      <br />
+      <div>Currently Built In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
+      <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${amountAlreadyBuilt + 1}0%</span></div>
+      <br />
+      <div>Cost Of Next Upgrade (Gold): <span style="${blackStyle}">${nextUpgradeCostGold}</span></div>
+      <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${blackStyle}">${nextUpgradeCostConsMats}</span></div>
+      <br />
+      <div><span style="${buildAvailabilityStyle}">${upgrade.condition}</span></div>
     `;
-
+  
     tooltip.innerHTML = tooltipContent;
-
+  
+    // Temporarily show the tooltip to calculate its height
+    tooltip.style.display = 'block';
+  
     const tooltipHeight = tooltip.offsetHeight;
     const verticalThreshold = tooltipHeight + 25;
-
-    if (window.innerHeight - y < verticalThreshold) {
-
-    tooltip.style.left = x - 40 + "px";
-    tooltip.style.top = y - tooltipHeight + "px";
+    const windowHeight = window.innerHeight;
+  
+    // Hide the tooltip again
+    tooltip.style.display = 'none';
+  
+    if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
+      tooltip.style.left = x - 40 + "px";
+      tooltip.style.top = y - verticalThreshold + "px";
     } else {
-    tooltip.style.left = x - 40 + "px";
-    tooltip.style.top = 25 + y + "px";
+      tooltip.style.left = x - 40 + "px";
+      tooltip.style.top = y + 25 + "px";
     }
-
+  
     // Show the tooltip
     tooltip.style.display = "block";
-}
-
+  }
+  
 function tooltipUITerritoryRow(row, territoryData, event) {
     // Get the coordinates of the mouse cursor
     const x = event.clientX;
@@ -1060,13 +1090,13 @@ function calculateAvailableUpgrades(territory) {
   
     // Calculate the cost of upgrades
     const farmGoldCost = Math.max(simulatedCostsAll[0], 200 * 1);
-    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 1000 * 1);
+    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 500 * 1);
     const forestGoldCost = Math.max(simulatedCostsAll[2], 200 * 1);
-    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 1000 * 1);
-    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 300 * 1);
-    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 2000 * 1);
+    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 500 * 1);
+    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 1000 * 1);
+    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 200 * 1);
     const fortGoldCost = Math.max(simulatedCostsAll[6], 500 * 1);
-    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 5000 * 1);
+    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 2000 * 1);
 
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
@@ -1078,9 +1108,14 @@ function calculateAvailableUpgrades(territory) {
     const hasEnoughConsMatsForForest = territory.consMatsForCurrentTerritory >= forestConsMatsCost;
     const hasEnoughConsMatsForOilWell = territory.consMatsForCurrentTerritory >= oilWellConsMatsCost;
     const hasEnoughConsMatsForFort = territory.consMatsForCurrentTerritory >= fortConsMatsCost;
+
+    const maxFarms = 5;
+    const maxForests = 5;
+    const maxOilWells = 5;
+    const maxForts = 5;
   
     // Create the upgrade row objects based on the availability and gold/consMats conditions
-    if (hasEnoughGoldForFarm && hasEnoughConsMatsForFarm) {
+    if (hasEnoughGoldForFarm && hasEnoughConsMatsForFarm && (territory.farmsBuilt < maxFarms)) {
       availableUpgrades.push({
         type: 'Farm',
         goldCost: farmGoldCost,
@@ -1088,7 +1123,7 @@ function calculateAvailableUpgrades(territory) {
         effect: "Food cap. +10%",
         condition: 'Can Build'
       });
-    } else if (!hasEnoughGoldForFarm) {
+    } else if (!hasEnoughGoldForFarm && (territory.farmsBuilt < maxFarms)) {
       availableUpgrades.push({
         type: 'Farm',
         goldCost: farmGoldCost,
@@ -1096,17 +1131,25 @@ function calculateAvailableUpgrades(territory) {
         effect: "Food cap. +10%",
         condition: 'Not enough gold'
       });
-    } else {
+    } else if (!hasEnoughConsMatsForFarm && (territory.farmsBuilt < maxFarms)) {
       availableUpgrades.push({
         type: 'Farm',
         goldCost: farmGoldCost,
         consMatsCost: farmConsMatsCost,
         effect: "Food cap. +10%",
-        condition: 'Not enough consMats'
+        condition: 'Not enough Cons. Mats.'
       });
+    } else {
+        availableUpgrades.push({
+            type: 'Farm',
+            goldCost: farmGoldCost,
+            consMatsCost: farmConsMatsCost,
+            effect: "Food cap. +10%",
+            condition: 'Max Farms Reached'
+          });
     }
   
-    if (hasEnoughGoldForForest && hasEnoughConsMatsForForest) {
+    if (hasEnoughGoldForForest && hasEnoughConsMatsForForest && (territory.forestsBuilt < maxForests)) {
       availableUpgrades.push({
         type: 'Forest',
         goldCost: forestGoldCost,
@@ -1114,7 +1157,7 @@ function calculateAvailableUpgrades(territory) {
         effect: "Cons Mats cap. +10%",
         condition: 'Can Build'
       });
-    } else if (!hasEnoughGoldForForest) {
+    } else if (!hasEnoughGoldForForest && (territory.forestsBuilt < maxForests)) {
       availableUpgrades.push({
         type: 'Forest',
         goldCost: forestGoldCost,
@@ -1122,17 +1165,25 @@ function calculateAvailableUpgrades(territory) {
         effect: "Cons Mats cap. +10%",
         condition: 'Not enough gold'
       });
-    } else {
-      availableUpgrades.push({
-        type: 'Forest',
-        goldCost: forestGoldCost,
-        consMatsCost: forestConsMatsCost,
-        effect: "Cons Mats cap. +10%",
-        condition: 'Not enough consMats'
-      });
-    }
+    } else if (!hasEnoughConsMatsForForest && (territory.forestsBuilt < maxForests)) {
+        availableUpgrades.push({
+          type: 'Forest',
+          goldCost: forestGoldCost,
+          consMatsCost: forestConsMatsCost,
+          effect: "Cons Mats cap. +10%",
+          condition: 'Not enough Cons. Mats.'
+        });
+      } else {
+          availableUpgrades.push({
+              type: 'Forest',
+              goldCost: forestGoldCost,
+              consMatsCost: forestConsMatsCost,
+              effect: "Cons Mats cap. +10%",
+              condition: 'Max Forests Reached'
+            });
+      }
   
-    if (hasEnoughGoldForOilWell && hasEnoughConsMatsForOilWell) {
+    if (hasEnoughGoldForOilWell && hasEnoughConsMatsForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
       availableUpgrades.push({
         type: 'Oil Well',
         goldCost: oilWellGoldCost,
@@ -1140,7 +1191,7 @@ function calculateAvailableUpgrades(territory) {
         effect: "Oil cap. +10%",
         condition: 'Can Build'
       });
-    } else if (!hasEnoughGoldForOilWell) {
+    } else if (!hasEnoughGoldForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
       availableUpgrades.push({
         type: 'Oil Well',
         goldCost: oilWellGoldCost,
@@ -1148,17 +1199,25 @@ function calculateAvailableUpgrades(territory) {
         effect: "Oil cap. +10%",
         condition: 'Not enough gold'
       });
-    } else {
+    } else if (!hasEnoughConsMatsForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
       availableUpgrades.push({
         type: 'Oil Well',
         goldCost: oilWellGoldCost,
         consMatsCost: oilWellConsMatsCost,
         effect: "Oil cap. +10%",
-        condition: 'Not enough consMats'
+        condition: 'Not enough Cons. Mats.'
       });
-    }
+    } else {
+        availableUpgrades.push({
+            type: 'Oil Well',
+            goldCost: oilWellGoldCost,
+            consMatsCost: oilWellConsMatsCost,
+            effect: "Oil cap. +10%",
+            condition: 'Max Oil Wells Reached'
+          });
+      }
   
-    if (hasEnoughGoldForFort && hasEnoughConsMatsForFort) {
+    if (hasEnoughGoldForFort && hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
       availableUpgrades.push({
         type: 'Fort',
         goldCost: fortGoldCost,
@@ -1166,7 +1225,7 @@ function calculateAvailableUpgrades(territory) {
         effect: "Defence +10%",
         condition: 'Can Build'
       });
-    } else if (!hasEnoughGoldForFort) {
+    } else if (!hasEnoughGoldForFort && (territory.fortsBuilt < maxForts)) {
       availableUpgrades.push({
         type: 'Fort',
         goldCost: fortGoldCost,
@@ -1174,13 +1233,21 @@ function calculateAvailableUpgrades(territory) {
         effect: "Defence +10%",
         condition: 'Not enough gold'
       });
-    } else {
+    } else if (!hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
       availableUpgrades.push({
         type: 'Fort',
         goldCost: fortGoldCost,
         consMatsCost: fortConsMatsCost,
         effect: "Defence +10%",
-        condition: 'Not enough consMats'
+        condition: 'Not enough Cons. Mats.'
+      });
+    } else {
+        availableUpgrades.push({
+        type: 'Fort',
+        goldCost: fortGoldCost,
+        consMatsCost: fortConsMatsCost,
+        effect: "Defence +10%",
+        condition: 'Max Forts Reached'
       });
     }
   
@@ -1222,7 +1289,7 @@ function calculateAvailableUpgrades(territory) {
     const imageColumn = document.createElement("div");
     imageColumn.classList.add("upgrade-column");
     let image = document.createElement("img");
-    image.src = getImagePath(upgradeRow.type, upgradeRow.condition); // Call a function to get the image path based on the upgrade type
+    image.src = getImagePath(upgradeRow.type, upgradeRow.condition, territory); // Call a function to get the image path based on the upgrade type
     imageColumn.appendChild(image);
   
     // Create and populate other columns
@@ -1240,7 +1307,6 @@ function calculateAvailableUpgrades(territory) {
     const column4 = document.createElement("div");
     column4.classList.add("upgrade-column");
     column4.textContent = 0;
-
 
     const column5 = document.createElement("div");
     column5.classList.add("upgrade-column");
@@ -1299,7 +1365,7 @@ function calculateAvailableUpgrades(territory) {
     upgradeTable.appendChild(row);
 
     row.addEventListener("mouseover", (e) => {
-        tooltipUpgradeTerritoryRow(territory, e);
+        tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
     });
     row.addEventListener("mouseout", () => {
         tooltip.style.display = "none";
@@ -1332,8 +1398,9 @@ function calculateAvailableUpgrades(territory) {
           break;
       }
 
-    imageMinus.addEventListener("click", () => {
+    imageMinus.addEventListener("click", (e) => {
         if (imageMinus.src.includes("/resources/minusButton.png")) {
+            tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
             if (parseInt(textField.value) > 0) {
                 simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, false);
                 switch (simulatedCosts[2]) {
@@ -1366,7 +1433,7 @@ function calculateAvailableUpgrades(territory) {
                 console.log("Total ConsMats:", totalConsMats);
 
                 //code to check greying out here
-                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus");
+                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", textField.value);
 
                 if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
@@ -1390,8 +1457,9 @@ function calculateAvailableUpgrades(territory) {
         }
     });
   
-    imagePlus.addEventListener("click", () => {
+    imagePlus.addEventListener("click", (e) => {
         if (imagePlus.src.includes("/resources/plusButton.png")) {
+          tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
           simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory, false);
           switch (simulatedCosts[2]) {
             case "Farm":
@@ -1428,7 +1496,7 @@ function calculateAvailableUpgrades(territory) {
         console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
 
         //code to check greying out here
-        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus");
+        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", textField.value);
 
         if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").innerHTML="Confirm";
@@ -1489,34 +1557,34 @@ function calculateAvailableUpgrades(territory) {
       case "Farm":
         currentValueQuantityTemp += farmsBuilt;
         goldBaseCost = 200;
-        consMatsBaseCost = 1000;
+        consMatsBaseCost = 500;
         farmsBuilt += increment;
-        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
-        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * (territory.devIndex / 4));
         break;
       case "Forest":
         currentValueQuantityTemp += forestsBuilt;
         goldBaseCost = 200;
-        consMatsBaseCost = 1000;
+        consMatsBaseCost = 500;
         forestsBuilt += increment;
-        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
-        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
         break;
       case "Oil Well":
         currentValueQuantityTemp += oilWellsBuilt;
-        goldBaseCost = 300;
-        consMatsBaseCost = 2000;
+        goldBaseCost = 1000;
+        consMatsBaseCost = 200;
         oilWellsBuilt += increment;
-        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
-        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
         break;
       case "Fort":
         currentValueQuantityTemp += fortsBuilt;
         goldBaseCost = 500;
-        consMatsBaseCost = 5000;
+        consMatsBaseCost = 2000;
         fortsBuilt += increment;
-        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
-        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+        goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+        consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
         break;
     }
   
@@ -1532,8 +1600,8 @@ function calculateAvailableUpgrades(territory) {
     
       // Simulate next increment and store costs in array
       currentValueQuantityTemp += Math.abs(increment); //always simulate clicking plus i.e. upward direction
-      const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
-      const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * territory.devIndex);
+      const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+      const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
       const simulatedUpgradeType = upgradeType;
       simulationCosts.push(simulatedGoldCost);
       simulationCosts.push(simulatedConsMatsCost);
@@ -1541,27 +1609,33 @@ function calculateAvailableUpgrades(territory) {
       return simulationCosts;
   }
 
-  function getImagePath(type, condition) {
+  function getImagePath(type, condition, territory) {
+    
+    const maxFarms = 5;
+    const maxForests = 5;
+    const maxOilWells = 5;
+    const maxForts = 5;
+
     if (type === "Farm") {
-        if (condition === "Can Build") {
+        if (condition === "Can Build" && territory.farmsBuilt < maxFarms) {
             return '/resources/farmIcon.png';
         } else {
             return '/resources/farmIconGrey.png';
         }
     } else if (type === "Oil Well") {
-        if (condition === "Can Build") {
+        if (condition === "Can Build" && territory.oilWellsBuilt < maxOilWells) {
             return '/resources/oilWellIcon.png';
         } else {
             return '/resources/oilWellIconGrey.png';
         }
     } else if (type === "Forest") {
-        if (condition === "Can Build") {
+        if (condition === "Can Build" && territory.forestsBuilt < maxForests) {
             return '/resources/forestIcon.png';
         } else {
             return '/resources/forestIconGrey.png';
         }
     } else if (type === "Fort") {
-        if (condition === "Can Build") {
+        if (condition === "Can Build" && territory.fortsBuilt < maxForts) {
             return '/resources/fortIcon.png';
         } else {
             return '/resources/fortIconGrey.png';
@@ -1592,13 +1666,13 @@ function calculateAvailableUpgrades(territory) {
     return totalConsMats;
   }
 
-  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button) {
+  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, textFieldValue) {
     const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
   
     if (button === "plus") {
       simulatedgoldElements.forEach((simulatedGoldElement, index) => {
-        if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement) {
+        if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement || textFieldValue >= 5) {
             const rowIndex = index + 1;
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
           
@@ -1660,11 +1734,13 @@ function calculateAvailableUpgrades(territory) {
                 territory.consMatsForCurrentTerritory - totalConsMats >= simulatedConsMatsElement
             ) {
                 // Both conditions are true, ungrey the row
-                if (imageElement && imageElement.src.includes('Grey.png')) {
-                    imageElement.src = imageElement.src.replace('Grey.png', '.png');
-                }
-                if (plusButton && plusButton.src.includes('Grey.png')) {
-                    plusButton.src = plusButton.src.replace('Grey.png', '.png');
+                if (textFieldValue < 5) {
+                    if (imageElement && imageElement.src.includes('Grey.png')) {
+                        imageElement.src = imageElement.src.replace('Grey.png', '.png');
+                    }
+                    if (plusButton && plusButton.src.includes('Grey.png')) {
+                        plusButton.src = plusButton.src.replace('Grey.png', '.png');
+                    }
                 }
             }
         });
