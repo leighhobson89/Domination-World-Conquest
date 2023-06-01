@@ -191,6 +191,18 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let forestsBuilt = 0;
             let fortsBuilt = 0;
 
+            let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
+     
+            console.log("Initial Army Dist.:");
+            console.log(initialArmyDistributionArray);
+
+            let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
+            let airForCurrentTerritory = initialArmyDistributionArray.air;
+            let navalForCurrentTerritory = initialArmyDistributionArray.naval;
+            let infantryForCurrentTerritory = initialArmyDistributionArray.infantry;
+
+            armyForCurrentTerritory = (navalForCurrentTerritory * 20000) + (airForCurrentTerritory * 5000) + (assaultForCurrentTerritory * 1000) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
+
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
                 uniqueId: uniqueId,
@@ -202,6 +214,10 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 area: area,
                 continent: continent,
                 armyForCurrentTerritory: armyForCurrentTerritory,
+                assaultForCurrentTerritory: assaultForCurrentTerritory,
+                airForCurrentTerritory: airForCurrentTerritory,
+                navalForCurrentTerritory: navalForCurrentTerritory,
+                infantryForCurrentTerritory: infantryForCurrentTerritory,
                 goldForCurrentTerritory: goldForCurrentTerritory,
                 oilForCurrentTerritory: oilForCurrentTerritory,
                 oilCapacity: oilCapacity,
@@ -1574,6 +1590,66 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     totalGoldPrice = 0;
     totalConsMats = 0;
 }
+
+function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory) {
+    let initialValue = Math.ceil(armyTerritory);
+    oilTerritory = Math.ceil(oilTerritory);
+  
+    const oilRequirements = {
+      naval: 1000,
+      air: 300,
+      assault: 100,
+    };
+  
+    const initialDistribution = {
+        naval: Math.floor(oilTerritory / oilRequirements.naval),
+        air: Math.floor(oilTerritory / oilRequirements.air),
+        assault: Math.floor(oilTerritory / oilRequirements.assault),
+      };
+      
+      // Check for NaN values and update them to zero
+      if (isNaN(initialDistribution.naval)) {
+        initialDistribution.naval = 0;
+      }
+      if (isNaN(initialDistribution.air)) {
+        initialDistribution.air = 0;
+      }
+      if (isNaN(initialDistribution.assault)) {
+        initialDistribution.assault = 0;
+      }      
+  
+    // Adjust the distribution based on the available army value
+    const totalValue =
+      initialDistribution.naval * 20000 +
+      initialDistribution.air * 5000 +
+      initialDistribution.assault * 1000;
+  
+    const valueRatio = totalValue / initialValue;
+  
+    if (isNaN(valueRatio) || !isFinite(valueRatio) || valueRatio === 0) {
+      // If valueRatio is NaN or not finite, set all types to 0 and allocate everything to infantry
+      initialDistribution.naval = 0;
+      initialDistribution.air = 0;
+      initialDistribution.assault = 0;
+      initialDistribution.infantry = initialValue;
+    } else {
+      initialDistribution.naval = Math.floor(initialDistribution.naval / valueRatio);
+      initialDistribution.air = Math.floor(initialDistribution.air / valueRatio);
+      initialDistribution.assault = Math.floor(initialDistribution.assault / valueRatio);
+  
+      // Allocate the remaining army value to infantry
+      const remainingValue =
+        initialValue -
+        (initialDistribution.naval * 20000 +
+          initialDistribution.air * 5000 +
+          initialDistribution.assault * 1000);
+      initialDistribution.infantry = remainingValue;
+    }
+  
+    return initialDistribution;
+  }
+  
+  
   
   
   
