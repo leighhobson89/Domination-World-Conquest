@@ -192,9 +192,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let fortsBuilt = 0;
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
-     
-            console.log("Initial Army Dist.:");
-            console.log(initialArmyDistributionArray);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -351,9 +348,6 @@ function calculateConsMatsChange(territory, isSimulation) {
         consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
     }
 
-    /* if (territory.forests > 0) { //implement when do upgrading code
-    } */
-
     return consMatsChange;
 }
 
@@ -384,9 +378,6 @@ function calculateOilChange(territory, isSimulation) {
         oilChange = -(Math.ceil(oilDifference * 0.1));
     }
 
-    /* if (territory.oilWells > 0) { //implement when do upgrading code
-    } */
-
     return oilChange;
 }
 
@@ -416,10 +407,6 @@ function calculateFoodChange(territory, isSimulation) {
         const foodDifference = (territory.foodForCurrentTerritory * 10000) - territory.foodCapacity;
         foodChange = -(Math.ceil(foodDifference * 0.1) / 10000);
     }
-        
-    
-    /* if (territory.farms > 0) { //implement when do upgrading code
-    } */
     
     return foodChange;
 }     
@@ -451,8 +438,6 @@ function calculatePopulationChange(territory) {
         return 0; //if random event just happened for food, dont lose any people immediately til the next turn so user can process it
     }
 }
-       
-      
 
 function formatNumbersToKMB(string) {
     if (string >= 1000000000) {
@@ -732,13 +717,92 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
             row.appendChild(column);
             }
         } else if (territoryOrArmyTable === 2) { //setup army table
-
-        }
-    
+            // Create columns
+            for (let j = 0; j < 9; j++) {
+                const column = document.createElement("div");
+                column.classList.add("ui-table-column");
+                if (j === 0) {
+                    column.style.width = "30%";
+                    // Set the value of the first column to the "territory-name" attribute
+                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+                    column.textContent = territoryName;
+                } else {
+                    column.classList.add("centerIcons");
+                    const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                    const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+                    switch (j) {
+                    case 1:
+                        column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
+                        break;
+                    case 2:
+                        column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory);
+                        break;
+                    case 3:
+                        column.textContent = formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
+                        break;
+                    case 4:
+                        column.textContent = Math.ceil(territoryData.airForCurrentTerritory);
+                        break;
+                    case 5:
+                        column.textContent = Math.ceil(territoryData.navalForCurrentTerritory);
+                        break;
+                    case 6:
+                        column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                        break;
+                    case 7:
+                        column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                        break;
+                    case 8:
+                    const buyButtonImageElement = document.createElement("img");
+                    // Create buy button div
+                    const buyButtonDiv = document.createElement("div");
+                    if (currentTurnPhase === 0) {
+                        buyButtonDiv.classList.add("buy-button");
+                        buyButtonImageElement.src = "/resources/buyButtonIcon.png";
+                    } else {
+                        buyButtonImageElement.src = "/resources/buyButtonGreyedOut.png";
+                    }
+            
+                    // Create upgrade button image element
+                    buyButtonImageElement.alt = "Buy Military";
+                    buyButtonImageElement.classList.add("sizeBuyButton");
         
+                    // Add event listeners for click and mouseup events
+                    buyButtonDiv.addEventListener("mousedown", () => {
+                    if (currentTurnPhase === 0) {
+                        playSoundClip();
+                        buyButtonImageElement.src = "/resources/buyButtonIconPressed.png";
+                    }
+                    });
+        
+                    buyButtonDiv.addEventListener("mouseup", () => {
+                    if (currentTurnPhase === 0) {
+                        populateBuyTable(territoryData);
+                        toggleBuyMenu(true, territoryData);
+                        currentlySelectedTerritoryForUpgrades = territoryData;
+                        buyButtonImageElement.src = "/resources/buyButtonIcon.png";
+                    }
+                    });
+        
+                    buyButtonDiv.appendChild(buyButtonImageElement);
+                    column.appendChild(buyButtonDiv);
+                    break;
+                }
+            }
+            row.addEventListener("mouseover", (e) => {
+                const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
+        
+                tooltipUIArmyRow(row, territoryData, e);
+            });
+            row.addEventListener("mouseout", () => {
+                tooltip.style.display = "none";
+                row.style.cursor = "default";
+                });
+            row.appendChild(column);
+            }
+        }     
     table.appendChild(row);
-
-        
     }
     uiTableContainer.appendChild(table);
 }
@@ -1035,6 +1099,10 @@ function calculateAvailableUpgrades(territory) {
     }
   
     return availableUpgrades;
+  }
+
+  function populateBuyTable(territory) {
+    console.log("Buy Window Displayed");
   }
   
   function populateUpgradeTable(territory) {
@@ -1596,52 +1664,41 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     };
   
     const initialDistribution = {
-        naval: Math.floor(oilTerritory / oilRequirements.naval),
-        air: Math.floor(oilTerritory / oilRequirements.air),
-        assault: Math.floor(oilTerritory / oilRequirements.assault),
-      };
-      
-      // Check for NaN values and update them to zero
-      if (isNaN(initialDistribution.naval)) {
-        initialDistribution.naval = 0;
-      }
-      if (isNaN(initialDistribution.air)) {
-        initialDistribution.air = 0;
-      }
-      if (isNaN(initialDistribution.assault)) {
-        initialDistribution.assault = 0;
-      }      
+      naval: 0,
+      air: 0,
+      assault: 0,
+      infantry: 0,
+    };
   
-    // Adjust the distribution based on the available army value
-    const totalValue =
-      initialDistribution.naval * 20000 +
-      initialDistribution.air * 5000 +
-      initialDistribution.assault * 1000;
+    let remainingArmyValue = initialValue;
+    let remainingOil = oilTerritory;
   
-    const valueRatio = totalValue / initialValue;
+    // Allocate naval units based on available oil (limited to 50% of oilTerritory)
+    const maxNavalOil = Math.floor(oilTerritory * 0.5);
+    initialDistribution.naval = Math.min(Math.floor(maxNavalOil / oilRequirements.naval), Math.floor(remainingArmyValue / 20000));
+    remainingOil -= initialDistribution.naval * oilRequirements.naval;
+    remainingArmyValue -= initialDistribution.naval * 20000;
   
-    if (isNaN(valueRatio) || !isFinite(valueRatio) || valueRatio === 0) {
-      // If valueRatio is NaN or not finite, set all types to 0 and allocate everything to infantry
-      initialDistribution.naval = 0;
-      initialDistribution.air = 0;
-      initialDistribution.assault = 0;
-      initialDistribution.infantry = initialValue;
-    } else {
-      initialDistribution.naval = Math.floor(initialDistribution.naval / valueRatio);
-      initialDistribution.air = Math.floor(initialDistribution.air / valueRatio);
-      initialDistribution.assault = Math.floor(initialDistribution.assault / valueRatio);
+    // Allocate air units based on available oil (limited to 25% of oilTerritory)
+    const maxAirOil = Math.floor(oilTerritory * 0.25);
+    initialDistribution.air = Math.min(Math.floor(maxAirOil / oilRequirements.air), Math.floor(remainingArmyValue / 5000));
+    remainingOil -= initialDistribution.air * oilRequirements.air;
+    remainingArmyValue -= initialDistribution.air * 5000;
   
-      // Allocate the remaining army value to infantry
-      const remainingValue =
-        initialValue -
-        (initialDistribution.naval * 20000 +
-          initialDistribution.air * 5000 +
-          initialDistribution.assault * 1000);
-      initialDistribution.infantry = remainingValue;
-    }
+    // Allocate assault units based on available oil (limited to 25% of oilTerritory)
+    const maxAssaultOil = Math.floor(oilTerritory * 0.25);
+    initialDistribution.assault = Math.min(Math.floor(maxAssaultOil / oilRequirements.assault), Math.floor(remainingArmyValue / 1000));
+    remainingOil -= initialDistribution.assault * oilRequirements.assault;
+    remainingArmyValue -= initialDistribution.assault * 1000;
+  
+    // Allocate the remaining army value to infantry
+    initialDistribution.infantry = remainingArmyValue;
   
     return initialDistribution;
   }
+  
+  
+  
   
   
   
