@@ -1433,7 +1433,7 @@ function calculateAvailableUpgrades(territory) {
                 console.log("Total ConsMats:", totalConsMats);
 
                 //code to check greying out here
-                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type, textField.value);
+                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
                 if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
@@ -1496,7 +1496,7 @@ function calculateAvailableUpgrades(territory) {
         console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
 
         //code to check greying out here
-        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type, textField.value);
+        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
 
         if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").innerHTML="Confirm";
@@ -1665,7 +1665,7 @@ function calculateAvailableUpgrades(territory) {
     return totalConsMats;
   }
 
-  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type, textFieldValue) {
+  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
     const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
   
@@ -1766,6 +1766,7 @@ function calculateAvailableUpgrades(territory) {
             const rowIndex = index + 1;
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
             const upgradeRowTextField = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .column5B input`);
+            const upgradeRowType = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .upgrade-column:nth-child(2)`);
     
             // Get the image element in the first column
             const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
@@ -1777,13 +1778,13 @@ function calculateAvailableUpgrades(territory) {
 
             let amountBuilt;
 
-            if (type === "Farm") {
+            if (upgradeRowType.innerHTML === "Farm") {
                 amountBuilt = territory.farmsBuilt;
-              } else if (type === "Forest") {
+              } else if (upgradeRowType.innerHTML === "Forest") {
                 amountBuilt = territory.forestsBuilt;
-              } else if (type === "Oil Well") {
+              } else if (upgradeRowType.innerHTML === "Oil Well") {
                 amountBuilt = territory.oilWellsBuilt;
-              } else if (type === "Fort") {
+              } else if (upgradeRowType.innerHTML === "Fort") {
                 amountBuilt = territory.fortsBuilt;
               }
     
