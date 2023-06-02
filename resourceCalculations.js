@@ -14,6 +14,12 @@ export let currentlySelectedTerritoryForUpgrades;
 export let totalGoldPrice = 0;
 export let totalConsMats = 0;
 
+const oilRequirements = {
+    naval: 1000,
+    air: 300,
+    assault: 100,
+  };
+
 let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
@@ -1895,12 +1901,6 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     let initialValue = Math.ceil(armyTerritory);
     oilTerritory = Math.ceil(oilTerritory);
   
-    const oilRequirements = {
-      naval: 1000,
-      air: 300,
-      assault: 100,
-    };
-  
     const initialDistribution = {
       naval: 0,
       air: 0,
@@ -1909,24 +1909,20 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     };
   
     let remainingArmyValue = initialValue;
-    let remainingOil = oilTerritory;
   
     // Allocate naval units based on available oil (limited to 50% of oilTerritory)
     const maxNavalOil = Math.floor(oilTerritory * 0.5);
     initialDistribution.naval = Math.min(Math.floor(maxNavalOil / oilRequirements.naval), Math.floor(remainingArmyValue / 20000));
-    remainingOil -= initialDistribution.naval * oilRequirements.naval;
     remainingArmyValue -= initialDistribution.naval * 20000;
   
     // Allocate air units based on available oil (limited to 25% of oilTerritory)
     const maxAirOil = Math.floor(oilTerritory * 0.25);
     initialDistribution.air = Math.min(Math.floor(maxAirOil / oilRequirements.air), Math.floor(remainingArmyValue / 5000));
-    remainingOil -= initialDistribution.air * oilRequirements.air;
     remainingArmyValue -= initialDistribution.air * 5000;
   
     // Allocate assault units based on available oil (limited to 25% of oilTerritory)
     const maxAssaultOil = Math.floor(oilTerritory * 0.25);
     initialDistribution.assault = Math.min(Math.floor(maxAssaultOil / oilRequirements.assault), Math.floor(remainingArmyValue / 1000));
-    remainingOil -= initialDistribution.assault * oilRequirements.assault;
     remainingArmyValue -= initialDistribution.assault * 1000;
   
     // Allocate the remaining army value to infantry
