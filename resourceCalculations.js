@@ -818,6 +818,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     let amountAlreadyBuilt;
     let nextUpgradeCostGold;
     let nextUpgradeCostConsMats;
+    let simulatedTotal;
   
     const upgradeRow = event.currentTarget.closest('.upgrade-row');
     if (!upgradeRow) {
@@ -825,8 +826,9 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
       return;
     }
   
-    const upgradeColumn = upgradeRow.querySelector('.upgrade-column:nth-child(2)');
-    const upgradeType = upgradeColumn.innerHTML.trim();
+    const upgradeTypeColumn = upgradeRow.querySelector('.upgrade-column:nth-child(2)');
+    const upgradeValueColumn = upgradeRow.querySelector('.column5B input');
+    const upgradeType = upgradeTypeColumn.innerHTML.trim();
   
     if (!upgradeType) {
       // No upgrade type found, exit the function
@@ -840,6 +842,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         nextUpgradeCostGold = simulatedCostsAll[0];
         nextUpgradeCostConsMats = simulatedCostsAll[1];
         upgrade = availableUpgrades[0];
+        simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
         break;
       case "Forest":
         type = "Forest";
@@ -847,6 +850,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         nextUpgradeCostGold = simulatedCostsAll[2];
         nextUpgradeCostConsMats = simulatedCostsAll[3];
         upgrade = availableUpgrades[1];
+        simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
         break;
       case "Oil Well":
         type = "Oil Well";
@@ -854,6 +858,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         nextUpgradeCostGold = simulatedCostsAll[4];
         nextUpgradeCostConsMats = simulatedCostsAll[5];
         upgrade = availableUpgrades[2];
+        simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
         break;
       case "Fort":
         type = "Fort";
@@ -861,6 +866,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         nextUpgradeCostGold = simulatedCostsAll[6];
         nextUpgradeCostConsMats = simulatedCostsAll[7];
         upgrade = availableUpgrades[3];
+        simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
         break;
       default:
         // Invalid upgrade type, exit the function
@@ -880,18 +886,22 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     let buildAvailabilityStyle;
 
+    if (upgrade.condition === "Can Build" && simulatedTotal >= 5) {
+        upgrade.condition = "Max " + type + "s Reached";
+    }
+
     if (upgrade.condition === "Can Build") {
         buildAvailabilityStyle = greenStyle;
     } else {
         buildAvailabilityStyle = redStyle;
     }
   
-    const tooltipContent = `
+    let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
       <div>Upgrade Type: ${type}</div>
       <br />
       <div>Currently Built In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
-      <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${amountAlreadyBuilt + 1}0%</span></div>
+      <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${simulatedTotal}0%</span></div>
       <br />
       <div>Cost Of Next Upgrade (Gold): <span style="${blackStyle}">${nextUpgradeCostGold}</span></div>
       <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${blackStyle}">${nextUpgradeCostConsMats}</span></div>
@@ -1489,11 +1499,11 @@ function calculateAvailableUpgrades(territory) {
         totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
         totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
 
-        console.log(simulatedCostsAll);
+/*         console.log(simulatedCostsAll);
         console.log("Total Gold Price:", totalGoldPrice);
         console.log("Total ConsMats:", totalConsMats);
         console.log("Total SimGold Price:", totalSimulatedGoldPrice);
-        console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
+        console.log("Total SimConsMats:", totalSimulatedConsMatsPrice); */
 
         //code to check greying out here
         checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
