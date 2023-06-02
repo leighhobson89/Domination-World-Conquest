@@ -1705,7 +1705,6 @@ function calculateAvailableUpgrades(territory) {
       simulatedConsMatsElements.forEach((simulatedConsMatsElement, index) => {
         if (territory.consMatsForCurrentTerritory - totalConsMats < simulatedConsMatsElement) {
             const rowIndex = index + 1;
-            console.log(rowIndex);
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
           
             // Get the image element in the first column
@@ -1726,7 +1725,7 @@ function calculateAvailableUpgrades(territory) {
           }     
       });
       if (type === "Farm") {
-        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5B input`).value) >= 5) {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5B input`).value) + territory.farmsBuilt >= 5) {
           var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) img`);
           if (!firstRowImage.src.includes('Grey.png')) {
             firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
@@ -1738,7 +1737,7 @@ function calculateAvailableUpgrades(territory) {
           }
         }
       } else if (type === "Forest") {
-        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5B input`).value) >= 5) {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5B input`).value) + territory.forestsBuilt >= 5) {
             var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) img`);
             if (!firstRowImage.src.includes('Grey.png')) {
                 firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
@@ -1749,7 +1748,7 @@ function calculateAvailableUpgrades(territory) {
             } 
         }
       } else if (type === "Oil Well") {
-        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5B input`).value) >= 5) {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5B input`).value) + territory.oilWellsBuilt >= 5) {
             var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) img`);
             if (!firstRowImage.src.includes('Grey.png')) {
                 firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
@@ -1760,7 +1759,7 @@ function calculateAvailableUpgrades(territory) {
             } 
         }
       } else if (type === "Fort") {
-        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5B input`).value) >= 5) {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5B input`).value) + territory.fortsBuilt >= 5) {
             var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) img`);
             if (!firstRowImage.src.includes('Grey.png')) {
                 firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
