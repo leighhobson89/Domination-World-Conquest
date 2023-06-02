@@ -1433,7 +1433,7 @@ function calculateAvailableUpgrades(territory) {
                 console.log("Total ConsMats:", totalConsMats);
 
                 //code to check greying out here
-                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", textField.value);
+                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type, textField.value);
 
                 if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
@@ -1496,7 +1496,7 @@ function calculateAvailableUpgrades(territory) {
         console.log("Total SimConsMats:", totalSimulatedConsMatsPrice);
 
         //code to check greying out here
-        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", textField.value);
+        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type, textField.value);
 
         if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").innerHTML="Confirm";
@@ -1519,7 +1519,6 @@ function calculateAvailableUpgrades(territory) {
         }
       });
   });
-  //console.log(simulatedCostsAll);
   }
 
   function incrementDecrementUpgrades(textField, increment, upgradeType, territory, simOnly) {
@@ -1666,13 +1665,13 @@ function calculateAvailableUpgrades(territory) {
     return totalConsMats;
   }
 
-  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, textFieldValue) {
+  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type, textFieldValue) {
     const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
   
     if (button === "plus") {
       simulatedgoldElements.forEach((simulatedGoldElement, index) => {
-        if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement || textFieldValue >= 5) {
+        if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement) {
             const rowIndex = index + 1;
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
           
@@ -1716,6 +1715,52 @@ function calculateAvailableUpgrades(territory) {
             }
           }     
       });
+      if (type === "Farm") {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5B input`).value) >= 5) {
+          var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) img`);
+          if (!firstRowImage.src.includes('Grey.png')) {
+            firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
+          }
+      
+          var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5C img`);
+          if (!column5CImage.src.includes('Grey.png')) {
+            column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
+          }
+        }
+      } else if (type === "Forest") {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5B input`).value) >= 5) {
+            var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) img`);
+            if (!firstRowImage.src.includes('Grey.png')) {
+                firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
+            }
+            var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5C img`);
+            if (!column5CImage.src.includes('Grey.png')) {
+                column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
+            } 
+        }
+      } else if (type === "Oil Well") {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5B input`).value) >= 5) {
+            var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) img`);
+            if (!firstRowImage.src.includes('Grey.png')) {
+                firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
+            }
+            var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5C img`);
+            if (!column5CImage.src.includes('Grey.png')) {
+                column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
+            } 
+        }
+      } else if (type === "Fort") {
+        if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5B input`).value) >= 5) {
+            var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) img`);
+            if (!firstRowImage.src.includes('Grey.png')) {
+                firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
+            }
+            var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5C img`);  
+            if (!column5CImage.src.includes('Grey.png')) {
+                column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
+            } 
+        }
+      }
     } else if (button === "minus") {
         simulatedgoldElements.forEach((simulatedGoldElement, index) => {
             const rowIndex = index + 1;
