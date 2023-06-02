@@ -1765,6 +1765,7 @@ function calculateAvailableUpgrades(territory) {
         simulatedgoldElements.forEach((simulatedGoldElement, index) => {
             const rowIndex = index + 1;
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
+            const upgradeRowTextField = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .column5B input`);
     
             // Get the image element in the first column
             const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
@@ -1773,19 +1774,32 @@ function calculateAvailableUpgrades(territory) {
             const plusButton = upgradeRow.querySelector('.column5C img');
     
             const simulatedConsMatsElement = simulatedConsMatsElements[index];
+
+            let amountBuilt;
+
+            if (type === "Farm") {
+                amountBuilt = territory.farmsBuilt;
+              } else if (type === "Forest") {
+                amountBuilt = territory.forestsBuilt;
+              } else if (type === "Oil Well") {
+                amountBuilt = territory.oilWellsBuilt;
+              } else if (type === "Fort") {
+                amountBuilt = territory.fortsBuilt;
+              }
     
             if (
+                parseInt(upgradeRowTextField.value) < 5 &&
+                amountBuilt < 5 &&
                 territory.goldForCurrentTerritory - totalGoldPrice >= simulatedGoldElement &&
                 territory.consMatsForCurrentTerritory - totalConsMats >= simulatedConsMatsElement
             ) {
-                // Both conditions are true, ungrey the row
-                if (textFieldValue < 5) {
-                    if (imageElement && imageElement.src.includes('Grey.png')) {
-                        imageElement.src = imageElement.src.replace('Grey.png', '.png');
-                    }
-                    if (plusButton && plusButton.src.includes('Grey.png')) {
-                        plusButton.src = plusButton.src.replace('Grey.png', '.png');
-                    }
+                
+                // All conditions are true, ungrey the row
+                if (imageElement && imageElement.src.includes('Grey.png')) {
+                    imageElement.src = imageElement.src.replace('Grey.png', '.png');
+                }
+                if (plusButton && plusButton.src.includes('Grey.png')) {
+                    plusButton.src = plusButton.src.replace('Grey.png', '.png');
                 }
             }
         });
