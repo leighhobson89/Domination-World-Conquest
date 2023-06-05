@@ -5,8 +5,9 @@ import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 import { currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats } from './resourceCalculations.js';
 import { addPlayerUpgrades } from './resourceCalculations.js';
-import { drawUITable } from './resourceCalculations.js';
+import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
+import { totalOilCapacity, totalOilDemand, totalFoodCapacity, totalConsMatsCapacity } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -403,6 +404,14 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableFlag = document.createElement("td");
   topTableFlag.classList.add("iconCell");
   topTableFlag.setAttribute("id","flag-top");
+  topTableFlag.addEventListener("mouseover", (e) => {
+    tooltip.innerHTML = playerCountry;
+    tooltip.style.display = "block";
+  });
+  topTableFlag.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
 
   const topTableTotalResourcesString = document.createElement("td");
   topTableTotalResourcesString.innerHTML = "Total Player Resources:";
@@ -420,6 +429,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableOil = document.createElement("td");
   topTableOil.classList.add("iconCell");
+  topTableOil.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Oil:</span></div>
+      <div>Total Oil Capacity: ${Math.ceil(totalOilCapacity)}</div>
+      <div>Total Oil Demand: ${Math.ceil(getTotalOilDemand())}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableOil.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
   
   const oilImg = document.createElement("img");
   oilImg.classList.add("sizingIcons");
@@ -428,9 +450,34 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableOilValue= document.createElement("td");
   topTableOilValue.classList.add("resourceFields");
+  topTableOilValue.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Oil:</span></div>
+      <div>Total Oil Capacity: ${Math.ceil(totalOilCapacity)}</div>
+      <div>Total Oil Demand: ${Math.ceil(getTotalOilDemand())}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableOilValue.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
 
   const topTableFood = document.createElement("td");
   topTableFood.classList.add("iconCell");
+  topTableFood.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Food:</span></div>
+      <div>Total Food Capacity: ${formatNumbersToKMB(totalFoodCapacity)}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableFood.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
   
   const foodImg = document.createElement("img");
   foodImg.classList.add("sizingIcons");
@@ -439,9 +486,33 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableFoodValue = document.createElement("td");
   topTableFoodValue.classList.add("resourceFields");
+  topTableFoodValue.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Food:</span></div>
+      <div>Total Food Capacity: ${formatNumbersToKMB(totalFoodCapacity)}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableFoodValue.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
 
   const topTableConsMats = document.createElement("td");
   topTableConsMats.classList.add("iconCell");
+  topTableConsMats.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
+      <div>Total Cons. Mats. Capacity: ${Math.ceil(totalConsMatsCapacity)}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableConsMats.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
   
   const consMatsImg = document.createElement("img");
   consMatsImg.classList.add("sizingIcons");
@@ -450,6 +521,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableConsMatsValue = document.createElement("td");
   topTableConsMatsValue.classList.add("resourceFields");
+  topTableConsMatsValue.addEventListener("mouseover", (e) => {
+    let tooltipContent = `
+      <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
+      <div>Total Cons. Mats. Capacity: ${Math.ceil(totalConsMatsCapacity)}</div>
+    `;
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = "block";
+  });
+  topTableConsMatsValue.addEventListener("mouseout", (e) => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
 
   const topTableprodPopulation = document.createElement("td");
   topTableprodPopulation.classList.add("iconCell");
@@ -460,7 +543,7 @@ document.addEventListener("DOMContentLoaded", function() {
   prodPopulationImg.src = "resources/prodPopulation.png";
 
   const topTableprodPopulationValue = document.createElement("td");
-  topTableprodPopulationValue.classList.add("resourceFields");
+  topTableprodPopulationValue.classList.add("population");
 
   const topTablelandArea = document.createElement("td");
   topTablelandArea.classList.add("iconCell");
@@ -471,7 +554,7 @@ document.addEventListener("DOMContentLoaded", function() {
   landAreaImg.src = "resources/landArea.png";
 
   const topTablelandAreaValue = document.createElement("td");
-  topTableGoldValue.classList.add("resourceFields");
+  topTablelandAreaValue.classList.add("resourceFields");
 
   const topTableArmy = document.createElement("td");
   topTableArmy.classList.add("iconCell");
@@ -1699,6 +1782,10 @@ function fillPathBasedOnTeam(path) {
 
 function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
+}
+
+function getTotalOilDemand() {
+  return totalOilDemand;
 }
 
 
