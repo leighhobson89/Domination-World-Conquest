@@ -466,6 +466,7 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
     let totalProdPop = 0;
     let totalArea = 0;
     let totalArmy = 0;
+    let totalOilCapacity = 0;
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         for (const path of paths) {
@@ -478,6 +479,7 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
                 totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
                 totalArea += mainArrayOfTerritoriesAndResources[i].area;
                 totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
+                totalOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity;
                 if (path === currentSelectedPath && currentTurn !== 1) {
                     writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
