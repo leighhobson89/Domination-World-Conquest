@@ -7,7 +7,7 @@ import { currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats } 
 import { addPlayerUpgrades } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { totalOilCapacity, totalOilDemand, totalFoodCapacity, totalConsMatsCapacity } from './resourceCalculations.js';
+import { capacityArray, oilDemandArray } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -75,6 +75,10 @@ let viewBoxHeight = originalViewBoxHeight;
 let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
+
+//misc variables
+let totalOilDemandCountryArray = [];
+let totalOilDemandCountry = 0;
 
 export function svgMapLoaded() {
   //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
@@ -430,13 +434,22 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOil = document.createElement("td");
   topTableOil.classList.add("iconCell");
   topTableOil.addEventListener("mouseover", (e) => {
+    for (let i = 0; i < oilDemandArray.length; i++) {
+      if (playerCountry === oilDemandArray[i][1]) {
+        totalOilDemandCountryArray.push(oilDemandArray[i][0]);
+      }
+    }
+    totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
+
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Oil:</span></div>
-      <div>Total Oil Capacity: ${Math.ceil(totalOilCapacity)}</div>
-      <div>Total Oil Demand: ${Math.ceil(getTotalOilDemand())}</div>
+      <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
+      <div>Total Oil Demand: ${totalOilDemandCountry}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
+    totalOilDemandCountryArray = [];
+    totalOilDemandCountry = 0;
   });
   topTableOil.addEventListener("mouseout", (e) => {
     tooltip.innerHTML = "";
@@ -451,13 +464,21 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOilValue= document.createElement("td");
   topTableOilValue.classList.add("resourceFields");
   topTableOilValue.addEventListener("mouseover", (e) => {
+    for (let i = 0; i < oilDemandArray.length; i++) {
+      if (playerCountry === oilDemandArray[i][1]) {
+        totalOilDemandCountryArray.push(oilDemandArray[i][0]);
+      }
+    }
+    totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Oil:</span></div>
-      <div>Total Oil Capacity: ${Math.ceil(totalOilCapacity)}</div>
-      <div>Total Oil Demand: ${Math.ceil(getTotalOilDemand())}</div>
+      <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
+      <div>Total Oil Demand: ${totalOilDemandCountry}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
+    totalOilDemandCountryArray = [];
+    totalOilDemandCountry = 0;
   });
   topTableOilValue.addEventListener("mouseout", (e) => {
     tooltip.innerHTML = "";
@@ -469,7 +490,7 @@ document.addEventListener("DOMContentLoaded", function() {
   topTableFood.addEventListener("mouseover", (e) => {
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Food:</span></div>
-      <div>Total Food Capacity: ${formatNumbersToKMB(totalFoodCapacity)}</div>
+      <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
@@ -489,7 +510,7 @@ document.addEventListener("DOMContentLoaded", function() {
   topTableFoodValue.addEventListener("mouseover", (e) => {
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Food:</span></div>
-      <div>Total Food Capacity: ${formatNumbersToKMB(totalFoodCapacity)}</div>
+      <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
@@ -504,7 +525,7 @@ document.addEventListener("DOMContentLoaded", function() {
   topTableConsMats.addEventListener("mouseover", (e) => {
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
-      <div>Total Cons. Mats. Capacity: ${Math.ceil(totalConsMatsCapacity)}</div>
+      <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
@@ -524,7 +545,7 @@ document.addEventListener("DOMContentLoaded", function() {
   topTableConsMatsValue.addEventListener("mouseover", (e) => {
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
-      <div>Total Cons. Mats. Capacity: ${Math.ceil(totalConsMatsCapacity)}</div>
+      <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
@@ -1785,7 +1806,7 @@ function setStrokeWidth(path, stroke) {
 }
 
 function getTotalOilDemand() {
-  return totalOilDemand;
+  return oilDemandArray;
 }
 
 

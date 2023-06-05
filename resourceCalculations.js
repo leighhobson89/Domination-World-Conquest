@@ -14,9 +14,8 @@ export let currentlySelectedTerritoryForUpgrades;
 export let totalGoldPrice = 0;
 export let totalConsMats = 0;
 export let totalOilCapacity = 0;
-export let totalOilDemand = 0;
-export let totalFoodCapacity = 0;
-export let totalConsMatsCapacity = 0;
+export let capacityArray;
+export let oilDemandArray = [];
 
 const oilRequirements = {
     naval: 1000,
@@ -202,7 +201,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let fortsBuilt = 0;
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
-            totalOilDemand = (initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval);
+            oilDemandArray.push([(initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval), dataName]);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -276,6 +275,7 @@ export function newTurnResources() {
     }
 
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
+    capacityArray = calculateAllTerritoryCapacitiesForCountry();
 }
     
     //todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
@@ -462,6 +462,38 @@ export function formatNumbersToKMB(string) {
     }
 }
 
+function calculateAllTerritoryCapacitiesForCountry() {
+    const capacityArray = [];
+  
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+      console.log(mainArrayOfTerritoriesAndResources[i].uniqueId);
+      for (let j = 0; j < playerOwnedTerritories.length; j++) {
+        console.log(parseInt(playerOwnedTerritories[j].getAttribute("uniqueid")));
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+          const totalOilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity;
+          const totalFoodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity;
+          const totalConsMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity;
+  
+          capacityArray.push([totalOilCapacity, totalFoodCapacity, totalConsMatsCapacity]);
+        }
+      }
+    }
+  
+    const reducedCapacityArray = capacityArray.reduce((acc, curr) => {
+      return curr.map((value, index) => acc[index] + value);
+    }, [0, 0, 0]);
+  
+    const result = {
+      totalOilCapacity: reducedCapacityArray[0],
+      totalFoodCapacity: reducedCapacityArray[1],
+      totalConsMatsCapacity: reducedCapacityArray[2]
+    };
+  
+    return result;
+  }
+  
+  
+
 function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
     let totalGold = 0;
     let totalOil = 0;
@@ -483,9 +515,6 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
                 totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
                 totalArea += mainArrayOfTerritoriesAndResources[i].area;
                 totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
-                totalOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity;
-                totalFoodCapacity += mainArrayOfTerritoriesAndResources[i].foodCapacity;
-                totalConsMatsCapacity += mainArrayOfTerritoriesAndResources[i].consMatsCapacity;
                 if (path === currentSelectedPath && currentTurn !== 1) {
                     writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
