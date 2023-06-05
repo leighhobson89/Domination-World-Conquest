@@ -393,6 +393,124 @@ document.addEventListener("DOMContentLoaded", function() {
   const popupWithConfirmContainer = document.createElement("div");
   popupWithConfirmContainer.classList.add("popup-with-confirm-container");
 
+  //toptable
+  const topTableTable = document.createElement("table");
+  topTableTable.setAttribute("id","top-table");
+
+  const topTableRow = document.createElement("tr");
+  topTableRow.classList.add("top-row");
+
+  const topTableFlag = document.createElement("td");
+  topTableFlag.classList.add("iconCell");
+  topTableFlag.setAttribute("id","flag-top");
+
+  const topTableTotalResourcesString = document.createElement("td");
+  topTableTotalResourcesString.innerHTML = "Total Player Resources:";
+
+  const topTableGold = document.createElement("td");
+  topTableGold.classList.add("iconCell");
+  
+  const goldImg = document.createElement("img");
+  goldImg.classList.add("sizingIcons");
+  goldImg.alt = "Gold";
+  goldImg.src = "resources/gold.png";
+
+  const topTableGoldValue = document.createElement("td");
+  topTableGoldValue.classList.add("resourceFields");
+
+  const topTableOil = document.createElement("td");
+  topTableOil.classList.add("iconCell");
+  
+  const oilImg = document.createElement("img");
+  oilImg.classList.add("sizingIcons");
+  oilImg.alt = "Oil";
+  oilImg.src = "resources/oil.png";
+
+  const topTableOilValue= document.createElement("td");
+  topTableOilValue.classList.add("resourceFields");
+
+  const topTableFood = document.createElement("td");
+  topTableFood.classList.add("iconCell");
+  
+  const foodImg = document.createElement("img");
+  foodImg.classList.add("sizingIcons");
+  foodImg.alt = "Food";
+  foodImg.src = "resources/food.png";
+
+  const topTableFoodValue = document.createElement("td");
+  topTableFoodValue.classList.add("resourceFields");
+
+  const topTableConsMats = document.createElement("td");
+  topTableConsMats.classList.add("iconCell");
+  
+  const consMatsImg = document.createElement("img");
+  consMatsImg.classList.add("sizingIcons");
+  consMatsImg.alt = "Construction Materials";
+  consMatsImg.src = "resources/consMats.png";
+
+  const topTableConsMatsValue = document.createElement("td");
+  topTableConsMatsValue.classList.add("resourceFields");
+
+  const topTableprodPopulation = document.createElement("td");
+  topTableprodPopulation.classList.add("iconCell");
+  
+  const prodPopulationImg = document.createElement("img");
+  prodPopulationImg.classList.add("sizingIcons");
+  prodPopulationImg.alt = "Population";
+  prodPopulationImg.src = "resources/prodPopulation.png";
+
+  const topTableprodPopulationValue = document.createElement("td");
+  topTableprodPopulationValue.classList.add("resourceFields");
+
+  const topTablelandArea = document.createElement("td");
+  topTablelandArea.classList.add("iconCell");
+  
+  const landAreaImg = document.createElement("img");
+  landAreaImg.classList.add("sizingIcons");
+  landAreaImg.alt = "Land Area";
+  landAreaImg.src = "resources/landArea.png";
+
+  const topTablelandAreaValue = document.createElement("td");
+  topTableGoldValue.classList.add("resourceFields");
+
+  const topTableArmy = document.createElement("td");
+  topTableArmy.classList.add("iconCell");
+  
+  const armyImg = document.createElement("img");
+  armyImg.classList.add("sizingIcons");
+  armyImg.alt = "Military";
+  armyImg.src = "resources/army.png";
+
+  const topTableArmyValue = document.createElement("td");
+  topTableArmyValue.classList.add("resourceFields");
+
+  topTableTable.appendChild(topTableRow);
+  topTableRow.appendChild(topTableFlag);
+  topTableRow.appendChild(topTableTotalResourcesString);
+  topTableRow.appendChild(topTableGold);
+  topTableGold.appendChild(goldImg);
+  topTableRow.appendChild(topTableGoldValue);
+  topTableRow.appendChild(topTableOil);
+  topTableOil.appendChild(oilImg);
+  topTableRow.appendChild(topTableOilValue);
+  topTableRow.appendChild(topTableFood);
+  topTableFood.appendChild(foodImg);
+  topTableRow.appendChild(topTableFoodValue);
+  topTableRow.appendChild(topTableConsMats);
+  topTableConsMats.appendChild(consMatsImg);
+  topTableRow.appendChild(topTableConsMatsValue);
+  topTableRow.appendChild(topTableprodPopulation);
+  topTableprodPopulation.appendChild(prodPopulationImg);
+  topTableRow.appendChild(topTableprodPopulationValue);
+  topTableRow.appendChild(topTablelandArea);
+  topTablelandArea.appendChild(landAreaImg);
+  topTableRow.appendChild(topTablelandAreaValue);
+  topTableRow.appendChild(topTableArmy);
+  topTableArmy.appendChild(armyImg);
+  topTableRow.appendChild(topTableArmyValue);
+
+  document.getElementById("top-table-container").appendChild(topTableTable);
+
   // create the menu options
   const popupTitle = document.createElement("td");
   popupTitle.innerText = "Select A Starting Country"; //set in required function
