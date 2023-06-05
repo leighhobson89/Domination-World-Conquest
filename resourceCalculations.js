@@ -13,6 +13,10 @@ export let mainArrayOfTerritoriesAndResources = [];
 export let currentlySelectedTerritoryForUpgrades;
 export let totalGoldPrice = 0;
 export let totalConsMats = 0;
+export let totalOilCapacity = 0;
+export let totalOilDemand = 0;
+export let totalFoodCapacity = 0;
+export let totalConsMatsCapacity = 0;
 
 const oilRequirements = {
     naval: 1000,
@@ -198,6 +202,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let fortsBuilt = 0;
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
+            totalOilDemand = (initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -445,7 +450,7 @@ function calculatePopulationChange(territory) {
     }
 }
 
-function formatNumbersToKMB(string) {
+export function formatNumbersToKMB(string) {
     if (string >= 1000000000) {
         return (string / 1000000000).toFixed(1) + 'B';
     } else if (string >= 1000000) {
@@ -466,7 +471,6 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
     let totalProdPop = 0;
     let totalArea = 0;
     let totalArmy = 0;
-    let totalOilCapacity = 0;
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         for (const path of paths) {
@@ -480,6 +484,8 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
                 totalArea += mainArrayOfTerritoriesAndResources[i].area;
                 totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
                 totalOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity;
+                totalFoodCapacity += mainArrayOfTerritoriesAndResources[i].foodCapacity;
+                totalConsMatsCapacity += mainArrayOfTerritoriesAndResources[i].consMatsCapacity;
                 if (path === currentSelectedPath && currentTurn !== 1) {
                     writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
