@@ -3,7 +3,7 @@ import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
-import { currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats } from './resourceCalculations.js';
+import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPurchases, totalGoldPrice, totalConsMats } from './resourceCalculations.js';
 import { addPlayerUpgrades } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
@@ -59,6 +59,7 @@ let menuState = true;
 let selectCountryPlayerState = false;
 let UIButtonCurrentlyOnScreen = false;
 let UpgradeWindowCurrentlyOnScreen = false;
+let BuyWindowCurrentlyOnScreen = false;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -1002,6 +1003,191 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("upgrade-container").appendChild(upgradeContainer);
 
+  //BUY MENU
+  const buyContainer = document.createElement("div");
+  buyContainer.classList.add("blur-background");
+
+  const navBarBuyWindow = document.createElement("div");
+  navBarBuyWindow.classList.add("navbar-buy-window");
+  navBarBuyWindow.setAttribute("id", "navbar-buy-window");
+
+  const navBarBuyLeftColumn = document.createElement("div");
+  navBarBuyLeftColumn.classList.add("left-column-buy");
+  navBarBuyLeftColumn.innerHTML = "";
+
+  const navBarBuyCenterColumn = document.createElement("div");
+  navBarBuyCenterColumn.classList.add("center-column-buy");
+  navBarBuyCenterColumn.innerHTML = "Buy Military";
+
+  const navBarBuyRightColumn = document.createElement("div");
+  navBarBuyRightColumn.classList.add("right-column-buy");
+  navBarBuyRightColumn.innerHTML = "";
+
+  const subtitleBuyWindow = document.createElement("div");
+  subtitleBuyWindow.classList.add("subtitle-buy-window");
+  subtitleBuyWindow.setAttribute("id", "subtitle-buy-window");
+
+  const keyBarBuyWindow = document.createElement("div");
+  keyBarBuyWindow.classList.add("key-bar-buy-window");
+  keyBarBuyWindow.setAttribute("id", "key-bar-buy-window");
+
+  const keyBarBuyColumn0 = document.createElement("div");
+  keyBarBuyColumn0.classList.add("key-bar-buy-column0");
+  keyBarBuyColumn0.innerHTML = "";
+
+  const keyBarBuyColumn1 = document.createElement("div");
+  keyBarBuyColumn1.classList.add("key-bar-buy-column1");
+  keyBarBuyColumn1.innerHTML = "Type";
+
+  const keyBarBuyColumn2 = document.createElement("div");
+  keyBarBuyColumn2.classList.add("key-bar-buy-column2");
+  keyBarBuyColumn2.innerHTML = "Effect";
+
+  const keyBarBuyColumn3 = document.createElement("div");
+  keyBarColumn3.classList.add("key-bar-buy-column3");
+  let imageSourceBuy = "/resources/gold.png";
+  let imageElementBuy = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Gold";
+  imageElement.classList.add("sizingIcons");
+  keyBarBuyColumn3.appendChild(imageElement);
+
+  const keyBarBuyColumn4 = document.createElement("div");
+  keyBarColumn4.classList.add("key-bar-buy-column4");
+  imageSourceBuy = "/resources/prodPopulation.png";
+  imageElementBuy = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Productive Population";
+  imageElement.classList.add("sizingIcons");
+  keyBarBuyColumn4.appendChild(imageElement);
+
+  const keyBarBuyColumn5 = document.createElement("div");
+  keyBarBuyColumn5.classList.add("key-bar-buy-column5");
+  imageSourceBuy = "/resources/buy.png";
+  imageElementBuy = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Buy";
+  imageElement.classList.add("sizingIcons");
+  keyBarBuyColumn5.appendChild(imageElement);
+
+  const xButtonBuy = document.createElement("button");
+  xButtonBuy.classList.add("x-button-buy");
+  xButtonBuy.setAttribute("id", "xButtonBuy");
+  xButtonBuy.innerHTML = "X";
+
+  xButtonBuy.addEventListener("click", function() {
+    playSoundClip();
+    toggleBuyMenu(false);    
+  });
+
+  const contentWindowBuy = document.createElement("div");
+  contentWindowBuy.classList.add("content-window-buy");
+  contentWindowBuy.setAttribute("id", "content-window-buy");
+
+  const beforeInfoPanelBuyWindow = document.createElement("div");
+  beforeInfoPanelBuyWindow.classList.add("info-panel-buy::before");
+  beforeInfoPanelBuyWindow.setAttribute("id", "beforeInfoPanelBuyWindow");
+
+  const infoPanelBuyWindow = document.createElement("div");
+  infoPanelBuyWindow.classList.add("info-panel-buy");
+  infoPanelBuyWindow.setAttribute("id", "info-panel-buy");
+
+  const buyTable = document.createElement("div");
+  buyTable.classList.add("buy-table");
+  buyTable.setAttribute("id", "buy-table");
+
+  const bottomBarBuyWindow = document.createElement("div");
+  bottomBarBuyWindow.classList.add("bottom-bar-buy-window");
+  bottomBarBuyWindow.setAttribute("id", "bottom-bar-buy-window");
+
+  const pricesBuyInfoWindow = document.createElement("div");
+  pricesBuyInfoWindow.classList.add("prices-buy-info-window");
+  pricesBuyInfoWindow.setAttribute("id", "prices-buy-info-window");
+
+  const pricesBuyInfoCol0 = document.createElement("div");
+  pricesBuyInfoCol0.classList.add("prices-buy-info-column");
+  pricesBuyInfoCol0.classList.add("prices-buy-info-col0-padding");
+  pricesBuyInfoCol0.setAttribute("id", "prices-buy-info-column0");
+  pricesBuyInfoCol0.innerHTML = "Total:";
+
+  const pricesBuyInfoCol1 = document.createElement("div");
+  pricesBuyInfoCol1.classList.add("prices-buy-info-column");
+  pricesBuyInfoCol1.classList.add("prices-buy-info-icon-justification");
+  pricesBuyInfoCol1.setAttribute("id", "prices-buy-info-column1");
+  imageSourceBuy = "/resources/gold.png";
+  imageElementBuy = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Gold";
+  imageElement.classList.add("sizingIcons");
+  pricesBuyInfoCol1.appendChild(imageElement);
+
+  const pricesBuyInfoCol2 = document.createElement("div");
+  pricesBuyInfoCol2.classList.add("prices-buy-info-column");
+  pricesBuyInfoCol2.classList.add("prices-buy-info-total-justification");
+  pricesBuyInfoCol2.setAttribute("id", "prices-buy-info-column2");
+  pricesBuyInfoCol2.innerHTML = 0;
+
+  const pricesBuyInfoCol3 = document.createElement("div");
+  pricesBuyInfoCol3.classList.add("prices-buy-info-column");
+  pricesBuyInfoCol3.classList.add("prices-buy-info-icon-justification");
+  pricesBuyInfoCol3.setAttribute("id", "prices-buy-info-column3");
+  imageSourceBuy = "/resources/navalIcon.png";
+  imageElementBuy = document.createElement("img");
+  imageElement.src = imageSource;
+  imageElement.alt = "Construction Materials";
+  imageElement.classList.add("sizingIcons");
+  pricesBuyInfoCol3.appendChild(imageElement);
+
+  const pricesBuyInfoCol4 = document.createElement("div");
+  pricesBuyInfoCol4.classList.add("prices-buy-info-column");
+  pricesBuyInfoCol4.classList.add("prices-buy-info-total-justification");
+  pricesBuyInfoCol4.setAttribute("id", "prices-buy-info-column4");
+  pricesBuyInfoCol4.innerHTML = 0;
+
+  const bottomBarBuyConfirmButton = document.createElement("button");
+  bottomBarBuyConfirmButton.classList.add("bottom-bar-buy-confirm-button");
+  bottomBarBuyConfirmButton.setAttribute("id", "bottom-bar-buy-confirm-button");
+  bottomBarBuyConfirmButton.innerHTML = "Cancel";
+
+  bottomBarBuyConfirmButton.addEventListener("click", function() {
+    playSoundClip();
+    if (bottomBarBuyConfirmButton.innerHTML === "Cancel") {
+      toggleBuyMenu(false);
+    } else if (bottomBarBuyConfirmButton.innerHTML === "Confirm") {
+      addPlayerPurchases(document.getElementById("buy-table"), currentlySelectedTerritoryForPurchases, totalGoldPrice, totalPopulation);
+      toggleBuyMenu(false);
+    }
+  });
+
+
+  buyContainer.appendChild(navBarBuyWindow);
+  navBarBuyWindow.appendChild(navBarBuyLeftColumn);
+  navBarBuyWindow.appendChild(navBarBuyCenterColumn);
+  navBarBuyWindow.appendChild(navBarBuyRightColumn);
+  navBarBuyRightColumn.appendChild(xButtonBuy);
+  buyContainer.appendChild(subtitleBuyWindow);
+  buyContainer.appendChild(keyBarBuyWindow);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn0);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn1);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn2);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn3);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn4);
+  keyBarBuyWindow.appendChild(keyBarBuyColumn5);
+  buyContainer.appendChild(contentWindowBuy);
+  contentWindowBuy.appendChild(infoPanelBuyWindow);
+  infoPanelBuyWindow.appendChild(buyTable);
+  infoPanelBuyWindow.insertBefore(beforeInfoPanelBuyWindow, infoPanelBuyWindow.firstChild);
+  infoPanelBuyWindow.appendChild(bottomBarBuyWindow);
+  bottomBarBuyWindow.appendChild(pricesBuyInfoWindow);
+  pricesBuyInfoWindow.appendChild(pricesBuyInfoCol0);
+  pricesBuyInfoWindow.appendChild(pricesBuyInfoCol1);
+  pricesBuyInfoWindow.appendChild(pricesBuyInfoCol2);
+  pricesBuyInfoWindow.appendChild(pricesBuyInfoCol3);
+  pricesBuyInfoWindow.appendChild(pricesBuyInfoCol4);
+  bottomBarBuyWindow.appendChild(bottomBarBuyConfirmButton);
+
+  document.getElementById("buy-container").appendChild(buyContainer);
+
   pageLoaded = true;
 });
 
@@ -1035,6 +1221,7 @@ document.addEventListener("keydown", function(event) {
     menuState = true;
     toggleUIButton(false);
     toggleUpgradeMenu(false);
+    toggleBuyMenu(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
     if (popupCurrentlyOnScreen) {
       document.getElementById("popup-with-confirm-container").style.display = "flex";
@@ -1044,6 +1231,9 @@ document.addEventListener("keydown", function(event) {
     }
     if (UpgradeWindowCurrentlyOnScreen) {
       toggleUpgradeMenu(true);
+    }
+    if (BuyWindowCurrentlyOnScreen) {
+      toggleBuyMenu(true);
     }
     if (UICurrentlyOnScreen) {
       document.getElementById("main-ui-container").style.display = "flex";
@@ -1499,10 +1689,6 @@ function toggleUIButton(makeVisible) {
     }
 }
 
-export function toggleBuyMenu(makeVisible, territory) {
-  console.log("toggleBuyMenu Function");
-}
-
 export function toggleUpgradeMenu(makeVisible, territory) {
   if (makeVisible) {
     document.getElementById("upgrade-container").style.display = "block";
@@ -1513,6 +1699,19 @@ export function toggleUpgradeMenu(makeVisible, territory) {
     document.getElementById("upgrade-container").style.display = "none";
     document.getElementById("main-ui-container").style.pointerEvents = 'auto';
     UpgradeWindowCurrentlyOnScreen = false;
+  }
+}
+
+export function toggleBuyMenu(makeVisible, territory) {
+  if (makeVisible) {
+    document.getElementById("buy-container").style.display = "block";
+    document.getElementById("main-ui-container").style.pointerEvents = 'none';
+    BuyWindowCurrentlyOnScreen = true;
+    document.getElementById("subtitle-buy-window").innerHTML = territory.territoryName;
+  } else {
+    document.getElementById("buy-container").style.display = "none";
+    document.getElementById("main-ui-container").style.pointerEvents = 'auto';
+    BuyWindowCurrentlyOnScreen = false;
   }
 }
 

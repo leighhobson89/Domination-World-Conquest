@@ -5,12 +5,13 @@ import { setFlag } from './ui.js';
 import { currentSelectedPath } from './ui.js';
 import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
-import { toggleUpgradeMenu } from './ui.js';
+import { toggleUpgradeMenu, toggleBuyMenu} from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
 export let mainArrayOfTerritoriesAndResources = [];
 export let currentlySelectedTerritoryForUpgrades;
+export let currentlySelectedTerritoryForPurchases;
 export let totalGoldPrice = 0;
 export let totalConsMats = 0;
 export let totalOilCapacity = 0;
@@ -201,7 +202,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let fortsBuilt = 0;
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
-            oilDemandArray.push([(initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval), dataName]);
+            oilDemandArray.push([(initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval), dataName, uniqueId]);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -822,7 +823,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
                     if (currentTurnPhase === 0) {
                         populateBuyTable(territoryData);
                         toggleBuyMenu(true, territoryData);
-                        currentlySelectedTerritoryForUpgrades = territoryData;
+                        currentlySelectedTerritoryForPurchases = territoryData;
                         buyButtonImageElement.src = "/resources/buyButtonIcon.png";
                     }
                     });
@@ -983,47 +984,30 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     // Set the content of the tooltip based on the territory data
     const territoryName = row.querySelector(".ui-table-column").textContent;
-    const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
     const prodPopulation = territoryData.productiveTerritoryPop;
-    const popNextTurnValue = calculatePopulationChange(territoryData);
     const gold = row.querySelector(".ui-table-column:nth-child(7)").textContent;
-    /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
-    const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
     const oilCap = territoryData.oilCapacity;
+    let oilDemand;
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
     let blackStyle = "font-weight: bold; color: black;";
-    let popNextTurnStyle = "font-weight: bold; color: black;";
-    let oilNextTurnStyle = "font-weight: bold; color: black;";
 
-    if (popNextTurnValue > 0) {
-        popNextTurnStyle = "color: rgb(0,235,0);";
-    } else if (popNextTurnValue < 0) {
-        popNextTurnStyle = "color: rgb(235,160,160);";
+    for (let i = 0; i < oilDemandArray.length; i++) {
+        if (oilDemandArray[i][2] === territoryData.uniqueId) {
+            oilDemand = oilDemandArray[i][0];
+        }
     }
-
-    /* if (goldNextTurnValue > 0) {
-        goldNextTurnStyle = "color: rgb(0,235,0);";
-    } else if (goldNextTurnValue < 0) {
-        goldNextTurnStyle = "color: rgb(235,160,160);";
-    } */
-
-    if (oilNextTurnValue > 0) {
-        oilNextTurnStyle = "color: rgb(0,235,0);";
-    } else if (oilNextTurnValue < 0) {
-        oilNextTurnStyle = "color: rgb(235,160,160);";
-    }
+    console.log(oilDemand);
 
     const tooltipContent = `
         <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
-        <div>Army: ${army}</div>
         <div>Defense Bonus Multiplier: <span style="${blackStyle}">x${territoryData.defenseBonus}</span></div>
         <br />
         <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
-        <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
         <div>Gold: ${gold}</div>
-        <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
+        <br />
         <div>Oil Cap: ${Math.ceil(oilCap)}</div>
+        <div>Oil Demand: ${Math.ceil(oilDemand)}</div>
         <br />
         <div>Infantry: <span style="${blackStyle}">${territoryData.infantryForCurrentTerritory}</span> </div>
         <div>Assault: <span style="${blackStyle}">${territoryData.assaultForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
