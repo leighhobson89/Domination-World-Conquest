@@ -1044,31 +1044,31 @@ document.addEventListener("DOMContentLoaded", function() {
   keyBarBuyColumn2.innerHTML = "Effect";
 
   const keyBarBuyColumn3 = document.createElement("div");
-  keyBarColumn3.classList.add("key-bar-buy-column3");
+  keyBarBuyColumn3.classList.add("key-bar-buy-column3");
   let imageSourceBuy = "/resources/gold.png";
   let imageElementBuy = document.createElement("img");
-  imageElement.src = imageSource;
-  imageElement.alt = "Gold";
-  imageElement.classList.add("sizingIcons");
-  keyBarBuyColumn3.appendChild(imageElement);
+  imageElementBuy.src = imageSourceBuy;
+  imageElementBuy.alt = "Gold";
+  imageElementBuy.classList.add("sizingIcons");
+  keyBarBuyColumn3.appendChild(imageElementBuy);
 
   const keyBarBuyColumn4 = document.createElement("div");
-  keyBarColumn4.classList.add("key-bar-buy-column4");
+  keyBarBuyColumn4.classList.add("key-bar-buy-column4");
   imageSourceBuy = "/resources/prodPopulation.png";
   imageElementBuy = document.createElement("img");
-  imageElement.src = imageSource;
-  imageElement.alt = "Productive Population";
-  imageElement.classList.add("sizingIcons");
-  keyBarBuyColumn4.appendChild(imageElement);
+  imageElementBuy.src = imageSourceBuy;
+  imageElementBuy.alt = "Productive Population";
+  imageElementBuy.classList.add("sizingIcons");
+  keyBarBuyColumn4.appendChild(imageElementBuy);
 
   const keyBarBuyColumn5 = document.createElement("div");
   keyBarBuyColumn5.classList.add("key-bar-buy-column5");
   imageSourceBuy = "/resources/buy.png";
   imageElementBuy = document.createElement("img");
-  imageElement.src = imageSource;
-  imageElement.alt = "Buy";
-  imageElement.classList.add("sizingIcons");
-  keyBarBuyColumn5.appendChild(imageElement);
+  imageElementBuy.src = imageSourceBuy;
+  imageElementBuy.alt = "Buy";
+  imageElementBuy.classList.add("sizingIcons");
+  keyBarBuyColumn5.appendChild(imageElementBuy);
 
   const xButtonBuy = document.createElement("button");
   xButtonBuy.classList.add("x-button-buy");
@@ -1116,10 +1116,10 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesBuyInfoCol1.setAttribute("id", "prices-buy-info-column1");
   imageSourceBuy = "/resources/gold.png";
   imageElementBuy = document.createElement("img");
-  imageElement.src = imageSource;
-  imageElement.alt = "Gold";
-  imageElement.classList.add("sizingIcons");
-  pricesBuyInfoCol1.appendChild(imageElement);
+  imageElementBuy.src = imageSourceBuy;
+  imageElementBuy.alt = "Gold";
+  imageElementBuy.classList.add("sizingIcons");
+  pricesBuyInfoCol1.appendChild(imageElementBuy);
 
   const pricesBuyInfoCol2 = document.createElement("div");
   pricesBuyInfoCol2.classList.add("prices-buy-info-column");
@@ -1131,12 +1131,12 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesBuyInfoCol3.classList.add("prices-buy-info-column");
   pricesBuyInfoCol3.classList.add("prices-buy-info-icon-justification");
   pricesBuyInfoCol3.setAttribute("id", "prices-buy-info-column3");
-  imageSourceBuy = "/resources/navalIcon.png";
+  imageSourceBuy = "/resources/prodPopulation.png";
   imageElementBuy = document.createElement("img");
-  imageElement.src = imageSource;
-  imageElement.alt = "Construction Materials";
-  imageElement.classList.add("sizingIcons");
-  pricesBuyInfoCol3.appendChild(imageElement);
+  imageElementBuy.src = imageSourceBuy;
+  imageElementBuy.alt = "Productive Population";
+  imageElementBuy.classList.add("sizingIcons");
+  pricesBuyInfoCol3.appendChild(imageElementBuy);
 
   const pricesBuyInfoCol4 = document.createElement("div");
   pricesBuyInfoCol4.classList.add("prices-buy-info-column");
