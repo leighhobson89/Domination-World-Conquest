@@ -975,6 +975,96 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     // Show the tooltip
     tooltip.style.display = "block";
   }
+
+  function tooltipUIArmyRow(row, territoryData, event) {
+    // Get the coordinates of the mouse cursor
+    const x = event.clientX;
+    const y = event.clientY;
+
+    // Set the content of the tooltip based on the territory data
+    const territoryName = row.querySelector(".ui-table-column").textContent;
+    const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
+    const prodPopulation = territoryData.productiveTerritoryPop;
+    const popNextTurnValue = calculatePopulationChange(territoryData);
+    const gold = row.querySelector(".ui-table-column:nth-child(7)").textContent;
+    /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
+    const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
+    const oilCap = territoryData.oilCapacity;
+
+    /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
+    let blackStyle = "font-weight: bold; color: black;";
+    let popNextTurnStyle = "font-weight: bold; color: black;";
+    let oilNextTurnStyle = "font-weight: bold; color: black;";
+
+    if (popNextTurnValue > 0) {
+        popNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (popNextTurnValue < 0) {
+        popNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    /* if (goldNextTurnValue > 0) {
+        goldNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (goldNextTurnValue < 0) {
+        goldNextTurnStyle = "color: rgb(235,160,160);";
+    } */
+
+    if (oilNextTurnValue > 0) {
+        oilNextTurnStyle = "color: rgb(0,235,0);";
+    } else if (oilNextTurnValue < 0) {
+        oilNextTurnStyle = "color: rgb(235,160,160);";
+    }
+
+    const tooltipContent = `
+        <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
+        <div>Army: ${army}</div>
+        <div>Defense Bonus Multiplier: <span style="${blackStyle}">x${territoryData.defenseBonus}</span></div>
+        <br />
+        <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
+        <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
+        <div>Gold: ${gold}</div>
+        <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
+        <div>Oil Cap: ${Math.ceil(oilCap)}</div>
+        <br />
+        <div>Infantry: <span style="${blackStyle}">${territoryData.infantryForCurrentTerritory}</span> </div>
+        <div>Assault: <span style="${blackStyle}">${territoryData.assaultForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
+        <div>Air: <span style="${blackStyle}">${territoryData.airForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
+        <div>Naval: <span style="${blackStyle}">${territoryData.navalForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
+    `;
+
+    // Get the last div in the row
+    const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
+
+    // Check if the mouse is hovering over the last div
+    if (event.target === lastDiv) {
+        if (currentTurnPhase == 0) {
+            tooltip.innerHTML = "Click To Buy Military!";
+        } else {
+            tooltip.innerHTML = "Wrong Turn Phase To Buy";
+        }
+    } else {
+        // Set the content of the tooltip based on the territory data
+        tooltip.innerHTML = tooltipContent;
+    }
+
+    //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
+
+    const tooltipHeight = tooltip.offsetHeight;
+    const verticalThreshold = tooltipHeight + 25;
+
+    if (window.innerHeight - y < verticalThreshold) {
+
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = y - tooltipHeight + "px";
+    } else {
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
+    }
+
+    // Show the tooltip
+    tooltip.style.display = "block";
+
+    row.style.cursor = "pointer";
+}
   
 function tooltipUITerritoryRow(row, territoryData, event) {
     // Get the coordinates of the mouse cursor
