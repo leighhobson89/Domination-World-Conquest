@@ -14,6 +14,8 @@ export let currentlySelectedTerritoryForUpgrades;
 export let currentlySelectedTerritoryForPurchases;
 export let totalGoldPrice = 0;
 export let totalConsMats = 0;
+export let totalPurchaseGoldPrice = 0;
+export let totalPopulationCost = 0;
 export let totalOilCapacity = 0;
 export let capacityArray;
 export let oilDemandArray = [];
@@ -28,6 +30,7 @@ let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
 let simulatedCostsAll = [0,0,0,0,0,0,0,0];
+let simulatedCostsAllMilitary = [0,0,0,0,0,0,0,0];
 
 /* const turnLabel = document.getElementById('turn-label'); */
 if (!pageLoaded) {
@@ -467,9 +470,7 @@ function calculateAllTerritoryCapacitiesForCountry() {
     const capacityArray = [];
   
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-      console.log(mainArrayOfTerritoriesAndResources[i].uniqueId);
       for (let j = 0; j < playerOwnedTerritories.length; j++) {
-        console.log(parseInt(playerOwnedTerritories[j].getAttribute("uniqueid")));
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
           const totalOilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity;
           const totalFoodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity;
@@ -997,7 +998,6 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
             oilDemand = oilDemandArray[i][0];
         }
     }
-    console.log(oilDemand);
 
     const tooltipContent = `
         <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
@@ -1382,7 +1382,263 @@ function calculateAvailableUpgrades(territory) {
   }
 
   function populateBuyTable(territory) {
-    console.log("Buy Window Displayed");
+    //reset confirm button status and totals when opening upgrade window
+    document.getElementById("prices-buy-info-column2").innerHTML = "0";
+    document.getElementById("prices-buy-info-column4").innerHTML = "0";
+    document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Cancel";
+    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+    });
+    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    });
+
+    let simulatedPurchaseCosts;
+    const buyTable = document.getElementById("buy-table");
+    let totalSimulatedPurchaseGoldPrice = 0;
+    let totalSimulatedProdPopPrice = 0;
+  
+    // Calculate available upgrades
+    const availablePurchases = calculateAvailablePurchases(territory);
+    buyTable.innerHTML = "";
+  
+    // Populate the table with available upgrade rows
+    availablePurchases.forEach((purchaseRow) => {
+    const buyRow = document.createElement("div");
+    buyRow.classList.add("buy-row");
+  
+    // Create and populate the image column
+    const imageBuyColumn = document.createElement("div");
+    imageBuyColumn.classList.add("buy-column");
+    let buyImage = document.createElement("img");
+    buyImage.src = getImagePath(purchaseRow.type, purchaseRow.condition, territory, 1); // Call a function to get the image path based on the upgrade type
+    imageBuyColumn.appendChild(buyImage);
+  
+    // Create and populate other columns
+    const buyColumn1 = document.createElement("div");
+    buyColumn1.classList.add("buy-column");
+    buyColumn1.textContent = purchaseRow.type;
+  
+    const buyColumn2 = document.createElement("div");
+    buyColumn2.classList.add("buy-column");
+    buyColumn2.textContent = purchaseRow.effect;
+  
+    const buyColumn3 = document.createElement("div");
+    buyColumn3.classList.add("buy-column");
+    buyColumn3.textContent = 0;
+
+    const buyColumn4 = document.createElement("div");
+    buyColumn4.classList.add("buy-column");
+    buyColumn4.textContent = 0;
+
+    const buyColumn5 = document.createElement("div");
+    buyColumn5.classList.add("buy-column");
+    buyColumn5.textContent = "";
+
+    const buyColumn5A = document.createElement("div");
+    buyColumn5A.classList.add("buy-column");
+    buyColumn5A.classList.add("column5A");
+    const buyImageMinus = document.createElement("img");
+    if (purchaseRow.condition === "Can Build") {
+        buyImageMinus.src = "/resources/minusButton.png";
+    } else {
+        buyImageMinus.src = "/resources/minusButtonGrey.png";
+    }
+    buyImageMinus.style.height = "21px";
+    buyImageMinus.style.width = "21px";
+    buyColumn5A.appendChild(buyImageMinus);
+
+    const buyColumn5Wrapper = document.createElement("div");
+    buyColumn5Wrapper.classList.add("buyColumn5-wrapper");
+
+    const buyColumn5B = document.createElement("div");
+    buyColumn5B.classList.add("buy-column");
+    buyColumn5B.classList.add("buyColumn5B");
+    const buyTextfield = document.createElement("input");
+    buyTextfield.type = "text";
+    buyTextfield.value = "0";
+    buyColumn5B.appendChild(buyTextfield);
+
+    const buyColumn5C = document.createElement("div");
+    buyColumn5C.classList.add("buy-column");
+    buyColumn5C.classList.add("buyColumn5C");
+    const buyImagePlus = document.createElement("img");
+    if (purchaseRow.condition === "Can Build") {
+        buyImagePlus.src = "/resources/plusButton.png";
+    } else {
+        buyImagePlus.src = "/resources/plusButtonGrey.png";
+    }
+    buyImagePlus.style.height = "21px";
+    buyImagePlus.style.width = "21px";
+    buyColumn5C.appendChild(buyImagePlus);
+
+  
+    // Add columns to the row
+    buyRow.appendChild(imageBuyColumn);
+    buyRow.appendChild(buyColumn1);
+    buyRow.appendChild(buyColumn2);
+    buyRow.appendChild(buyColumn3);
+    buyRow.appendChild(buyColumn4);
+    buyRow.appendChild(buyColumn5);
+    buyColumn5Wrapper.appendChild(buyColumn5B);
+    buyColumn5Wrapper.appendChild(buyColumn5C);
+    buyColumn5.appendChild(buyColumn5A);
+    buyColumn5.appendChild(buyColumn5Wrapper);
+  
+    buyTable.appendChild(buyRow);
+
+    buyRow.addEventListener("mouseover", (e) => {
+        tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
+    });
+    buyRow.addEventListener("mouseout", () => {
+        tooltip.style.display = "none";
+        });
+
+    const goldCost = purchaseRow.goldCost || 0;
+    const prodPopulationCost = purchaseRow.prodPopulationCost || 0;
+
+    totalPurchaseGoldPrice += goldCost; 
+    totalPopulationCost += prodPopulationCost; 
+
+    simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, territory, true);
+
+    switch (simulatedPurchaseCosts[2]) {
+        case "Infantry":
+          simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
+          simulatedCostsAllMilitary[1] = simulatedPurchaseCosts[1];
+          break;
+        case "Assault":
+          simulatedCostsAllMilitary[2] = simulatedPurchaseCosts[0];
+          simulatedCostsAllMilitary[3] = simulatedPurchaseCosts[1];
+          break;
+        case "Air":
+          simulatedCostsAllMilitary[4] = simulatedPurchaseCosts[0];
+          simulatedCostsAllMilitary[5] = simulatedPurchaseCosts[1];
+          break;
+        case "Naval":
+          simulatedCostsAllMilitary[6] = simulatedPurchaseCosts[0];
+          simulatedCostsAllMilitary[7] = simulatedPurchaseCosts[1];
+          break;
+      }
+
+    buyImageMinus.addEventListener("click", (e) => {
+        if (buyImageMinus.src.includes("/resources/minusButton.png")) {
+            tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
+            if (parseInt(buyTextfield.value) > 0) {
+                simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, territory, false);
+                switch (simulatedPurchaseCosts[2]) {
+                    case "Infantry":
+                      simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
+                      simulatedCostsAllMilitary[1] = simulatedPurchaseCosts[1];
+                      break;
+                    case "Assault":
+                      simulatedCostsAllMilitary[2] = simulatedPurchaseCosts[0];
+                      simulatedCostsAllMilitary[3] = simulatedPurchaseCosts[1];
+                      break;
+                    case "Air":
+                      simulatedCostsAllMilitary[4] = simulatedPurchaseCosts[0];
+                      simulatedCostsAllMilitary[5] = simulatedPurchaseCosts[1];
+                      break;
+                    case "Naval":
+                      simulatedCostsAllMilitary[6] = simulatedPurchaseCosts[0];
+                      simulatedCostsAllMilitary[7] = simulatedPurchaseCosts[1];
+                      break;
+                  }
+
+                totalPurchaseGoldPrice = calculateTotalPurchaseGoldPrice(buyTable);
+                totalPopulationCost = calculateTotalPopulationCost(buyTable);
+
+                document.getElementById("prices-buy-info-column2").innerHTML = totalPurchaseGoldPrice;
+                document.getElementById("prices-buy-info-column4").innerHTML = totalPopulationCost;
+
+                //code to check greying out here
+                checkPurchaseRowsForGreyingOut(territory, totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "minus", purchaseRow.type);
+
+                if (atLeastOneRowWithValueGreaterThanOne(buyTable)) {
+                    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                        this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
+                    });
+                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                        this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    });
+                } else if (allRowsWithValueZero(buyTable)) {
+                    document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Cancel";
+                    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+                    });
+                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    });
+                } 
+            }
+        }
+    });
+  
+    buyImagePlus.addEventListener("click", (e) => {
+        if (buyImagePlus.src.includes("/resources/plusButton.png")) {
+            tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
+          simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, territory, false);
+          switch (simulatedPurchaseCosts[2]) {
+            case "Infantry":
+              simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
+              simulatedCostsAllMilitary[1] = simulatedPurchaseCosts[1];
+              break;
+            case "Assault":
+              simulatedCostsAllMilitary[2] = simulatedPurchaseCosts[0];
+              simulatedCostsAllMilitary[3] = simulatedPurchaseCosts[1];
+              break;
+            case "Air":
+              simulatedCostsAllMilitary[4] = simulatedPurchaseCosts[0];
+              simulatedCostsAllMilitary[5] = simulatedPurchaseCosts[1];
+              break;
+            case "Naval":
+              simulatedCostsAllMilitary[6] = simulatedPurchaseCosts[0];
+              simulatedCostsAllMilitary[7] = simulatedPurchaseCosts[1];
+              break;
+          }
+
+        totalPurchaseGoldPrice = calculateTotalPurchaseGoldPrice(buyTable);
+        totalPopulationCost = calculateTotalPopulationCost(buyTable);
+
+        document.getElementById("prices-buy-info-column2").innerHTML = totalPurchaseGoldPrice;
+        document.getElementById("prices-buy-info-column4").innerHTML = totalPopulationCost;
+
+        totalSimulatedPurchaseGoldPrice = simulatedCostsAllMilitary[0] + simulatedCostsAllMilitary[2] + simulatedCostsAllMilitary[4] + simulatedCostsAllMilitary[6];
+        totalSimulatedProdPopPrice = simulatedCostsAllMilitary[1] + simulatedCostsAllMilitary[3] + simulatedCostsAllMilitary[5] + simulatedCostsAllMilitary[7];
+
+        console.log(simulatedCostsAllMilitary);
+        console.log("Total Gold Price:", totalPurchaseGoldPrice);
+        console.log("Total Population Cost:", totalPopulationCost);
+        console.log("Total SimGold Price:", totalSimulatedPurchaseGoldPrice);
+        console.log("Total SimConsMats:", totalSimulatedProdPopPrice);
+
+        //code to check greying out here
+        checkPurchaseRowsForGreyingOut(territory, totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "plus", purchaseRow.type);
+
+        if (atLeastOneRowWithValueGreaterThanOne(buyTable)) {
+            document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Confirm";
+            document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+            document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
+            });
+            document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+            });
+        } else if (allRowsWithValueZero(buyTable)) {
+            document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+            document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
+            });
+            document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+            });
+        }                       
+        }
+      });
+  });
   }
   
   function populateUpgradeTable(territory) {
@@ -1416,7 +1672,7 @@ function calculateAvailableUpgrades(territory) {
     const imageColumn = document.createElement("div");
     imageColumn.classList.add("upgrade-column");
     let image = document.createElement("img");
-    image.src = getImagePath(upgradeRow.type, upgradeRow.condition, territory); // Call a function to get the image path based on the upgrade type
+    image.src = getImagePath(upgradeRow.type, upgradeRow.condition, territory, 0); // Call a function to get the image path based on the upgrade type
     imageColumn.appendChild(image);
   
     // Create and populate other columns
@@ -1554,10 +1810,6 @@ function calculateAvailableUpgrades(territory) {
 
                 document.getElementById("prices-info-column2").innerHTML = totalGoldPrice;
                 document.getElementById("prices-info-column4").innerHTML = totalConsMats;
-
-                console.log(simulatedCostsAll);
-                console.log("Total Gold Price:", totalGoldPrice);
-                console.log("Total ConsMats:", totalConsMats);
 
                 //code to check greying out here
                 checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
@@ -1735,36 +1987,57 @@ function calculateAvailableUpgrades(territory) {
       return simulationCosts;
   }
 
-  function getImagePath(type, condition, territory) {
-    
-    const maxFarms = 5;
-    const maxForests = 5;
-    const maxOilWells = 5;
-    const maxForts = 5;
+  function getImagePath(type, condition, territory, mode) {
+    if (mode === 0) { //upgrade images
+        const maxFarms = 5;
+        const maxForests = 5;
+        const maxOilWells = 5;
+        const maxForts = 5;
 
-    if (type === "Farm") {
-        if (condition === "Can Build" && territory.farmsBuilt < maxFarms) {
-            return '/resources/farmIcon.png';
-        } else {
-            return '/resources/farmIconGrey.png';
+        if (type === "Farm") {
+            if (condition === "Can Build" && territory.farmsBuilt < maxFarms) {
+                return '/resources/farmIcon.png';
+            } else {
+                return '/resources/farmIconGrey.png';
+            }
+        } else if (type === "Oil Well") {
+            if (condition === "Can Build" && territory.oilWellsBuilt < maxOilWells) {
+                return '/resources/oilWellIcon.png';
+            } else {
+                return '/resources/oilWellIconGrey.png';
+            }
+        } else if (type === "Forest") {
+            if (condition === "Can Build" && territory.forestsBuilt < maxForests) {
+                return '/resources/forestIcon.png';
+            } else {
+                return '/resources/forestIconGrey.png';
+            }
+        } else if (type === "Fort") {
+            if (condition === "Can Build" && territory.fortsBuilt < maxForts) {
+                return '/resources/fortIcon.png';
+            } else {
+                return '/resources/fortIconGrey.png';
+            }
         }
-    } else if (type === "Oil Well") {
-        if (condition === "Can Build" && territory.oilWellsBuilt < maxOilWells) {
-            return '/resources/oilWellIcon.png';
-        } else {
-            return '/resources/oilWellIconGrey.png';
-        }
-    } else if (type === "Forest") {
-        if (condition === "Can Build" && territory.forestsBuilt < maxForests) {
-            return '/resources/forestIcon.png';
-        } else {
-            return '/resources/forestIconGrey.png';
-        }
-    } else if (type === "Fort") {
-        if (condition === "Can Build" && territory.fortsBuilt < maxForts) {
-            return '/resources/fortIcon.png';
-        } else {
-            return '/resources/fortIconGrey.png';
+    } else if (mode === 1) { //buy military images
+        if (type === "Assault") {
+            if (condition === "Can Build") {
+                return '/resources/assaultIcon.png';
+            } else {
+                return '/resources/assaultIconGrey.png';
+            }
+        } else if (type === "Air") {
+            if (condition === "Can Build") {
+                return '/resources/airIcon.png';
+            } else {
+                return '/resources/airIconGrey.png';
+            }
+        } else if (type === "Naval") {
+            if (condition === "Can Build") {
+                return '/resources/navalIcon.png';
+            } else {
+                return '/resources/navalIconGrey.png';
+            }
         }
     }
   }

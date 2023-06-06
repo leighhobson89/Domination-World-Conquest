@@ -1103,6 +1103,48 @@ td {
   padding: 10px;
 }
 
+.buyColumn5A {
+  width: 20px;
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.buyColumn5-wrapper {
+  display: flex;
+  align-items: center;
+  width: 25px;
+}
+
+.buyColumn5B {
+  padding: 0px;
+  align-items: center;
+  display: flex;
+  width: 15px;
+}
+
+.buyColumn5B input[type="text"] {
+  width: 15px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  background-color: rgba(54, 93, 125, 0.8);
+  margin-left: 2px;
+  margin-right: 2px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.buyColumn5C {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 20px;
+}
+
 .bottom-bar-buy-window {
   border-top: 2px solid rgb(111, 151, 183);
   width: 100%;
