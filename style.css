@@ -932,13 +932,13 @@ td {
   background-color: rgba(54, 93, 125, 0.8);
 }
 
-.navbar-upgrade-window > div {
+.navbar-buy-window > div {
   flex: 1;
   display: flex;
   align-items: center;
 }
 
-.navbar-upgrade-window > .center-column-buy {
+.navbar-buy-window > .center-column-buy {
   justify-content: center;
   font-size: 1.6rem;
   align-items: center;
