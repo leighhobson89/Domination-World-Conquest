@@ -1762,7 +1762,6 @@ function calculateAvailableUpgrades(territory) {
 
     buyImageMinus.addEventListener("click", (e) => {
         if (buyImageMinus.src.includes("/resources/minusButton.png")) {
-            availablePurchases = calculateAvailablePurchases(territory);
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
             if (parseInt(buyTextfield.value) > 0) {
                 simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, false);
@@ -1818,7 +1817,6 @@ function calculateAvailableUpgrades(territory) {
   
     buyImagePlus.addEventListener("click", (e) => {
         if (buyImagePlus.src.includes("/resources/plusButton.png")) {
-            availablePurchases = calculateAvailablePurchases(territory);
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
           simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, false);
           switch (simulatedPurchaseCosts[2]) {
@@ -2433,7 +2431,7 @@ function calculateAvailableUpgrades(territory) {
                 break;
         }
 
-        if (totalPlayerResources[0].totalGold < totalGoldPrice + amountToAdd) {
+        if (Math.ceil(totalPlayerResources[0].totalGold) < totalGoldPrice + amountToAdd) {
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
           
@@ -2471,7 +2469,7 @@ function calculateAvailableUpgrades(territory) {
                 break;
         }
 
-        if (totalPlayerResources[0].totalProdPop < totalProdPopCost + amountToAdd) {
+        if (Math.ceil(totalPlayerResources[0].totalProdPop) < totalProdPopCost + amountToAdd) {
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
           
@@ -2524,8 +2522,8 @@ function calculateAvailableUpgrades(territory) {
             const plusButton = buyRow.querySelector('.buyColumn5C img');
     
             if (
-                totalPlayerResources[0].totalGold >= totalGoldPrice + amountToAdd &&
-                totalPlayerResources[0].totalProdPop >= totalProdPopCost + amountToAdd
+                Math.ceil(totalPlayerResources[0].totalGold) >= totalGoldPrice + amountToAdd &&
+                Math.ceil(totalPlayerResources[0].totalProdPop) >= totalProdPopCost + amountToAdd
             ) {
                 
                 // All conditions are true, ungrey the row
