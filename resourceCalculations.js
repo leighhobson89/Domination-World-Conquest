@@ -884,7 +884,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
       case "Infantry":
         type = "Infantry";
         nextPurchaseCostGold = 0;
-        nextProdPopCost = 10;
+        nextProdPopCost = 1000;
         purchase = availablePurchases[0];
         simulatedTotal = parseInt(buyValueColumn.value);
         amountAlreadyBuilt = territoryData.infantryForCurrentTerritory;
@@ -1334,7 +1334,7 @@ function calculateAvailablePurchases() {
     const airGoldCost = 100;
     const navalGoldCost = 200;
 
-    const infantryPopCost = 10;
+    const infantryPopCost = 1000;
     const assaultPopCost = 100;
     const airPopCost = 300;
     const navalPopCost = 1000;
@@ -1355,7 +1355,7 @@ function calculateAvailablePurchases() {
           type: 'Infantry',
           purchaseGoldCost: infantryGoldCost,
           purchasePopCost: infantryPopCost,
-          effect: "+10 Infantry",
+          effect: "+1000 Infantry",
           condition: 'Can Build'
         });
       } else if (!hasEnoughGoldForInfantry) {
@@ -1363,7 +1363,7 @@ function calculateAvailablePurchases() {
           type: 'Infantry',
           purchaseGoldCost: infantryGoldCost,
           purchasePopCost: infantryPopCost,
-          effect: "+10 Infantry",
+          effect: "+1000 Infantry",
           condition: 'Not enough gold'
         });
       } else if (!hasEnoughProdPopForInfantry) {
@@ -1371,7 +1371,7 @@ function calculateAvailablePurchases() {
           type: 'Infantry',
           purchaseGoldCost: infantryGoldCost,
           purchasePopCost: infantryPopCost,
-          effect: "+10 Infantry",
+          effect: "+1000 Infantry",
           condition: 'Not enough Productive Population'
         });
       }   
@@ -1384,7 +1384,7 @@ function calculateAvailablePurchases() {
           effect: "+1 Assault",
           condition: 'Can Build'
         });
-      } else if (!hasEnoughGoldForInfantry) {
+      } else if (!hasEnoughGoldForAssault) {
         availablePurchases.push({
           type: 'Assault',
           purchaseGoldCost: assaultGoldCost,
@@ -1392,7 +1392,7 @@ function calculateAvailablePurchases() {
           effect: "+1 Assault",
           condition: 'Not enough gold'
         });
-      } else if (!hasEnoughProdPopForInfantry) {
+      } else if (!hasEnoughProdPopForAssault) {
         availablePurchases.push({
           type: 'Assault',
           purchaseGoldCost: assaultGoldCost,
@@ -2155,8 +2155,8 @@ function calculateAvailableUpgrades(territory) {
       case "Infantry":
         purchaseGoldCost = 0;
         purchaseGoldBaseCost = 0;
-        prodPopCost = 10 * currentValueQuantityTemp;
-        prodPopBaseCost = 10;
+        prodPopCost = 1000 * currentValueQuantityTemp;
+        prodPopBaseCost = 1000;
         break;
       case "Assault":
         purchaseGoldCost = 50 * currentValueQuantityTemp;
