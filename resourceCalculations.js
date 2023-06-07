@@ -1781,7 +1781,7 @@ function calculateAvailableUpgrades(territory) {
                 //code to check greying out here
                 checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "minus");
 
-                if (atLeastOneRowWithValueGreaterThanOne(buyTable)) {
+                if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
                     document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
@@ -1789,7 +1789,7 @@ function calculateAvailableUpgrades(territory) {
                     document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     });
-                } else if (allRowsWithValueZero(buyTable)) {
+                } else if (allRowsWithValueZeroForPurchases(buyTable)) {
                     document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Cancel";
                     document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                     document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
@@ -1844,7 +1844,7 @@ function calculateAvailableUpgrades(territory) {
         //code to check greying out here
         checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "plus");
 
-        if (atLeastOneRowWithValueGreaterThanOne(buyTable)) {
+        if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
             document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Confirm";
             document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
@@ -1853,7 +1853,7 @@ function calculateAvailableUpgrades(territory) {
             document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
                 this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             });
-        } else if (allRowsWithValueZero(buyTable)) {
+        } else if (allRowsWithValueZeroForPurchases(buyTable)) {
             document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
             document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
                 this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
@@ -2040,7 +2040,7 @@ function calculateAvailableUpgrades(territory) {
                 //code to check greying out here
                 checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
-                if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+                if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
@@ -2048,7 +2048,7 @@ function calculateAvailableUpgrades(territory) {
                     document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     });
-                } else if (allRowsWithValueZero(upgradeTable)) {
+                } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").innerHTML="Cancel";
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                     document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
@@ -2103,7 +2103,7 @@ function calculateAvailableUpgrades(territory) {
         //code to check greying out here
         checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
 
-        if (atLeastOneRowWithValueGreaterThanOne(upgradeTable)) {
+        if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").innerHTML="Confirm";
             document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
@@ -2112,7 +2112,7 @@ function calculateAvailableUpgrades(territory) {
             document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
                 this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
             });
-        } else if (allRowsWithValueZero(upgradeTable)) {
+        } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
             document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
                 this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
@@ -2397,10 +2397,29 @@ function calculateAvailableUpgrades(territory) {
 
     const simulatedgoldElements = [simulatedCostsAllMilitary[0], simulatedCostsAllMilitary[2], simulatedCostsAllMilitary[4], simulatedCostsAllMilitary[6]];
     const simulatedProdPopElements = [simulatedCostsAllMilitary[1], simulatedCostsAllMilitary[3], simulatedCostsAllMilitary[5], simulatedCostsAllMilitary[7]];
+
+    let amountToAdd;
+    let popAmountToAdd;
   
     if (button === "plus") {
       simulatedgoldElements.forEach((simulatedGoldElement, index) => {
-        if (totalPlayerResources[0].totalGold - totalGoldPrice < simulatedGoldElement) {
+
+        switch(index) {
+            case 0:
+                amountToAdd = 0;
+                break;
+            case 1:
+                amountToAdd = 50;
+                break;
+            case 2:
+                amountToAdd = 100;
+                break;
+            case 3:
+                amountToAdd = 200;
+                break;
+        }
+
+        if (totalPlayerResources[0].totalGold < totalGoldPrice + amountToAdd) {
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
           
@@ -2419,10 +2438,26 @@ function calculateAvailableUpgrades(territory) {
                 plusButton.src = plusButton.src.replace('.png', 'Grey.png');
               }
             }
-          }     
+          }
       });
       simulatedProdPopElements.forEach((simulatedProdPopElement, index) => {
-        if (totalPlayerResources[0].totalProdPop - totalProdPopCost < simulatedProdPopElement) {
+
+        switch(index) {
+            case 0:
+                popAmountToAdd = 1000;
+                break;
+            case 1:
+                popAmountToAdd = 100;
+                break;
+            case 2:
+                popAmountToAdd = 300;
+                break;
+            case 3:
+                popAmountToAdd = 1000;
+                break;
+        }
+
+        if (totalPlayerResources[0].totalProdPop < totalProdPopCost + amountToAdd) {
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
           
@@ -2445,6 +2480,26 @@ function calculateAvailableUpgrades(territory) {
       });
     } else if (button === "minus") {
         simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+
+            switch(index) {
+                case 0:
+                    amountToAdd = 0;
+                    popAmountToAdd = 1000;
+                    break;
+                case 1:
+                    amountToAdd = 50;
+                    popAmountToAdd = 100;
+                    break;
+                case 2:
+                    amountToAdd = 100;
+                    popAmountToAdd = 300;
+                    break;
+                case 3:
+                    amountToAdd = 200;
+                    popAmountToAdd = 1000;
+                    break;
+            }
+
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
            
@@ -2454,11 +2509,9 @@ function calculateAvailableUpgrades(territory) {
             // Get the plus button image in the fifth column
             const plusButton = buyRow.querySelector('.buyColumn5C img');
     
-            const simulatedProdPopElement = simulatedProdPopElements[index];
-    
             if (
-                totalPlayerResources[0].totalGold - totalGoldPrice >= simulatedGoldElement &&
-                totalPlayerResources[0].totalProdPop - totalProdPopCost >= simulatedProdPopElement
+                totalPlayerResources[0].totalGold >= totalGoldPrice + amountToAdd &&
+                totalPlayerResources[0].totalProdPop >= totalProdPopCost + amountToAdd
             ) {
                 
                 // All conditions are true, ungrey the row
@@ -2615,7 +2668,7 @@ function calculateAvailableUpgrades(territory) {
   }
 
   // Function to check if at least one row has a textField value greater than 1
-  function atLeastOneRowWithValueGreaterThanOne(upgradeTable) {
+  function atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable) {
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
         const textField = rows[i].querySelector(".column5B input");
@@ -2626,11 +2679,32 @@ function calculateAvailableUpgrades(territory) {
     return false;
 }
 
-// Function to check if all rows have a textField value of 0
-function allRowsWithValueZero(upgradeTable) {
+function atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable) {
+    const rows = buyTable.getElementsByClassName("buy-row");
+    for (let i = 0; i < rows.length; i++) {
+        const textField = rows[i].querySelector(".buyColumn5B input");
+        if (parseInt(textField.value) >= 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function allRowsWithValueZeroForUpgrades(upgradeTable) {
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
         const textField = rows[i].querySelector(".column5B input");
+        if (parseInt(textField.value) !== 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function allRowsWithValueZeroForPurchases(buyTable) {
+    const rows = buyTable.getElementsByClassName("buy-row");
+    for (let i = 0; i < rows.length; i++) {
+        const textField = rows[i].querySelector(".buyColumn5B input");
         if (parseInt(textField.value) !== 0) {
             return false;
         }
