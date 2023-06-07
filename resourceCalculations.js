@@ -863,6 +863,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     let nextPurchaseCostGold;
     let nextProdPopCost;
     let simulatedTotal;
+    let effectOnOilDemand;
   
     const buyRow = event.currentTarget.closest('.buy-row');
     if (!buyRow) {
@@ -887,6 +888,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         purchase = availablePurchases[0];
         simulatedTotal = parseInt(buyValueColumn.value);
         amountAlreadyBuilt = territoryData.infantryForCurrentTerritory;
+        effectOnOilDemand = 0;
         break;
       case "Assault":
         type = "Assault";
@@ -895,6 +897,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         purchase = availablePurchases[1];
         simulatedTotal = parseInt(buyValueColumn.value);
         amountAlreadyBuilt = territoryData.assaultForCurrentTerritory;
+        effectOnOilDemand = oilRequirements.assault;
         break;
       case "Air":
         type = "Air";
@@ -903,6 +906,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         purchase = availablePurchases[2];
         simulatedTotal = parseInt(buyValueColumn.value);
         amountAlreadyBuilt = territoryData.airForCurrentTerritory;
+        effectOnOilDemand = oilRequirements.air;
         break;
       case "Naval":
         type = "Naval";
@@ -911,6 +915,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         purchase = availablePurchases[3];
         simulatedTotal = parseInt(buyValueColumn.value);
         amountAlreadyBuilt = territoryData.navalForCurrentTerritory;
+        effectOnOilDemand = oilRequirements.naval;
         break;
       default:
         // Invalid purchase type, exit the function
@@ -922,6 +927,13 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     let redStyle = "font-weight: bold; color: rgb(235,0,0);";
 
     let buildAvailabilityStyle;
+    let effectOnOilDemandStyle;
+
+    if (type === "Infantry") {
+        effectOnOilDemandStyle = blackStyle;
+    } else {
+        effectOnOilDemandStyle = redStyle;
+    }
 
     if (purchase.condition === "Can Build") {
         buildAvailabilityStyle = greenStyle;
@@ -937,6 +949,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
       <br />
       <div>Cost to purchase unit (Gold): <span style="${blackStyle}">${nextPurchaseCostGold}</span></div>
       <div>Cost to purchase unit (Prod. Pop.): <span style="${blackStyle}">${nextProdPopCost}</span></div>
+      <div>Effect on Oil Demand: <span style="${effectOnOilDemandStyle}">+${effectOnOilDemand}</span></div>
       <br />
       <div><span style="${buildAvailabilityStyle}">${purchase.condition}</span></div>
     `;
@@ -1644,7 +1657,7 @@ function calculateAvailableUpgrades(territory) {
     let totalSimulatedProdPopPrice = 0;
   
     // Calculate available upgrades
-    const availablePurchases = calculateAvailablePurchases(territory);
+    let availablePurchases = calculateAvailablePurchases(territory);
     buyTable.innerHTML = "";
   
     // Populate the table with available upgrade rows
@@ -1749,6 +1762,7 @@ function calculateAvailableUpgrades(territory) {
 
     buyImageMinus.addEventListener("click", (e) => {
         if (buyImageMinus.src.includes("/resources/minusButton.png")) {
+            availablePurchases = calculateAvailablePurchases(territory);
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
             if (parseInt(buyTextfield.value) > 0) {
                 simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, false);
@@ -1804,6 +1818,7 @@ function calculateAvailableUpgrades(territory) {
   
     buyImagePlus.addEventListener("click", (e) => {
         if (buyImagePlus.src.includes("/resources/plusButton.png")) {
+            availablePurchases = calculateAvailablePurchases(territory);
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
           simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, false);
           switch (simulatedPurchaseCosts[2]) {
