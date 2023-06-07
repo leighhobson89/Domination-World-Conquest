@@ -18,7 +18,6 @@ export let totalPurchaseGoldPrice = 0;
 export let totalPopulationCost = 0;
 export let totalOilCapacity = 0;
 export let capacityArray;
-export let oilDemandArray = [];
 
 const oilRequirements = {
     naval: 1000,
@@ -205,7 +204,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let fortsBuilt = 0;
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
-            oilDemandArray.push([(initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval), dataName, uniqueId]);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -232,6 +230,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 goldForCurrentTerritory: goldForCurrentTerritory,
                 oilForCurrentTerritory: oilForCurrentTerritory,
                 oilCapacity: oilCapacity,
+                oilDemand: (initialArmyDistributionArray.air * oilRequirements.air) + (initialArmyDistributionArray.assault * oilRequirements.assault) + (initialArmyDistributionArray.naval * oilRequirements.naval),
                 foodForCurrentTerritory: foodForCurrentTerritory,
                 foodCapacity: foodCapacity,
                 consMatsForCurrentTerritory: consMatsForCurrentTerritory,
@@ -1107,9 +1106,9 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
     let blackStyle = "font-weight: bold; color: black;";
 
-    for (let i = 0; i < oilDemandArray.length; i++) {
-        if (oilDemandArray[i][2] === territoryData.uniqueId) {
-            oilDemand = oilDemandArray[i][0];
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryData.uniqueId) {
+            oilDemand = mainArrayOfTerritoriesAndResources[i].oilDemand;
         }
     }
 
@@ -2712,6 +2711,49 @@ function allRowsWithValueZeroForPurchases(buyTable) {
     return true;
 }
 
+export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProdPopCost) {
+    //push purchases in table to an array
+    let purchaseArray = [];
+    const buyRows = buyTable.getElementsByClassName("buy-row");
+    for (let i = 0; i < buyRows.length; i++) {
+        const buyTextField = buyRows[i].querySelector(".buyColumn5B input");
+        purchaseArray.push(buyTextField.value);
+        buyTextField.value = "0";
+    }
+
+    //update total player resources
+    totalPlayerResources[0].totalGold -= totalGoldCost;
+    totalPlayerResources[0].totalProdPop -= totalProdPopCost;
+    
+    //update main array
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
+            mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
+            mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop -= totalProdPopCost; // subtract consMats from territory
+            mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory += parseInt(purchaseArray[0]);
+            mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
+            mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
+            mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory += parseInt(purchaseArray[3]);
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.assault * purchaseArray[1]);
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.air * purchaseArray[2]);
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.naval * purchaseArray[3]);
+        }
+    }
+
+    //update bottom table for selected territory
+    document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+
+    //update top table for selected territory
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
+    document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
+
+    totalGoldPrice = 0;
+    totalConsMats = 0;
+
+    drawUITable(document.getElementById("uiTable"), 2);
+}
+
 export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalConsMatsCost) {
     //push upgrades in table to an array
     let upgradeArray = [];
@@ -2761,6 +2803,8 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     //close upgrade window for selected territory
     totalGoldPrice = 0;
     totalConsMats = 0;
+
+    drawUITable(document.getElementById("uiTable"), 1);
 }
 
 function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory) {

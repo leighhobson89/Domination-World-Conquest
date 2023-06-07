@@ -3,11 +3,11 @@ import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
 import { allowSelectionOfCountry } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
-import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPurchases, totalGoldPrice, totalConsMats } from './resourceCalculations.js';
-import { addPlayerUpgrades } from './resourceCalculations.js';
+import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPurchases, totalGoldPrice, totalConsMats, totalPurchaseGoldPrice, totalPopulationCost } from './resourceCalculations.js';
+import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { capacityArray, oilDemandArray } from './resourceCalculations.js';
+import { capacityArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -435,9 +435,9 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOil = document.createElement("td");
   topTableOil.classList.add("iconCell");
   topTableOil.addEventListener("mouseover", (e) => {
-    for (let i = 0; i < oilDemandArray.length; i++) {
-      if (playerCountry === oilDemandArray[i][1]) {
-        totalOilDemandCountryArray.push(oilDemandArray[i][0]);
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+      if (playerCountry === mainArrayOfTerritoriesAndResources[i].dataName) {
+        totalOilDemandCountryArray.push(mainArrayOfTerritoriesAndResources[i].oilDemand);
       }
     }
     totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
@@ -465,9 +465,9 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOilValue= document.createElement("td");
   topTableOilValue.classList.add("resourceFields");
   topTableOilValue.addEventListener("mouseover", (e) => {
-    for (let i = 0; i < oilDemandArray.length; i++) {
-      if (playerCountry === oilDemandArray[i][1]) {
-        totalOilDemandCountryArray.push(oilDemandArray[i][0]);
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+      if (playerCountry === mainArrayOfTerritoriesAndResources[i].dataName) {
+        totalOilDemandCountryArray.push(mainArrayOfTerritoriesAndResources[i].oilDemand);
       }
     }
     totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
@@ -1154,7 +1154,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (bottomBarBuyConfirmButton.innerHTML === "Cancel") {
       toggleBuyMenu(false);
     } else if (bottomBarBuyConfirmButton.innerHTML === "Confirm") {
-      addPlayerPurchases(document.getElementById("buy-table"), currentlySelectedTerritoryForPurchases, totalGoldPrice, totalPopulation);
+      addPlayerPurchases(document.getElementById("buy-table"), currentlySelectedTerritoryForPurchases, totalPurchaseGoldPrice, totalPopulationCost);
       toggleBuyMenu(false);
     }
   });
@@ -1673,7 +1673,7 @@ function toggleUIButton(makeVisible) {
   }
 }
 
-  function toggleUIMenu(makeVisible) {
+  export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
       svg.style.pointerEvents = 'none';
@@ -2002,10 +2002,6 @@ function fillPathBasedOnTeam(path) {
 
 function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
-}
-
-function getTotalOilDemand() {
-  return oilDemandArray;
 }
 
 
