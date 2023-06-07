@@ -1632,7 +1632,7 @@ function calculateAvailableUpgrades(territory) {
     totalPurchaseGoldPrice += goldCost; 
     totalPopulationCost += prodPopulationCost; 
 
-    simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, territory, true);
+    simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, true);
 
     switch (simulatedPurchaseCosts[2]) {
         case "Infantry":
@@ -1657,7 +1657,7 @@ function calculateAvailableUpgrades(territory) {
         if (buyImageMinus.src.includes("/resources/minusButton.png")) {
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
             if (parseInt(buyTextfield.value) > 0) {
-                simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, territory, false);
+                simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, false);
                 switch (simulatedPurchaseCosts[2]) {
                     case "Infantry":
                       simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
@@ -1711,7 +1711,7 @@ function calculateAvailableUpgrades(territory) {
     buyImagePlus.addEventListener("click", (e) => {
         if (buyImagePlus.src.includes("/resources/plusButton.png")) {
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
-          simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, territory, false);
+          simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, false);
           switch (simulatedPurchaseCosts[2]) {
             case "Infantry":
               simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
@@ -2031,6 +2031,83 @@ function calculateAvailableUpgrades(territory) {
   });
   }
 
+  function incrementDecrementPurchases(buyTextField, increment, purchaseType, simOnly) {
+    let currentValueQuantity = parseInt(buyTextField.value);
+    currentValueQuantity += increment;
+  
+    if (currentValueQuantity < 0) {
+      currentValueQuantity = 0;
+    }
+
+    if (!simOnly) {
+        buyTextField.value = 0;
+    }
+  
+    let currentValueQuantityTemp = currentValueQuantity;
+  
+    const buyRow = buyTextField.parentNode.parentNode.parentNode.parentNode;
+    const goldCostElement = buyRow.querySelector(".upgrade-column:nth-child(4)");
+    const prodPopCostElement = buyRow.querySelector(".upgrade-column:nth-child(5)");
+
+    let infantryToBuy = 0;
+    let assaultToBuy = 0;
+    let airToBuy = 0;
+    let navalToBuy = 0;
+  
+    let purchaseGoldCost;
+    let prodPopCost;
+  
+    let simulationPurchaseCosts = []; // Array to store simulated costs
+  
+    switch (purchaseType) {
+      case "Infantry":
+        currentValueQuantityTemp += infantryToBuy;
+        purchaseGoldCost = 0;
+        prodPopCost = 10;
+        infantryToBuy += increment;
+        break;
+      case "Assault":
+        currentValueQuantityTemp += assaultToBuy;
+        purchaseGoldCost = 50;
+        prodPopCost = 100;
+        assaultToBuy += increment;
+        break;
+      case "Air":
+        currentValueQuantityTemp += airToBuy;
+        purchaseGoldCost = 100;
+        prodPopCost = 300;
+        airToBuy += increment;
+        break;
+      case "Naval":
+        currentValueQuantityTemp += navalToBuy;
+        purchaseGoldCost = 200;
+        prodPopCost = 1000;
+        navalToBuy += increment;
+        break;
+    }
+  
+    if (currentValueQuantity === 0) {
+        purchaseGoldCost = 0;
+        prodPopCost = 0;
+    }
+  
+    if (!simOnly) {
+        goldCostElement.textContent = purchaseGoldCost;
+        prodPopCostElement.textContent = prodPopCost;
+    }
+    
+      // Simulate next increment and store costs in array
+      currentValueQuantityTemp += Math.abs(increment); //always simulate clicking plus i.e. upward direction
+      const simulatedPurchaseGoldCost = Math.ceil((purchaseGoldCost * currentValueQuantityTemp) + purchaseGoldCost);
+      const simulatedProdPopCost = Math.ceil((prodPopCost * currentValueQuantityTemp) + prodPopCost);
+      const simulatedPurchaseType = purchaseType;
+      simulationPurchaseCosts.push(simulatedPurchaseGoldCost);
+      simulationPurchaseCosts.push(simulatedProdPopCost);
+      simulationPurchaseCosts.push(simulatedPurchaseType); // Include the purchase type in the array
+
+      return simulationPurchaseCosts;
+  }
+
   function incrementDecrementUpgrades(textField, increment, upgradeType, territory, simOnly) {
     let currentValueQuantity = parseInt(textField.value);
     currentValueQuantity += increment;
@@ -2115,6 +2192,7 @@ function calculateAvailableUpgrades(territory) {
       simulationCosts.push(simulatedGoldCost);
       simulationCosts.push(simulatedConsMatsCost);
       simulationCosts.push(simulatedUpgradeType); // Include the upgrade type in the array
+
       return simulationCosts;
   }
 
