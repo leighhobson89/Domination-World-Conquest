@@ -1212,6 +1212,137 @@ function colourTableText(table, territory) {
     }
 }
 
+function calculateAvailablePurchases() {
+    const availablePurchases = [];
+
+    const infantryGoldCost = 0;
+    const assaultGoldCost = 50;
+    const airGoldCost = 100;
+    const navalGoldCost = 200;
+
+    const infantryPopCost = 10;
+    const assaultPopCost = 100;
+    const airPopCost = 300;
+    const navalPopCost = 1000;
+
+    const hasEnoughGoldForInfantry = totalPlayerResources[0].totalGold >= infantryGoldCost;
+    const hasEnoughGoldForAssault = totalPlayerResources[0].totalGold >= assaultGoldCost;
+    const hasEnoughGoldForAir = totalPlayerResources[0].totalGold >= airGoldCost;
+    const hasEnoughGoldForNaval = totalPlayerResources[0].totalGold >= navalGoldCost;
+
+    const hasEnoughProdPopForInfantry = totalPlayerResources[0].totalProdPop >= infantryPopCost;
+    const hasEnoughProdPopForAssault = totalPlayerResources[0].totalProdPop >= assaultPopCost;
+    const hasEnoughProdPopForAir = totalPlayerResources[0].totalProdPop >= airPopCost;
+    const hasEnoughProdPopForNaval = totalPlayerResources[0].totalProdPop >= navalPopCost;
+
+    // Create the upgrade row objects based on the availability and gold/consMats conditions
+    if (hasEnoughGoldForInfantry && hasEnoughProdPopForInfantry) {
+        availablePurchases.push({
+          type: 'Infantry',
+          purchaseGoldCost: infantryGoldCost,
+          purchasePopCost: infantryPopCost,
+          effect: "+10 Infantry",
+          condition: 'Can Build'
+        });
+      } else if (!hasEnoughGoldForInfantry) {
+        availablePurchases.push({
+          type: 'Infantry',
+          purchaseGoldCost: infantryGoldCost,
+          purchasePopCost: infantryPopCost,
+          effect: "+10 Infantry",
+          condition: 'Not enough gold'
+        });
+      } else if (!hasEnoughProdPopForInfantry) {
+        availablePurchases.push({
+          type: 'Infantry',
+          purchaseGoldCost: infantryGoldCost,
+          purchasePopCost: infantryPopCost,
+          effect: "+10 Infantry",
+          condition: 'Not enough Productive Population'
+        });
+      }   
+
+      if (hasEnoughGoldForAssault && hasEnoughProdPopForAssault) {
+        availablePurchases.push({
+          type: 'Assault',
+          purchaseGoldCost: assaultGoldCost,
+          purchasePopCost: assaultPopCost,
+          effect: "+1 Assault",
+          condition: 'Can Build'
+        });
+      } else if (!hasEnoughGoldForInfantry) {
+        availablePurchases.push({
+          type: 'Assault',
+          purchaseGoldCost: assaultGoldCost,
+          purchasePopCost: assaultPopCost,
+          effect: "+1 Assault",
+          condition: 'Not enough gold'
+        });
+      } else if (!hasEnoughProdPopForInfantry) {
+        availablePurchases.push({
+          type: 'Assault',
+          purchaseGoldCost: assaultGoldCost,
+          purchasePopCost: assaultPopCost,
+          effect: "+1 Assault",
+          condition: 'Not enough Productive Population'
+        });
+      }   
+    
+      if (hasEnoughGoldForAir && hasEnoughProdPopForAir) {
+        availablePurchases.push({
+          type: 'Air',
+          purchaseGoldCost: airGoldCost,
+          purchasePopCost: airPopCost,
+          effect: "+1 Air",
+          condition: 'Can Build'
+        });
+      } else if (!hasEnoughGoldForAir) {
+        availablePurchases.push({
+          type: 'Air',
+          purchaseGoldCost: airGoldCost,
+          purchasePopCost: airPopCost,
+          effect: "+1 Air",
+          condition: 'Not enough gold'
+        });
+      } else if (!hasEnoughProdPopForAir) {
+        availablePurchases.push({
+          type: 'Air',
+          purchaseGoldCost: airGoldCost,
+          purchasePopCost: airPopCost,
+          effect: "+1 Air",
+          condition: 'Not enough Productive Population'
+        });
+      }
+    
+      if (hasEnoughGoldForNaval && hasEnoughProdPopForNaval) {
+        availablePurchases.push({
+          type: 'Naval',
+          purchaseGoldCost: navalGoldCost,
+          purchasePopCost: navalPopCost,
+          effect: "+1 Naval",
+          condition: 'Can Build'
+        });
+      } else if (!hasEnoughGoldForNaval) {
+        availablePurchases.push({
+          type: 'Naval',
+          purchaseGoldCost: navalGoldCost,
+          purchasePopCost: navalPopCost,
+          effect: "+1 Naval",
+          condition: 'Not enough gold'
+        });
+      } else if (!hasEnoughProdPopForNaval) {
+        availablePurchases.push({
+          type: 'Naval',
+          purchaseGoldCost: navalGoldCost,
+          purchasePopCost: navalPopCost,
+          effect: "+1 Naval",
+          condition: 'Not enough Productive Population'
+        });
+      }
+    
+      return availablePurchases;
+}
+
 function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
   
