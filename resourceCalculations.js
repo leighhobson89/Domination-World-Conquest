@@ -206,8 +206,11 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
+            let useableAssault = assaultForCurrentTerritory;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
+            let useableAir = airForCurrentTerritory;
             let navalForCurrentTerritory = initialArmyDistributionArray.naval;
+            let useableNaval = navalForCurrentTerritory;
             let infantryForCurrentTerritory = initialArmyDistributionArray.infantry;
 
             armyForCurrentTerritory = (navalForCurrentTerritory * 20000) + (airForCurrentTerritory * 5000) + (assaultForCurrentTerritory * 1000) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
@@ -224,8 +227,11 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 continent: continent,
                 armyForCurrentTerritory: armyForCurrentTerritory,
                 assaultForCurrentTerritory: assaultForCurrentTerritory,
+                useableAssault: useableAssault,
                 airForCurrentTerritory: airForCurrentTerritory,
+                useableAir: useableAir,
                 navalForCurrentTerritory: navalForCurrentTerritory,
+                useableNaval: useableNaval,
                 infantryForCurrentTerritory: infantryForCurrentTerritory,
                 goldForCurrentTerritory: goldForCurrentTerritory,
                 oilForCurrentTerritory: oilForCurrentTerritory,
@@ -245,6 +251,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             });
         }
     }
+
     return mainArrayOfTerritoriesAndResources;
 }
 
@@ -2050,7 +2057,7 @@ function calculateAvailableUpgrades(territory) {
                 document.getElementById("prices-info-column4").innerHTML = totalConsMats;
 
                 //code to check greying out here
-                checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
+                checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
                 if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
                     document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
@@ -2113,7 +2120,7 @@ function calculateAvailableUpgrades(territory) {
         console.log("Total SimConsMats:", totalSimulatedConsMatsPrice); */
 
         //code to check greying out here
-        checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
+        checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
 
         if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
             document.getElementById("bottom-bar-confirm-button").innerHTML="Confirm";
@@ -2538,7 +2545,7 @@ function calculateAvailableUpgrades(territory) {
     }   
   }
 
-  function checkRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
+  function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
     const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
   
@@ -2764,6 +2771,8 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalGoldPrice = 0;
     totalConsMats = 0;
 
+    setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, currentlySelectedTerritoryForPurchases);
+
     drawUITable(document.getElementById("uiTable"), 2);
 }
 
@@ -2833,19 +2842,28 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
   
     let remainingArmyValue = initialValue;
   
-    // Allocate naval units based on available oil (limited to 50% of oilTerritory)
-    const maxNavalOil = Math.floor(oilTerritory * 0.5);
-    initialDistribution.naval = Math.min(Math.floor(maxNavalOil / oilRequirements.naval), Math.floor(remainingArmyValue / 20000));
+    // Allocate naval units based on available oil (limited to 25% of oilTerritory)
+    const maxNavalOil = Math.floor(oilTerritory * 0.25);
+    initialDistribution.naval = Math.min(
+      Math.floor(maxNavalOil / oilRequirements.naval),
+      Math.floor(remainingArmyValue / 20000)
+    );
     remainingArmyValue -= initialDistribution.naval * 20000;
   
-    // Allocate air units based on available oil (limited to 25% of oilTerritory)
-    const maxAirOil = Math.floor(oilTerritory * 0.25);
-    initialDistribution.air = Math.min(Math.floor(maxAirOil / oilRequirements.air), Math.floor(remainingArmyValue / 5000));
+    // Allocate air units based on available oil (limited to 12.5% of oilTerritory)
+    const maxAirOil = Math.floor(oilTerritory * 0.125);
+    initialDistribution.air = Math.min(
+      Math.floor(maxAirOil / oilRequirements.air),
+      Math.floor(remainingArmyValue / 5000)
+    );
     remainingArmyValue -= initialDistribution.air * 5000;
   
-    // Allocate assault units based on available oil (limited to 25% of oilTerritory)
-    const maxAssaultOil = Math.floor(oilTerritory * 0.25);
-    initialDistribution.assault = Math.min(Math.floor(maxAssaultOil / oilRequirements.assault), Math.floor(remainingArmyValue / 1000));
+    // Allocate assault units based on available oil (limited to 12.5% of oilTerritory)
+    const maxAssaultOil = Math.floor(oilTerritory * 0.125);
+    initialDistribution.assault = Math.min(
+      Math.floor(maxAssaultOil / oilRequirements.assault),
+      Math.floor(remainingArmyValue / 1000)
+    );
     remainingArmyValue -= initialDistribution.assault * 1000;
   
     // Allocate the remaining army value to infantry
@@ -2855,12 +2873,73 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
   }
   
   
+  function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {  
+    let territoryOilDemand;
+    let territoryOil;
+
+    let numberAssault;
+    let numberAir;
+    let numberNaval;
   
+    let useableAssault;
+    let useableAir;
+    let useableNaval;
   
+    for (let i = 0; i < mainArray.length; i++) {
+      if (mainArray[i].uniqueId === territory.uniqueId) {
+        territoryOilDemand = mainArray[i].oilDemand;
+        territoryOil = mainArray[i].oilForCurrentTerritory;
+        numberAssault = mainArray[i].assaultForCurrentTerritory;
+        numberAir = mainArray[i].airForCurrentTerritory;
+        numberNaval = mainArray[i].navalForCurrentTerritory;
+        useableAssault = numberAssault;
+        useableAir = numberAir;
+        useableNaval = numberNaval;
+
+        break;
+      }
+    }
   
-  
-  
-  
-  
-  
-  
+    if (territoryOilDemand > territoryOil) {
+        let difference = territoryOilDemand - territoryOil;
+
+        // Calculate the number of vehicles to mark as unuseable for each type, distributing evenly
+        let types = ["naval", "air", "assault"];
+        let index = 0;
+
+        while (difference > 0) {
+            let currentType = types[index];
+
+            if (currentType === "naval" && useableNaval > 0) {
+                useableNaval--;
+                difference -= 1000;
+            } else if (currentType === "air" && useableAir > 0) {
+                useableAir--;
+                difference -= 300;
+            } else if (currentType === "assault" && useableAssault > 0) {
+                useableAssault--;
+                difference -= 100;
+            }
+
+            index = (index + 1) % 3;
+
+            if (difference <= 0) break;
+        }
+
+        for (let i = 0; i < mainArray.length; i++) {
+            if (mainArray[i].uniqueId === territory.uniqueId) {
+                mainArray[i].useableAssault = useableAssault;
+                mainArray[i].useableAir = useableAir;
+                mainArray[i].useableNaval = useableNaval;
+
+                console.log("Territory Oil / Demand: " + territoryOil + " / " + territoryOilDemand);
+                console.log("Useable Assault: " + mainArray[i].useableAssault + " / " + numberAssault);
+                console.log("Useable Air: " + mainArray[i].useableAir + " / " + numberAir);
+                console.log("Useable Naval: " + mainArray[i].useableNaval + " / " + numberNaval);
+                console.log("New demand: " + (useableAssault * 100 + useableAir * 300 + useableNaval * 1000));
+
+                break;
+            }
+        }
+    }
+  }
