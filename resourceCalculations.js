@@ -295,7 +295,11 @@ export function newTurnResources() {
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
     if (currentTurn !== 1) {
-        setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, currentlySelectedTerritoryForPurchases);
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            if (mainArrayOfTerritoriesAndResources[i].dataName === playerCountry) {
+                setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, mainArrayOfTerritoriesAndResources[i]);
+            }
+        }
     }
 }
     

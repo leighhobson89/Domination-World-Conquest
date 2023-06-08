@@ -8,7 +8,7 @@ export let randomEvent = "";
 
 let probability = 0;
 
-export function modifyCurrentTurnPhase( value ) { 
+export function modifyCurrentTurnPhase(value) { 
   currentTurnPhase = value; 
 }
 
@@ -39,17 +39,14 @@ function gameLoop() {
     console.log("Turn " + currentTurn + " has started!");
     // Handle player turn
     handleSpendUpgradePhase().then(() => {
-      // Handle deploy phase
-      handleDeployPhase().then(() => {
-        // Handle move/attack phase
-        handleMoveAttackPhase().then(() => {
-          // Handle AI turn
-          handleAITurn().then(() => {
-            // Increment turn counter
-            currentTurn++;
-            // Repeat game loop
-            gameLoop();
-          });
+      // Handle move/attack phase
+      handleMoveAttackPhase().then(() => {
+        // Handle AI turn
+        handleAITurn().then(() => {
+          // Increment turn counter
+          currentTurn++;
+          // Repeat game loop
+          gameLoop();
         });
       });
     });
@@ -66,20 +63,6 @@ function handleSpendUpgradePhase() {
       };
       popupConfirmButton.addEventListener("click", onClickHandler);
     });
-  }
-  
-
-  function handleDeployPhase() {
-      return new Promise(resolve => {
-          console.log("Handling Deploy Phase");
-          console.log("Current turnphase is: " + currentTurnPhase);
-        const popupConfirmButton = document.getElementById("popup-confirm");
-        const onClickHandler = () => {
-          popupConfirmButton.removeEventListener("click", onClickHandler);
-          resolve();
-        };
-        popupConfirmButton.addEventListener("click", onClickHandler);
-      });
   }
 
   function handleMoveAttackPhase() {
