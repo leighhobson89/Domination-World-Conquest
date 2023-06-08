@@ -6,6 +6,7 @@ import { currentSelectedPath } from './ui.js';
 import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
 import { toggleUpgradeMenu, toggleBuyMenu} from './ui.js';
+import { playerCountry } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -22,8 +23,15 @@ export let capacityArray;
 const oilRequirements = {
     naval: 1000,
     air: 300,
-    assault: 100,
+    assault: 100
   };
+
+  const vehicleArmyWorth = {
+    infantry: 1000,
+    naval: 20000,
+    air: 5000,
+    assault: 1000
+  }
 
 let totalPlayerResources = [];
 let continentModifier;
@@ -213,7 +221,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let useableNaval = navalForCurrentTerritory;
             let infantryForCurrentTerritory = initialArmyDistributionArray.infantry;
 
-            armyForCurrentTerritory = (navalForCurrentTerritory * 20000) + (airForCurrentTerritory * 5000) + (assaultForCurrentTerritory * 1000) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
+            armyForCurrentTerritory = (navalForCurrentTerritory * vehicleArmyWorth.naval) + (airForCurrentTerritory * vehicleArmyWorth.air) + (assaultForCurrentTerritory * vehicleArmyWorth.assault) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
 
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
@@ -940,7 +948,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     let effectOnOilDemandStyle;
 
     if (type === "Infantry") {
-        effectOnOilDemandStyle = blackStyle;
+        effectOnOilDemandStyle = whiteStyle;
     } else {
         effectOnOilDemandStyle = redStyle;
     }
@@ -2774,9 +2782,12 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         buyTextField.value = "0";
     }
 
+    purchaseArray[0] *= vehicleArmyWorth.infantry;
+
     //update total player resources
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalProdPop -= totalProdPopCost;
+    totalPlayerResources[0].totalArmy += parseInt(purchaseArray[0]);
     
     //update main array
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -2790,16 +2801,19 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
             mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.assault * purchaseArray[1]);
             mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.air * purchaseArray[2]);
             mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.naval * purchaseArray[3]);
+            mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += parseInt(purchaseArray[0]);
         }
     }
 
     //update bottom table for selected territory
     document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
 
     //update top table for selected territory
     document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
     document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
+    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
 
     totalGoldPrice = 0;
     totalConsMats = 0;
@@ -2879,25 +2893,25 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     const maxNavalOil = Math.floor(oilTerritory * 0.35);
     initialDistribution.naval = Math.min(
       Math.floor(maxNavalOil / oilRequirements.naval),
-      Math.floor(remainingArmyValue / 20000)
+      Math.floor(remainingArmyValue / vehicleArmyWorth.naval)
     );
-    remainingArmyValue -= initialDistribution.naval * 20000;
+    remainingArmyValue -= initialDistribution.naval * vehicleArmyWorth.naval;
   
     // Allocate air units based on available oil (limited to 12.5% of oilTerritory)
     const maxAirOil = Math.floor(oilTerritory * 0.2);
     initialDistribution.air = Math.min(
       Math.floor(maxAirOil / oilRequirements.air),
-      Math.floor(remainingArmyValue / 5000)
+      Math.floor(remainingArmyValue / vehicleArmyWorth.air)
     );
-    remainingArmyValue -= initialDistribution.air * 5000;
+    remainingArmyValue -= initialDistribution.air * vehicleArmyWorth.air;
   
     // Allocate assault units based on available oil (limited to 12.5% of oilTerritory)
     const maxAssaultOil = Math.floor(oilTerritory * 0.2);
     initialDistribution.assault = Math.min(
       Math.floor(maxAssaultOil / oilRequirements.assault),
-      Math.floor(remainingArmyValue / 1000)
+      Math.floor(remainingArmyValue / vehicleArmyWorth.assault)
     );
-    remainingArmyValue -= initialDistribution.assault * 1000;
+    remainingArmyValue -= initialDistribution.assault * vehicleArmyWorth.assault;
   
     // Allocate the remaining army value to infantry
     initialDistribution.infantry = remainingArmyValue;
@@ -2917,6 +2931,8 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     let useableAssault;
     let useableAir;
     let useableNaval;
+
+    let totalArmy = 0;
   
     for (let i = 0; i < mainArray.length; i++) {
       if (mainArray[i].uniqueId === territory.uniqueId) {
@@ -2965,13 +2981,20 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
             mainArray[i].useableAir = useableAir;
             mainArray[i].useableNaval = useableNaval;
 
-            console.log("Territory Oil / Demand: " + territoryOil + " / " + territoryOilDemand);
-            console.log("Useable Assault: " + mainArray[i].useableAssault + " / " + numberAssault);
-            console.log("Useable Air: " + mainArray[i].useableAir + " / " + numberAir);
-            console.log("Useable Naval: " + mainArray[i].useableNaval + " / " + numberNaval);
-            console.log("New demand: " + (useableAssault * 100 + useableAir * 300 + useableNaval * 1000));
+            mainArray[i].armyForCurrentTerritory = (mainArray[i].useableAssault * vehicleArmyWorth.assault) + (mainArray[i].useableAir * vehicleArmyWorth.air) + (mainArray[i].useableNaval * vehicleArmyWorth.naval) + mainArray[i].infantryForCurrentTerritory;
+
+            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
 
             break;
         }
     }
+    for (let i = 0; i < mainArray.length; i++) {
+        if (mainArray[i].dataName === playerCountry) {
+            totalArmy += (mainArray[i].useableAssault * vehicleArmyWorth.assault) + (mainArray[i].useableAir * vehicleArmyWorth.air) + (mainArray[i].useableNaval * vehicleArmyWorth.naval) + mainArray[i].infantryForCurrentTerritory;
+        }
+        
+        totalPlayerResources[0].totalArmy = totalArmy;
+    }
+
+    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
   }
