@@ -153,7 +153,7 @@ path.style.cursor = "pointer";
   });
 
   svgMap.addEventListener("click", function(e) {
-    if (e.target.tagName === "rect" && currentTurnPhase >= 2) { // if user clicks on sea then clear selection colors
+    if (e.target.tagName === "rect" && currentTurnPhase >= 1) { // if user clicks on sea then clear selection colors
       restoreMapColorState(currentMapColorArray);
     }
     if (e.target.tagName === "path") {
@@ -164,7 +164,7 @@ path.style.cursor = "pointer";
       }
       currentSelectedPath = currentPath;
       if (countrySelectedAndGameStarted) {
-        if (currentTurnPhase === 2) { //move/deploy phase show interactable countries when clicking a country
+        if (currentTurnPhase === 1) { //move/deploy phase show interactable countries when clicking a country
           validDestinationsAndClosestPointArray = findClosestPaths(e.target);
           if (!currentPath.hasAttribute("fill")) { 
             
@@ -179,7 +179,7 @@ path.style.cursor = "pointer";
               validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
             }
           }        
-        } else if (currentTurnPhase === 3) {
+        } else if (currentTurnPhase === 2) {
           
         }
       } else { //if on country selection screen
@@ -703,27 +703,21 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase";
       popupSubTitle.innerText = "";
-      popupConfirm.innerText = "DEPLOY";
+      popupConfirm.innerText = "MOVE / ATTACK";
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
-      popupTitle.innerText = "Buy / Upgrade Phase";
-      popupSubTitle.innerText = "";
-      popupConfirm.innerText = "DEPLOY";
-      modifyCurrentTurnPhase(turnPhase);
-      turnPhase++; 
-    } else if (countrySelectedAndGameStarted && turnPhase == 1) {
       currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
-      popupTitle.innerText = "Deploy Phase";
+      popupTitle.innerText = "Buy / Upgrade Phase";
       popupConfirm.innerText = "MOVE / ATTACK";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
-    } else if (countrySelectedAndGameStarted && turnPhase == 2) {
+    } else if (countrySelectedAndGameStarted && turnPhase == 1) {
       currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
       popupTitle.innerText = "Move / Attack Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
-    } else if (countrySelectedAndGameStarted && turnPhase == 3) {
+    } else if (countrySelectedAndGameStarted && turnPhase == 2) {
       restoreMapColorState(currentMapColorArray); //Add to this feature once attack implemented and territories can change color
       popupTitle.innerText = "AI turn";
       popupConfirm.innerText = "AI Moving...";
