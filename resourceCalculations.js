@@ -194,15 +194,12 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 
             // Calculate population of each territory based on the startingPop for the whole country it belongs to
             territoryPopulation = startingPop * percentOfWholeArea;
-            productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index)
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
             let goldForCurrentTerritory = (totalGoldForCountry * ((area/8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation/50000)) * continentModifier);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
-            let foodForCurrentTerritory = territoryPopulation / 10000; //set food to balance with population at beginning
-            let foodCapacity = territoryPopulation; //set food capacity as permanent value until territory upgraded
             let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
             let consMatsCapacity = consMatsForCurrentTerritory;
             let defenseBonus = 1;
@@ -223,6 +220,9 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 
             armyForCurrentTerritory = (navalForCurrentTerritory * vehicleArmyWorth.naval) + (airForCurrentTerritory * vehicleArmyWorth.air) + (assaultForCurrentTerritory * vehicleArmyWorth.assault) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
 
+            productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index) - armyForCurrentTerritory;
+            let foodForCurrentTerritory = (territoryPopulation / 10000) + (armyForCurrentTerritory / 10000);
+            let foodCapacity = territoryPopulation + armyForCurrentTerritory;
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
                 uniqueId: uniqueId,
@@ -445,7 +445,7 @@ function calculateFoodChange(territory, isSimulation) {
 
 function calculatePopulationChange(territory) {
     if (!randomEventHappening) {
-        const currentPopulation = territory.territoryPopulation;
+        const currentPopulation = territory.territoryPopulation + territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
         const devIndex = territory.devIndex;
         const foodForCurrentTerritory = territory.foodForCurrentTerritory;
 
