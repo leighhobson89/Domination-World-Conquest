@@ -286,6 +286,9 @@ export function newTurnResources() {
 
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
+    if (currentTurn !== 1) {
+        setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, currentlySelectedTerritoryForPurchases);
+    }
 }
     
     //todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
@@ -929,7 +932,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         return;
     }
   
-    let blackStyle = "font-weight: bold; color: black;";
+    let whiteStyle = "font-weight: bold; color: white;";
     let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
     let redStyle = "font-weight: bold; color: rgb(235,0,0);";
 
@@ -952,10 +955,10 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
       <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
       <div>Military Type: ${type}</div>
       <br />
-      <div>Currently In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
+      <div>Currently In Territory: <span style="${whiteStyle}">${amountAlreadyBuilt}</span></div>
       <br />
-      <div>Cost to purchase unit (Gold): <span style="${blackStyle}">${nextPurchaseCostGold}</span></div>
-      <div>Cost to purchase unit (Prod. Pop.): <span style="${blackStyle}">${nextProdPopCost}</span></div>
+      <div>Cost to purchase unit (Gold): <span style="${whiteStyle}">${nextPurchaseCostGold}</span></div>
+      <div>Cost to purchase unit (Prod. Pop.): <span style="${whiteStyle}">${nextProdPopCost}</span></div>
       <div>Effect on Oil Demand: <span style="${effectOnOilDemandStyle}">+${effectOnOilDemand}</span></div>
       <br />
       <div><span style="${buildAvailabilityStyle}">${purchase.condition}</span></div>
@@ -1058,7 +1061,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
       currentEffect = "0% -> ";
     }
   
-    let blackStyle = "font-weight: bold; color: black;";
+    let whiteStyle = "font-weight: bold; color: white;";
     let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
     let redStyle = "font-weight: bold; color: rgb(235,0,0);";
 
@@ -1078,11 +1081,11 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
       <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
       <div>Upgrade Type: ${type}</div>
       <br />
-      <div>Currently Built In Territory: <span style="${blackStyle}">${amountAlreadyBuilt}</span></div>
-      <div>Current Effect -> Next Effect: <span style="${blackStyle}">${currentEffect}<span style="${greenStyle}">${simulatedTotal}0%</span></div>
+      <div>Currently Built In Territory: <span style="${whiteStyle}">${amountAlreadyBuilt}</span></div>
+      <div>Current Effect -> Next Effect: <span style="${whiteStyle}">${currentEffect}<span style="${greenStyle}">${simulatedTotal}0%</span></div>
       <br />
-      <div>Cost Of Next Upgrade (Gold): <span style="${blackStyle}">${nextUpgradeCostGold}</span></div>
-      <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${blackStyle}">${nextUpgradeCostConsMats}</span></div>
+      <div>Cost Of Next Upgrade (Gold): <span style="${whiteStyle}">${nextUpgradeCostGold}</span></div>
+      <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${whiteStyle}">${nextUpgradeCostConsMats}</span></div>
       <br />
       <div><span style="${buildAvailabilityStyle}">${upgrade.condition}</span></div>
     `;
@@ -1123,8 +1126,37 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     const oilCap = territoryData.oilCapacity;
     let oilDemand;
 
+    let oilDemandStyle;
+    if (territoryData.oilDemand > territoryData.oilCapacity) {
+        oilDemandStyle = "font-weight: bold; color: rgb(235,0,0);";
+    } else {
+        oilDemandStyle = "font-weight: bold; color: white;";
+    }
+
+    let numberUseableStyleAssault;
+    if (territoryData.useableAssault >= territoryData.assaultForCurrentTerritory) {
+        numberUseableStyleAssault = "font-weight: bold; color: white;";
+    } else {
+        numberUseableStyleAssault = "font-weight: bold; color: rgb(235,0,0);";
+    }
+    let numberUseableStyleAir;
+    if (territoryData.useableAir >= territoryData.airForCurrentTerritory) {
+        numberUseableStyleAir = "font-weight: bold; color: white;";
+    } else {
+        numberUseableStyleAir = "font-weight: bold; color: rgb(235,0,0);";
+    }
+    let numberUseableStyleNaval;
+    if (territoryData.useableNaval >= territoryData.navalForCurrentTerritory) {
+        numberUseableStyleNaval = "font-weight: bold; color: white;";
+    } else {
+        numberUseableStyleNaval = "font-weight: bold; color: rgb(235,0,0);";
+    }
+
+    let whiteStyle = "font-weight: bold; color: white;";
+    let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
+    let redStyle = "font-weight: bold; color: rgb(235,0,0);";
+
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
-    let blackStyle = "font-weight: bold; color: black;";
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryData.uniqueId) {
@@ -1134,18 +1166,19 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     const tooltipContent = `
         <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
-        <div>Defense Bonus Multiplier: <span style="${blackStyle}">x${territoryData.defenseBonus}</span></div>
+        <div>Defense Bonus Multiplier: <span style="${whiteStyle}">x${territoryData.defenseBonus}</span></div>
         <br />
         <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
         <div>Gold: ${gold}</div>
         <br />
-        <div>Oil Cap: ${Math.ceil(oilCap)}</div>
-        <div>Oil Demand: ${Math.ceil(oilDemand)}</div>
+        <div>Oil Capacity: ${Math.ceil(oilCap)}</div>
+        <div>Oil Stored: ${Math.ceil(territoryData.oilForCurrentTerritory)}</div>
+        <div>Oil Demand:  <span style="${oilDemandStyle}">${Math.ceil(oilDemand)}</span></div>
         <br />
-        <div>Infantry: <span style="${blackStyle}">${territoryData.infantryForCurrentTerritory}</span> </div>
-        <div>Assault: <span style="${blackStyle}">${territoryData.assaultForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
-        <div>Air: <span style="${blackStyle}">${territoryData.airForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
-        <div>Naval: <span style="${blackStyle}">${territoryData.navalForCurrentTerritory}</span> (<span style="color: rgb(235,160,160)">TODO</span> useable)</div>
+        <div>Infantry: <span style="${whiteStyle}">${territoryData.infantryForCurrentTerritory}</span> </div>
+        <div>Assault: <span style="${whiteStyle}">${territoryData.assaultForCurrentTerritory}</span> (<span style="${numberUseableStyleAssault}">${territoryData.useableAssault} useable</span>)</div>
+        <div>Air: <span style="${whiteStyle}">${territoryData.airForCurrentTerritory}</span> (<span style="${numberUseableStyleAir}">${territoryData.useableAir} useable</span>)</div>
+        <div>Naval: <span style="${whiteStyle}">${territoryData.navalForCurrentTerritory}</span> (<span style="${numberUseableStyleNaval}">${territoryData.useableNaval} useable</span>)</div>
     `;
 
     // Get the last div in the row
@@ -1204,11 +1237,11 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const consMatsCap = territoryData.consMatsCapacity;
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
-    let blackStyle = "font-weight: bold; color: black;";
-    let popNextTurnStyle = "font-weight: bold; color: black;";
-    let oilNextTurnStyle = "font-weight: bold; color: black;";
-    let foodNextTurnStyle = "font-weight: bold; color: black;";
-    let consMatsNextTurnStyle = "font-weight: bold; color: black;";
+    let whiteStyle = "font-weight: bold; color: white;";
+    let popNextTurnStyle = "font-weight: bold; color: white;";
+    let oilNextTurnStyle = "font-weight: bold; color: white;";
+    let foodNextTurnStyle = "font-weight: bold; color: white;";
+    let consMatsNextTurnStyle = "font-weight: bold; color: white;";
 
     if (popNextTurnValue > 0) {
         popNextTurnStyle = "color: rgb(0,235,0);";
@@ -1248,7 +1281,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const tooltipContent = `
         <div><span style="color: rgb(235,235,0)">Territory: ${territoryName}</span></div>
         <div>Army: ${army}</div>
-        <div>Defense Bonus Multiplier: <span style="${blackStyle}">x${territoryData.defenseBonus}</span></div>
+        <div>Defense Bonus Multiplier: <span style="${whiteStyle}">x${territoryData.defenseBonus}</span></div>
         <br />
         <div>Productive Population: ${formatNumbersToKMB(prodPopulation)}</div>
         <div>Population Next Turn: <span style="${popNextTurnStyle}"> ${formatNumbersToKMB(popNextTurnValue)}</div>
@@ -1260,10 +1293,10 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
         <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
         <br />
-        <div>Farms: <span style="${blackStyle}">${territoryData.farmsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageFarms}%</span> Food Cap.)</div>
-        <div>Forests: <span style="${blackStyle}">${territoryData.forestsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForests}%</span> Cons. Mats. Cap.)</div>
-        <div>Oil Wells: <span style="${blackStyle}">${territoryData.oilWellsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageOilWells}%</span> Oil Cap.)</div>
-        <div>Forts: <span style="${blackStyle}">${territoryData.fortsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForts}%</span> Def. Bonus)</div>
+        <div>Farms: <span style="${whiteStyle}">${territoryData.farmsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageFarms}%</span> Food Cap.)</div>
+        <div>Forests: <span style="${whiteStyle}">${territoryData.forestsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForests}%</span> Cons. Mats. Cap.)</div>
+        <div>Oil Wells: <span style="${whiteStyle}">${territoryData.oilWellsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageOilWells}%</span> Oil Cap.)</div>
+        <div>Forts: <span style="${whiteStyle}">${territoryData.fortsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForts}%</span> Def. Bonus)</div>
     `;
 
     // Get the last div in the row
@@ -2843,7 +2876,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     let remainingArmyValue = initialValue;
   
     // Allocate naval units based on available oil (limited to 25% of oilTerritory)
-    const maxNavalOil = Math.floor(oilTerritory * 0.25);
+    const maxNavalOil = Math.floor(oilTerritory * 0.35);
     initialDistribution.naval = Math.min(
       Math.floor(maxNavalOil / oilRequirements.naval),
       Math.floor(remainingArmyValue / 20000)
@@ -2851,7 +2884,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     remainingArmyValue -= initialDistribution.naval * 20000;
   
     // Allocate air units based on available oil (limited to 12.5% of oilTerritory)
-    const maxAirOil = Math.floor(oilTerritory * 0.125);
+    const maxAirOil = Math.floor(oilTerritory * 0.2);
     initialDistribution.air = Math.min(
       Math.floor(maxAirOil / oilRequirements.air),
       Math.floor(remainingArmyValue / 5000)
@@ -2859,7 +2892,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     remainingArmyValue -= initialDistribution.air * 5000;
   
     // Allocate assault units based on available oil (limited to 12.5% of oilTerritory)
-    const maxAssaultOil = Math.floor(oilTerritory * 0.125);
+    const maxAssaultOil = Math.floor(oilTerritory * 0.2);
     initialDistribution.assault = Math.min(
       Math.floor(maxAssaultOil / oilRequirements.assault),
       Math.floor(remainingArmyValue / 1000)
@@ -2925,21 +2958,20 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 
             if (difference <= 0) break;
         }
+    }
+    for (let i = 0; i < mainArray.length; i++) {
+        if (mainArray[i].uniqueId === territory.uniqueId) {
+            mainArray[i].useableAssault = useableAssault;
+            mainArray[i].useableAir = useableAir;
+            mainArray[i].useableNaval = useableNaval;
 
-        for (let i = 0; i < mainArray.length; i++) {
-            if (mainArray[i].uniqueId === territory.uniqueId) {
-                mainArray[i].useableAssault = useableAssault;
-                mainArray[i].useableAir = useableAir;
-                mainArray[i].useableNaval = useableNaval;
+            console.log("Territory Oil / Demand: " + territoryOil + " / " + territoryOilDemand);
+            console.log("Useable Assault: " + mainArray[i].useableAssault + " / " + numberAssault);
+            console.log("Useable Air: " + mainArray[i].useableAir + " / " + numberAir);
+            console.log("Useable Naval: " + mainArray[i].useableNaval + " / " + numberNaval);
+            console.log("New demand: " + (useableAssault * 100 + useableAir * 300 + useableNaval * 1000));
 
-                console.log("Territory Oil / Demand: " + territoryOil + " / " + territoryOilDemand);
-                console.log("Useable Assault: " + mainArray[i].useableAssault + " / " + numberAssault);
-                console.log("Useable Air: " + mainArray[i].useableAir + " / " + numberAir);
-                console.log("Useable Naval: " + mainArray[i].useableNaval + " / " + numberNaval);
-                console.log("New demand: " + (useableAssault * 100 + useableAir * 300 + useableNaval * 1000));
-
-                break;
-            }
+            break;
         }
     }
   }
