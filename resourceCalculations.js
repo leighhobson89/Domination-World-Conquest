@@ -7,6 +7,7 @@ import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
 import { toggleUpgradeMenu, toggleBuyMenu} from './ui.js';
 import { playerCountry } from './ui.js';
+import { setUpgradeOrBuyWindowOnScreenToTrue, upgradeWindowCurrentlyOnScreen, buyWindowCurrentlyOnScreen } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -762,6 +763,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
                         toggleUpgradeMenu(true, territoryData);
                         currentlySelectedTerritoryForUpgrades = territoryData;
                         upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                        setUpgradeOrBuyWindowOnScreenToTrue(1);
                     }
                     });
         
@@ -847,6 +849,7 @@ export function drawUITable(uiTableContainer, territoryOrArmyTable) {
                         toggleBuyMenu(true, territoryData);
                         currentlySelectedTerritoryForPurchases = territoryData;
                         buyButtonImageElement.src = "/resources/buyButtonIcon.png";
+                        setUpgradeOrBuyWindowOnScreenToTrue(2);
                     }
                     });
         
@@ -1701,6 +1704,7 @@ function calculateAvailableUpgrades(territory) {
 
   function populateBuyTable(territory) {
     //reset confirm button status and totals when opening upgrade window
+    document.getElementById("subtitle-buy-window").innerHTML = territory.territoryName;
     document.getElementById("prices-buy-info-column2").innerHTML = "0";
     document.getElementById("prices-buy-info-column4").innerHTML = "0";
     document.getElementById("bottom-bar-buy-confirm-button").innerHTML="Cancel";
@@ -1942,6 +1946,7 @@ function calculateAvailableUpgrades(territory) {
   
   function populateUpgradeTable(territory) {
     //reset confirm button status and totals when opening upgrade window
+    document.getElementById("subtitle-upgrade-window").innerHTML = territory.territoryName;
     document.getElementById("prices-info-column2").innerHTML = "0";
     document.getElementById("prices-info-column4").innerHTML = "0";
     document.getElementById("bottom-bar-confirm-button").innerHTML="Cancel";

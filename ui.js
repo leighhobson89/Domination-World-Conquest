@@ -50,16 +50,16 @@ let hoveredNonInteractableAndNonSelectedTerritory = false;
 let colorArray;
 
 // Game States
-let popupCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
-let UICurrentlyOnScreen = false;
+let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
+let uiCurrentlyOnScreen = false;
 let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
 let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
-let UIButtonCurrentlyOnScreen = false;
-let UpgradeWindowCurrentlyOnScreen = false;
-let BuyWindowCurrentlyOnScreen = false;
+let uiButtonCurrentlyOnScreen = false;
+export let upgradeWindowCurrentlyOnScreen = false;
+export let buyWindowCurrentlyOnScreen = false;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -80,6 +80,14 @@ let isDragging = false;
 //misc variables
 let totalOilDemandCountryArray = [];
 let totalOilDemandCountry = 0;
+
+export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
+  if (upgradeOrBuyParameter === 1) { //upgrade window
+    upgradeWindowCurrentlyOnScreen = true;
+  } else if (upgradeOrBuyParameter === 2) { //buy window
+    buyWindowCurrentlyOnScreen = true;
+  }
+}
 
 export function svgMapLoaded() {
   //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
@@ -381,7 +389,7 @@ document.addEventListener("DOMContentLoaded", function() {
     countrySelectedAndGameStarted = false;
     selectCountryPlayerState = true;
     popupWithConfirmContainer.style.display = "flex";
-    popupCurrentlyOnScreen = true;
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
   }
 
   // add the menu options to the menu container
@@ -649,7 +657,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   UIToggleButton.addEventListener("click", function() {
     playSoundClip();
-    if (UICurrentlyOnScreen) {
+    if (uiCurrentlyOnScreen) {
       toggleUIMenu(false);
     } else {
       toggleUIMenu(true);
@@ -697,7 +705,7 @@ document.addEventListener("DOMContentLoaded", function() {
       flag = playerCountry;
       setFlag(flag,1); //set playerflag in top table
       setFlag(flag, 3); //set playerflag in ui info panel
-      UIButtonCurrentlyOnScreen = true;
+      uiButtonCurrentlyOnScreen = true;
       toggleUIButton(true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
@@ -773,6 +781,7 @@ document.addEventListener("DOMContentLoaded", function() {
   xButton.addEventListener("click", function() {
     playSoundClip();
     toggleUIMenu(false);
+    uiCurrentlyOnScreen = false;
     territoryButton.classList.remove("active");
     armyButton.classList.remove("active");
     uiTable.style.display = "none";
@@ -886,7 +895,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   xButtonUpgrade.addEventListener("click", function() {
     playSoundClip();
-    toggleUpgradeMenu(false);    
+    toggleUpgradeMenu(false);
+    upgradeWindowCurrentlyOnScreen = false;   
   });
 
   const contentWindowUpgrade = document.createElement("div");
@@ -962,9 +972,11 @@ document.addEventListener("DOMContentLoaded", function() {
     playSoundClip();
     if (bottomBarConfirmButton.innerHTML === "Cancel") {
       toggleUpgradeMenu(false);
+      upgradeWindowCurrentlyOnScreen = false;
     } else if (bottomBarConfirmButton.innerHTML === "Confirm") {
       addPlayerUpgrades(document.getElementById("upgrade-table"), currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats);
       toggleUpgradeMenu(false);
+      upgradeWindowCurrentlyOnScreen = false;
     }
   });
 
@@ -1071,7 +1083,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   xButtonBuy.addEventListener("click", function() {
     playSoundClip();
-    toggleBuyMenu(false);    
+    toggleBuyMenu(false);   
+    buyWindowCurrentlyOnScreen = false; 
   });
 
   const contentWindowBuy = document.createElement("div");
@@ -1147,9 +1160,11 @@ document.addEventListener("DOMContentLoaded", function() {
     playSoundClip();
     if (bottomBarBuyConfirmButton.innerHTML === "Cancel") {
       toggleBuyMenu(false);
+      buyWindowCurrentlyOnScreen = false;
     } else if (bottomBarBuyConfirmButton.innerHTML === "Confirm") {
       addPlayerPurchases(document.getElementById("buy-table"), currentlySelectedTerritoryForPurchases, totalPurchaseGoldPrice, totalPopulationCost);
       toggleBuyMenu(false);
+      buyWindowCurrentlyOnScreen = false;
     }
   });
 
@@ -1205,7 +1220,8 @@ function toggleTopTableContainer(turnOnTable) {
 
 document.addEventListener("keydown", function(event) {
   playSoundClip();
-  if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) {
+  if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
+    console.log(upgradeWindowCurrentlyOnScreen);
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("popup-with-confirm-container").style.display = "none";
     document.getElementById("main-ui-container").style.display = "none";
@@ -1216,21 +1232,21 @@ document.addEventListener("keydown", function(event) {
     toggleUIButton(false);
     toggleUpgradeMenu(false);
     toggleBuyMenu(false);
-  } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) {
-    if (popupCurrentlyOnScreen) {
+  } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
+    if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
       document.getElementById("popup-with-confirm-container").style.display = "flex";
     }
-    if (UIButtonCurrentlyOnScreen) {
+    if (uiButtonCurrentlyOnScreen) {
       toggleUIButton(true);
     }
-    if (UpgradeWindowCurrentlyOnScreen) {
+    if (uiCurrentlyOnScreen) {
+      document.getElementById("main-ui-container").style.display = "flex";
+    }
+    if (upgradeWindowCurrentlyOnScreen) {
       toggleUpgradeMenu(true);
     }
-    if (BuyWindowCurrentlyOnScreen) {
+    if (buyWindowCurrentlyOnScreen) {
       toggleBuyMenu(true);
-    }
-    if (UICurrentlyOnScreen) {
-      document.getElementById("main-ui-container").style.display = "flex";
     }
     if (countrySelectedAndGameStarted) {
       toggleTopTableContainer(true);
@@ -1662,8 +1678,10 @@ function uiButtons(button) {
 function toggleUIButton(makeVisible) {
   if (makeVisible) {
     document.getElementById("UIButtonContainer").style.display = "block";
+    uiButtonCurrentlyOnScreen = true;
   } else {
     document.getElementById("UIButtonContainer").style.display = "none";
+    uiButtonCurrentlyOnScreen = false;
   }
 }
 
@@ -1671,28 +1689,27 @@ function toggleUIButton(makeVisible) {
     if (makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
       svg.style.pointerEvents = 'none';
-      UICurrentlyOnScreen = true;
+      uiCurrentlyOnScreen = true;
       toggleUIButton(false);
       document.getElementById("popup-with-confirm-container").style.display = "none";
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
     } else {
       document.getElementById("main-ui-container").style.display = "none";
       svg.style.pointerEvents = 'auto';
-      UICurrentlyOnScreen = false;
+      uiCurrentlyOnScreen = false;
       toggleUIButton(true);
       document.getElementById("popup-with-confirm-container").style.display = "block";
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
     }
 }
 
-export function toggleUpgradeMenu(makeVisible, territory) {
+export function toggleUpgradeMenu(makeVisible) {
   if (makeVisible) {
     document.getElementById("upgrade-container").style.display = "block";
     document.getElementById("main-ui-container").style.pointerEvents = 'none';
-    UpgradeWindowCurrentlyOnScreen = true;
-    document.getElementById("subtitle-upgrade-window").innerHTML = territory.territoryName;
   } else {
     document.getElementById("upgrade-container").style.display = "none";
     document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-    UpgradeWindowCurrentlyOnScreen = false;
   }
 }
 
@@ -1700,12 +1717,9 @@ export function toggleBuyMenu(makeVisible, territory) {
   if (makeVisible) {
     document.getElementById("buy-container").style.display = "block";
     document.getElementById("main-ui-container").style.pointerEvents = 'none';
-    BuyWindowCurrentlyOnScreen = true;
-    document.getElementById("subtitle-buy-window").innerHTML = territory.territoryName;
   } else {
     document.getElementById("buy-container").style.display = "none";
     document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-    BuyWindowCurrentlyOnScreen = false;
   }
 }
 
