@@ -1243,6 +1243,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const foodCap = territoryData.foodCapacity;
     const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData, true));
     const consMatsCap = territoryData.consMatsCapacity;
+    const foodConsumption = (territoryData.territoryPopulation) + territoryData.armyForCurrentTerritory;
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
     let whiteStyle = "font-weight: bold; color: white;";
@@ -1250,11 +1251,12 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     let oilNextTurnStyle = "font-weight: bold; color: white;";
     let foodNextTurnStyle = "font-weight: bold; color: white;";
     let consMatsNextTurnStyle = "font-weight: bold; color: white;";
+    let foodCapacityStyle;
 
     if (popNextTurnValue > 0) {
-        popNextTurnStyle = "color: rgb(0,235,0);";
+        popNextTurnStyle = "font-weight: bold; color: rgb(0,235,0);";
     } else if (popNextTurnValue < 0) {
-        popNextTurnStyle = "color: rgb(235,160,160);";
+        popNextTurnStyle = "font-weight: bold; color: rgb(235,0,0);";
     }
 
     /* if (goldNextTurnValue > 0) {
@@ -1264,21 +1266,27 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     } */
 
     if (oilNextTurnValue > 0) {
-        oilNextTurnStyle = "color: rgb(0,235,0);";
+        oilNextTurnStyle = "font-weight: bold; color: rgb(0,235,0);";
     } else if (oilNextTurnValue < 0) {
-        oilNextTurnStyle = "color: rgb(235,160,160);";
+        oilNextTurnStyle = "font-weight: bold; color: rgb(235,0,0);";
     }
 
     if (foodNextTurnValue > 0) {
-        foodNextTurnStyle = "color: rgb(0,235,0);";
+        foodNextTurnStyle = "font-weight: bold; color: rgb(0,235,0);";
     } else if (foodNextTurnValue < 0) {
-        foodNextTurnStyle = "color: rgb(235,160,160);";
+        foodNextTurnStyle = "font-weight: bold; color: rgb(235,0,0);";
     }
 
     if (consMatsNextTurnValue > 0) {
-        consMatsNextTurnStyle = "color: rgb(0,235,0);";
+        consMatsNextTurnStyle = "font-weight: bold; color: rgb(0,235,0);";
     } else if (consMatsNextTurnValue < 0) {
-        consMatsNextTurnStyle = "color: rgb(235,160,160);";
+        consMatsNextTurnStyle = "font-weight: bold; color: rgb(235,0,0);";
+    }
+
+    if (foodConsumption > foodCap) {
+        foodCapacityStyle = "font-weight: bold; color: rgb(235,0,0);";
+    } else if (consMatsNextTurnValue < 0) {
+        foodCapacityStyle = "font-weight: bold; color: white;";
     }
 
     const bonusPercentageFarms = territoryData.farmsBuilt > 0 ? territoryData.farmsBuilt * 10 : 0;
@@ -1296,8 +1304,9 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         <div>Area: ${area}</div>
         <div>Oil Next Turn: <span style="${oilNextTurnStyle}">${oilNextTurnValue}</span></div>
         <div>Oil Cap: ${Math.ceil(oilCap)}</div>
-        <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</span></div>
-        <div>Food Cap: ${formatNumbersToKMB(foodCap)}</div>
+        <div>Food Next Turn: <span style="${foodNextTurnStyle}">${foodNextTurnValue}</div>
+        <div>Food Production Cap: <span style="${foodCapacityStyle}">${formatNumbersToKMB(foodCap)}</span></div>
+        <div>Food Consumption: ${formatNumbersToKMB(foodConsumption)}</div>
         <div>Cons. Mats. Next Turn: <span style="${consMatsNextTurnStyle}">${consMatsNextTurnValue}</span></div>
         <div>Cons. Mats. Cap: ${Math.ceil(consMatsCap)}</div>
         <br />
