@@ -1,5 +1,5 @@
-import { playerCountry } from './ui.js';
-import { getPlayerTerritories, newTurnResources } from './resourceCalculations.js';
+import { playerCountry, uiAppearsAtStartOfTurn, toggleUIMenu } from './ui.js';
+import { getPlayerTerritories, newTurnResources, drawUITable } from './resourceCalculations.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
@@ -34,6 +34,10 @@ function gameLoop() {
       console.log("There's been a " + randomEvent + "!")
     }
     newTurnResources();
+    if (uiAppearsAtStartOfTurn && currentTurn !== 1) {
+      toggleUIMenu(true);
+      drawUITable(document.getElementById("uiTable"), 0);
+  }
     randomEventHappening = false;
     randomEvent = "";
     console.log("Turn " + currentTurn + " has started!");
