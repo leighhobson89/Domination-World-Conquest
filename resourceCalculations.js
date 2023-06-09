@@ -664,6 +664,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
     const headerRow = document.createElement("div");
     headerRow.classList.add("ui-table-row");
+    headerRow.style.fontWeight = "bold";
 
     if (summaryTerritoryArmyTable === 0) {
         headerColumns = ["Territory", "Population(+/-)", "Gold(+/-)", "Oil(+/-)", "Oil Capacity", "Oil Demand", "Food(+/-)", "Food Capacity", "Food Consumption", "Construction Materials(+/-)", "Construction Materials Capacity", "Army Power", "Infantry", "Assault(useable)", "Air(useable)", "Naval(useable)"];
@@ -691,6 +692,25 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
     headerColumn.classList.add("ui-table-column");
 
+    headerColumn.addEventListener("mouseover", (e) => {
+        const x = e.clientX;
+        const y = e.clientY;
+    
+        tooltip.style.left = x - 60 + "px";
+        tooltip.style.top = 25 + y + "px";
+    
+        tooltip.innerHTML = headerColumns[j];
+        tooltip.style.display = "block";
+    
+        // Add the tooltip to the document body
+        document.body.appendChild(tooltip);
+      });
+
+      headerColumn.addEventListener("mouseout", (e) => {
+        tooltip.innerHTML = "";
+        tooltip.style.display = "none";
+      });
+
     // Create an <img> tag with the image source
     const imageSource = "/resources/" + imageSources[j];
     const imageElement = document.createElement("img");
@@ -699,6 +719,9 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     imageElement.classList.add("sizingIcons");
 
     headerColumn.appendChild(imageElement);
+    if (summaryTerritoryArmyTable === 0 && j === 0) {
+        headerColumn.innerHTML = "Territories Summary:";
+    }
     headerRow.appendChild(headerColumn);
     }
 
@@ -947,6 +970,27 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         }     
     table.appendChild(row);
     }
+
+    if (summaryTerritoryArmyTable === 0) {
+        // Create an empty row
+        const emptyRow = document.createElement("div");
+        emptyRow.classList.add("ui-table-row");
+        emptyRow.style.height = "20px"; // Adjust the height as needed
+        table.appendChild(emptyRow);
+
+        // Add the second header row
+        const secondHeaderRow = document.createElement("div");
+        secondHeaderRow.classList.add("ui-table-row");
+
+        // Clone the header columns and append them to the second header row
+        for (let j = 0; j < headerColumns.length; j++) {
+            const headerColumn = headerRow.children[j].cloneNode(true);
+            secondHeaderRow.appendChild(headerColumn);
+        }
+
+        table.appendChild(secondHeaderRow);
+    }
+
     uiTableContainer.appendChild(table);
 }
 

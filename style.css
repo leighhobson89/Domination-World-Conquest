@@ -585,7 +585,7 @@ td {
 }
 
 .ui-table-column:first-child {
-  color: yellow;
+  color: white;
 }
 
 ::-webkit-scrollbar {
