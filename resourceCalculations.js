@@ -3075,7 +3075,9 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 
             mainArray[i].armyForCurrentTerritory = (mainArray[i].useableAssault * vehicleArmyWorth.assault) + (mainArray[i].useableAir * vehicleArmyWorth.air) + (mainArray[i].useableNaval * vehicleArmyWorth.naval) + mainArray[i].infantryForCurrentTerritory;
 
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+            if (mainArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+            }
 
             break;
         }
