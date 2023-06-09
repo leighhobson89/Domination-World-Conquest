@@ -60,6 +60,7 @@ let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
+export let uiAppearsAtStartOfTurn = true;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -750,6 +751,18 @@ document.addEventListener("DOMContentLoaded", function() {
   tabButtons.classList.add("tab-buttons");
   tabButtons.setAttribute("id", "tab-buttons");
 
+  const summaryButton = document.createElement("button");
+  summaryButton.classList.add("tab-button");
+  summaryButton.setAttribute("id", "summaryButton");
+  summaryButton.innerHTML = "Summary";
+
+  summaryButton.addEventListener("click", function() {
+    playSoundClip();
+    summaryButton.classList.add("tab-button");
+    uiButtons(summaryButton);
+    drawUITable(uiTable, 0);
+  });
+
   const territoryButton = document.createElement("button");
   territoryButton.classList.add("tab-button");
   territoryButton.setAttribute("id", "territoryButton");
@@ -773,6 +786,31 @@ document.addEventListener("DOMContentLoaded", function() {
     drawUITable(uiTable, 2);
   });
 
+  const checkBox = document.createElement("button");
+  checkBox.classList.add("checkBox-appear-start-of-turn");
+  checkBox.setAttribute("id", "checkBox-appear-start-of-turn");
+  checkBox.innerHTML = "✔";
+
+  checkBox.addEventListener("mouseover", (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
+    tooltip.innerHTML = "Check to display UI at start of turn!";
+    tooltip.style.display = "block";
+  });
+
+  checkBox.addEventListener("mouseout", () => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
+
+  checkBox.addEventListener("click", function() {
+    playSoundClip();
+    uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(checkBox,uiAppearsAtStartOfTurn);
+  });
+
   const xButton = document.createElement("button");
   xButton.classList.add("x-button");
   xButton.setAttribute("id", "xButton");
@@ -785,7 +823,6 @@ document.addEventListener("DOMContentLoaded", function() {
     territoryButton.classList.remove("active");
     armyButton.classList.remove("active");
     uiTable.style.display = "none";
-    
   });
 
   const contentWindow = document.createElement("div");
@@ -809,8 +846,10 @@ document.addEventListener("DOMContentLoaded", function() {
   selectionPanel.setAttribute("id", "selection-panel");
 
   mainUIContainer.appendChild(tabButtons);
+  tabButtons.appendChild(summaryButton);
   tabButtons.appendChild(territoryButton);
   tabButtons.appendChild(armyButton);
+  tabButtons.appendChild(checkBox);
   tabButtons.appendChild(xButton);
   mainUIContainer.appendChild(contentWindow);
   contentWindow.appendChild(infoPanel);
@@ -1666,12 +1705,18 @@ export function setFlag(flag, place) {
 }
 
 function uiButtons(button) {
-  if (button === territoryButton) {
+  if (button === summaryButton) {
+    summaryButton.classList.add("active");
+    territoryButton.classList.remove("active");
+    armyButton.classList.remove("active");
+  } else if (button === territoryButton) {
+    summaryButton.classList.remove("active");
     territoryButton.classList.add("active");
     armyButton.classList.remove("active");
   } else if (button === armyButton) {
-    armyButton.classList.add("active");
+    summaryButton.classList.remove("active");
     territoryButton.classList.remove("active");
+    armyButton.classList.add("active");
   }
 }
 
@@ -1688,6 +1733,7 @@ function toggleUIButton(makeVisible) {
   export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
+      drawUITable(uiTable, 0);
       svg.style.pointerEvents = 'none';
       uiCurrentlyOnScreen = true;
       toggleUIButton(false);
@@ -2010,6 +2056,17 @@ function fillPathBasedOnTeam(path) {
 
 function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
+}
+
+function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
+  if (uiAppearsAtStartOfTurn) {
+    uiAppearsAtStartOfTurn = false;
+    checkBox.innerHTML = "";
+  } else {
+    uiAppearsAtStartOfTurn = true;
+    checkBox.innerHTML = "✔";
+  }
+  return uiAppearsAtStartOfTurn;
 }
 
 
