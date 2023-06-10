@@ -7,7 +7,7 @@ import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPur
 import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { capacityArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
+import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -77,10 +77,6 @@ let viewBoxHeight = originalViewBoxHeight;
 let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
-
-//misc variables
-let totalOilDemandCountryArray = [];
-let totalOilDemandCountry = 0;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
   if (upgradeOrBuyParameter === 1) { //upgrade window
@@ -444,12 +440,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOil = document.createElement("td");
   topTableOil.classList.add("iconCell");
   topTableOil.addEventListener("mouseover", (e) => {
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-      if (playerCountry === mainArrayOfTerritoriesAndResources[i].dataName) {
-        totalOilDemandCountryArray.push(mainArrayOfTerritoriesAndResources[i].oilDemand);
-      }
-    }
-    totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
+    let totalOilDemandCountry = demandArray.totalOilDemand;
 
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Oil:</span></div>
@@ -458,8 +449,6 @@ document.addEventListener("DOMContentLoaded", function() {
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
-    totalOilDemandCountryArray = [];
-    totalOilDemandCountry = 0;
   });
   topTableOil.addEventListener("mouseout", (e) => {
     tooltip.innerHTML = "";
@@ -474,12 +463,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableOilValue= document.createElement("td");
   topTableOilValue.classList.add("resourceFields");
   topTableOilValue.addEventListener("mouseover", (e) => {
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-      if (playerCountry === mainArrayOfTerritoriesAndResources[i].dataName) {
-        totalOilDemandCountryArray.push(mainArrayOfTerritoriesAndResources[i].oilDemand);
-      }
-    }
-    totalOilDemandCountry = totalOilDemandCountryArray.reduce((total, current) => total + current, 0);
+    let totalOilDemandCountry = demandArray.totalOilDemand;
     let tooltipContent = `
       <div><span style="color: rgb(235,235,0)">Oil:</span></div>
       <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
@@ -487,8 +471,6 @@ document.addEventListener("DOMContentLoaded", function() {
     `;
     tooltip.innerHTML = tooltipContent;
     tooltip.style.display = "block";
-    totalOilDemandCountryArray = [];
-    totalOilDemandCountry = 0;
   });
   topTableOilValue.addEventListener("mouseout", (e) => {
     tooltip.innerHTML = "";

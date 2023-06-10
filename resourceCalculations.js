@@ -20,6 +20,7 @@ export let totalPurchaseGoldPrice = 0;
 export let totalPopulationCost = 0;
 export let totalOilCapacity = 0;
 export let capacityArray;
+export let demandArray;
 
 const oilRequirements = {
     naval: 1000,
@@ -297,6 +298,7 @@ export function newTurnResources() {
 
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
+    demandArray = calculateAllTerritoryDemandsForCountry();
     if (currentTurn !== 1) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (mainArrayOfTerritoriesAndResources[i].dataName === playerCountry) {
@@ -492,6 +494,32 @@ export function formatNumbersToKMB(string) {
     }
 }
 
+function calculateAllTerritoryDemandsForCountry() {
+    const demandArray = [];
+
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        for (let j = 0; j < playerOwnedTerritories.length; j++) {
+          if (mainArrayOfTerritoriesAndResources[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+            const totalOilDemand = mainArrayOfTerritoriesAndResources[i].oilDemand;
+            const totalFoodConsumption = mainArrayOfTerritoriesAndResources[i].foodConsumption;
+    
+            demandArray.push([totalOilDemand, totalFoodConsumption]);
+          }
+        }
+      }
+    
+      const reducedDemandArray = demandArray.reduce((acc, curr) => {
+        return curr.map((value, index) => acc[index] + value);
+      }, [0, 0]);
+
+      const result = {
+        totalOilDemand: reducedDemandArray[0],
+        totalFoodConsumption: reducedDemandArray[1]
+      };
+
+      return result;
+}
+
 function calculateAllTerritoryCapacitiesForCountry() {
     const capacityArray = [];
   
@@ -531,6 +559,13 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
     let totalProdPop = 0;
     let totalArea = 0;
     let totalArmy = 0;
+    let totalInfantry = 0;
+    let totalAssault = 0;
+    let totalAir = 0;
+    let totalNaval = 0;
+    let totalUseableAssault = 0;
+    let totalUseableAir = 0;
+    let totalUseableNaval = 0;
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         for (const path of paths) {
@@ -543,6 +578,14 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
                 totalProdPop += mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
                 totalArea += mainArrayOfTerritoriesAndResources[i].area;
                 totalArmy += mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
+                totalInfantry += mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
+                totalAssault += mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory;
+                totalAir += mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory;
+                totalNaval += mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory;
+                totalUseableAssault += mainArrayOfTerritoriesAndResources[i].useableAssault;
+                totalUseableAir += mainArrayOfTerritoriesAndResources[i].useableAir;
+                totalUseableNaval += mainArrayOfTerritoriesAndResources[i].useableNaval;
+
                 if (path === currentSelectedPath && currentTurn !== 1) {
                     writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
@@ -560,7 +603,15 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
         totalPop: totalPop,
         totalProdPop: totalProdPop,
         totalArea: totalArea,
-        totalArmy: totalArmy});
+        totalArmy: totalArmy,
+        totalInfantry: totalInfantry,
+        totalAssault: totalAssault,
+        totalAir: totalAir,
+        totalNaval: totalNaval,
+        totalUseableAssault: totalUseableAssault,
+        totalUseableAir: totalUseableAir,
+        totalUseableNaval: totalUseableNaval
+    });
 
     //write new data to top table
     document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
@@ -678,55 +729,187 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     }
 
     for (let j = 0; j < headerColumns.length; j++) {
-    const headerColumn = document.createElement("div");
+        const headerColumn = document.createElement("div");
 
-    if (j === 0) {
-        if (summaryTerritoryArmyTable === 0 ) {
-            headerColumn.style.width = "55%";
+        if (j === 0) {
+            if (summaryTerritoryArmyTable === 0 ) {
+                headerColumn.style.width = "55%";
+            } else {
+                headerColumn.style.width = "30%";
+            }
         } else {
-            headerColumn.style.width = "30%";
+            headerColumn.classList.add("centerIcons");
         }
-    } else {
-        headerColumn.classList.add("centerIcons");
-    }
 
-    headerColumn.classList.add("ui-table-column");
+        headerColumn.classList.add("ui-table-column");
 
-    headerColumn.addEventListener("mouseover", (e) => {
-        const x = e.clientX;
-        const y = e.clientY;
-    
-        tooltip.style.left = x - 60 + "px";
-        tooltip.style.top = 25 + y + "px";
-    
-        tooltip.innerHTML = headerColumns[j];
-        tooltip.style.display = "block";
-    
-        // Add the tooltip to the document body
-        document.body.appendChild(tooltip);
-      });
+        headerColumn.addEventListener("mouseover", (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+        
+            tooltip.style.left = x - 60 + "px";
+            tooltip.style.top = 25 + y + "px";
+        
+            tooltip.innerHTML = headerColumns[j];
+            tooltip.style.display = "block";
+        
+            // Add the tooltip to the document body
+            document.body.appendChild(tooltip);
+        });
 
-      headerColumn.addEventListener("mouseout", (e) => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-      });
+        headerColumn.addEventListener("mouseout", (e) => {
+            tooltip.innerHTML = "";
+            tooltip.style.display = "none";
+        });
 
-    // Create an <img> tag with the image source
-    const imageSource = "/resources/" + imageSources[j];
-    const imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = headerColumns[j];
-    imageElement.classList.add("sizingIcons");
+        // Create an <img> tag with the image source
+        const imageSource = "/resources/" + imageSources[j];
+        const imageElement = document.createElement("img");
+        imageElement.src = imageSource;
+        imageElement.alt = headerColumns[j];
+        imageElement.classList.add("sizingIcons");
 
-    headerColumn.appendChild(imageElement);
-    if (summaryTerritoryArmyTable === 0 && j === 0) {
-        headerColumn.innerHTML = "Territories Summary:";
-    }
-    headerRow.appendChild(headerColumn);
+        headerColumn.appendChild(imageElement);
+        if (summaryTerritoryArmyTable === 0 && j === 0) {
+            headerColumn.innerHTML = "Country Summary:";
+        }
+        headerRow.appendChild(headerColumn);
     }
 
     table.appendChild(headerRow);
+
+    if (summaryTerritoryArmyTable === 0) {
+        // Create a single row under the first header row
+        const singleRow = document.createElement("div");
+        singleRow.classList.add("ui-table-row");
+
+        // Create columns
+        for (let j = 0; j < headerColumns.length; j++) {
+            const column = document.createElement("div");
+            column.classList.add("ui-table-column");
+
+            if (j === 0) {
+                column.style.width = "55%";
+                // Set the value of the first column to a custom value
+                column.textContent = playerCountry;
+            } else {
+                column.classList.add("centerIcons");
+
+                switch (j) {
+                    case 1:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+                        break;
+                    case 2:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
+                        break;
+                    case 3:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
+                        break;
+                    case 4:
+                        column.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
+                        break;
+                    case 5:
+                        column.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
+                        break;
+                    case 6:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
+                        break;
+                    case 7:
+                        column.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
+                        break;
+                    case 8:
+                        column.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
+                        break;
+                    case 9:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
+                        break;
+                    case 10:
+                        column.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
+                        break;
+                    case 11:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+                        break;
+                    case 12:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
+                        break;
+                    case 13:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalAssault);
+                        break;
+                    case 14:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalAir);
+                        break;
+                    case 15:
+                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalNaval);
+                        break;
+                }
+            }
+
+            singleRow.appendChild(column);
+        }
+
+        table.appendChild(singleRow);
+        // Create an empty row
+        const emptyRow = document.createElement("div");
+        emptyRow.classList.add("ui-table-row");
+        emptyRow.style.height = "20px"; // Adjust the height as needed
+        table.appendChild(emptyRow);
     
+        // Add the second header row
+        const secondHeaderRow = document.createElement("div");
+        secondHeaderRow.classList.add("ui-table-row");
+        secondHeaderRow.style.fontWeight = "bold";
+    
+        const secondHeaderColumns = ["Territory", "Population(+/-)", "Gold(+/-)", "Oil(+/-)", "Oil Capacity", "Oil Demand", "Food(+/-)", "Food Capacity", "Food Consumption", "Construction Materials(+/-)", "Construction Materials Capacity", "Army Power", "Infantry", "Assault(useable)", "Air(useable)", "Naval(useable)"];
+        const secondImageSources = ["flagUIIcon.png", "population.png", "gold.png", "oil.png", "oilCap.png", "oilDemand.png", "food.png", "foodCap.png", "foodConsumption.png", "consMats.png", "consMatsCap.png", "army.png", "infantry.png", "assault.png", "air.png", "naval.png"];
+    
+        for (let j = 0; j < secondHeaderColumns.length; j++) {
+            const secondHeaderColumn = document.createElement("div");
+            secondHeaderColumn.classList.add("ui-table-column");
+
+            secondHeaderColumn.addEventListener("mouseover", (e) => {
+                const x = e.clientX;
+                const y = e.clientY;
+            
+                tooltip.style.left = x - 60 + "px";
+                tooltip.style.top = 25 + y + "px";
+            
+                tooltip.innerHTML = secondHeaderColumns[j];
+                tooltip.style.display = "block";
+            
+                // Add the tooltip to the document body
+                document.body.appendChild(tooltip);
+              });
+        
+              secondHeaderColumn.addEventListener("mouseout", (e) => {
+                tooltip.innerHTML = "";
+                tooltip.style.display = "none";
+              });
+    
+            if (j === 0) {
+                secondHeaderColumn.style.width = "55%";
+            } else {
+                secondHeaderColumn.classList.add("centerIcons");
+    
+                // Create an <img> tag with the custom image source
+                const imageSource = "/resources/" + secondImageSources[j];
+                const imageElement = document.createElement("img");
+                imageElement.src = imageSource;
+                imageElement.alt = secondHeaderColumns[j];
+                imageElement.classList.add("sizingIcons");
+                secondHeaderColumn.appendChild(imageElement);
+            }
+
+            if (summaryTerritoryArmyTable === 0 && j === 0) {
+                secondHeaderColumn.innerHTML = "Territories Summary:";
+            }
+    
+            secondHeaderRow.appendChild(secondHeaderColumn);
+        }
+    
+        table.appendChild(secondHeaderRow);
+    }
+    
+
     // Create rows
     for (let i = 0; i < playerOwnedTerritories.length; i++) {
         const row = document.createElement("div");
@@ -783,13 +966,13 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory);
                             break;
                         case 13:
-                            column.textContent = formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
+                            column.textContent = formatNumbersToKMB(territoryData.useableAssault) + "/" + formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
                             break;
                         case 14:
-                            column.textContent = formatNumbersToKMB(territoryData.airForCurrentTerritory);
+                            column.textContent = formatNumbersToKMB(territoryData.useableAir) + "/" + formatNumbersToKMB(territoryData.airForCurrentTerritory);
                             break;
                         case 15:
-                            column.textContent = formatNumbersToKMB(territoryData.navalForCurrentTerritory);
+                            column.textContent = formatNumbersToKMB(territoryData.useableNaval) + "/" + formatNumbersToKMB(territoryData.navalForCurrentTerritory);
                             break;
                     }
                 }
@@ -969,26 +1152,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
             }
         }     
     table.appendChild(row);
-    }
-
-    if (summaryTerritoryArmyTable === 0) {
-        // Create an empty row
-        const emptyRow = document.createElement("div");
-        emptyRow.classList.add("ui-table-row");
-        emptyRow.style.height = "20px"; // Adjust the height as needed
-        table.appendChild(emptyRow);
-
-        // Add the second header row
-        const secondHeaderRow = document.createElement("div");
-        secondHeaderRow.classList.add("ui-table-row");
-
-        // Clone the header columns and append them to the second header row
-        for (let j = 0; j < headerColumns.length; j++) {
-            const headerColumn = headerRow.children[j].cloneNode(true);
-            secondHeaderRow.appendChild(headerColumn);
-        }
-
-        table.appendChild(secondHeaderRow);
     }
 
     uiTableContainer.appendChild(table);
@@ -2924,6 +3087,10 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalProdPop -= totalProdPopCost;
     totalPlayerResources[0].totalArmy += parseInt(purchaseArray[0]);
+    totalPlayerResources[0].totalInfantry += parseInt(purchaseArray[0]);
+    totalPlayerResources[0].totalAssault += parseInt(purchaseArray[1]);
+    totalPlayerResources[0].totalAir += parseInt(purchaseArray[2]);
+    totalPlayerResources[0].totalNaval += parseInt(purchaseArray[3]);
     
     //update main array
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
