@@ -3135,6 +3135,8 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         }
     }
 
+    checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
+
     //update bottom table for selected territory
     document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
     document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
@@ -3333,3 +3335,59 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
   }
+
+  function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldCost) {
+    let descendingGoldArray = [];
+
+    if (territory.goldForCurrentTerritory < goldCost) {
+        console.log("Territory needs to borrow money");
+        console.log("Here's the descending list of gold in the player owned territories:");
+
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            for (let j = 0; j < playerOwnedTerritories.length; j++) {
+                if (mainArrayOfTerritoriesAndResources[i].uniqueId !== territory.uniqueId && mainArrayOfTerritoriesAndResources[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                    descendingGoldArray.push([mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory, mainArrayOfTerritoriesAndResources[i].uniqueId]);
+                }
+            }
+        }
+
+        descendingGoldArray.sort((a, b) => b[0] - a[0]);
+        console.log(descendingGoldArray);
+  
+        console.log("Here is the shortfall:")
+        let remainingGold = goldCost - territory.goldForCurrentTerritory;
+        console.log(remainingGold);
+  
+        for (const [goldAmount, uniqueId] of descendingGoldArray) {
+            const transferAmount = Math.min(
+              remainingGold,
+              goldAmount,
+              Math.abs(goldAmount)
+            );
+          
+            for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+              if (mainArrayOfTerritoriesAndResources[i].uniqueId === uniqueId) {
+                console.log(transferAmount + "was taken from " + mainArrayOfTerritoriesAndResources[i].territoryName);
+                mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory -= transferAmount;
+                console.log("and added to " + territory.territoryName);
+                territory.goldForCurrentTerritory += transferAmount;
+              }
+            }
+          
+            // Update the remaining gold to be transferred
+            remainingGold = goldCost - territory.goldForCurrentTerritory;
+            console.log("now there is a shortfall of " + remainingGold + " gold.");
+          
+            if (remainingGold <= 0) {
+                console.log("balancing complete, exiting function.");
+              break;
+            }
+          }          
+    } else {
+        console.log("Territory does not need to borrow money");
+    }
+    
+        // Update the territory's goldForCurrentTerritory variable
+        territory.goldForCurrentTerritory = Math.max(0, territory.goldForCurrentTerritory - goldCost);
+  }
+  
