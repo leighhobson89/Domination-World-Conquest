@@ -784,68 +784,80 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         singleRow.classList.add("ui-table-row");
 
         // Create columns
-        for (let j = 0; j < headerColumns.length; j++) {
-            const column = document.createElement("div");
-            column.classList.add("ui-table-column");
+for (let j = 0; j < headerColumns.length; j++) {
+    const column = document.createElement("div");
+    column.classList.add("ui-table-column");
 
-            if (j === 0) {
-                column.style.width = "55%";
-                // Set the value of the first column to a custom value
-                column.textContent = playerCountry;
-            } else {
-                column.classList.add("centerIcons");
-
-                switch (j) {
-                    case 1:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
-                        break;
-                    case 2:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
-                        break;
-                    case 3:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
-                        break;
-                    case 4:
-                        column.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
-                        break;
-                    case 5:
-                        column.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
-                        break;
-                    case 6:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
-                        break;
-                    case 7:
-                        column.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
-                        break;
-                    case 8:
-                        column.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
-                        break;
-                    case 9:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
-                        break;
-                    case 10:
-                        column.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
-                        break;
-                    case 11:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
-                        break;
-                    case 12:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
-                        break;
-                    case 13:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalAssault);
-                        break;
-                    case 14:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalAir);
-                        break;
-                    case 15:
-                        column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval) + "/" + formatNumbersToKMB(totalPlayerResources[0].totalNaval);
-                        break;
-                }
-            }
-
-            singleRow.appendChild(column);
+    if (j === 0) {
+        column.style.width = "55%";
+        // Set the value of the first column to a custom value
+        column.textContent = playerCountry;
+    } else {
+        column.classList.add("centerIcons");
+        let displayText;
+        switch (j) {
+            case 1:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+                break;
+            case 2:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
+                break;
+            case 3:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
+                break;
+            case 4:
+                column.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
+                break;
+            case 5:
+                column.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
+                break;
+            case 6:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
+                break;
+            case 7:
+                column.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
+                break;
+            case 8:
+                column.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
+                break;
+            case 9:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
+                break;
+            case 10:
+                column.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
+                break;
+            case 11:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+                break;
+            case 12:
+                column.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
+                break;
+            case 13:
+                const useableAssault = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault);
+                const assault = formatNumbersToKMB(totalPlayerResources[0].totalAssault);
+                displayText = (totalPlayerResources[0].totalUseableAssault < totalPlayerResources[0].totalAssault) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAssault}</span>` : useableAssault;
+                displayText += `/${assault}`;
+                column.innerHTML = displayText;
+                break;
+            case 14:
+                const useableAir = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir);
+                const air = formatNumbersToKMB(totalPlayerResources[0].totalAir);
+                displayText = (totalPlayerResources[0].totalUseableAir < totalPlayerResources[0].totalAir) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAir}</span>` : useableAir;
+                displayText += `/${air}`;
+                column.innerHTML = displayText;
+                break;
+            case 15:
+                const useableNaval = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval);
+                const naval = formatNumbersToKMB(totalPlayerResources[0].totalNaval);
+                displayText = (totalPlayerResources[0].totalUseableNaval < totalPlayerResources[0].totalNaval) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableNaval}</span>` : useableNaval;
+                displayText += `/${naval}`;
+                column.innerHTML = displayText;
+                break;
         }
+    }
+
+    singleRow.appendChild(column);
+}
 
         table.appendChild(singleRow);
         // Create an empty row
@@ -915,69 +927,84 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         const row = document.createElement("div");
         row.classList.add("ui-table-row-hoverable");
         if (summaryTerritoryArmyTable === 0) {
-            // Create columns
-            for (let j = 0; j < 16; j++) {
-                const column = document.createElement("div");
-                column.classList.add("ui-table-column");
-                if (j === 0) {
-                    column.style.width = "55%";
-                    // Set the value of the first column to the "territory-name" attribute
-                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-                    column.textContent = territoryName;
-                } else {            
-                    column.classList.add("centerIcons");
-                    const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                    const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
-                    switch (j) {
-                        case 1:
-                            column.textContent = formatNumbersToKMB(territoryData.territoryPopulation);
-                            break;
-                        case 2:
-                            column.textContent = formatNumbersToKMB(territoryData.goldForCurrentTerritory);
-                            break;
-                        case 3:
-                            column.textContent = formatNumbersToKMB(territoryData.oilForCurrentTerritory);
-                            break;
-                        case 4:
-                            column.textContent = formatNumbersToKMB(territoryData.oilCapacity);
-                            break;
-                        case 5:
-                            column.textContent = formatNumbersToKMB(territoryData.oilDemand);
-                            break;
-                        case 6:
-                            column.textContent = formatNumbersToKMB(territoryData.foodForCurrentTerritory);
-                            break;
-                        case 7:
-                            column.textContent = formatNumbersToKMB(territoryData.foodCapacity);
-                            break;
-                        case 8:
-                            column.textContent = formatNumbersToKMB(territoryData.foodConsumption);
-                            break;
-                        case 9:
-                            column.textContent = formatNumbersToKMB(territoryData.consMatsForCurrentTerritory);
-                            break;
-                        case 10:
-                            column.textContent = formatNumbersToKMB(territoryData.consMatsCapacity);
-                            break;
-                        case 11:
-                            column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
-                            break;
-                        case 12:
-                            column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory);
-                            break;
-                        case 13:
-                            column.textContent = formatNumbersToKMB(territoryData.useableAssault) + "/" + formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
-                            break;
-                        case 14:
-                            column.textContent = formatNumbersToKMB(territoryData.useableAir) + "/" + formatNumbersToKMB(territoryData.airForCurrentTerritory);
-                            break;
-                        case 15:
-                            column.textContent = formatNumbersToKMB(territoryData.useableNaval) + "/" + formatNumbersToKMB(territoryData.navalForCurrentTerritory);
-                            break;
-                    }
-                }
-            row.appendChild(column);
+    // Create columns
+    for (let j = 0; j < 16; j++) {
+        const column = document.createElement("div");
+        column.classList.add("ui-table-column");
+        if (j === 0) {
+            column.style.width = "55%";
+            // Set the value of the first column to the "territory-name" attribute
+            const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+            column.textContent = territoryName;
+        } else {  
+            let displayText;          
+            column.classList.add("centerIcons");
+            const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+            const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
+            switch (j) {
+                case 1:
+                    column.textContent = formatNumbersToKMB(territoryData.territoryPopulation);
+                    break;
+                case 2:
+                    column.textContent = formatNumbersToKMB(territoryData.goldForCurrentTerritory);
+                    break;
+                case 3:
+                    column.textContent = formatNumbersToKMB(territoryData.oilForCurrentTerritory);
+                    break;
+                case 4:
+                    column.textContent = formatNumbersToKMB(territoryData.oilCapacity);
+                    break;
+                case 5:
+                    column.textContent = formatNumbersToKMB(territoryData.oilDemand);
+                    break;
+                case 6:
+                    column.textContent = formatNumbersToKMB(territoryData.foodForCurrentTerritory);
+                    break;
+                case 7:
+                    column.textContent = formatNumbersToKMB(territoryData.foodCapacity);
+                    break;
+                case 8:
+                    column.textContent = formatNumbersToKMB(territoryData.foodConsumption);
+                    break;
+                case 9:
+                    column.textContent = formatNumbersToKMB(territoryData.consMatsForCurrentTerritory);
+                    break;
+                case 10:
+                    column.textContent = formatNumbersToKMB(territoryData.consMatsCapacity);
+                    break;
+                case 11:
+                    column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
+                    break;
+                case 12:
+                    column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory);
+                    break;
+                case 13:
+                    const useableAssault = formatNumbersToKMB(territoryData.useableAssault);
+                    const assaultForCurrentTerritory = formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
+                    displayText = (territoryData.useableAssault < territoryData.assaultForCurrentTerritory) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAssault}</span>` : useableAssault;
+                    displayText += `/${assaultForCurrentTerritory}`;
+                    column.innerHTML = displayText;
+                    break;
+                case 14:
+                    const useableAir = formatNumbersToKMB(territoryData.useableAir);
+                    const airForCurrentTerritory = formatNumbersToKMB(territoryData.airForCurrentTerritory);
+                    displayText = (territoryData.useableAir < territoryData.airForCurrentTerritory) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAir}</span>` : useableAir;
+                    displayText += `/${airForCurrentTerritory}`;
+                    column.innerHTML = displayText;
+                    break;
+                case 15:
+                    const useableNaval = formatNumbersToKMB(territoryData.useableNaval);
+                    const navalForCurrentTerritory = formatNumbersToKMB(territoryData.navalForCurrentTerritory);
+                    displayText = (territoryData.useableNaval < territoryData.navalForCurrentTerritory) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableNaval}</span>` : useableNaval;
+                    displayText += `/${navalForCurrentTerritory}`;
+                    column.innerHTML = displayText;
+                    break;
             }
+        }
+        row.appendChild(column);
+    }
+
+
         } else if (summaryTerritoryArmyTable === 1) { //setup territory table
             // Create columns
             for (let j = 0; j < 9; j++) {
@@ -3247,7 +3274,6 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         useableAssault = numberAssault;
         useableAir = numberAir;
         useableNaval = numberNaval;
-
         break;
       }
     }
@@ -3300,6 +3326,10 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         
         totalPlayerResources[0].totalArmy = totalArmy;
     }
+
+    totalPlayerResources[0].totalUseableAssault = territory.useableAssault;
+    totalPlayerResources[0].totalUseableAir = territory.useableAir;
+    totalPlayerResources[0].totalUseableNaval = territory.useableNaval;
 
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
   }
