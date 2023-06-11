@@ -7,7 +7,7 @@ import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
 import { toggleUpgradeMenu, toggleBuyMenu} from './ui.js';
 import { playerCountry } from './ui.js';
-import { setUpgradeOrBuyWindowOnScreenToTrue } from './ui.js';
+import { setUpgradeOrBuyWindowOnScreenToTrue, saveMapColorState } from './ui.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -85,8 +85,8 @@ if (!pageLoaded) {
         .then(([pathAreas, armyArray]) => {
             mainArrayOfTerritoriesAndResources = randomiseInitialGold(mainArrayOfTerritoriesAndResources);
             countryStrengthsArray = calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
-            console.log(countryStrengthsArray);
             enableNewGameButton();
+            saveMapColorState(true);
         })
         .catch(error => {
             console.log(error);

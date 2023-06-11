@@ -37,6 +37,8 @@ const continentColorArray = [["Africa", [233, 234, 20]],
                             ["Oceania", [74, 202, 233]]];
 
 let teamColorArray = [];
+const greyOutColor = 'rgb(170, 170, 170)';
+const countryGreyOutThreshold = 30;
 
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -110,7 +112,9 @@ export function svgMapLoaded() {
     currentPath = path; // Set the current path element
 
     // Call the hoverColorChange function
-    hoverOverTerritory(path, "mouseOver");
+    if (path.getAttribute("greyedOut") === "false") {
+      hoverOverTerritory(path, "mouseOver");
+    }
 
     // Get the name of the country from the "data-name" attribute
     const countryName = path.getAttribute("owner");
@@ -153,7 +157,9 @@ export function svgMapLoaded() {
   svgMap.addEventListener("mouseout", function(e) {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
-    hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
+    if (currentPath.getAttribute("greyedOut") === "false") {
+      hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
+    }
     clickActionsDone = false;
   });
 
@@ -174,7 +180,9 @@ export function svgMapLoaded() {
           if (!currentPath.hasAttribute("fill")) { 
             
           } else {
-            hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
+            if (currentPath.getAttribute("greyedOut") === "false") {
+              hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
+            }
             currentlySelectedColorsArray.length = 0;
             validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
             closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
@@ -244,68 +252,74 @@ function readDatabaseAndCreateDataArray() {
 }
 
 function selectCountry(country, escKeyEntry) {  
-  if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
-    for (let i = 0; i < paths.length; i++) {
-      if (paths[i].getAttribute("data-name") === "Lesotho") {
-        svgMap.documentElement.appendChild(paths[i]);
-        for (let j = 0; j < paths.length; j++) {
-          if (paths[j].getAttribute("data-name") === "South Africa") {
-            lastClickedPath.parentNode.insertBefore(paths[j], lastClickedPath.parentNode.lastChild);
-            break;
+  if (country.getAttribute("greyedOut") === "false") {
+    if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("data-name") === "Lesotho") {
+          svgMap.documentElement.appendChild(paths[i]);
+          for (let j = 0; j < paths.length; j++) {
+            if (paths[j].getAttribute("data-name") === "South Africa") {
+              lastClickedPath.parentNode.insertBefore(paths[j], lastClickedPath.parentNode.lastChild);
+              break;
+            }
+          }
+          break;
+        }
+      }
+    } else {
+      svgMap.documentElement.appendChild(country);
+    }
+    
+    setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked
+    
+    if (selectCountryPlayerState && !escKeyEntry) {
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
+          if (playerColour == undefined) {
+            paths[i].setAttribute('fill', 'rgb(254,254,254)');
+            playerColour = "rgb(254,254,254)";
+          } else {
+            paths[i].setAttribute('fill', playerColour);
           }
         }
-        break;
       }
-    }
-  } else {
-    svgMap.documentElement.appendChild(country);
-  }
-  
-  setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked
-  
-  if (selectCountryPlayerState && !escKeyEntry) {
-    for (let i = 0; i < paths.length; i++) {
-      if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
-        if (playerColour == undefined) {
-          paths[i].setAttribute('fill', 'rgb(254,254,254)');
-          playerColour = "rgb(254,254,254)";
-        } else {
+    } else if (!selectCountryPlayerState && !escKeyEntry) {
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("owner") === "Player") {
           paths[i].setAttribute('fill', playerColour);
         }
       }
     }
-  } else if (!selectCountryPlayerState && !escKeyEntry) {
-    for (let i = 0; i < paths.length; i++) {
-      if (paths[i].getAttribute("owner") === "Player") {
-        paths[i].setAttribute('fill', playerColour);
-      }
-    }
-  }
-  
-  if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
     
-    for (let i = 0; i < paths.length; i++) {
-      if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
-        paths[i].setAttribute('fill', playerColour);
-      } else if (!selectCountryPlayerState && (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
-        if (mapMode === 0) {
-          paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
-        }
-        if (mapMode === 1) {
-          fillPathBasedOnTeam(paths[i]);
-        }
-        setStrokeWidth(paths[i], "1");
-      } 
-      else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
-        for (let j = 0; j < paths.length; j++) {
-          if (paths[j].getAttribute("data-name") !== undefined) {
-            if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name")) {
-              paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
-              setStrokeWidth(paths[j], "1");
+    if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
+      
+      for (let i = 0; i < paths.length; i++) {
+        if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
+          paths[i].setAttribute('fill', playerColour);
+        } else if (!selectCountryPlayerState && (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
+          if (mapMode === 0) {
+            paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
+          }
+          if (mapMode === 1) {
+            fillPathBasedOnTeam(paths[i]);
+          }
+          setStrokeWidth(paths[i], "1");
+        } 
+        else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
+          for (let j = 0; j < paths.length; j++) {
+            if (paths[j].getAttribute("data-name") !== undefined) {
+              if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
+                paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+                setStrokeWidth(paths[j], "1");
+              }
             }
           }
         }
       }
+    }
+  } else {
+    if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
+      lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
     }
   }
   
@@ -330,6 +344,10 @@ function selectCountry(country, escKeyEntry) {
       adjustTextToFit(document.getElementById('popup-body'), country.getAttribute("data-name"));
       document.getElementById('popup-confirm').classList.add("greenBackground");
       document.getElementById('popup-confirm').style.display = "block";
+    }
+
+    if (country.getAttribute("fill") === greyOutColor) {
+      document.getElementById('popup-confirm').style.display = "none";
     }
     
     clickActionsDone = true;
@@ -673,7 +691,7 @@ document.addEventListener("DOMContentLoaded", function() {
           path.setAttribute("fill", playerColour);
         }
       });
-      currentMapColorArray = saveMapColorState();
+      currentMapColorArray = saveMapColorState(false);
     }
   });
   
@@ -682,6 +700,8 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.addEventListener("click", function() {
     playSoundClip();
     if (selectCountryPlayerState) {
+      restoreMapColorState(currentMapColorArray);
+      setAllGreyedOutAttributesToFalseOnGameStart();
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
       document.getElementById("popup-color").style.color = playerColour;
@@ -699,13 +719,13 @@ document.addEventListener("DOMContentLoaded", function() {
       popupConfirm.innerText = "MOVE / ATTACK";
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
-      currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
+      currentMapColorArray = saveMapColorState(false); //grab state of map colors at start of turn.
       popupTitle.innerText = "Buy / Upgrade Phase";
       popupConfirm.innerText = "MOVE / ATTACK";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 1) {
-      currentMapColorArray = saveMapColorState(); //grab state of map colors at start of turn.
+      currentMapColorArray = saveMapColorState(false); //grab state of map colors at start of turn.
       popupTitle.innerText = "Move / Attack Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
@@ -1792,7 +1812,7 @@ export function toggleBuyMenu(makeVisible, territory) {
     } 
   }
 
-  function saveMapColorState() {
+  export function saveMapColorState(onResourcePage) {
     const fillArray = [];
 
     for (let i = 0; i < paths.length; i++) {
@@ -1803,7 +1823,11 @@ export function toggleBuyMenu(makeVisible, territory) {
       }
     }
 
-    return fillArray;
+    if (onResourcePage) {
+      currentMapColorArray = fillArray;
+    } else {
+       return fillArray;
+    }
 }
 
 function restoreMapColorState(array) {
@@ -2070,22 +2094,17 @@ function greyOutTerritoriesForUnselectableCountries() {
       }
     }
 
-    const originalColor = path.getAttribute("fill");
-
-    if (countryStrength > 100) {
-      const greyIntensity = 0.2; // Adjust the intensity of greying out
-
-      // Convert the original color to greyscale
-      const greyColor = originalColor.replace(/rgb\((\d+),(\d+),(\d+)\)/, (match, r, g, b) => {
-        const greyR = Math.round(r * greyIntensity);
-        const greyG = Math.round(g * greyIntensity);
-        const greyB = Math.round(b * greyIntensity);
-        return `rgb(${greyR},${greyG},${greyB})`;
-      });
-
-      path.style.fill = greyColor;
+    if (countryStrength > countryGreyOutThreshold) {
+      path.setAttribute("fill", greyOutColor);
+      path.setAttribute("greyedOut", "true");
     }
   });
+}
+
+function setAllGreyedOutAttributesToFalseOnGameStart() {
+  for (let i = 0; i < paths.length; i++) {
+    paths[i].setAttribute("greyedOut", "false");
+  }
 }
 
 
