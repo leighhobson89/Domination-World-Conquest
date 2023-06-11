@@ -300,6 +300,9 @@ export function newTurnResources() {
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
     demandArray = calculateAllTerritoryDemandsForCountry();
     if (currentTurn !== 1) {
+        totalPlayerResources[0].totalUseableAssault = 0;
+        totalPlayerResources[0].totalUseableAir = 0;
+        totalPlayerResources[0].totalUseableNaval = 0;
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (mainArrayOfTerritoriesAndResources[i].dataName === playerCountry) {
                 setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, mainArrayOfTerritoriesAndResources[i]);
@@ -463,22 +466,66 @@ function calculatePopulationChange(territory) {
         let populationChange = 0;
 
         if (foodForCurrentTerritory * 10000 < currentPopulation) {
-        // Starvation situation
-        const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
-        const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
+            // Starvation situation
+            const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
+            const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
 
-        populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+            populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
         } else {
-        // Growth situation
-        const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
-        const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
+            // Growth situation
+            const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
+            const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
 
-        populationChange = Math.min(maxGrowth, growthPotential);
+            populationChange = Math.min(maxGrowth, growthPotential);
+        }
+
+        const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation - populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
+
+        if (simulatedProductiveTerritoryPop < 0) { //if large army and not enough prodpop, then starve army instead of population
+            starveArmyInstead(territory, populationChange);
+            return 0;
         }
 
         return populationChange;
     } else {
-        return 0; //if random event just happened for food, dont lose any people immediately til the next turn so user can process it
+        return 0; //if random event just happened for food, don't lose any people immediately until the next turn so the user can process it
+    }
+}
+
+function starveArmyInstead(territory, populationChange) {
+
+    if (territory.infantryForCurrentTerritory > Math.abs(populationChange)) {
+        territory.infantryForCurrentTerritory -= Math.abs(populationChange);
+        territory.armyForCurrentTerritory -= Math.abs(populationChange);
+    } else {
+        let difference = Math.abs(populationChange) - territory.infantryForCurrentTerritory;
+        territory.infantryForCurrentTerritory = 0;
+        if (difference < territory.useableAssault * vehicleArmyWorth.assault) {
+            let amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.assault);
+            if (amountToMakeUnuseable <= territory.useableAssault) {
+                territory.useableAssault -= amountToMakeUnuseable;
+            } else {
+                difference -= amountToMakeUnuseable * vehicleArmyWorth.assault;
+                territory.useableAssault = 0;
+                if (difference < territory.useableAir * vehicleArmyWorth.air) {
+                    amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.air);
+                    if (amountToMakeUnuseable <= territory.useableAir) {
+                        territory.useableAir -= amountToMakeUnuseable;
+                    } else {
+                        difference -= amountToMakeUnuseable * vehicleArmyWorth.air;
+                        territory.useableAir = 0;
+                        if (difference < territory.useableNaval * vehicleArmyWorth.naval) {
+                            amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.naval);
+                            if (amountToMakeUnuseable <= territory.useableNaval) {
+                                territory.useableNaval -= amountToMakeUnuseable;
+                            } else {
+                                territory.useableNaval = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -697,6 +744,7 @@ function initialConsMatsCalculation(path, area) {
 }
 
 export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
+    console.log(totalPlayerResources[0].totalUseableAssault);
     let imageSources;
     let headerColumns;
     uiTableContainer.innerHTML = "";
@@ -3136,11 +3184,19 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     }
 
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
+    checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
 
-    //update bottom table for selected territory
-    document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) { 
+            if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+                //update bottom table for selected territory
+                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+                break;
+            }
+        }
+    }
 
     //update top table for selected territory
     document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
@@ -3150,6 +3206,9 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalGoldPrice = 0;
     totalConsMats = 0;
 
+    totalPlayerResources[0].totalUseableAssault = 0;
+    totalPlayerResources[0].totalUseableAir = 0;
+    totalPlayerResources[0].totalUseableNaval = 0;
     setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, currentlySelectedTerritoryForPurchases);
 
     drawUITable(document.getElementById("uiTable"), 2);
@@ -3193,9 +3252,15 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
         }
     }
 
-    //update bottom table for selected territory
-    document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-    document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
+            if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) { 
+                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+                break;
+            }
+        }
+    }
 
     //update top table for selected territory
     document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
@@ -3265,6 +3330,9 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     let useableNaval;
 
     let totalArmy = 0;
+    let totalUseableAssault = 0;
+    let totalUseableAir = 0;
+    let totalUseableNaval = 0;
   
     for (let i = 0; i < mainArray.length; i++) {
       if (mainArray[i].uniqueId === territory.uniqueId) {
@@ -3314,8 +3382,11 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 
             mainArray[i].armyForCurrentTerritory = (mainArray[i].useableAssault * vehicleArmyWorth.assault) + (mainArray[i].useableAir * vehicleArmyWorth.air) + (mainArray[i].useableNaval * vehicleArmyWorth.naval) + mainArray[i].infantryForCurrentTerritory;
 
-            if (mainArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+            if (mainArray[i].uniqueId === territory.uniqueId) { 
+                if (mainArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+                    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+                    break;
+                }
             }
 
             break;
@@ -3323,15 +3394,17 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     }
     for (let i = 0; i < mainArray.length; i++) {
         if (mainArray[i].dataName === playerCountry) {
+            totalUseableAssault += (mainArray[i].useableAssault);
+            totalUseableAir += (mainArray[i].useableAir);
+            totalUseableNaval += (mainArray[i].useableNaval);
             totalArmy += (mainArray[i].useableAssault * vehicleArmyWorth.assault) + (mainArray[i].useableAir * vehicleArmyWorth.air) + (mainArray[i].useableNaval * vehicleArmyWorth.naval) + mainArray[i].infantryForCurrentTerritory;
         }
-        
-        totalPlayerResources[0].totalArmy = totalArmy;
     }
 
-    totalPlayerResources[0].totalUseableAssault = territory.useableAssault;
-    totalPlayerResources[0].totalUseableAir = territory.useableAir;
-    totalPlayerResources[0].totalUseableNaval = territory.useableNaval;
+    totalPlayerResources[0].totalArmy = totalArmy;
+    totalPlayerResources[0].totalUseableAssault = totalUseableAssault;
+    totalPlayerResources[0].totalUseableAir = totalUseableAir;
+    totalPlayerResources[0].totalUseableNaval = totalUseableNaval;
 
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
   }
@@ -3389,5 +3462,46 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     
         // Update the territory's goldForCurrentTerritory variable
         territory.goldForCurrentTerritory = Math.max(0, territory.goldForCurrentTerritory - goldCost);
+  }
+
+  function checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, prodPopCost) {
+    let descendingPopArray = [];
+
+    if (territory.productiveTerritoryPop < prodPopCost) {
+
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            for (let j = 0; j < playerOwnedTerritories.length; j++) {
+                if (mainArrayOfTerritoriesAndResources[i].uniqueId !== territory.uniqueId && mainArrayOfTerritoriesAndResources[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                    descendingPopArray.push([mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop, mainArrayOfTerritoriesAndResources[i].uniqueId]);
+                }
+            }
+        }
+
+        descendingPopArray.sort((a, b) => b[0] - a[0]);
+
+        let remainingPop = prodPopCost - territory.productiveTerritoryPop;
+  
+        for (const [popAmount, uniqueId] of descendingPopArray) {
+            const transferAmount = Math.min(
+              remainingPop,
+              popAmount,
+              Math.abs(popAmount)
+            );
+          
+            for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+              if (mainArrayOfTerritoriesAndResources[i].uniqueId === uniqueId) {
+                mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop -= transferAmount;
+                territory.productiveTerritoryPop += transferAmount;
+              }
+            }
+          
+            remainingPop = prodPopCost - territory.productiveTerritoryPop;
+          
+            if (remainingPop <= 0) {
+              break;
+            }
+          }          
+    }    
+        territory.productiveTerritoryPop = Math.max(0, territory.productiveTerritoryPop - prodPopCost);
   }
   
