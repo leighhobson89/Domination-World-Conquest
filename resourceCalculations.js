@@ -83,6 +83,8 @@ if (!pageLoaded) {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
             mainArrayOfTerritoriesAndResources = randomiseInitialGold(mainArrayOfTerritoriesAndResources);
+            const sortedTerritories = calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
+            console.log(sortedTerritories);
         })
         .catch(error => {
             console.log(error);
@@ -3759,4 +3761,77 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     }    
         territory.productiveTerritoryPop = Math.max(0, territory.productiveTerritoryPop - prodPopCost);
   }
+
+  export function calculateTerritoryStrengths(territories) {
+    const countryStrengths = {};
+  
+    for (const territory of territories) {
+      const {
+        uniqueId,
+        territoryName,
+        area,
+        goldForCurrentTerritory,
+        oilForCurrentTerritory,
+        consMatsForCurrentTerritory,
+        foodForCurrentTerritory,
+        devIndex,
+        territoryPopulation,
+        continentModifier,
+        armyForCurrentTerritory,
+        dataName
+      } = territory;
+  
+      const strengthValue = calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory);
+  
+      if (countryStrengths[dataName]) {
+        countryStrengths[dataName] += strengthValue;
+      } else {
+        countryStrengths[dataName] = strengthValue;
+      }
+    }
+  
+    const strengths = Object.values(countryStrengths);
+    const minStrength = Math.min(...strengths);
+    const maxStrength = Math.max(...strengths);
+  
+    const normalizedCountries = Object.entries(countryStrengths)
+      .map(([countryName, strengthValue]) => {
+        const normalizedValue = (strengthValue - minStrength) / (maxStrength - minStrength) * 10000;
+        return [countryName, Math.round(normalizedValue)];
+      })
+      .sort((a, b) => b[1] - a[1]);
+  
+    return normalizedCountries;
+  }
+  
+
+  function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory) {
+    // Define scaling factors for each factor
+    const areaScale = 0.00001;
+    const resourceScale = 0.2;
+    const devIndexScale = 0.6;
+    const populationScale = 0.00001;
+    const continentModifierScale = 0.2;
+    const armyScale = 0.5;
+  
+    // Calculate the scaled values for each factor
+    const scaledArea = area * areaScale;
+    const scaledResources = (goldForCurrentTerritory + oilForCurrentTerritory + consMatsForCurrentTerritory + foodForCurrentTerritory) * resourceScale;
+    const scaledDevIndex = devIndex * devIndexScale;
+    const scaledPopulation = territoryPopulation * populationScale;
+    const scaledContinentModifier = continentModifier * continentModifierScale;
+    const scaledArmy = armyForCurrentTerritory * armyScale;
+  
+    // Calculate the strength value based on the scaled factors
+    const strengthValue = scaledArea + scaledResources + scaledDevIndex + scaledPopulation + scaledContinentModifier + scaledArmy;
+  
+    // Round the strength value to the nearest integer
+    const roundedStrength = Math.round(strengthValue);
+  
+    return roundedStrength;
+  }
+  
+  
+  
+  
   
