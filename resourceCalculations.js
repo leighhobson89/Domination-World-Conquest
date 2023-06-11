@@ -883,7 +883,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
         countryGainsHeaderColumn.appendChild(imageElement);
         if (summaryTerritoryArmyTable === 0 && j === 0) {
-            countryGainsHeaderColumn.innerHTML = "Country Gains This Turn:";
+            countryGainsHeaderColumn.innerHTML = "Gains Last Turn > This Turn:";
         }
         if (summaryTerritoryArmyTable === 0) {
             countryGainsHeaderRow.appendChild(countryGainsHeaderColumn);
@@ -910,51 +910,66 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                 countryGainscolumn.classList.add("centerIcons");
                 let displayText;
                 switch (j) {
-                    case 1:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changePop);
-                        break;
-                    case 2:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeGold);
-                        break;
-                    case 3:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOil);
-                        break;
-                    case 4:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilCapacity);
-                        break;
-                    case 5:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilDemand);
-                        break;
-                    case 6:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFood);
-                        break;
-                    case 7:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodCapacity);
-                        break;
-                    case 8:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodConsumption);
-                        break;
-                    case 9:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMats);
-                        break;
-                    case 10:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMatsCapacity);
-                        break;
-                    case 11:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeArmy);
-                        break;
-                    case 12:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeInfantry);
-                        break;
-                    case 13:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAssault);
-                        break;
-                    case 14:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAir);
-                        break;
-                    case 15:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeNaval);
-                        break;
+                case 1:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changePop);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changePop);
+                    break;
+                case 2:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeGold);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeGold);
+                    break;
+                case 3:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOil);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeOil);
+                    break;
+                case 4:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilCapacity);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeOilCapacity);
+                    break;
+                case 5:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilDemand);
+                    setGainsRowTextColor(countryGainscolumn, -turnGainsArrayLastTurn.changeOilDemand); // Reverse sign
+                    break;
+                case 6:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFood);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeFood);
+                    break;
+                case 7:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodCapacity);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeFoodCapacity);
+                    break;
+                case 8:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodConsumption);
+                    setGainsRowTextColor(countryGainscolumn, -turnGainsArrayLastTurn.changeFoodConsumption); // Reverse sign
+                    break;
+                case 9:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMats);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeConsMats);
+                    break;
+                case 10:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMatsCapacity);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeConsMatsCapacity);
+                    break;
+                case 11:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeArmy);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeArmy);
+                    break;
+                case 12:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeInfantry);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeInfantry);
+                    break;
+                case 13:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAssault);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeAssault);
+                    break;
+                case 14:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAir);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeAir);
+                    break;
+                case 15:
+                    countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeNaval);
+                    setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeNaval);
+                    break;
                 }
             }
 
@@ -1439,6 +1454,16 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
     uiTableContainer.appendChild(table);
 }
+
+function setGainsRowTextColor(element, value) {
+    if (value < 0) {
+      element.style.color = "rgb(220, 120, 120)"; // Negative value: Red color
+    } else if (value > 0) {
+      element.style.color = "rgb(0, 235, 0)"; // Positive value: Green color
+    } else {
+      element.style.color = "rgb(255, 255, 255)"; // Zero value: White color
+    }
+  }
 
 function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     // Get the coordinates of the mouse cursor
