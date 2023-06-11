@@ -1,5 +1,5 @@
 import { playerCountry, uiAppearsAtStartOfTurn, toggleUIMenu } from './ui.js';
-import { getPlayerTerritories, newTurnResources, drawUITable } from './resourceCalculations.js';
+import { getPlayerTerritories, newTurnResources, drawUITable, turnGainsArray } from './resourceCalculations.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
