@@ -758,14 +758,162 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     table.style.width = "100%";
     table.style.tableLayout = "fixed";
 
+    let countryGainsImageSources;
+    let countryGainsHeaderColumns;
+    let countryGainsHeaderRow;
+    
+    if (summaryTerritoryArmyTable === 0) {
+        countryGainsHeaderRow = document.createElement("div");
+        countryGainsHeaderRow.classList.add("ui-table-row");
+        countryGainsHeaderRow.style.fontWeight = "bold";
+    }
+
+    countryGainsHeaderColumns = ["Territory", "Population(+/-)", "Gold(+/-)", "Oil(+/-)", "Oil Capacity", "Oil Demand", "Food(+/-)", "Food Capacity", "Food Consumption", "Construction Materials(+/-)", "Construction Materials Capacity", "Army Power", "Infantry", "Assault(useable)", "Air(useable)", "Naval(useable)"];
+    countryGainsImageSources = ["flagUIIcon.png", "population.png", "gold.png", "oil.png", "oilCap.png", "oilDemand.png", "food.png", "foodCap.png", "foodConsumption.png", "consMats.png", "consMatsCap.png", "army.png", "infantry.png", "assault.png", "air.png", "naval.png"];
+
+    for (let j = 0; j < countryGainsHeaderColumns.length; j++) {
+        const countryGainsHeaderColumn = document.createElement("div");
+
+        if (j === 0) {
+            if (summaryTerritoryArmyTable === 0 ) {
+                countryGainsHeaderColumn.style.width = "55%";
+            } else {
+                countryGainsHeaderColumn.style.width = "30%";
+            }
+        } else {
+            countryGainsHeaderColumn.classList.add("centerIcons");
+        }
+
+        countryGainsHeaderColumn.classList.add("ui-table-column");
+
+        countryGainsHeaderColumn.addEventListener("mouseover", (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+        
+            tooltip.style.left = x - 60 + "px";
+            tooltip.style.top = 25 + y + "px";
+        
+            tooltip.innerHTML = countryGainsHeaderColumns[j];
+            tooltip.style.display = "block";
+        
+            document.body.appendChild(tooltip);
+        });
+
+        countryGainsHeaderColumn.addEventListener("mouseout", (e) => {
+            tooltip.innerHTML = "";
+            tooltip.style.display = "none";
+        });
+
+        // Create an <img> tag with the image source
+        const imageSource = "/resources/" + countryGainsImageSources[j];
+        const imageElement = document.createElement("img");
+        imageElement.src = imageSource;
+        imageElement.alt = countryGainsHeaderColumns[j];
+        imageElement.classList.add("sizingIcons");
+
+        countryGainsHeaderColumn.appendChild(imageElement);
+        if (summaryTerritoryArmyTable === 0 && j === 0) {
+            countryGainsHeaderColumn.innerHTML = "Country Gains This Turn:";
+        }
+        if (summaryTerritoryArmyTable === 0) {
+            countryGainsHeaderRow.appendChild(countryGainsHeaderColumn);
+        }
+    }
+
+    if (summaryTerritoryArmyTable === 0) {
+        table.appendChild(countryGainsHeaderRow);
+
+        // Create a single row under the first header row
+        const countryGainsRow = document.createElement("div");
+        countryGainsRow.classList.add("ui-table-row");
+
+        // Create columns
+        for (let j = 0; j < countryGainsHeaderColumns.length; j++) {
+            const countryGainscolumn = document.createElement("div");
+            countryGainscolumn.classList.add("ui-table-column");
+
+            if (j === 0) {
+                countryGainscolumn.style.width = "55%";
+                // Set the value of the first column to a custom value
+                countryGainscolumn.textContent = playerCountry;
+            } else {
+                countryGainscolumn.classList.add("centerIcons");
+                let displayText;
+                switch (j) {
+                    case 1:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+                        break;
+                    case 2:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
+                        break;
+                    case 3:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
+                        break;
+                    case 4:
+                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
+                        break;
+                    case 5:
+                        countryGainscolumn.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
+                        break;
+                    case 6:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
+                        break;
+                    case 7:
+                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
+                        break;
+                    case 8:
+                        countryGainscolumn.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
+                        break;
+                    case 9:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
+                        break;
+                    case 10:
+                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
+                        break;
+                    case 11:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+                        break;
+                    case 12:
+                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
+                        break;
+                    case 13:
+                        const useableAssault = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault);
+                        const assault = formatNumbersToKMB(totalPlayerResources[0].totalAssault);
+                        displayText = (totalPlayerResources[0].totalUseableAssault < totalPlayerResources[0].totalAssault) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAssault}</span>` : useableAssault;
+                        displayText += `/${assault}`;
+                        countryGainscolumn.innerHTML = displayText;
+                        break;
+                    case 14:
+                        const useableAir = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir);
+                        const air = formatNumbersToKMB(totalPlayerResources[0].totalAir);
+                        displayText = (totalPlayerResources[0].totalUseableAir < totalPlayerResources[0].totalAir) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAir}</span>` : useableAir;
+                        displayText += `/${air}`;
+                        countryGainscolumn.innerHTML = displayText;
+                        break;
+                    case 15:
+                        const useableNaval = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval);
+                        const naval = formatNumbersToKMB(totalPlayerResources[0].totalNaval);
+                        displayText = (totalPlayerResources[0].totalUseableNaval < totalPlayerResources[0].totalNaval) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableNaval}</span>` : useableNaval;
+                        displayText += `/${naval}`;
+                        countryGainscolumn.innerHTML = displayText;
+                        break;
+                }
+            }
+
+            countryGainsRow.appendChild(countryGainscolumn);
+        }
+
+        table.appendChild(countryGainsRow);
+
+        //create empty row
+        const emptyRow = document.createElement("div");
+        emptyRow.classList.add("ui-empty-row");
+        emptyRow.style.height = "20px"; // Adjust the height as needed
+        table.appendChild(emptyRow);
+    }
+
     let countrySummaryImageSources;
     let countrySummaryHeaderColumns;
-    //above here create the gains riw
-    const emptyRow = document.createElement("div");
-    emptyRow.classList.add("ui-table-row");
-    emptyRow.style.height = "20px"; // Adjust the height as needed
-    table.appendChild(emptyRow);
-    
     const countrySummaryHeaderRow = document.createElement("div");
     countrySummaryHeaderRow.classList.add("ui-table-row");
     countrySummaryHeaderRow.style.fontWeight = "bold";
@@ -773,7 +921,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     if (summaryTerritoryArmyTable === 0) {
         countrySummaryHeaderColumns = ["Territory", "Population(+/-)", "Gold(+/-)", "Oil(+/-)", "Oil Capacity", "Oil Demand", "Food(+/-)", "Food Capacity", "Food Consumption", "Construction Materials(+/-)", "Construction Materials Capacity", "Army Power", "Infantry", "Assault(useable)", "Air(useable)", "Naval(useable)"];
         countrySummaryImageSources = ["flagUIIcon.png", "population.png", "gold.png", "oil.png", "oilCap.png", "oilDemand.png", "food.png", "foodCap.png", "foodConsumption.png", "consMats.png", "consMatsCap.png", "army.png", "infantry.png", "assault.png", "air.png", "naval.png"];
-    } else if (summaryTerritoryArmyTable === 1) { // Create first row territory button
+    } else if (summaryTerritoryArmyTable === 1) {
         countrySummaryHeaderColumns = ["Territory", "Productive Population", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
         countrySummaryImageSources = ["flagUIIcon.png", "prodPopulation.png", "Population.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
     } else if (summaryTerritoryArmyTable === 2) {
@@ -915,7 +1063,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         table.appendChild(countrySummaryRow);
         // Create an empty row
         const secondEmptyRow = document.createElement("div");
-        secondEmptyRow.classList.add("ui-table-row");
+        secondEmptyRow.classList.add("ui-empty-row");
         secondEmptyRow.style.height = "20px"; // Adjust the height as needed
         table.appendChild(secondEmptyRow);
     
