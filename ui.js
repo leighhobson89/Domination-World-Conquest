@@ -7,7 +7,7 @@ import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPur
 import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
+import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources, calculateTerritoryStrengths } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
