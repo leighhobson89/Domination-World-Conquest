@@ -21,6 +21,43 @@ export let totalPopulationCost = 0;
 export let totalOilCapacity = 0;
 export let capacityArray;
 export let demandArray;
+export let turnGainsArrayLastTurn = {
+    changeConsMats: 0,
+    changeFood: 0,
+    changeGold: 0,
+    changeOil: 0,
+    changePop: 0,
+    changeProdPop: 0,
+    changeFoodCapacity: 0,
+    changeOilCapacity: 0,
+    changeConsMatsCapacity: 0,
+    changeFoodConsumption: 0,
+    changeOilDemand: 0,
+    changeArmy: 0,
+    changeInfantry: 0,
+    changeAssault: 0,
+    changeAir: 0,
+    changeNaval: 0
+};
+
+export let turnGainsArray = {
+    changeConsMats: 0,
+    changeFood: 0,
+    changeGold: 0,
+    changeOil: 0,
+    changePop: 0,
+    changeProdPop: 0,
+    changeFoodCapacity: 0,
+    changeOilCapacity: 0,
+    changeConsMatsCapacity: 0,
+    changeFoodConsumption: 0,
+    changeOilDemand: 0,
+    changeArmy: 0,
+    changeInfantry: 0,
+    changeAssault: 0,
+    changeAir: 0,
+    changeNaval: 0
+};
 
 const oilRequirements = {
     naval: 1000,
@@ -225,7 +262,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index) - armyForCurrentTerritory;
             let foodForCurrentTerritory = (territoryPopulation / 10000) + (armyForCurrentTerritory / 10000);
             let foodCapacity = territoryPopulation + armyForCurrentTerritory;
-            let foodConsumption = (territoryPopulation) + armyForCurrentTerritory;
+            let foodConsumption = territoryPopulation + armyForCurrentTerritory;
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
                 uniqueId: uniqueId,
@@ -308,8 +345,27 @@ export function newTurnResources() {
                 setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, mainArrayOfTerritoriesAndResources[i]);
             }
         }
+        console.log(turnGainsArray);
+        turnGainsArrayLastTurn = turnGainsArray;
+        turnGainsArray = {
+            changeConsMats: 0,
+            changeFood: 0,
+            changeGold: 0,
+            changeOil: 0,
+            changePop: 0,
+            changeProdPop: 0,
+            changeFoodCapacity: 0,
+            changeOilCapacity: 0,
+            changeConsMatsCapacity: 0,
+            changeFoodConsumption: 0,
+            changeOilDemand: 0,
+            changeArmy: 0,
+            changeInfantry: 0,
+            changeAssault: 0,
+            changeAir: 0,
+            changeNaval: 0
+        };
     }
-
 }
     
     //todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
@@ -320,6 +376,8 @@ function calculateTerritoryResourceIncomesEachTurn() {
     let changeFood;
     let changeConsMats;
     let changePop;
+    let changeProdPop;
+    let changeProdPopTemp;
 
     //continent modifier or possibly handle upgrades in future
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -343,17 +401,12 @@ function calculateTerritoryResourceIncomesEachTurn() {
     for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            /*    changeGold = calculateGoldChange();
-                changeOil = calculateOilChange();
-                changeFood = calculateFoodChange();
-                changeConsMats = calculateConsMatsChange();
-                changePop = calculatePopulationChange(); */
-
                 changeGold = 10;
                 changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
                 changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
+                changeProdPopTemp = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
 
                 mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
                 mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
@@ -362,6 +415,16 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
                 mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
                 mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
+
+                changeProdPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
+                changeProdPop = changeProdPop - changeProdPopTemp;
+
+                turnGainsArray.changeGold += changeGold;
+                turnGainsArray.changeOil += changeOil;
+                turnGainsArray.changeFood += changeFood;
+                turnGainsArray.changeConsMats += changeConsMats;
+                turnGainsArray.changePop += changePop;
+                turnGainsArray.changeProdPop += changeProdPop;
             }
         }
     }
@@ -529,17 +592,24 @@ function starveArmyInstead(territory, populationChange) {
     }
 }
 
-export function formatNumbersToKMB(string) {
-    if (string >= 1000000000) {
-        return (string / 1000000000).toFixed(1) + 'B';
-    } else if (string >= 1000000) {
-        return (string / 1000000).toFixed(1) + 'M';
-    } else if (string >= 1000) {
-        return (string / 1000).toFixed(1) + 'k';
-    } else {
-        return string.toFixed(0);
+export function formatNumbersToKMB(number) {
+    if (number === 0 || (number > -1 && number < 1)) {
+      return 0;
     }
-}
+  
+    let absNumber = Math.abs(number);
+  
+    if (absNumber >= 1000000000) {
+      return (number / 1000000000).toFixed(1) + 'B';
+    } else if (absNumber >= 1000000) {
+      return (number / 1000000).toFixed(1) + 'M';
+    } else if (absNumber >= 1000) {
+      return (number / 1000).toFixed(1) + 'k';
+    } else {
+      return number.toFixed(0);
+    }
+  }
+  
 
 function calculateAllTerritoryDemandsForCountry() {
     const demandArray = [];
@@ -841,61 +911,49 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                 let displayText;
                 switch (j) {
                     case 1:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changePop);
                         break;
                     case 2:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeGold);
                         break;
                     case 3:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOil);
                         break;
                     case 4:
-                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilCapacity);
                         break;
                     case 5:
-                        countryGainscolumn.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilDemand);
                         break;
                     case 6:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFood);
                         break;
                     case 7:
-                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodCapacity);
                         break;
                     case 8:
-                        countryGainscolumn.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodConsumption);
                         break;
                     case 9:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMats);
                         break;
                     case 10:
-                        countryGainscolumn.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMatsCapacity);
                         break;
                     case 11:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeArmy);
                         break;
                     case 12:
-                        countryGainscolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeInfantry);
                         break;
                     case 13:
-                        const useableAssault = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault);
-                        const assault = formatNumbersToKMB(totalPlayerResources[0].totalAssault);
-                        displayText = (totalPlayerResources[0].totalUseableAssault < totalPlayerResources[0].totalAssault) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAssault}</span>` : useableAssault;
-                        displayText += `/${assault}`;
-                        countryGainscolumn.innerHTML = displayText;
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAssault);
                         break;
                     case 14:
-                        const useableAir = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir);
-                        const air = formatNumbersToKMB(totalPlayerResources[0].totalAir);
-                        displayText = (totalPlayerResources[0].totalUseableAir < totalPlayerResources[0].totalAir) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAir}</span>` : useableAir;
-                        displayText += `/${air}`;
-                        countryGainscolumn.innerHTML = displayText;
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAir);
                         break;
                     case 15:
-                        const useableNaval = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval);
-                        const naval = formatNumbersToKMB(totalPlayerResources[0].totalNaval);
-                        displayText = (totalPlayerResources[0].totalUseableNaval < totalPlayerResources[0].totalNaval) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableNaval}</span>` : useableNaval;
-                        displayText += `/${naval}`;
-                        countryGainscolumn.innerHTML = displayText;
+                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeNaval);
                         break;
                 }
             }
@@ -3308,6 +3366,9 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
 
     purchaseArray[0] *= vehicleArmyWorth.infantry;
 
+    turnGainsArray.changeGold += -totalGoldCost;
+    turnGainsArray.changeProdPop += -totalProdPopCost;
+
     //update total player resources
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalProdPop -= totalProdPopCost;
@@ -3326,12 +3387,21 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
             mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
             mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
             mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory += parseInt(purchaseArray[3]);
-            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.assault * purchaseArray[1]);
-            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.air * purchaseArray[2]);
-            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.naval * purchaseArray[3]);
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.assault * parseInt(purchaseArray[1]));
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.air * parseInt(purchaseArray[2]));
+            mainArrayOfTerritoriesAndResources[i].oilDemand += (oilRequirements.naval * parseInt(purchaseArray[3]));
             mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += parseInt(purchaseArray[0]);
         }
     }
+
+    turnGainsArray.changeOilDemand = (oilRequirements.assault * parseInt(purchaseArray[1])) + (oilRequirements.air * parseInt(purchaseArray[2])) + (oilRequirements.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeFoodConsumption = parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeArmy = parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeInfantry = parseInt(purchaseArray[0]);
+    turnGainsArray.changeAssault = parseInt(purchaseArray[1]);
+    turnGainsArray.changeAir = parseInt(purchaseArray[2]);
+    turnGainsArray.changeNaval = parseInt(purchaseArray[3]);
+
 
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
     checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
@@ -3367,6 +3437,11 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
 export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalConsMatsCost) {
     //push upgrades in table to an array
     let upgradeArray = [];
+
+    let totalOilCapacityTemp = territory.oilCapacity;
+    let totalFoodCapacityTemp = territory.foodCapacity;
+    let totalConsMatsTemp = territory.consMatsCapacity;
+
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
         const textField = rows[i].querySelector(".column5B input");
@@ -3377,6 +3452,9 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     //update total player resources
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalConsMats -= totalConsMatsCost;
+
+    turnGainsArray.changeGold += -totalGoldCost;
+    turnGainsArray.changeConsMats += -totalConsMatsCost;
     
     //update main array
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -3389,12 +3467,15 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
             mainArrayOfTerritoriesAndResources[i].fortsBuilt += parseInt(upgradeArray[3]);
             if (mainArrayOfTerritoriesAndResources[i].farmsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].foodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity + (mainArrayOfTerritoriesAndResources[i].foodCapacity * ((territory.farmsBuilt * 10) / 100)); //calculate new foodCapacity
+                turnGainsArray.changeFoodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity - totalFoodCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].forestsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].consMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity + (mainArrayOfTerritoriesAndResources[i].consMatsCapacity * ((territory.forestsBuilt * 10) / 100)); //calculate new consMatsCapacity
+                turnGainsArray.changeConsMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity - totalConsMatsTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].oilWellsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].oilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity + (mainArrayOfTerritoriesAndResources[i].oilCapacity * ((territory.oilWellsBuilt * 10) / 100)); //calculate new oilCapacity
+                turnGainsArray.changeOilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity - totalOilCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].fortsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus + (mainArrayOfTerritoriesAndResources[i].defenseBonus * ((territory.fortsBuilt * 10) / 100)); //calculate new defenseBonus
