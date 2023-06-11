@@ -1,5 +1,5 @@
 import { playerCountry, uiAppearsAtStartOfTurn, toggleUIMenu } from './ui.js';
-import { getPlayerTerritories, newTurnResources, drawUITable, turnGainsArray } from './resourceCalculations.js';
+import { countryStrengthsArray, getPlayerTerritories, newTurnResources, drawUITable, calculateTerritoryStrengths, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
@@ -34,6 +34,8 @@ function gameLoop() {
       console.log("There's been a " + randomEvent + "!")
     }
     newTurnResources();
+    calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
+    console.log(countryStrengthsArray);
     if (uiAppearsAtStartOfTurn && currentTurn !== 1) {
       toggleUIMenu(true);
       drawUITable(document.getElementById("uiTable"), 0);

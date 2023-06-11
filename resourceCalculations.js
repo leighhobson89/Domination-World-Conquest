@@ -2,7 +2,7 @@ import { pageLoaded } from './ui.js';
 import { currentTurn, currentTurnPhase, randomEvent, randomEventHappening } from './gameTurnsLoop.js';
 import { dataTableCountriesInitialState } from './ui.js';
 import { setFlag } from './ui.js';
-import { currentSelectedPath } from './ui.js';
+import { currentSelectedPath, enableNewGameButton } from './ui.js';
 import { paths } from './ui.js';
 import { playSoundClip } from './sfx.js';
 import { toggleUpgradeMenu, toggleBuyMenu} from './ui.js';
@@ -21,6 +21,7 @@ export let totalPopulationCost = 0;
 export let totalOilCapacity = 0;
 export let capacityArray;
 export let demandArray;
+export let countryStrengthsArray;
 export let turnGainsArrayLastTurn = {
     changeConsMats: 0,
     changeFood: 0,
@@ -83,8 +84,8 @@ if (!pageLoaded) {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
             mainArrayOfTerritoriesAndResources = randomiseInitialGold(mainArrayOfTerritoriesAndResources);
-            const sortedTerritories = calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
-            console.log(sortedTerritories);
+            countryStrengthsArray = calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
+            enableNewGameButton();
         })
         .catch(error => {
             console.log(error);
@@ -3801,10 +3802,9 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
       })
       .sort((a, b) => b[1] - a[1]);
   
-    return normalizedCountries;
+      countryStrengthsArray = normalizedCountries;
   }
   
-
   function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory) {
     // Define scaling factors for each factor
     const areaScale = 0.00001;
@@ -3830,8 +3830,3 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
   
     return roundedStrength;
   }
-  
-  
-  
-  
-  
