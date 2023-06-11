@@ -7,7 +7,7 @@ import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPur
 import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources, calculateTerritoryStrengths } from './resourceCalculations.js';
+import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -115,39 +115,39 @@ export function svgMapLoaded() {
     // Get the name of the country from the "data-name" attribute
     const countryName = path.getAttribute("owner");
 
-// Add an event listener for mousemove on the path element
-path.addEventListener("mousemove", function(e) {
-  const x = e.clientX;
-  const y = e.clientY;
+  // Add an event listener for mousemove on the path element
+  path.addEventListener("mousemove", function(e) {
+    const x = e.clientX;
+    const y = e.clientY;
 
-  // Set the content of the tooltip
-  tooltip.innerHTML = countryName;
+    // Set the content of the tooltip
+    tooltip.innerHTML = countryName;
 
-  // Check if the mouse pointer is less than 300px from the bottom of the screen
-if (window.innerHeight - y < 100) {
-  // Move the tooltip up by 300px
-  tooltip.style.left = x - 40 + "px";
-  tooltip.style.top = y - 30 + "px";
-} else {
-  // Position the tooltip next to the mouse cursor without moving it vertically
-  tooltip.style.left = x - 40 + "px";
-  tooltip.style.top = 25 + y + "px";
-}
+    // Check if the mouse pointer is less than 300px from the bottom of the screen
+  if (window.innerHeight - y < 100) {
+    // Move the tooltip up by 300px
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = y - 30 + "px";
+  } else {
+    // Position the tooltip next to the mouse cursor without moving it vertically
+    tooltip.style.left = x - 40 + "px";
+    tooltip.style.top = 25 + y + "px";
+  }
 
-  // Show the tooltip
-  tooltip.style.display = "block";
-});
-
-// Add an event listener for mouseout on the path element
-path.addEventListener("mouseout", function() {
-  // Hide the tooltip when the mouse leaves the path
-  tooltip.style.display = "none";
-});
-
-path.style.cursor = "pointer";
-
-
+    // Show the tooltip
+    tooltip.style.display = "block";
   });
+
+  // Add an event listener for mouseout on the path element
+  path.addEventListener("mouseout", function() {
+    // Hide the tooltip when the mouse leaves the path
+    tooltip.style.display = "none";
+  });
+
+  path.style.cursor = "pointer";
+
+
+    });
 
   // Add a mouseout event listener to the SVG element
   svgMap.addEventListener("mouseout", function(e) {
@@ -359,7 +359,8 @@ document.addEventListener("DOMContentLoaded", function() {
   newGameButton.innerText = "New Game";
   newGameButton.classList.add("menu-option");
   newGameButton.classList.add("option-3");
-  newGameButton.setAttribute("id", "new-game-btn"); 
+  newGameButton.setAttribute("id", "new-game-btn");
+  newGameButton.disabled = true;
 
   const toggleMusicButton = document.createElement("button");
   toggleMusicButton.innerText = "Toggle Music";
@@ -2049,6 +2050,10 @@ function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
     checkBox.innerHTML = "✔";
   }
   return uiAppearsAtStartOfTurn;
+}
+
+export function enableNewGameButton() {
+  document.getElementById("new-game-btn").disabled = false;
 }
 
 
