@@ -85,6 +85,7 @@ if (!pageLoaded) {
         .then(([pathAreas, armyArray]) => {
             mainArrayOfTerritoriesAndResources = randomiseInitialGold(mainArrayOfTerritoriesAndResources);
             countryStrengthsArray = calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
+            console.log(countryStrengthsArray);
             enableNewGameButton();
         })
         .catch(error => {
@@ -3802,7 +3803,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
       })
       .sort((a, b) => b[1] - a[1]);
   
-      countryStrengthsArray = normalizedCountries;
+      return normalizedCountries;
   }
   
   function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory) {

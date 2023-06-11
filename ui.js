@@ -7,7 +7,7 @@ import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPur
 import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
-import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources } from './resourceCalculations.js';
+import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources, countryStrengthsArray } from './resourceCalculations.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -377,6 +377,7 @@ document.addEventListener("DOMContentLoaded", function() {
   newGameButton.addEventListener("click", function() {
     playSoundClip();
     resetGameState();
+    greyOutTerritoriesForUnselectableCountries();
   });
 
   function resetGameState() {
@@ -2055,5 +2056,39 @@ function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
 export function enableNewGameButton() {
   document.getElementById("new-game-btn").disabled = false;
 }
+
+function greyOutTerritoriesForUnselectableCountries() {
+  paths.forEach(path => {
+    const countryName = path.getAttribute("data-name");
+    let countryStrength;
+
+    // Find the country strength data using a loop
+    for (let i = 0; i < countryStrengthsArray.length; i++) {
+      if (countryStrengthsArray[i][0] === countryName) {
+        countryStrength = countryStrengthsArray[i][1];
+        break;
+      }
+    }
+
+    const originalColor = path.getAttribute("fill");
+
+    if (countryStrength > 100) {
+      const greyIntensity = 0.2; // Adjust the intensity of greying out
+
+      // Convert the original color to greyscale
+      const greyColor = originalColor.replace(/rgb\((\d+),(\d+),(\d+)\)/, (match, r, g, b) => {
+        const greyR = Math.round(r * greyIntensity);
+        const greyG = Math.round(g * greyIntensity);
+        const greyB = Math.round(b * greyIntensity);
+        return `rgb(${greyR},${greyG},${greyB})`;
+      });
+
+      path.style.fill = greyColor;
+    }
+  });
+}
+
+
+
 
 
