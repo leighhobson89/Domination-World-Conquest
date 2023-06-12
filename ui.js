@@ -69,6 +69,7 @@ export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
 export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
+export let territoryAboutToBeAttacked = null;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -274,8 +275,6 @@ function selectCountry(country, escKeyEntry) {
       svgMap.documentElement.appendChild(country);
     }
     
-/*     setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked */
-    
     if (selectCountryPlayerState && !escKeyEntry) {
       for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
@@ -291,6 +290,13 @@ function selectCountry(country, escKeyEntry) {
       for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("owner") === "Player") {
           paths[i].setAttribute('fill', playerColour);
+          if (territoryAboutToBeAttacked) {
+            removeImageFromPath(territoryAboutToBeAttacked);
+            territoryAboutToBeAttacked.style.stroke = "rgb(0,0,0)";
+            territoryAboutToBeAttacked.setAttribute("stroke-width", "1px");
+            territoryAboutToBeAttacked.style.strokeDasharray = "none";
+            territoryAboutToBeAttacked = null;
+          }
         }
       }
     }
@@ -2219,6 +2225,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     transferAttackButtonDisplayed = true;
     button.disabled = false;
     transferAttackbuttonState = 1; //attack
+    setTerritoryForAttack(path);
   }
 
   button.addEventListener("click", function() {
@@ -2299,6 +2306,52 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     tooltip.style.display = "none";
   });
 }
+
+function setTerritoryForAttack(territoryToAttack) {
+  territoryAboutToBeAttacked = territoryToAttack;
+  territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
+  territoryToAttack.setAttribute("fill", playerColour);
+  territoryToAttack.setAttribute("stroke-width", "5px");
+  territoryToAttack.style.strokeDasharray = "10, 5";
+  addImageToPath(territoryToAttack, "/resources/army.png");
+}
+
+function addImageToPath(pathElement, imagePath) {
+  const pathBounds = pathElement.getBBox();
+
+  const centerX = pathBounds.x + pathBounds.width / 2;
+  const centerY = pathBounds.y + pathBounds.height / 2;
+
+  const maxImageWidth = pathBounds.width * 0.7;
+  const maxImageHeight = pathBounds.height * 0.7;
+
+  const imageElement = document.createElementNS("http://www.w3.org/2000/svg", "image");
+  imageElement.setAttributeNS("http://www.w3.org/1999/xlink", "href", imagePath);
+
+  const imageWidth = Math.min(maxImageWidth, maxImageHeight);
+  const imageHeight = Math.min(maxImageWidth, maxImageHeight);
+  const imageX = centerX - imageWidth / 2;
+  const imageY = centerY - imageHeight / 2;
+  imageElement.setAttribute("x", imageX);
+  imageElement.setAttribute("y", imageY);
+  imageElement.setAttribute("width", imageWidth);
+  imageElement.setAttribute("height", imageHeight);
+  imageElement.setAttribute("id", "armyImage"); // Add ID "armyImage" to the image element
+
+  pathElement.parentNode.appendChild(imageElement);
+}
+
+
+function removeImageFromPath(pathToRemoveImage) {
+  const imageElement = pathToRemoveImage.parentNode.getElementById("armyImage");
+
+  if (imageElement) {
+    imageElement.parentNode.removeChild(imageElement);
+  }
+}
+
+
+
 
 
 
