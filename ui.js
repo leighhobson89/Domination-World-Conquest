@@ -295,9 +295,9 @@ function selectCountry(country, escKeyEntry) {
     if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
       
       for (let i = 0; i < paths.length; i++) {
-        if ((paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") === "Player") {
+        if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player") {
           paths[i].setAttribute('fill', playerColour);
-        } else if (!selectCountryPlayerState && (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) && paths[i].getAttribute("owner") !== "Player") {
+        } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && validDestinationsArray.some(destination =>destination.getAttribute("owner") === "Player")) {
           if (mapMode === 0) {
             paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
           }
@@ -306,10 +306,10 @@ function selectCountry(country, escKeyEntry) {
           }
           setStrokeWidth(paths[i], "1");
         } 
-        else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
+        else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
           for (let j = 0; j < paths.length; j++) {
             if (paths[j].getAttribute("data-name") !== undefined) {
-              if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
+              if (lastClickedPath.getAttribute("uniqueid") === paths[j].getAttribute("uniqueid") && lastClickedPath.getAttribute("greyedOut") === "false") {
                 paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
                 setStrokeWidth(paths[j], "1");
               }
@@ -427,7 +427,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // create the menu options
   const popupTitle = document.createElement("td");
-  popupTitle.innerText = "Select A Starting Country"; //set in required function
+  popupTitle.innerText = "Select a Country..."; //set in required function
   popupTitle.classList.add("popup-option");
   popupTitle.classList.add("popup-option-title");
   popupTitle.setAttribute("id", "popup-title");
@@ -514,18 +514,18 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase";
       popupSubTitle.innerText = "";
-      popupConfirm.innerText = "MOVE / ATTACK";
+      popupConfirm.innerText = "MILITARY";
       turnPhase++;
       currentMapColorAndStrokeArray = saveMapColorState(false);
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
       currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
       popupTitle.innerText = "Buy / Upgrade Phase";
-      popupConfirm.innerText = "MOVE / ATTACK";
+      popupConfirm.innerText = "MILITARY";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 1) {
       currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
-      popupTitle.innerText = "Move / Attack Phase";
+      popupTitle.innerText = "Military Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
