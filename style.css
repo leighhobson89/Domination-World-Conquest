@@ -259,6 +259,7 @@ td {
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
   font-size: 1rem;
+  font-weight: bold;
 }
 
 .popup-option-subtitle {
