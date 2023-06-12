@@ -48,6 +48,7 @@ let currentPath; // used for hover, and tooltip before user clicks on a country
 export let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
 let validDestinationsArray;
+let lastPlayerOwnedValidDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
 let colorArray;
@@ -188,10 +189,11 @@ export function svgMapLoaded() {
               let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
               let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
               if (e.target.getAttribute("owner") === "Player") {
+                lastPlayerOwnedValidDestinationsArray
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+                lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
               }
-              console.log(validDestinationsArray);
-              handleMovePhaseTransferAttackButton(e.target, validDestinationsArray, playerOwnedTerritories);
+              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -295,9 +297,9 @@ function selectCountry(country, escKeyEntry) {
     if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
       
       for (let i = 0; i < paths.length; i++) {
-        if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player") {
+        if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
           paths[i].setAttribute('fill', playerColour);
-        } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && validDestinationsArray.some(destination =>destination.getAttribute("owner") === "Player")) {
+        } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
           if (mapMode === 0) {
             paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));   
           }
@@ -308,7 +310,7 @@ function selectCountry(country, escKeyEntry) {
         } 
         else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
           for (let j = 0; j < paths.length; j++) {
-            if (paths[j].getAttribute("data-name") !== undefined) {
+            if (paths[j].getAttribute("uniqueid") !== undefined) {
               if (lastClickedPath.getAttribute("uniqueid") === paths[j].getAttribute("uniqueid") && lastClickedPath.getAttribute("greyedOut") === "false") {
                 paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
                 setStrokeWidth(paths[j], "1");
@@ -2178,13 +2180,14 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 }
   
 
-function handleMovePhaseTransferAttackButton(path, validDestinationsArray, playerOwnedTerritories) {
+function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories) {
   let button = document.getElementById("move-phase-button");
   let buttonState;
   button.style.display = "none";
 
   //if clicked territory is not owned by the player and is not a valid destination then return
-  if (path.getAttribute("owner") !== "Player" && !validDestinationsArray.some(destination => destination.getAttribute("owner") === "Player")) {
+  //if not a player owned territory and the lastPlayerOwned array does not contain the path
+  if (path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
     button.style.display = "none";
     transferAttackButtonDisplayed = false;
   } else if (path.getAttribute("owner") === "Player") {
@@ -2204,7 +2207,7 @@ function handleMovePhaseTransferAttackButton(path, validDestinationsArray, playe
     }
     button.style.display = "flex";
     transferAttackButtonDisplayed = true;
-  } else if (path.getAttribute("owner") !== "Player" && validDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+  } else if (path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
     // if clicks on an enemy territory that is within reach then show attack state
     button.innerHTML = "ATTACK";
     button.classList.remove("move-phase-button-green-background");
