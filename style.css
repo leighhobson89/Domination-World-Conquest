@@ -274,7 +274,58 @@ td {
   -webkit-text-stroke-color: black;
 }
 
+/*MOVE PHASE BOTTOM BUTTONS*/
+.move-phase-buttons-container {
+  width: 100%;
+  height: calc(6% + 2px);
+  position: fixed;
+  bottom: calc(10% - 3px);
+  left: 20%;
+  border-radius: 10px;
+  display: flex;
+  z-index: 1;
+}
 
+.move-phase-button {
+  display: none;
+  font-family: Arial, Helvetica, sans-serif;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  border: 1px white solid;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: normal;
+  text-align: center;
+  flex-basis: 17%;
+  margin-left: 200px;
+}
+
+.move-phase-button-green-background {
+  background-color: green;
+}
+
+.move-phase-button-green-background:hover {
+  cursor: pointer;
+  background-color: rgb(0, 85, 0);
+  transition: all 0.3s ease;
+}
+
+.move-phase-button-grey-background {
+  background-color: grey;
+}
+
+.move-phase-button-red-background {
+  background-color: rgb(210, 0, 0);;
+}
+
+.move-phase-button-red-background:hover {
+  cursor: pointer;
+  background-color: rgb(165, 0, 0);
+  transition: all 0.3s ease;
+}
+
+/*MAIN MENU*/
 .title {
   color: yellow;
   font-size: 6rem;

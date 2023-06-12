@@ -1,7 +1,7 @@
 import { findMatchingCountries } from './manualExceptionsForInteractions.js';
 import { initialiseGame as initialiseGame } from './gameTurnsLoop.js';
 import { currentTurnPhase, modifyCurrentTurnPhase } from "./gameTurnsLoop.js"
-import { allowSelectionOfCountry } from './resourceCalculations.js';
+import { allowSelectionOfCountry, playerOwnedTerritories } from './resourceCalculations.js';
 import { populateBottomTableWhenSelectingACountry } from './resourceCalculations.js';
 import { currentlySelectedTerritoryForUpgrades, currentlySelectedTerritoryForPurchases, totalGoldPrice, totalConsMats, totalPurchaseGoldPrice, totalPopulationCost } from './resourceCalculations.js';
 import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js';
@@ -177,20 +177,18 @@ export function svgMapLoaded() {
       if (countrySelectedAndGameStarted) {
         if (currentTurnPhase === 1) { //move/deploy phase show interactable countries when clicking a country
           validDestinationsAndClosestPointArray = findClosestPaths(e.target);
-          if (!currentPath.hasAttribute("fill")) { 
-            
-          } else {
-            if (currentPath.getAttribute("greyedOut") === "false") {
+            if (currentPath.hasAttribute("fill")) {
               hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
-            }
-            currentlySelectedColorsArray.length = 0;
-            validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
-            closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
-            let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
-            let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-            if (e.target.getAttribute("owner") === "Player") {
-              validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
-            }
+              currentlySelectedColorsArray.length = 0;
+              validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
+              closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
+              let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
+              let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
+              if (e.target.getAttribute("owner") === "Player") {
+                validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+              }
+              console.log(validDestinationsArray);
+              setStateOfMovePhaseButton(e.target, validDestinationsArray, playerOwnedTerritories, playerCountry);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -652,6 +650,7 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.classList.add("popup-option");
   popupConfirm.classList.add("popup-option-confirm");
   popupConfirm.setAttribute("id", "popup-confirm");
+  
 
   const UIToggleButton = document.createElement("img");
   UIToggleButton.src = "/resources/globeNoStandButtonUI.png"; // Set the image source URL
@@ -1240,6 +1239,19 @@ document.addEventListener("DOMContentLoaded", function() {
   bottomBarBuyWindow.appendChild(bottomBarBuyConfirmButton);
 
   document.getElementById("buy-container").appendChild(buyContainer);
+
+  // MOVE PHASE BUTTONS
+  const movePhaseButtonsContainer = document.createElement("div");
+  movePhaseButtonsContainer.classList.add("move-phase-buttons-container");
+
+  const transferButton = document.createElement("div");
+  transferButton.classList.add("move-phase-button");
+  transferButton.setAttribute("id","move-phase-button");
+  transferButton.innerHTML = "TRANSFER";
+
+  movePhaseButtonsContainer.appendChild(transferButton);
+
+  document.getElementById("move-phase-buttons-container").appendChild(movePhaseButtonsContainer);
 
   pageLoaded = true;
 });
@@ -2121,6 +2133,70 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
     paths[i].setAttribute("greyedOut", "false");
   }
 }
+  
+
+function setStateOfMovePhaseButton(path, validDestinationsArray, playerOwnedTerritories, playerCountry) {
+  let button = document.getElementById("move-phase-button");
+  button.style.display = "none";
+
+  //if clicked territory is not owned by the player and is not a valid destination then return
+  if (path.getAttribute("owner") !== "Player" && !validDestinationsArray.some(destination => destination.getAttribute("owner") === "Player")) {
+    button.style.display = "none";
+  } else if (path.getAttribute("owner") === "Player") {
+    // if clicks on a player-owned territory then show button in transfer state
+    button.innerHTML = "TRANSFER";
+    if (playerOwnedTerritories.length <= 1) {
+      button.classList.remove("move-phase-button-red-background");
+      button.classList.remove("move-phase-button-green-background");
+      button.classList.add("move-phase-button-grey-background");
+      button.disabled = true;
+    } else {
+      button.classList.remove("move-phase-button-red-background");
+      button.classList.remove("move-phase-button-grey-background");
+      button.classList.add("move-phase-button-green-background");
+      button.disabled = false;
+    }
+    button.style.display = "flex";
+  } else if (path.getAttribute("owner") !== "Player" && validDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+    // if clicks on an enemy territory that is within reach then show attack state
+    button.innerHTML = "ATTACK";
+    button.classList.remove("move-phase-button-green-background");
+    button.classList.remove("move-phase-button-grey-background");
+    button.classList.add("move-phase-button-red-background");
+    button.style.display = "flex";
+    button.disabled = false;
+  }
+
+  button.addEventListener("mouseover", (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (window.innerHeight - y < 100) {
+      tooltip.style.left = x - 40 + "px";
+      tooltip.style.top = y - 30 + "px";
+    } else {
+      tooltip.style.left = x - 40 + "px";
+      tooltip.style.top = 25 + y + "px";
+    }
+
+    if (button.disabled) {
+      tooltip.innerHTML = "You have no other territories to transfer military to!";
+    } else if (!button.disabled && playerOwnedTerritories.length > 1 && button.innerHTML === "TRANSFER") {
+      tooltip.innerHTML = "Click to transfer military to one of your other territories...";
+    } else if (!button.disabled && validDestinationsArray.length > 0 && button.innerHTML === "ATTACK") {
+      tooltip.innerHTML = "Click to send military to attack selected territory from the last selected territory...";
+    }
+
+    tooltip.style.display = "block";
+
+  });
+  button.addEventListener("mouseout", () => {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
+  });
+}
+
+
 
 
 
