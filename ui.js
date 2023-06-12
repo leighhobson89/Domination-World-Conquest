@@ -8,6 +8,7 @@ import { addPlayerUpgrades, addPlayerPurchases } from './resourceCalculations.js
 import { drawUITable, formatNumbersToKMB } from './resourceCalculations.js';
 import { playSoundClip } from './sfx.js';
 import { capacityArray, demandArray, mainArrayOfTerritoriesAndResources, countryStrengthsArray } from './resourceCalculations.js';
+import { drawTransferAttackTable } from './transferAndAttack.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -63,6 +64,8 @@ let uiButtonCurrentlyOnScreen = false;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
+export let transferAttackButtonDisplayed = false;
+export let transferAttackWindowOnScreen = false;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -188,7 +191,7 @@ export function svgMapLoaded() {
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
               }
               console.log(validDestinationsArray);
-              setStateOfMovePhaseButton(e.target, validDestinationsArray, playerOwnedTerritories, playerCountry);
+              handleMovePhaseTransferAttackButton(e.target, validDestinationsArray, playerOwnedTerritories);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -422,7 +425,128 @@ document.addEventListener("DOMContentLoaded", function() {
   const popupWithConfirmContainer = document.createElement("div");
   popupWithConfirmContainer.classList.add("popup-with-confirm-container");
 
-  //toptable
+  // create the menu options
+  const popupTitle = document.createElement("td");
+  popupTitle.innerText = "Select A Starting Country"; //set in required function
+  popupTitle.classList.add("popup-option");
+  popupTitle.classList.add("popup-option-title");
+  popupTitle.setAttribute("id", "popup-title");
+
+  const colorPicker = document.createElement("label");
+  colorPicker.innerText = "Select Player Color";
+  colorPicker.classList.add("popup-option");
+  colorPicker.classList.add("popup-option-color");
+  colorPicker.setAttribute("id", "popup-color");
+  colorPicker.setAttribute("for", "player-color-picker");
+
+  const popupSubTitle = document.createElement("td");
+  popupSubTitle.innerText = "- - - -";
+  popupSubTitle.classList.add("popup-option");
+  popupSubTitle.classList.add("popup-option-subtitle");
+  popupSubTitle.setAttribute("id", "popup-body");
+
+  const popupConfirm = document.createElement("button");
+  popupConfirm.innerText = "Confirm";
+  popupConfirm.classList.add("popup-option");
+  popupConfirm.classList.add("popup-option-confirm");
+  popupConfirm.setAttribute("id", "popup-confirm");
+  
+
+  const UIToggleButton = document.createElement("img");
+  UIToggleButton.src = "/resources/globeNoStandButtonUI.png"; // Set the image source URL
+  UIToggleButton.classList.add("UI-option");
+  UIToggleButton.setAttribute("id", "UIToggleButton");
+
+  UIToggleButton.addEventListener("click", function() {
+    playSoundClip();
+    if (uiCurrentlyOnScreen) {
+      toggleUIMenu(false);
+    } else {
+      toggleUIMenu(true);
+    }
+    
+  });
+
+  document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
+
+  colorPicker.addEventListener("click", function() {
+    playSoundClip();
+    document.getElementById("player-color-picker").style.display = "block";
+  });
+
+  document.getElementById("player-color-picker").addEventListener('change', function() {
+    playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
+    restoreMapColorState(currentMapColorAndStrokeArray, false);
+    document.getElementById("popup-color").style.color = playerColour;
+    if (selectCountryPlayerState) {
+      for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) {
+          paths[i].setAttribute("fill", playerColour);
+        }
+      }
+    } else if (countrySelectedAndGameStarted) {
+      paths.forEach(path => {
+        if (path.getAttribute("owner") === "Player") {  
+          path.setAttribute("fill", playerColour);
+        }
+      });
+      currentMapColorAndStrokeArray = saveMapColorState(false);
+    }
+  });
+  
+  // add event listener to popup confirm button
+  popupConfirm.addEventListener("click", function() {
+    playSoundClip();
+    if (selectCountryPlayerState) {
+      setAllGreyedOutAttributesToFalseOnGameStart();
+      selectCountryPlayerState = false;
+      countrySelectedAndGameStarted = true;
+      document.getElementById("popup-color").style.color = playerColour;
+      popupSubTitle.style.opacity = "0.5";
+      playerCountry = document.getElementById("popup-body").innerHTML;
+      flag = playerCountry;
+      setFlag(flag,1); //set playerflag in top table
+      setFlag(flag, 3); //set playerflag in ui info panel
+      uiButtonCurrentlyOnScreen = true;
+      toggleUIButton(true);
+      restoreMapColorState(currentMapColorAndStrokeArray, true);
+      initialiseGame();
+      document.getElementById("top-table-container").style.display = "block";
+      popupTitle.innerText = "Buy / Upgrade Phase";
+      popupSubTitle.innerText = "";
+      popupConfirm.innerText = "MOVE / ATTACK";
+      turnPhase++;
+      currentMapColorAndStrokeArray = saveMapColorState(false);
+    } else if (countrySelectedAndGameStarted && turnPhase == 0) {
+      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
+      popupTitle.innerText = "Buy / Upgrade Phase";
+      popupConfirm.innerText = "MOVE / ATTACK";
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase++;
+    } else if (countrySelectedAndGameStarted && turnPhase == 1) {
+      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
+      popupTitle.innerText = "Move / Attack Phase";
+      popupConfirm.innerText = "END TURN";
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase++;
+    } else if (countrySelectedAndGameStarted && turnPhase == 2) {
+      restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
+      popupTitle.innerText = "AI turn";
+      popupConfirm.innerText = "AI Moving...";
+      modifyCurrentTurnPhase(turnPhase);
+      turnPhase = 0;
+    }
+  });
+
+  // add the menu options to the menu container
+  popupWithConfirmContainer.appendChild(popupTitle);
+  popupWithConfirmContainer.appendChild(colorPicker);
+  popupWithConfirmContainer.appendChild(popupSubTitle);
+  popupWithConfirmContainer.appendChild(popupConfirm);
+
+  document.getElementById("popup-with-confirm-container").appendChild(popupWithConfirmContainer);
+
+  //TOP TABLE
   const topTableTable = document.createElement("table");
   topTableTable.setAttribute("id","top-table");
 
@@ -625,128 +749,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("top-table-container").appendChild(topTableTable);
 
-  // create the menu options
-  const popupTitle = document.createElement("td");
-  popupTitle.innerText = "Select A Starting Country"; //set in required function
-  popupTitle.classList.add("popup-option");
-  popupTitle.classList.add("popup-option-title");
-  popupTitle.setAttribute("id", "popup-title");
-
-  const colorPicker = document.createElement("label");
-  colorPicker.innerText = "Select Player Color";
-  colorPicker.classList.add("popup-option");
-  colorPicker.classList.add("popup-option-color");
-  colorPicker.setAttribute("id", "popup-color");
-  colorPicker.setAttribute("for", "player-color-picker");
-
-  const popupSubTitle = document.createElement("td");
-  popupSubTitle.innerText = "- - - -";
-  popupSubTitle.classList.add("popup-option");
-  popupSubTitle.classList.add("popup-option-subtitle");
-  popupSubTitle.setAttribute("id", "popup-body");
-
-  const popupConfirm = document.createElement("button");
-  popupConfirm.innerText = "Confirm";
-  popupConfirm.classList.add("popup-option");
-  popupConfirm.classList.add("popup-option-confirm");
-  popupConfirm.setAttribute("id", "popup-confirm");
-  
-
-  const UIToggleButton = document.createElement("img");
-  UIToggleButton.src = "/resources/globeNoStandButtonUI.png"; // Set the image source URL
-  UIToggleButton.classList.add("UI-option");
-  UIToggleButton.setAttribute("id", "UIToggleButton");
-
-  UIToggleButton.addEventListener("click", function() {
-    playSoundClip();
-    if (uiCurrentlyOnScreen) {
-      toggleUIMenu(false);
-    } else {
-      toggleUIMenu(true);
-    }
-    
-  });
-
-  document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
-
-  colorPicker.addEventListener("click", function() {
-    playSoundClip();
-    document.getElementById("player-color-picker").style.display = "block";
-  });
-
-  document.getElementById("player-color-picker").addEventListener('change', function() {
-    playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
-    restoreMapColorState(currentMapColorAndStrokeArray, false);
-    document.getElementById("popup-color").style.color = playerColour;
-    if (selectCountryPlayerState) {
-      for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) {
-          paths[i].setAttribute("fill", playerColour);
-        }
-      }
-    } else if (countrySelectedAndGameStarted) {
-      paths.forEach(path => {
-        if (path.getAttribute("owner") === "Player") {  
-          path.setAttribute("fill", playerColour);
-        }
-      });
-      currentMapColorAndStrokeArray = saveMapColorState(false);
-    }
-  });
-  
-
-  // add event listener to popup confirm button
-  popupConfirm.addEventListener("click", function() {
-    playSoundClip();
-    if (selectCountryPlayerState) {
-      setAllGreyedOutAttributesToFalseOnGameStart();
-      selectCountryPlayerState = false;
-      countrySelectedAndGameStarted = true;
-      document.getElementById("popup-color").style.color = playerColour;
-      popupSubTitle.style.opacity = "0.5";
-      playerCountry = document.getElementById("popup-body").innerHTML;
-      flag = playerCountry;
-      setFlag(flag,1); //set playerflag in top table
-      setFlag(flag, 3); //set playerflag in ui info panel
-      uiButtonCurrentlyOnScreen = true;
-      toggleUIButton(true);
-      restoreMapColorState(currentMapColorAndStrokeArray, true);
-      initialiseGame();
-      document.getElementById("top-table-container").style.display = "block";
-      popupTitle.innerText = "Buy / Upgrade Phase";
-      popupSubTitle.innerText = "";
-      popupConfirm.innerText = "MOVE / ATTACK";
-      turnPhase++;
-      currentMapColorAndStrokeArray = saveMapColorState(false);
-    } else if (countrySelectedAndGameStarted && turnPhase == 0) {
-      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
-      popupTitle.innerText = "Buy / Upgrade Phase";
-      popupConfirm.innerText = "MOVE / ATTACK";
-      modifyCurrentTurnPhase(turnPhase);
-      turnPhase++;
-    } else if (countrySelectedAndGameStarted && turnPhase == 1) {
-      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
-      popupTitle.innerText = "Move / Attack Phase";
-      popupConfirm.innerText = "END TURN";
-      modifyCurrentTurnPhase(turnPhase);
-      turnPhase++;
-    } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-      restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
-      popupTitle.innerText = "AI turn";
-      popupConfirm.innerText = "AI Moving...";
-      modifyCurrentTurnPhase(turnPhase);
-      turnPhase = 0;
-    }
-  });
-
-  // add the menu options to the menu container
-  popupWithConfirmContainer.appendChild(popupTitle);
-  popupWithConfirmContainer.appendChild(colorPicker);
-  popupWithConfirmContainer.appendChild(popupSubTitle);
-  popupWithConfirmContainer.appendChild(popupConfirm);
-
-  document.getElementById("popup-with-confirm-container").appendChild(popupWithConfirmContainer);
-
   //MAIN UI
   const mainUIContainer = document.createElement("div");
   mainUIContainer.classList.add("blur-background");
@@ -864,7 +866,6 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("main-ui-container").appendChild(mainUIContainer);
 
   //UPGRADE WINDOW
-
   const upgradeContainer = document.createElement("div");
   upgradeContainer.classList.add("blur-background");
 
@@ -1240,24 +1241,40 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("buy-container").appendChild(buyContainer);
 
-  // MOVE PHASE BUTTONS
-  const movePhaseButtonsContainer = document.createElement("div");
-  movePhaseButtonsContainer.classList.add("move-phase-buttons-container");
+  // MOVE PHASE BUTTON
+  const transferAttackButtonContainer = document.createElement("div");
+  transferAttackButtonContainer.classList.add("move-phase-buttons-container");
 
-  const transferButton = document.createElement("div");
-  transferButton.classList.add("move-phase-button");
-  transferButton.setAttribute("id","move-phase-button");
-  transferButton.innerHTML = "TRANSFER";
+  const transferAttackButton = document.createElement("div");
+  transferAttackButton.classList.add("move-phase-button");
+  transferAttackButton.setAttribute("id","move-phase-button");
+  transferAttackButton.innerHTML = "TRANSFER";
 
-  movePhaseButtonsContainer.appendChild(transferButton);
+  transferAttackButtonContainer.appendChild(transferAttackButton);
 
-  document.getElementById("move-phase-buttons-container").appendChild(movePhaseButtonsContainer);
+  document.getElementById("move-phase-buttons-container").appendChild(transferAttackButtonContainer);
+
+  // TRANSFER / ATTACK WINDOW
+  const transferAttackWindowContainer = document.createElement("div");
+  transferAttackWindowContainer.classList.add("transfer-attack-window-container");
+
+  document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   pageLoaded = true;
 });
 
+function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
+  let transferAttackWindow = document.getElementById("transfer-attack-window-container");
+  if (turnOnTransferAttackWindow) {
+    transferAttackWindow.style.display = "block";
+    transferAttackWindowOnScreen = true;
+  } else if (!turnOnTransferAttackWindow) {
+    transferAttackWindow.style.display = "none";
+  }
+}
+
 function toggleBottomTableContainer(turnOnTable) {
-  var tableContainer = document.getElementById("bottom-table-container");
+  let tableContainer = document.getElementById("bottom-table-container");
   if (turnOnTable) {
     tableContainer.style.display = "block";
   } else if (!turnOnTable) {
@@ -1266,11 +1283,20 @@ function toggleBottomTableContainer(turnOnTable) {
 }
 
 function toggleTopTableContainer(turnOnTable) {
-  var tableContainer = document.getElementById("top-table-container");
+  let tableContainer = document.getElementById("top-table-container");
   if (turnOnTable) {
     tableContainer.style.display = "block";
   } else if (!turnOnTable) {
     tableContainer.style.display = "none";
+  }
+}
+
+function toggleTransferAttackButton(turnOnButton) {
+  let transferAttackButton = document.getElementById("move-phase-button");
+  if (turnOnButton) {
+    transferAttackButton.style.display = "flex";
+  } else if (!turnOnButton) {
+    transferAttackButton.style.display = "none";
   }
 }
 
@@ -1279,18 +1305,20 @@ document.addEventListener("keydown", function(event) {
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
     console.log(upgradeWindowCurrentlyOnScreen);
     document.getElementById("menu-container").style.display = "block";
-    document.getElementById("popup-with-confirm-container").style.display = "none";
     document.getElementById("main-ui-container").style.display = "none";
     document.getElementById("upgrade-container").style.display = "none";
     toggleBottomTableContainer(false);
     toggleTopTableContainer(false);
     menuState = true;
+    toggleBottomLeftPaneWithTurnAdvance(false);
     toggleUIButton(false);
     toggleUpgradeMenu(false);
     toggleBuyMenu(false);
+    toggleTransferAttackButton(false);
+    toggleTransferAttackWindow(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
     if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
-      document.getElementById("popup-with-confirm-container").style.display = "flex";
+      toggleBottomLeftPaneWithTurnAdvance(true);
     }
     if (uiButtonCurrentlyOnScreen) {
       toggleUIButton(true);
@@ -1306,7 +1334,13 @@ document.addEventListener("keydown", function(event) {
     }
     if (countrySelectedAndGameStarted) {
       toggleTopTableContainer(true);
-    }    
+    }   
+    if (transferAttackButtonDisplayed) {
+      toggleTransferAttackButton(true);
+    }
+    if (transferAttackWindowOnScreen) {
+      toggleTransferAttackWindow(true);
+    } 
     toggleBottomTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
     if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
@@ -1747,6 +1781,15 @@ function toggleUIButton(makeVisible) {
   }
 }
 
+function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
+  if (makeVisible) {
+    document.getElementById("popup-with-confirm-container").style.display = "block";
+  } else {
+    document.getElementById("popup-with-confirm-container").style.display = "none";
+  }
+}
+
+
   export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
       document.getElementById("main-ui-container").style.display = "block";
@@ -1776,7 +1819,7 @@ export function toggleUpgradeMenu(makeVisible) {
   }
 }
 
-export function toggleBuyMenu(makeVisible, territory) {
+export function toggleBuyMenu(makeVisible) {
   if (makeVisible) {
     document.getElementById("buy-container").style.display = "block";
     document.getElementById("main-ui-container").style.pointerEvents = 'none';
@@ -2135,13 +2178,15 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 }
   
 
-function setStateOfMovePhaseButton(path, validDestinationsArray, playerOwnedTerritories, playerCountry) {
+function handleMovePhaseTransferAttackButton(path, validDestinationsArray, playerOwnedTerritories) {
   let button = document.getElementById("move-phase-button");
+  let buttonState;
   button.style.display = "none";
 
   //if clicked territory is not owned by the player and is not a valid destination then return
   if (path.getAttribute("owner") !== "Player" && !validDestinationsArray.some(destination => destination.getAttribute("owner") === "Player")) {
     button.style.display = "none";
+    transferAttackButtonDisplayed = false;
   } else if (path.getAttribute("owner") === "Player") {
     // if clicks on a player-owned territory then show button in transfer state
     button.innerHTML = "TRANSFER";
@@ -2155,8 +2200,10 @@ function setStateOfMovePhaseButton(path, validDestinationsArray, playerOwnedTerr
       button.classList.remove("move-phase-button-grey-background");
       button.classList.add("move-phase-button-green-background");
       button.disabled = false;
+      buttonState = 0; //transfer
     }
     button.style.display = "flex";
+    transferAttackButtonDisplayed = true;
   } else if (path.getAttribute("owner") !== "Player" && validDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
     // if clicks on an enemy territory that is within reach then show attack state
     button.innerHTML = "ATTACK";
@@ -2164,8 +2211,20 @@ function setStateOfMovePhaseButton(path, validDestinationsArray, playerOwnedTerr
     button.classList.remove("move-phase-button-grey-background");
     button.classList.add("move-phase-button-red-background");
     button.style.display = "flex";
+    transferAttackButtonDisplayed = true;
     button.disabled = false;
+    buttonState = 1; //attack
   }
+
+  button.addEventListener("click", function() {
+    drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, buttonState);
+    if (!transferAttackWindowOnScreen) {
+      toggleTransferAttackWindow(true);
+      toggleUIButton(false);
+      toggleBottomLeftPaneWithTurnAdvance(false);
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    }
+    });
 
   button.addEventListener("mouseover", (e) => {
     const x = e.clientX;
