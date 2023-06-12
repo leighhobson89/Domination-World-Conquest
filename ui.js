@@ -2220,14 +2220,16 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   }
 
   button.addEventListener("click", function() {
-    drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, buttonState);
-    if (!transferAttackWindowOnScreen) {
-      toggleTransferAttackWindow(true);
-      toggleUIButton(false);
-      toggleBottomLeftPaneWithTurnAdvance(false);
-      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-    }
-    });
+    if (!button.disabled) {
+      if (!transferAttackWindowOnScreen) {
+        toggleTransferAttackWindow(true);
+        drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, buttonState);
+        toggleUIButton(false);
+        toggleBottomLeftPaneWithTurnAdvance(false);
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+      }
+    } 
+  });
 
   button.addEventListener("mouseover", (e) => {
     const x = e.clientX;
