@@ -28,7 +28,7 @@ export let playerCountry;
 export let playerColour;
 export let flag;
 
-let currentMapColorArray = []; //current state of map at start of new turn
+let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
 const continentColorArray = [["Africa", [233, 234, 20]], 
                             ["Asia", [203, 58, 22]],
                             ["Europe", [186, 218, 85]],
@@ -165,7 +165,7 @@ export function svgMapLoaded() {
 
   svgMap.addEventListener("click", function(e) {
     if (e.target.tagName === "rect" && currentTurnPhase >= 1) { // if user clicks on sea then clear selection colors
-      restoreMapColorState(currentMapColorArray);
+      restoreMapColorState(currentMapColorAndStrokeArray, false);
     }
     if (e.target.tagName === "path") {
       currentPath = e.target;
@@ -270,7 +270,7 @@ function selectCountry(country, escKeyEntry) {
       svgMap.documentElement.appendChild(country);
     }
     
-    setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked
+/*     setStrokeWidth(country, "3"); // highlights non interactable countries with a stroke when clicked */
     
     if (selectCountryPlayerState && !escKeyEntry) {
       for (let i = 0; i < paths.length; i++) {
@@ -677,7 +677,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("player-color-picker").addEventListener('change', function() {
     playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
-    restoreMapColorState(currentMapColorArray);
+    restoreMapColorState(currentMapColorAndStrokeArray, false);
     document.getElementById("popup-color").style.color = playerColour;
     if (selectCountryPlayerState) {
       for (let i = 0; i < paths.length; i++) {
@@ -691,7 +691,7 @@ document.addEventListener("DOMContentLoaded", function() {
           path.setAttribute("fill", playerColour);
         }
       });
-      currentMapColorArray = saveMapColorState(false);
+      currentMapColorAndStrokeArray = saveMapColorState(false);
     }
   });
   
@@ -700,7 +700,6 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.addEventListener("click", function() {
     playSoundClip();
     if (selectCountryPlayerState) {
-      restoreMapColorState(currentMapColorArray);
       setAllGreyedOutAttributesToFalseOnGameStart();
       selectCountryPlayerState = false;
       countrySelectedAndGameStarted = true;
@@ -712,26 +711,28 @@ document.addEventListener("DOMContentLoaded", function() {
       setFlag(flag, 3); //set playerflag in ui info panel
       uiButtonCurrentlyOnScreen = true;
       toggleUIButton(true);
+      restoreMapColorState(currentMapColorAndStrokeArray, true);
       initialiseGame();
       document.getElementById("top-table-container").style.display = "block";
       popupTitle.innerText = "Buy / Upgrade Phase";
       popupSubTitle.innerText = "";
       popupConfirm.innerText = "MOVE / ATTACK";
       turnPhase++;
+      currentMapColorAndStrokeArray = saveMapColorState(false);
     } else if (countrySelectedAndGameStarted && turnPhase == 0) {
-      currentMapColorArray = saveMapColorState(false); //grab state of map colors at start of turn.
+      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
       popupTitle.innerText = "Buy / Upgrade Phase";
       popupConfirm.innerText = "MOVE / ATTACK";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 1) {
-      currentMapColorArray = saveMapColorState(false); //grab state of map colors at start of turn.
+      currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
       popupTitle.innerText = "Move / Attack Phase";
       popupConfirm.innerText = "END TURN";
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-      restoreMapColorState(currentMapColorArray); //Add to this feature once attack implemented and territories can change color
+      restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
       popupTitle.innerText = "AI turn";
       popupConfirm.innerText = "AI Moving...";
       modifyCurrentTurnPhase(turnPhase);
@@ -1813,37 +1814,51 @@ export function toggleBuyMenu(makeVisible, territory) {
   }
 
   export function saveMapColorState(onResourcePage) {
-    const fillArray = [];
-
+    const stateArray = [];
+  
     for (let i = 0; i < paths.length; i++) {
       const uniqueId = paths[i].getAttribute('uniqueid');
       const fillValue = paths[i].getAttribute('fill');
-      if (uniqueId && fillValue) {
-        fillArray.push([uniqueId, fillValue]);
+      const strokeWidthValue = paths[i].getAttribute('stroke-width');
+  
+      if (uniqueId && fillValue && strokeWidthValue) {
+        stateArray.push([uniqueId, fillValue, strokeWidthValue]);
       }
     }
-
+  
     if (onResourcePage) {
-      currentMapColorArray = fillArray;
+      currentMapColorAndStrokeArray = stateArray;
     } else {
-       return fillArray;
+      return stateArray;
     }
-}
-
-function restoreMapColorState(array) {
-  if (validDestinationsArray !== undefined) {
-    validDestinationsArray.length = 0;
   }
   
-  currentlySelectedColorsArray.length = 0;
-  paths.forEach(path => { //for each path, loop through the currentMapArray and find the match and set the color back
-    for (let i = 0; i < array.length; i++) {
-      if (array[i][0] == path.getAttribute("uniqueid")) {
-        path.setAttribute("fill", array[i][1]);
-      }
+
+  function restoreMapColorState(array, countrySelectionState) {
+    if (validDestinationsArray !== undefined) {
+      validDestinationsArray.length = 0;
     }
-  }); 
-}
+  
+    currentlySelectedColorsArray.length = 0;
+  
+    paths.forEach(path => {
+      for (let i = 0; i < array.length; i++) {
+        if (array[i][0] == path.getAttribute("uniqueid")) {
+          if (countrySelectionState) {
+            if (path.getAttribute("data-name") !== currentSelectedPath.getAttribute("data-name")) {
+              path.setAttribute("fill", array[i][1]);
+              path.setAttribute("stroke-width", array[i][2]);
+            }
+          } else {
+            path.setAttribute("fill", array[i][1]);
+            path.setAttribute("stroke-width", array[i][2]);
+          }
+          break;
+        }
+      }
+    });
+  }
+  
 
 function fillPathBasedOnContinent(path) {
   const continentAttribute = path.getAttribute("continent");
