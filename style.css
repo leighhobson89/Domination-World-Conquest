@@ -1325,6 +1325,27 @@ td {
   padding-left: 5px;
 }
 
+/*-------------------------------------------- TRANSFER / ATTACK WINDOW -------------------------------------- */
+
+#transfer-attack-window-container {
+  display: none;
+  position: fixed;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 55vh;
+  background-color: rgba(81, 121, 153, 0.9);
+  border: 3px solid rgb(84, 99, 110);
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
 
 
 
