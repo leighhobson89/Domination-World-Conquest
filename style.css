@@ -299,7 +299,7 @@ td {
   font-weight: normal;
   text-align: center;
   flex-basis: 17%;
-  margin-left: 200px;
+  margin-left: 270px;
 }
 
 .move-phase-button-green-background {
@@ -323,6 +323,16 @@ td {
 .move-phase-button-red-background:hover {
   cursor: pointer;
   background-color: rgb(165, 0, 0);
+  transition: all 0.3s ease;
+}
+
+.move-phase-button-blue-background {
+  background-color: rgb(84, 123, 155);
+}
+
+.move-phase-button-blue-background:hover {
+  cursor: pointer;
+  background-color: rgb(54, 93, 125);
   transition: all 0.3s ease;
 }
 
