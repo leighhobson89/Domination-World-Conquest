@@ -44,6 +44,7 @@ const countryGreyOutThreshold = 30;
 //path selection variables
 let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
+export let lastClickedPathExternal;
 let currentPath; // used for hover, and tooltip before user clicks on a country
 export let currentSelectedPath;
 let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
@@ -62,6 +63,7 @@ let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
+let transferAttackbuttonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
@@ -189,7 +191,6 @@ export function svgMapLoaded() {
               let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
               let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
               if (e.target.getAttribute("owner") === "Player") {
-                lastPlayerOwnedValidDestinationsArray
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
                 lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
               }
@@ -341,6 +342,7 @@ function selectCountry(country, escKeyEntry) {
         }
       }
     }
+    lastClickedPathExternal = lastClickedPath;
     lastClickedPath = country; // Update the previously clicked path
     
     if (selectCountryPlayerState && !escKeyEntry) {
@@ -1619,6 +1621,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoord
   for (let i = 0; i < paths.length; i++) {
     if (paths[i].getAttribute("fill").startsWith("url")) {
       validDestinationsArray.push(paths[i]);
+      paths[i].setAttribute("attackableTerritory", "true");
     }
   }
 
@@ -2182,14 +2185,13 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories) {
   let button = document.getElementById("move-phase-button");
-  let buttonState;
   button.style.display = "none";
+  transferAttackButtonDisplayed = false;
 
   //if clicked territory is not owned by the player and is not a valid destination then return
   //if not a player owned territory and the lastPlayerOwned array does not contain the path
   if (path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
-    button.style.display = "none";
-    transferAttackButtonDisplayed = false;
+    return;
   } else if (path.getAttribute("owner") === "Player") {
     // if clicks on a player-owned territory then show button in transfer state
     button.innerHTML = "TRANSFER";
@@ -2203,11 +2205,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       button.classList.remove("move-phase-button-grey-background");
       button.classList.add("move-phase-button-green-background");
       button.disabled = false;
-      buttonState = 0; //transfer
+      transferAttackbuttonState = 0; //transfer
     }
     button.style.display = "flex";
     transferAttackButtonDisplayed = true;
-  } else if (path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+  } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
     // if clicks on an enemy territory that is within reach then show attack state
     button.innerHTML = "ATTACK";
     button.classList.remove("move-phase-button-green-background");
@@ -2216,17 +2218,53 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     button.style.display = "flex";
     transferAttackButtonDisplayed = true;
     button.disabled = false;
-    buttonState = 1; //attack
+    transferAttackbuttonState = 1; //attack
   }
 
   button.addEventListener("click", function() {
     if (!button.disabled) {
       if (!transferAttackWindowOnScreen) {
         toggleTransferAttackWindow(true);
-        drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, buttonState);
         toggleUIButton(false);
         toggleBottomLeftPaneWithTurnAdvance(false);
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+        if ((transferAttackbuttonState === 0) || (transferAttackbuttonState === 1)) {
+          button.classList.remove("move-phase-button-green-background");
+          button.classList.remove("move-phase-button-red-background");
+          button.classList.add("move-phase-button-blue-background");
+          button.innerHTML = "CANCEL";
+          button.setAttribute("data-executed", "true");
+          drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, transferAttackbuttonState);
+          if (transferAttackbuttonState === 1) {
+              for (let i = 0; i < paths.length; i++) {
+              console.log(paths[i].getAttribute("territory-name") + "," + paths[i].getAttribute("attackableTerritory"));
+              paths[i].setAttribute("attackableTerritory", "false"); 
+            }
+          }
+        }
+      } else if (transferAttackWindowOnScreen) {
+        if (transferAttackbuttonState === 0) {
+          button.classList.remove("move-phase-button-blue-background");
+          button.classList.add("move-phase-button-green-background");
+          button.innerHTML = "TRANSFER";
+          toggleTransferAttackWindow(false);
+          transferAttackWindowOnScreen = false;
+          toggleUIButton(true);
+          toggleBottomLeftPaneWithTurnAdvance(true);
+        } else if (transferAttackbuttonState === 1) {
+          if (!button.hasAttribute("data-executed")) {
+            button.classList.remove("move-phase-button-blue-background");
+            button.classList.add("move-phase-button-red-background");
+            button.innerHTML = "ATTACK";
+            toggleTransferAttackWindow(false);
+            transferAttackWindowOnScreen = false;
+            toggleUIButton(true);
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            button.setAttribute("data-executed", "true");
+          }
+          button.removeAttribute("data-executed");
+          return; // Stop further execution
+        }
       }
     } 
   });
@@ -2249,6 +2287,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       tooltip.innerHTML = "Click to transfer military to one of your other territories...";
     } else if (!button.disabled && validDestinationsArray.length > 0 && button.innerHTML === "ATTACK") {
       tooltip.innerHTML = "Click to send military to attack selected territory from the last selected territory...";
+    } else if (!button.disabled && button.innerHTML === "CANCEL") {
+      tooltip.innerHTML = "Click to cancel with no changes and close transfer/attack window...";
     }
 
     tooltip.style.display = "block";
