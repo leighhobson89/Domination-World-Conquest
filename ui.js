@@ -1303,6 +1303,14 @@ document.addEventListener("DOMContentLoaded", function() {
   titleTransferAttackWindow.classList.add("title-transfer-attack-window");
   titleTransferAttackWindow.setAttribute("id", "title-transfer-attack-window");
 
+  const titleTransferAttackRow1 = document.createElement("div");
+  titleTransferAttackRow1.classList.add("title-transfer-window-title-row");
+  titleTransferAttackRow1.setAttribute("id", "title-transfer-window-title-row");
+
+  const titleTransferAttackRow2 = document.createElement("div");
+  titleTransferAttackRow2.classList.add("title-transfer-window-title-row");
+  titleTransferAttackRow2.setAttribute("id", "title-transfer-window-title-row");
+
   const attackOrTransferString = document.createElement("div");
   attackOrTransferString.classList.add("attackOrTransferHeading");
   attackOrTransferString.setAttribute("id", "attackOrTransferString");
@@ -1323,13 +1331,16 @@ document.addEventListener("DOMContentLoaded", function() {
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
   contentTransferAttackWindow.setAttribute("id", "content-transfer-attack-window");
 
+  titleTransferAttackRow1.appendChild(attackOrTransferString);
+  titleTransferAttackRow1.appendChild(territoryTextString);
+  titleTransferAttackRow2.appendChild(fromHeadingString);
+  titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
+
+  titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
+  titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
+
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
-
-  titleTransferAttackWindow.appendChild(attackOrTransferString);
-  titleTransferAttackWindow.appendChild(fromHeadingString);
-  titleTransferAttackWindow.appendChild(territoryTextString);
-  titleTransferAttackWindow.appendChild(attackingFromTerritoryTextString);
 
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 

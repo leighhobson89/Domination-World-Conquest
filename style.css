@@ -1391,14 +1391,37 @@ td {
 
 .title-transfer-attack-window {
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  align-items: center;
+  padding: 10px;
   background-color: rgba(54, 93, 125, 0.8);
   font-size: 1.2rem;
   text-align: center;
   height: auto;
 }
+
+.title-transfer-window-title-row {
+  display: flex;
+}
+
+.attackOrTransferHeading,
+.fromHeading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.territory-text,
+.attackingFromTerritoryTextString {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
 
 
 
