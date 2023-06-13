@@ -1396,29 +1396,52 @@ td {
   align-items: center;
   padding: 10px;
   background-color: rgba(54, 93, 125, 0.8);
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   text-align: center;
   height: auto;
 }
 
 .title-transfer-window-title-row {
   display: flex;
+  width: 100%;
 }
 
-.attackOrTransferHeading,
+.title-transfer-window-title-row:last-child {
+  height: 30px;
+}
+
+.attackOrTransferHeading {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  text-align: left;
+  width: 1%;
+}
+
 .fromHeading {
+  white-space: nowrap;
+  display: flex;
+  align-items: flex-end;
+  justify-content: left;
+  text-align: left;
+  width: 1%;
+}
+
+.territoryText {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
 }
 
-.territory-text,
 .attackingFromTerritoryTextString {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  text-align: center;
 }
 
 
