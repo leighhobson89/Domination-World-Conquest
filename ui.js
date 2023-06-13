@@ -2353,6 +2353,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           toggleBottomLeftPaneWithTurnAdvance(false);
     
           toggleTransferAttackWindow(true);
+          svg.style.pointerEvents = 'none';
           setTransferAttackWindowTitleText(
             territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null
               ? territoryAboutToBeAttacked.getAttribute("territory-name")
@@ -2389,6 +2390,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             button.innerHTML = "TRANSFER";
             toggleTransferAttackWindow(false);
             transferAttackWindowOnScreen = false;
+            svg.style.pointerEvents = 'auto';
             toggleUIButton(true);
             toggleBottomLeftPaneWithTurnAdvance(true);
             setTimeout(function() {
@@ -2401,6 +2403,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             button.innerHTML = "ATTACK";
             toggleTransferAttackWindow(false);
             transferAttackWindowOnScreen = false;
+            svg.style.pointerEvents = 'auto';
             toggleUIButton(true);
             toggleBottomLeftPaneWithTurnAdvance(true);
             setTimeout(function() {
