@@ -349,7 +349,6 @@ export function newTurnResources() {
                 setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, mainArrayOfTerritoriesAndResources[i]);
             }
         }
-        console.log(turnGainsArray);
         turnGainsArrayLastTurn = turnGainsArray;
         turnGainsArray = {
             changeConsMats: 0,
@@ -2505,11 +2504,11 @@ function calculateAvailableUpgrades(territory) {
         totalSimulatedPurchaseGoldPrice = simulatedCostsAllMilitary[0] + simulatedCostsAllMilitary[2] + simulatedCostsAllMilitary[4] + simulatedCostsAllMilitary[6];
         totalSimulatedProdPopPrice = simulatedCostsAllMilitary[1] + simulatedCostsAllMilitary[3] + simulatedCostsAllMilitary[5] + simulatedCostsAllMilitary[7];
 
-        console.log(simulatedCostsAllMilitary);
+/*         console.log(simulatedCostsAllMilitary);
         console.log("Total Gold Price:", totalPurchaseGoldPrice);
         console.log("Total Population Cost:", totalPopulationCost);
         console.log("Total SimGold Price:", totalSimulatedPurchaseGoldPrice);
-        console.log("Total SimProdPop:", totalSimulatedProdPopPrice);
+        console.log("Total SimProdPop:", totalSimulatedProdPopPrice); */
 
         //code to check greying out here
         checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "plus");
@@ -3672,8 +3671,8 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     let descendingGoldArray = [];
 
     if (territory.goldForCurrentTerritory < goldCost) {
-        console.log("Territory needs to borrow money");
-        console.log("Here's the descending list of gold in the player owned territories:");
+/*         console.log("Territory needs to borrow money");
+        console.log("Here's the descending list of gold in the player owned territories:"); */
 
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             for (let j = 0; j < playerOwnedTerritories.length; j++) {
@@ -3684,11 +3683,11 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         }
 
         descendingGoldArray.sort((a, b) => b[0] - a[0]);
-        console.log(descendingGoldArray);
+/*         console.log(descendingGoldArray);
   
-        console.log("Here is the shortfall:")
+        console.log("Here is the shortfall:") */
         let remainingGold = goldCost - territory.goldForCurrentTerritory;
-        console.log(remainingGold);
+/*         console.log(remainingGold); */
   
         for (const [goldAmount, uniqueId] of descendingGoldArray) {
             const transferAmount = Math.min(
@@ -3699,24 +3698,24 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
           
             for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
               if (mainArrayOfTerritoriesAndResources[i].uniqueId === uniqueId) {
-                console.log(transferAmount + "was taken from " + mainArrayOfTerritoriesAndResources[i].territoryName);
+                /* console.log(transferAmount + "was taken from " + mainArrayOfTerritoriesAndResources[i].territoryName); */
                 mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory -= transferAmount;
-                console.log("and added to " + territory.territoryName);
+                /* console.log("and added to " + territory.territoryName); */
                 territory.goldForCurrentTerritory += transferAmount;
               }
             }
           
             // Update the remaining gold to be transferred
             remainingGold = goldCost - territory.goldForCurrentTerritory;
-            console.log("now there is a shortfall of " + remainingGold + " gold.");
+            /* console.log("now there is a shortfall of " + remainingGold + " gold."); */
           
             if (remainingGold <= 0) {
-                console.log("balancing complete, exiting function.");
+                /* console.log("balancing complete, exiting function."); */
               break;
             }
           }          
     } else {
-        console.log("Territory does not need to borrow money");
+        /* console.log("Territory does not need to borrow money"); */
     }
     
         // Update the territory's goldForCurrentTerritory variable

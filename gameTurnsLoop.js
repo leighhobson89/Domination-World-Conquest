@@ -35,7 +35,6 @@ function gameLoop() {
     }
     newTurnResources();
     calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
-    console.log(countryStrengthsArray);
     if (uiAppearsAtStartOfTurn && currentTurn !== 1) {
       toggleUIMenu(true);
       drawUITable(document.getElementById("uiTable"), 0);
