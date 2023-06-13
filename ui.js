@@ -16,7 +16,7 @@ let turnPhase = currentTurnPhase;
 
 export let dataTableCountriesInitialState = [];
 export let pageLoaded = false;
-let codeEx = false;
+let eventHandlerExecuted = false;
 
 export let svg = [];
 export let svgMap = [];
@@ -109,72 +109,77 @@ export function svgMapLoaded() {
   svg.focus();
 
   svgMap.addEventListener("mouseover", function(e) {
-    // Get the element that was hovered over
-    const path = e.target;
+      // Get the element that was hovered over
+      const path = e.target;
 
-    if (path.tagName === "image") {
-      setTimeout(function() {
-        path.style.cursor = "default";
-      }, 50);
-    }
+      if (path.tagName === "image") {
+        setTimeout(function() {
+          path.style.cursor = "default";
+        }, 50);
+      }
 
-    currentPath = path; // Set the current path element
+      currentPath = path; // Set the current path element
 
-    // Call the hoverColorChange function
-    if (path.getAttribute("greyedOut") === "false") {
-      hoverOverTerritory(path, "mouseOver");
-    }
+      // Call the hoverColorChange function
+      if (path.getAttribute("greyedOut") === "false") {
+        hoverOverTerritory(path, "mouseOver");
+      }
 
-    // Get the name of the country from the "data-name" attribute
-    const countryName = path.getAttribute("owner");
+      // Get the name of the country from the "data-name" attribute
+      const countryName = path.getAttribute("owner");
 
-  // Add an event listener for mousemove on the path element
-  path.addEventListener("mousemove", function(e) {
-    const x = e.clientX;
-    const y = e.clientY;
+      // Add an event listener for mousemove on the path element
+      path.addEventListener("mousemove", function(e) {
+        const x = e.clientX;
+        const y = e.clientY;
 
-    // Set the content of the tooltip
-    tooltip.innerHTML = countryName;
+        // Set the content of the tooltip
+        tooltip.innerHTML = countryName;
 
-    // Check if the mouse pointer is less than 300px from the bottom of the screen
-  if (window.innerHeight - y < 100) {
-    // Move the tooltip up by 300px
-    tooltip.style.left = x - 40 + "px";
-    tooltip.style.top = y - 30 + "px";
-  } else {
-    // Position the tooltip next to the mouse cursor without moving it vertically
-    tooltip.style.left = x - 40 + "px";
-    tooltip.style.top = 25 + y + "px";
-  }
+        // Check if the mouse pointer is less than 300px from the bottom of the screen
+        if (window.innerHeight - y < 100) {
+          // Move the tooltip up by 300px
+          tooltip.style.left = x - 40 + "px";
+          tooltip.style.top = y - 30 + "px";
+        } else {
+          // Position the tooltip next to the mouse cursor without moving it vertically
+          tooltip.style.left = x - 40 + "px";
+          tooltip.style.top = 25 + y + "px";
+        }
 
-    // Show the tooltip
-    tooltip.style.display = "block";
+        // Show the tooltip
+        tooltip.style.display = "block";
+      });
+
+      // Add an event listener for mouseout on the path element
+      path.addEventListener("mouseout", function() {
+        // Hide the tooltip when the mouse leaves the path
+        tooltip.style.display = "none";
+      });
+
+      path.style.cursor = "pointer";
   });
-
-  // Add an event listener for mouseout on the path element
-  path.addEventListener("mouseout", function() {
-    // Hide the tooltip when the mouse leaves the path
-    tooltip.style.display = "none";
-  });
-
-  path.style.cursor = "pointer";
-
-
-    });
 
   // Add a mouseout event listener to the SVG element
   svgMap.addEventListener("mouseout", function(e) {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
-    if (currentPath.getAttribute("greyedOut") === "false") {
-      hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
+    if (currentPath) {
+      if (currentPath.getAttribute("greyedOut") === "false") {
+        hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
+      }
     }
     clickActionsDone = false;
   });
 
   svgMap.addEventListener("click", function(e) {
-    if (e.target.tagName === "rect" && currentTurnPhase >= 1) { // if user clicks on sea then clear selection colors
+    if (e.target.tagName === "rect" && currentTurnPhase === 1) {
       restoreMapColorState(currentMapColorAndStrokeArray, false);
+      toggleTransferAttackButton(false);
+      removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+      transferAttackButtonDisplayed = false;
+      attackTextCurrentlyDisplayed = false;
+      //remove army image
     }
     if (e.target.tagName === "path") {
       currentPath = e.target;
@@ -293,7 +298,7 @@ function selectCountry(country, escKeyEntry) {
         if (paths[i].getAttribute("owner") === "Player") {
           paths[i].setAttribute('fill', playerColour);
           if (territoryAboutToBeAttacked) {
-            removeImageFromPath(territoryAboutToBeAttacked);
+            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
             document.getElementById("attack-destination-container").style.display = "none";
             attackTextCurrentlyDisplayed = false;
             territoryAboutToBeAttacked.style.stroke = "rgb(0,0,0)";
@@ -1298,6 +1303,22 @@ document.addEventListener("DOMContentLoaded", function() {
   titleTransferAttackWindow.classList.add("title-transfer-attack-window");
   titleTransferAttackWindow.setAttribute("id", "title-transfer-attack-window");
 
+  const attackOrTransferString = document.createElement("div");
+  attackOrTransferString.classList.add("attackOrTransferHeading");
+  attackOrTransferString.setAttribute("id", "attackOrTransferString");
+
+  const fromHeadingString = document.createElement("div");
+  fromHeadingString.classList.add("fromHeading");
+  fromHeadingString.setAttribute("id", "fromHeadingString");
+
+  const territoryTextString = document.createElement("div");
+  territoryTextString.classList.add("territory-text");
+  territoryTextString.setAttribute("id", "territoryTextString");
+
+  const attackingFromTerritoryTextString = document.createElement("div");
+  attackingFromTerritoryTextString.classList.add("attackingFromTerritoryTextString");
+  attackingFromTerritoryTextString.setAttribute("id", "attackingFromTerritoryTextString");
+
   const contentTransferAttackWindow = document.createElement("div");
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
   contentTransferAttackWindow.setAttribute("id", "content-transfer-attack-window");
@@ -1305,6 +1326,10 @@ document.addEventListener("DOMContentLoaded", function() {
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
 
+  document.getElementById("transfer-attack-window-container").appendChild(attackOrTransferString);
+  document.getElementById("transfer-attack-window-container").appendChild(fromHeadingString);
+  document.getElementById("transfer-attack-window-container").appendChild(territoryTextString);
+  document.getElementById("transfer-attack-window-container").appendChild(attackingFromTerritoryTextString);
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   pageLoaded = true;
@@ -1414,7 +1439,7 @@ document.addEventListener("keydown", function(event) {
     if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
       selectCountry(lastClickedPath, true);
       if (territoryAboutToBeAttacked) {
-        removeImageFromPath(territoryAboutToBeAttacked);
+        removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
         addImageToPath(territoryAboutToBeAttacked, "/resources/army.png");
       }
     }
@@ -2297,65 +2322,81 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     setTerritoryForAttack(path);
   }
 
-  button.addEventListener("click", function() {
-    if (!button.disabled && !codeEx) {
-      if (!transferAttackWindowOnScreen) {
-        toggleUIButton(false);
-        toggleBottomLeftPaneWithTurnAdvance(false);
-  
-        toggleTransferAttackWindow(true);
-        setTransferAttackWindowTitleText(
-          territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null
-            ? territoryAboutToBeAttacked.getAttribute("territory-name")
-            : "transferring",
-          territoryAboutToBeAttacked ? territoryAboutToBeAttacked.getAttribute("data-name") : null,
-          territoryComingFrom,
-          transferAttackbuttonState
-        );
-  
-        button.classList.remove("move-phase-button-green-background");
-        button.classList.remove("move-phase-button-red-background");
-        button.classList.add("move-phase-button-blue-background");
-        button.innerHTML = "CANCEL";
-        drawTransferAttackTable(
-          document.getElementById("transfer-attack-window-container"),
-          validDestinationsArray,
-          mainArrayOfTerritoriesAndResources,
-          playerOwnedTerritories,
-          transferAttackbuttonState
-        );
-        if (transferAttackbuttonState === 1) {
-          for (let i = 0; i < paths.length; i++) {
-            paths[i].setAttribute("attackableTerritory", "false");
+  button.removeEventListener("click", transferAttackClickHandler); // Remove the existing event listener if any
+
+  button.addEventListener("click", transferAttackClickHandler);
+
+  function transferAttackClickHandler() {
+    if (!eventHandlerExecuted) {
+      eventHandlerExecuted = true;
+      if (!button.disabled) {
+        if (!transferAttackWindowOnScreen) {
+          toggleUIButton(false);
+          toggleBottomLeftPaneWithTurnAdvance(false);
+    
+          toggleTransferAttackWindow(true);
+          setTransferAttackWindowTitleText(
+            territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null
+              ? territoryAboutToBeAttacked.getAttribute("territory-name")
+              : "transferring",
+            territoryAboutToBeAttacked ? territoryAboutToBeAttacked.getAttribute("data-name") : null,
+            territoryComingFrom.getAttribute("territory-name"),
+            transferAttackbuttonState
+          );
+    
+          button.classList.remove("move-phase-button-green-background");
+          button.classList.remove("move-phase-button-red-background");
+          button.classList.add("move-phase-button-blue-background");
+          button.innerHTML = "CANCEL";
+          drawTransferAttackTable(
+            document.getElementById("transfer-attack-window-container"),
+            validDestinationsArray,
+            mainArrayOfTerritoriesAndResources,
+            playerOwnedTerritories,
+            transferAttackbuttonState
+          );
+          if (transferAttackbuttonState === 1) {
+            for (let i = 0; i < paths.length; i++) {
+              paths[i].setAttribute("attackableTerritory", "false");
+            }
           }
-          codeEx = true;
+          setTimeout(function() {
+            eventHandlerExecuted = false; // Reset the flag after a delay
+          }, 200);
+          return;
+        } else if (transferAttackWindowOnScreen) {
+          if (transferAttackbuttonState === 0) {
+            button.classList.remove("move-phase-button-blue-background");
+            button.classList.add("move-phase-button-green-background");
+            button.innerHTML = "TRANSFER";
+            toggleTransferAttackWindow(false);
+            transferAttackWindowOnScreen = false;
+            toggleUIButton(true);
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            setTimeout(function() {
+              eventHandlerExecuted = false; // Reset the flag after a delay
+            }, 200);
+            return;
+          } else if (transferAttackbuttonState === 1) {
+            button.classList.remove("move-phase-button-blue-background");
+            button.classList.add("move-phase-button-red-background");
+            button.innerHTML = "ATTACK";
+            toggleTransferAttackWindow(false);
+            transferAttackWindowOnScreen = false;
+            toggleUIButton(true);
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            setTimeout(function() {
+              eventHandlerExecuted = false; // Reset the flag after a delay
+            }, 200);
+            return;
+          }
         }
-        return;
-      } else if (transferAttackWindowOnScreen && !codeEx) {
-        if (transferAttackbuttonState === 0) {
-          button.classList.remove("move-phase-button-blue-background");
-          button.classList.add("move-phase-button-green-background");
-          button.innerHTML = "TRANSFER";
-          toggleTransferAttackWindow(false);
-          transferAttackWindowOnScreen = false;
-          toggleUIButton(true);
-          toggleBottomLeftPaneWithTurnAdvance(true);
-        } else if (transferAttackbuttonState === 1) {
-          button.classList.remove("move-phase-button-blue-background");
-          button.classList.add("move-phase-button-red-background");
-          button.innerHTML = "ATTACK";
-          toggleTransferAttackWindow(false);
-          transferAttackWindowOnScreen = false;
-          toggleUIButton(true);
-          toggleBottomLeftPaneWithTurnAdvance(true);
-          codeEx = true;
-        }
-        
-        return;
       }
+      setTimeout(function() {
+        eventHandlerExecuted = false; // Reset the flag after a delay
+      }, 200);
     }
-    codeEx = false;
-  });  
+  } 
 
   button.addEventListener("mouseover", (e) => {
     const x = e.clientX;
@@ -2363,7 +2404,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 
     if (window.innerHeight - y < 100) {
       tooltip.style.left = x - 40 + "px";
-      tooltip.style.top = y - 300 + "px";
+      tooltip.style.top = y - 50 + "px";
     } else {
       tooltip.style.left = x - 40 + "px";
       tooltip.style.top = 25 + y + "px";
@@ -2429,29 +2470,41 @@ function addImageToPath(pathElement, imagePath) {
 }
 
 
-function removeImageFromPath(pathToRemoveImage) {
-  const imageElement = pathToRemoveImage.parentNode.getElementById("armyImage");
+function removeImageFromPathAndRestoreNormalStroke(path) {
+  const imageElement = path.parentNode.getElementById("armyImage");
 
   if (imageElement) {
     imageElement.parentNode.removeChild(imageElement);
   }
+  path.style.strokeDasharray = "none";
+  path.style.stroke = "rgb(0,0,0)";
+  path.setAttribute("stroke-width", "1");
 }
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState) {
   let attackingOrTransferring = "";
-  let string = "error"; //if not set for any reason
+  let string = "error"; // if not set for any reason
   if (buttonState === 0) {
-    attackingOrTransferring = "Transferring to ";
+    attackingOrTransferring = "Transferring to:";
   } else if (buttonState === 1) {
-    attackingOrTransferring = "Attacking ";
+    attackingOrTransferring = "Attacking:";
   }
 
-  if (territory === "transferring") { //transferring
-    string = attackingOrTransferring + "(please select an option...)" + "<br />" + "From" + territoryComingFrom.getAttribute("territory-name");
-  } else {
-    string = attackingOrTransferring + territory + (buttonState === 1 ? " (" + country + ")" : "") + "<br />" + "From" + territoryComingFrom.getAttribute("territory-name");
+  const transferToAttackHeading = document.getElementById("attackOrTransferString");
+  const fromHeading = document.getElementById("fromHeadingString");
+  const territoryTextString = document.getElementById("territoryTextString");
+  const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
+  const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
+
+  titleTransferAttackWindow.innerHTML = "";
+
+  transferToAttackHeading.innerHTML = attackingOrTransferring;
+  fromHeading.innerHTML = "From: "; 
+  territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
+
+  if (buttonState === 1) {
+    attackingFromTerritory.innerHTML = territoryComingFrom;
   }
-  document.getElementById("title-transfer-attack-window").innerHTML = string;
+
   console.log(string);
-
 }
