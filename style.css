@@ -1397,6 +1397,7 @@ td {
   background-color: rgba(54, 93, 125, 0.8);
   font-size: 1.2rem;
   text-align: center;
+  height: auto;
 }
 
 
