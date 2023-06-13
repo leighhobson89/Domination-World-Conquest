@@ -202,7 +202,7 @@ export function svgMapLoaded() {
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
                 lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
               }
-              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPathExternal);
+              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -549,6 +549,9 @@ document.addEventListener("DOMContentLoaded", function() {
       modifyCurrentTurnPhase(turnPhase);
       turnPhase++;
     } else if (countrySelectedAndGameStarted && turnPhase == 2) {
+      removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+      toggleTransferAttackButton(false);
+      transferAttackButtonDisplayed = false;
       restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
       popupTitle.innerText = "AI turn";
       popupConfirm.innerText = "AI Moving...";
@@ -2339,6 +2342,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   button.addEventListener("click", transferAttackClickHandler);
 
   function transferAttackClickHandler() {
+    if (transferAttackbuttonState == 0) {
+      territoryComingFrom = lastClickedPath;
+    }
     if (!eventHandlerExecuted) {
       eventHandlerExecuted = true;
       if (!button.disabled) {
