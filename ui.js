@@ -69,6 +69,7 @@ export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
 export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
+export let attackTextCurrentlyDisplayed = false;
 export let territoryAboutToBeAttacked = null;
 
 //This determines how the map will be colored for different game modes
@@ -292,6 +293,8 @@ function selectCountry(country, escKeyEntry) {
           paths[i].setAttribute('fill', playerColour);
           if (territoryAboutToBeAttacked) {
             removeImageFromPath(territoryAboutToBeAttacked);
+            document.getElementById("attack-destination-container").style.display = "none";
+            attackTextCurrentlyDisplayed = false;
             territoryAboutToBeAttacked.style.stroke = "rgb(0,0,0)";
             territoryAboutToBeAttacked.setAttribute("stroke-width", "1px");
             territoryAboutToBeAttacked.style.strokeDasharray = "none";
@@ -1252,17 +1255,39 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("buy-container").appendChild(buyContainer);
 
   // MOVE PHASE BUTTON
+  const attackDestinationTextContainer = document.createElement("div");
+  attackDestinationTextContainer.classList.add("attack-destination-container");
+  attackDestinationTextContainer.setAttribute("id","attack-destination-container");
+  
+  const leftImage = document.createElement("img");
+  leftImage.classList.add("left-attack-image");
+  leftImage.classList.add("sizingIcons");
+  leftImage.setAttribute("id", "leftBattleImage");
+  
+  const centeredText = document.createElement("div");
+  centeredText.setAttribute("id", "attack-destination-text");
+  centeredText.classList.add("attack-destination-text");
+  
+  const rightImage = document.createElement("img");
+  rightImage.classList.add("right-attack-image");
+  rightImage.classList.add("sizingIcons");
+  rightImage.setAttribute("id", "rightBattleImage");
+  
   const transferAttackButtonContainer = document.createElement("div");
   transferAttackButtonContainer.classList.add("move-phase-buttons-container");
-
-  const transferAttackButton = document.createElement("div");
+  
+  const transferAttackButton = document.createElement("button");
   transferAttackButton.classList.add("move-phase-button");
   transferAttackButton.setAttribute("id","move-phase-button");
   transferAttackButton.innerHTML = "TRANSFER";
-
+  
+  attackDestinationTextContainer.appendChild(leftImage);
+  attackDestinationTextContainer.appendChild(centeredText);
+  attackDestinationTextContainer.appendChild(rightImage);
   transferAttackButtonContainer.appendChild(transferAttackButton);
-
-  document.getElementById("move-phase-buttons-container").appendChild(transferAttackButtonContainer);
+  
+  document.getElementById("attack-destination-containers").appendChild(attackDestinationTextContainer);
+  document.getElementById("move-phase-buttons-container").appendChild(transferAttackButtonContainer); 
 
   // TRANSFER / ATTACK WINDOW
   const transferAttackWindowContainer = document.createElement("div");
@@ -1303,10 +1328,15 @@ function toggleTopTableContainer(turnOnTable) {
 
 function toggleTransferAttackButton(turnOnButton) {
   let transferAttackButton = document.getElementById("move-phase-button");
+  let attackText = document.getElementById("attack-destination-container");
   if (turnOnButton) {
     transferAttackButton.style.display = "flex";
+    if (attackTextCurrentlyDisplayed) {
+      attackText.style.display = "flex";
+    }
   } else if (!turnOnButton) {
     transferAttackButton.style.display = "none";
+    attackText.style.display = "none";
   }
 }
 
@@ -1327,17 +1357,36 @@ document.addEventListener("keydown", function(event) {
     toggleTransferAttackButton(false);
     toggleTransferAttackWindow(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
+    if (uiCurrentlyOnScreen) {
+      document.getElementById("main-ui-container").style.display = "flex";
+      uiButtonCurrentlyOnScreen = false;
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    } else {
+      if (countrySelectedAndGameStarted) {
+        uiButtonCurrentlyOnScreen = true;
+      }
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+    }
+    if (transferAttackWindowOnScreen) {
+      toggleTransferAttackWindow(true);
+      uiButtonCurrentlyOnScreen = false;
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    } else {
+      if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
+        uiButtonCurrentlyOnScreen = true;
+      }
+      if (!uiCurrentlyOnScreen) {
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+      }
+    }
+    if (upgradeWindowCurrentlyOnScreen) {
+      toggleUpgradeMenu(true);
+    }
     if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
       toggleBottomLeftPaneWithTurnAdvance(true);
     }
     if (uiButtonCurrentlyOnScreen) {
       toggleUIButton(true);
-    }
-    if (uiCurrentlyOnScreen) {
-      document.getElementById("main-ui-container").style.display = "flex";
-    }
-    if (upgradeWindowCurrentlyOnScreen) {
-      toggleUpgradeMenu(true);
     }
     if (buyWindowCurrentlyOnScreen) {
       toggleBuyMenu(true);
@@ -1348,14 +1397,17 @@ document.addEventListener("keydown", function(event) {
     if (transferAttackButtonDisplayed) {
       toggleTransferAttackButton(true);
     }
-    if (transferAttackWindowOnScreen) {
-      toggleTransferAttackWindow(true);
-    } 
     toggleBottomTableContainer(true);
     document.getElementById("menu-container").style.display = "none";
+
     if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
       selectCountry(lastClickedPath, true);
+      if (territoryAboutToBeAttacked) {
+        removeImageFromPath(territoryAboutToBeAttacked);
+        addImageToPath(territoryAboutToBeAttacked, "/resources/army.png");
+      }
     }
+
     menuState = false;
   }
 });
@@ -1737,6 +1789,11 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
 
 export function setFlag(flag, place) {
   let flagElement;
+
+  const img = document.createElement('img');
+  img.classList.add("flag");
+  img.src = `./resources/flags/${flag}.png`;
+
   let popupBodyElement = document.getElementById("popup-body");
   if (place === 1) { //top table
     flagElement = document.getElementById("flag-top");
@@ -1744,10 +1801,9 @@ export function setFlag(flag, place) {
     flagElement = document.getElementById("flag-bottom");   
   } else if (place === 3) { //UI info panel
     flagElement = document.getElementById("info-panel"); 
+  } else if (place === 0) {
+    return img.src;
   }
-  const img = document.createElement('img');
-  img.classList.add("flag");
-  img.src = `./resources/flags/${flag}.png`;
 
   if (place !== 3) {
     flagElement.innerHTML = '';
@@ -1764,6 +1820,8 @@ export function setFlag(flag, place) {
     document.querySelector(".info-panel").style.setProperty('--bg-image', `url(${img.src})`);
     document.querySelector(".info-panel-upgrade").style.setProperty('--bg-image', `url(${img.src})`);
   }
+
+  return img.src;
 }
 
 function uiButtons(button) {
@@ -1785,10 +1843,8 @@ function uiButtons(button) {
 function toggleUIButton(makeVisible) {
   if (makeVisible) {
     document.getElementById("UIButtonContainer").style.display = "block";
-    uiButtonCurrentlyOnScreen = true;
   } else {
     document.getElementById("UIButtonContainer").style.display = "none";
-    uiButtonCurrentlyOnScreen = false;
   }
 }
 
@@ -1809,14 +1865,16 @@ function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
       uiCurrentlyOnScreen = true;
       toggleUIButton(false);
       document.getElementById("popup-with-confirm-container").style.display = "none";
-      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+      toggleTransferAttackButton(false);
     } else {
       document.getElementById("main-ui-container").style.display = "none";
       svg.style.pointerEvents = 'auto';
       uiCurrentlyOnScreen = false;
       toggleUIButton(true);
       document.getElementById("popup-with-confirm-container").style.display = "block";
-      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+      if (transferAttackButtonDisplayed) {
+        toggleTransferAttackButton(true);
+      }
     }
 }
 
@@ -2234,7 +2292,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         toggleTransferAttackWindow(true);
         toggleUIButton(false);
         toggleBottomLeftPaneWithTurnAdvance(false);
-        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
         if ((transferAttackbuttonState === 0) || (transferAttackbuttonState === 1)) {
           button.classList.remove("move-phase-button-green-background");
           button.classList.remove("move-phase-button-red-background");
@@ -2309,6 +2366,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 
 function setTerritoryForAttack(territoryToAttack) {
   territoryAboutToBeAttacked = territoryToAttack;
+  document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttacked.getAttribute("territory-name");
+  document.getElementById("leftBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
+  document.getElementById("rightBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
+  document.getElementById("attack-destination-container").style.display = "flex";
+  attackTextCurrentlyDisplayed = true;
   territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
   territoryToAttack.setAttribute("fill", playerColour);
   territoryToAttack.setAttribute("stroke-width", "5px");
@@ -2336,6 +2398,7 @@ function addImageToPath(pathElement, imagePath) {
   imageElement.setAttribute("y", imageY);
   imageElement.setAttribute("width", imageWidth);
   imageElement.setAttribute("height", imageHeight);
+  imageElement.setAttribute("z-index", 9999);
   imageElement.setAttribute("id", "armyImage"); // Add ID "armyImage" to the image element
 
   pathElement.parentNode.appendChild(imageElement);

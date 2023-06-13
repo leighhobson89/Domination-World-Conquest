@@ -285,6 +285,25 @@ td {
   border-radius: 10px;
   display: flex;
   z-index: 1;
+  margin-left: 270px;
+}
+
+.attack-destination-container {
+  display: none;
+  height: calc(6% + 2px);
+  position: fixed;
+  bottom: calc(10% - 3px + 6% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 10px;
+  z-index: 1;
+  color: white;
+  font-size: 1.5rem;
+  font-family: Arial, Helvetica, sans-serif;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background-color: rgba(84, 123, 155, 0.5);
 }
 
 .move-phase-button {
@@ -298,8 +317,7 @@ td {
   font-size: 1.5rem;
   font-weight: normal;
   text-align: center;
-  flex-basis: 17%;
-  margin-left: 270px;
+  flex-basis: 18%;
 }
 
 .move-phase-button-green-background {
@@ -334,6 +352,20 @@ td {
   cursor: pointer;
   background-color: rgb(54, 93, 125);
   transition: all 0.3s ease;
+}
+
+.left-attack-image,
+.right-attack-image {
+  padding-left: 25px;
+  padding-right: 25px;
+  width: 30px !important;
+}
+
+.attack-destination-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 /*MAIN MENU*/
