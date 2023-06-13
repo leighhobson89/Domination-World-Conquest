@@ -1326,10 +1326,11 @@ document.addEventListener("DOMContentLoaded", function() {
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
 
-  document.getElementById("transfer-attack-window-container").appendChild(attackOrTransferString);
-  document.getElementById("transfer-attack-window-container").appendChild(fromHeadingString);
-  document.getElementById("transfer-attack-window-container").appendChild(territoryTextString);
-  document.getElementById("transfer-attack-window-container").appendChild(attackingFromTerritoryTextString);
+  titleTransferAttackWindow.appendChild(attackOrTransferString);
+  titleTransferAttackWindow.appendChild(fromHeadingString);
+  titleTransferAttackWindow.appendChild(territoryTextString);
+  titleTransferAttackWindow.appendChild(attackingFromTerritoryTextString);
+
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   pageLoaded = true;
@@ -2483,7 +2484,6 @@ function removeImageFromPathAndRestoreNormalStroke(path) {
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState) {
   let attackingOrTransferring = "";
-  let string = "error"; // if not set for any reason
   if (buttonState === 0) {
     attackingOrTransferring = "Transferring to:";
   } else if (buttonState === 1) {
@@ -2496,15 +2496,16 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
   const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
 
-  titleTransferAttackWindow.innerHTML = "";
+  if (!transferToAttackHeading || !fromHeading || !territoryTextString || !attackingFromTerritory || !titleTransferAttackWindow) {
+    console.error("One or more required elements are null.");
+    return;
+  }
 
   transferToAttackHeading.innerHTML = attackingOrTransferring;
-  fromHeading.innerHTML = "From: "; 
+  fromHeading.innerHTML = "From: ";
   territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
 
   if (buttonState === 1) {
     attackingFromTerritory.innerHTML = territoryComingFrom;
   }
-
-  console.log(string);
 }
