@@ -1320,7 +1320,7 @@ document.addEventListener("DOMContentLoaded", function() {
   fromHeadingString.setAttribute("id", "fromHeadingString");
 
   const territoryTextString = document.createElement("div");
-  territoryTextString.classList.add("territory-text");
+  territoryTextString.classList.add("territoryText");
   territoryTextString.setAttribute("id", "territoryTextString");
 
   const attackingFromTerritoryTextString = document.createElement("div");
@@ -2515,8 +2515,5 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   transferToAttackHeading.innerHTML = attackingOrTransferring;
   fromHeading.innerHTML = "From: ";
   territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
-
-  if (buttonState === 1) {
-    attackingFromTerritory.innerHTML = territoryComingFrom;
-  }
+  attackingFromTerritory.innerHTML = territoryComingFrom;
 }
