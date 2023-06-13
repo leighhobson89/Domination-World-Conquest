@@ -16,6 +16,7 @@ let turnPhase = currentTurnPhase;
 
 export let dataTableCountriesInitialState = [];
 export let pageLoaded = false;
+let codeEx = false;
 
 export let svg = [];
 export let svgMap = [];
@@ -196,7 +197,7 @@ export function svgMapLoaded() {
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
                 lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
               }
-              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories);
+              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPathExternal);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -1293,6 +1294,17 @@ document.addEventListener("DOMContentLoaded", function() {
   const transferAttackWindowContainer = document.createElement("div");
   transferAttackWindowContainer.classList.add("transfer-attack-window-container");
 
+  const titleTransferAttackWindow = document.createElement("div");
+  titleTransferAttackWindow.classList.add("title-transfer-attack-window");
+  titleTransferAttackWindow.setAttribute("id", "title-transfer-attack-window");
+
+  const contentTransferAttackWindow = document.createElement("div");
+  contentTransferAttackWindow.classList.add("content-transfer-attack-window");
+  contentTransferAttackWindow.setAttribute("id", "content-transfer-attack-window");
+
+  transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
+  transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
+
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   pageLoaded = true;
@@ -1343,7 +1355,6 @@ function toggleTransferAttackButton(turnOnButton) {
 document.addEventListener("keydown", function(event) {
   playSoundClip();
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
-    console.log(upgradeWindowCurrentlyOnScreen);
     document.getElementById("menu-container").style.display = "block";
     document.getElementById("main-ui-container").style.display = "none";
     document.getElementById("upgrade-container").style.display = "none";
@@ -2247,14 +2258,14 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 }
   
 
-function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories) {
+function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom) {
   let button = document.getElementById("move-phase-button");
   button.style.display = "none";
   transferAttackButtonDisplayed = false;
 
   //if clicked territory is not owned by the player and is not a valid destination then return
   //if not a player owned territory and the lastPlayerOwned array does not contain the path
-  if (path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+  if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
     return;
   } else if (path.getAttribute("owner") === "Player") {
     // if clicks on a player-owned territory then show button in transfer state
@@ -2287,26 +2298,40 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   }
 
   button.addEventListener("click", function() {
-    if (!button.disabled) {
+    if (!button.disabled && !codeEx) {
       if (!transferAttackWindowOnScreen) {
-        toggleTransferAttackWindow(true);
         toggleUIButton(false);
         toggleBottomLeftPaneWithTurnAdvance(false);
-        if ((transferAttackbuttonState === 0) || (transferAttackbuttonState === 1)) {
-          button.classList.remove("move-phase-button-green-background");
-          button.classList.remove("move-phase-button-red-background");
-          button.classList.add("move-phase-button-blue-background");
-          button.innerHTML = "CANCEL";
-          button.setAttribute("data-executed", "true");
-          drawTransferAttackTable(document.getElementById("transfer-attack-window-container"), validDestinationsArray, mainArrayOfTerritoriesAndResources, playerOwnedTerritories, transferAttackbuttonState);
-          if (transferAttackbuttonState === 1) {
-              for (let i = 0; i < paths.length; i++) {
-              console.log(paths[i].getAttribute("territory-name") + "," + paths[i].getAttribute("attackableTerritory"));
-              paths[i].setAttribute("attackableTerritory", "false"); 
-            }
+  
+        toggleTransferAttackWindow(true);
+        setTransferAttackWindowTitleText(
+          territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null
+            ? territoryAboutToBeAttacked.getAttribute("territory-name")
+            : "transferring",
+          territoryAboutToBeAttacked ? territoryAboutToBeAttacked.getAttribute("data-name") : null,
+          territoryComingFrom,
+          transferAttackbuttonState
+        );
+  
+        button.classList.remove("move-phase-button-green-background");
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.add("move-phase-button-blue-background");
+        button.innerHTML = "CANCEL";
+        drawTransferAttackTable(
+          document.getElementById("transfer-attack-window-container"),
+          validDestinationsArray,
+          mainArrayOfTerritoriesAndResources,
+          playerOwnedTerritories,
+          transferAttackbuttonState
+        );
+        if (transferAttackbuttonState === 1) {
+          for (let i = 0; i < paths.length; i++) {
+            paths[i].setAttribute("attackableTerritory", "false");
           }
+          codeEx = true;
         }
-      } else if (transferAttackWindowOnScreen) {
+        return;
+      } else if (transferAttackWindowOnScreen && !codeEx) {
         if (transferAttackbuttonState === 0) {
           button.classList.remove("move-phase-button-blue-background");
           button.classList.add("move-phase-button-green-background");
@@ -2316,22 +2341,21 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           toggleUIButton(true);
           toggleBottomLeftPaneWithTurnAdvance(true);
         } else if (transferAttackbuttonState === 1) {
-          if (!button.hasAttribute("data-executed")) {
-            button.classList.remove("move-phase-button-blue-background");
-            button.classList.add("move-phase-button-red-background");
-            button.innerHTML = "ATTACK";
-            toggleTransferAttackWindow(false);
-            transferAttackWindowOnScreen = false;
-            toggleUIButton(true);
-            toggleBottomLeftPaneWithTurnAdvance(true);
-            button.setAttribute("data-executed", "true");
-          }
-          button.removeAttribute("data-executed");
-          return; // Stop further execution
+          button.classList.remove("move-phase-button-blue-background");
+          button.classList.add("move-phase-button-red-background");
+          button.innerHTML = "ATTACK";
+          toggleTransferAttackWindow(false);
+          transferAttackWindowOnScreen = false;
+          toggleUIButton(true);
+          toggleBottomLeftPaneWithTurnAdvance(true);
+          codeEx = true;
         }
+        
+        return;
       }
-    } 
-  });
+    }
+    codeEx = false;
+  });  
 
   button.addEventListener("mouseover", (e) => {
     const x = e.clientX;
@@ -2339,7 +2363,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 
     if (window.innerHeight - y < 100) {
       tooltip.style.left = x - 40 + "px";
-      tooltip.style.top = y - 30 + "px";
+      tooltip.style.top = y - 300 + "px";
     } else {
       tooltip.style.left = x - 40 + "px";
       tooltip.style.top = 25 + y + "px";
@@ -2413,12 +2437,21 @@ function removeImageFromPath(pathToRemoveImage) {
   }
 }
 
+function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState) {
+  let attackingOrTransferring = "";
+  let string = "error"; //if not set for any reason
+  if (buttonState === 0) {
+    attackingOrTransferring = "Transferring to ";
+  } else if (buttonState === 1) {
+    attackingOrTransferring = "Attacking ";
+  }
 
+  if (territory === "transferring") { //transferring
+    string = attackingOrTransferring + "(please select an option...)" + "<br />" + "From" + territoryComingFrom.getAttribute("territory-name");
+  } else {
+    string = attackingOrTransferring + territory + (buttonState === 1 ? " (" + country + ")" : "") + "<br />" + "From" + territoryComingFrom.getAttribute("territory-name");
+  }
+  document.getElementById("title-transfer-attack-window").innerHTML = string;
+  console.log(string);
 
-
-
-
-
-
-
-
+}
