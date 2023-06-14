@@ -471,6 +471,10 @@ td {
   width: 23px;
 }
 
+.whiteSpace {
+  white-space: pre;
+}
+
 .size-quantity-buttons {
   height: 15px;
   width: 15px;
@@ -1610,7 +1614,7 @@ td {
 
 .transfer-table-outer-column {
   align-items: center;
-  width: 50%;
+  width: 55%;
   height: 40px;
   color: white;
   display: flex;
@@ -1624,12 +1628,50 @@ td {
   background-color: rgba(75, 111, 140, 0.7);
 }
 
+.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type {
+  width: 45%
+}
+
 .army-type-column {
   align-items: center;
   width: 25%;
   height: 40px;
   display: flex;
-  border: 1px solid white;
+  border: 3px solid white;
+}
+
+.innerColumn {
+  width: 25%;
+  flex: 1;
+  border: 5px solid red;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-btn {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  color: #333;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 8px 16px;
+  text-decoration: none;
+  color: #333;
 }
 
 

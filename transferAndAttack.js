@@ -15,7 +15,7 @@ function importModuleWithTimeout() {
         .catch(error => {
           reject(error);
         });
-    }, 2000); // Timeout of 2 seconds
+    }, 1000);
   });
 }
 
@@ -27,54 +27,82 @@ importModuleWithTimeout()
     console.log(error);
   });
 
-export function drawTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
-  table.innerHTML = "";
-
-  playerOwnedTerritories.sort((a, b) => {
-    const idA = parseInt(a.getAttribute("territory-id"));
-    const idB = parseInt(b.getAttribute("territory-id"));
-    return idA - idB;
-  });
-
-  if (transferOrAttack === 0) { // transfer
-    // Create rows
-    for (let i = 0; i < playerOwnedTerritories.length; i++) {
-      if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
-        continue;
-      }
-
-      const territoryTransferRow = document.createElement("div");
-      territoryTransferRow.classList.add("transfer-table-row-hoverable");
-
-      // Create columns
-      for (let j = 0; j < 2; j++) {
-        const territoryTransferColumn = document.createElement("div");
-        territoryTransferColumn.classList.add("transfer-table-outer-column");
-
-        if (j === 0) {
-          territoryTransferColumn.style.width = "50%";
-          const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-          territoryTransferColumn.textContent = territoryName;
-        } else {
-          for (let k = 0; k < 4; k++) {
-            const armyTypeColumn = document.createElement("div");
-            armyTypeColumn.classList.add("army-type-column");
-
-            territoryTransferColumn.appendChild(armyTypeColumn);
-          }
+  export function drawTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
+    table.innerHTML = "";
+  
+    playerOwnedTerritories.sort((a, b) => {
+      const idA = parseInt(a.getAttribute("territory-id"));
+      const idB = parseInt(b.getAttribute("territory-id"));
+      return idA - idB;
+    });
+  
+    if (transferOrAttack === 0) { // transfer
+      // Create rows
+      for (let i = 0; i < playerOwnedTerritories.length; i++) {
+        if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
+          continue;
         }
-
-        territoryTransferRow.appendChild(territoryTransferColumn);
+  
+        const territoryTransferRow = document.createElement("div");
+        territoryTransferRow.classList.add("transfer-table-row-hoverable");
+  
+        // Create columns
+        for (let j = 0; j < 2; j++) {
+          const territoryTransferColumn = document.createElement("div");
+          territoryTransferColumn.classList.add("transfer-table-outer-column");
+  
+          if (j === 0) {
+            territoryTransferColumn.style.width = "50%";
+            const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+            territoryTransferColumn.textContent = territoryName;
+          } else {
+            for (let k = 0; k < 4; k++) {
+              const armyTypeColumn = document.createElement("div");
+              armyTypeColumn.classList.add("army-type-column");
+  
+              // Create inner columns
+              for (let m = 0; m < 4; m++) {
+                const innerColumn = document.createElement("div");
+                innerColumn.classList.add("innerColumn");
+                armyTypeColumn.appendChild(innerColumn);
+  
+                const dropdown = document.createElement('div');
+                dropdown.classList.add('dropdown');
+  
+                const dropdownBtn = document.createElement('button');
+                dropdownBtn.textContent = 'Dropdown';
+                dropdownBtn.classList.add('dropdown-btn');
+                dropdown.appendChild(dropdownBtn);
+  
+                const dropdownContent = document.createElement('div');
+                dropdownContent.classList.add('dropdown-content');
+                dropdown.appendChild(dropdownContent);
+  
+                const options = ['x1', 'x10', 'x100', 'x1000', 'x10000'];
+                options.forEach(optionText => {
+                  const option = document.createElement('a');
+                  option.href = '#';
+                  option.textContent = optionText;
+                  dropdownContent.appendChild(option);
+                });
+  
+                innerColumn.appendChild(dropdown);
+              }
+  
+              territoryTransferColumn.appendChild(armyTypeColumn);
+            }
+          }
+  
+          territoryTransferRow.appendChild(territoryTransferColumn);
+        }
+  
+        table.appendChild(territoryTransferRow);
       }
-
-      table.appendChild(territoryTransferRow);
+    } else if (transferOrAttack === 1) { // attack
+  
     }
-  } else if (transferOrAttack === 1) { // attack
-
   }
-}
-
-
+  
 
 function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     uiTableContainer.innerHTML = "";

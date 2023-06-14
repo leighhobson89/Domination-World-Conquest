@@ -2472,8 +2472,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
               ? territoryAboutToBeAttacked.getAttribute("territory-name")
               : "transferring",
             territoryAboutToBeAttacked ? territoryAboutToBeAttacked.getAttribute("data-name") : null,
-            territoryComingFrom.getAttribute("territory-name"),
-            transferAttackbuttonState
+            territoryComingFrom,
+            transferAttackbuttonState, 
+            mainArrayOfTerritoriesAndResources
           );
     
           button.classList.remove("move-phase-button-green-background");
@@ -2619,7 +2620,14 @@ function removeImageFromPathAndRestoreNormalStroke(path) {
   path.setAttribute("stroke-width", "1");
 }
 
-function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState) {
+function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
+  let elementInMainArray;
+  for (let i = 0; i < mainArray.length; i++) {
+    if (territoryComingFrom.getAttribute("uniqueid") === mainArray[i].uniqueId) {
+      elementInMainArray = mainArray[i];
+    }
+  }
+
   let attackingOrTransferring = "";
   if (buttonState === 0) {
     document.getElementById("percentageAttack").style.display = "none";
@@ -2632,19 +2640,20 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
     let imageElement = document.getElementById("contentTransferHeaderImageColumn1");
     let imageSrc = "/resources/infantry.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" />`;
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
 
     imageElement = document.getElementById("contentTransferHeaderImageColumn2");
     imageSrc = "/resources/assault.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" />`;
-
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
+    
     imageElement = document.getElementById("contentTransferHeaderImageColumn3");
     imageSrc = "/resources/air.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" />`;
-
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
+    
     imageElement = document.getElementById("contentTransferHeaderImageColumn4");
     imageSrc = "/resources/naval.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" />`;
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
+    
 
   } else if (buttonState === 1) {
     document.getElementById("percentageAttack").style.display = "flex";
@@ -2669,7 +2678,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   transferToAttackHeading.innerHTML = attackingOrTransferring;
   fromHeading.innerHTML = "From: ";
   territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
-  attackingFromTerritory.innerHTML = territoryComingFrom;
+  attackingFromTerritory.innerHTML = territoryComingFrom.getAttribute("territory-name");
 }
 
 function setTransferToTerritory(listOfTerritories) {
