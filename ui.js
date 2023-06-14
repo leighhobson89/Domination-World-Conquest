@@ -1353,13 +1353,13 @@ document.addEventListener("DOMContentLoaded", function() {
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
   contentTransferAttackWindow.setAttribute("id", "contentTransferAttackWindow");
 
-  const contentTransferHeaderRow1 = document.createElement("div");
-  contentTransferHeaderRow1.classList.add("content-transfer-header-row");
-  contentTransferHeaderRow1.setAttribute("id", "contentTransferHeaderRow1");
+  const contentTransferHeaderRow = document.createElement("div");
+  contentTransferHeaderRow.classList.add("content-transfer-header-row");
+  contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow1");
 
-  const contentTransferHeaderRow2 = document.createElement("div");
-  contentTransferHeaderRow2.classList.add("content-transfer-header-row");
-  contentTransferHeaderRow2.setAttribute("id", "contentTransferHeaderRow2");
+  const TransferTableContainer = document.createElement("div");
+  TransferTableContainer.classList.add("transfer-table-container");
+  TransferTableContainer.setAttribute("id", "transferTableContainer");
 
   const contentTransferHeaderColumn1 = document.createElement("div");
   contentTransferHeaderColumn1.classList.add("content-transfer-header-column");
@@ -1392,23 +1392,29 @@ document.addEventListener("DOMContentLoaded", function() {
   transferAttackWindowContainer.appendChild(colorBarAttackUnderlayRed);
   transferAttackWindowContainer.appendChild(colorBarAttackOverlayGreen);
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
+
   titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
   titleTransferAttackRow1.appendChild(attackOrTransferString);
   titleTransferAttackRow1.appendChild(territoryTextString);
   titleTransferAttackRow1.appendChild(xButtonTransferAttack);
+
   titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
   titleTransferAttackRow2.appendChild(fromHeadingString);
   titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
   titleTransferAttackRow2.appendChild(percentChanceAttack);
+
+  transferAttackWindowContainer.appendChild(contentTransferHeaderRow);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
-  contentTransferAttackWindow.appendChild(contentTransferHeaderRow1);
-  contentTransferAttackWindow.appendChild(contentTransferHeaderRow2);
-  contentTransferHeaderRow1.appendChild(contentTransferHeaderColumn1);
-  contentTransferHeaderRow1.appendChild(contentTransferHeaderColumn2);
+
+  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn1);
+  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn2);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn1);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn2);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn3);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn4);
+
+  contentTransferAttackWindow.appendChild(TransferTableContainer);
+  TransferTableContainer.appendChild(transferTable);
 
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
@@ -2474,7 +2480,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.add("move-phase-button-blue-background");
           button.innerHTML = "CANCEL";
           drawTransferAttackTable(
-            document.getElementById("contentTransferHeaderRow2"),
+            document.getElementById("transferTable"),
             validDestinationsArray,
             mainArrayOfTerritoriesAndResources,
             playerOwnedTerritories,
