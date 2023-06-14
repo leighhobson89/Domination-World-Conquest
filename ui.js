@@ -1301,6 +1301,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // TRANSFER / ATTACK WINDOW
   const transferAttackWindowContainer = document.createElement("div");
   transferAttackWindowContainer.classList.add("transfer-attack-window-container");
+  transferAttackWindowContainer.classList.add("blur-background");
 
   const titleTransferAttackWindow = document.createElement("div");
   titleTransferAttackWindow.classList.add("title-transfer-attack-window");
@@ -1352,20 +1353,53 @@ document.addEventListener("DOMContentLoaded", function() {
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
   contentTransferAttackWindow.setAttribute("id", "contentTransferAttackWindow");
 
-  titleTransferAttackRow1.appendChild(attackOrTransferString);
-  titleTransferAttackRow1.appendChild(territoryTextString);
-  titleTransferAttackRow1.appendChild(xButtonTransferAttack);
-  titleTransferAttackRow2.appendChild(fromHeadingString);
-  titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
-  titleTransferAttackRow2.appendChild(percentChanceAttack);
+  const contentTransferHeaderRow = document.createElement("div");
+  contentTransferHeaderRow.classList.add("content-transfer-header-row");
+  contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow");
 
-  titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
-  titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
+  const contentTransferHeaderColumn1 = document.createElement("div");
+  contentTransferHeaderColumn1.classList.add("content-transfer-header-column");
+  contentTransferHeaderColumn1.setAttribute("id", "contentTransferHeaderColumn1");
+
+  const contentTransferHeaderColumn2 = document.createElement("div");
+  contentTransferHeaderColumn2.classList.add("content-transfer-header-column");
+  contentTransferHeaderColumn2.setAttribute("id", "contentTransferHeaderColumn2");
+
+  const contentTransferHeaderImageColumn1 = document.createElement("div");
+  contentTransferHeaderImageColumn1.classList.add("content-transfer-header-image-column");
+  contentTransferHeaderImageColumn1.setAttribute("id", "contentTransferHeaderImageColumn1");
+
+  const contentTransferHeaderImageColumn2 = document.createElement("div");
+  contentTransferHeaderImageColumn2.classList.add("content-transfer-header-image-column");
+  contentTransferHeaderImageColumn2.setAttribute("id", "contentTransferHeaderImageColumn2");
+
+  const contentTransferHeaderImageColumn3 = document.createElement("div");
+  contentTransferHeaderImageColumn3.classList.add("content-transfer-header-image-column");
+  contentTransferHeaderImageColumn3.setAttribute("id", "contentTransferHeaderImageColumn3");
+
+  const contentTransferHeaderImageColumn4 = document.createElement("div");
+  contentTransferHeaderImageColumn4.classList.add("content-transfer-header-image-column");
+  contentTransferHeaderImageColumn4.setAttribute("id", "contentTransferHeaderImageColumn4");
 
   transferAttackWindowContainer.appendChild(colorBarAttackUnderlayRed);
   transferAttackWindowContainer.appendChild(colorBarAttackOverlayGreen);
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
+  titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
+  titleTransferAttackRow1.appendChild(attackOrTransferString);
+  titleTransferAttackRow1.appendChild(territoryTextString);
+  titleTransferAttackRow1.appendChild(xButtonTransferAttack);
+  titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
+  titleTransferAttackRow2.appendChild(fromHeadingString);
+  titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
+  titleTransferAttackRow2.appendChild(percentChanceAttack);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
+  contentTransferAttackWindow.appendChild(contentTransferHeaderRow);
+  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn1);
+  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn2);
+  contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn1);
+  contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn2);
+  contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn3);
+  contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn4);
 
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
@@ -2430,13 +2464,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-red-background");
           button.classList.add("move-phase-button-blue-background");
           button.innerHTML = "CANCEL";
-          drawTransferAttackTable(
+          /* drawTransferAttackTable(
             document.getElementById("transfer-attack-window-container"),
             validDestinationsArray,
             mainArrayOfTerritoriesAndResources,
             playerOwnedTerritories,
             transferAttackbuttonState
-          );
+          ); */
           if (transferAttackbuttonState === 1) {
             for (let i = 0; i < paths.length; i++) {
               paths[i].setAttribute("attackableTerritory", "false");
@@ -2571,11 +2605,31 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     document.getElementById("percentageAttack").style.display = "none";
     document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+    document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
+
     attackingOrTransferring = "Transferring to:";
+
+    let imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+    let imageSrc = "/resources/infantry.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" />`;
+
+    imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+    imageSrc = "/resources/assault.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" />`;
+
+    imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+    imageSrc = "/resources/air.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" />`;
+
+    imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+    imageSrc = "/resources/naval.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" />`;
+
   } else if (buttonState === 1) {
     document.getElementById("percentageAttack").style.display = "flex";
     document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
+    document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
     attackingOrTransferring = "Attacking:";
   }
 
