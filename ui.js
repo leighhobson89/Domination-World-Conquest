@@ -2606,6 +2606,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
     document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
+    document.getElementById("contentTransferHeaderRow").style.display = "flex";
 
     attackingOrTransferring = "Transferring to:";
 
@@ -2630,6 +2631,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
     document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
+    document.getElementById("contentTransferHeaderRow").style.display = "none";
     attackingOrTransferring = "Attacking:";
   }
 
