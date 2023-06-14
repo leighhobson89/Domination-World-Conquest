@@ -202,7 +202,7 @@ export function svgMapLoaded() {
                 validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
                 lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
               }
-              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath);
+              handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, false, 2);
           }        
         } else if (currentTurnPhase === 2) {
           
@@ -1330,14 +1330,25 @@ document.addEventListener("DOMContentLoaded", function() {
   attackingFromTerritoryTextString.classList.add("attackingFromTerritoryTextString");
   attackingFromTerritoryTextString.setAttribute("id", "attackingFromTerritoryTextString");
 
+  const xButtonTransferAttack = document.createElement("div");
+  xButtonTransferAttack.classList.add("x-button-transfer-attack");
+  xButtonTransferAttack.setAttribute("id","xButtonTransferAttack");
+  xButtonTransferAttack.innerHTML = "X";
+
+  const percentChanceAttack = document.createElement("div");
+  percentChanceAttack.classList.add("percentage-attack");
+  percentChanceAttack.setAttribute("id","percentageAttack");
+
   const contentTransferAttackWindow = document.createElement("div");
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
-  contentTransferAttackWindow.setAttribute("id", "content-transfer-attack-window");
+  contentTransferAttackWindow.setAttribute("id", "contentTransferAttackWindow");
 
   titleTransferAttackRow1.appendChild(attackOrTransferString);
   titleTransferAttackRow1.appendChild(territoryTextString);
+  titleTransferAttackRow1.appendChild(xButtonTransferAttack);
   titleTransferAttackRow2.appendChild(fromHeadingString);
   titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
+  titleTransferAttackRow2.appendChild(percentChanceAttack);
 
   titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
   titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
@@ -1346,6 +1357,16 @@ document.addEventListener("DOMContentLoaded", function() {
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
 
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
+
+  xButtonTransferAttack.addEventListener("click", function() {
+    playSoundClip();
+    toggleTransferAttackWindow(false);
+    transferAttackWindowOnScreen = false;
+    svg.style.pointerEvents = 'auto';
+    toggleUIButton(true);
+    toggleBottomLeftPaneWithTurnAdvance(true);
+    handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackbuttonState);
+  });
 
   pageLoaded = true;
 });
@@ -2298,43 +2319,65 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 }
   
 
-function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom) {
+function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
   let button = document.getElementById("move-phase-button");
   button.style.display = "none";
   transferAttackButtonDisplayed = false;
 
-  //if clicked territory is not owned by the player and is not a valid destination then return
-  //if not a player owned territory and the lastPlayerOwned array does not contain the path
-  if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
-    return;
-  } else if (path.getAttribute("owner") === "Player") {
-    // if clicks on a player-owned territory then show button in transfer state
-    button.innerHTML = "TRANSFER";
-    if (playerOwnedTerritories.length <= 1) {
-      button.classList.remove("move-phase-button-red-background");
+  if (!xButtonClicked) {
+    //if clicked territory is not owned by the player and is not a valid destination then return
+    //if not a player owned territory and the lastPlayerOwned array does not contain the path
+    if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+      return;
+    } else if (path.getAttribute("owner") === "Player") {
+      // if clicks on a player-owned territory then show button in transfer state
+      button.innerHTML = "TRANSFER";
+      if (playerOwnedTerritories.length <= 1) {
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.remove("move-phase-button-green-background");
+        button.classList.add("move-phase-button-grey-background");
+        button.disabled = true;
+      } else {
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.remove("move-phase-button-grey-background");
+        button.classList.add("move-phase-button-green-background");
+        button.disabled = false;
+        transferAttackbuttonState = 0; //transfer
+      }
+      button.style.display = "flex";
+      transferAttackButtonDisplayed = true;
+    } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+      // if clicks on an enemy territory that is within reach then show attack state
+      button.innerHTML = "ATTACK";
       button.classList.remove("move-phase-button-green-background");
-      button.classList.add("move-phase-button-grey-background");
-      button.disabled = true;
-    } else {
+      button.classList.remove("move-phase-button-grey-background");
+      button.classList.add("move-phase-button-red-background");
+      button.style.display = "flex";
+      transferAttackButtonDisplayed = true;
+      button.disabled = false;
+      transferAttackbuttonState = 1; //attack
+      setTerritoryForAttack(path);
+    }
+  } else {
+    if (xButtonFromWhere === 0) { //transfer
+      button.style.display = "flex";
+      button.innerHTML = "TRANSFER";
+      button.classList.remove("move-phase-button-blue-background");
       button.classList.remove("move-phase-button-red-background");
       button.classList.remove("move-phase-button-grey-background");
       button.classList.add("move-phase-button-green-background");
-      button.disabled = false;
-      transferAttackbuttonState = 0; //transfer
+      transferAttackbuttonState = 0;
+      return;
+    } else if (xButtonFromWhere === 1) { //attack
+      button.style.display = "flex";
+      button.innerHTML = "ATTACK";
+      button.classList.remove("move-phase-button-blue-background");
+      button.classList.remove("move-phase-button-green-background");
+      button.classList.remove("move-phase-button-grey-background");
+      button.classList.add("move-phase-button-red-background");
+      transferAttackbuttonState = 1;
+      return;
     }
-    button.style.display = "flex";
-    transferAttackButtonDisplayed = true;
-  } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
-    // if clicks on an enemy territory that is within reach then show attack state
-    button.innerHTML = "ATTACK";
-    button.classList.remove("move-phase-button-green-background");
-    button.classList.remove("move-phase-button-grey-background");
-    button.classList.add("move-phase-button-red-background");
-    button.style.display = "flex";
-    transferAttackButtonDisplayed = true;
-    button.disabled = false;
-    transferAttackbuttonState = 1; //attack
-    setTerritoryForAttack(path);
   }
 
   button.removeEventListener("click", transferAttackClickHandler); // Remove the existing event listener if any
