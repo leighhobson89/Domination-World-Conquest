@@ -1483,6 +1483,7 @@ td {
   align-items: center;
   justify-content: center;
   text-align: center;
+  margin-left: 28px;
 }
 
 .attackingFromTerritoryTextString {
@@ -1543,9 +1544,17 @@ td {
   background-color: rgba(45, 81, 110, 0.7);
 }
 
-.content-transfer-header-column {
+.content-transfer-header-column:first-child {
   display: flex;
-  width: 50%;
+  width: 48%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.content-transfer-header-column:last-child {
+  display: flex;
+  width: 52%;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1603,12 +1612,24 @@ td {
   align-items: center;
   width: 50%;
   height: 40px;
-  cursor: pointer;
   color: white;
   display: flex;
   padding-left: 5px;
   padding-right: 5px;
   font-size: 0.90rem;
+  cursor: pointer;
+}
+
+.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type:hover {
+  background-color: rgba(75, 111, 140, 0.7);
+}
+
+.army-type-column {
+  align-items: center;
+  width: 25%;
+  height: 40px;
+  display: flex;
+  border: 1px solid white;
 }
 
 
