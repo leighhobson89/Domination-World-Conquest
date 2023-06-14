@@ -1,5 +1,5 @@
-export function drawTransferAttackTable(transferAttackTableContentWindow, validDestinationsArray, mainArray, playerOwnedTerritories, buttonState, transferOrAttack) {
-    transferAttackTableContentWindow.innerHTML = "";
+export function drawTransferAttackTable(transferAttackTableContainer, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
+    transferAttackTableContainer.innerHTML = "";
 
     playerOwnedTerritories.sort((a, b) => {
         const idA = parseInt(a.getAttribute("territory-id"));
@@ -10,12 +10,38 @@ export function drawTransferAttackTable(transferAttackTableContentWindow, validD
     const table = document.createElement("table");
     table.style.width = "100%";
     table.style.tableLayout = "fixed";
+    table.classList.add("transfer-table");
+    table.setAttribute("id", "transferTable");
 
     if (transferOrAttack === 0) { //transfer
+        // Create rows
+        for (let i = 0; i < playerOwnedTerritories.length; i++) {
+            const territoryTransferRow = document.createElement("div");
+            territoryTransferRow.classList.add("transfer-table-row-hoverable");
 
+            // Create columns
+            for (let j = 0; j < 2; j++) {
+                const territoryTransferColumn = document.createElement("div");
+                territoryTransferColumn.classList.add("transfer-table-outer-column");
+                if (j === 0) {
+                    territoryTransferColumn.style.width = "50%";
+                    // Set the value of the first column to the "territory-name" attribute
+                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+                    territoryTransferColumn.textContent = territoryName;
+                } else {  
+                    territoryTransferColumn.style.width = "50%";
+                    const stuff = "stuff";
+                    territoryTransferColumn.textContent = stuff;
+                }   
+                territoryTransferRow.appendChild(territoryTransferColumn);
+            }    
+            table.appendChild(territoryTransferRow);
+        }
     } else if (transferOrAttack === 1) { //attack
 
     }
+    transferAttackTableContainer.appendChild(table);
+    transferAttackTableContainer.style.display = "flex";
 }
 
 
