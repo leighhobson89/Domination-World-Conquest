@@ -1,17 +1,11 @@
-export function drawTransferAttackTable(transferAttackTableContainer, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
-    transferAttackTableContainer.innerHTML = "";
+export function drawTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
+    table.innerHTML = "";
 
     playerOwnedTerritories.sort((a, b) => {
         const idA = parseInt(a.getAttribute("territory-id"));
         const idB = parseInt(b.getAttribute("territory-id"));
         return idA - idB;
     });
-
-    const table = document.createElement("table");
-    table.style.width = "100%";
-    table.style.tableLayout = "fixed";
-    table.classList.add("transfer-table");
-    table.setAttribute("id", "transferTable");
 
     if (transferOrAttack === 0) { //transfer
         // Create rows
@@ -40,8 +34,6 @@ export function drawTransferAttackTable(transferAttackTableContainer, validDesti
     } else if (transferOrAttack === 1) { //attack
 
     }
-    transferAttackTableContainer.appendChild(table);
-    transferAttackTableContainer.style.display = "flex";
 }
 
 
