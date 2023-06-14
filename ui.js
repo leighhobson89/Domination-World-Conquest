@@ -1353,9 +1353,13 @@ document.addEventListener("DOMContentLoaded", function() {
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
   contentTransferAttackWindow.setAttribute("id", "contentTransferAttackWindow");
 
-  const contentTransferHeaderRow = document.createElement("div");
-  contentTransferHeaderRow.classList.add("content-transfer-header-row");
-  contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow");
+  const contentTransferHeaderRow1 = document.createElement("div");
+  contentTransferHeaderRow1.classList.add("content-transfer-header-row");
+  contentTransferHeaderRow1.setAttribute("id", "contentTransferHeaderRow1");
+
+  const contentTransferHeaderRow2 = document.createElement("div");
+  contentTransferHeaderRow2.classList.add("content-transfer-header-row");
+  contentTransferHeaderRow2.setAttribute("id", "contentTransferHeaderRow2");
 
   const contentTransferHeaderColumn1 = document.createElement("div");
   contentTransferHeaderColumn1.classList.add("content-transfer-header-column");
@@ -1381,6 +1385,10 @@ document.addEventListener("DOMContentLoaded", function() {
   contentTransferHeaderImageColumn4.classList.add("content-transfer-header-image-column");
   contentTransferHeaderImageColumn4.setAttribute("id", "contentTransferHeaderImageColumn4");
 
+  const transferTable = document.createElement("div");
+  transferTable.classList.add("transfer-table");
+  transferTable.setAttribute("id", "transferTable");
+
   transferAttackWindowContainer.appendChild(colorBarAttackUnderlayRed);
   transferAttackWindowContainer.appendChild(colorBarAttackOverlayGreen);
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
@@ -1393,9 +1401,10 @@ document.addEventListener("DOMContentLoaded", function() {
   titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
   titleTransferAttackRow2.appendChild(percentChanceAttack);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
-  contentTransferAttackWindow.appendChild(contentTransferHeaderRow);
-  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn1);
-  contentTransferHeaderRow.appendChild(contentTransferHeaderColumn2);
+  contentTransferAttackWindow.appendChild(contentTransferHeaderRow1);
+  contentTransferAttackWindow.appendChild(contentTransferHeaderRow2);
+  contentTransferHeaderRow1.appendChild(contentTransferHeaderColumn1);
+  contentTransferHeaderRow1.appendChild(contentTransferHeaderColumn2);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn1);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn2);
   contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn3);
@@ -2464,13 +2473,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-red-background");
           button.classList.add("move-phase-button-blue-background");
           button.innerHTML = "CANCEL";
-          /* drawTransferAttackTable(
-            document.getElementById("transfer-attack-window-container"),
+          drawTransferAttackTable(
+            document.getElementById("contentTransferHeaderRow2"),
             validDestinationsArray,
             mainArrayOfTerritoriesAndResources,
             playerOwnedTerritories,
             transferAttackbuttonState
-          ); */
+          );
           if (transferAttackbuttonState === 1) {
             for (let i = 0; i < paths.length; i++) {
               paths[i].setAttribute("attackableTerritory", "false");
@@ -2606,7 +2615,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
     document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
-    document.getElementById("contentTransferHeaderRow").style.display = "flex";
+    document.getElementById("contentTransferHeaderRow1").style.display = "flex";
 
     attackingOrTransferring = "Transferring to:";
 
@@ -2631,7 +2640,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
     document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
     document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
-    document.getElementById("contentTransferHeaderRow").style.display = "none";
+    document.getElementById("contentTransferHeaderRow1").style.display = "none";
     attackingOrTransferring = "Attacking:";
   }
 
