@@ -43,7 +43,7 @@ const greyOutColor = 'rgb(170, 170, 170)';
 const countryGreyOutThreshold = 30;
 
 //path selection variables
-let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
 lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
 export let lastClickedPathExternal;
 let currentPath; // used for hover, and tooltip before user clicks on a country
@@ -72,6 +72,7 @@ export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
 export let territoryAboutToBeAttacked = null;
+export let transferToTerritory;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -2486,6 +2487,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             playerOwnedTerritories,
             transferAttackbuttonState
           );
+
+          const selection = document.querySelectorAll('.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type');
+          setTransferToTerritory(selection);
+          
           if (transferAttackbuttonState === 1) {
             for (let i = 0; i < paths.length; i++) {
               paths[i].setAttribute("attackableTerritory", "false");
@@ -2666,3 +2671,23 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
   attackingFromTerritory.innerHTML = territoryComingFrom;
 }
+
+function setTransferToTerritory(listOfTerritories) {
+  listOfTerritories.forEach(territory => {
+    territory.addEventListener('click', function() {
+      const clickedTerritoryName = territory.innerHTML;
+      transferToTerritory = playerOwnedTerritories.find(territory => territory.getAttribute("territory-name") === clickedTerritoryName);
+
+      if (transferToTerritory) {
+        document.getElementById("territoryTextString").innerHTML = clickedTerritoryName;
+      } else {
+        document.getElementById("territoryTextString").innerHTML = "please select an option..."; 
+      }
+    });
+  });
+}
+
+export function getLastClickedPath() {
+  return lastClickedPath;
+}
+

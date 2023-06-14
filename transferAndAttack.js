@@ -1,43 +1,82 @@
+let getLastClickedPathFn;
+
+function handleImportedModule(module) {
+  const { getLastClickedPath } = module;
+  getLastClickedPathFn = getLastClickedPath;
+}
+
+function importModuleWithTimeout() {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      import('./ui.js')
+        .then(module => {
+          resolve(module);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }, 2000); // Timeout of 2 seconds
+  });
+}
+
+importModuleWithTimeout()
+  .then(module => {
+    handleImportedModule(module);
+  })
+  .catch(error => {
+    console.log(error);
+  });
+
 export function drawTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
-    table.innerHTML = "";
+  table.innerHTML = "";
 
-    playerOwnedTerritories.sort((a, b) => {
-        const idA = parseInt(a.getAttribute("territory-id"));
-        const idB = parseInt(b.getAttribute("territory-id"));
-        return idA - idB;
-    });
+  playerOwnedTerritories.sort((a, b) => {
+    const idA = parseInt(a.getAttribute("territory-id"));
+    const idB = parseInt(b.getAttribute("territory-id"));
+    return idA - idB;
+  });
 
-    if (transferOrAttack === 0) { //transfer
-        // Create rows
-        for (let i = 0; i < playerOwnedTerritories.length; i++) {
-            const territoryTransferRow = document.createElement("div");
-            territoryTransferRow.classList.add("transfer-table-row-hoverable");
+  if (transferOrAttack === 0) { // transfer
+    // Create rows
+    for (let i = 0; i < playerOwnedTerritories.length; i++) {
+      if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
+        continue;
+      }
 
-            // Create columns
-            for (let j = 0; j < 2; j++) {
-                const territoryTransferColumn = document.createElement("div");
-                territoryTransferColumn.classList.add("transfer-table-outer-column");
-                if (j === 0) {
-                    territoryTransferColumn.style.width = "50%";
-                    // Set the value of the first column to the "territory-name" attribute
-                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-                    territoryTransferColumn.textContent = territoryName;
-                } else {  
-                    territoryTransferColumn.style.width = "50%";
-                    const stuff = "stuff";
-                    territoryTransferColumn.textContent = stuff;
-                }   
-                territoryTransferRow.appendChild(territoryTransferColumn);
-            }    
-            table.appendChild(territoryTransferRow);
+      const territoryTransferRow = document.createElement("div");
+      territoryTransferRow.classList.add("transfer-table-row-hoverable");
+
+      // Create columns
+      for (let j = 0; j < 2; j++) {
+        const territoryTransferColumn = document.createElement("div");
+        territoryTransferColumn.classList.add("transfer-table-outer-column");
+
+        if (j === 0) {
+          territoryTransferColumn.style.width = "50%";
+          const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+          territoryTransferColumn.textContent = territoryName;
+        } else {
+          for (let k = 0; k < 4; k++) {
+            const armyTypeColumn = document.createElement("div");
+            armyTypeColumn.classList.add("army-type-column");
+
+            territoryTransferColumn.appendChild(armyTypeColumn);
+          }
         }
-    } else if (transferOrAttack === 1) { //attack
 
+        territoryTransferRow.appendChild(territoryTransferColumn);
+      }
+
+      table.appendChild(territoryTransferRow);
     }
+  } else if (transferOrAttack === 1) { // attack
+
+  }
 }
 
 
-export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
+
+function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     uiTableContainer.innerHTML = "";
     uiTableContainer.style.display = "flex";
     
