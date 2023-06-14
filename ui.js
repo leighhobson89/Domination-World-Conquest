@@ -1306,6 +1306,14 @@ document.addEventListener("DOMContentLoaded", function() {
   titleTransferAttackWindow.classList.add("title-transfer-attack-window");
   titleTransferAttackWindow.setAttribute("id", "title-transfer-attack-window");
 
+  const colorBarAttackUnderlayRed = document.createElement("div");
+  colorBarAttackUnderlayRed.classList.add("color-bar-attack-underlay-red");
+  colorBarAttackUnderlayRed.setAttribute("id", "colorBarAttackUnderlayRed");
+
+  const colorBarAttackOverlayGreen = document.createElement("div");
+  colorBarAttackOverlayGreen.classList.add("color-bar-attack-overlay-green");
+  colorBarAttackOverlayGreen.setAttribute("id", "colorBarAttackOverlayGreen");
+
   const titleTransferAttackRow1 = document.createElement("div");
   titleTransferAttackRow1.classList.add("title-transfer-window-title-row");
   titleTransferAttackRow1.setAttribute("id", "title-transfer-window-title-row");
@@ -1338,6 +1346,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const percentChanceAttack = document.createElement("div");
   percentChanceAttack.classList.add("percentage-attack");
   percentChanceAttack.setAttribute("id","percentageAttack");
+  percentChanceAttack.innerHTML = "0 %";
 
   const contentTransferAttackWindow = document.createElement("div");
   contentTransferAttackWindow.classList.add("content-transfer-attack-window");
@@ -1353,6 +1362,8 @@ document.addEventListener("DOMContentLoaded", function() {
   titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
   titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
 
+  transferAttackWindowContainer.appendChild(colorBarAttackUnderlayRed);
+  transferAttackWindowContainer.appendChild(colorBarAttackOverlayGreen);
   transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
   transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
 
@@ -1379,6 +1390,15 @@ function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
   } else if (!turnOnTransferAttackWindow) {
     transferAttackWindow.style.display = "none";
   }
+  //set height of colorBars for attack
+  const sourceElement = document.getElementById('title-transfer-attack-window');
+  const redBar = document.getElementById('colorBarAttackUnderlayRed');
+  const greenBar = document.getElementById('colorBarAttackOverlayGreen');
+
+  const computedStyle = window.getComputedStyle(sourceElement);
+  const sourceHeight = computedStyle.getPropertyValue('height');
+  redBar.style.height = sourceHeight;
+  greenBar.style.height = sourceHeight;
 }
 
 function toggleBottomTableContainer(turnOnTable) {
@@ -2548,8 +2568,14 @@ function removeImageFromPathAndRestoreNormalStroke(path) {
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState) {
   let attackingOrTransferring = "";
   if (buttonState === 0) {
+    document.getElementById("percentageAttack").style.display = "none";
+    document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
+    document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
     attackingOrTransferring = "Transferring to:";
   } else if (buttonState === 1) {
+    document.getElementById("percentageAttack").style.display = "flex";
+    document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
+    document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
     attackingOrTransferring = "Attacking:";
   }
 
