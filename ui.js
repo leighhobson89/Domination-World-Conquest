@@ -41,7 +41,11 @@ import {
   countryStrengthsArray
 } from './resourceCalculations.js';
 import {
-  drawTransferAttackTable
+  drawAndHandleTransferAttackTable
+} from './transferAndAttack.js';
+import {
+    transferQuantitiesArray,
+    transferArmyToNewTerritory
 } from './transferAndAttack.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2551,7 +2555,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   button.classList.remove("move-phase-button-red-background");
                   button.classList.add("move-phase-button-blue-background");
                   button.innerHTML = "CANCEL";
-                  drawTransferAttackTable(
+                  drawAndHandleTransferAttackTable(
                       document.getElementById("transferTable"),
                       validDestinationsArray,
                       mainArrayOfTerritoriesAndResources,
@@ -2573,18 +2577,23 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   return;
               } else if (transferAttackWindowOnScreen) {
                   if (transferAttackbuttonState === 0) {
-                      button.classList.remove("move-phase-button-blue-background");
-                      button.classList.add("move-phase-button-green-background");
-                      button.innerHTML = "TRANSFER";
-                      toggleTransferAttackWindow(false);
-                      transferAttackWindowOnScreen = false;
-                      svg.style.pointerEvents = 'auto';
-                      toggleUIButton(true);
-                      toggleBottomLeftPaneWithTurnAdvance(true);
-                      setTimeout(function() {
-                          eventHandlerExecuted = false; // Reset the flag after a delay
-                      }, 200);
-                      return;
+                    if (button.innerHTML === "CONFIRM") {
+                        button.style.fontWeight = "normal";
+                        button.style.color = "white";
+                        transferArmyToNewTerritory(transferQuantitiesArray);
+                    }
+                    button.classList.remove("move-phase-button-blue-background");
+                    button.classList.add("move-phase-button-green-background");
+                    button.innerHTML = "TRANSFER";
+                    toggleTransferAttackWindow(false);
+                    transferAttackWindowOnScreen = false;
+                    svg.style.pointerEvents = 'auto';
+                    toggleUIButton(true);
+                    toggleBottomLeftPaneWithTurnAdvance(true);
+                    setTimeout(function() {
+                        eventHandlerExecuted = false; // Reset the flag after a delay
+                    }, 200);
+                    return;
                   } else if (transferAttackbuttonState === 1) {
                       button.classList.remove("move-phase-button-blue-background");
                       button.classList.add("move-phase-button-red-background");
@@ -2627,7 +2636,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           tooltip.innerHTML = "Click to send military to attack selected territory from the last selected territory...";
       } else if (!button.disabled && button.innerHTML === "CANCEL") {
           tooltip.innerHTML = "Click to cancel with no changes and close transfer/attack window...";
-      }
+      } else if (!button.disabled && button.innerHTML === "CONFIRM") {
+        tooltip.innerHTML = "Click to confirm the transfer and move the selected units to the destination territory!";
+      }   
 
       tooltip.style.display = "block";
 

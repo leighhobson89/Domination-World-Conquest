@@ -1677,7 +1677,7 @@ td {
   justify-content: flex-end;
   align-items: center;
   color: grey;
-  background-color: rgba(54, 93, 125, 0.8);
+  background-color: rgba(54, 93, 125, 1.0);
   pointer-events: none;
   cursor: default;
   border-style: none;
