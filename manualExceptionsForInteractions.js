@@ -1,7 +1,7 @@
 const manualInteractionExceptions = new Map([
     //OCEANIA
     //Extreme East Islands
-    [338, [333,334,336,337]],
+    [338, [333, 334, 336, 337]],
     [333, [338]],
     [334, [338]],
     [336, [338]],
@@ -13,17 +13,17 @@ const manualInteractionExceptions = new Map([
     [350, [335]],
 
     //Solomon Islands with Papua New Guinea
-    [330, [325,321]],
-    [327, [325,321]],
-    [325, [330,327]],
-    [321, [327,330]],
+    [330, [325, 321]],
+    [327, [325, 321]],
+    [325, [330, 327]],
+    [321, [327, 330]],
 
     //New Zealand connections
-    [355, [346,348,349]],
-    [346, [355,356]],
-    [348, [355,356]],
-    [349, [355,356]],
-    [356, [346,348,349, 335]],
+    [355, [346, 348, 349]],
+    [346, [355, 356]],
+    [348, [355, 356]],
+    [349, [355, 356]],
+    [356, [346, 348, 349, 335]],
 
     //Timor Leste with Australia
     [291, [346]],
@@ -34,7 +34,7 @@ const manualInteractionExceptions = new Map([
     [19, [93]],
 
     //Maldives with India/Sri Lanka
-    [227, [66,246]],
+    [227, [66, 246]],
     [246, [227]],
     [66, [227]],
 
@@ -49,7 +49,7 @@ const manualInteractionExceptions = new Map([
     [195, [197]],
 
     //Seychelles with Mozambique/Tanzania
-    [225, [210,216]],
+    [225, [210, 216]],
     [216, [225]],
     [210, [225]],
     [224, [230]],
@@ -85,7 +85,7 @@ const manualInteractionExceptions = new Map([
     [67, [5]],
 
     //Morocco with Spain, Portugal and Gibraltar
-    [78, [28,5,69]],
+    [78, [28, 5, 69]],
     [28, [78]],
     [5, [78]],
     [69, [78]],
@@ -107,19 +107,19 @@ const manualInteractionExceptions = new Map([
     [51, [61]],
 
     //Iceland with UK Hebridean Islands and Ireland
-    [3, [1,2]],
+    [3, [1, 2]],
     [1, [3]],
     [2, [3]],
 
     //NORTH AMERICA
     //Bermuda with U.S. Mainland and Bahamas North Island
-    [145, [24,12]],
+    [145, [24, 12]],
     [24, [145]],
     [12, [145]],
 
     //SOUTH AMERICA
     //Brazil with Sierra Leone, Liberia and Guinea
-    [27, [83,84,86]],
+    [27, [83, 84, 86]],
     [86, [27]],
     [84, [27]],
     [83, [27]]
@@ -147,6 +147,3 @@ export function findMatchingCountries(pathObj) {
     }
     return matchingCountries;
 }
-
-
-
