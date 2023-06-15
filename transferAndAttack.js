@@ -36,6 +36,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
 
     let selectedRow = null; // Track the selected row
     let mainArrayElement;
+    const disabledFlags = [true,true,true,true];
 
     for (let i = 0; i < mainArray.length; i++) {
         if (mainArray[i].uniqueId === getLastClickedPathFn().getAttribute("uniqueid")) {
@@ -141,11 +142,16 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                                 return;
                             }
 
+                            const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
+
+                            if (disabledFlags[armyColumnIndex]) {
+                                return;
+                            }
+
                             const currentValue = multipleTextBox.value;
                             const newValue = getNextMultipleValue(currentValue);
                             multipleTextBox.value = newValue;
 
-                            const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
                             let parsedValue;
                             if (newValue === "x1k") {
                                 parsedValue = 1000;
@@ -171,6 +177,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             const armyColumnIndex = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
                             const multipleValue = multipleValuesArray[armyColumnIndex];
 
+                            if (disabledFlags[armyColumnIndex]) {
+                                return;
+                            }
+
                             let newValue;
                             if (multipleValue === 1) {
                                 newValue = currentValue + 1;
@@ -180,7 +190,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             }
 
                             // Compare with main array values
-                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex);
+                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
                             if (newValue <= mainArrayValue) {
                                 quantityTextBox.value = newValue.toString();
                             } else {
@@ -188,8 +198,13 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                                 if (multipleValue > 1) {
                                     const newMultipleValue = Math.floor(multipleValue / 10);
                                     multipleValuesArray[armyColumnIndex] = newMultipleValue;
-                                    updateMultipleTextBox(multipleValue, newMultipleValue, armyTypeColumn);
+                                    updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex);
                                 }
+                            }
+
+                            // Check if the quantity has reached the maximum limit
+                            if (parseInt(quantityTextBox.value) === mainArrayValue) {
+                                plusButton.src = "/resources/plusButtonGrey.png";
                             }
                         });
 
@@ -208,6 +223,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             const multipleValue = multipleValuesArray[armyColumnIndex];
 
                             if (currentValue === 0) {
+                                return;
+                            }
+
+                            if (disabledFlags[armyColumnIndex]) {
                                 return;
                             }
 
@@ -244,6 +263,12 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             } else if (newMultipleValue === 10000) {
                                 multipleTextBox.value = "x10k";
                             }
+
+                            // Check if the quantity has reached the maximum limit
+                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
+                            if (parseInt(quantityTextBox.value) < mainArrayValue) {
+                                plusButton.src = "/resources/plusButton.png";
+                            }
                         });
 
                         territoryTransferColumn.appendChild(armyTypeColumn);
@@ -270,12 +295,11 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                     return;
                 }
 
-                selectedRow = territoryTransferRow;
-
                 if (selectedRow !== null) {
                     selectedRow.classList.remove("selectedRow");
                 }
 
+                selectedRow = territoryTransferRow;
                 selectedRow.classList.add("selectedRow");
 
                 // Enable/disable army columns based on selection
@@ -332,10 +356,31 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                         quantityTextBox.value = "0";
                         multipleTextBox.value = "x1";
                     }
-                });
+                    const mainArrayValueArray = getCurrentMainArrayValue(mainArrayElement, 0, true);
 
+                    armyColumns.forEach((column, index) => {
+                        const plusButton = column.querySelector("#plusButton");
+                        const minusButton = column.querySelector("#minusButton");
+                        const multipleIncrementCycler = column.querySelector("#multipleIncrementCycler");
+                        const multipleTextBox = column.querySelector("#multipleTextBox");
+                        const quantityTextBox = column.querySelector("#quantityTextBox");
+                    
+                        if (mainArrayValueArray[index] === 0) {
+                            plusButton.src = "/resources/plusButtonGrey.png";
+                            multipleTextBox.style.color = "grey";
+                            quantityTextBox.style.color = "grey";
+                            minusButton.src = "/resources/minusButtonGrey.png";
+                            multipleIncrementCycler.src = "/resources/multipleIncrementerButtonGrey.png";
+                        
+                            disabledFlags[index] = true;
+                        } else {
+                            disabledFlags[index] = false;
+                        }
+                    });
+                });
             });
         });
+
     } else if (transferOrAttack === 1) { // attack
         // Add attack logic here
     }
@@ -375,41 +420,79 @@ function getInnerColumnId(m) {
 
 
 // Helper function to get the current main array value based on armyColumnIndex
-function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex) {
-    switch (armyColumnIndex) {
-        case 0:
-            return mainArrayElement.infantryForCurrentTerritory;
-        case 1:
-            return mainArrayElement.assaultForCurrentTerritory;
-        case 2:
-            return mainArrayElement.airForCurrentTerritory;
-        case 3:
-            return mainArrayElement.navalForCurrentTerritory;
-        default:
-            return 0;
+function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck) {
+    if (allRowCheck) {
+        const values = [];
+        const selectedRow = document.querySelector(".selectedRow");
+        const armyColumns = selectedRow.querySelectorAll(".army-type-column");
+
+        armyColumns.forEach((armyColumn) => {
+            let value;
+            const childNumber = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
+
+            switch (childNumber) {
+                case 0:
+                    value = mainArrayElement.infantryForCurrentTerritory;
+                    break;
+                case 1:
+                    value = mainArrayElement.assaultForCurrentTerritory;
+                    break;
+                case 2:
+                    value = mainArrayElement.airForCurrentTerritory;
+                    break;
+                case 3:
+                    value = mainArrayElement.navalForCurrentTerritory;
+                    break;
+                default:
+                    value = 0;
+            }
+            values.push(value);
+        });
+
+        return values;
+    } else {
+        switch (armyColumnIndex) {
+            case 0:
+                return mainArrayElement.infantryForCurrentTerritory;
+            case 1:
+                return mainArrayElement.assaultForCurrentTerritory;
+            case 2:
+                return mainArrayElement.airForCurrentTerritory;
+            case 3:
+                return mainArrayElement.navalForCurrentTerritory;
+            default:
+                return 0;
+        }
     }
 }
 
-// Helper function to update the displayed string in the quantityTextBox based on the newMultipleValue
-function updateMultipleTextBox(previousMultipleValue, newMultipleValue, armyTypeColumn) {
-    const quantityTextBox = armyTypeColumn.querySelector("#quantityTextBox");
+
+
+function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex) {
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
-
-    if (newMultipleValue === 1) {
-        multipleTextBox.value = "x1";
-    } else if (newMultipleValue === 10) {
-        multipleTextBox.value = "x10";
-    } else if (newMultipleValue === 100) {
-        multipleTextBox.value = "x100";
-    } else if (newMultipleValue === 1000) {
-        multipleTextBox.value = "x1k";
-    } else if (newMultipleValue === 10000) {
-        multipleTextBox.value = "x10k";
-    }
-
-    // Adjust quantityTextBox value based on the newMultipleValue
     const currentValue = parseInt(quantityTextBox.value);
-    const multiplier = Math.pow(10, Math.floor(Math.log10(previousMultipleValue)));
+  
+    if (newMultipleValue === 1) {
+      multipleTextBox.value = "x1";
+    } else if (newMultipleValue === 10) {
+      multipleTextBox.value = "x10";
+    } else if (newMultipleValue === 100) {
+      multipleTextBox.value = "x100";
+    } else if (newMultipleValue === 1000) {
+      multipleTextBox.value = "x1k";
+    } else if (newMultipleValue === 10000) {
+      multipleTextBox.value = "x10k";
+    }
+  
+    // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
+    const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
     const newValue = currentValue + newMultipleValue;
-    quantityTextBox.value = newValue.toString();
-}
+  
+    if (newValue <= mainArrayValue) {
+      quantityTextBox.value = newValue.toString();
+    } else {
+      const difference = mainArrayValue - currentValue;
+      quantityTextBox.value = (currentValue + difference).toString();
+    }
+  }
+  
