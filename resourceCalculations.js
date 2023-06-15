@@ -34,6 +34,9 @@ import {
     setUpgradeOrBuyWindowOnScreenToTrue,
     saveMapColorState
 } from './ui.js';
+import {
+    transferQuantitiesArray
+} from './transferAndAttack.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];

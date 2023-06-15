@@ -1,5 +1,7 @@
 let getLastClickedPathFn;
-let selectedRow = null;
+let selectedTerritoryUniqueId;
+
+export let transferQuantitiesArray = [];
 
 function handleImportedModule(module) {
     const {
@@ -227,6 +229,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             if (parseInt(quantityTextBox.value) === mainArrayValue) {
                                 plusButton.src = "/resources/plusButtonGrey.png";
                             }
+
+                            const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
+                            const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
+                            updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
                         });
 
                         // Add click event listener to "minusButton"
@@ -292,6 +298,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             if (parseInt(quantityTextBox.value) < mainArrayValue) {
                                 plusButton.src = "/resources/plusButton.png";
                             }
+
+                            const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
+                            const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
+                            updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
                         });
 
                         territoryTransferColumn.appendChild(armyTypeColumn);
@@ -300,6 +310,11 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
 
                 territoryTransferRow.appendChild(territoryTransferColumn);
             }
+
+            // Add click event listener to each row
+            territoryTransferRow.addEventListener("click", () => {
+                selectedTerritoryUniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+            });
 
             table.appendChild(territoryTransferRow);
         }
@@ -516,4 +531,12 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
       quantityTextBox.value = (currentValue + difference).toString();
     }
   }
+  
+function updateTransferArray(mainArrayElement, quantityTextBoxes) {
+    const mainArrayUniqueId = mainArrayElement;
+    const clickedPathUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
+    const quantityValues = quantityTextBoxes.map((textBox) => textBox.value);
+
+    transferQuantitiesArray = [mainArrayUniqueId, clickedPathUniqueId, ...quantityValues].map(value => parseInt(value));
+}
   
