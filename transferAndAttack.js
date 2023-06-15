@@ -61,32 +61,59 @@ importModuleWithTimeout()
               armyTypeColumn.classList.add("army-type-column");
   
               // Create inner columns
-              for (let m = 0; m < 4; m++) {
+              for (let m = 0; m < 5; m++) {
                 const innerColumn = document.createElement("div");
-                innerColumn.classList.add("innerColumn");
+                innerColumn.id = `${getInnerColumnId(m)}`; // Assign ID to innerColumn
                 armyTypeColumn.appendChild(innerColumn);
   
-                const dropdown = document.createElement('div');
-                dropdown.classList.add('dropdown');
-  
-                const dropdownBtn = document.createElement('button');
-                dropdownBtn.textContent = 'Dropdown';
-                dropdownBtn.classList.add('dropdown-btn');
-                dropdown.appendChild(dropdownBtn);
-  
-                const dropdownContent = document.createElement('div');
-                dropdownContent.classList.add('dropdown-content');
-                dropdown.appendChild(dropdownContent);
-  
-                const options = ['x1', 'x10', 'x100', 'x1000', 'x10000'];
-                options.forEach(optionText => {
-                  const option = document.createElement('a');
-                  option.href = '#';
-                  option.textContent = optionText;
-                  dropdownContent.appendChild(option);
-                });
-  
-                innerColumn.appendChild(dropdown);
+                switch (m) {
+                  case 0:
+                    // First innerColumn
+                    const imageField = document.createElement("img");
+                    imageField.id = "multipleIncrementCycler";
+                    imageField.classList.add("multipleIncrementerButton");
+                    imageField.src = "/resources/multipleIncrementerButton.png";
+                    imageField.style.height = "20px";
+                    imageField.style.width = "20px";
+                    innerColumn.appendChild(imageField);
+                    break;
+                  case 1:
+                    // Second innerColumn
+                    const inputField = document.createElement("input");
+                    inputField.id = "multipleTextBox";
+                    inputField.classList.add("multipleTextField");
+                    inputField.value = "x1";
+                    innerColumn.appendChild(inputField);
+                    break;
+                  case 2:
+                    // Third innerColumn
+                    const minusButton = document.createElement("img");
+                    minusButton.id = "minusButton";
+                    minusButton.classList.add("transferMinusButton");
+                    minusButton.src = "/resources/minusButton.png";
+                    minusButton.style.height = "20px";
+                    minusButton.style.width = "20px";
+                    innerColumn.appendChild(minusButton);
+                    break;
+                  case 3:
+                    // Fourth innerColumn
+                    const quantityTextBox = document.createElement("input");
+                    quantityTextBox.id = "quantityTextBox";
+                    quantityTextBox.classList.add("quantityTextField");
+                    quantityTextBox.value = "0";
+                    innerColumn.appendChild(quantityTextBox);
+                    break;
+                  case 4:
+                    // Fifth innerColumn
+                    const plusButton = document.createElement("img");
+                    plusButton.id = "plusButton";
+                    plusButton.classList.add("transferPlusButton");
+                    plusButton.src = "/resources/plusButton.png";
+                    plusButton.style.height = "20px";
+                    plusButton.style.width = "20px";
+                    innerColumn.appendChild(plusButton);
+                    break;
+                }
               }
   
               territoryTransferColumn.appendChild(armyTypeColumn);
@@ -103,6 +130,28 @@ importModuleWithTimeout()
     }
   }
   
+  // Helper function to generate the ID for innerColumn elements
+  function getInnerColumnId(m) {
+    let id = "";
+    switch (m) {
+      case 0:
+        id = "multipleIncrementCyclerContainer";
+        break;
+      case 1:
+        id = "multipleTextFieldContainer";
+        break;
+      case 2:
+        id = "quantityMinusContainer";
+        break;
+      case 3:
+        id = "quantityTextFieldContainer";
+        break;
+      case 4:
+        id = "quantityPlusContainer";
+        break;
+    }
+    return id;
+  }
 
 function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
     uiTableContainer.innerHTML = "";

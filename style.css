@@ -1268,18 +1268,18 @@ td {
   padding: 10px;
 }
 
+.buyColumn5-wrapper {
+  display: flex;
+  align-items: center;
+  width: 25px;
+}
+
 .buyColumn5A {
   width: 20px;
   padding: 0px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-}
-
-.buyColumn5-wrapper {
-  display: flex;
-  align-items: center;
-  width: 25px;
 }
 
 .buyColumn5B {
@@ -1550,7 +1550,7 @@ td {
 
 .content-transfer-header-column:first-child {
   display: flex;
-  width: 48%;
+  width: 35%;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1558,7 +1558,7 @@ td {
 
 .content-transfer-header-column:last-child {
   display: flex;
-  width: 52%;
+  width: 65%;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1614,7 +1614,7 @@ td {
 
 .transfer-table-outer-column {
   align-items: center;
-  width: 55%;
+  width: 80%;
   height: 40px;
   color: white;
   display: flex;
@@ -1629,7 +1629,7 @@ td {
 }
 
 .transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type {
-  width: 45%
+  width: 20%;
 }
 
 .army-type-column {
@@ -1637,53 +1637,116 @@ td {
   width: 25%;
   height: 40px;
   display: flex;
-  border: 3px solid white;
+  border-left: solid 1px rgb(91, 129, 160);
 }
 
-.innerColumn {
-  width: 25%;
-  flex: 1;
-  border: 5px solid red;
+.army-type-column:last-child {
+  border-right: solid 1px rgb(91, 129, 160);
 }
 
-.dropdown {
-  position: relative;
-  display: inline-block;
+#multipleIncrementCyclerContainer {
+  width: 20px;
 }
 
-.dropdown-btn {
-  background-color: #fff;
-  border: 1px solid #ccc;
-  color: #333;
-  padding: 8px 16px;
-  cursor: pointer;
+.multipleIncrementerButton {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 9px;
 }
 
-.dropdown-content {
-  display: none;
-  position: absolute;
-  background-color: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  z-index: 1;
+#multipleTextFieldContainer {
+  width: 40px;
+  margin-left: 2px;
 }
 
-.dropdown-content a {
-  display: block;
-  padding: 8px 16px;
-  text-decoration: none;
-  color: #333;
+.multipleTextField {
+  width: 40px;
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  color: white;
+  background-color: rgba(54, 93, 125, 0.8);
+  pointer-events: none;
+  cursor: default;
+  border-style: none;
+  border: none;
+  text-align: center;
+  margin-left: 9px;
 }
 
+.multipleTextField input[type="text"] {
+  width: 40px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  background-color: rgba(54, 93, 125, 0.8);
+}
 
+#quantityMinusContainer {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 15px;
+}
 
+.transferMinusButton {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+}
 
+#quantityTextFieldContainer {
+  width: 50px;
+  margin-left: 2px;
+}
 
+.quantityTextField {
+  width: 50px;
+  padding: 0px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  color: white;
+  background-color: rgba(54, 93, 125, 0.8);
+  pointer-events: none;
+  cursor: default;
+  border-style: none;
+  border: none;
+  text-align: center;
+}
 
+.quantityTextField input[type="text"] {
+  pointer-events: none;
+  width: 50px;
+  height: 15px;
+  border: none;
+  border-radius: 4px;
+  margin-left: 2px;
+  margin-right: 2px;
+}
 
+#quantityPlusContainer {
+  width: 15px;
+  margin-left: 5px;
+  margin-right: 9px;
+}
 
-
-
-
-
-
-
+.transferPlusButton {
+  padding: 0px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+}
