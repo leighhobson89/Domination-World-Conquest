@@ -1676,7 +1676,7 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  color: white;
+  color: grey;
   background-color: rgba(54, 93, 125, 0.8);
   pointer-events: none;
   cursor: default;
@@ -1689,7 +1689,6 @@ td {
   width: 40px;
   border: none;
   border-radius: 4px;
-  color: white;
   background-color: rgba(54, 93, 125, 0.8);
 }
 
@@ -1722,7 +1721,7 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  color: white;
+  color: grey;
   background-color: rgba(54, 93, 125, 0.8);
   pointer-events: none;
   cursor: default;
