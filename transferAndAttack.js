@@ -133,9 +133,9 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
               // Update the corresponding element in the multipleValuesArray
               const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
               let parsedValue;
-              if (newValue === "x1K") {
+              if (newValue === "x1k") {
                 parsedValue = 1000;
-              } else if (newValue === "x10K") {
+              } else if (newValue === "x10k") {
                 parsedValue = 10000;
               } else {
                 parsedValue = parseInt(newValue.substring(1), 10);
@@ -163,6 +163,55 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
               quantityTextBox.value = newValue.toString();
             });
 
+            // Add click event listener to "minusButton"
+            const minusButton = armyTypeColumn.querySelector("#minusButton");
+            minusButton.addEventListener("click", () => {
+            const armyColumn = minusButton.closest(".army-type-column");
+            const quantityTextBox = armyColumn.querySelector("#quantityTextBox");
+            const currentValue = parseInt(quantityTextBox.value);
+            const armyColumnIndex = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
+            const multipleValue = multipleValuesArray[armyColumnIndex];
+
+            if (currentValue === 0) {
+                return; // Ignore click when the value is already 0
+            }
+
+            let newValue = currentValue;
+            let newMultipleValue = multipleValue;
+
+            if (multipleValue > 1) {
+                let multiplier = Math.pow(10, Math.floor(Math.log10(multipleValue)));
+                while (newValue - multiplier < 0) {
+                newMultipleValue = Math.floor(multiplier / 10);
+                multiplier = Math.pow(10, Math.floor(Math.log10(newMultipleValue)));
+                }
+            }
+
+            if (multipleValue === 1) {
+                newValue = newValue - 1;
+            } else {
+                const multiplier = Math.pow(10, Math.floor(Math.log10(newMultipleValue)));
+                newValue = newValue - (multiplier > 1 ? multiplier : newMultipleValue);
+            }
+
+            quantityTextBox.value = newValue.toString();
+            multipleValuesArray[armyColumnIndex] = newMultipleValue;
+
+            // Update the displayed string in the quantityTextBox
+            if (newMultipleValue === 1) {
+                multipleTextBox.value = "x1";
+            } else if (newMultipleValue === 10) {
+                multipleTextBox.value = "x10";
+            } else if (newMultipleValue === 100) {
+                multipleTextBox.value = "x100";
+            } else if (newMultipleValue === 1000) {
+                multipleTextBox.value = "x1k";
+            } else if (newMultipleValue === 10000) {
+                multipleTextBox.value = "x10k";
+            }  
+            });
+
+
             territoryTransferColumn.appendChild(armyTypeColumn);
           }
         }
@@ -179,7 +228,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
 
 // Helper function to get the next multiple value
 function getNextMultipleValue(currentValue) {
-  const multiples = ["x1", "x10", "x100", "x1K", "x10K"];
+  const multiples = ["x1", "x10", "x100", "x1k", "x10k"];
   const currentIndex = multiples.indexOf(currentValue);
   const nextIndex = (currentIndex + 1) % multiples.length;
   return multiples[nextIndex];
