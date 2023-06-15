@@ -2524,6 +2524,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   button.addEventListener("click", transferAttackClickHandler);
 
   function transferAttackClickHandler() {
+    playSoundClip();
       if (transferAttackbuttonState == 0) {
           territoryComingFrom = lastClickedPath;
       }
@@ -2736,6 +2737,17 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   const transferToAttackHeading = document.getElementById("attackOrTransferString");
   const fromHeading = document.getElementById("fromHeadingString");
   const territoryTextString = document.getElementById("territoryTextString");
+
+  // Check if territory is "transferring" and set the text color accordingly
+  if (territory === "transferring") {
+    territoryTextString.innerHTML = "please select an option...";
+    territoryTextString.style.color = "rgb(221, 107, 107)";
+    territoryTextString.style.fontWeight = "bold";
+  } else {
+    territoryTextString.innerHTML = territory + " (" + country + ")";
+    territoryTextString.style.color = "white";
+  }
+
   const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
   const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
 

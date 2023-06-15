@@ -35,6 +35,13 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
     table.innerHTML = "";
 
     let selectedRow = null; // Track the selected row
+    let mainArrayElement;
+
+    for (let i = 0; i < mainArray.length; i++) {
+        if (mainArray[i].uniqueId === getLastClickedPathFn().getAttribute("uniqueid")) {
+            mainArrayElement = mainArray[i];
+        }
+    }
 
     playerOwnedTerritories.sort((a, b) => {
         const idA = parseInt(a.getAttribute("territory-id"));
@@ -172,7 +179,18 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                                 newValue = currentValue + (multiplier > 1 ? multiplier : multipleValue);
                             }
 
-                            quantityTextBox.value = newValue.toString();
+                            // Compare with main array values
+                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex);
+                            if (newValue <= mainArrayValue) {
+                                quantityTextBox.value = newValue.toString();
+                            } else {
+                                // Ignore click and reduce multiple value
+                                if (multipleValue > 1) {
+                                    const newMultipleValue = Math.floor(multipleValue / 10);
+                                    multipleValuesArray[armyColumnIndex] = newMultipleValue;
+                                    updateMultipleTextBox(multipleValue, newMultipleValue, armyTypeColumn);
+                                }
+                            }
                         });
 
                         // Add click event listener to "minusButton"
@@ -242,6 +260,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
         const territoryTransferColumns = document.querySelectorAll(".transfer-table-outer-column:first-child");
         territoryTransferColumns.forEach((column) => {
             column.addEventListener("click", () => {
+                const territoryTextString = document.getElementById("territoryTextString"); // change title to white text when selected a row
+                territoryTextString.style.color = "white";
+                territoryTextString.style.fontWeight = "normal";
+
                 const territoryTransferRow = column.parentNode;
 
                 if (selectedRow === territoryTransferRow) {
@@ -349,4 +371,45 @@ function getInnerColumnId(m) {
             break;
     }
     return id;
+}
+
+
+// Helper function to get the current main array value based on armyColumnIndex
+function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex) {
+    switch (armyColumnIndex) {
+        case 0:
+            return mainArrayElement.infantryForCurrentTerritory;
+        case 1:
+            return mainArrayElement.assaultForCurrentTerritory;
+        case 2:
+            return mainArrayElement.airForCurrentTerritory;
+        case 3:
+            return mainArrayElement.navalForCurrentTerritory;
+        default:
+            return 0;
+    }
+}
+
+// Helper function to update the displayed string in the quantityTextBox based on the newMultipleValue
+function updateMultipleTextBox(previousMultipleValue, newMultipleValue, armyTypeColumn) {
+    const quantityTextBox = armyTypeColumn.querySelector("#quantityTextBox");
+    const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
+
+    if (newMultipleValue === 1) {
+        multipleTextBox.value = "x1";
+    } else if (newMultipleValue === 10) {
+        multipleTextBox.value = "x10";
+    } else if (newMultipleValue === 100) {
+        multipleTextBox.value = "x100";
+    } else if (newMultipleValue === 1000) {
+        multipleTextBox.value = "x1k";
+    } else if (newMultipleValue === 10000) {
+        multipleTextBox.value = "x10k";
+    }
+
+    // Adjust quantityTextBox value based on the newMultipleValue
+    const currentValue = parseInt(quantityTextBox.value);
+    const multiplier = Math.pow(10, Math.floor(Math.log10(previousMultipleValue)));
+    const newValue = currentValue + newMultipleValue;
+    quantityTextBox.value = newValue.toString();
 }
