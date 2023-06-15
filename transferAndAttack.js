@@ -157,6 +157,8 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                                 parsedValue = 1000;
                             } else if (newValue === "x10k") {
                                 parsedValue = 10000;
+                            } else if (newValue === "All") {
+                                parsedValue = 100000000;
                             } else {
                                 parsedValue = parseInt(newValue.substring(1), 10);
                             }
@@ -184,6 +186,22 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             let newValue;
                             if (multipleValue === 1) {
                                 newValue = currentValue + 1;
+                            } else if (multipleValue === 100000000) { //all
+                                newValue = mainArrayElement
+                                switch (armyColumnIndex) {
+                                    case 0:
+                                        newValue = mainArrayElement.infantryForCurrentTerritory;
+                                        break;
+                                    case 1:
+                                        newValue = mainArrayElement.assaultForCurrentTerritory;
+                                        break;
+                                    case 2:
+                                        newValue = mainArrayElement.airForCurrentTerritory;
+                                        break;
+                                    case 3:
+                                        newValue = mainArrayElement.navalForCurrentTerritory;
+                                        break;
+                                }
                             } else {
                                 const multiplier = Math.pow(10, Math.floor(Math.log10(multipleValue)));
                                 newValue = currentValue + (multiplier > 1 ? multiplier : multipleValue);
@@ -196,7 +214,10 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             } else {
                                 // Ignore click and reduce multiple value
                                 if (multipleValue > 1) {
-                                    const newMultipleValue = Math.floor(multipleValue / 10);
+                                    let newMultipleValue = Math.floor(multipleValue / 10);
+                                    if (parseInt(quantityTextBox.value) === mainArrayValue) {
+                                        newMultipleValue = 1;
+                                    }
                                     multipleValuesArray[armyColumnIndex] = newMultipleValue;
                                     updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex);
                                 }
@@ -251,7 +272,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             quantityTextBox.value = newValue.toString();
                             multipleValuesArray[armyColumnIndex] = newMultipleValue;
 
-                            // Update the displayed string in the quantityTextBox
+                            // Update the displayed string in the multipleTextBox
                             if (newMultipleValue === 1) {
                                 multipleTextBox.value = "x1";
                             } else if (newMultipleValue === 10) {
@@ -262,6 +283,8 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                                 multipleTextBox.value = "x1k";
                             } else if (newMultipleValue === 10000) {
                                 multipleTextBox.value = "x10k";
+                            } else if (newMultipleValue === 100000000) {
+                                multipleTextBox.value = "All";
                             }
 
                             // Check if the quantity has reached the maximum limit
@@ -389,7 +412,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
 
 // Helper function to get the next multiple value
 function getNextMultipleValue(currentValue) {
-    const multiples = ["x1", "x10", "x100", "x1k", "x10k"];
+    const multiples = ["x1", "x10", "x100", "x1k", "x10k", "All"];
     const currentIndex = multiples.indexOf(currentValue);
     const nextIndex = (currentIndex + 1) % multiples.length;
     return multiples[nextIndex];
@@ -465,8 +488,6 @@ function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck
         }
     }
 }
-
-
 
 function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex) {
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
