@@ -1,4 +1,6 @@
-import { playSoundClip } from './sfx.js'
+import {
+    playSoundClip
+} from './sfx.js'
 
 // create an audio element and add the source of the music file
 const audio = new Audio('resources/music/musicGame.mp3');
@@ -22,7 +24,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 isPlaying = true;
                 audio.play();
             }
-            
+
             if (!firstTime) {
                 isPlaying = !isPlaying;
                 if (isPlaying) {

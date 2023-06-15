@@ -335,7 +335,8 @@ td {
 }
 
 .move-phase-button-red-background {
-  background-color: rgb(210, 0, 0);;
+  background-color: rgb(210, 0, 0);
+  ;
 }
 
 .move-phase-button-red-background:hover {
@@ -372,14 +373,14 @@ td {
 .title {
   color: yellow;
   font-size: 6rem;
-  text-shadow: 4px 4px 6px rgba(0,0,0,0.5);
+  text-shadow: 4px 4px 6px rgba(0, 0, 0, 0.5);
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
 }
 
 .subTitle {
   font-size: 4rem;
-  text-shadow: 4px 4px 6px rgba(0,0,0,0.5);
+  text-shadow: 4px 4px 6px rgba(0, 0, 0, 0.5);
   border-bottom: 5px solid white;
 }
 
@@ -540,7 +541,7 @@ td {
   border: 3px solid rgb(84, 99, 110);
   transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
-  height: 35px; 
+  height: 35px;
   width: 28px;
   margin-right: 7px;
 }
@@ -554,7 +555,7 @@ td {
   border: 3px solid rgb(84, 99, 110);
   transition: all 0.3s ease;
   background-color: rgb(81, 121, 153);
-  height: 35px; 
+  height: 35px;
   width: 35px;
   margin-left: 7px;
   text-align: center;
@@ -622,7 +623,7 @@ td {
   background-image: var(--bg-image);
 }
 
-.info-panel > * {
+.info-panel>* {
   position: relative;
   z-index: 1;
 }
@@ -633,7 +634,8 @@ td {
   left: 0;
   width: 100%;
   height: 100%;
-  backdrop-filter: blur(5px); /* adjust the amount of blur */
+  backdrop-filter: blur(5px);
+  /* adjust the amount of blur */
 }
 
 /* -------------------------------------------- TERRITORY TABLE--------------------------------------------- */
@@ -649,7 +651,9 @@ td {
   table-layout: fixed;
 }
 
-.ui-table-row:first-child, .ui-table-row:nth-child(4), .ui-table-row:nth-child(7) {
+.ui-table-row:first-child,
+.ui-table-row:nth-child(4),
+.ui-table-row:nth-child(7) {
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -760,7 +764,7 @@ td {
   width: 90%;
 }
 
-.centerIcons{
+.centerIcons {
   justify-content: center;
   align-items: center;
   display: flex;
@@ -794,13 +798,13 @@ td {
   background-color: rgba(54, 93, 125, 0.8);
 }
 
-.navbar-upgrade-window > div {
+.navbar-upgrade-window>div {
   flex: 1;
   display: flex;
   align-items: center;
 }
 
-.navbar-upgrade-window > .center-column {
+.navbar-upgrade-window>.center-column {
   justify-content: center;
   font-size: 1.6rem;
   align-items: center;
@@ -809,7 +813,7 @@ td {
   letter-spacing: 1px;
 }
 
-.navbar-upgrade-window > .right-column {
+.navbar-upgrade-window>.right-column {
   justify-content: flex-end;
   align-items: flex-start;
 }
@@ -905,13 +909,14 @@ td {
   background: rgba(54, 93, 125, 1.0) no-repeat center / 100% 100%;
 }
 
-.info-panel-upgrade > * {
+.info-panel-upgrade>* {
   position: relative;
   z-index: 1;
 }
 
 .upgrade-table {
-  height: 300px; /* Adjust the height as needed */
+  height: 300px;
+  /* Adjust the height as needed */
   display: flex;
   flex-direction: column;
 }
@@ -1097,13 +1102,13 @@ td {
   background-color: rgba(54, 93, 125, 0.8);
 }
 
-.navbar-buy-window > div {
+.navbar-buy-window>div {
   flex: 1;
   display: flex;
   align-items: center;
 }
 
-.navbar-buy-window > .center-column-buy {
+.navbar-buy-window>.center-column-buy {
   justify-content: center;
   font-size: 1.6rem;
   align-items: center;
@@ -1112,7 +1117,7 @@ td {
   letter-spacing: 1px;
 }
 
-.navbar-buy-window > .right-column-buy {
+.navbar-buy-window>.right-column-buy {
   justify-content: flex-end;
   align-items: flex-start;
 }
@@ -1208,13 +1213,14 @@ td {
   background: rgba(54, 93, 125, 1.0) no-repeat center / 100% 100%;
 }
 
-.info-panel-buy > * {
+.info-panel-buy>* {
   position: relative;
   z-index: 1;
 }
 
 .buy-table {
-  height: 300px; /* Adjust the height as needed */
+  height: 300px;
+  /* Adjust the height as needed */
   display: flex;
   flex-direction: column;
 }
@@ -1508,7 +1514,7 @@ td {
   transition-duration: 0.3s;
   transition-timing-function: ease;
   background-color: rgb(81, 121, 153);
-  height: 20px !important; 
+  height: 20px !important;
   width: 13px !important;
   align-items: center;
   justify-content: center;
@@ -1526,7 +1532,7 @@ td {
   font-size: 1.4rem;
   font-weight: bold;
   background-color: rgb(81, 121, 153);
-  height: 20px !important; 
+  height: 20px !important;
   width: 60px !important;
   align-items: center;
   justify-content: center;
@@ -1624,11 +1630,11 @@ td {
   cursor: pointer;
 }
 
-.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type:hover {
+.transfer-table-row-hoverable>.transfer-table-outer-column:first-of-type:hover {
   background-color: rgba(75, 111, 140, 0.7);
 }
 
-.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type {
+.transfer-table-row-hoverable>.transfer-table-outer-column:first-of-type {
   width: 20%;
 }
 
@@ -1676,7 +1682,7 @@ td {
   cursor: default;
   border-style: none;
   border: none;
-  text-align: center;
+  text-align: left;
 }
 
 .multipleTextField input[type="text"] {
@@ -1694,7 +1700,6 @@ td {
   align-items: center;
   width: 15px;
   height: 15px;
-  margin-left: 15px;
 }
 
 .transferMinusButton {
