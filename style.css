@@ -1646,6 +1646,9 @@ td {
 
 #multipleIncrementCyclerContainer {
   width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  margin-left: 9px;
 }
 
 .multipleIncrementerButton {
@@ -1655,12 +1658,10 @@ td {
   align-items: center;
   width: 20px;
   height: 20px;
-  margin-left: 9px;
 }
 
 #multipleTextFieldContainer {
   width: 40px;
-  margin-left: 2px;
 }
 
 .multipleTextField {
@@ -1676,7 +1677,6 @@ td {
   border-style: none;
   border: none;
   text-align: center;
-  margin-left: 9px;
 }
 
 .multipleTextField input[type="text"] {
