@@ -1,3 +1,5 @@
+import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB } from './resourceCalculations.js';
+
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId;
 
@@ -33,7 +35,7 @@ importModuleWithTimeout()
     });
 
 // Declare multipleValuesArray outside the drawTransferAttackTable function
-export function drawTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
+export function drawAndHandleTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
     table.innerHTML = "";
 
     let selectedRow = null; // Track the selected row
@@ -233,6 +235,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
                             const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
                             updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
+                            checkAndSetButtonAsConfirmOrCancel(parseInt(quantityTextBox.value));
                         });
 
                         // Add click event listener to "minusButton"
@@ -302,6 +305,7 @@ export function drawTransferAttackTable(table, validDestinationsArray, mainArray
                             const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
                             const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
                             updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
+                            checkAndSetButtonAsConfirmOrCancel(parseInt(quantityTextBox.value));
                         });
 
                         territoryTransferColumn.appendChild(armyTypeColumn);
@@ -539,4 +543,73 @@ function updateTransferArray(mainArrayElement, quantityTextBoxes) {
 
     transferQuantitiesArray = [mainArrayUniqueId, clickedPathUniqueId, ...quantityValues].map(value => parseInt(value));
 }
+
+function checkAndSetButtonAsConfirmOrCancel(quantity) {
+    const button = document.getElementById("move-phase-button");
+  
+    if (quantity === 0) {
+
+      button.innerHTML = "CANCEL";
+      
+      button.classList.remove("move-phase-button-red-background");
+      button.classList.remove("move-phase-button-grey-background");
+      button.classList.remove("move-phase-button-green-background");
+      button.classList.add("move-phase-button-blue-background");
+
+      button.style.color = "white";
+      button.style.fontWeight = "normal";
+
+    } else if (quantity >= 1) {
+
+      button.innerHTML = "CONFIRM";
+
+      button.classList.remove("move-phase-button-red-background");
+      button.classList.remove("move-phase-button-grey-background");
+      button.classList.remove("move-phase-button-blue-background");
+      button.classList.add("move-phase-button-green-background");
+
+      button.style.color = "yellow";
+      button.style.fontWeight = "normal";
+
+    }
+  }
+
+export function transferArmyToNewTerritory(transferArray) { //will move new army, available immediately
+    console.log("To: " + transferArray[0] + " From: " + transferArray[1] + " Infantry: " + transferArray[2] + ", Assault: " + transferArray[3] + ", Air: " + transferArray[4] + ", Naval: " + transferArray[5]);
+    let newArmyValueTo = 0;
+    let newArmyValueFrom = 0;
+
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (parseInt(mainArrayOfTerritoriesAndResources[i].uniqueId) === transferArray[0]) { //To
+            for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+                if (parseInt(mainArrayOfTerritoriesAndResources[j].uniqueId) === transferArray[1]) { //From
+                    mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory += transferArray[2];
+                    newArmyValueTo += transferArray[2];
+                    mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory += transferArray[3];
+                    newArmyValueTo += transferArray[3] * vehicleArmyWorth.assault;
+                    mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory += transferArray[4];
+                    newArmyValueTo += transferArray[4] * vehicleArmyWorth.air;
+                    mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory += transferArray[5];
+                    newArmyValueTo += transferArray[5] * vehicleArmyWorth.naval;
+
+                    mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory -= transferArray[2];
+                    newArmyValueFrom -= transferArray[2];
+                    mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory -= transferArray[3];
+                    newArmyValueFrom -= transferArray[3] * vehicleArmyWorth.assault;
+                    mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory -= transferArray[4];
+                    newArmyValueFrom -= transferArray[4] * vehicleArmyWorth.air;
+                    mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory -= transferArray[5];
+                    newArmyValueFrom -= transferArray[5] * vehicleArmyWorth.naval;
+
+                    mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += newArmyValueTo;
+                    mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory += newArmyValueFrom;
+
+                    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory);
+                    break;
+                }
+            }
+        }
+    }
+}
+  
   

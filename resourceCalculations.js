@@ -95,7 +95,7 @@ const oilRequirements = {
     assault: 100
 };
 
-const vehicleArmyWorth = {
+export const vehicleArmyWorth = {
     infantry: 1000,
     naval: 20000,
     air: 5000,
@@ -3606,7 +3606,6 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     );
     remainingArmyValue -= initialDistribution.assault * vehicleArmyWorth.assault;
 
-    // Allocate the remaining army value to infantry
     initialDistribution.infantry = remainingArmyValue;
 
     return initialDistribution;
@@ -3647,7 +3646,6 @@ function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
     if (territoryOilDemand > territoryOil) {
         let difference = territoryOilDemand - territoryOil;
 
-        // Calculate the number of vehicles to mark as unuseable for each type, distributing evenly
         let types = ["naval", "air", "assault"];
         let index = 0;
 
@@ -3742,7 +3740,6 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
                 }
             }
 
-            // Update the remaining gold to be transferred
             remainingGold = goldCost - territory.goldForCurrentTerritory;
             /* console.log("now there is a shortfall of " + remainingGold + " gold."); */
 
@@ -3755,7 +3752,6 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
         /* console.log("Territory does not need to borrow money"); */
     }
 
-    // Update the territory's goldForCurrentTerritory variable
     territory.goldForCurrentTerritory = Math.max(0, territory.goldForCurrentTerritory - goldCost);
 }
 
