@@ -1988,7 +1988,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     row.style.cursor = "pointer";
 }
 
-function colourTableText(table, territory) {
+export function colourTableText(table, territory) {
     /* let changeGold = calculateGoldChange(territory); */
     let changeOil = calculateOilChange(territory, true);
     let changeFood = calculateFoodChange(territory, true);

@@ -1,4 +1,4 @@
-import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB } from './resourceCalculations.js';
+import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId;
@@ -604,7 +604,15 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
                     mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += newArmyValueTo;
                     mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory += newArmyValueFrom;
 
+                    mainArrayOfTerritoriesAndResources[i].territoryPopulation += newArmyValueTo;
+                    mainArrayOfTerritoriesAndResources[j].territoryPopulation += newArmyValueFrom;
+
+                    /* mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[i].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex) - mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory);
+                    mainArrayOfTerritoriesAndResources[j].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory); */
+
+                    colourTableText(document.getElementById("bottom-table"), mainArrayOfTerritoriesAndResources[j]);
                     document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory);
+                    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].territoryPopulation) + ")";
                     break;
                 }
             }
