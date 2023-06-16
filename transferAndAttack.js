@@ -2,6 +2,7 @@ import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKM
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId;
+let totalAttackAmountArray = [0,0,0,0];
 
 export let transferQuantitiesArray = [];
 
@@ -976,5 +977,3 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
         }
     }
 }
-  
-  

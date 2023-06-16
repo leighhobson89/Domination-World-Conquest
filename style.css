@@ -1554,11 +1554,12 @@ td {
 }
 
 .content-transfer-header-column:first-child {
+  margin-left: 5px;
   display: flex;
   width: 28%;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  text-align: left;
+  color: yellow;
 }
 
 .content-transfer-header-column:last-child {
