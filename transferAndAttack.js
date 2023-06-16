@@ -35,7 +35,7 @@ importModuleWithTimeout()
     });
 
 // Declare multipleValuesArray outside the drawTransferAttackTable function
-export function drawAndHandleTransferAttackTable(table, validDestinationsArray, mainArray, playerOwnedTerritories, transferOrAttack) {
+export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTerritories, territoriesAbleToAttackTarget, transferOrAttack) {
     table.innerHTML = "";
 
     let selectedRow = null; // Track the selected row
@@ -425,25 +425,22 @@ export function drawAndHandleTransferAttackTable(table, validDestinationsArray, 
 
     } else if (transferOrAttack === 1) { // attack
         // Create rows
-        for (let i = 0; i < playerOwnedTerritories.length; i++) {
-            if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
-                continue;
-            }
+        for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
 
             const multipleValuesArray = [1, 1, 1, 1]; // Initialize with default values for each row
 
-            const territoryTransferRow = document.createElement("div");
-            territoryTransferRow.classList.add("transfer-table-row-hoverable");
+            const territoryAttackFromRow = document.createElement("div");
+            territoryAttackFromRow.classList.add("transfer-table-row-hoverable");
 
             // Create columns
             for (let j = 0; j < 2; j++) {
-                const territoryTransferColumn = document.createElement("div");
-                territoryTransferColumn.classList.add("transfer-table-outer-column");
+                const territoryAttackFromColumn = document.createElement("div");
+                territoryAttackFromColumn.classList.add("transfer-table-outer-column");
 
                 if (j === 0) {
-                    territoryTransferColumn.style.width = "50%";
-                    const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-                    territoryTransferColumn.textContent = territoryName;
+                    territoryAttackFromColumn.style.width = "50%";
+                    const territoryAttackFromName = territoriesAbleToAttackTarget[i].getAttribute("territory-name");
+                    territoryAttackFromColumn.textContent = territoryAttackFromName;
                 } else {
                     for (let k = 0; k < 4; k++) {
                         const armyTypeColumn = document.createElement("div");
@@ -677,19 +674,13 @@ export function drawAndHandleTransferAttackTable(table, validDestinationsArray, 
                             checkAndSetButtonAsConfirmOrCancel(parseInt(quantityTextBox.value));
                         });
 
-                        territoryTransferColumn.appendChild(armyTypeColumn);
+                        territoryAttackFromColumn.appendChild(armyTypeColumn);
                     }
                 }
 
-                territoryTransferRow.appendChild(territoryTransferColumn);
+                territoryAttackFromRow.appendChild(territoryAttackFromColumn);
             }
-
-            // Add click event listener to each row
-            territoryTransferRow.addEventListener("click", () => {
-                selectedTerritoryUniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-            });
-
-            table.appendChild(territoryTransferRow);
+            table.appendChild(territoryAttackFromRow);
         }
 
         // Add click event listener to territoryTransferColumn:first-child elements
