@@ -94,6 +94,7 @@ let lastPlayerOwnedValidDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
 let colorArray;
+export let territoriesAbleToAttackTarget;
 
 // Game States
 let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -240,8 +241,14 @@ export function svgMapLoaded() {
                       let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
                       let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
                       if (e.target.getAttribute("owner") === "Player") {
-                          validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, centerOfTargetPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray);
+                          validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
                           lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
+                      } else {
+                        territoriesAbleToAttackTarget = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
+                        territoriesAbleToAttackTarget = territoriesAbleToAttackTarget.filter(territoryCandidate => {
+                            const owner = territoryCandidate.getAttribute("owner");
+                            return owner === "Player";
+                          });
                       }
                       handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, false, 2);
                   }
@@ -1828,84 +1835,87 @@ function getBboxCoordsAndPushUniqueID(path) {
   return bBoxArray;
 }
 
-function HighlightInteractableCountriesAfterSelectingOne(targetPath, centerCoordsTargetPath, destCoordsArray, destinationPathObjectArray, distances) {
-  let manualExceptionsArray = [];
+function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
+    let manualExceptionsArray = [];
+    let tempValidDestinationsArray = [];
+  
+    defs = svgMap.querySelector('defs');
+    patterns = defs.querySelectorAll('pattern');
 
-  defs = svgMap.querySelector('defs');
-  patterns = defs.querySelectorAll('pattern');
+    for (let i = 0; i < patterns.length; i++) { //remove all patterns before creating new ones
+        defs.removeChild(patterns[i]);
+    }
 
-  for (let i = 0; i < patterns.length; i++) { //remove all patterns before creating new ones
-      defs.removeChild(patterns[i]);
+    if (destCoordsArray.length < 1) {
+        throw new Error("Array must contain at least 1 element");
+    }
+  
+    let count = 0;
+  
+    manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
+  
+    if (manualExceptionsArray.length > 0) { //works correctly
+        for (let i = 0; i < manualExceptionsArray.length; i++) {
+            tempValidDestinationsArray.push(changeCountryColor(manualExceptionsArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            count++;
+        }
+    }
+  
+    for (let i = 0; i < destinationPathObjectArray.length; i++) {
+        const targetName = targetPath.getAttribute("data-name");
+        const destName = destinationPathObjectArray[i].getAttribute("data-name");
+  
+        if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            count++;
+        } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            count++;
+        } else {
+            for (let j = 0; j < destinationPathObjectArray.length; j++) {
+                if (i === j) {
+                    continue;
+                }
+  
+                const destObjI = destinationPathObjectArray[i];
+                const destObjJ = destinationPathObjectArray[j];
+  
+                if (destObjI.getAttribute("uniqueid") === destObjJ.getAttribute("uniqueid")) {
+                    continue;
+                }
+  
+                if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
+                    tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+                    count++;
+                }
+  
+                if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!attacking) {
+        validDestinationsArray.length = 0;
+        
+        for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("fill").startsWith("url")) {
+                validDestinationsArray.push(paths[i]);
+                paths[i].setAttribute("attackableTerritory", "true");
+            }
+        }
+
+        for (let i = 0; i < validDestinationsArray.length; i++) {
+            setStrokeWidth(validDestinationsArray[i], "3");
+        }
+    } else {
+        return tempValidDestinationsArray;
+    }
+
+    return validDestinationsArray;
   }
-
-  if (destCoordsArray.length < 1) {
-      throw new Error("Array must contain at least 1 element");
-  }
-
-  let x1 = centerCoordsTargetPath[0][1];
-  let y1 = centerCoordsTargetPath[0][2];
-  let count = 0;
-
-  manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
-
-  if (manualExceptionsArray.length > 0) { //works correctly
-      for (let i = 0; i < manualExceptionsArray.length; i++) {
-          changeCountryColor(manualExceptionsArray[i], true, "pattern", count);
-          count++;
-      }
-  }
-
-  for (let i = 0; i < destinationPathObjectArray.length; i++) {
-      const targetName = targetPath.getAttribute("data-name");
-      const destName = destinationPathObjectArray[i].getAttribute("data-name");
-
-      const line = document.createElementNS(svgns, "path");
-      line.setAttribute("d", `M${x1},${y1} L${destCoordsArray[i].x},${destCoordsArray[i].y}`);
-      if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
-          changeCountryColor(destinationPathObjectArray[i], false, "pattern", count); //change color of touching countrys
-          count++;
-      } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
-          changeCountryColor(destinationPathObjectArray[i], false, playerColour, count);
-          count++;
-      } else {
-          for (let j = 0; j < destinationPathObjectArray.length; j++) {
-              if (i === j) {
-                  continue;
-              }
-
-              const destObjI = destinationPathObjectArray[i];
-              const destObjJ = destinationPathObjectArray[j];
-
-              if (destObjI.getAttribute("uniqueid") === destObjJ.getAttribute("uniqueid")) {
-                  continue;
-              }
-
-              if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
-                  changeCountryColor(destinationPathObjectArray[i], false, "pattern", count);
-                  count++;
-              }
-
-              if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
-                  break;
-              }
-          }
-      }
-  }
-  validDestinationsArray.length = 0;
-
-  for (let i = 0; i < paths.length; i++) {
-      if (paths[i].getAttribute("fill").startsWith("url")) {
-          validDestinationsArray.push(paths[i]);
-          paths[i].setAttribute("attackableTerritory", "true");
-      }
-  }
-
-  for (let i = 0; i < validDestinationsArray.length; i++) {
-      setStrokeWidth(validDestinationsArray[i], "3");
-  }
-
-  return validDestinationsArray;
-}
+  
 
 function getClosestPointsDestinationPaths(coord, paths) {
   const closestPoints = [];
@@ -1934,7 +1944,9 @@ function getClosestPointsDestinationPaths(coord, paths) {
   return closestPoints;
 }
 
-function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
+function changeCountryColor(pathObj, isManualException, newRgbValue, count, attacking) {
+  let tempAttackingDestinationArray = []; //only to get attacking destinations
+
   let originalColor = pathObj.getAttribute("fill");
   let rgbValues = originalColor.match(/\d{1,3}/g);
 
@@ -1985,7 +1997,11 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
       defs.appendChild(pattern);
 
       // apply the pattern to the path element
-      pathObj.setAttribute('fill', 'url(#' + pattern.getAttribute("id") + ')');
+      if (!attacking) {
+        pathObj.setAttribute('fill', 'url(#' + pattern.getAttribute("id") + ')');
+      } else {
+        tempAttackingDestinationArray.push(pathObj);
+      }
   } else {
       pathObj.setAttribute("fill", newRgbValue);
   }
@@ -2002,6 +2018,8 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count) {
           currentlySelectedColorsArray.pop();
       }
   }
+
+  return tempAttackingDestinationArray; //only to extract attacking destinations
 }
 
 export function setFlag(flag, place) {
