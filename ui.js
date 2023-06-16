@@ -80,7 +80,7 @@ const continentColorArray = [
 
 let teamColorArray = [];
 const greyOutColor = 'rgb(170, 170, 170)';
-const countryGreyOutThreshold = 30;
+const countryGreyOutThreshold = 10000; //countries under this strength greyed out
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -1459,6 +1459,10 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   xButtonTransferAttack.addEventListener("click", function() {
+      if (transferAttackButton.innerHTML === "CONFIRM") {
+        transferAttackButton.style.fontWeight = "normal";
+        transferAttackButton.style.color = "white";
+      }
       playSoundClip();
       toggleTransferAttackWindow(false);
       transferAttackWindowOnScreen = false;
