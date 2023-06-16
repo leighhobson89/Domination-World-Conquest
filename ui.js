@@ -45,7 +45,7 @@ import {
 } from './transferAndAttack.js';
 import {
     transferQuantitiesArray,
-    transferArmyToNewTerritory
+    transferArmyToNewTerritory,
 } from './transferAndAttack.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2725,6 +2725,19 @@ function removeImageFromPathAndRestoreNormalStroke(path) {
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
     let elementInMainArray;
+    let totalAttackAmountArray = [0,0,0,0];
+
+    for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
+        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+            if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId) {
+                totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
+                totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory;
+                totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory;
+                totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory;
+            }
+        }
+    }
+
     for (let i = 0; i < mainArray.length; i++) {
         if (territoryComingFrom.getAttribute("uniqueid") === mainArray[i].uniqueId) {
             elementInMainArray = mainArray[i];
@@ -2732,6 +2745,11 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     }
   
     let attackingOrTransferring = "";
+
+    document.getElementById("contentTransferHeaderRow1").style.display = "flex";
+    let imageElement;
+    let imageSrc;
+
     if (buttonState === 0) {
         document.getElementById("percentageAttack").style.display = "none";
         document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
@@ -2739,6 +2757,22 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
   
         attackingOrTransferring = "Transferring to:";
+
+        imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+        imageSrc = "/resources/infantry.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+        imageSrc = "/resources/assault.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+        imageSrc = "/resources/air.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+        imageSrc = "/resources/naval.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
   
     } else if (buttonState === 1) {
         document.getElementById("percentageAttack").style.display = "flex";
@@ -2746,25 +2780,27 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
         document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
         attackingOrTransferring = "Attacking:";
+
+        document.getElementById("contentTransferHeaderColumn1").innerHTML = "Total Military Force In Range:";
+
+        imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+        imageSrc = "/resources/infantry.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[0])}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+        imageSrc = "/resources/assault.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[1])}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+        imageSrc = "/resources/air.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[2])}</span>`;
+      
+        imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+        imageSrc = "/resources/naval.png";
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3])}</span>`;
+     
     }
-  
-    document.getElementById("contentTransferHeaderRow1").style.display = "flex";
-    let imageElement = document.getElementById("contentTransferHeaderImageColumn1");
-    let imageSrc = "/resources/infantry.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
-  
-    imageElement = document.getElementById("contentTransferHeaderImageColumn2");
-    imageSrc = "/resources/assault.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
-  
-    imageElement = document.getElementById("contentTransferHeaderImageColumn3");
-    imageSrc = "/resources/air.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
-  
-    imageElement = document.getElementById("contentTransferHeaderImageColumn4");
-    imageSrc = "/resources/naval.png";
-    imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
-  
+   
     const transferToAttackHeading = document.getElementById("attackOrTransferString");
     const fromHeading = document.getElementById("fromHeadingString");
     const territoryTextString = document.getElementById("territoryTextString");
