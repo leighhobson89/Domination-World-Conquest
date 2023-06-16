@@ -607,7 +607,7 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
                     mainArrayOfTerritoriesAndResources[i].territoryPopulation += newArmyValueTo;
                     mainArrayOfTerritoriesAndResources[j].territoryPopulation += newArmyValueFrom;
 
-                    /* mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[i].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex) - mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory);
+                    /* mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[i].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex) - mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory); //commenting this means prod pop not updated til next turn on main ui but uncommenting screws up the army on the next turn.
                     mainArrayOfTerritoriesAndResources[j].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory); */
 
                     colourTableText(document.getElementById("bottom-table"), mainArrayOfTerritoriesAndResources[j]);
