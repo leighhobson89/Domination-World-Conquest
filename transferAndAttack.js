@@ -1,8 +1,9 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
 
 let getLastClickedPathFn;
-let selectedTerritoryUniqueId;
-let totalAttackAmountArray = [0,0,0,0];
+let selectedTerritoryUniqueId; // transfer only
+let territoryUniqueIds = []; //attack only
+let totalAttackAmountArray = [0,0,0,0]; // attack only
 
 export let transferQuantitiesArray = [];
 
@@ -41,7 +42,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
     let selectedRow = null; // Track the selected row
     let mainArrayElement;
-    const disabledFlags = [true,true,true,true];
 
     for (let i = 0; i < mainArray.length; i++) {
         if (mainArray[i].uniqueId === getLastClickedPathFn().getAttribute("uniqueid")) {
@@ -56,6 +56,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     });
 
     if (transferOrAttack === 0) { // transfer
+        let disabledFlags = [true,true,true,true];
         // Create rows
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
@@ -425,13 +426,15 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         });
 
     } else if (transferOrAttack === 1) { // attack
+        let disabledFlags = [false,false,false,false];
         // Create rows
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
+            territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
 
             const multipleValuesArray = [1, 1, 1, 1]; // Initialize with default values for each row
 
             const territoryAttackFromRow = document.createElement("div");
-            territoryAttackFromRow.classList.add("transfer-table-row-hoverable");
+            territoryAttackFromRow.classList.add("transfer-table-row");
 
             // Create columns
             for (let j = 0; j < 2; j++) {
@@ -459,7 +462,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const imageField = document.createElement("img");
                                     imageField.id = "multipleIncrementCycler";
                                     imageField.classList.add("multipleIncrementerButton");
-                                    imageField.src = "/resources/multipleIncrementerButtonGrey.png";
+                                    imageField.src = "/resources/multipleIncrementerButton.png";
                                     imageField.style.height = "20px";
                                     imageField.style.width = "20px";
                                     innerColumn.appendChild(imageField);
@@ -469,6 +472,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const inputField = document.createElement("input");
                                     inputField.id = "multipleTextBox";
                                     inputField.classList.add("multipleTextField");
+                                    inputField.classList.add("attackWhiteDefault");
                                     inputField.value = "x1";
                                     innerColumn.appendChild(inputField);
                                     break;
@@ -477,7 +481,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const minusButton = document.createElement("img");
                                     minusButton.id = "minusButton";
                                     minusButton.classList.add("transferMinusButton");
-                                    minusButton.src = "/resources/minusButtonGrey.png";
+                                    minusButton.src = "/resources/minusButton.png";
                                     minusButton.style.height = "20px";
                                     minusButton.style.width = "20px";
                                     innerColumn.appendChild(minusButton);
@@ -487,6 +491,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const quantityTextBox = document.createElement("input");
                                     quantityTextBox.id = "quantityTextBox";
                                     quantityTextBox.classList.add("quantityTextField");
+                                    quantityTextBox.classList.add("attackWhiteDefault");
                                     quantityTextBox.value = "0";
                                     innerColumn.appendChild(quantityTextBox);
                                     break;
@@ -495,7 +500,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const plusButton = document.createElement("img");
                                     plusButton.id = "plusButton";
                                     plusButton.classList.add("transferPlusButton");
-                                    plusButton.src = "/resources/plusButtonGrey.png";
+                                    plusButton.src = "/resources/plusButton.png";
                                     plusButton.style.height = "20px";
                                     plusButton.style.width = "20px";
                                     innerColumn.appendChild(plusButton);
@@ -508,10 +513,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
 
                         multipleIncrementCycler.addEventListener("click", () => {
-
-                            if (armyTypeColumn.parentNode.parentNode !== selectedRow) {
-                                return;
-                            }
 
                             const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
 
@@ -539,10 +540,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         // Add click event listener to "plusButton"
                         const plusButton = armyTypeColumn.querySelector("#plusButton");
                         plusButton.addEventListener("click", () => {
-
-                            if (armyTypeColumn.parentNode.parentNode !== selectedRow) {
-                                return;
-                            }
 
                             const armyColumn = plusButton.closest(".army-type-column");
                             const quantityTextBox = armyColumn.querySelector("#quantityTextBox");
@@ -599,19 +596,17 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 plusButton.src = "/resources/plusButtonGrey.png";
                             }
 
-                            const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
-                            const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
-                            updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
-                            checkAndSetButtonAsConfirmOrCancel(parseInt(quantityTextBox.value));
+                            const rowRightHalfElements = Array.from(table.querySelectorAll('.transfer-table-outer-column:last-child'));
+                            const armyColumnElements = rowRightHalfElements.map(rowRightHalfElement => Array.from(rowRightHalfElement.querySelectorAll('.army-type-column')));
+                            const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
+
+                            updateAttackArray(territoryUniqueIds, quantityTextBoxes);
+                            checkAndSetButtonAsAttackOrCancel(parseInt(quantityTextBoxes));
                         });
 
                         // Add click event listener to "minusButton"
                         const minusButton = armyTypeColumn.querySelector("#minusButton");
                         minusButton.addEventListener("click", () => {
-
-                            if (armyTypeColumn.parentNode.parentNode !== selectedRow) {
-                                return;
-                            }
 
                             const armyColumn = minusButton.closest(".army-type-column");
                             const quantityTextBox = armyColumn.querySelector("#quantityTextBox");
@@ -669,10 +664,13 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 plusButton.src = "/resources/plusButton.png";
                             }
 
-                            const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
-                            const quantityTextBoxes = armyColumnElements.map((column) => column.querySelector("#quantityTextBox"));
-                            updateTransferArray(selectedTerritoryUniqueId, quantityTextBoxes);
-                            checkAndSetButtonAsConfirmOrCancel(parseInt(quantityTextBox.value));
+                            const rowRightHalfElements = Array.from(table.querySelectorAll('.transfer-table-outer-column:last-child'));
+                            const armyColumnElements = rowRightHalfElements.map(rowRightHalfElement => Array.from(rowRightHalfElement.querySelectorAll('.army-type-column')));
+                            const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
+
+
+                            updateAttackArray(territoryUniqueIds, quantityTextBoxes);
+                            checkAndSetButtonAsAttackOrCancel(parseInt(quantityTextBoxes));
                         });
 
                         territoryAttackFromColumn.appendChild(armyTypeColumn);
@@ -683,106 +681,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
             }
             table.appendChild(territoryAttackFromRow);
         }
-
-        // Add click event listener to territoryTransferColumn:first-child elements
-        const territoryTransferColumns = document.querySelectorAll(".transfer-table-outer-column:first-child");
-        territoryTransferColumns.forEach((column) => {
-            column.addEventListener("click", () => {
-                const territoryTextString = document.getElementById("territoryTextString"); // change title to white text when selected a row
-                territoryTextString.style.color = "white";
-                territoryTextString.style.fontWeight = "normal";
-
-                const territoryTransferRow = column.parentNode;
-
-                if (selectedRow === territoryTransferRow) {
-                    return;
-                }
-
-                if (selectedRow !== null) {
-                    selectedRow.classList.remove("selectedRow");
-                }
-
-                selectedRow = territoryTransferRow;
-                selectedRow.classList.add("selectedRow");
-
-                // Enable/disable army columns based on selection
-                const armyColumns = Array.from(territoryTransferRow.querySelectorAll(".army-type-column"));
-                const allArmyColumns = Array.from(document.querySelectorAll(".army-type-column"));
-
-                armyColumns.forEach((column) => {
-                    const multipleIncrementCycler = column.querySelector("#multipleIncrementCycler");
-                    const transferMinusButton = column.querySelector("#minusButton");
-                    const transferPlusButton = column.querySelector("#plusButton");
-                    const quantityTextBox = column.querySelector("#quantityTextBox");
-                    const multipleTextBox = column.querySelector("#multipleTextBox");
-
-                    // Enable selected row army columns
-                    if (multipleIncrementCycler.src.includes("Grey")) {
-                        multipleIncrementCycler.src = multipleIncrementCycler.src.replace("Grey.png", ".png");
-                    }
-                    if (transferMinusButton.src.includes("Grey")) {
-                        transferMinusButton.src = transferMinusButton.src.replace("Grey.png", ".png");
-                    }
-                    if (transferPlusButton.src.includes("Grey")) {
-                        transferPlusButton.src = transferPlusButton.src.replace("Grey.png", ".png");
-                    }
-                    quantityTextBox.style.color = "white";
-                    multipleTextBox.style.color = "white";
-                });
-
-                allArmyColumns.forEach((column) => {
-                    const multipleIncrementCycler = column.querySelector("#multipleIncrementCycler");
-                    const transferMinusButton = column.querySelector("#minusButton");
-                    const transferPlusButton = column.querySelector("#plusButton");
-                    const quantityTextBox = column.querySelector("#quantityTextBox");
-                    const multipleTextBox = column.querySelector("#multipleTextBox");
-
-                    if (!armyColumns.includes(column)) {
-                        // Disable non-selected row army columns
-                        if (!multipleIncrementCycler.src.includes("Grey")) {
-                            multipleIncrementCycler.src = multipleIncrementCycler.src.replace(".png", "Grey.png");
-                        }
-                        if (!transferMinusButton.src.includes("Grey")) {
-                            transferMinusButton.src = transferMinusButton.src.replace(".png", "Grey.png");
-                        }
-                        if (!transferPlusButton.src.includes("Grey")) {
-                            transferPlusButton.src = transferPlusButton.src.replace(".png", "Grey.png");
-                        }
-                        quantityTextBox.style.color = "grey";
-                        multipleTextBox.style.color = "grey";
-
-                        // Reset values
-                        quantityTextBox.value = "0";
-                        multipleTextBox.value = "x1";
-                    } else {
-                        // Reset values
-                        quantityTextBox.value = "0";
-                        multipleTextBox.value = "x1";
-                    }
-                    const mainArrayValueArray = getCurrentMainArrayValue(mainArrayElement, 0, true);
-
-                    armyColumns.forEach((column, index) => {
-                        const plusButton = column.querySelector("#plusButton");
-                        const minusButton = column.querySelector("#minusButton");
-                        const multipleIncrementCycler = column.querySelector("#multipleIncrementCycler");
-                        const multipleTextBox = column.querySelector("#multipleTextBox");
-                        const quantityTextBox = column.querySelector("#quantityTextBox");
-                    
-                        if (mainArrayValueArray[index] === 0) {
-                            plusButton.src = "/resources/plusButtonGrey.png";
-                            multipleTextBox.style.color = "grey";
-                            quantityTextBox.style.color = "grey";
-                            minusButton.src = "/resources/minusButtonGrey.png";
-                            multipleIncrementCycler.src = "/resources/multipleIncrementerButtonGrey.png";
-                        
-                            disabledFlags[index] = true;
-                        } else {
-                            disabledFlags[index] = false;
-                        }
-                    });
-                });
-            });
-        });
     }
 }
 

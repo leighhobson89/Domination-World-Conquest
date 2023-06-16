@@ -1606,8 +1606,6 @@ td {
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.5);
-  border-left: 1px solid white;
-  border-right: 1px solid white;
 }
 
 .transfer-table-row-hoverable {
@@ -1752,4 +1750,8 @@ td {
   align-items: center;
   width: 20px;
   height: 20px;
+}
+
+.attackWhiteDefault {
+  color: white;
 }
