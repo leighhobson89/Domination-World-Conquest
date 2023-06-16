@@ -2727,13 +2727,15 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     let elementInMainArray;
     let totalAttackAmountArray = [0,0,0,0];
 
-    for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
-        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-            if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId) {
-                totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
-                totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory;
-                totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory;
-                totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory;
+    if (buttonState === 1) {
+        for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
+            for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId) {
+                    totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
+                    totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory;
+                    totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory;
+                    totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory;
+                }
             }
         }
     }
