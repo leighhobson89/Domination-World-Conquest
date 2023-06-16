@@ -94,7 +94,7 @@ let lastPlayerOwnedValidDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
 let colorArray;
-export let territoriesAbleToAttackTarget;
+let territoriesAbleToAttackTarget;
 
 // Game States
 let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -2579,9 +2579,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   button.innerHTML = "CANCEL";
                   drawAndHandleTransferAttackTable(
                       document.getElementById("transferTable"),
-                      validDestinationsArray,
                       mainArrayOfTerritoriesAndResources,
                       playerOwnedTerritories,
+                      territoriesAbleToAttackTarget,
                       transferAttackbuttonState
                   );
 
@@ -2724,74 +2724,79 @@ function removeImageFromPathAndRestoreNormalStroke(path) {
 }
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
-  let elementInMainArray;
-  for (let i = 0; i < mainArray.length; i++) {
-      if (territoryComingFrom.getAttribute("uniqueid") === mainArray[i].uniqueId) {
-          elementInMainArray = mainArray[i];
-      }
+    let elementInMainArray;
+    for (let i = 0; i < mainArray.length; i++) {
+        if (territoryComingFrom.getAttribute("uniqueid") === mainArray[i].uniqueId) {
+            elementInMainArray = mainArray[i];
+        }
+    }
+  
+    let attackingOrTransferring = "";
+    if (buttonState === 0) {
+        document.getElementById("percentageAttack").style.display = "none";
+        document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
+        document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+        document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
+  
+        attackingOrTransferring = "Transferring to:";
+  
+    } else if (buttonState === 1) {
+        document.getElementById("percentageAttack").style.display = "flex";
+        document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
+        document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
+        document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
+        attackingOrTransferring = "Attacking:";
+    }
+  
+    document.getElementById("contentTransferHeaderRow1").style.display = "flex";
+    let imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+    let imageSrc = "/resources/infantry.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
+  
+    imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+    imageSrc = "/resources/assault.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
+  
+    imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+    imageSrc = "/resources/air.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
+  
+    imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+    imageSrc = "/resources/naval.png";
+    imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
+  
+    const transferToAttackHeading = document.getElementById("attackOrTransferString");
+    const fromHeading = document.getElementById("fromHeadingString");
+    const territoryTextString = document.getElementById("territoryTextString");
+  
+    // Check if territory is "transferring" and set the text color accordingly
+    if (territory === "transferring") {
+      territoryTextString.innerHTML = "please select an option...";
+      territoryTextString.style.color = "rgb(221, 107, 107)";
+      territoryTextString.style.fontWeight = "bold";
+    } else {
+      territoryTextString.innerHTML = territory + " (" + country + ")";
+      territoryTextString.style.color = "white";
+    }
+  
+    const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
+    const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
+  
+    if (!transferToAttackHeading || !fromHeading || !territoryTextString || !attackingFromTerritory || !titleTransferAttackWindow) {
+        console.error("One or more required elements are null.");
+        return;
+    }
+  
+    transferToAttackHeading.innerHTML = attackingOrTransferring;
+    territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
+    if (buttonState === 0) {
+        fromHeading.innerHTML = "From: ";
+        attackingFromTerritory.innerHTML = territoryComingFrom.getAttribute("territory-name");
+    } else if (buttonState === 1) {
+        fromHeading.innerHTML = "";
+        attackingFromTerritory.innerHTML = "";
+    }
   }
-
-  let attackingOrTransferring = "";
-  if (buttonState === 0) {
-      document.getElementById("percentageAttack").style.display = "none";
-      document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
-      document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
-      document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
-
-      attackingOrTransferring = "Transferring to:";
-
-  } else if (buttonState === 1) {
-      document.getElementById("percentageAttack").style.display = "flex";
-      document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
-      document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
-      document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
-      attackingOrTransferring = "Attacking:";
-  }
-
-  document.getElementById("contentTransferHeaderRow1").style.display = "flex";
-  let imageElement = document.getElementById("contentTransferHeaderImageColumn1");
-  let imageSrc = "/resources/infantry.png";
-  imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
-
-  imageElement = document.getElementById("contentTransferHeaderImageColumn2");
-  imageSrc = "/resources/assault.png";
-  imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
-
-  imageElement = document.getElementById("contentTransferHeaderImageColumn3");
-  imageSrc = "/resources/air.png";
-  imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
-
-  imageElement = document.getElementById("contentTransferHeaderImageColumn4");
-  imageSrc = "/resources/naval.png";
-  imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
-
-  const transferToAttackHeading = document.getElementById("attackOrTransferString");
-  const fromHeading = document.getElementById("fromHeadingString");
-  const territoryTextString = document.getElementById("territoryTextString");
-
-  // Check if territory is "transferring" and set the text color accordingly
-  if (territory === "transferring") {
-    territoryTextString.innerHTML = "please select an option...";
-    territoryTextString.style.color = "rgb(221, 107, 107)";
-    territoryTextString.style.fontWeight = "bold";
-  } else {
-    territoryTextString.innerHTML = territory + " (" + country + ")";
-    territoryTextString.style.color = "white";
-  }
-
-  const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
-  const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
-
-  if (!transferToAttackHeading || !fromHeading || !territoryTextString || !attackingFromTerritory || !titleTransferAttackWindow) {
-      console.error("One or more required elements are null.");
-      return;
-  }
-
-  transferToAttackHeading.innerHTML = attackingOrTransferring;
-  fromHeading.innerHTML = "From: ";
-  territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
-  attackingFromTerritory.innerHTML = territoryComingFrom.getAttribute("territory-name");
-}
 
 function setTransferToTerritory(listOfTerritories) {
   listOfTerritories.forEach(territory => {
