@@ -4,6 +4,7 @@ let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
 let territoryUniqueIds = []; //attack only
 let totalAttackAmountArray = [0,0,0,0]; // attack only
+let attackArray = [];
 
 export let transferQuantitiesArray = [];
 
@@ -554,7 +555,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             let newValue;
                             if (multipleValue === 1) {
                                 newValue = currentValue + 1;
-                            } else if (multipleValue === 100000000) { //all
+                            } else if (multipleValue === 100000000) { 
                                 newValue = mainArrayElement
                                 switch (armyColumnIndex) {
                                     case 0:
@@ -799,6 +800,27 @@ function updateTransferArray(mainArrayElement, quantityTextBoxes) {
 
     transferQuantitiesArray = [mainArrayUniqueId, clickedPathUniqueId, ...quantityValues].map(value => parseInt(value));
 }
+
+function updateAttackArray(mainArrayElements, quantityTextBoxes) {
+    const attackQuantitiesArray = [];
+  
+    for (let i = 0; i < mainArrayElements.length; i++) {
+      const mainArrayUniqueId = mainArrayElements[i];
+      const startIdx = i * 4;
+      const quantityValues = quantityTextBoxes.slice(startIdx, startIdx + 4).map((textBox) => parseInt(textBox.value) || 0);
+
+      const rowArray = [mainArrayUniqueId, ...quantityValues];
+      attackQuantitiesArray.push(rowArray);
+    }
+  
+    const attackedTerritoryUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
+  
+    attackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
+  }
+  
+  
+  
+  
 
 function checkAndSetButtonAsConfirmOrCancel(quantity) {
     const button = document.getElementById("move-phase-button");
