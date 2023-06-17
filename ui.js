@@ -519,7 +519,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
   const UIToggleButton = document.createElement("img");
-  UIToggleButton.src = "/resources/globeNoStandButtonUI.png"; // Set the image source URL
+  UIToggleButton.src = "resources/globeNoStandButtonUI.png"; // Set the image source URL
   UIToggleButton.classList.add("UI-option");
   UIToggleButton.setAttribute("id", "UIToggleButton");
 
@@ -976,7 +976,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarColumn3 = document.createElement("div");
   keyBarColumn3.classList.add("key-bar-column3");
-  let imageSource = "/resources/gold.png";
+  let imageSource = "resources/gold.png";
   let imageElement = document.createElement("img");
   imageElement.src = imageSource;
   imageElement.alt = "Gold";
@@ -985,7 +985,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarColumn4 = document.createElement("div");
   keyBarColumn4.classList.add("key-bar-column4");
-  imageSource = "/resources/consMats.png";
+  imageSource = "resources/consMats.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
   imageElement.alt = "Construction Materials";
@@ -994,7 +994,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarColumn5 = document.createElement("div");
   keyBarColumn5.classList.add("key-bar-column5");
-  imageSource = "/resources/upgrade.png";
+  imageSource = "resources/upgrade.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
   imageElement.alt = "Upgrade";
@@ -1046,7 +1046,7 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesInfoCol1.classList.add("prices-info-column");
   pricesInfoCol1.classList.add("prices-info-icon-justification");
   pricesInfoCol1.setAttribute("id", "prices-info-column1");
-  imageSource = "/resources/gold.png";
+  imageSource = "resources/gold.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
   imageElement.alt = "Gold";
@@ -1063,7 +1063,7 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesInfoCol3.classList.add("prices-info-column");
   pricesInfoCol3.classList.add("prices-info-icon-justification");
   pricesInfoCol3.setAttribute("id", "prices-info-column3");
-  imageSource = "/resources/consMats.png";
+  imageSource = "resources/consMats.png";
   imageElement = document.createElement("img");
   imageElement.src = imageSource;
   imageElement.alt = "Construction Materials";
@@ -1164,7 +1164,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarBuyColumn3 = document.createElement("div");
   keyBarBuyColumn3.classList.add("key-bar-buy-column3");
-  let imageSourceBuy = "/resources/gold.png";
+  let imageSourceBuy = "resources/gold.png";
   let imageElementBuy = document.createElement("img");
   imageElementBuy.src = imageSourceBuy;
   imageElementBuy.alt = "Gold";
@@ -1173,7 +1173,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarBuyColumn4 = document.createElement("div");
   keyBarBuyColumn4.classList.add("key-bar-buy-column4");
-  imageSourceBuy = "/resources/prodPopulation.png";
+  imageSourceBuy = "resources/prodPopulation.png";
   imageElementBuy = document.createElement("img");
   imageElementBuy.src = imageSourceBuy;
   imageElementBuy.alt = "Productive Population";
@@ -1182,7 +1182,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const keyBarBuyColumn5 = document.createElement("div");
   keyBarBuyColumn5.classList.add("key-bar-buy-column5");
-  imageSourceBuy = "/resources/buy.png";
+  imageSourceBuy = "resources/buy.png";
   imageElementBuy = document.createElement("img");
   imageElementBuy.src = imageSourceBuy;
   imageElementBuy.alt = "Buy";
@@ -1234,7 +1234,7 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesBuyInfoCol1.classList.add("prices-buy-info-column");
   pricesBuyInfoCol1.classList.add("prices-buy-info-icon-justification");
   pricesBuyInfoCol1.setAttribute("id", "prices-buy-info-column1");
-  imageSourceBuy = "/resources/gold.png";
+  imageSourceBuy = "resources/gold.png";
   imageElementBuy = document.createElement("img");
   imageElementBuy.src = imageSourceBuy;
   imageElementBuy.alt = "Gold";
@@ -1251,7 +1251,7 @@ document.addEventListener("DOMContentLoaded", function() {
   pricesBuyInfoCol3.classList.add("prices-buy-info-column");
   pricesBuyInfoCol3.classList.add("prices-buy-info-icon-justification");
   pricesBuyInfoCol3.setAttribute("id", "prices-buy-info-column3");
-  imageSourceBuy = "/resources/prodPopulation.png";
+  imageSourceBuy = "resources/prodPopulation.png";
   imageElementBuy = document.createElement("img");
   imageElementBuy.src = imageSourceBuy;
   imageElementBuy.alt = "Productive Population";
@@ -1596,7 +1596,7 @@ document.addEventListener("keydown", function(event) {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttacked) {
               removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
-              addImageToPath(territoryAboutToBeAttacked, "/resources/army.png");
+              addImageToPath(territoryAboutToBeAttacked, "resources/army.png");
           }
       }
 
@@ -2682,7 +2682,7 @@ function setTerritoryForAttack(territoryToAttack) {
   territoryToAttack.setAttribute("fill", playerColour);
   territoryToAttack.setAttribute("stroke-width", "5px");
   territoryToAttack.style.strokeDasharray = "10, 5";
-  addImageToPath(territoryToAttack, "/resources/army.png");
+  addImageToPath(territoryToAttack, "army.png");
 }
 
 function addImageToPath(pathElement, imagePath) {
@@ -2761,19 +2761,19 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         attackingOrTransferring = "Transferring to:";
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn1");
-        imageSrc = "/resources/infantry.png";
+        imageSrc = "resources/infantry.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn2");
-        imageSrc = "/resources/assault.png";
+        imageSrc = "resources/assault.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn3");
-        imageSrc = "/resources/air.png";
+        imageSrc = "resources/air.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn4");
-        imageSrc = "/resources/naval.png";
+        imageSrc = "resources/naval.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
   
     } else if (buttonState === 1) {
@@ -2786,19 +2786,19 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         document.getElementById("contentTransferHeaderColumn1").innerHTML = "Total Military Force In Range:";
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn1");
-        imageSrc = "/resources/infantry.png";
+        imageSrc = "resources/infantry.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[0])}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn2");
-        imageSrc = "/resources/assault.png";
+        imageSrc = "resources/assault.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[1])}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn3");
-        imageSrc = "/resources/air.png";
+        imageSrc = "resources/air.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[2])}</span>`;
       
         imageElement = document.getElementById("contentTransferHeaderImageColumn4");
-        imageSrc = "/resources/naval.png";
+        imageSrc = "resources/naval.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3])}</span>`;
      
     }

@@ -915,7 +915,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         });
 
         // Create an <img> tag with the image source
-        const imageSource = "/resources/" + countryGainsImageSources[j];
+        const imageSource = "resources/" + countryGainsImageSources[j];
         const imageElement = document.createElement("img");
         imageElement.src = imageSource;
         imageElement.alt = countryGainsHeaderColumns[j];
@@ -1036,7 +1036,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         countrySummaryImageSources = ["flagUIIcon.png", "population.png", "gold.png", "oil.png", "oilCap.png", "oilDemand.png", "food.png", "foodCap.png", "foodConsumption.png", "consMats.png", "consMatsCap.png", "army.png", "infantry.png", "assault.png", "air.png", "naval.png"];
     } else if (summaryTerritoryArmyTable === 1) {
         countrySummaryHeaderColumns = ["Territory", "Productive Population", "Population", "Area", "Gold", "Oil", "Food", "Construction Materials", "Upgrade"];
-        countrySummaryImageSources = ["flagUIIcon.png", "prodPopulation.png", "Population.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
+        countrySummaryImageSources = ["flagUIIcon.png", "prodPopulation.png", "population.png", "landArea.png", "gold.png", "oil.png", "food.png", "consMats.png", "upgrade.png"];
     } else if (summaryTerritoryArmyTable === 2) {
         countrySummaryHeaderColumns = ["Territory", "Army", "Infantry", "Assault", "Air", "Naval", "Gold", "Oil", "Buy"];
         countrySummaryImageSources = ["flagUIIcon.png", "army.png", "infantry.png", "assault.png", "air.png", "naval.png", "gold.png", "oil.png", "buy.png"];
@@ -1077,7 +1077,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
         });
 
         // Create an <img> tag with the image source
-        const imageSource = "/resources/" + countrySummaryImageSources[j];
+        const imageSource = "resources/" + countrySummaryImageSources[j];
         const imageElement = document.createElement("img");
         imageElement.src = imageSource;
         imageElement.alt = countrySummaryHeaderColumns[j];
@@ -1217,7 +1217,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                 territorySummaryHeaderColumn.classList.add("centerIcons");
 
                 // Create an <img> tag with the custom image source
-                const territorySummaryImageSource = "/resources/" + territorySummaryImageSources[j];
+                const territorySummaryImageSource = "resources/" + territorySummaryImageSources[j];
                 const territorySummaryImageElement = document.createElement("img");
                 territorySummaryImageElement.src = territorySummaryImageSource;
                 territorySummaryImageElement.alt = territorySummaryHeaderColumns[j];
@@ -1358,9 +1358,9 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             const upgradeButtonDiv = document.createElement("div");
                             if (currentTurnPhase === 0) {
                                 upgradeButtonDiv.classList.add("upgrade-button");
-                                upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                                upgradeButtonImageElement.src = "resources/upgradeButtonIcon.png";
                             } else {
-                                upgradeButtonImageElement.src = "/resources/upgradeButtonGreyedOut.png";
+                                upgradeButtonImageElement.src = "resources/upgradeButtonGreyedOut.png";
                             }
 
                             // Create upgrade button image element
@@ -1371,7 +1371,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             upgradeButtonDiv.addEventListener("mousedown", () => {
                                 if (currentTurnPhase === 0) {
                                     playSoundClip();
-                                    upgradeButtonImageElement.src = "/resources/upgradeButtonIconPressed.png";
+                                    upgradeButtonImageElement.src = "resources/upgradeButtonIconPressed.png";
                                 }
                             });
 
@@ -1380,7 +1380,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                                     populateUpgradeTable(territoryData);
                                     toggleUpgradeMenu(true, territoryData);
                                     currentlySelectedTerritoryForUpgrades = territoryData;
-                                    upgradeButtonImageElement.src = "/resources/upgradeButtonIcon.png";
+                                    upgradeButtonImageElement.src = "resources/upgradeButtonIcon.png";
                                     setUpgradeOrBuyWindowOnScreenToTrue(1);
                                 }
                             });
@@ -1444,9 +1444,9 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             const buyButtonDiv = document.createElement("div");
                             if (currentTurnPhase === 0) {
                                 buyButtonDiv.classList.add("buy-button");
-                                buyButtonImageElement.src = "/resources/buyButtonIcon.png";
+                                buyButtonImageElement.src = "resources/buyButtonIcon.png";
                             } else {
-                                buyButtonImageElement.src = "/resources/buyButtonGreyedOut.png";
+                                buyButtonImageElement.src = "resources/buyButtonGreyedOut.png";
                             }
 
                             // Create upgrade button image element
@@ -1457,7 +1457,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             buyButtonDiv.addEventListener("mousedown", () => {
                                 if (currentTurnPhase === 0) {
                                     playSoundClip();
-                                    buyButtonImageElement.src = "/resources/buyButtonIconPressed.png";
+                                    buyButtonImageElement.src = "resources/buyButtonIconPressed.png";
                                 }
                             });
 
@@ -1466,7 +1466,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                                     populateBuyTable(territoryData);
                                     toggleBuyMenu(true, territoryData);
                                     currentlySelectedTerritoryForPurchases = territoryData;
-                                    buyButtonImageElement.src = "/resources/buyButtonIcon.png";
+                                    buyButtonImageElement.src = "resources/buyButtonIcon.png";
                                     setUpgradeOrBuyWindowOnScreenToTrue(2);
                                 }
                             });
@@ -2392,9 +2392,9 @@ function populateBuyTable(territory) {
         buyColumn5A.classList.add("column5A");
         const buyImageMinus = document.createElement("img");
         if (purchaseRow.condition === "Can Build") {
-            buyImageMinus.src = "/resources/minusButton.png";
+            buyImageMinus.src = "resources/minusButton.png";
         } else {
-            buyImageMinus.src = "/resources/minusButtonGrey.png";
+            buyImageMinus.src = "resources/minusButtonGrey.png";
         }
         buyImageMinus.style.height = "21px";
         buyImageMinus.style.width = "21px";
@@ -2416,9 +2416,9 @@ function populateBuyTable(territory) {
         buyColumn5C.classList.add("buyColumn5C");
         const buyImagePlus = document.createElement("img");
         if (purchaseRow.condition === "Can Build") {
-            buyImagePlus.src = "/resources/plusButton.png";
+            buyImagePlus.src = "resources/plusButton.png";
         } else {
-            buyImagePlus.src = "/resources/plusButtonGrey.png";
+            buyImagePlus.src = "resources/plusButtonGrey.png";
         }
         buyImagePlus.style.height = "21px";
         buyImagePlus.style.width = "21px";
@@ -2455,7 +2455,7 @@ function populateBuyTable(territory) {
         simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, true);
 
         buyImageMinus.addEventListener("click", (e) => {
-            if (buyImageMinus.src.includes("/resources/minusButton.png")) {
+            if (buyImageMinus.src.includes("resources/minusButton.png")) {
                 tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
                 if (parseInt(buyTextfield.value) > 0) {
                     simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, false);
@@ -2510,7 +2510,7 @@ function populateBuyTable(territory) {
         });
 
         buyImagePlus.addEventListener("click", (e) => {
-            if (buyImagePlus.src.includes("/resources/plusButton.png")) {
+            if (buyImagePlus.src.includes("resources/plusButton.png")) {
                 tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
                 simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, false);
                 switch (simulatedPurchaseCosts[2]) {
@@ -2633,9 +2633,9 @@ function populateUpgradeTable(territory) {
         column5A.classList.add("column5A");
         const imageMinus = document.createElement("img");
         if (upgradeRow.condition === "Can Build") {
-            imageMinus.src = "/resources/minusButton.png";
+            imageMinus.src = "resources/minusButton.png";
         } else {
-            imageMinus.src = "/resources/minusButtonGrey.png";
+            imageMinus.src = "resources/minusButtonGrey.png";
         }
         imageMinus.style.height = "21px";
         imageMinus.style.width = "21px";
@@ -2657,9 +2657,9 @@ function populateUpgradeTable(territory) {
         column5C.classList.add("column5C");
         const imagePlus = document.createElement("img");
         if (upgradeRow.condition === "Can Build") {
-            imagePlus.src = "/resources/plusButton.png";
+            imagePlus.src = "resources/plusButton.png";
         } else {
-            imagePlus.src = "/resources/plusButtonGrey.png";
+            imagePlus.src = "resources/plusButtonGrey.png";
         }
         imagePlus.style.height = "21px";
         imagePlus.style.width = "21px";
@@ -2715,7 +2715,7 @@ function populateUpgradeTable(territory) {
         }
 
         imageMinus.addEventListener("click", (e) => {
-            if (imageMinus.src.includes("/resources/minusButton.png")) {
+            if (imageMinus.src.includes("resources/minusButton.png")) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
                 if (parseInt(textField.value) > 0) {
                     simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, false);
@@ -2770,7 +2770,7 @@ function populateUpgradeTable(territory) {
         });
 
         imagePlus.addEventListener("click", (e) => {
-            if (imagePlus.src.includes("/resources/plusButton.png")) {
+            if (imagePlus.src.includes("resources/plusButton.png")) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
                 simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory, false);
                 switch (simulatedCosts[2]) {
@@ -3004,54 +3004,54 @@ function getImagePath(type, condition, territory, mode) {
 
         if (type === "Farm") {
             if (condition === "Can Build" && territory.farmsBuilt < maxFarms) {
-                return '/resources/farmIcon.png';
+                return 'resources/farmIcon.png';
             } else {
-                return '/resources/farmIconGrey.png';
+                return 'resources/farmIconGrey.png';
             }
         } else if (type === "Oil Well") {
             if (condition === "Can Build" && territory.oilWellsBuilt < maxOilWells) {
-                return '/resources/oilWellIcon.png';
+                return 'resources/oilWellIcon.png';
             } else {
-                return '/resources/oilWellIconGrey.png';
+                return 'resources/oilWellIconGrey.png';
             }
         } else if (type === "Forest") {
             if (condition === "Can Build" && territory.forestsBuilt < maxForests) {
-                return '/resources/forestIcon.png';
+                return 'resources/forestIcon.png';
             } else {
-                return '/resources/forestIconGrey.png';
+                return 'resources/forestIconGrey.png';
             }
         } else if (type === "Fort") {
             if (condition === "Can Build" && territory.fortsBuilt < maxForts) {
-                return '/resources/fortIcon.png';
+                return 'resources/fortIcon.png';
             } else {
-                return '/resources/fortIconGrey.png';
+                return 'resources/fortIconGrey.png';
             }
         }
     } else if (mode === 1) { //buy military images
         if (type === "Infantry") {
             if (condition === "Can Build") {
-                return '/resources/infantryIcon.png';
+                return 'resources/infantryIcon.png';
             } else {
-                return '/resources/infantryIconGrey.png';
+                return 'resources/infantryIconGrey.png';
             }
         }
         if (type === "Assault") {
             if (condition === "Can Build") {
-                return '/resources/assaultIcon.png';
+                return 'resources/assaultIcon.png';
             } else {
-                return '/resources/assaultIconGrey.png';
+                return 'resources/assaultIconGrey.png';
             }
         } else if (type === "Air") {
             if (condition === "Can Build") {
-                return '/resources/airIcon.png';
+                return 'resources/airIcon.png';
             } else {
-                return '/resources/airIconGrey.png';
+                return 'resources/airIconGrey.png';
             }
         } else if (type === "Naval") {
             if (condition === "Can Build") {
-                return '/resources/navalIcon.png';
+                return 'resources/navalIcon.png';
             } else {
-                return '/resources/navalIconGrey.png';
+                return 'resources/navalIconGrey.png';
             }
         }
     }

@@ -95,7 +95,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const imageField = document.createElement("img");
                                     imageField.id = "multipleIncrementCycler";
                                     imageField.classList.add("multipleIncrementerButton");
-                                    imageField.src = "/resources/multipleIncrementerButtonGrey.png";
+                                    imageField.src = "resources/multipleIncrementerButtonGrey.png";
                                     imageField.style.height = "20px";
                                     imageField.style.width = "20px";
                                     innerColumn.appendChild(imageField);
@@ -113,7 +113,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const minusButton = document.createElement("img");
                                     minusButton.id = "minusButton";
                                     minusButton.classList.add("transferMinusButton");
-                                    minusButton.src = "/resources/minusButtonGrey.png";
+                                    minusButton.src = "resources/minusButtonGrey.png";
                                     minusButton.style.height = "20px";
                                     minusButton.style.width = "20px";
                                     innerColumn.appendChild(minusButton);
@@ -131,7 +131,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const plusButton = document.createElement("img");
                                     plusButton.id = "plusButton";
                                     plusButton.classList.add("transferPlusButton");
-                                    plusButton.src = "/resources/plusButtonGrey.png";
+                                    plusButton.src = "resources/plusButtonGrey.png";
                                     plusButton.style.height = "20px";
                                     plusButton.style.width = "20px";
                                     innerColumn.appendChild(plusButton);
@@ -232,7 +232,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             // Check if the quantity has reached the maximum limit
                             if (parseInt(quantityTextBox.value) === mainArrayValue) {
-                                plusButton.src = "/resources/plusButtonGrey.png";
+                                plusButton.src = "resources/plusButtonGrey.png";
                             }
 
                             const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
@@ -302,7 +302,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             // Check if the quantity has reached the maximum limit
                             const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
                             if (parseInt(quantityTextBox.value) < mainArrayValue) {
-                                plusButton.src = "/resources/plusButton.png";
+                                plusButton.src = "resources/plusButton.png";
                             }
 
                             const armyColumnElements = Array.from(selectedRow.querySelectorAll('.army-type-column'));
@@ -411,11 +411,11 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         const quantityTextBox = column.querySelector("#quantityTextBox");
                     
                         if (mainArrayValueArray[index] === 0) {
-                            plusButton.src = "/resources/plusButtonGrey.png";
+                            plusButton.src = "resources/plusButtonGrey.png";
                             multipleTextBox.style.color = "grey";
                             quantityTextBox.style.color = "grey";
-                            minusButton.src = "/resources/minusButtonGrey.png";
-                            multipleIncrementCycler.src = "/resources/multipleIncrementerButtonGrey.png";
+                            minusButton.src = "resources/minusButtonGrey.png";
+                            multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
                         
                             disabledFlags[index] = true;
                         } else {
@@ -463,7 +463,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const imageField = document.createElement("img");
                                     imageField.id = "multipleIncrementCycler";
                                     imageField.classList.add("multipleIncrementerButton");
-                                    imageField.src = "/resources/multipleIncrementerButton.png";
+                                    imageField.src = "resources/multipleIncrementerButton.png";
                                     imageField.style.height = "20px";
                                     imageField.style.width = "20px";
                                     innerColumn.appendChild(imageField);
@@ -482,7 +482,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const minusButton = document.createElement("img");
                                     minusButton.id = "minusButton";
                                     minusButton.classList.add("transferMinusButton");
-                                    minusButton.src = "/resources/minusButton.png";
+                                    minusButton.src = "resources/minusButton.png";
                                     minusButton.style.height = "20px";
                                     minusButton.style.width = "20px";
                                     innerColumn.appendChild(minusButton);
@@ -501,7 +501,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const plusButton = document.createElement("img");
                                     plusButton.id = "plusButton";
                                     plusButton.classList.add("transferPlusButton");
-                                    plusButton.src = "/resources/plusButton.png";
+                                    plusButton.src = "resources/plusButton.png";
                                     plusButton.style.height = "20px";
                                     plusButton.style.width = "20px";
                                     innerColumn.appendChild(plusButton);
@@ -594,7 +594,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             // Check if the quantity has reached the maximum limit
                             if (parseInt(quantityTextBox.value) === mainArrayValue) {
-                                plusButton.src = "/resources/plusButtonGrey.png";
+                                plusButton.src = "resources/plusButtonGrey.png";
                             }
 
                             const rowRightHalfElements = Array.from(table.querySelectorAll('.transfer-table-outer-column:last-child'));
@@ -662,7 +662,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             // Check if the quantity has reached the maximum limit
                             const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
                             if (parseInt(quantityTextBox.value) < mainArrayValue) {
-                                plusButton.src = "/resources/plusButton.png";
+                                plusButton.src = "resources/plusButton.png";
                             }
 
                             const rowRightHalfElements = Array.from(table.querySelectorAll('.transfer-table-outer-column:last-child'));
