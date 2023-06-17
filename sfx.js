@@ -1,4 +1,4 @@
 export function playSoundClip() {
-  const audio = new Audio("/resources/sfx/click.wav");
+  const audio = new Audio("resources/sfx/click.wav");
   audio.play();
 }
