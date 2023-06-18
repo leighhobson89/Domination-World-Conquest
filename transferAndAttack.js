@@ -5,6 +5,7 @@ let selectedTerritoryUniqueId; // transfer only
 let territoryUniqueIds = []; //attack only
 let totalAttackAmountArray = [0,0,0,0]; // attack only
 let attackArray = [];
+let disabledFlagsAttack = [];
 
 const tooltip = document.getElementById("tooltip");
 
@@ -59,7 +60,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     });
 
     if (transferOrAttack === 0) { // transfer
-        let disabledFlags = [true,true,true,true];
+        let disabledFlagsTransfer = [true,true,true,true];
         // Create rows
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
@@ -153,7 +154,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlagsTransfer[armyColumnIndex]) {
                                 return;
                             }
 
@@ -188,7 +189,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const armyColumnIndex = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
                             const multipleValue = multipleValuesArray[armyColumnIndex];
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlagsTransfer[armyColumnIndex]) {
                                 return;
                             }
 
@@ -261,7 +262,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 return;
                             }
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlagsTransfer[armyColumnIndex]) {
                                 return;
                             }
 
@@ -419,9 +420,9 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             minusButton.src = "resources/minusButtonGrey.png";
                             multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
                         
-                            disabledFlags[index] = true;
+                            disabledFlagsTransfer[index] = true;
                         } else {
-                            disabledFlags[index] = false;
+                            disabledFlagsTransfer[index] = false;
                         }
                     });
                 });
@@ -429,7 +430,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         });
 
     } else if (transferOrAttack === 1) { // attack
-        let disabledFlags = [];
         // Create rows
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
@@ -524,7 +524,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
 
-                            if (disabledFlags[(rowIndex + 1) * (armyColumnIndex + 1)]) {
+                            if (disabledFlagsAttack[(rowIndex + 1) * (armyColumnIndex + 1)]) {
                                 return;
                             }
 
@@ -545,22 +545,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             multipleValuesArray[armyColumnIndex] = parsedValue;
                         });
 
-                        // Loop through mainArrayOfTerritoriesAndResources to find matching uniqueId
-                        const matchingTerritory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryUniqueIds[i]);
-
-                        // Check the values and update disabledFlags accordingly
-                        if (
-                            matchingTerritory &&
-                            (matchingTerritory.infantryForCurrentTerritory === 0 ||
-                            matchingTerritory.useableAssault === 0 ||
-                            matchingTerritory.useableAir === 0 ||
-                            matchingTerritory.useableNaval === 0)
-                        ) {
-                            disabledFlags.push(true);
-                        } else {
-                            disabledFlags.push(false);
-                        }
-
                         // Append the army columns to the territoryAttackFromColumn
                         armyColumns.forEach(armyColumn => {
                             territoryAttackFromColumn.appendChild(armyColumn);
@@ -577,7 +561,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const multipleValue = multipleValuesArray[armyColumnIndex];
                             const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlagsAttack[armyColumnIndex]) {
                                 return;
                             }
 
@@ -654,7 +638,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 return;
                             }
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlagsAttack[armyColumnIndex]) {
                                 return;
                             }
 
@@ -714,10 +698,54 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 territoryAttackFromRow.appendChild(territoryAttackFromColumn);
             }
             table.appendChild(territoryAttackFromRow);
+        }
+        const rows = Array.from(table.querySelectorAll('.transfer-table-row'));
+
+            rows.forEach((row) => {
+            const rowIndex = rows.indexOf(row);
+            const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
+
+            armyColumns.forEach((armyColumn, columnIndex) => {
+                let matchingTerritory;
+                for (let i = 0; i < territoryUniqueIds.length; i++) {
+                    matchingTerritory = mainArrayOfTerritoriesAndResources.find(territory =>
+                      territory.uniqueId === territoryUniqueIds[i]
+                    );
+                  }
+
+                if (matchingTerritory) {
+                if (matchingTerritory.infantryForCurrentTerritory === 0 && columnIndex % 4 === 0) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+                }
+
+                if (matchingTerritory.useableAssault === 0 && columnIndex % 4 === 1) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+                }
+
+                if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+                }
+
+                if (matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+                }
+                }
+            });
+            });
+
+            
 
             // Loop through the disabledFlags array to find if there are any true elements
-            for (let index = 0; index < disabledFlags.length; index++) {
-                const isDisabled = disabledFlags[index];
+            for (let index = 0; index < disabledFlagsAttack.length; index++) {
+                const isDisabled = disabledFlagsAttack[index];
                 if (isDisabled) {
                     // Calculate row and column positions from the index
                     const rowPosition = Math.floor(index / 4);
@@ -752,7 +780,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                     }
                 }
             }
-        }
     }
 }
 
