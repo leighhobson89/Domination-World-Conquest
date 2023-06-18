@@ -6,6 +6,8 @@ let territoryUniqueIds = []; //attack only
 let totalAttackAmountArray = [0,0,0,0]; // attack only
 let attackArray = [];
 
+const tooltip = document.getElementById("tooltip");
+
 export let transferQuantitiesArray = [];
 
 function handleImportedModule(module) {
@@ -818,10 +820,6 @@ function updateAttackArray(mainArrayElements, quantityTextBoxes) {
     attackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
   }
   
-  
-  
-  
-
 function checkAndSetButtonAsConfirmOrCancel(quantity) {
     const button = document.getElementById("move-phase-button");
   

@@ -1402,7 +1402,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const contentTransferHeaderRow = document.createElement("div");
   contentTransferHeaderRow.classList.add("content-transfer-header-row");
-  contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow1");
+  contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow");
 
   const TransferTableContainer = document.createElement("div");
   TransferTableContainer.classList.add("transfer-table-container");
@@ -2748,7 +2748,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
   
     let attackingOrTransferring = "";
 
-    document.getElementById("contentTransferHeaderRow1").style.display = "flex";
+    document.getElementById("contentTransferHeaderRow").style.display = "flex";
     let imageElement;
     let imageSrc;
 
@@ -2801,6 +2801,64 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         imageSrc = "resources/naval.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3])}</span>`;
      
+        const headerRow = document.getElementById("contentTransferHeaderRow");
+
+        headerRow.addEventListener("mouseover", (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+      
+            if (window.innerHeight - y < 100) {
+                tooltip.style.left = x - 40 + "px";
+                tooltip.style.top = y - 50 + "px";
+            } else {
+                tooltip.style.left = x - 40 + "px";
+                tooltip.style.top = 25 + y + "px";
+            }
+
+            let tooltipContent = `
+            <div style="white-space: nowrap;">
+                <div>Army Breakdown:</div>
+                <br />
+                <div style="display: flex; flex-wrap: wrap;">
+                ${territoriesAbleToAttackTarget.map((territory, index) => {
+                    const matchingElement = mainArray.find((element) => element.uniqueId === territory.getAttribute("uniqueid"));
+                    if (matchingElement) {
+                    const isNewRow = index !== 0 && (index % 4 === 0);
+                    const isNewTerritory = index !== 0;
+                    const entityStyle = `style="margin-right: 10px;${isNewTerritory && index >= 4 ? 'margin-top: 10px;' : ''}"`;
+                    const nameStyle = 'style="color: rgb(235, 235, 0); white-space: nowrap;"';
+                    const rowStart = isNewRow ? '<div style="display: flex; margin-top: 10px;">' : '';
+                    const rowEnd = isNewRow || index === territoriesAbleToAttackTarget.length - 1 ? '</div>' : '';
+                    return `
+                        ${rowStart}
+                        <div style="flex: 1;">
+                            <div ${entityStyle}><strong><span ${nameStyle}>${territory.getAttribute("territory-name")}</span></strong></div>
+                            <div ${entityStyle}>
+                            Infantry: ${matchingElement.infantryForCurrentTerritory}<br />
+                            Assault: ${matchingElement.assaultForCurrentTerritory}<br />
+                            Air: ${matchingElement.airForCurrentTerritory}<br />
+                            Naval: ${matchingElement.navalForCurrentTerritory}<br />
+                            </div>
+                        </div>
+                        ${rowEnd}
+                    `;
+                    }
+                    return '';
+                }).join('')}
+                </div>
+            </div>
+            `;
+
+            tooltip.innerHTML = tooltipContent;
+      
+
+            tooltip.style.display = "block";
+      
+        });
+        headerRow.addEventListener("mouseout", () => {
+            tooltip.innerHTML = "";
+            tooltip.style.display = "none";
+        });
     }
    
     const transferToAttackHeading = document.getElementById("attackOrTransferString");
