@@ -552,9 +552,9 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         if (
                             matchingTerritory &&
                             (matchingTerritory.infantryForCurrentTerritory === 0 ||
-                            matchingTerritory.assaultForCurrentTerritory === 0 ||
-                            matchingTerritory.airForCurrentTerritory === 0 ||
-                            matchingTerritory.navalForCurrentTerritory === 0)
+                            matchingTerritory.useableAssault === 0 ||
+                            matchingTerritory.useableAir === 0 ||
+                            matchingTerritory.useableNaval === 0)
                         ) {
                             disabledFlags.push(true);
                         } else {
@@ -592,13 +592,13 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                                 newValue = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
                                                 break;
                                             case 1:
-                                                newValue = mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory;
+                                                newValue = mainArrayOfTerritoriesAndResources[i].useableAssault;
                                                 break;
                                             case 2:
-                                                newValue = mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory;
+                                                newValue = mainArrayOfTerritoriesAndResources[i].useableAir;
                                                 break;
                                             case 3:
-                                                newValue = mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory;
+                                                newValue = mainArrayOfTerritoriesAndResources[i].useableNaval;
                                                 break;
                                         }
                                         break;
@@ -830,9 +830,9 @@ function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck
             values.push([
               matchingElement.uniqueId,
               matchingElement.infantryForCurrentTerritory,
-              matchingElement.assaultForCurrentTerritory,
-              matchingElement.airForCurrentTerritory,
-              matchingElement.navalForCurrentTerritory,
+              matchingElement.useableAssault,
+              matchingElement.useableAir,
+              matchingElement.useableNaval,
             ]);
           }
         }
