@@ -3,9 +3,8 @@ import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKM
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
 let territoryUniqueIds = []; //attack only
-let totalAttackAmountArray = [0,0,0,0]; // attack only
-let attackArray = [];
-let disabledFlagsAttack = [];
+export let attackArray = [];
+const disabledFlagsAttack = [];
 
 const tooltip = document.getElementById("tooltip");
 
@@ -516,15 +515,15 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         armyColumns.push(armyTypeColumn); // Store the army column
 
                         // Add click event listener to "multipleIncrementCycler" button
-                        const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
                         const multipleIncrementCycler = armyTypeColumn.querySelector("#multipleIncrementCycler");
                         const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
 
                         multipleIncrementCycler.addEventListener("click", () => {
 
+                            const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
                             const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
 
-                            if (disabledFlagsAttack[(rowIndex + 1) * (armyColumnIndex + 1)]) {
+                            if (disabledFlagsAttack[rowIndex * 4 + armyColumnIndex]) {
                                 return;
                             }
 
@@ -561,9 +560,9 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const multipleValue = multipleValuesArray[armyColumnIndex];
                             const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
 
-                            if (disabledFlagsAttack[armyColumnIndex]) {
+                            if (disabledFlagsAttack[rowIndex * 4 + armyColumnIndex]) {
                                 return;
-                            }
+                              }
 
                             let newValue;
                             if (multipleValue === 1) {
@@ -620,7 +619,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
-                            checkAndSetButtonAsAttackOrCancel(parseInt(quantityTextBoxes));
+                            checkAndSetButtonAsAttackOrCancel(attackArray);
                         });
 
                         // Add click event listener to "minusButton"
@@ -638,9 +637,9 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 return;
                             }
 
-                            if (disabledFlagsAttack[armyColumnIndex]) {
+                            if (disabledFlagsAttack[rowIndex * 4 + armyColumnIndex]) {
                                 return;
-                            }
+                              }
 
                             let newValue = currentValue;
                             let newMultipleValue = multipleValue;
@@ -650,6 +649,9 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 while (newValue - multiplier < 0) {
                                     newMultipleValue = Math.floor(multiplier / 10);
                                     multiplier = Math.pow(10, Math.floor(Math.log10(newMultipleValue)));
+                                }
+                                if (multipleValue === 100000) {
+                                    newMultipleValue = 10000;
                                 }
                             }
 
@@ -688,9 +690,8 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const armyColumnElements = rowRightHalfElements.map(rowRightHalfElement => Array.from(rowRightHalfElement.querySelectorAll('.army-type-column')));
                             const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
 
-
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
-                            checkAndSetButtonAsAttackOrCancel(parseInt(quantityTextBoxes));
+                            checkAndSetButtonAsAttackOrCancel(attackArray);
                         });
                         territoryAttackFromColumn.appendChild(armyTypeColumn);
                     }
@@ -699,87 +700,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
             }
             table.appendChild(territoryAttackFromRow);
         }
-        const rows = Array.from(table.querySelectorAll('.transfer-table-row'));
-
-            rows.forEach((row) => {
-            const rowIndex = rows.indexOf(row);
-            const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
-
-            armyColumns.forEach((armyColumn, columnIndex) => {
-                let matchingTerritory;
-                for (let i = 0; i < territoryUniqueIds.length; i++) {
-                    matchingTerritory = mainArrayOfTerritoriesAndResources.find(territory =>
-                      territory.uniqueId === territoryUniqueIds[i]
-                    );
-                  }
-
-                if (matchingTerritory) {
-                if (matchingTerritory.infantryForCurrentTerritory === 0 && columnIndex % 4 === 0) {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-                } else {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
-                }
-
-                if (matchingTerritory.useableAssault === 0 && columnIndex % 4 === 1) {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-                } else {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
-                }
-
-                if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-                } else {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
-                }
-
-                if (matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3) {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-                } else {
-                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
-                }
-                }
-            });
-            });
-
-            
-
-            // Loop through the disabledFlags array to find if there are any true elements
-            for (let index = 0; index < disabledFlagsAttack.length; index++) {
-                const isDisabled = disabledFlagsAttack[index];
-                if (isDisabled) {
-                    // Calculate row and column positions from the index
-                    const rowPosition = Math.floor(index / 4);
-                    const columnPosition = index % 4;
-
-                    // Get the targeted armyColumn using row and column positions
-                    const targetedArmyColumn = table.querySelector(`.transfer-table-row:nth-child(${rowPosition + 1}) .army-type-column:nth-child(${columnPosition + 1})`);
-
-                    if (targetedArmyColumn) {
-                        // Apply styling changes to the targeted armyColumn
-                        const quantityTextBox = targetedArmyColumn.querySelector("#quantityTextBox");
-                        const multipleTextBox = targetedArmyColumn.querySelector("#multipleTextBox");
-                        const multipleIncrementCycler = targetedArmyColumn.querySelector("#multipleIncrementCycler");
-                        const plusButton = targetedArmyColumn.querySelector("#plusButton");
-                        const minusButton = targetedArmyColumn.querySelector("#minusButton");
-
-                        if (quantityTextBox) {
-                            quantityTextBox.style.color = "grey";
-                        }
-                        if (multipleTextBox) {
-                            multipleTextBox.style.color = "grey";
-                        }
-                        if (multipleIncrementCycler) {
-                            multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
-                        }
-                        if (plusButton) {
-                            plusButton.src = "resources/plusButtonGrey.png";
-                        }
-                        if (minusButton) {
-                            minusButton.src = "resources/minusButtonGrey.png";
-                        }
-                    }
-                }
-            }
+        disableAttackScreenOptions(table, territoryUniqueIds);
     }
 }
 
@@ -1014,3 +935,93 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
         }
     }
 }
+
+function disableAttackScreenOptions(table, territoryUniqueIds) {
+    const rows = Array.from(table.querySelectorAll('.transfer-table-row'));
+  
+    rows.forEach((row) => {
+      const rowIndex = rows.indexOf(row);
+      const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
+  
+      armyColumns.forEach((armyColumn, columnIndex) => {
+        const matchingTerritory = mainArrayOfTerritoriesAndResources.find(territory =>
+          territory.uniqueId === territoryUniqueIds[rowIndex]
+        );
+      
+        if (matchingTerritory) {
+          if (matchingTerritory.infantryForCurrentTerritory === 0 && columnIndex % 4 === 0) {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+          } else if (matchingTerritory.useableAssault === 0 && columnIndex % 4 === 1) {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+          } else if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+          } else if (matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3) {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+          } else {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+          }
+        }
+      });      
+    });
+  
+    // Loop through the disabledFlags array to find if there are any true elements
+    for (let index = 0; index < disabledFlagsAttack.length; index++) {
+        const isDisabled = disabledFlagsAttack[index];
+        if (isDisabled) {
+            // Calculate row and column positions from the index
+            const rowPosition = Math.floor(index / 4);
+            const columnPosition = index % 4;
+
+            // Get the targeted armyColumn using row and column positions
+            const targetedArmyColumn = table.querySelector(`.transfer-table-row:nth-child(${rowPosition + 1}) .army-type-column:nth-child(${columnPosition + 1})`);
+
+            if (targetedArmyColumn) {
+                // Apply styling changes to the targeted armyColumn
+                const quantityTextBox = targetedArmyColumn.querySelector("#quantityTextBox");
+                const multipleTextBox = targetedArmyColumn.querySelector("#multipleTextBox");
+                const multipleIncrementCycler = targetedArmyColumn.querySelector("#multipleIncrementCycler");
+                const plusButton = targetedArmyColumn.querySelector("#plusButton");
+                const minusButton = targetedArmyColumn.querySelector("#minusButton");
+
+                if (quantityTextBox) {
+                    quantityTextBox.style.color = "grey";
+                }
+                if (multipleTextBox) {
+                    multipleTextBox.style.color = "grey";
+                }
+                if (multipleIncrementCycler) {
+                    multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
+                }
+                if (plusButton) {
+                    plusButton.src = "resources/plusButtonGrey.png";
+                }
+                if (minusButton) {
+                    minusButton.src = "resources/minusButtonGrey.png";
+                }
+            }
+        }
+    }
+}
+
+function checkAndSetButtonAsAttackOrCancel(attackArray) {
+    let button = document.getElementById("move-phase-button");
+
+    for (let i = 2; i < attackArray.length; i++) {
+      if (i % 4 === 1) {
+        continue;
+      }
+      if (attackArray[i] > 0) {
+        button.classList.remove("move-phase-button-blue-background");
+        button.classList.add("move-phase-button-red-background");
+        button.innerHTML = "INVADE!";
+        button.style.color = "rgb(235,235,0)";
+        break;
+      } else {
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.add("move-phase-button-blue-background");
+        button.innerHTML = "CANCEL";
+        button.style.color = "white";
+      }
+
+    }}
+    

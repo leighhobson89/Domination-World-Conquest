@@ -46,7 +46,11 @@ import {
 import {
     transferQuantitiesArray,
     transferArmyToNewTerritory,
+    attackArray
 } from './transferAndAttack.js';
+import {
+    setupAttackAnotherCountry
+} from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
@@ -2598,10 +2602,12 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   }, 200);
                   return;
               } else if (transferAttackWindowOnScreen) {
+                if (button.innerHTML === "CONFIRM" || button.innerHTML === "INVADE!") {
+                    button.style.fontWeight = "normal";
+                    button.style.color = "white";
+                }
                   if (transferAttackbuttonState === 0) {
                     if (button.innerHTML === "CONFIRM") {
-                        button.style.fontWeight = "normal";
-                        button.style.color = "white";
                         transferArmyToNewTerritory(transferQuantitiesArray);
                     }
                     button.classList.remove("move-phase-button-blue-background");
@@ -2617,6 +2623,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     }, 200);
                     return;
                   } else if (transferAttackbuttonState === 1) {
+                    if (button.innerHTML === "INVADE!") {
+                        setupAttackAnotherCountry(attackArray);
+                    }
                       button.classList.remove("move-phase-button-blue-background");
                       button.classList.add("move-phase-button-red-background");
                       button.innerHTML = "ATTACK";
@@ -2660,7 +2669,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           tooltip.innerHTML = "Click to cancel with no changes and close transfer/attack window...";
       } else if (!button.disabled && button.innerHTML === "CONFIRM") {
         tooltip.innerHTML = "Click to confirm the transfer and move the selected units to the destination territory!";
-      }   
+      } else if (!button.disabled && button.innerHTML === "INVADE!") {
+        tooltip.innerHTML = "Click to launch your attack!";
+      }
 
       tooltip.style.display = "block";
 
