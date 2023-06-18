@@ -429,30 +429,32 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         });
 
     } else if (transferOrAttack === 1) { // attack
-        let disabledFlags = [false,false,false,false];
+        let disabledFlags = [];
         // Create rows
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
-
+    
             const multipleValuesArray = [1, 1, 1, 1]; // Initialize with default values for each row
-
+    
             const territoryAttackFromRow = document.createElement("div");
             territoryAttackFromRow.classList.add("transfer-table-row");
-
+    
             // Create columns
             for (let j = 0; j < 2; j++) {
                 const territoryAttackFromColumn = document.createElement("div");
                 territoryAttackFromColumn.classList.add("transfer-table-outer-column");
-
+    
                 if (j === 0) {
                     territoryAttackFromColumn.style.width = "50%";
                     const territoryAttackFromName = territoriesAbleToAttackTarget[i].getAttribute("territory-name");
                     territoryAttackFromColumn.textContent = territoryAttackFromName;
                 } else {
+                    const armyColumns = []; // Store army columns for each territory
+    
                     for (let k = 0; k < 4; k++) {
                         const armyTypeColumn = document.createElement("div");
                         armyTypeColumn.classList.add("army-type-column");
-
+    
                         // Create inner columns
                         for (let m = 0; m < 5; m++) {
                             const innerColumn = document.createElement("div");
@@ -511,7 +513,10 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             }
                         }
 
+                        armyColumns.push(armyTypeColumn); // Store the army column
+
                         // Add click event listener to "multipleIncrementCycler" button
+                        const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
                         const multipleIncrementCycler = armyTypeColumn.querySelector("#multipleIncrementCycler");
                         const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
 
@@ -519,7 +524,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             const armyColumnIndex = Array.from(armyTypeColumn.parentNode.children).indexOf(armyTypeColumn);
 
-                            if (disabledFlags[armyColumnIndex]) {
+                            if (disabledFlags[(rowIndex + 1) * (armyColumnIndex + 1)]) {
                                 return;
                             }
 
@@ -538,6 +543,27 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 parsedValue = parseInt(newValue.substring(1), 10);
                             }
                             multipleValuesArray[armyColumnIndex] = parsedValue;
+                        });
+
+                        // Loop through mainArrayOfTerritoriesAndResources to find matching uniqueId
+                        const matchingTerritory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryUniqueIds[i]);
+
+                        // Check the values and update disabledFlags accordingly
+                        if (
+                            matchingTerritory &&
+                            (matchingTerritory.infantryForCurrentTerritory === 0 ||
+                            matchingTerritory.assaultForCurrentTerritory === 0 ||
+                            matchingTerritory.airForCurrentTerritory === 0 ||
+                            matchingTerritory.navalForCurrentTerritory === 0)
+                        ) {
+                            disabledFlags.push(true);
+                        } else {
+                            disabledFlags.push(false);
+                        }
+
+                        // Append the army columns to the territoryAttackFromColumn
+                        armyColumns.forEach(armyColumn => {
+                            territoryAttackFromColumn.appendChild(armyColumn);
                         });
 
                         // Add click event listener to "plusButton"
@@ -682,14 +708,50 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(parseInt(quantityTextBoxes));
                         });
-
                         territoryAttackFromColumn.appendChild(armyTypeColumn);
                     }
                 }
-
                 territoryAttackFromRow.appendChild(territoryAttackFromColumn);
             }
             table.appendChild(territoryAttackFromRow);
+
+            // Loop through the disabledFlags array to find if there are any true elements
+            for (let index = 0; index < disabledFlags.length; index++) {
+                const isDisabled = disabledFlags[index];
+                if (isDisabled) {
+                    // Calculate row and column positions from the index
+                    const rowPosition = Math.floor(index / 4);
+                    const columnPosition = index % 4;
+
+                    // Get the targeted armyColumn using row and column positions
+                    const targetedArmyColumn = table.querySelector(`.transfer-table-row:nth-child(${rowPosition + 1}) .army-type-column:nth-child(${columnPosition + 1})`);
+
+                    if (targetedArmyColumn) {
+                        // Apply styling changes to the targeted armyColumn
+                        const quantityTextBox = targetedArmyColumn.querySelector("#quantityTextBox");
+                        const multipleTextBox = targetedArmyColumn.querySelector("#multipleTextBox");
+                        const multipleIncrementCycler = targetedArmyColumn.querySelector("#multipleIncrementCycler");
+                        const plusButton = targetedArmyColumn.querySelector("#plusButton");
+                        const minusButton = targetedArmyColumn.querySelector("#minusButton");
+
+                        if (quantityTextBox) {
+                            quantityTextBox.style.color = "grey";
+                        }
+                        if (multipleTextBox) {
+                            multipleTextBox.style.color = "grey";
+                        }
+                        if (multipleIncrementCycler) {
+                            multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
+                        }
+                        if (plusButton) {
+                            plusButton.src = "resources/plusButtonGrey.png";
+                        }
+                        if (minusButton) {
+                            minusButton.src = "resources/minusButtonGrey.png";
+                        }
+                    }
+                }
+            }
         }
     }
 }
