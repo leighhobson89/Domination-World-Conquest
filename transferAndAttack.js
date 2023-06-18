@@ -217,7 +217,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             }
 
                             // Compare with main array values
-                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
+                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
                             if (newValue <= mainArrayValue) {
                                 quantityTextBox.value = newValue.toString();
                             } else {
@@ -302,7 +302,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             }
 
                             // Check if the quantity has reached the maximum limit
-                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
+                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
                             if (parseInt(quantityTextBox.value) < mainArrayValue) {
                                 plusButton.src = "resources/plusButton.png";
                             }
@@ -403,7 +403,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         quantityTextBox.value = "0";
                         multipleTextBox.value = "x1";
                     }
-                    const mainArrayValueArray = getCurrentMainArrayValue(mainArrayElement, 0, true);
+                    const mainArrayValueArray = getCurrentMainArrayValue(mainArrayElement, 0, true, 0);
 
                     armyColumns.forEach((column, index) => {
                         const plusButton = column.querySelector("#plusButton");
@@ -549,6 +549,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const currentValue = parseInt(quantityTextBox.value);
                             const armyColumnIndex = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
                             const multipleValue = multipleValuesArray[armyColumnIndex];
+                            const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
 
                             if (disabledFlags[armyColumnIndex]) {
                                 return;
@@ -557,36 +558,41 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             let newValue;
                             if (multipleValue === 1) {
                                 newValue = currentValue + 1;
-                            } else if (multipleValue === 100000000) { 
-                                newValue = mainArrayElement
-                                switch (armyColumnIndex) {
-                                    case 0:
-                                        newValue = mainArrayElement.infantryForCurrentTerritory;
+                            } else if (multipleValue === 100000000) {
+                                for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+                                    if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryUniqueIds[rowIndex]) {
+                                        switch (armyColumnIndex) {
+                                            case 0:
+                                                newValue = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
+                                                break;
+                                            case 1:
+                                                newValue = mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory;
+                                                break;
+                                            case 2:
+                                                newValue = mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory;
+                                                break;
+                                            case 3:
+                                                newValue = mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory;
+                                                break;
+                                        }
                                         break;
-                                    case 1:
-                                        newValue = mainArrayElement.assaultForCurrentTerritory;
-                                        break;
-                                    case 2:
-                                        newValue = mainArrayElement.airForCurrentTerritory;
-                                        break;
-                                    case 3:
-                                        newValue = mainArrayElement.navalForCurrentTerritory;
-                                        break;
+                                    }
                                 }
                             } else {
                                 const multiplier = Math.pow(10, Math.floor(Math.log10(multipleValue)));
                                 newValue = currentValue + (multiplier > 1 ? multiplier : multipleValue);
                             }
 
+
                             // Compare with main array values
-                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
-                            if (newValue <= mainArrayValue) {
+                            const arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 1);
+                            if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
                                 quantityTextBox.value = newValue.toString();
                             } else {
                                 // Ignore click and reduce multiple value
                                 if (multipleValue > 1) {
                                     let newMultipleValue = Math.floor(multipleValue / 10);
-                                    if (parseInt(quantityTextBox.value) === mainArrayValue) {
+                                    if (parseInt(quantityTextBox.value) === arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
                                         newMultipleValue = 1;
                                     }
                                     multipleValuesArray[armyColumnIndex] = newMultipleValue;
@@ -595,7 +601,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             }
 
                             // Check if the quantity has reached the maximum limit
-                            if (parseInt(quantityTextBox.value) === mainArrayValue) {
+                            if (parseInt(quantityTextBox.value) === arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
                                 plusButton.src = "resources/plusButtonGrey.png";
                             }
 
@@ -616,6 +622,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const currentValue = parseInt(quantityTextBox.value);
                             const armyColumnIndex = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
                             const multipleValue = multipleValuesArray[armyColumnIndex];
+                            const rowIndex = Array.from(table.querySelectorAll('.transfer-table-row')).indexOf(armyTypeColumn.closest('.transfer-table-row'));
 
                             if (currentValue === 0) {
                                 return;
@@ -662,8 +669,8 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             }
 
                             // Check if the quantity has reached the maximum limit
-                            const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
-                            if (parseInt(quantityTextBox.value) < mainArrayValue) {
+                            const arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 1);
+                            if (parseInt(quantityTextBox.value) < arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
                                 plusButton.src = "resources/plusButton.png";
                             }
 
@@ -721,55 +728,78 @@ function getInnerColumnId(m) {
 
 
 // Helper function to get the current main array value based on armyColumnIndex
-function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck) {
+function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck, buttonState) {
     if (allRowCheck) {
-        const values = [];
-        const selectedRow = document.querySelector(".selectedRow");
-        const armyColumns = selectedRow.querySelectorAll(".army-type-column");
-
-        armyColumns.forEach((armyColumn) => {
-            let value;
-            const childNumber = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
-
-            switch (childNumber) {
-                case 0:
-                    value = mainArrayElement.infantryForCurrentTerritory;
-                    break;
-                case 1:
-                    value = mainArrayElement.assaultForCurrentTerritory;
-                    break;
-                case 2:
-                    value = mainArrayElement.airForCurrentTerritory;
-                    break;
-                case 3:
-                    value = mainArrayElement.navalForCurrentTerritory;
-                    break;
-                default:
-                    value = 0;
-            }
-            values.push(value);
-        });
-
-        return values;
-    } else {
-        switch (armyColumnIndex) {
-            case 0:
-                return mainArrayElement.infantryForCurrentTerritory;
-            case 1:
-                return mainArrayElement.assaultForCurrentTerritory;
-            case 2:
-                return mainArrayElement.airForCurrentTerritory;
-            case 3:
-                return mainArrayElement.navalForCurrentTerritory;
-            default:
-                return 0;
+      const values = [];
+      const selectedRow = document.querySelector(".selectedRow");
+      const armyColumns = selectedRow.querySelectorAll(".army-type-column");
+  
+      armyColumns.forEach((armyColumn) => {
+        let value;
+        const childNumber = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
+  
+        switch (childNumber) {
+          case 0:
+            value = mainArrayElement.infantryForCurrentTerritory;
+            break;
+          case 1:
+            value = mainArrayElement.assaultForCurrentTerritory;
+            break;
+          case 2:
+            value = mainArrayElement.airForCurrentTerritory;
+            break;
+          case 3:
+            value = mainArrayElement.navalForCurrentTerritory;
+            break;
+          default:
+            value = 0;
         }
-    }
-}
+        values.push(value);
+      });
+  
+      return values;
+    } else if (buttonState === 1) {
+        const values = [];
+      
+        for (let i = 0; i < territoryUniqueIds.length; i++) {
+          const matchingElement = mainArrayOfTerritoriesAndResources.find(element => element.uniqueId === territoryUniqueIds[i]);
+      
+          if (matchingElement) {
+            values.push([
+              matchingElement.uniqueId,
+              matchingElement.infantryForCurrentTerritory,
+              matchingElement.assaultForCurrentTerritory,
+              matchingElement.airForCurrentTerritory,
+              matchingElement.navalForCurrentTerritory,
+            ]);
+          }
+        }
+      
+        if (values.length > 0) {
+          return values;
+        }
+      } else {
+        switch (armyColumnIndex) {
+          case 0:
+            return mainArrayElement.infantryForCurrentTerritory;
+          case 1:
+            return mainArrayElement.assaultForCurrentTerritory;
+          case 2:
+            return mainArrayElement.airForCurrentTerritory;
+          case 3:
+            return mainArrayElement.navalForCurrentTerritory;
+          default:
+            return 0;
+        }
+      }
+    }      
+  
 
 function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex) {
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
     const currentValue = parseInt(quantityTextBox.value);
+    const rowElement = armyTypeColumn.closest('.transfer-table-row');
+    const rowIndex = Array.from(rowElement.parentNode.children).indexOf(rowElement);
   
     if (newMultipleValue === 1) {
       multipleTextBox.value = "x1";
@@ -784,13 +814,13 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
     }
   
     // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
-    const mainArrayValue = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false);
+    const arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
     const newValue = currentValue + newMultipleValue;
   
-    if (newValue <= mainArrayValue) {
+    if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
       quantityTextBox.value = newValue.toString();
     } else {
-      const difference = mainArrayValue - currentValue;
+      const difference = arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1] - currentValue;
       quantityTextBox.value = (currentValue + difference).toString();
     }
   }
