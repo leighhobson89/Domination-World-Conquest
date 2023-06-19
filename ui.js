@@ -46,10 +46,11 @@ import {
 import {
     transferQuantitiesArray,
     transferArmyToNewTerritory,
-    attackArray
+    attackArray,
+    territoryUniqueIds
 } from './transferAndAttack.js';
 import {
-    setupAttackAnotherCountry
+    calculateBattleProbabiltyPreBattle
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2624,7 +2625,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
-                        setupAttackAnotherCountry(attackArray);
+                        calculateBattleProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources);
+                        attackArray.length = 0;
+                        territoryUniqueIds.length = 0;
                     }
                       button.classList.remove("move-phase-button-blue-background");
                       button.classList.add("move-phase-button-red-background");

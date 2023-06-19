@@ -34,9 +34,6 @@ import {
     setUpgradeOrBuyWindowOnScreenToTrue,
     saveMapColorState
 } from './ui.js';
-import {
-    transferQuantitiesArray
-} from './transferAndAttack.js';
 
 export let allowSelectionOfCountry = false;
 export let playerOwnedTerritories = [];
@@ -96,7 +93,7 @@ const oilRequirements = {
 };
 
 export const vehicleArmyWorth = {
-    infantry: 1000,
+    infantry: 1,
     naval: 20000,
     air: 5000,
     assault: 1000
@@ -3429,7 +3426,7 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         buyTextField.value = "0";
     }
 
-    purchaseArray[0] *= vehicleArmyWorth.infantry;
+    purchaseArray[0] *= (vehicleArmyWorth.infantry * 1000);
 
     turnGainsArray.changeGold += -totalGoldCost;
     turnGainsArray.changeProdPop += -totalProdPopCost;
