@@ -1,9 +1,12 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
+import { calculateBattleProbabiltyPreBattle, finalAttackArray } from './battle.js';
+import { setAttackProbabilityOnUI } from './ui.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
 export let territoryUniqueIds = []; //attack only
-export let attackArray = [];
+export let probability;
+export let preAttackArray = [];
 const disabledFlagsAttack = [];
 
 const tooltip = document.getElementById("tooltip");
@@ -619,7 +622,12 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
-                            checkAndSetButtonAsAttackOrCancel(attackArray);
+                            checkAndSetButtonAsAttackOrCancel(preAttackArray);
+                            probability = calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources);
+                            console.log("pre probability: " + probability);
+                            console.log("attackArray: " + finalAttackArray);
+                            preAttackArray.length = 0;
+                            setAttackProbabilityOnUI(probability);
                         });
 
                         // Add click event listener to "minusButton"
@@ -691,7 +699,12 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const quantityTextBoxes = armyColumnElements.flatMap((row) => row.map((column) => column.querySelector("#quantityTextBox")));
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
-                            checkAndSetButtonAsAttackOrCancel(attackArray);
+                            checkAndSetButtonAsAttackOrCancel(preAttackArray);
+                            probability = calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources);
+                            console.log("pre probability: " + probability);
+                            console.log("attackArray: " + finalAttackArray);
+                            preAttackArray.length = 0;
+                            setAttackProbabilityOnUI(probability);
                         });
                         territoryAttackFromColumn.appendChild(armyTypeColumn);
                     }
@@ -857,7 +870,7 @@ function updateAttackArray(mainArrayElements, quantityTextBoxes) {
   
     const attackedTerritoryUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
   
-    attackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
+    preAttackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
   }
   
 function checkAndSetButtonAsConfirmOrCancel(quantity) {
