@@ -2630,7 +2630,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
-                        doBattle(probability, finalAttackArray);
+                        doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0);
                     }
