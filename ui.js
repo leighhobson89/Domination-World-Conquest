@@ -2831,34 +2831,50 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
                 <div>Army Breakdown:</div>
                 <br />
                 <div style="display: flex; flex-wrap: wrap;">
-                ${territoriesAbleToAttackTarget.map((territory, index) => {
-                    const matchingElement = mainArray.find((element) => element.uniqueId === territory.getAttribute("uniqueid"));
-                    if (matchingElement) {
-                    const isNewRow = index !== 0 && (index % 4 === 0);
-                    const isNewTerritory = index !== 0;
-                    const entityStyle = `style="margin-right: 10px;${isNewTerritory && index >= 4 ? 'margin-top: 10px;' : ''}"`;
-                    const nameStyle = 'style="color: rgb(235, 235, 0); white-space: nowrap;"';
-                    const rowStart = isNewRow ? '<div style="display: flex; margin-top: 10px;">' : '';
-                    const rowEnd = isNewRow || index === territoriesAbleToAttackTarget.length - 1 ? '</div>' : '';
-                    return `
-                        ${rowStart}
-                        <div style="flex: 1;">
-                            <div ${entityStyle}><strong><span ${nameStyle}>${territory.getAttribute("territory-name")}</span></strong></div>
-                            <div ${entityStyle}>
-                            Infantry: ${matchingElement.infantryForCurrentTerritory}<br />
-                            Assault: ${matchingElement.assaultForCurrentTerritory}<br />
-                            Air: ${matchingElement.airForCurrentTerritory}<br />
-                            Naval: ${matchingElement.navalForCurrentTerritory}<br />
-                            </div>
-                        </div>
-                        ${rowEnd}
-                    `;
-                    }
-                    return '';
-                }).join('')}
+                ${territoriesAbleToAttackTarget
+                    .map((territory, index) => {
+                        const matchingElement = mainArray.find((element) => element.uniqueId === territory.getAttribute("uniqueid"));
+                        if (matchingElement) {
+                            const isNewRow = index !== 0 && (index % 4 === 0);
+                            const isNewTerritory = index !== 0;
+                            const entityStyle = `style="margin-right: 10px;${isNewTerritory && index >= 4 ? 'margin-top: 10px;' : ''}"`;
+                            const nameStyle = 'style="color: rgb(235, 235, 0); white-space: nowrap;"';
+                            const rowStart = isNewRow ? '<div style="display: flex; margin-top: 10px;">' : '';
+                            const rowEnd = isNewRow || index === territoriesAbleToAttackTarget.length - 1 ? '</div>' : '';
+
+                            return `
+                                ${rowStart}
+                                <div style="flex: 1;">
+                                    <div ${entityStyle}><strong><span ${nameStyle}>${territory.getAttribute("territory-name")}</span></strong></div>
+                                    <div ${entityStyle}>
+                                        Infantry: ${matchingElement.infantryForCurrentTerritory}<br />
+                                        Assault: ${
+                                            matchingElement.useableAssault < matchingElement.assaultForCurrentTerritory
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableAssault}</span>`
+                                                : matchingElement.useableAssault
+                                        }/${matchingElement.assaultForCurrentTerritory}<br />
+                                        Air: ${
+                                            matchingElement.useableAir < matchingElement.airForCurrentTerritory
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableAir}</span>`
+                                                : matchingElement.useableAir
+                                        }/${matchingElement.airForCurrentTerritory}<br />
+                                        Naval: ${
+                                            matchingElement.useableNaval < matchingElement.navalForCurrentTerritory
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableNaval}</span>`
+                                                : matchingElement.useableNaval
+                                        }/${matchingElement.navalForCurrentTerritory}<br />
+                                    </div>
+                                </div>
+                                ${rowEnd}
+                            `;
+                        }
+                        return '';
+                    })
+                    .join('')}
                 </div>
             </div>
-            `;
+        `;
+
 
             tooltip.innerHTML = tooltipContent;
       
