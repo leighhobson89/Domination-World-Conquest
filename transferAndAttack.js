@@ -1,5 +1,5 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
-import { calculateBattleProbabiltyPreBattle, finalAttackArray } from './battle.js';
+import { calculateProbabiltyPreBattle, finalAttackArray } from './battle.js';
 import { setAttackProbabilityOnUI } from './ui.js';
 
 let getLastClickedPathFn;
@@ -623,7 +623,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources);
+                            probability = calculateProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
@@ -700,7 +700,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources);
+                            probability = calculateProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
