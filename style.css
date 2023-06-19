@@ -1436,7 +1436,7 @@ td {
 
 .color-bar-attack-overlay-green {
   position: fixed;
-  width: 50%;
+  width: 0%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1485,7 +1485,7 @@ td {
   text-align: left;
   width: 1%;
   font-weight: bold;
-  color: rgb(255, 0, 0);
+  color: white;
 }
 
 .territoryText {

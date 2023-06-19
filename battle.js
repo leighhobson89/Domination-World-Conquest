@@ -1,22 +1,23 @@
 import { vehicleArmyWorth } from './resourceCalculations.js';
-import { territoryUniqueIds } from './transferAndAttack.js';
 
 const maxAreaThreshold = 350000;
+export let finalAttackArray = [];
 
-export function calculateBattleProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources) {
+export function calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources) {
     let combatContinentModifier;
-    console.log("Battle Underway!");
 
     // Initialize the modifiedAttackArray with the first element
-    const modifiedAttackArray = [attackArray[0]];
+    finalAttackArray = [preAttackArray[0]];
 
     // Iterate through the attackArray, checking for territories with non-zero units
-    for (let i = 1; i < attackArray.length; i += 5) {
-        const hasNonZeroUnits = attackArray.slice(i + 1, i + 5).some(unitCount => unitCount > 0);
+    for (let i = 1; i < preAttackArray.length; i += 5) {
+        const hasNonZeroUnits = preAttackArray.slice(i + 1, i + 5).some(unitCount => unitCount > 0);
 
         // If the territory has non-zero units or is the last territory, include it in the modifiedAttackArray
         if (hasNonZeroUnits) {
-            modifiedAttackArray.push(...attackArray.slice(i, i + 5));
+            finalAttackArray.push(...preAttackArray.slice(i, i + 5));
+        } else {
+            return 0; //if minus button removes all possible attacks
         }
     }
 
@@ -24,7 +25,7 @@ export function calculateBattleProbabiltyPreBattle(attackArray, mainArrayOfTerri
     const [
         attackedTerritoryId,
         ...attacks // Rest operator (...) to capture the remaining elements as an array
-      ] = modifiedAttackArray;
+      ] = finalAttackArray;
       
       const attackingTerritories = [];
       const infantryCounts = [];
@@ -111,10 +112,12 @@ export function calculateBattleProbabiltyPreBattle(attackArray, mainArrayOfTerri
     // Calculate probability with area weight adjustment
     const probability = (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
 
-    doBattle(probability, modifiedAttackArray);
+    return probability;
 }
 
-function doBattle(probability) {
+export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits) {
+    console.log("Battle Underway!");
     console.log("Probabilty of a win is:" + probability);
+    console.log("Attack Array:" + arrayOfUniqueIdsAndAttackingUnits);
 }
   

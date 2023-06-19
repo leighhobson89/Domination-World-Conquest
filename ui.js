@@ -46,11 +46,12 @@ import {
 import {
     transferQuantitiesArray,
     transferArmyToNewTerritory,
-    attackArray,
-    territoryUniqueIds
+    territoryUniqueIds,
+    probability,
 } from './transferAndAttack.js';
 import {
-    calculateBattleProbabiltyPreBattle
+    doBattle,
+    finalAttackArray,
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2625,8 +2626,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
-                        calculateBattleProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources);
-                        attackArray.length = 0;
+                        doBattle(probability, finalAttackArray);
                         territoryUniqueIds.length = 0;
                     }
                       button.classList.remove("move-phase-button-blue-background");
@@ -2942,3 +2942,12 @@ function setTransferToTerritory(listOfTerritories) {
 export function getLastClickedPath() {
   return lastClickedPath;
 }
+
+export function setAttackProbabilityOnUI(probability) {
+    const roundedProbability = Math.ceil(probability);
+    const displayProbability = roundedProbability >= 100 ? 100 : roundedProbability;
+  
+    document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
+    document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
+  }
+  
