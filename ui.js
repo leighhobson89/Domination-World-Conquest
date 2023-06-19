@@ -1472,9 +1472,13 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   xButtonTransferAttack.addEventListener("click", function() {
-      if (transferAttackButton.innerHTML === "CONFIRM") {
+      if ((transferAttackbuttonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackbuttonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
         transferAttackButton.style.fontWeight = "normal";
         transferAttackButton.style.color = "white";
+        if (transferAttackbuttonState === 1) {
+            setAttackProbabilityOnUI(0);
+            territoryUniqueIds.length = 0;
+        }
       }
       playSoundClip();
       toggleTransferAttackWindow(false);
@@ -2627,8 +2631,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
                         doBattle(probability, finalAttackArray);
-                        territoryUniqueIds.length = 0;
+                    } else if (button.innerHTML === "CANCEL") {
+                        setAttackProbabilityOnUI(0);
                     }
+                      territoryUniqueIds.length = 0;
                       button.classList.remove("move-phase-button-blue-background");
                       button.classList.add("move-phase-button-red-background");
                       button.innerHTML = "ATTACK";
@@ -2793,7 +2799,6 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     } else if (buttonState === 1) {
         document.getElementById("percentageAttack").style.display = "flex";
         document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
-        document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
         document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
         attackingOrTransferring = "Attacking:";
 
@@ -2878,12 +2883,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
             </div>
         `;
 
-
             tooltip.innerHTML = tooltipContent;
       
-
             tooltip.style.display = "block";
-      
         });
         headerRow.addEventListener("mouseout", () => {
             tooltip.innerHTML = "";
@@ -2948,6 +2950,11 @@ export function setAttackProbabilityOnUI(probability) {
     const displayProbability = roundedProbability >= 100 ? 100 : roundedProbability;
   
     document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
+    if (displayProbability >= 1) {
+        document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
+    } else {
+        document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+    }
     document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
   }
   
