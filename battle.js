@@ -9,18 +9,22 @@ export function calculateBattleProbabiltyPreBattle(preAttackArray, mainArrayOfTe
     // Initialize the modifiedAttackArray with the first element
     finalAttackArray = [preAttackArray[0]];
 
+    let nonZeroCount = 0;
     // Iterate through the attackArray, checking for territories with non-zero units
     for (let i = 1; i < preAttackArray.length; i += 5) {
         const hasNonZeroUnits = preAttackArray.slice(i + 1, i + 5).some(unitCount => unitCount > 0);
-
+        if (!hasNonZeroUnits) {
+            nonZeroCount++;
+        }
         // If the territory has non-zero units or is the last territory, include it in the modifiedAttackArray
         if (hasNonZeroUnits) {
             finalAttackArray.push(...preAttackArray.slice(i, i + 5));
-        } else {
-            return 0; //if minus button removes all possible attacks
         }
     }
 
+    if (nonZeroCount === (preAttackArray.length - 1) / 5) {
+        return 0;
+      }
 
     const [
         attackedTerritoryId,
