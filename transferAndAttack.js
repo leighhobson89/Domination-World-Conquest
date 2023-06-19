@@ -2,7 +2,7 @@ import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKM
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
-let territoryUniqueIds = []; //attack only
+export let territoryUniqueIds = []; //attack only
 export let attackArray = [];
 const disabledFlagsAttack = [];
 
