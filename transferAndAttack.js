@@ -1007,7 +1007,7 @@ function checkAndSetButtonAsAttackOrCancel(attackArray) {
     let button = document.getElementById("move-phase-button");
 
     for (let i = 2; i < attackArray.length; i++) {
-      if (i % 4 === 1) {
+      if (i % 5 === 1) {
         continue;
       }
       if (attackArray[i] > 0) {

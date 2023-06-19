@@ -1485,7 +1485,7 @@ td {
   text-align: left;
   width: 1%;
   font-weight: bold;
-  color: yellow;
+  color: rgb(255, 0, 0);
 }
 
 .territoryText {
