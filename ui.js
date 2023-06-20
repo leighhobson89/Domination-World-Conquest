@@ -111,7 +111,7 @@ let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
-let transferAttackbuttonState;
+export let transferAttackbuttonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
@@ -2752,9 +2752,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
             for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
                 if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId) {
                     totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
-                    totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory;
-                    totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory;
-                    totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory;
+                    totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].useableAssault;
+                    totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].useableAir;
+                    totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].useableNaval;
                 }
             }
         }
