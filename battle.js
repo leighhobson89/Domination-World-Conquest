@@ -120,7 +120,7 @@ export function calculateProbabiltyPreBattle(preAttackArray, mainArrayOfTerritor
     }
 }
 
-export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
+export async function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
     console.log("Battle Underway!");
     console.log("Probability of a win is: " + probability);
     console.log("Attack Array: " + arrayOfUniqueIdsAndAttackingUnits);
@@ -140,7 +140,8 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
   
     // Calculate total attacking army
     const totalAttackingArmy = [0, 0, 0, 0]; // [infantry, assault, air, naval]
-    const totalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.assaultForCurrentTerritory, defendingTerritory.airForCurrentTerritory, defendingTerritory.navalForCurrentTerritory];
+    const tempTotalAttackingArmy = [0, 0, 0, 0]; // copy for console out
+    const totalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
   
     for (let i = 1; i < arrayOfUniqueIdsAndAttackingUnits.length; i += 5) {
       const infantryCount = arrayOfUniqueIdsAndAttackingUnits[i + 1];
@@ -152,6 +153,11 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
       totalAttackingArmy[1] += assaultCount;
       totalAttackingArmy[2] += airCount;
       totalAttackingArmy[3] += navalCount;
+
+      tempTotalAttackingArmy[0] += infantryCount;
+      tempTotalAttackingArmy[1] += assaultCount;
+      tempTotalAttackingArmy[2] += airCount;
+      tempTotalAttackingArmy[3] += navalCount;
     }
   
     console.log("Total Attacking Army: " + totalAttackingArmy);
@@ -185,14 +191,21 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
             const win = Math.random() <= odds;
   
             if (win) {
-              defendingRemaining--;
-              console.log(`Attacker Won the ${unitType} skirmish, ${attackingRemaining} ${unitType} remaining from ${totalAttackingArmy[unitTypeIndex]}`);
-              console.log(`Defenders have ${defendingRemaining} ${unitType} left, from ${defendingTerritory[`${unitType}ForCurrentTerritory`]}`);
-            } else {
-              attackingRemaining--;
-              console.log(`Attacker Lost the ${unitType} skirmish, ${attackingRemaining} ${unitType} remaining from ${totalAttackingArmy[unitTypeIndex]}`);
-              console.log(`Defenders have ${defendingRemaining} ${unitType} left, from ${defendingTerritory[`${unitType}ForCurrentTerritory`]}`);
-            }
+                defendingRemaining--;
+                totalDefendingArmy[unitTypeIndex]--;
+                console.log(`Attacker Won the ${unitType} skirmish, ${attackingRemaining} ${unitType} remaining from ${tempTotalAttackingArmy[unitTypeIndex]}`);
+                console.log(`Defenders have ${defendingRemaining} ${unitType} left, from ${defendingTerritory[`${unitType}ForCurrentTerritory`]}`);
+                console.log(`ATTACK remaining Assault: ${totalAttackingArmy[1]} / ${unitCounts[1]} Air: ${totalAttackingArmy[2]} / ${unitCounts[2]} Naval: ${totalAttackingArmy[3]} / ${unitCounts[3]}`);
+                console.log(`DEFEND remaining Assault: ${totalDefendingArmy[1]} / ${defendingTerritory.assaultForCurrentTerritory} Air: ${totalDefendingArmy[2]} / ${defendingTerritory.airForCurrentTerritory} Naval: ${totalDefendingArmy[3]} / ${defendingTerritory.navalForCurrentTerritory}`);
+              } else {
+                attackingRemaining--;
+                totalAttackingArmy[unitTypeIndex]--;
+                console.log(`Attacker Lost the ${unitType} skirmish, ${attackingRemaining} ${unitType} remaining from ${tempTotalAttackingArmy[unitTypeIndex]}`);
+                console.log(`Defenders have ${defendingRemaining} ${unitType} left, from ${defendingTerritory[`${unitType}ForCurrentTerritory`]}`);
+                console.log(`ATTACK remaining Assault: ${totalAttackingArmy[1]} / ${unitCounts[1]} Air: ${totalAttackingArmy[2]} / ${unitCounts[2]} Naval: ${totalAttackingArmy[3]} / ${unitCounts[3]}`);
+                console.log(`DEFEND remaining Assault: ${totalDefendingArmy[1]} / ${defendingTerritory.assaultForCurrentTerritory} Air: ${totalDefendingArmy[2]} / ${defendingTerritory.airForCurrentTerritory} Naval: ${totalDefendingArmy[3]} / ${defendingTerritory.navalForCurrentTerritory}`);
+              }
+              
   
             if (attackingRemaining === 0 || defendingRemaining === 0) {
               break; // Stop the battle if one side runs out of units
@@ -204,6 +217,15 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
         }
       }
   
+      if (remainingUnits.some(count => count > 0)) {
+        const input = await promptUser("Do you want to continue to the next battle? (y/n)");
+  
+        if (input && (input.toLowerCase() === 'n' || input.toLowerCase() === 'no')) {
+          console.log("Battle ended by user.");
+          return; // Exit the function and show summary logs
+        }
+      }
+
       currentBattle++;
   
       if (batchSize > 100) {
@@ -213,10 +235,10 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
   
     console.log("Battle resolved!");
     console.log("Attacking Units Remaining: " + remainingUnits);
-    console.log("Defending Infantry Remaining: " + defendingTerritory.infantryForCurrentTerritory);
-    console.log("Defending Assault Remaining: " + defendingTerritory.assaultForCurrentTerritory);
-    console.log("Defending Air Remaining: " + defendingTerritory.airForCurrentTerritory);
-    console.log("Defending Naval Remaining: " + defendingTerritory.navalForCurrentTerritory);
+    console.log("Defending Infantry Remaining: " + totalDefendingArmy[0]);
+    console.log("Defending Assault Remaining: " + totalDefendingArmy[1]);
+    console.log("Defending Air Remaining: " + totalDefendingArmy[2]);
+    console.log("Defending Naval Remaining: " + totalDefendingArmy[3]);
   
     // Continue with further battle logic or actions based on the results...
   }
@@ -279,3 +301,12 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
     console.log("Combat Continent Modifier: " + combatContinentModifier);
     return combatContinentModifier;
 }
+
+function promptUser(question) {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const userInput = prompt(question);
+        resolve(userInput);
+      }, 10000);
+    });
+  }
