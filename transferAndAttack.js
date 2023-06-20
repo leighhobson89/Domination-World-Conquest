@@ -1,6 +1,6 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
 import { calculateProbabiltyPreBattle, finalAttackArray } from './battle.js';
-import { setAttackProbabilityOnUI } from './ui.js';
+import { setAttackProbabilityOnUI, transferAttackbuttonState } from './ui.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
@@ -821,7 +821,12 @@ function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck
 function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex) {
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
     const currentValue = parseInt(quantityTextBox.value);
-    const rowElement = armyTypeColumn.closest('.transfer-table-row');
+    let rowElement;
+    if (transferAttackbuttonState === 0) {
+        rowElement = armyTypeColumn.closest('.transfer-table-row-hoverable');
+    } else if (transferAttackbuttonState === 1) {
+        rowElement = armyTypeColumn.closest('.transfer-table-row');
+    }
     const rowIndex = Array.from(rowElement.parentNode.children).indexOf(rowElement);
   
     if (newMultipleValue === 1) {
@@ -835,18 +840,34 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
     } else if (newMultipleValue === 10000) {
       multipleTextBox.value = "x10k";
     }
+
+    let arrayOfMainArrayValues;
   
     // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
-    const arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
+    if (transferAttackbuttonState === 0) {
+        arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
+    } else if (transferAttackbuttonState === 1) {
+        arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 1);
+    }
+
     const newValue = currentValue + newMultipleValue;
   
-    if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
-      quantityTextBox.value = newValue.toString();
-    } else {
-      const difference = arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1] - currentValue;
-      quantityTextBox.value = (currentValue + difference).toString();
+    if (transferAttackbuttonState === 0) {
+        if (newValue <= arrayOfMainArrayValues) {
+            quantityTextBox.value = newValue.toString();
+          } else {
+            const difference = arrayOfMainArrayValues - currentValue;
+            quantityTextBox.value = (currentValue + difference).toString();
+          }
+    } else if (transferAttackbuttonState === 1) {
+        if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
+            quantityTextBox.value = newValue.toString();
+          } else {
+            const difference = arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1] - currentValue;
+            quantityTextBox.value = (currentValue + difference).toString();
+          }
     }
-  }
+}
   
 function updateTransferArray(mainArrayElement, quantityTextBoxes) {
     const mainArrayUniqueId = mainArrayElement;
