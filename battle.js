@@ -332,6 +332,8 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
           // Update the probability after each round
           updatedProbability = calculateProbabiltyPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
 
+          console.log("New probability for next round is: " + updatedProbability);
+
           currentRound++;
           skirmishesCompleted = 0; // Reset skirmishes completed counter
           roundCompleted = true;
