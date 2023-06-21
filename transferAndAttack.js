@@ -1,4 +1,4 @@
-import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText } from './resourceCalculations.js';
+import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArray, oilRequirements } from './resourceCalculations.js';
 import { calculateProbabiltyPreBattle, finalAttackArray } from './battle.js';
 import { setAttackProbabilityOnUI, transferAttackbuttonState } from './ui.js';
 
@@ -983,11 +983,17 @@ export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainAr
       );
   
       if (matchingTerritory) {
+        turnGainsArray.changeOilDemand -= (assault * oilRequirements.assault);
+        turnGainsArray.changeOilDemand -= (air * oilRequirements.air);
+        turnGainsArray.changeOilDemand -= (naval * oilRequirements.naval);
         matchingTerritory.infantryForCurrentTerritory -= infantry;
         matchingTerritory.assaultForCurrentTerritory -= assault;
         matchingTerritory.airForCurrentTerritory -= air;
         matchingTerritory.navalForCurrentTerritory -= naval;
+        matchingTerritory.armyForCurrentTerritory -= (matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval));
       }
+      matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
+      setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
     }
   }  
 

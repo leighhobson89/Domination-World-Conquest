@@ -86,7 +86,7 @@ export let turnGainsArray = {
     changeNaval: 0
 };
 
-const oilRequirements = {
+export const oilRequirements = {
     naval: 1000,
     air: 300,
     assault: 100
@@ -99,7 +99,7 @@ export const vehicleArmyWorth = {
     assault: 1000
 }
 
-let totalPlayerResources = [];
+export let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
 let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -3455,14 +3455,14 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
             mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += parseInt(purchaseArray[0]);
         }
     }
-
-    turnGainsArray.changeOilDemand = (oilRequirements.assault * parseInt(purchaseArray[1])) + (oilRequirements.air * parseInt(purchaseArray[2])) + (oilRequirements.naval * parseInt(purchaseArray[3]));
-    turnGainsArray.changeFoodConsumption = parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
-    turnGainsArray.changeArmy = parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
-    turnGainsArray.changeInfantry = parseInt(purchaseArray[0]);
-    turnGainsArray.changeAssault = parseInt(purchaseArray[1]);
-    turnGainsArray.changeAir = parseInt(purchaseArray[2]);
-    turnGainsArray.changeNaval = parseInt(purchaseArray[3]);
+   
+    turnGainsArray.changeOilDemand += (oilRequirements.assault * parseInt(purchaseArray[1])) + (oilRequirements.air * parseInt(purchaseArray[2])) + (oilRequirements.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeFoodConsumption += parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeArmy += parseInt(purchaseArray[0]) + (vehicleArmyWorth.assault * parseInt(purchaseArray[1])) + (vehicleArmyWorth.air * parseInt(purchaseArray[2])) + (vehicleArmyWorth.naval * parseInt(purchaseArray[3]));
+    turnGainsArray.changeInfantry += parseInt(purchaseArray[0]);
+    turnGainsArray.changeAssault += parseInt(purchaseArray[1]);
+    turnGainsArray.changeAir += parseInt(purchaseArray[2]);
+    turnGainsArray.changeNaval += parseInt(purchaseArray[3]);
 
 
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
@@ -3529,15 +3529,15 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
             mainArrayOfTerritoriesAndResources[i].fortsBuilt += parseInt(upgradeArray[3]);
             if (mainArrayOfTerritoriesAndResources[i].farmsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].foodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity + (mainArrayOfTerritoriesAndResources[i].foodCapacity * ((territory.farmsBuilt * 10) / 100)); //calculate new foodCapacity
-                turnGainsArray.changeFoodCapacity = mainArrayOfTerritoriesAndResources[i].foodCapacity - totalFoodCapacityTemp;
+                turnGainsArray.changeFoodCapacity += mainArrayOfTerritoriesAndResources[i].foodCapacity - totalFoodCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].forestsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].consMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity + (mainArrayOfTerritoriesAndResources[i].consMatsCapacity * ((territory.forestsBuilt * 10) / 100)); //calculate new consMatsCapacity
-                turnGainsArray.changeConsMatsCapacity = mainArrayOfTerritoriesAndResources[i].consMatsCapacity - totalConsMatsTemp;
+                turnGainsArray.changeConsMatsCapacity += mainArrayOfTerritoriesAndResources[i].consMatsCapacity - totalConsMatsTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].oilWellsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].oilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity + (mainArrayOfTerritoriesAndResources[i].oilCapacity * ((territory.oilWellsBuilt * 10) / 100)); //calculate new oilCapacity
-                turnGainsArray.changeOilCapacity = mainArrayOfTerritoriesAndResources[i].oilCapacity - totalOilCapacityTemp;
+                turnGainsArray.changeOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity - totalOilCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].fortsBuilt > 0) {
                 mainArrayOfTerritoriesAndResources[i].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus + (mainArrayOfTerritoriesAndResources[i].defenseBonus * ((territory.fortsBuilt * 10) / 100)); //calculate new defenseBonus
@@ -3609,7 +3609,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 }
 
 
-function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
+export function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
     let territoryOilDemand;
     let territoryOil;
 

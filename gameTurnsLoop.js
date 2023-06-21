@@ -11,6 +11,9 @@ import {
   calculateTerritoryStrengths,
   mainArrayOfTerritoriesAndResources
 } from './resourceCalculations.js';
+import {
+  activateAllTerritoriesForNewTurn
+} from './battle.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
@@ -37,6 +40,7 @@ export function initialiseGame() {
 }
 
 function gameLoop() {
+  activateAllTerritoriesForNewTurn();
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");
   randomEventHappening = handleRandomEventLikelihood();

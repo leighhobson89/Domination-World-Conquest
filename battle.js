@@ -1,9 +1,14 @@
 import {
     vehicleArmyWorth,
-    playerOwnedTerritories
+    playerOwnedTerritories,
+    totalPlayerResources,
+    setUseableNotUseableWeaponsDueToOilDemand,
+    mainArrayOfTerritoriesAndResources,
+    oilRequirements,
+    turnGainsArray
 } from './resourceCalculations.js';
 import {
-  paths
+  paths, playerCountry
 } from './ui.js';
 
 
@@ -462,14 +467,19 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   switch (situation) {
     case 0:
       console.log("Attacker won the war!");
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
       //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
+      contestedTerritory.dataName = playerCountry;
       contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 1:
       console.log("Defender won the war!");
@@ -483,32 +493,42 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     case 2:
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
       //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements * assault);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements * air);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements * naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
+      contestedTerritory.dataName = playerCountry;
       contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 3:
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
-      //Set territory to owner player, replace army values with remaining attackers - 10% in main array, change colors, deactivate territory until next turn
+      //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
-      contestedTerritory.infantryForCurrentTerritory = Math.floor(attackingArmyRemaining[0] * 0.8);
-      contestedTerritory.assaultForCurrentTerritory = Math.floor(attackingArmyRemaining[1] * 0.8);
-      contestedTerritory.airForCurrentTerritory = Math.floor(attackingArmyRemaining[2] * 0.8);
-      contestedTerritory.navalForCurrentTerritory = Math.floor(attackingArmyRemaining[3] * 0.8);
+      contestedTerritory.dataName = playerCountry;
+      contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0]) * 0.8);
+      contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1]) * 0.8);
+      contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2]) * 0.8);
+      contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3]) * 0.8);
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
-      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + Math.floor(attackingArmyRemaining[0] * 0.5);
-      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + Math.floor(attackingArmyRemaining[1] * 0.5);
-      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + Math.floor(attackingArmyRemaining[2] * 0.5);
-      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + Math.floor(attackingArmyRemaining[3] * 0.5);
+      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0]) * 0.5);
+      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1]) * 0.5);
+      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2]) * 0.5);
+      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3]) * 0.5);
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 5:
@@ -527,5 +547,17 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     //situation where user transfers from infantry to vehicles
     break;
     
+  }
+  contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
+  setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
+}
+
+function deactivateTerritoryUntilNextTurn(contestedPath) { //cant use a territory if just conquered it til next turn
+  contestedPath.setAttribute("deactivated", "true");
+}
+
+export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
+  for (let i = 0; i < paths.length; i++) {
+    paths[i].setAttribute("deactivated", "false");
   }
 }
