@@ -469,6 +469,7 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 1:
       console.log("Defender won the war!");
@@ -477,6 +478,7 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
       contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 2:
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
@@ -487,6 +489,7 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 3:
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
@@ -497,6 +500,7 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.assaultForCurrentTerritory = Math.floor(attackingArmyRemaining[1] * 0.8);
       contestedTerritory.airForCurrentTerritory = Math.floor(attackingArmyRemaining[2] * 0.8);
       contestedTerritory.navalForCurrentTerritory = Math.floor(attackingArmyRemaining[3] * 0.8);
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
@@ -505,6 +509,7 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + Math.floor(attackingArmyRemaining[1] * 0.5);
       contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + Math.floor(attackingArmyRemaining[2] * 0.5);
       contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + Math.floor(attackingArmyRemaining[3] * 0.5);
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
   }
 }
