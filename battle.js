@@ -1,9 +1,13 @@
 import {
-    vehicleArmyWorth
+    vehicleArmyWorth,
+    playerOwnedTerritories
 } from './resourceCalculations.js';
+import {
+  paths
+} from './ui.js';
+
 
 const maxAreaThreshold = 350000;
-const maxBattleModifier = 0.65;
 export let finalAttackArray = [];
 let proportionsOfAttackArray = [];
 let reuseableAttackingAverageDevelopmentIndex;
@@ -281,6 +285,11 @@ const processRound = (currentRound) => {
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;
 
+  let exitWhile = false;
+
+  const allZeroDefend = defendingArmyRemaining.every(count => count === 0);
+  const allZeroAttack = attackingArmyRemaining.every(count => count === 0);
+
   while (skirmishesCompleted < skirmishesPerRound) {
     const skirmishOrder = unitTypes.slice().sort(() => Math.random() - 0.5);
 
@@ -325,6 +334,14 @@ const processRound = (currentRound) => {
 
         console.log(`Attacking ${unitType} Left: ${attackingArmyRemaining[unitTypeIndex]} out of ${totalAttackingArmy[unitTypeIndex]}`);
         console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
+      } else if (allZeroDefend) {
+        handleWarEnd(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+      } else if (allZeroDefend) {
+        handleWarEnd(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+      } else {
+        exitWhile = true;
+        skirmishesCompleted = skirmishesPerRound; //escape loop
+        break;
       }
     }
   }
@@ -343,7 +360,7 @@ const processRound = (currentRound) => {
   updatedProbability = calculateProbabiltyPreBattle(attackingArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
   console.log("New probability for next round is:", updatedProbability);
 
-  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0)) {
+  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && !exitWhile) {
     processRound(currentRound + 1);
   } else {
     console.log("All rounds completed!");
@@ -354,16 +371,16 @@ const processRound = (currentRound) => {
     console.log("Defending Naval Remaining:", defendingArmyRemaining[3]);
 
     if (defendingArmyRemaining.every(count => count === 0)) { //killed all defenders
-      handleWarEnd(0);
+      handleWarEnd(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
     } else if (attackingArmyRemaining.every(count => count === 0)) { //all attacking force destroyed
-      handleWarEnd(1);
+      handleWarEnd(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
     } else {
       if (combinedForceDefend < (0.05 * unchangeableWarStartCombinedForceDefend)) { //rout enemy
-        handleWarEnd(2);
+        handleWarEnd(2, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (combinedForceDefend < (0.15 * unchangeableWarStartCombinedForceDefend)) { //last push
-        handleWarEnd(3);
+        handleWarEnd(3, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (combinedForceAttack < (0.10 * unchangeableWarStartCombinedForceAttack)) { // you were routed
-        handleWarEnd(4);
+        handleWarEnd(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {                                                                             // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
         currentRound = 1;
@@ -382,6 +399,7 @@ const processRound = (currentRound) => {
         ];
         totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
         skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
+        exitWhile = false;
         processRound(1);
       }
     }
@@ -434,44 +452,59 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
     return combatContinentModifier;
 }
 
-function handleWarEnd(situation) {
+function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+  let contestedPath;
+  for (let i = 0; i < paths.length; i++) {
+    if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
+      contestedPath = paths[i];
+    }
+  }
   switch (situation) {
     case 0:
       console.log("Attacker won the war!");
-      console.log("Set territory to owner player, replace army values with remaining attackers in main array, change colors etc");
+      //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
+      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
+      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
+      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
       break;
     case 1:
       console.log("Defender won the war!");
-      console.log("set all army values to 0 for attacking territories in main array");
-      console.log("set defending army values to remaining values in main array");
+      //set main array to remaining defenders values
+      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
+      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
+      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
+      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
       break;
     case 2:
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
-      console.log("Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors etc");
+      //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
+      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
+      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
+      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       break;
     case 3:
-      console.log("a quick push should finish off the enemy - lose 10% of remainder to conquer territory");
-      console.log("Set territory to owner player, replace army values with remaining attackers - 10% in main array, change colors etc");
+      console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
+      //Set territory to owner player, replace army values with remaining attackers - 10% in main array, change colors, deactivate territory until next turn
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedTerritory.infantryForCurrentTerritory = Math.floor(attackingArmyRemaining[0] * 0.8);
+      contestedTerritory.assaultForCurrentTerritory = Math.floor(attackingArmyRemaining[1] * 0.8);
+      contestedTerritory.airForCurrentTerritory = Math.floor(attackingArmyRemaining[2] * 0.8);
+      contestedTerritory.navalForCurrentTerritory = Math.floor(attackingArmyRemaining[3] * 0.8);
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
-      console.log("remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array");
+      //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
+      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + Math.floor(attackingArmyRemaining[0] * 0.5);
+      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + Math.floor(attackingArmyRemaining[1] * 0.5);
+      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + Math.floor(attackingArmyRemaining[2] * 0.5);
+      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + Math.floor(attackingArmyRemaining[3] * 0.5);
       break;
   }
 }
-
-  /*   function calculateBatchSize(attackingCount) {
-    if (attackingCount <= 100) {
-      return 1; // 1 vs 1 skirmish
-    } else if (attackingCount <= 1000) {
-      return 10; // 10 vs 10 skirmish
-    } else if (attackingCount <= 10000) {
-      return 100; // 100 vs 100 skirmish
-    } else if (attackingCount <= 100000) {
-      return 1000; // 1000 vs 1000 skirmish
-    } else if (attackingCount <= 1000000) {
-      return 10000; // 10000 vs 10000 skirmish
-    } else {
-      return 100000; // 100000 vs 100000 skirmish
-    }
-  } */
