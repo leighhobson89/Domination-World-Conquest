@@ -14,9 +14,8 @@ import {
   setterritoryAboutToBeAttackedFromExternal,
   playerColour,
   currentMapColorAndStrokeArray,
-  toggleTransferAttackButton,
-  setTransferAttackButtonDisplayedFromExternal,
-  setAttackTextCurrentlyDisplayedFromExternal
+  setFlag,
+  fillPathBasedOnContinent
 } from './ui.js';
 
 
@@ -503,9 +502,9 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       won = true;
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
       //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements * assault);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements * air);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements * naval);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
       contestedTerritory.dataName = playerCountry;
@@ -562,7 +561,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
 
   if (won) {
+    setFlag(playerCountry, 2);
+    contestedPath.setAttribute("data-name", playerCountry);
     deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory);
+  } else {
+    contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
   }
 }
 

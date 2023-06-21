@@ -2245,7 +2245,7 @@ function restoreMapColorState(array, countrySelectionState) {
 }
 
 
-function fillPathBasedOnContinent(path) {
+export function fillPathBasedOnContinent(path) {
   const continentAttribute = path.getAttribute("continent");
   const entry = continentColorArray.find(
       entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
