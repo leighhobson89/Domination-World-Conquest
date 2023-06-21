@@ -511,5 +511,11 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
       contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + Math.floor(attackingArmyRemaining[3] * 0.5);
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
+    case 5:
+      //situation where user legs it mid round of 5
+      break;
+    case 6:
+      //situation where user legs it after round of 5
+      break;
   }
 }
