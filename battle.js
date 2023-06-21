@@ -335,9 +335,9 @@ const processRound = (currentRound) => {
         console.log(`Attacking ${unitType} Left: ${attackingArmyRemaining[unitTypeIndex]} out of ${totalAttackingArmy[unitTypeIndex]}`);
         console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
       } else if (allZeroDefend) {
-        handleWarEnd(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (allZeroDefend) {
-        handleWarEnd(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {
         exitWhile = true;
         skirmishesCompleted = skirmishesPerRound; //escape loop
@@ -371,16 +371,16 @@ const processRound = (currentRound) => {
     console.log("Defending Naval Remaining:", defendingArmyRemaining[3]);
 
     if (defendingArmyRemaining.every(count => count === 0)) { //killed all defenders
-      handleWarEnd(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+      handleWarEndingsAndOptions(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
     } else if (attackingArmyRemaining.every(count => count === 0)) { //all attacking force destroyed
-      handleWarEnd(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+      handleWarEndingsAndOptions(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
     } else {
       if (combinedForceDefend < (0.05 * unchangeableWarStartCombinedForceDefend)) { //rout enemy
-        handleWarEnd(2, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(2, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (combinedForceDefend < (0.15 * unchangeableWarStartCombinedForceDefend)) { //last push
-        handleWarEnd(3, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(3, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (combinedForceAttack < (0.10 * unchangeableWarStartCombinedForceAttack)) { // you were routed
-        handleWarEnd(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {                                                                             // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
         currentRound = 1;
@@ -452,7 +452,7 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
     return combatContinentModifier;
 }
 
-function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
   let contestedPath;
   for (let i = 0; i < paths.length; i++) {
     if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
