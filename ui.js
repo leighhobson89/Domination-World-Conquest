@@ -48,6 +48,7 @@ import {
     transferArmyToNewTerritory,
     territoryUniqueIds,
     probability,
+    transferArmyOutOfTerritoryOnStartingInvasion
 } from './transferAndAttack.js';
 import {
     doBattle,
@@ -2630,6 +2631,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
+                        transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0);

@@ -6,7 +6,7 @@ let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
 export let territoryUniqueIds = []; //attack only
 export let probability;
-export let preAttackArray = [];
+let preAttackArray = [];
 const disabledFlagsAttack = [];
 
 const tooltip = document.getElementById("tooltip");
@@ -969,6 +969,27 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
         }
     }
 }
+
+export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainArrayOfTerritoriesAndResources) {
+    for (let i = 1; i < attackArray.length; i += 5) {
+      const uniqueId = attackArray[i].toString();
+      const infantry = attackArray[i + 1];
+      const assault = attackArray[i + 2];
+      const air = attackArray[i + 3];
+      const naval = attackArray[i + 4];
+  
+      const matchingTerritory = mainArrayOfTerritoriesAndResources.find(
+        territory => territory.uniqueId === uniqueId
+      );
+  
+      if (matchingTerritory) {
+        matchingTerritory.infantryForCurrentTerritory -= infantry;
+        matchingTerritory.assaultForCurrentTerritory -= assault;
+        matchingTerritory.airForCurrentTerritory -= air;
+        matchingTerritory.navalForCurrentTerritory -= naval;
+      }
+    }
+  }  
 
 function disableAttackScreenOptions(table, territoryUniqueIds) {
     const rows = Array.from(table.querySelectorAll('.transfer-table-row'));
