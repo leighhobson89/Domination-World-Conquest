@@ -1,14 +1,22 @@
 import {
     vehicleArmyWorth,
     playerOwnedTerritories,
-    totalPlayerResources,
     setUseableNotUseableWeaponsDueToOilDemand,
     mainArrayOfTerritoriesAndResources,
     oilRequirements,
     turnGainsArray
 } from './resourceCalculations.js';
 import {
-  paths, playerCountry
+  paths, playerCountry,
+  removeImageFromPathAndRestoreNormalStroke,
+  lastClickedPath,
+  setcurrentMapColorAndStrokeArrayFromExternal,
+  setterritoryAboutToBeAttackedFromExternal,
+  playerColour,
+  currentMapColorAndStrokeArray,
+  toggleTransferAttackButton,
+  setTransferAttackButtonDisplayedFromExternal,
+  setAttackTextCurrentlyDisplayedFromExternal
 } from './ui.js';
 
 
@@ -459,6 +467,7 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 
 function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
   let contestedPath;
+  let won = false;
   for (let i = 0; i < paths.length; i++) {
     if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
       contestedPath = paths[i];
@@ -466,6 +475,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   }
   switch (situation) {
     case 0:
+      won = true;
       console.log("Attacker won the war!");
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
@@ -479,7 +489,6 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 1:
       console.log("Defender won the war!");
@@ -491,6 +500,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 2:
+      won = true;
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
       //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements * assault);
@@ -504,9 +514,9 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 3:
+      won = true;
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
       //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
       turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
@@ -520,7 +530,6 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2]) * 0.8);
       contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3]) * 0.8);
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      deactivateTerritoryUntilNextTurn(contestedPath);
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
@@ -550,14 +559,45 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   }
   contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
   setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
+  removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+
+  if (won) {
+    deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory);
+  }
 }
 
-function deactivateTerritoryUntilNextTurn(contestedPath) { //cant use a territory if just conquered it til next turn
+function deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory) { //cant use a territory if just conquered it til next turn
+  let tempArray = currentMapColorAndStrokeArray;
+  for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
+    if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
+      tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour, 3];
+    }
+  }
+
+  document.getElementById("attack-destination-container").style.display = "none";
+  document.getElementById("move-phase-button").innerHTML = "DEACTIVATED";
+  document.getElementById("move-phase-button").disabled = true;
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-red-background");
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-blue-background");
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-green-background");
+  document.getElementById("move-phase-button").classList.add("move-phase-button-grey-background");
+
   contestedPath.setAttribute("deactivated", "true");
+  contestedPath.style.stroke = "red";
+  contestedPath.style.strokeDasharray = "10, 5";
+  contestedPath.setAttribute("stroke-width", "3");
+
+  setterritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
+  setcurrentMapColorAndStrokeArrayFromExternal(tempArray);
 }
 
 export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
   for (let i = 0; i < paths.length; i++) {
+    if (paths[i].getAttribute("deactivated") === "true") {
+      paths[i].style.stroke = "black";
+      paths[i].style.strokeDasharray = "none";
+      paths[i].setAttribute("stroke-width", "1");
+    }
     paths[i].setAttribute("deactivated", "false");
   }
 }

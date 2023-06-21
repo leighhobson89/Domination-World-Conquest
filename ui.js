@@ -75,7 +75,7 @@ export let playerCountry;
 export let playerColour;
 export let flag;
 
-let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
+export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
 const continentColorArray = [
   ["Africa", [233, 234, 20]],
   ["Asia", [203, 58, 22]],
@@ -225,7 +225,9 @@ export function svgMapLoaded() {
       if (e.target.tagName === "rect" && currentTurnPhase === 1) {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
           toggleTransferAttackButton(false);
-          removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+          if (lastClickedPath.getAttribute("deactivated" === "false")) {
+            removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+          }
           transferAttackButtonDisplayed = false;
           attackTextCurrentlyDisplayed = false;
           //remove army image
@@ -334,7 +336,15 @@ function selectCountry(country, escKeyEntry) {
               }
           }
       } else {
-          svgMap.documentElement.appendChild(country);
+        const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
+
+        if (deactivatedPaths.length > 0) {
+        const lowestIndex = paths.indexOf(deactivatedPaths[0]);
+        svgMap.documentElement.insertBefore(country, paths[lowestIndex]);
+        } else {
+        svgMap.documentElement.appendChild(country);
+        }
+
       }
 
       if (selectCountryPlayerState && !escKeyEntry) {
@@ -350,7 +360,7 @@ function selectCountry(country, escKeyEntry) {
           }
       } else if (!selectCountryPlayerState && !escKeyEntry) {
           for (let i = 0; i < paths.length; i++) {
-              if (paths[i].getAttribute("owner") === "Player") {
+              if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
                   paths[i].setAttribute('fill', playerColour);
                   if (territoryAboutToBeAttacked) {
                       removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
@@ -366,9 +376,8 @@ function selectCountry(country, escKeyEntry) {
       }
 
       if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
-
           for (let i = 0; i < paths.length; i++) {
-              if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
+              if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
                   paths[i].setAttribute('fill', playerColour);
               } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                   if (mapMode === 0) {
@@ -399,12 +408,14 @@ function selectCountry(country, escKeyEntry) {
   if (!clickActionsDone) {
       populateBottomTableWhenSelectingACountry(country);
 
-      if (lastClickedPath != null && !escKeyEntry) {
-          if (lastClickedPath.getAttribute('d') != 'M0 0 L50 50') {
+      if (lastClickedPath !== null && !escKeyEntry) {
+          if (lastClickedPath.getAttribute('d') !== 'M0 0 L50 50') {
               if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
                   lastClickedPath.parentNode.appendChild(lastClickedPath);
               } else {
-                  lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+                if (lastClickedPath.getAttribute("deactivated") === "false") {
+                    lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+                }
               }
               if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player") {
                   setStrokeWidth(lastClickedPath, "1");
@@ -428,7 +439,6 @@ function selectCountry(country, escKeyEntry) {
   }
   window.focus();
 }
-
 
 document.addEventListener("DOMContentLoaded", function() {
   //MENU CONTAINER
@@ -1530,7 +1540,7 @@ function toggleTopTableContainer(turnOnTable) {
   }
 }
 
-function toggleTransferAttackButton(turnOnButton) {
+export function toggleTransferAttackButton(turnOnButton) {
   let transferAttackButton = document.getElementById("move-phase-button");
   let attackText = document.getElementById("attack-destination-container");
   if (turnOnButton) {
@@ -1847,6 +1857,9 @@ function getBboxCoordsAndPushUniqueID(path) {
 }
 
 function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
+    if (targetPath.getAttribute("deactivated") === "true"){
+        return;
+    }
     let manualExceptionsArray = [];
     let tempValidDestinationsArray = [];
   
@@ -2174,7 +2187,9 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
               for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
                   let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
                   arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
-                  setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
+                  if (arrayOfSelectedCountries[i][0].getAttribute("deactivated") ==="false") {
+                    setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
+                  }
               }
           } else {
               console.log("array empty");
@@ -2507,7 +2522,16 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           return;
       } else if (path.getAttribute("owner") === "Player") {
           // if clicks on a player-owned territory then show button in transfer state
-          button.innerHTML = "TRANSFER";
+          if (path.getAttribute("deactivated") === "true") {
+            button.innerHTML = "DEACTIVATED";
+            button.classList.remove("move-phase-button-red-background");
+            button.classList.remove("move-phase-button-green-background");
+            button.classList.add("move-phase-button-grey-background");
+            button.disabled = true;
+            button.style.display = "flex";
+            transferAttackButtonDisplayed = true;
+          } else {
+            button.innerHTML = "TRANSFER";
           if (playerOwnedTerritories.length <= 1) {
               button.classList.remove("move-phase-button-red-background");
               button.classList.remove("move-phase-button-green-background");
@@ -2522,6 +2546,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           }
           button.style.display = "flex";
           transferAttackButtonDisplayed = true;
+          }
       } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
           // if clicks on an enemy territory that is within reach then show attack state
           button.innerHTML = "ATTACK";
@@ -2637,13 +2662,16 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setAttackProbabilityOnUI(0);
                     }
                       territoryUniqueIds.length = 0;
-                      button.classList.remove("move-phase-button-blue-background");
-                      button.classList.add("move-phase-button-red-background");
-                      button.innerHTML = "ATTACK";
+
+                      if (button.innerHTML !== "DEACTIVATED") {
+                        button.classList.remove("move-phase-button-blue-background");
+                        button.classList.add("move-phase-button-red-background");
+                        button.innerHTML = "ATTACK";
+                      }
+                      toggleUIButton(true);
                       toggleTransferAttackWindow(false);
                       transferAttackWindowOnScreen = false;
                       svg.style.pointerEvents = 'auto';
-                      toggleUIButton(true);
                       toggleBottomLeftPaneWithTurnAdvance(true);
                       setTimeout(function() {
                           eventHandlerExecuted = false; // Reset the flag after a delay
@@ -2671,7 +2699,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       }
 
       if (button.disabled) {
-          tooltip.innerHTML = "You have no other territories to transfer military to!";
+        if (button.innerHTML === "DEACTIVATED") {
+            tooltip.innerHTML = "You cannot transfer or attack from this territory until next turn!";
+        } else if (button.innerHTML === "TRANSFER") {
+            tooltip.innerHTML = "You have no other territories to transfer military to!";
+        }
       } else if (!button.disabled && playerOwnedTerritories.length > 1 && button.innerHTML === "TRANSFER") {
           tooltip.innerHTML = "Click to transfer military to one of your other territories...";
       } else if (!button.disabled && validDestinationsArray.length > 0 && button.innerHTML === "ATTACK") {
@@ -2734,7 +2766,7 @@ function addImageToPath(pathElement, imagePath) {
 }
 
 
-function removeImageFromPathAndRestoreNormalStroke(path) {
+export function removeImageFromPathAndRestoreNormalStroke(path) {
   const imageElement = path.parentNode.getElementById("armyImage");
 
   if (imageElement) {
@@ -2959,4 +2991,21 @@ export function setAttackProbabilityOnUI(probability) {
     }
     document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
   }
+
+  export function setcurrentMapColorAndStrokeArrayFromExternal(changesArray) {
+    currentMapColorAndStrokeArray = changesArray;
+  }
+
+  export function setterritoryAboutToBeAttackedFromExternal(value) {
+    territoryAboutToBeAttacked = value;
+  }
+
+  export function setAttackTextCurrentlyDisplayedFromExternal(value) {
+    attackTextCurrentlyDisplayed = value;
+  }
+
+  export function setTransferAttackButtonDisplayedFromExternal(value) {
+    transferAttackButtonDisplayed = value;
+  }
+  
   
