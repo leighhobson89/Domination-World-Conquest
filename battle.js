@@ -517,5 +517,15 @@ function handleWarEnd(situation, contestedTerritory, attackingArmyRemaining, def
     case 6:
       //situation where user legs it after round of 5
       break;
+    case 7:
+      //situation where user sets a siege
+      break;
+    case 8:
+      //situation where user transfers from vehicles to infantry
+      break;
+    case 8:
+    //situation where user transfers from infantry to vehicles
+    break;
+    
   }
 }
