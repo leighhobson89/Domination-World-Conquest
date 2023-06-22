@@ -2763,6 +2763,14 @@ export function removeImageFromPathAndRestoreNormalStroke(path, clickedSeaWithTe
     path.style.stroke = "rgb(0,0,0)";
     path.setAttribute("stroke-width", "1");
   }
+  if (path === territoryAboutToBeAttacked && !escKeyEntry) {
+    path.style.strokeDasharray = "none";
+    path.style.stroke = "rgb(0,0,0)";
+    path.setAttribute("stroke-width", "1");
+    toggleTransferAttackButton(false);
+    transferAttackButtonDisplayed = false;
+    attackTextCurrentlyDisplayed = false;
+  }
 }
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
