@@ -327,6 +327,7 @@ function readDatabaseAndCreateDataArray() {
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
       if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
+        lastClickedPath = country;
           for (let i = 0; i < paths.length; i++) {
               if (paths[i].getAttribute("data-name") === "Lesotho") {
                   svgMap.documentElement.appendChild(paths[i]);
