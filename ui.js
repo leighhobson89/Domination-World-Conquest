@@ -2637,6 +2637,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                 if (button.innerHTML === "CONFIRM" || button.innerHTML === "INVADE!") {
                     button.style.fontWeight = "normal";
                     button.style.color = "white";
+                    setAttackProbabilityOnUI(0);
                 }
                   if (transferAttackbuttonState === 0) {
                     if (button.innerHTML === "CONFIRM") {
