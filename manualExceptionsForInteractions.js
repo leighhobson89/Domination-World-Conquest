@@ -27,168 +27,106 @@ importModuleWithTimeout()
         handleImportedModule(module);
 
         let id = {};
-        let territoryOrder = [];
 
         for (let i = 0; i < mainArray.length; i++) {
         const territory = mainArray[i];
         id[territory.territoryName] = territory.uniqueId;
-        territoryOrder.push(territory.territoryName);
         }
-
-        // Accessing territories in the order they were added
-        for (let j = 0; j < territoryOrder.length; j++) {
-        const territoryName = territoryOrder[j];
-        const uniqueId = id[territoryName];
-        console.log(territoryName, uniqueId);
-        }
-
 
         manualInteractionExceptions = new Map([
-            //OCEANIA
-            //Extreme East Islands
-            [id['Fiji 2'], [id['Vanuatu 2'], id['Vanuatu 2'], id['New Caledonia 2'], id['New Caledonia 3']]],
-            [id['Vanuatu 1'], [id['Fiji 1']]],
-            [id['Vanuatu 2'], [id['Fiji 1']]],
-            [id['New Caledonia 2'], [id['Fiji 1']]],
-            [id['New Caledonia 3'], [id['Fiji 1']]],
-            [id['Vanuatu 1'], [id['Solomon Islands 6']]],
-            [id['Solomon Islands 6'], [id['Vanuatu 1']]],
-            [id['New Caledonia 1'], [id['King Island'], id['Fraser Island'], id['New Zealand North Island']]],
-            [id['King Island'], id['New Caledonia 1']],
-            [id['Fraser Island'], id['New Caledonia 1']],
-        
-            //Solomon Islands with Papua New Guinea
-            [id['Solomon Islands 4'], [id['Fergusson Island'], id['Papua New Guinea']]],
-            [id['Solomon Islands 1'], [id['Fergusson Island'], id['Papua New Guinea']]],
-            [id['Fergusson Island'], [id['Solomon Islands 4'], id['Solomon Islands 1']]],
-            [id['Papua New Guinea'], [id['Solomon Islands 1'], id['Solomon Islands 4']]],
-        
-            //New Zealand connections
-            [id['New Zealand South Island'], [id['Australia'], id['Flinders Island'], id['Tasmania']]],
-            [id['Australia'], [id['New Zealand South Island'], id['New Zealand North Island']]],
-            [id['Flinders Island'], [id['New Zealand South Island'], id['New Zealand North Island']]],
-            [id['Tasmania'], [id['New Zealand South Island'], id['New Zealand North Island']]],
-            [id['New Zealand North Island'], [id['Australia'], id['Flinders Island'], id['Tasmania'], id['New Caledonia 1']]],
-            [id['New Caledonia 1'], [id['New Zealand North Island']]],
-        
-            //Timor Leste with Australia
-            [id['Timor Leste'], [id['Australia']]],
-            [id['Australia'], [id['Timor Leste']]],
-        
-            //ASIA
-            //Russia with U.S. Arctic Island
-            [id['Russia'], [id['Alaskan Islands 4']]],
-            [id['Alaskan Islands 4'], [id['Russia']]],
-        
-            //Maldives with India/Sri Lanka
-            [id['Maldives 2'], [id['India'], id['Sri Lanka']]],
-            [id['Sri Lanka'], [id['Maldives 2']]],
-            [id['India'], [id['Maldives 2']]],
-        
-            //China with Japan/S Korea
-            [id['Japan'], [id['China']]],
-            [id['South Korea'], [id['China']]],
-            [id['China'], [id['Japan'], id['South Korea']]],
-        
-            //AFRICA
-            //Djibouti with Yemen
-            [id['Djibouti'], [id['Yemen']]],
-            [id['Yemen'], [id['Djibouti']]],
-        
-            //Seychelles with Mozambique/Tanzania
-            [id['Seychelles South Island'], [id['Tanzania'], id['Mozambique']]],
-            [id['Mozambique'], [id['Seychelles South Island']]],
-            [id['Tanzania'], [id['Seychelles South Island']]],
-        
-            //Seychelles with Maldives
-            [id['Maldives 5'], [id['Seychelles North Island']]],
-            [id['Seychelles North Island'], [id['Maldives 5']]],
-
-            //Reunion with Madagascar
-            [id['Reunion'], [id['Madagascar']]],
-            [id['Madagascar'], [id['Reunion']]],
-        
-            //EUROPE
-            //NOT PERMITTED
-            //Luxembourg with UK
-            [id['United Kingdom'], [id['Luxembourg']]],
-            [id['Luxembourg'], [id['United Kingdom']]],
-        
-            //PERMITTED
-            //Italy with San Marino, Albania and Tunisia
-            [id['Italy'], [id['Albania']]],
-            [id['Albania'], [id['Italy']]],
-            [id['Italy'], [id['Tunisia']]],
-            [id['Tunisia'], [id['Italy']]],
-        
-            //Spain with Algeria
-            [id['Spain'], [id['Algeria']]],
-            [id['Algeria'], [id['Spain']]],
-        
-            //Morocco with Spain, Portugal and Gibraltar
-            [id['Morocco'], [id['Portugal'], id['Spain'], id['Gibraltar']]],
-            [id['Portugal'], [id['Morocco']]],
-            [id['Spain'], [id['Morocco']]],
-            [id['Gibraltar'], [id['Morocco']]],
-        
-            //Norway with UK
-            [id['United Kingdom'], [id['Norway']]],
-            [id['Norway'], [id['United Kingdom']]],
-        
-            //Sweden with Denmark
-            [id['Sweden'], [id['Denmark']]],
-            [id['Denmark'], [id['Sweden']]],
-        
-            //Norway Svalbard with Island Russian Island
-            [id['Arctic Islands 1'], [id['Svalbard']]],
-            [id['Svalbard'], [id['Arctic Islands 1']]],
-        
-            //Finland with Estonia
-            [id['Finland'], [id['Estonia']]],
-            [id['Estonia'], [id['Finland']]],
-        
-            //Iceland with UK Hebridean Islands and Ireland
-            [id['Iceland'], [id['Hebridean Islands'], id['Ireland']]],
-            [id['Hebridean Islands'], [id['Iceland']]],
-            [id['Ireland'], [id['Iceland']]],
-        
-            //NORTH AMERICA
-            //Bermuda with U.S. Mainland and Bahamas North Island
-            [id['Bermuda'], [id['Grand Bahama (Bahamas)'], id['United States']]],
-            [id['Grand Bahama (Bahamas)'], [id['Bermuda']]],
-            [id['United States'], [id['Bermuda']]],
-        
-            //SOUTH AMERICA
-            //Brazil with Sierra Leone, Liberia and Guinea
-            [id['Brazil'], [id['Guinea'], id['Sierra Leone'], id['Liberia']]],
-            [id['Liberia'], [id['Brazil']]],
-            [id['Sierra Leone'], [id['Brazil']]],
-            [id['Guinea'], [id['Brazil']]]
+            [id['Fiji 2'], [[id['Vanuatu 2'], 1], [id['New Caledonia 2'], 1], [id['New Caledonia 3'], 1]]],
+            [id['Vanuatu 1'], [[id['Fiji 1'], 1], [id['Solomon Islands 6'], 1]]],
+            [id['Vanuatu 2'], [[id['Fiji 1'], 1]]],
+            [id['New Caledonia 2'], [[id['Fiji 1'], 1]]],
+            [id['New Caledonia 3'], [[id['Fiji 1'], 1]]],
+            [id['Fiji 1'], [[id['New Caledonia 3'], 1], [id['New Caledonia 2'], 1]]],
+            [id['Solomon Islands 6'], [[id['Vanuatu 1'], 1]]],
+            [id['New Caledonia 1'], [[id['King Island'], 1], [id['Fraser Island'], 1], [id['New Zealand North Island'], 1]]],
+            [id['King Island'], [[id['New Caledonia 1'], 1]]],
+            [id['Fraser Island'], [[id['New Caledonia 1'], 1]]],
+            [id['Solomon Islands 4'], [[id['Fergusson Island'], 1], [id['Papua New Guinea'], 1]]],
+            [id['Solomon Islands 1'], [[id['Fergusson Island'], 1], [id['Papua New Guinea'], 1]]],
+            [id['Fergusson Island'], [[id['Solomon Islands 4'], 1], [id['Solomon Islands 1'], 1]]],
+            [id['Papua New Guinea'], [[id['Solomon Islands 1'], 1], [id['Solomon Islands 4'], 1]]],
+            [id['New Zealand South Island'], [[id['Australia'], 1], [id['Flinders Island'], 1], [id['Tasmania'], 1]]],
+            [id['Australia'], [[id['New Zealand South Island'], 1], [id['New Zealand North Island'], 1], [id['Timor Leste'], 1]]],
+            [id['Flinders Island'], [[id['New Zealand South Island'], 1], [id['New Zealand North Island'], 1]]],
+            [id['Tasmania'], [[id['New Zealand South Island'], 1], [id['New Zealand North Island'], 1]]],
+            [id['New Zealand North Island'], [[id['Australia'], 1], [id['Flinders Island'], 1], [id['Tasmania'], 1], [id['New Caledonia 1'], 1]]],
+            [id['New Caledonia 1'], [[id['New Zealand North Island'], 1]]],
+            [id['Timor Leste'], [[id['Australia'], 1]]],
+            [id['Russia'], [[id['Alaskan Islands 4'], 1]]],
+            [id['Alaskan Islands 4'], [[id['Russia'], 1]]],
+            [id['Maldives 2'], [[id['India'], 1], [id['Sri Lanka'], 1]]],
+            [id['Sri Lanka'], [[id['Maldives 2'], 1]]],
+            [id['India'], [[id['Maldives 2'], 1]]],
+            [id['Japan'], [[id['China'], 1]]],
+            [id['South Korea'], [[id['China'], 1]]],
+            [id['China'], [[id['Japan'], 1], [id['South Korea'], 1]]],
+            [id['Djibouti'], [[id['Yemen'], 1]]],
+            [id['Yemen'], [[id['Djibouti'], 1]]],
+            [id['Seychelles South Island'], [[id['Tanzania'], 1], [id['Mozambique'], 1]]],
+            [id['Mozambique'], [[id['Seychelles South Island'], 1]]],
+            [id['Tanzania'], [[id['Seychelles South Island'], 1]]],
+            [id['Maldives 5'], [[id['Seychelles North Island'], 1]]],
+            [id['Seychelles North Island'], [[id['Maldives 5'], 1]]],
+            [id['Reunion'], [[id['Madagascar'], 1]]],
+            [id['Madagascar'], [[id['Reunion'], 1]]],
+            [id['United Kingdom'], [[id['Luxembourg'], 0], [id['Norway'], 1]]],
+            [id['Luxembourg'], [[id['United Kingdom'], 0]]],
+            [id['Italy'], [[id['Albania'], 1], [id['Tunisia'], 1]]],
+            [id['Albania'], [[id['Italy'], 1]]],
+            [id['Tunisia'], [[id['Italy'], 1]]],
+            [id['Spain'], [[id['Algeria'], 1], [id['Morocco'], 1]]],
+            [id['Algeria'], [[id['Spain'], 1]]],
+            [id['Morocco'], [[id['Portugal'], 1], [id['Spain'], 1], [id['Gibraltar'], 1]]],
+            [id['Portugal'], [[id['Morocco'], 1]]],
+            [id['Gibraltar'], [[id['Morocco'], 1]]],
+            [id['Norway'], [[id['United Kingdom'], 1]]],
+            [id['Sweden'], [[id['Denmark'], 1]]],
+            [id['Denmark'], [[id['Sweden'], 1]]],
+            [id['Arctic Islands 1'], [[id['Svalbard'], 1]]],
+            [id['Svalbard'], [[id['Arctic Islands 1'], 1]]],
+            [id['Finland'], [[id['Estonia'], 1]]],
+            [id['Estonia'], [[id['Finland'], 1]]],
+            [id['Iceland'], [[id['Hebridean Islands'], 1], [id['Ireland'], 1]]],
+            [id['Hebridean Islands'], [[id['Iceland'], 1]]],
+            [id['Ireland'], [[id['Iceland'], 1]]],
+            [id['Bermuda'], [[id['Grand Bahama (Bahamas)'], 1], [id['United States'], 1]]],
+            [id['Grand Bahama (Bahamas)'], [[id['Bermuda'], 1], [id['United States'], 1]]],
+            [id['United States'], [[id['Bermuda'], 1], [id['Grand Bahama (Bahamas)'], 1]]],
+            [id['Brazil'], [[id['Guinea'], 1], [id['Sierra Leone'], 1], [id['Liberia'], 1]]],
+            [id['Liberia'], [[id['Brazil'], 1]]],
+            [id['Sierra Leone'], [[id['Brazil'], 1]]],
+            [id['Guinea'], [[id['Brazil'], 1]]]
         ]);
+        
     })
     .catch(error => {
         console.log(error);
     });
 
-export function findMatchingCountries(pathObj) {
-    const matchingCountries = [];
-
-    for (const [uniqueId, countries] of manualInteractionExceptions) {
-        if (uniqueId.toString() === pathObj.getAttribute("uniqueid")) {
-            const svgMap = document.getElementById("svg-map").contentDocument;
-            const paths = svgMap.getElementsByTagName("path");
-
-            const matchingPaths = [];
-            const matchingIds = countries.map(id => id.toString());
-
-            for (const path of paths) {
-                const pathId = path.getAttribute("uniqueid");
-                if (matchingIds.includes(pathId)) {
-                    matchingCountries.push(path);
+    export function findMatchingCountries(pathObj, value) {
+        const matchingCountries = [];
+    
+        for (const [uniqueId, countries] of manualInteractionExceptions) {
+            if (uniqueId.toString() === pathObj.getAttribute("uniqueid")) {
+                const svgMap = document.getElementById("svg-map").contentDocument;
+                const paths = svgMap.getElementsByTagName("path");
+    
+                const matchingIds = countries.map(([id, flag]) => [id.toString(), flag]);
+    
+                for (const path of paths) {
+                    const pathId = path.getAttribute("uniqueid");
+                    const matchingData = matchingIds.find(([id]) => id === pathId);
+                    if (matchingData && matchingData[1] === value) {
+                        matchingCountries.push(path);
+                    }
                 }
+                break;
             }
-            break;
         }
+        return matchingCountries;
     }
-    return matchingCountries;
-}
+    
+    
