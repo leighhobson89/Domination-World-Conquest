@@ -354,7 +354,7 @@ function selectCountry(country, escKeyEntry) {
             }
         }
 
-        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previusly been clicked
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previusly been clicked, handle deselecting previous
             for (let i = 0; i < paths.length; i++) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
                     paths[i].setAttribute('fill', playerColour);

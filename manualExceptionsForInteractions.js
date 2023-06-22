@@ -1,129 +1,173 @@
-const manualInteractionExceptions = new Map([
-    //OCEANIA
-    //Extreme East Islands
-    [338, [333, 334, 336, 337]],
-    [333, [338]],
-    [334, [338]],
-    [336, [338]],
-    [337, [338]],
-    [333, [332]],
-    [332, [333]],
-    [335, [346, 350, 356]],
-    [346, [335]],
-    [350, [335]],
+let mainArray = [];
 
-    //Solomon Islands with Papua New Guinea
-    [330, [325, 321]],
-    [327, [325, 321]],
-    [325, [330, 327]],
-    [321, [327, 330]],
+function handleImportedModule(module) {
+    const {
+        mainArrayOfTerritoriesAndResources
+    } = module;
+    mainArray = mainArrayOfTerritoriesAndResources;
+}
 
-    //New Zealand connections
-    [355, [346, 348, 349]],
-    [346, [355, 356]],
-    [348, [355, 356]],
-    [349, [355, 356]],
-    [356, [346, 348, 349, 335]],
+function importModuleWithTimeout() {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            import('./resourceCalculations.js')
+                .then(module => {
+                    resolve(module);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        }, 1000);
+    });
+}
 
-    //Timor Leste with Australia
-    [291, [346]],
+importModuleWithTimeout()
+    .then(module => {
+        handleImportedModule(module);
 
-    //ASIA
-    //Russia with U.S. Arctic Island
-    [93, [19]],
-    [19, [93]],
+        let id = {};
+        let territoryOrder = [];
 
-    //Maldives with India/Sri Lanka
-    [227, [66, 246]],
-    [246, [227]],
-    [66, [227]],
+        for (let i = 0; i < mainArray.length; i++) {
+        const territory = mainArray[i];
+        id[territory.territoryName] = territory.uniqueId;
+        territoryOrder.push(territory.territoryName);
+        }
 
-    //China with Japan/S Korea
-    [236, [240]],
-    [238, [240]],
-    [240, [236, 238]],
+        // Accessing territories in the order they were added
+        for (let j = 0; j < territoryOrder.length; j++) {
+        const territoryName = territoryOrder[j];
+        const uniqueId = id[territoryName];
+        console.log(territoryName, uniqueId);
+        }
 
-    //AFRICA
-    //Djibouti with Yemen
-    [197, [195]],
-    [195, [197]],
 
-    //Seychelles with Mozambique/Tanzania
-    [225, [210, 216]],
-    [216, [225]],
-    [210, [225]],
-    [224, [230]],
+        const manualInteractionExceptions = new Map([
+            //OCEANIA
+            //Extreme East Islands
+            [id['Fiji 2'], [id['Vanuatu 2'], id['Vanuatu 2'], id['New Caledonia 2'], id['New Caledonia 3']]],
+            [id['Vanuatu 1'], [id['Fiji 1']]],
+            [id['Vanuatu 2'], [id['Fiji 1']]],
+            [id['New Caledonia 2'], [id['Fiji 1']]],
+            [id['New Caledonia 3'], [id['Fiji 1']]],
+            [id['Vanuatu 1'], [id['Solomon Islands 6']]],
+            [id['Solomon Islands 6'], [id['Vanuatu 1']]],
+            [id['New Caledonia 1'], [id['King Island'], id['Fraser Island'], id['New Zealand North Island']]],
+            [id['King Island'], id['New Caledonia 1']],
+            [id['Fraser Island'], id['New Caledonia 1']],
+        
+            //Solomon Islands with Papua New Guinea
+            [id['Solomon Islands 4'], [id['Fergusson Island'], id['Papua New Guinea']]],
+            [id['Solomon Islands 1'], [id['Fergusson Island'], id['Papua New Guinea']]],
+            [id['Fergusson Island'], [id['Solomon Islands 4'], id['Solomon Islands 1']]],
+            [id['Papua New Guinea'], [id['Solomon Islands 1'], id['Solomon Islands 4']]],
+        
+            //New Zealand connections
+            [id['New Zealand South Island'], [id['Australia'], id['Flinders Island'], id['Tasmania']]],
+            [id['Australia'], [id['New Zealand South Island'], id['New Zealand North Island']]],
+            [id['Flinders Island'], [id['New Zealand South Island'], id['New Zealand North Island']]],
+            [id['Tasmania'], [id['New Zealand South Island'], id['New Zealand North Island']]],
+            [id['New Zealand North Island'], [id['Australia'], id['Flinders Island'], id['Tasmania'], id['New Caledonia 1']]],
+            [id['New Caledonia 1'], [id['New Zealand North Island']]],
+        
+            //Timor Leste with Australia
+            [id['Timor Leste'], [id['Australia']]],
+            [id['Australia'], [id['Timor Leste']]],
+        
+            //ASIA
+            //Russia with U.S. Arctic Island
+            [id['Russia'], [id['Alaskan Islands 4']]],
+            [id['Alaskan Islands 4'], [id['Russia']]],
+        
+            //Maldives with India/Sri Lanka
+            [id['Maldives 2'], [id['India'], id['Sri Lanka']]],
+            [id['Sri Lanka'], [id['Maldives 2']]],
+            [id['India'], [id['Maldives 2']]],
+        
+            //China with Japan/S Korea
+            [id['Japan'], [id['China']]],
+            [id['South Korea'], [id['China']]],
+            [id['China'], [id['Japan'], id['South Korea']]],
+        
+            //AFRICA
+            //Djibouti with Yemen
+            [id['Djibouti'], [id['Yemen']]],
+            [id['Yemen'], [id['Djibouti']]],
+        
+            //Seychelles with Mozambique/Tanzania
+            [id['Seychelles South Island'], [id['Tanzania'], id['Mozambique']]],
+            [id['Mozambique'], [id['Seychelles South Island']]],
+            [id['Tanzania'], [id['Seychelles South Island']]],
+        
+            //Seychelles with Maldives
+            [id['Maldives 5'], [id['Seychelles North Island']]],
+            [id['Seychelles North Island'], [id['Maldives 5']]],
 
-    //Seychelles with Maldives
-    [230, [224]],
-
-    //Reunion with Madagascar
-    [221, [223]],
-    [223, [221]],
-
-    //Lesotho with South Africa
-    [219, [220]],
-    [220, [219]],
-
-    //EUROPE
-    //NOT PERMITTED
-    //Luxembourg with UK
-    [0, [57]],
-    [57, [0]],
-
-    //PERMITTED
-    //Italy with San Marino, Albania and Tunisia
-    [8, [358]],
-    [358, [8]],
-    [8, [37]],
-    [37, [8]],
-    [8, [79]],
-    [79, [8]],
-
-    //Spain with Algeria
-    [5, [67]],
-    [67, [5]],
-
-    //Morocco with Spain, Portugal and Gibraltar
-    [78, [28, 5, 69]],
-    [28, [78]],
-    [5, [78]],
-    [69, [78]],
-
-    //Norway with UK
-    [0, [63]],
-    [63, [0]],
-
-    //Sweden with Denmark
-    [62, [48]],
-    [48, [62]],
-
-    //Norway Svalbard with Island Russian Island
-    [96, [64]],
-    [64, [96]],
-
-    //Finland with Estonia
-    [61, [51]],
-    [51, [61]],
-
-    //Iceland with UK Hebridean Islands and Ireland
-    [3, [1, 2]],
-    [1, [3]],
-    [2, [3]],
-
-    //NORTH AMERICA
-    //Bermuda with U.S. Mainland and Bahamas North Island
-    [145, [24, 12]],
-    [24, [145]],
-    [12, [145]],
-
-    //SOUTH AMERICA
-    //Brazil with Sierra Leone, Liberia and Guinea
-    [27, [83, 84, 86]],
-    [86, [27]],
-    [84, [27]],
-    [83, [27]]
-]);
+            //Reunion with Madagascar
+            [id['Reunion'], [id['Madagascar']]],
+            [id['Madagascar'], [id['Reunion']]],
+        
+            //EUROPE
+            //NOT PERMITTED
+            //Luxembourg with UK
+            [id['United Kingdom'], [id['Luxembourg']]],
+            [id['Luxembourg'], [id['United Kingdom']]],
+        
+            //PERMITTED
+            //Italy with San Marino, Albania and Tunisia
+            [id['Italy'], [id['Albania']]],
+            [id['Albania'], [id['Italy']]],
+            [id['Italy'], [id['Tunisia']]],
+            [id['Tunisia'], [id['Italy']]],
+        
+            //Spain with Algeria
+            [id['Spain'], [id['Algeria']]],
+            [id['Algeria'], [id['Spain']]],
+        
+            //Morocco with Spain, Portugal and Gibraltar
+            [id['Morocco'], [id['Portugal'], id['Spain'], id['Gibraltar']]],
+            [id['Portugal'], [id['Morocco']]],
+            [id['Spain'], [id['Morocco']]],
+            [id['Gibraltar'], [id['Morocco']]],
+        
+            //Norway with UK
+            [id['United Kingdom'], [id['Norway']]],
+            [id['Norway'], [id['United Kingdom']]],
+        
+            //Sweden with Denmark
+            [id['Sweden'], [id['Denmark']]],
+            [id['Denmark'], [id['Sweden']]],
+        
+            //Norway Svalbard with Island Russian Island
+            [id['Arctic Islands 1'], [id['Svalbard']]],
+            [id['Svalbard'], [id['Arctic Islands 1']]],
+        
+            //Finland with Estonia
+            [id['Finland'], [id['Estonia']]],
+            [id['Estonia'], [id['Finland']]],
+        
+            //Iceland with UK Hebridean Islands and Ireland
+            [id['Iceland'], [id['Hebridean Islands'], id['Ireland']]],
+            [id['Hebridean Islands'], [id['Iceland']]],
+            [id['Ireland'], [id['Iceland']]],
+        
+            //NORTH AMERICA
+            //Bermuda with U.S. Mainland and Bahamas North Island
+            [id['Bermuda'], [id['Grand Bahama (Bahamas)'], id['United States']]],
+            [id['Grand Bahama (Bahamas)'], [id['Bermuda']]],
+            [id['United States'], [id['Bermuda']]],
+        
+            //SOUTH AMERICA
+            //Brazil with Sierra Leone, Liberia and Guinea
+            [id['Brazil'], [id['Guinea'], id['Sierra Leone'], id['Liberia']]],
+            [id['Liberia'], [id['Brazil']]],
+            [id['Sierra Leone'], [id['Brazil']]],
+            [id['Guinea'], [id['Brazil']]]
+        ]);
+    })
+    .catch(error => {
+        console.log(error);
+    });
 
 export function findMatchingCountries(pathObj) {
     const matchingCountries = [];
