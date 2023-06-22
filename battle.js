@@ -559,7 +559,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   }
   contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
   setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
-  removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+  removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false);
 
   if (won) {
     setFlag(playerCountry, 2);

@@ -226,7 +226,11 @@ export function svgMapLoaded() {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
           toggleTransferAttackButton(false);
           if (lastClickedPath.getAttribute("deactivated" === "false")) {
-            removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+            removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false);
+          }
+          if (territoryAboutToBeAttacked) {
+            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, true);
+            document.getElementById("attack-destination-container").style.display = "none";
           }
           transferAttackButtonDisplayed = false;
           attackTextCurrentlyDisplayed = false;
@@ -363,13 +367,9 @@ function selectCountry(country, escKeyEntry) {
               if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
                   paths[i].setAttribute('fill', playerColour);
                   if (territoryAboutToBeAttacked) {
-                      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
+                      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false);
                       document.getElementById("attack-destination-container").style.display = "none";
                       attackTextCurrentlyDisplayed = false;
-                      territoryAboutToBeAttacked.style.stroke = "rgb(0,0,0)";
-                      territoryAboutToBeAttacked.setAttribute("stroke-width", "1px");
-                      territoryAboutToBeAttacked.style.strokeDasharray = "none";
-                      territoryAboutToBeAttacked = null;
                   }
               }
           }
@@ -613,7 +613,7 @@ document.addEventListener("DOMContentLoaded", function() {
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-          removeImageFromPathAndRestoreNormalStroke(lastClickedPath);
+          removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false);
           toggleTransferAttackButton(false);
           transferAttackButtonDisplayed = false;
           restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
@@ -1616,8 +1616,8 @@ document.addEventListener("keydown", function(event) {
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttacked) {
-              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked);
-              addImageToPath(territoryAboutToBeAttacked, "resources/army.png");
+              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false);
+              addImageToPath(territoryAboutToBeAttacked, "army.png");
           }
       }
 
@@ -2767,15 +2767,22 @@ function addImageToPath(pathElement, imagePath) {
 }
 
 
-export function removeImageFromPathAndRestoreNormalStroke(path) {
+export function removeImageFromPathAndRestoreNormalStroke(path, clickedSeaWithTerritoryToAttackSelected) {
   const imageElement = path.parentNode.getElementById("armyImage");
 
   if (imageElement) {
       imageElement.parentNode.removeChild(imageElement);
   }
-  path.style.strokeDasharray = "none";
-  path.style.stroke = "rgb(0,0,0)";
-  path.setAttribute("stroke-width", "1");
+  if (path !== territoryAboutToBeAttacked && escKeyEntry) {
+    path.style.strokeDasharray = "none";
+    path.style.stroke = "rgb(0,0,0)";
+    path.setAttribute("stroke-width", "1");
+  }
+  if (clickedSeaWithTerritoryToAttackSelected) {
+    path.style.strokeDasharray = "none";
+    path.style.stroke = "rgb(0,0,0)";
+    path.setAttribute("stroke-width", "1");
+  }
 }
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
