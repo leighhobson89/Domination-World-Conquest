@@ -24,6 +24,7 @@ export let finalAttackArray = [];
 let proportionsOfAttackArray = [];
 let reuseableAttackingAverageDevelopmentIndex;
 let reuseableCombatContinentModifier;
+let turnsDeactivatedArray = [];
 
 export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
@@ -524,19 +525,19 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
       contestedTerritory.dataName = playerCountry;
-      contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0]) * 0.8);
-      contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1]) * 0.8);
-      contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2]) * 0.8);
-      contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3]) * 0.8);
+      contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * 0.8));
+      contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
+      contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
+      contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
-      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0]) * 0.5);
-      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1]) * 0.5);
-      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2]) * 0.5);
-      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3]) * 0.5);
+      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
+      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
+      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
+      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     case 5:
@@ -563,13 +564,19 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   if (won) {
     setFlag(playerCountry, 2);
     contestedPath.setAttribute("data-name", playerCountry);
-    deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory);
+    deactivateTerritory(contestedPath, contestedTerritory);
   } else {
     contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
   }
 }
 
-function deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory) { //cant use a territory if just conquered it til next turn
+function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
+  const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
+  turnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
+  console.log(turnsDeactivatedArray[0][1] + " turns to be deactivated.");
+  console.log(turnsDeactivatedArray[0][2] + " turns waited");
+
+
   let tempArray = currentMapColorAndStrokeArray;
   for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
     if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
@@ -595,12 +602,18 @@ function deactivateTerritoryUntilNextTurn(contestedPath, contestedTerritory) { /
 }
 
 export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
-  for (let i = 0; i < paths.length; i++) {
-    if (paths[i].getAttribute("deactivated") === "true") {
-      paths[i].style.stroke = "black";
-      paths[i].style.strokeDasharray = "none";
-      paths[i].setAttribute("stroke-width", "1");
+  for (let i = 0; i < turnsDeactivatedArray.length; i++) {
+    if (turnsDeactivatedArray[i][1] !== turnsDeactivatedArray[i][2]) {
+      turnsDeactivatedArray[i][2]++;
+    } else {
+      for (let j = 0; j < paths.length; j++) {
+        if (paths[j].getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
+          paths[j].style.stroke = "black";
+          paths[j].style.strokeDasharray = "none";
+          paths[j].setAttribute("stroke-width", "1");
+          paths[j].setAttribute("deactivated", "false");
+        }
+      }      
     }
-    paths[i].setAttribute("deactivated", "false");
   }
 }

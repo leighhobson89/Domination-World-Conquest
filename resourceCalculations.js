@@ -1353,7 +1353,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             const upgradeButtonImageElement = document.createElement("img");
                             // Create upgrade button div
                             const upgradeButtonDiv = document.createElement("div");
-                            if (currentTurnPhase === 0) {
+                            if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                 upgradeButtonDiv.classList.add("upgrade-button");
                                 upgradeButtonImageElement.src = "resources/upgradeButtonIcon.png";
                             } else {
@@ -1366,14 +1366,14 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
                             // Add event listeners for click and mouseup events
                             upgradeButtonDiv.addEventListener("mousedown", () => {
-                                if (currentTurnPhase === 0) {
+                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                     playSoundClip();
                                     upgradeButtonImageElement.src = "resources/upgradeButtonIconPressed.png";
                                 }
                             });
 
                             upgradeButtonDiv.addEventListener("mouseup", () => {
-                                if (currentTurnPhase === 0) {
+                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                     populateUpgradeTable(territoryData);
                                     toggleUpgradeMenu(true, territoryData);
                                     currentlySelectedTerritoryForUpgrades = territoryData;
@@ -1439,7 +1439,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
                             const buyButtonImageElement = document.createElement("img");
                             // Create buy button div
                             const buyButtonDiv = document.createElement("div");
-                            if (currentTurnPhase === 0) {
+                            if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                 buyButtonDiv.classList.add("buy-button");
                                 buyButtonImageElement.src = "resources/buyButtonIcon.png";
                             } else {
@@ -1452,14 +1452,14 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmyTable) {
 
                             // Add event listeners for click and mouseup events
                             buyButtonDiv.addEventListener("mousedown", () => {
-                                if (currentTurnPhase === 0) {
+                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                     playSoundClip();
                                     buyButtonImageElement.src = "resources/buyButtonIconPressed.png";
                                 }
                             });
 
                             buyButtonDiv.addEventListener("mouseup", () => {
-                                if (currentTurnPhase === 0) {
+                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                     populateBuyTable(territoryData);
                                     toggleBuyMenu(true, territoryData);
                                     currentlySelectedTerritoryForPurchases = territoryData;
@@ -1828,9 +1828,25 @@ function tooltipUIArmyRow(row, territoryData, event) {
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
         if (currentTurnPhase == 0) {
-            tooltip.innerHTML = "Click To Buy Military!";
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
+                    if (paths[i].getAttribute("deactivated") === "true") {
+                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                    } else {
+                        tooltip.innerHTML = "Click To Buy Military!";
+                    }
+                }
+            } 
         } else {
-            tooltip.innerHTML = "Wrong Turn Phase To Buy";
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
+                    if (paths[i].getAttribute("deactivated") === "true") {
+                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                    } else {
+                        tooltip.innerHTML = "Wrong Turn Phase To Buy";
+                    }
+                }
+            }
         }
     } else {
         // Set the content of the tooltip based on the territory data
@@ -1955,10 +1971,26 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
         if (currentTurnPhase == 0) {
-            tooltip.innerHTML = "Click To Upgrade!";
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
+                    if (paths[i].getAttribute("deactivated") === "true") {
+                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                    } else {
+                        tooltip.innerHTML = "Click To Upgrade!";
+                    }
+                }
+            }
         } else {
-            tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
-        }
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
+                    if (paths[i].getAttribute("deactivated") === "true") {
+                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                    } else {
+                        tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
+                    }
+                }
+            }
+        }   
     } else {
         // Set the content of the tooltip based on the territory data
         tooltip.innerHTML = tooltipContent;
@@ -3603,7 +3635,7 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     );
     remainingArmyValue -= initialDistribution.assault * vehicleArmyWorth.assault;
 
-    initialDistribution.infantry = remainingArmyValue;
+    initialDistribution.infantry = Math.floor(remainingArmyValue);
 
     return initialDistribution;
 }
