@@ -1834,6 +1834,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         return;
     }
     let manualExceptionsArray = [];
+    let manualDenialArray = [];
     let tempValidDestinationsArray = [];
   
     defs = svgMap.querySelector('defs');
@@ -1849,7 +1850,10 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
   
     let count = 0;
   
-    manualExceptionsArray = findMatchingCountries(targetPath); //set up manual exceptions for this targetPath
+    manualExceptionsArray = findMatchingCountries(targetPath, 1); //set up manual exceptions for this targetPath
+    manualDenialArray = findMatchingCountries(targetPath, 0); //set up denial countries
+
+    destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray); //remove denied countrys (manual exception)
   
     if (manualExceptionsArray.length > 0) { //works correctly
         for (let i = 0; i < manualExceptionsArray.length; i++) {
@@ -1901,6 +1905,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
                 validDestinationsArray.push(paths[i]);
                 paths[i].setAttribute("attackableTerritory", "true");
             }
+
         }
 
         for (let i = 0; i < validDestinationsArray.length; i++) {
@@ -2996,5 +3001,16 @@ export function setAttackProbabilityOnUI(probability) {
   export function setTransferAttackButtonDisplayedFromExternal(value) {
     transferAttackButtonDisplayed = value;
   }
+
+  function removeDeniedDestinations(destinationPathObjectArray, manualDenialArray) {
+    const deniedIds = manualDenialArray.map(path => path.getAttribute("uniqueid"));
+
+    const filteredDestinations = destinationPathObjectArray.filter(destination => {
+        const destinationId = destination.getAttribute("uniqueid");
+        return !deniedIds.includes(destinationId);
+    });
+
+    return filteredDestinations;
+}
   
   
