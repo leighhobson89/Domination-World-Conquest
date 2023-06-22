@@ -1,4 +1,5 @@
 let mainArray = [];
+let manualInteractionExceptions;
 
 function handleImportedModule(module) {
     const {
@@ -42,7 +43,7 @@ importModuleWithTimeout()
         }
 
 
-        const manualInteractionExceptions = new Map([
+        manualInteractionExceptions = new Map([
             //OCEANIA
             //Extreme East Islands
             [id['Fiji 2'], [id['Vanuatu 2'], id['Vanuatu 2'], id['New Caledonia 2'], id['New Caledonia 3']]],
