@@ -326,21 +326,6 @@ function readDatabaseAndCreateDataArray() {
 
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
-      if (country.getAttribute("data-name") === "South Africa") { //Lesotho workaround
-        lastClickedPath = country;
-          for (let i = 0; i < paths.length; i++) {
-              if (paths[i].getAttribute("data-name") === "Lesotho") {
-                  svgMap.documentElement.appendChild(paths[i]);
-                  for (let j = 0; j < paths.length; j++) {
-                      if (paths[j].getAttribute("data-name") === "South Africa") {
-                          lastClickedPath.parentNode.insertBefore(paths[j], lastClickedPath.parentNode.lastChild);
-                          break;
-                      }
-                  }
-                  break;
-              }
-          }
-      } else {
         const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
 
         if (deactivatedPaths.length > 0) {
@@ -350,60 +335,58 @@ function selectCountry(country, escKeyEntry) {
         svgMap.documentElement.appendChild(country);
         }
 
-      }
+        if (selectCountryPlayerState && !escKeyEntry) {
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
+                    if (playerColour == undefined) {
+                        paths[i].setAttribute('fill', 'rgb(254,254,254)');
+                        playerColour = "rgb(254,254,254)";
+                    } else {
+                        paths[i].setAttribute('fill', playerColour);
+                    }
+                }
+            }
+        } else if (!selectCountryPlayerState && !escKeyEntry) {
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
+                    paths[i].setAttribute('fill', playerColour);
+                    if (territoryAboutToBeAttacked) {
+                        removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false);
+                        document.getElementById("attack-destination-container").style.display = "none";
+                        attackTextCurrentlyDisplayed = false;
+                    }
+                }
+            }
+        }
 
-      if (selectCountryPlayerState && !escKeyEntry) {
-          for (let i = 0; i < paths.length; i++) {
-              if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
-                  if (playerColour == undefined) {
-                      paths[i].setAttribute('fill', 'rgb(254,254,254)');
-                      playerColour = "rgb(254,254,254)";
-                  } else {
-                      paths[i].setAttribute('fill', playerColour);
-                  }
-              }
-          }
-      } else if (!selectCountryPlayerState && !escKeyEntry) {
-          for (let i = 0; i < paths.length; i++) {
-              if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
-                  paths[i].setAttribute('fill', playerColour);
-                  if (territoryAboutToBeAttacked) {
-                      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false);
-                      document.getElementById("attack-destination-container").style.display = "none";
-                      attackTextCurrentlyDisplayed = false;
-                  }
-              }
-          }
-      }
-
-      if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
-          for (let i = 0; i < paths.length; i++) {
-              if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
-                  paths[i].setAttribute('fill', playerColour);
-              } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                  if (mapMode === 0) {
-                      paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
-                  }
-                  if (mapMode === 1) {
-                      fillPathBasedOnTeam(paths[i]);
-                  }
-                  setStrokeWidth(paths[i], "1");
-              } else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
-                  for (let j = 0; j < paths.length; j++) {
-                      if (paths[j].getAttribute("uniqueid") !== undefined) {
-                          if (lastClickedPath.getAttribute("uniqueid") === paths[j].getAttribute("uniqueid") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                              paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
-                              setStrokeWidth(paths[j], "1");
-                          }
-                      }
-                  }
-              }
-          }
-      }
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
+            for (let i = 0; i < paths.length; i++) {
+                if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
+                    paths[i].setAttribute('fill', playerColour);
+                } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                    if (mapMode === 0) {
+                        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
+                    }
+                    if (mapMode === 1) {
+                        fillPathBasedOnTeam(paths[i]);
+                    }
+                    setStrokeWidth(paths[i], "1");
+                } else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
+                    for (let j = 0; j < paths.length; j++) {
+                        if (paths[j].getAttribute("uniqueid") !== undefined) {
+                            if (lastClickedPath.getAttribute("uniqueid") === paths[j].getAttribute("uniqueid") && lastClickedPath.getAttribute("greyedOut") === "false") {
+                                paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+                                setStrokeWidth(paths[j], "1");
+                            }
+                        }
+                    }
+                }
+            }
+        }
   } else {
-      if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
-          lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
-      }
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
+            lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
+        }
   }
 
   if (!clickActionsDone) {
@@ -411,16 +394,12 @@ function selectCountry(country, escKeyEntry) {
 
       if (lastClickedPath !== null && !escKeyEntry) {
           if (lastClickedPath.getAttribute('d') !== 'M0 0 L50 50') {
-              if (lastClickedPath.getAttribute("data-name") === "Lesotho" || lastClickedPath.getAttribute("data-name") === "Monaco" || lastClickedPath.getAttribute("data-name") === "Liechtenstein" || lastClickedPath.getAttribute("data-name") === "San Marino") { //stop small countries disappearing
-                  lastClickedPath.parentNode.appendChild(lastClickedPath);
-              } else {
-                if (lastClickedPath.getAttribute("deactivated") === "false") {
-                    lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
-                }
-              }
-              if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player") {
+            if (lastClickedPath.getAttribute("deactivated") === "false") {
+                lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
+            }
+            if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player") {
                   setStrokeWidth(lastClickedPath, "1");
-              }
+            }
           }
       }
       lastClickedPathExternal = lastClickedPath;
