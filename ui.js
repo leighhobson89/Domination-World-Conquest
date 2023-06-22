@@ -72,7 +72,7 @@ export let patterns = [];
 
 //variables that receive information for resources of countrys after database reading and calculations, before game starts
 export let playerCountry;
-export let playerColour;
+export let playerColour = "rgb(255,255,255)"; //default to white player
 export let flag;
 
 export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
@@ -328,25 +328,20 @@ function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
         const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
 
-        if (deactivatedPaths.length > 0) {
+        if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
         const lowestIndex = paths.indexOf(deactivatedPaths[0]);
         svgMap.documentElement.insertBefore(country, paths[lowestIndex]);
         } else {
         svgMap.documentElement.appendChild(country);
         }
 
-        if (selectCountryPlayerState && !escKeyEntry) {
+        if (selectCountryPlayerState && !escKeyEntry) { //in select country state, colour territory and other connected clicked on
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
-                    if (playerColour == undefined) {
-                        paths[i].setAttribute('fill', 'rgb(254,254,254)');
-                        playerColour = "rgb(254,254,254)";
-                    } else {
-                        paths[i].setAttribute('fill', playerColour);
-                    }
+                    paths[i].setAttribute('fill', playerColour);
                 }
             }
-        } else if (!selectCountryPlayerState && !escKeyEntry) {
+        } else if (!selectCountryPlayerState && !escKeyEntry) { // in game state, colour player territories when clicked on
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
                     paths[i].setAttribute('fill', playerColour);
@@ -359,7 +354,7 @@ function selectCountry(country, escKeyEntry) {
             }
         }
 
-        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previusly been clicked
             for (let i = 0; i < paths.length; i++) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
                     paths[i].setAttribute('fill', playerColour);
@@ -373,11 +368,9 @@ function selectCountry(country, escKeyEntry) {
                     setStrokeWidth(paths[i], "1");
                 } else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
                     for (let j = 0; j < paths.length; j++) {
-                        if (paths[j].getAttribute("uniqueid") !== undefined) {
-                            if (lastClickedPath.getAttribute("uniqueid") === paths[j].getAttribute("uniqueid") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                                paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
-                                setStrokeWidth(paths[j], "1");
-                            }
+                        if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
+                            paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+                            setStrokeWidth(paths[j], "1");
                         }
                     }
                 }
