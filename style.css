@@ -1579,7 +1579,6 @@ td {
 }
 
 /* content */
-
 .content-transfer-attack-window {
   width: calc(100% - 4px);
   height: calc(100% - 150px);
@@ -1754,4 +1753,25 @@ td {
 
 .attackWhiteDefault {
   color: white;
+}
+
+/* --------------------------------------------BATTLE UI-------------------------------------------------- */
+
+#battleContainer {
+  display: none;
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 60vh;
+  background-color: rgba(54, 93, 125, 0.8);
+  border: 3px solid rgb(84, 99, 110);
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  font-size: 0.9rem;
+  box-sizing: border-box;
 }

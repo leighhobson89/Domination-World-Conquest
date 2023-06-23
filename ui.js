@@ -119,6 +119,7 @@ export let uiAppearsAtStartOfTurn = true;
 export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
+export let battleUIDisplayed = false;
 export let territoryAboutToBeAttacked = null;
 export let transferToTerritory;
 
@@ -1473,8 +1474,24 @@ document.addEventListener("DOMContentLoaded", function() {
       handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackbuttonState);
   });
 
+  //BATTLE UI
+  const battleUIContainer = document.createElement("div");
+  battleUIContainer.classList.add("battleContainer");
+  battleUIContainer.classList.add("blur-background");
+
+  document.getElementById("battleContainer").appendChild(battleUIContainer);
+
   pageLoaded = true;
 });
+
+function toggleBattleUI(turnOnBattleUI) {
+    let battleUI = document.getElementById("battleContainer");
+  if (turnOnBattleUI) {
+    battleUI.style.display = "block";
+  } else if (!turnOnBattleUI) {
+    battleUI.style.display = "none";
+  }
+}
 
 function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
   let transferAttackWindow = document.getElementById("transfer-attack-window-container");
@@ -1542,6 +1559,7 @@ document.addEventListener("keydown", function(event) {
       toggleBuyMenu(false);
       toggleTransferAttackButton(false);
       toggleTransferAttackWindow(false);
+      toggleBattleUI(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
       if (uiCurrentlyOnScreen) {
           document.getElementById("main-ui-container").style.display = "flex";
@@ -1553,8 +1571,12 @@ document.addEventListener("keydown", function(event) {
           }
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
       }
-      if (transferAttackWindowOnScreen) {
-          toggleTransferAttackWindow(true);
+      if (transferAttackWindowOnScreen || battleUIDisplayed) {
+          if (transferAttackWindowOnScreen) {
+            toggleTransferAttackWindow(true);
+          } else if (battleUIDisplayed) {
+            toggleBattleUI(true);
+          }
           uiButtonCurrentlyOnScreen = false;
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
       } else {
@@ -1582,6 +1604,9 @@ document.addEventListener("keydown", function(event) {
       }
       if (transferAttackButtonDisplayed) {
           toggleTransferAttackButton(true);
+      }
+      if (battleUIDisplayed) {
+        toggleBattleUI(true);
       }
       toggleBottomTableContainer(true);
       document.getElementById("menu-container").style.display = "none";
@@ -2636,6 +2661,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
                         transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
+                        toggleBattleUI(true);
+                        battleUIDisplayed = true;
                         doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0);
@@ -2647,11 +2674,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         button.classList.add("move-phase-button-red-background");
                         button.innerHTML = "ATTACK";
                       }
-                      toggleUIButton(true);
+                      if (transferAttackbuttonState === 0) {
+                        toggleUIButton(true);
+                        toggleBottomLeftPaneWithTurnAdvance(true);
+                      }
                       toggleTransferAttackWindow(false);
                       transferAttackWindowOnScreen = false;
                       svg.style.pointerEvents = 'auto';
-                      toggleBottomLeftPaneWithTurnAdvance(true);
                       setTimeout(function() {
                           eventHandlerExecuted = false; // Reset the flag after a delay
                       }, 200);
