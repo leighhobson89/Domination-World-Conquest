@@ -1515,7 +1515,96 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow3.classList.add("battleUIRow");
   battleUIRow3.classList.add("battleUIRow3");
   battleUIRow3.setAttribute("id","battleUIRow3");
-  battleUIRow3.innerHTML = "Army Quantity";
+
+  const armyRowRow1 = document.createElement("div");
+  armyRowRow1.classList.add("armyRowRow1");
+  armyRowRow1.setAttribute("id","armyRowRow1");
+
+  const armyRowRow1Icon1 = document.createElement("div");
+  armyRowRow1Icon1.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon1.setAttribute("id","armyRowRow1Icon1");
+  armyRowRow1Icon1.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
+
+  const armyRowRow1Icon2 = document.createElement("div");
+  armyRowRow1Icon2.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon2.setAttribute("id","armyRowRow1Icon2");
+  armyRowRow1Icon2.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
+
+  const armyRowRow1Icon3 = document.createElement("div");
+  armyRowRow1Icon3.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon3.setAttribute("id","armyRowRow1Icon3");
+  armyRowRow1Icon3.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
+
+  const armyRowRow1Icon4 = document.createElement("div");
+  armyRowRow1Icon4.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon4.setAttribute("id","armyRowRow1Icon4");
+  armyRowRow1Icon4.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
+
+  const armyRowRow1Icon5 = document.createElement("div");
+  armyRowRow1Icon5.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon5.classList.add("armyIconColumnBattleUIDivider");
+  armyRowRow1Icon5.setAttribute("id","armyRowRow1Icon5");
+  armyRowRow1Icon5.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
+
+  const armyRowRow1Icon6 = document.createElement("div");
+  armyRowRow1Icon6.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon6.setAttribute("id","armyRowRow1Icon6");
+  armyRowRow1Icon6.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
+
+  const armyRowRow1Icon7 = document.createElement("div");
+  armyRowRow1Icon7.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon7.setAttribute("id","armyRowRow1Icon7");
+  armyRowRow1Icon7.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
+
+  const armyRowRow1Icon8 = document.createElement("div");
+  armyRowRow1Icon8.classList.add("armyIconColumnBattleUI");
+  armyRowRow1Icon8.setAttribute("id","armyRowRow1Icon8");
+  armyRowRow1Icon8.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
+
+  const armyRowRow2 = document.createElement("div");
+  armyRowRow2.classList.add("armyRowRow2");
+  armyRowRow2.setAttribute("id","armyRowRow2");
+
+  const armyRowRow2Quantity1 = document.createElement("div");
+  armyRowRow2Quantity1.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity1.setAttribute("id","armyRowRow2Quantity1");
+  armyRowRow2Quantity1.innerHTML = "235.8k";
+
+  const armyRowRow2Quantity2 = document.createElement("div");
+  armyRowRow2Quantity2.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity2.setAttribute("id","armyRowRow2Quantity2");
+  armyRowRow2Quantity2.innerHTML = "122";
+
+  const armyRowRow2Quantity3 = document.createElement("div");
+  armyRowRow2Quantity3.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity3.setAttribute("id","armyRowRow2Quantity3");
+  armyRowRow2Quantity3.innerHTML = "58";
+
+  const armyRowRow2Quantity4 = document.createElement("div");
+  armyRowRow2Quantity4.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity4.setAttribute("id","armyRowRow2Quantity4");
+  armyRowRow2Quantity4.innerHTML = "14";
+
+  const armyRowRow2Quantity5 = document.createElement("div");
+  armyRowRow2Quantity5.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity5.classList.add("armyIconColumnBattleUIDivider");
+  armyRowRow2Quantity5.setAttribute("id","armyRowRow2Quantity5");
+  armyRowRow2Quantity5.innerHTML = "126.1k";
+
+  const armyRowRow2Quantity6 = document.createElement("div");
+  armyRowRow2Quantity6.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity6.setAttribute("id","armyRowRow2Quantity6");
+  armyRowRow2Quantity6.innerHTML = "32";
+
+  const armyRowRow2Quantity7 = document.createElement("div");
+  armyRowRow2Quantity7.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity7.setAttribute("id","armyRowRow2Quantity7");
+  armyRowRow2Quantity7.innerHTML = "11";
+
+  const armyRowRow2Quantity8 = document.createElement("div");
+  armyRowRow2Quantity8.classList.add("armyRowRow2Quantity");
+  armyRowRow2Quantity8.setAttribute("id","armyRowRow2Quantity8");
+  armyRowRow2Quantity8.innerHTML = "5";
 
   const battleUIRow4 = document.createElement("div");
   battleUIRow4.classList.add("battleUIRow");
@@ -1534,6 +1623,27 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow1.appendChild(battleUIRow1FlagCol2);
 
   battleUIRow2.appendChild(probabilityColumnBox);
+
+  armyRowRow1.appendChild(armyRowRow1Icon1);
+  armyRowRow1.appendChild(armyRowRow1Icon2);
+  armyRowRow1.appendChild(armyRowRow1Icon3);
+  armyRowRow1.appendChild(armyRowRow1Icon4);
+  armyRowRow1.appendChild(armyRowRow1Icon5);
+  armyRowRow1.appendChild(armyRowRow1Icon6);
+  armyRowRow1.appendChild(armyRowRow1Icon7);
+  armyRowRow1.appendChild(armyRowRow1Icon8);
+
+  armyRowRow2.appendChild(armyRowRow2Quantity1);
+  armyRowRow2.appendChild(armyRowRow2Quantity2);
+  armyRowRow2.appendChild(armyRowRow2Quantity3);
+  armyRowRow2.appendChild(armyRowRow2Quantity4);
+  armyRowRow2.appendChild(armyRowRow2Quantity5);
+  armyRowRow2.appendChild(armyRowRow2Quantity6);
+  armyRowRow2.appendChild(armyRowRow2Quantity7);
+  armyRowRow2.appendChild(armyRowRow2Quantity8);
+
+  battleUIRow3.appendChild(armyRowRow1);
+  battleUIRow3.appendChild(armyRowRow2);
 
   battleUIContainer.appendChild(battleUIRow1);
   battleUIContainer.appendChild(battleUIRow2);
