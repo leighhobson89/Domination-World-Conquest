@@ -1758,7 +1758,7 @@ td {
 /* --------------------------------------------BATTLE UI-------------------------------------------------- */
 
 #battleContainer {
-  display: flex; /* change to none when design done */
+  display: none; /* change to none when design done */
   position: fixed;
   top: 50%;
   left: 50%;

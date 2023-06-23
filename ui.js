@@ -2766,7 +2766,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         toggleBattleUI(true);
                         battleUIDisplayed = true;
+                        svg.style.pointerEvents = 'none';
                         doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
+                        setTimeout(function() {
+                            eventHandlerExecuted = false; // Reset the flag after a delay
+                        }, 200);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0);
                     }
@@ -2780,10 +2784,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       if (transferAttackbuttonState === 0) {
                         toggleUIButton(true);
                         toggleBottomLeftPaneWithTurnAdvance(true);
+                        svg.style.pointerEvents = 'auto';
                       }
                       toggleTransferAttackWindow(false);
                       transferAttackWindowOnScreen = false;
-                      svg.style.pointerEvents = 'auto';
                       setTimeout(function() {
                           eventHandlerExecuted = false; // Reset the flag after a delay
                       }, 200);
