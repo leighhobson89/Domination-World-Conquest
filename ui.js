@@ -1577,43 +1577,35 @@ document.addEventListener("DOMContentLoaded", function() {
   const armyRowRow2Quantity1 = document.createElement("div");
   armyRowRow2Quantity1.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity1.setAttribute("id","armyRowRow2Quantity1");
-  armyRowRow2Quantity1.innerHTML = "235.8k";
 
   const armyRowRow2Quantity2 = document.createElement("div");
   armyRowRow2Quantity2.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity2.setAttribute("id","armyRowRow2Quantity2");
-  armyRowRow2Quantity2.innerHTML = "122";
 
   const armyRowRow2Quantity3 = document.createElement("div");
   armyRowRow2Quantity3.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity3.setAttribute("id","armyRowRow2Quantity3");
-  armyRowRow2Quantity3.innerHTML = "58";
 
   const armyRowRow2Quantity4 = document.createElement("div");
   armyRowRow2Quantity4.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity4.setAttribute("id","armyRowRow2Quantity4");
-  armyRowRow2Quantity4.innerHTML = "14";
 
   const armyRowRow2Quantity5 = document.createElement("div");
   armyRowRow2Quantity5.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity5.classList.add("armyIconColumnBattleUIDivider");
   armyRowRow2Quantity5.setAttribute("id","armyRowRow2Quantity5");
-  armyRowRow2Quantity5.innerHTML = "126.1k";
 
   const armyRowRow2Quantity6 = document.createElement("div");
   armyRowRow2Quantity6.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity6.setAttribute("id","armyRowRow2Quantity6");
-  armyRowRow2Quantity6.innerHTML = "32";
 
   const armyRowRow2Quantity7 = document.createElement("div");
   armyRowRow2Quantity7.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity7.setAttribute("id","armyRowRow2Quantity7");
-  armyRowRow2Quantity7.innerHTML = "11";
 
   const armyRowRow2Quantity8 = document.createElement("div");
   armyRowRow2Quantity8.classList.add("armyRowRow2Quantity");
   armyRowRow2Quantity8.setAttribute("id","armyRowRow2Quantity8");
-  armyRowRow2Quantity8.innerHTML = "5";
 
   const battleUIRow4 = document.createElement("div");
   battleUIRow4.classList.add("battleUIRow");
@@ -1623,7 +1615,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUIRow4Col1 = document.createElement("div");
   battleUIRow4Col1.classList.add("battleUIRow4Col1");
   battleUIRow4Col1.setAttribute("id","battleUIRow4Col1");
-  battleUIRow4Col1.innerHTML = "Round 3 of 5";
+  battleUIRow4Col1.innerHTML = "Round 1 of 5";
 
   const battleUIRow4Col2 = document.createElement("div");
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
@@ -2768,7 +2760,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     if (button.innerHTML === "INVADE!") {
                         transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         toggleBattleUI(true);
-                        setupBattleUI(finalAttackArray, mainArrayOfTerritoriesAndResources);
+                        setupBattleUI(finalAttackArray);
                         battleUIDisplayed = true;
                         svg.style.pointerEvents = 'none';
                         doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
@@ -3292,7 +3284,7 @@ function toggleUIButton(makeVisible) {
   
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
-  function setupBattleUI(attackArray, mainArray) {
+  function setupBattleUI(attackArray) {
     let flagStringAttacker;
     let flagStringDefender;
     let attackerCountry;
@@ -3319,6 +3311,9 @@ function toggleUIButton(makeVisible) {
 
     //SET PROBABILITY ON UI
     setAttackProbabilityOnUI(probability, 1);
+
+    //SET ARMY TEXT VALUES
+    setArmyTextValues(finalAttackArray, defenderTerritory);
 }
 
 function setTitleTextBattleUI(attacker, defender) {
@@ -3331,4 +3326,42 @@ function setTitleTextBattleUI(attacker, defender) {
     adjustTextToFit(attackerContainer, attackerCountry);
     adjustTextToFit(defenderContainer, defenderTerritory);
 }
-  
+
+export function setArmyTextValues(attackArray) {
+    let totalAttackingArmy = [0,0,0,0];
+    let totalDefendingArmy = [0,0,0,0];
+    //get attacking army
+    for (let i = 1; i < attackArray.length; i+= 5) {
+        const infantryCount = attackArray[i + 1];
+        const assaultCount = attackArray[i + 2];
+        const airCount = attackArray[i + 3];
+        const navalCount = attackArray[i + 4];
+
+        totalAttackingArmy[0] += infantryCount;
+        totalAttackingArmy[1] += assaultCount;
+        totalAttackingArmy[2] += airCount;
+        totalAttackingArmy[3] += navalCount;
+    }
+    //get defending army
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === attackArray[0]) { //any player territory to get country name
+            const infantryCount = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
+            const assaultCount = mainArrayOfTerritoriesAndResources[i].useableAssault;
+            const airCount = mainArrayOfTerritoriesAndResources[i].useableAir;
+            const navalCount = mainArrayOfTerritoriesAndResources[i].useableNaval;
+    
+            totalDefendingArmy[0] += infantryCount;
+            totalDefendingArmy[1] += assaultCount;
+            totalDefendingArmy[2] += airCount;
+            totalDefendingArmy[3] += navalCount;
+        }
+    }
+    document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0]);
+    document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1]);
+    document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2]);
+    document.getElementById("armyRowRow2Quantity4").innerHTML = formatNumbersToKMB(totalAttackingArmy[3]);
+    document.getElementById("armyRowRow2Quantity5").innerHTML = formatNumbersToKMB(totalDefendingArmy[0]);
+    document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
+    document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
+    document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
+} 
