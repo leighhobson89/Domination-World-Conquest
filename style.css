@@ -1970,6 +1970,7 @@ td {
   border: 2px solid rgb(83, 62, 30);
   border-top-left-radius: 10px;
   border-bottom-left-radius: 10px;
+  font-weight: bold;
 }
 
 .defenceIcon {

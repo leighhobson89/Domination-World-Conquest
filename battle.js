@@ -15,7 +15,8 @@ import {
   playerColour,
   currentMapColorAndStrokeArray,
   setFlag,
-  fillPathBasedOnContinent
+  fillPathBasedOnContinent,
+  setArmyTextValues
 } from './ui.js';
 
 
@@ -189,7 +190,7 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
 export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
   console.log("Battle Underway!");
   console.log("Probability of a win is: " + probability);
-  
+
   console.log("Attack Array: " + arrayOfUniqueIdsAndAttackingUnits);
 
   // Extract defending territory data
