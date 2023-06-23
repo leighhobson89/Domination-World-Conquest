@@ -483,6 +483,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
       contestedTerritory.dataName = playerCountry;
       contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
@@ -508,6 +509,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
       contestedTerritory.dataName = playerCountry;
       contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
@@ -524,6 +526,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
       contestedTerritory.dataName = playerCountry;
       contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * 0.8));
       contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
