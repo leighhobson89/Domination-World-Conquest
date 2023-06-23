@@ -1338,7 +1338,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // TRANSFER / ATTACK WINDOW
   const transferAttackWindowContainer = document.createElement("div");
-  transferAttackWindowContainer.classList.add("transfer-attack-window-container");
   transferAttackWindowContainer.classList.add("blur-background");
 
   const titleTransferAttackWindow = document.createElement("div");
@@ -1479,70 +1478,73 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIContainer.classList.add("battleContainer");
   battleUIContainer.classList.add("blur-background");
 
+  const battleUIRow1 = document.createElement("div");
+  battleUIRow1.classList.add("battleUIRow");
+  battleUIRow1.classList.add("battleUIRow1");
+  battleUIRow1.setAttribute("id","battleUIRow1");
+
+  const battleUIRow1FlagCol1 = document.createElement("div");
+  battleUIRow1FlagCol1.classList.add("battleUITitleFlagCol1");
+  battleUIRow1FlagCol1.setAttribute("id","battleUITitleFlagCol1");
+  battleUIRow1FlagCol1.innerHTML = "Flag Attacker";
+  battleUIRow1FlagCol1.innerHTML = "<img src='./resources/flags/Russia.png'>";
+
+  const battleUITitleTitleCol = document.createElement("div");
+  battleUITitleTitleCol.classList.add("battleUITitleTitleCol");
+  battleUITitleTitleCol.setAttribute("id","battleUITitleTitleCol");
+  battleUITitleTitleCol.innerHTML = '<span style="color: yellow;" class="leftHalfTitleBattle">Russia</span><span style="color: yellow;">vs</span><span style="color: yellow;" class="rightHalfTitleBattle">Hanoi Island (China)</span>';
+
+  const battleUIRow1FlagCol2 = document.createElement("div");
+  battleUIRow1FlagCol2.classList.add("battleUITitleFlagCol2");
+  battleUIRow1FlagCol2.setAttribute("id","battleUITitleFlagCol2");
+  battleUIRow1FlagCol2.innerHTML = "<img src='./resources/flags/China.png'>";
+
+  const battleUIRow2 = document.createElement("div");
+  battleUIRow2.classList.add("battleUIRow");
+  battleUIRow2.classList.add("battleUIRow2");
+  battleUIRow2.classList.add("battleUIRow2AttackBg");
+  battleUIRow2.setAttribute("id","battleUIRow2");
+
+  const probabilityColumnBox = document.createElement("div");
+  probabilityColumnBox.classList.add("probabilityColumnBox");
+  probabilityColumnBox.classList.add("probabilityColumnBox");
+  probabilityColumnBox.setAttribute("id","battleUIRow2");
+  probabilityColumnBox.innerHTML = "17%   ";
+
+  const battleUIRow3 = document.createElement("div");
+  battleUIRow3.classList.add("battleUIRow");
+  battleUIRow3.classList.add("battleUIRow3");
+  battleUIRow3.setAttribute("id","battleUIRow3");
+  battleUIRow3.innerHTML = "Army Quantity";
+
+  const battleUIRow4 = document.createElement("div");
+  battleUIRow4.classList.add("battleUIRow");
+  battleUIRow4.classList.add("battleUIRow4");
+  battleUIRow4.setAttribute("id","battleUIRow4");
+  battleUIRow4.innerHTML = "Round # / Siege Status";
+
+  const battleUIRow5 = document.createElement("div");
+  battleUIRow5.classList.add("battleUIRow");
+  battleUIRow5.classList.add("battleUIRow5");
+  battleUIRow5.setAttribute("id","battleUIRow5");
+  battleUIRow5.innerHTML = "Buttons";
+
+  battleUIRow1.appendChild(battleUIRow1FlagCol1);
+  battleUIRow1.appendChild(battleUITitleTitleCol);
+  battleUIRow1.appendChild(battleUIRow1FlagCol2);
+
+  battleUIRow2.appendChild(probabilityColumnBox);
+
+  battleUIContainer.appendChild(battleUIRow1);
+  battleUIContainer.appendChild(battleUIRow2);
+  battleUIContainer.appendChild(battleUIRow3);
+  battleUIContainer.appendChild(battleUIRow4);
+  battleUIContainer.appendChild(battleUIRow5);
+
   document.getElementById("battleContainer").appendChild(battleUIContainer);
 
   pageLoaded = true;
 });
-
-function toggleBattleUI(turnOnBattleUI) {
-    let battleUI = document.getElementById("battleContainer");
-  if (turnOnBattleUI) {
-    battleUI.style.display = "block";
-  } else if (!turnOnBattleUI) {
-    battleUI.style.display = "none";
-  }
-}
-
-function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
-  let transferAttackWindow = document.getElementById("transfer-attack-window-container");
-  if (turnOnTransferAttackWindow) {
-      transferAttackWindow.style.display = "block";
-      transferAttackWindowOnScreen = true;
-  } else if (!turnOnTransferAttackWindow) {
-      transferAttackWindow.style.display = "none";
-  }
-  //set height of colorBars for attack
-  const sourceElement = document.getElementById('title-transfer-attack-window');
-  const redBar = document.getElementById('colorBarAttackUnderlayRed');
-  const greenBar = document.getElementById('colorBarAttackOverlayGreen');
-
-  const computedStyle = window.getComputedStyle(sourceElement);
-  const sourceHeight = computedStyle.getPropertyValue('height');
-  redBar.style.height = sourceHeight;
-  greenBar.style.height = sourceHeight;
-}
-
-function toggleBottomTableContainer(turnOnTable) {
-  let tableContainer = document.getElementById("bottom-table-container");
-  if (turnOnTable) {
-      tableContainer.style.display = "block";
-  } else if (!turnOnTable) {
-      tableContainer.style.display = "none";
-  }
-}
-
-function toggleTopTableContainer(turnOnTable) {
-  let tableContainer = document.getElementById("top-table-container");
-  if (turnOnTable) {
-      tableContainer.style.display = "block";
-  } else if (!turnOnTable) {
-      tableContainer.style.display = "none";
-  }
-}
-
-export function toggleTransferAttackButton(turnOnButton) {
-  let transferAttackButton = document.getElementById("move-phase-button");
-  let attackText = document.getElementById("attack-destination-container");
-  if (turnOnButton) {
-      transferAttackButton.style.display = "flex";
-      if (attackTextCurrentlyDisplayed) {
-          attackText.style.display = "flex";
-      }
-  } else if (!turnOnButton) {
-      transferAttackButton.style.display = "none";
-      attackText.style.display = "none";
-  }
-}
 
 document.addEventListener("keydown", function(event) {
   playSoundClip();
@@ -2102,64 +2104,6 @@ function uiButtons(button) {
   }
 }
 
-function toggleUIButton(makeVisible) {
-  if (makeVisible) {
-      document.getElementById("UIButtonContainer").style.display = "block";
-  } else {
-      document.getElementById("UIButtonContainer").style.display = "none";
-  }
-}
-
-function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
-  if (makeVisible) {
-      document.getElementById("popup-with-confirm-container").style.display = "block";
-  } else {
-      document.getElementById("popup-with-confirm-container").style.display = "none";
-  }
-}
-
-
-export function toggleUIMenu(makeVisible) {
-  if (makeVisible) {
-      document.getElementById("main-ui-container").style.display = "block";
-      drawUITable(uiTable, 0);
-      svg.style.pointerEvents = 'none';
-      uiCurrentlyOnScreen = true;
-      toggleUIButton(false);
-      document.getElementById("popup-with-confirm-container").style.display = "none";
-      toggleTransferAttackButton(false);
-  } else {
-      document.getElementById("main-ui-container").style.display = "none";
-      svg.style.pointerEvents = 'auto';
-      uiCurrentlyOnScreen = false;
-      toggleUIButton(true);
-      document.getElementById("popup-with-confirm-container").style.display = "block";
-      if (transferAttackButtonDisplayed) {
-          toggleTransferAttackButton(true);
-      }
-  }
-}
-
-export function toggleUpgradeMenu(makeVisible) {
-  if (makeVisible) {
-      document.getElementById("upgrade-container").style.display = "block";
-      document.getElementById("main-ui-container").style.pointerEvents = 'none';
-  } else {
-      document.getElementById("upgrade-container").style.display = "none";
-      document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-  }
-}
-
-export function toggleBuyMenu(makeVisible) {
-  if (makeVisible) {
-      document.getElementById("buy-container").style.display = "block";
-      document.getElementById("main-ui-container").style.pointerEvents = 'none';
-  } else {
-      document.getElementById("buy-container").style.display = "none";
-      document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-  }
-}
-
 function colorMapAtBeginningOfGame() {
   paths.forEach(path => {
       const continent = path.getAttribute("continent");
@@ -2469,17 +2413,6 @@ function fillPathBasedOnTeam(path) {
 
 function setStrokeWidth(path, stroke) {
   path.setAttribute("stroke-width", stroke)
-}
-
-function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
-  if (uiAppearsAtStartOfTurn) {
-      uiAppearsAtStartOfTurn = false;
-      checkBox.innerHTML = "";
-  } else {
-      uiAppearsAtStartOfTurn = true;
-      checkBox.innerHTML = "✔";
-  }
-  return uiAppearsAtStartOfTurn;
 }
 
 export function enableNewGameButton() {
@@ -3041,5 +2974,138 @@ export function setAttackProbabilityOnUI(probability) {
 
     return filteredDestinations;
 }
+
+//----------------------------------------TOGGLE UI ELEMENTS SECTION--------------------------------------------
+
+function toggleUIButton(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("UIButtonContainer").style.display = "block";
+    } else {
+        document.getElementById("UIButtonContainer").style.display = "none";
+    }
+  }
+  
+  function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("popup-with-confirm-container").style.display = "block";
+    } else {
+        document.getElementById("popup-with-confirm-container").style.display = "none";
+    }
+  }
+  
+  
+  export function toggleUIMenu(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("main-ui-container").style.display = "block";
+        drawUITable(uiTable, 0);
+        svg.style.pointerEvents = 'none';
+        uiCurrentlyOnScreen = true;
+        toggleUIButton(false);
+        document.getElementById("popup-with-confirm-container").style.display = "none";
+        toggleTransferAttackButton(false);
+    } else {
+        document.getElementById("main-ui-container").style.display = "none";
+        svg.style.pointerEvents = 'auto';
+        uiCurrentlyOnScreen = false;
+        toggleUIButton(true);
+        document.getElementById("popup-with-confirm-container").style.display = "block";
+        if (transferAttackButtonDisplayed) {
+            toggleTransferAttackButton(true);
+        }
+    }
+  }
+  
+  export function toggleUpgradeMenu(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("upgrade-container").style.display = "block";
+        document.getElementById("main-ui-container").style.pointerEvents = 'none';
+    } else {
+        document.getElementById("upgrade-container").style.display = "none";
+        document.getElementById("main-ui-container").style.pointerEvents = 'auto';
+    }
+  }
+  
+  export function toggleBuyMenu(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("buy-container").style.display = "block";
+        document.getElementById("main-ui-container").style.pointerEvents = 'none';
+    } else {
+        document.getElementById("buy-container").style.display = "none";
+        document.getElementById("main-ui-container").style.pointerEvents = 'auto';
+    }
+  }
+  
+  function toggleBattleUI(turnOnBattleUI) {
+      let battleUI = document.getElementById("battleContainer");
+    if (turnOnBattleUI) {
+      battleUI.style.display = "block";
+    } else if (!turnOnBattleUI) {
+      battleUI.style.display = "none";
+    }
+  }
+  
+  function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
+    let transferAttackWindow = document.getElementById("transfer-attack-window-container");
+    if (turnOnTransferAttackWindow) {
+        transferAttackWindow.style.display = "block";
+        transferAttackWindowOnScreen = true;
+    } else if (!turnOnTransferAttackWindow) {
+        transferAttackWindow.style.display = "none";
+    }
+    //set height of colorBars for attack
+    const sourceElement = document.getElementById('title-transfer-attack-window');
+    const redBar = document.getElementById('colorBarAttackUnderlayRed');
+    const greenBar = document.getElementById('colorBarAttackOverlayGreen');
+  
+    const computedStyle = window.getComputedStyle(sourceElement);
+    const sourceHeight = computedStyle.getPropertyValue('height');
+    redBar.style.height = sourceHeight;
+    greenBar.style.height = sourceHeight;
+  }
+  
+  function toggleBottomTableContainer(turnOnTable) {
+    let tableContainer = document.getElementById("bottom-table-container");
+    if (turnOnTable) {
+        tableContainer.style.display = "block";
+    } else if (!turnOnTable) {
+        tableContainer.style.display = "none";
+    }
+  }
+  
+  function toggleTopTableContainer(turnOnTable) {
+    let tableContainer = document.getElementById("top-table-container");
+    if (turnOnTable) {
+        tableContainer.style.display = "block";
+    } else if (!turnOnTable) {
+        tableContainer.style.display = "none";
+    }
+  }
+  
+  export function toggleTransferAttackButton(turnOnButton) {
+    let transferAttackButton = document.getElementById("move-phase-button");
+    let attackText = document.getElementById("attack-destination-container");
+    if (turnOnButton) {
+        transferAttackButton.style.display = "flex";
+        if (attackTextCurrentlyDisplayed) {
+            attackText.style.display = "flex";
+        }
+    } else if (!turnOnButton) {
+        transferAttackButton.style.display = "none";
+        attackText.style.display = "none";
+    }
+  }
+  
+  function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
+    if (uiAppearsAtStartOfTurn) {
+        uiAppearsAtStartOfTurn = false;
+        checkBox.innerHTML = "";
+    } else {
+        uiAppearsAtStartOfTurn = true;
+        checkBox.innerHTML = "✔";
+    }
+    return uiAppearsAtStartOfTurn;
+  }
+  
+  //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
   
