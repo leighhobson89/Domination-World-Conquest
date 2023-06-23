@@ -1792,7 +1792,7 @@ td {
   height: 8%;
   display: flex;
   width: 100%;
-  border: 1px solid white;
+  border-bottom: 1px solid white;
 }
 
 .battleUIRow2AttackBg {
@@ -1804,10 +1804,11 @@ td {
 }
 
 .battleUIRow3 {
-  height: 38%;
+  height: 35%;
   display: flex;
   width: 100%;
-  border: 1px solid white;
+  border-bottom: 1px solid white;
+  flex-direction: column;
 }
 
 .battleUIRow4 {
@@ -1818,7 +1819,7 @@ td {
 }
 
 .battleUIRow5 {
-  height: 24%;
+  height: 27%;
   display: flex;
   width: 100%;
   border: 1px solid white;
@@ -1878,4 +1879,43 @@ td {
   justify-content: left;
   margin-left: 20px;
   height: 100%;
+}
+
+.armyRowRow1 {
+  display: flex;
+  width: 100%;
+  height: 70%;
+}
+
+.armyRowRow2 {
+  display: flex;
+  width: 100%;
+  height: 40%;
+}
+
+.armyIconColumnBattleUI {
+  display: flex;
+  width: 12.5%;
+  height: 100%;
+  padding-top: 20px;
+  justify-content: center;
+}
+
+.armyIconColumnBattleUIDivider {
+  border-left: 3px solid white;
+}
+
+.sizingPositionArmyIconsBattleUI {
+  display: flex;
+  width: 40%;
+  height: 50%;
+}
+
+.armyRowRow2Quantity {
+  display: flex;
+  width: 12.5%;
+  height: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  font-size: 1.7rem;
 }
