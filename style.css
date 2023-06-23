@@ -1758,14 +1758,14 @@ td {
 /* --------------------------------------------BATTLE UI-------------------------------------------------- */
 
 #battleContainer {
-  display: none;
+  display: flex; /* change to none when design done */
   position: fixed;
-  top: 40%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80%;
-  height: 60vh;
-  background-color: rgba(54, 93, 125, 0.8);
+  width: 90%;
+  height: 80vh;
+  background-color: rgb(54, 93, 125);
   border: 3px solid rgb(84, 99, 110);
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -1774,4 +1774,108 @@ td {
   color: white;
   font-size: 0.9rem;
   box-sizing: border-box;
+}
+
+.battleUIRow {
+  display: flex;
+  width: 100%;
+}
+
+.battleUIRow1 {
+  height: 20%;
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid white;
+}
+
+.battleUIRow2 {
+  height: 8%;
+  display: flex;
+  width: 100%;
+  border: 1px solid white;
+}
+
+.battleUIRow2AttackBg {
+  background-color: rgb(131, 38, 38);
+}
+
+.battleUIRow2SiegeBg {
+  background-color: rgb(114, 88, 48);
+}
+
+.battleUIRow3 {
+  height: 38%;
+  display: flex;
+  width: 100%;
+  border: 1px solid white;
+}
+
+.battleUIRow4 {
+  height: 8%;
+  display: flex;
+  width: 100%;
+  border: 1px solid white;
+}
+
+.battleUIRow5 {
+  height: 24%;
+  display: flex;
+  width: 100%;
+  border: 1px solid white;
+}
+
+.battleUITitleFlagCol1 {
+  display: flex;
+  width: 10%;
+  margin: 10px;
+  margin-left: 50px;
+}
+
+.battleUITitleFlagCol2 {
+  display: flex;
+  width: 10%;
+  margin: 10px;
+  margin-right: 50px;
+  margin-left: 50px;
+}
+
+.battleUITitleTitleCol {
+  display: flex;
+  width: 80%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  justify-content: center;
+  align-items: center;
+  white-space: pre-line;
+  text-align: center;
+}
+
+.probabilityColumnBox {
+  display: flex;
+  width: 17%; /* adjust this for probability */
+  background-color: green;
+  justify-content: flex-end;
+  align-items: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  white-space: pre;
+}
+
+.leftHalfTitleBattle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-right: 20px;
+  height: 100%;
+  white-space: nowrap;
+}
+
+.rightHalfTitleBattle {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  margin-left: 20px;
+  height: 100%;
 }
