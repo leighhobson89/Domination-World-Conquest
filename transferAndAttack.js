@@ -627,7 +627,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
-                            setAttackProbabilityOnUI(probability);
+                            setAttackProbabilityOnUI(probability, 0);
                         });
 
                         // Add click event listener to "minusButton"
@@ -704,7 +704,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
-                            setAttackProbabilityOnUI(probability);
+                            setAttackProbabilityOnUI(probability, 0);
                         });
                         territoryAttackFromColumn.appendChild(armyTypeColumn);
                     }

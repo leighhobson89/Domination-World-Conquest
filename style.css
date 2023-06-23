@@ -1854,8 +1854,8 @@ td {
   font-weight: bold;
   justify-content: center;
   align-items: center;
-  white-space: pre-line;
   text-align: center;
+  white-space: normal;
 }
 
 .leftHalfTitleBattle {
@@ -1864,7 +1864,7 @@ td {
   justify-content: flex-end;
   margin-right: 20px;
   height: 100%;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .centerTitleBattle {
@@ -1882,6 +1882,7 @@ td {
   justify-content: flex-start;
   margin-left: 20px;
   height: 100%;
+  white-space: normal;
 }
 
 .probabilityColumnBox {
