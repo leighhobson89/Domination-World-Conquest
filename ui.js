@@ -1492,7 +1492,21 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUITitleTitleCol = document.createElement("div");
   battleUITitleTitleCol.classList.add("battleUITitleTitleCol");
   battleUITitleTitleCol.setAttribute("id","battleUITitleTitleCol");
-  battleUITitleTitleCol.innerHTML = '<span style="color: yellow;" class="leftHalfTitleBattle">Russia</span><span style="color: yellow;">vs</span><span style="color: yellow;" class="rightHalfTitleBattle">Hanoi Island (China)</span>';
+
+  const battleUITitleTitleLeft = document.createElement("div");
+  battleUITitleTitleLeft.classList.add("leftHalfTitleBattle");
+  battleUITitleTitleLeft.setAttribute("id","battleUITitleTitleLeft");
+  battleUITitleTitleLeft.innerHTML = "Russia";
+
+  const battleUITitleTitleCenter = document.createElement("div");
+  battleUITitleTitleCenter.classList.add("centerTitleBattle");
+  battleUITitleTitleCenter.setAttribute("id","battleUITitleTitleCenter");
+  battleUITitleTitleCenter.innerHTML = "vs";
+
+  const battleUITitleTitleRight = document.createElement("div");
+  battleUITitleTitleRight.classList.add("rightHalfTitleBattle");
+  battleUITitleTitleRight.setAttribute("id","battleUITitleTitleRight");
+  battleUITitleTitleRight.innerHTML = "Hanoi Island (China)";
 
   const battleUIRow1FlagCol2 = document.createElement("div");
   battleUIRow1FlagCol2.classList.add("battleUITitleFlagCol2");
@@ -1610,13 +1624,49 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow4.classList.add("battleUIRow");
   battleUIRow4.classList.add("battleUIRow4");
   battleUIRow4.setAttribute("id","battleUIRow4");
-  battleUIRow4.innerHTML = "Round # / Siege Status";
+
+  const battleUIRow4Col1 = document.createElement("div");
+  battleUIRow4Col1.classList.add("battleUIRow4Col1");
+  battleUIRow4Col1.setAttribute("id","battleUIRow4Col1");
+  battleUIRow4Col1.innerHTML = "Round 3 of 5";
+
+  const battleUIRow4Col2 = document.createElement("div");
+  battleUIRow4Col2.classList.add("battleUIRow4Col2");
+  battleUIRow4Col2.setAttribute("id","battleUIRow4Col2");
+
+  const siegeButton = document.createElement("div");
+  siegeButton.classList.add("siegeButton");
+  siegeButton.setAttribute("id","siegeButton");
+  siegeButton.innerHTML = "Siege Territory";
+
+  const defenceIcon = document.createElement("div");
+  defenceIcon.classList.add("defenceIcon");
+  defenceIcon.setAttribute("id","defenceIcon");
+  defenceIcon.innerHTML = "<img class='sizingPositionDefenceBonusIconBattleUI' src='./resources/fortIcon.png'>"
+
+  const defenceBonusText = document.createElement("div");
+  defenceBonusText.classList.add("defenceBonusText");
+  defenceBonusText.setAttribute("id","defenceBonusText");
+  defenceBonusText.innerHTML = "  20%";
 
   const battleUIRow5 = document.createElement("div");
   battleUIRow5.classList.add("battleUIRow");
   battleUIRow5.classList.add("battleUIRow5");
   battleUIRow5.setAttribute("id","battleUIRow5");
-  battleUIRow5.innerHTML = "Buttons";
+
+  const battleUIRow5Button1 = document.createElement("div");
+  battleUIRow5Button1.classList.add("battleUIRow5Button1");
+  battleUIRow5Button1.setAttribute("id","battleUIRow5Button1");
+  battleUIRow5Button1.innerHTML = "Retreat!";
+
+  const battleUIRow5Button2 = document.createElement("div");
+  battleUIRow5Button2.classList.add("battleUIRow5Button2");
+  battleUIRow5Button2.setAttribute("id","battleUIRow5Button2");
+  battleUIRow5Button2.innerHTML = "Next Round";
+
+  battleUITitleTitleCol.appendChild(battleUITitleTitleLeft);
+  battleUITitleTitleCol.appendChild(battleUITitleTitleCenter);
+  battleUITitleTitleCol.appendChild(battleUITitleTitleRight);
 
   battleUIRow1.appendChild(battleUIRow1FlagCol1);
   battleUIRow1.appendChild(battleUITitleTitleCol);
@@ -1644,6 +1694,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
   battleUIRow3.appendChild(armyRowRow1);
   battleUIRow3.appendChild(armyRowRow2);
+
+  battleUIRow4Col2.appendChild(siegeButton);
+  battleUIRow4Col2.appendChild(defenceIcon);
+  battleUIRow4Col2.appendChild(defenceBonusText);
+
+  battleUIRow4.appendChild(battleUIRow4Col1);
+  battleUIRow4.appendChild(battleUIRow4Col2);
+
+  battleUIRow5.appendChild(battleUIRow5Button1);
+  battleUIRow5.appendChild(battleUIRow5Button2);
 
   battleUIContainer.appendChild(battleUIRow1);
   battleUIContainer.appendChild(battleUIRow2);
