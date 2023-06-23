@@ -1460,7 +1460,7 @@ document.addEventListener("DOMContentLoaded", function() {
         transferAttackButton.style.fontWeight = "normal";
         transferAttackButton.style.color = "white";
         if (transferAttackbuttonState === 1) {
-            setAttackProbabilityOnUI(0);
+            setAttackProbabilityOnUI(0, 0);
             territoryUniqueIds.length = 0;
         }
       }
@@ -1495,7 +1495,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUITitleTitleLeft = document.createElement("div");
   battleUITitleTitleLeft.classList.add("leftHalfTitleBattle");
   battleUITitleTitleLeft.setAttribute("id","battleUITitleTitleLeft");
-  battleUITitleTitleLeft.innerHTML = "Russia";
 
   const battleUITitleTitleCenter = document.createElement("div");
   battleUITitleTitleCenter.classList.add("centerTitleBattle");
@@ -1505,7 +1504,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUITitleTitleRight = document.createElement("div");
   battleUITitleTitleRight.classList.add("rightHalfTitleBattle");
   battleUITitleTitleRight.setAttribute("id","battleUITitleTitleRight");
-  battleUITitleTitleRight.innerHTML = "Hanoi Island (China)";
 
   const battleUIRow1FlagCol2 = document.createElement("div");
   battleUIRow1FlagCol2.classList.add("battleUITitleFlagCol2");
@@ -1520,8 +1518,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const probabilityColumnBox = document.createElement("div");
   probabilityColumnBox.classList.add("probabilityColumnBox");
   probabilityColumnBox.classList.add("probabilityColumnBox");
-  probabilityColumnBox.setAttribute("id","battleUIRow2");
-  probabilityColumnBox.innerHTML = "17%   ";
+  probabilityColumnBox.setAttribute("id","probabilityColumnBox");
 
   const battleUIRow3 = document.createElement("div");
   battleUIRow3.classList.add("battleUIRow");
@@ -2749,7 +2746,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                 if (button.innerHTML === "CONFIRM" || button.innerHTML === "INVADE!") {
                     button.style.fontWeight = "normal";
                     button.style.color = "white";
-                    setAttackProbabilityOnUI(0);
+                    setAttackProbabilityOnUI(0, 0);
                 }
                   if (transferAttackbuttonState === 0) {
                     if (button.innerHTML === "CONFIRM") {
@@ -2770,8 +2767,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
                         transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
-                        setupBattleUI(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         toggleBattleUI(true);
+                        setupBattleUI(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         battleUIDisplayed = true;
                         svg.style.pointerEvents = 'none';
                         doBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
@@ -2779,7 +2776,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             eventHandlerExecuted = false; // Reset the flag after a delay
                         }, 200);
                     } else if (button.innerHTML === "CANCEL") {
-                        setAttackProbabilityOnUI(0);
+                        setAttackProbabilityOnUI(0, 0);
                     }
                       territoryUniqueIds.length = 0;
 
@@ -3116,18 +3113,24 @@ export function getLastClickedPath() {
   return lastClickedPath;
 }
 
-export function setAttackProbabilityOnUI(probability) {
+export function setAttackProbabilityOnUI(probability, place) {
     const roundedProbability = Math.ceil(probability);
     const displayProbability = roundedProbability >= 100 ? 100 : roundedProbability;
-  
-    document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
-    if (displayProbability >= 1) {
-        document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
-    } else {
-        document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+
+    if (place === 0) { //attackUI
+        document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
+        if (displayProbability >= 1) {
+            document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
+        } else {
+            document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+        }
+        document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
+    } else if (place === 1) { //battleUI
+        document.getElementById("probabilityColumnBox").innerHTML = displayProbability + "%   ";
+        document.getElementById("probabilityColumnBox").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
     }
-    document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
-  }
+}
+    
 
   export function setcurrentMapColorAndStrokeArrayFromExternal(changesArray) {
     currentMapColorAndStrokeArray = changesArray;
@@ -3292,19 +3295,40 @@ function toggleUIButton(makeVisible) {
   function setupBattleUI(attackArray, mainArray) {
     let flagStringAttacker;
     let flagStringDefender;
+    let attackerCountry;
+    let defenderTerritory;
 
     for (let i = 0; i < attackArray.length; i++) {
         for (let j = 0; j < paths.length; j++) {
             if (paths[j].getAttribute("uniqueid") === attackArray[0]) {
-                flagStringDefender = paths[j].getAttribute("territory-name");
+                flagStringDefender = paths[j].getAttribute("data-name");
+                defenderTerritory = paths[j];
             }
             if (paths[j].getAttribute("uniqueid") === attackArray[1].toString()) { //any player territory to get country name
                 flagStringAttacker = paths[j].getAttribute("data-name");
+                attackerCountry = paths[j];
             }
         }
     }
     //SET FLAGS
     setFlag(flagStringAttacker, 4);
     setFlag(flagStringDefender, 5);
+
+    //SET TITLE TEXT
+    setTitleTextBattleUI(attackerCountry, defenderTerritory);
+
+    //SET PROBABILITY ON UI
+    setAttackProbabilityOnUI(probability, 1);
+}
+
+function setTitleTextBattleUI(attacker, defender) {
+    let attackerContainer = document.getElementById("battleUITitleTitleLeft");
+    let defenderContainer = document.getElementById("battleUITitleTitleRight");
+
+    let attackerCountry = attacker.getAttribute("data-name");
+    let defenderTerritory = defender.getAttribute("territory-name");
+
+    adjustTextToFit(attackerContainer, attackerCountry);
+    adjustTextToFit(defenderContainer, defenderTerritory);
 }
   
