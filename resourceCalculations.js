@@ -2195,14 +2195,14 @@ function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
 
     // Calculate the cost of upgrades
-    const farmGoldCost = Math.max(simulatedCostsAll[0], 200 * 1);
-    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 500 * 1);
-    const forestGoldCost = Math.max(simulatedCostsAll[2], 200 * 1);
-    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 500 * 1);
-    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 1000 * 1);
-    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 200 * 1);
-    const fortGoldCost = Math.max(simulatedCostsAll[6], 500 * 1);
-    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 2000 * 1);
+    const farmGoldCost = Math.max(simulatedCostsAll[0], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 500 * 1.1 * (parseFloat(territory.devIndex) / 4));
+    const forestGoldCost = Math.max(simulatedCostsAll[2], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 500 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 1000 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const fortGoldCost = Math.max(simulatedCostsAll[6], 500 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 2000 * 1.05 * (parseFloat(territory.devIndex) / 4));
 
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
@@ -3014,8 +3014,9 @@ function incrementDecrementUpgrades(textField, increment, upgradeType, territory
 
     // Simulate next increment and store costs in array
     currentValueQuantityTemp += Math.abs(increment); //always simulate clicking plus i.e. upward direction
-    const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-    const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+    const consMatsMultiplier = (upgradeType === "Farm") ? 1.1 : 1.05;
+    const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex) / 4));
+    const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * consMatsMultiplier)) * (parseFloat(territory.devIndex) / 4));
     const simulatedUpgradeType = upgradeType;
     simulationCosts.push(simulatedGoldCost);
     simulationCosts.push(simulatedConsMatsCost);
