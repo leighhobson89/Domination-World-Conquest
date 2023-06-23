@@ -1487,7 +1487,6 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow1FlagCol1.classList.add("battleUITitleFlagCol1");
   battleUIRow1FlagCol1.setAttribute("id","battleUITitleFlagCol1");
   battleUIRow1FlagCol1.innerHTML = "Flag Attacker";
-  battleUIRow1FlagCol1.innerHTML = "<img src='./resources/flags/Russia.png'>";
 
   const battleUITitleTitleCol = document.createElement("div");
   battleUITitleTitleCol.classList.add("battleUITitleTitleCol");
@@ -1511,7 +1510,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUIRow1FlagCol2 = document.createElement("div");
   battleUIRow1FlagCol2.classList.add("battleUITitleFlagCol2");
   battleUIRow1FlagCol2.setAttribute("id","battleUITitleFlagCol2");
-  battleUIRow1FlagCol2.innerHTML = "<img src='./resources/flags/China.png'>";
 
   const battleUIRow2 = document.createElement("div");
   battleUIRow2.classList.add("battleUIRow");
@@ -2225,7 +2223,11 @@ export function setFlag(flag, place) {
   let flagElement;
 
   const img = document.createElement('img');
-  img.classList.add("flag");
+
+  if (place !== 4 && place !== 5) {
+    img.classList.add("flag");
+  }
+
   img.src = `./resources/flags/${flag}.png`;
 
   let popupBodyElement = document.getElementById("popup-body");
@@ -2235,8 +2237,12 @@ export function setFlag(flag, place) {
       flagElement = document.getElementById("flag-bottom");
   } else if (place === 3) { //UI info panel
       flagElement = document.getElementById("info-panel");
+  } else if (place === 4) { //Battle UI attacker
+    flagElement = document.getElementById("battleUITitleFlagCol1");
+  } else if (place === 5) { //Battle UI defender
+    flagElement = document.getElementById("battleUITitleFlagCol2");
   } else if (place === 0) {
-      return img.src;
+        return img.src;
   }
 
   if (place !== 3) {
@@ -2764,6 +2770,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
                         transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
+                        setupBattleUI(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         toggleBattleUI(true);
                         battleUIDisplayed = true;
                         svg.style.pointerEvents = 'none';
@@ -3282,4 +3289,22 @@ function toggleUIButton(makeVisible) {
   
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
+  function setupBattleUI(attackArray, mainArray) {
+    let flagStringAttacker;
+    let flagStringDefender;
+
+    for (let i = 0; i < attackArray.length; i++) {
+        for (let j = 0; j < paths.length; j++) {
+            if (paths[j].getAttribute("uniqueid") === attackArray[0]) {
+                flagStringDefender = paths[j].getAttribute("territory-name");
+            }
+            if (paths[j].getAttribute("uniqueid") === attackArray[1].toString()) { //any player territory to get country name
+                flagStringAttacker = paths[j].getAttribute("data-name");
+            }
+        }
+    }
+    //SET FLAGS
+    setFlag(flagStringAttacker, 4);
+    setFlag(flagStringDefender, 5);
+}
   
