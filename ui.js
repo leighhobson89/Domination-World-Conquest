@@ -2226,10 +2226,14 @@ export function setFlag(flag, place) {
       flagElement = document.getElementById("flag-bottom");
   } else if (place === 3) { //UI info panel
       flagElement = document.getElementById("info-panel");
+      document.querySelector(".info-panel").style.setProperty('--bg-image', `url(${img.src})`);
+      document.querySelector(".info-panel-upgrade").style.setProperty('--bg-image', `url(${img.src})`);
   } else if (place === 4) { //Battle UI attacker
     flagElement = document.getElementById("battleUITitleFlagCol1");
+    img.style.width = "100%";
   } else if (place === 5) { //Battle UI defender
     flagElement = document.getElementById("battleUITitleFlagCol2");
+    img.style.width = "100%";
   } else if (place === 0) {
         return img.src;
   }
@@ -2243,11 +2247,6 @@ export function setFlag(flag, place) {
       popupBodyElement.style.backgroundImage = `url(${img.src})`;
       popupBodyElement.style.backgroundSize = "100% 100%";
       popupBodyElement.style.backgroundPosition = "center";
-  }
-
-  if (place === 3) { //UI panels
-      document.querySelector(".info-panel").style.setProperty('--bg-image', `url(${img.src})`);
-      document.querySelector(".info-panel-upgrade").style.setProperty('--bg-image', `url(${img.src})`);
   }
 
   return img.src;
@@ -3118,8 +3117,13 @@ export function setAttackProbabilityOnUI(probability, place) {
         }
         document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
     } else if (place === 1) { //battleUI
-        document.getElementById("probabilityColumnBox").innerHTML = displayProbability + "%   ";
-        document.getElementById("probabilityColumnBox").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
+        let probabilityColumnBox = document.getElementById("probabilityColumnBox");
+
+        let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+        battleUIRow4Col1.innerHTML = battleUIRow4Col1.innerHTML + " : Probability = " + displayProbability + "%";
+
+        probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
+        
     }
 }
     
@@ -3323,8 +3327,11 @@ function setTitleTextBattleUI(attacker, defender) {
     let attackerCountry = attacker.getAttribute("data-name");
     let defenderTerritory = defender.getAttribute("territory-name");
 
-    adjustTextToFit(attackerContainer, attackerCountry);
-    adjustTextToFit(defenderContainer, defenderTerritory);
+    attackerCountry = reduceKeywords(attackerCountry);
+    defenderTerritory = reduceKeywords(defenderTerritory);
+
+    attackerContainer.innerHTML = attackerCountry;
+    defenderContainer.innerHTML = defenderTerritory;
 }
 
 export function setArmyTextValues(attackArray) {
@@ -3364,4 +3371,29 @@ export function setArmyTextValues(attackArray) {
     document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
     document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
     document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
-} 
+}
+
+function reduceKeywords(str) {
+    const keywords = {
+      'and': '&',
+      'republic': 'Rp.',
+      'democratic': 'Dem.',
+      'central': 'C.'
+    };
+  
+    // Split the string into an array of words
+    const words = str.split(' ');
+  
+    // Iterate over each word and apply reduction if it's a keyword
+    const reducedWords = words.map((word) => {
+      const lowercaseWord = word.toLowerCase();
+      const reducedWord = keywords[lowercaseWord] || word;
+      return reducedWord;
+    });
+  
+    // Join the reduced words back into a string
+    const reducedString = reducedWords.join(' ');
+  
+    return reducedString;
+  }
+  

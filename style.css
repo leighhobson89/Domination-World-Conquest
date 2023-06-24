@@ -1831,7 +1831,7 @@ td {
 
 .battleUITitleFlagCol1 {
   display: flex;
-  width: 10%;
+  width: 18%;
   margin: 10px;
   margin-right: 50px;
   margin-left: 50px;
@@ -1839,7 +1839,7 @@ td {
 
 .battleUITitleFlagCol2 {
   display: flex;
-  width: 10%;
+  width: 18%;
   margin: 10px;
   margin-right: 50px;
   margin-left: 50px;
