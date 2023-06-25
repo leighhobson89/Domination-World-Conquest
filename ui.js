@@ -38,7 +38,9 @@ import {
   capacityArray,
   demandArray,
   mainArrayOfTerritoriesAndResources,
-  countryStrengthsArray
+  countryStrengthsArray,
+  vehicleArmyWorth,
+
 } from './resourceCalculations.js';
 import {
   drawAndHandleTransferAttackTable
@@ -53,6 +55,8 @@ import {
 import {
     doBattle,
     finalAttackArray,
+    defendingArmyRemainingExport,
+    attackingArmyRemainingExport
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -3307,6 +3311,10 @@ function toggleUIButton(makeVisible) {
     advanceButton.classList.remove("move-phase-button-grey-background");
     siegeButton.classList.remove("move-phase-button-grey-background");
 
+    retreatButton.disabled = false;
+    advanceButton.disabled = false;
+    siegeButton.disabled = false;
+
     let flagStringAttacker;
     let flagStringDefender;
     let attackerCountry;
@@ -3324,6 +3332,9 @@ function toggleUIButton(makeVisible) {
             }
         }
     }
+
+    const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === defenderTerritory.getAttribute("uniqueid"));
+
     //SET FLAGS
     setFlag(flagStringAttacker, 4);
     setFlag(flagStringDefender, 5);
@@ -3346,12 +3357,34 @@ function toggleUIButton(makeVisible) {
     retreatButton.addEventListener('click', function() {
         switch (retreatButtonState) {
             case 0: //before battle or between rounds of 5 - no penalty
-
+                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
+                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
+                defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
+                defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
+                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
                 break;
             case 1: //scatter during round of 5, 30% penalty
+                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
+                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
+                defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
+                defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
+                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
                 break;
             case 2: //defeat
-                break;
+            if (defendingArmyRemainingExport[4] === 0) { //all out defeat
+                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemainingExport[0];
+                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemainingExport[1];
+                defendingTerritory.airForCurrentTerritory = defendingArmyRemainingExport[2];
+                defendingTerritory.navalForCurrentTerritory = defendingArmyRemainingExport[3];
+                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            } else if (defendingArmyRemainingExport[4] === 1) { //routing defeat
+                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemainingExport[0] + (Math.floor(attackingArmyRemainingExport[0] * 0.5));
+                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemainingExport[1] + (Math.floor(attackingArmyRemainingExport[1] * 0.5));
+                defendingTerritory.airForCurrentTerritory = defendingArmyRemainingExport[2] + (Math.floor(attackingArmyRemainingExport[2] * 0.5));
+                defendingTerritory.navalForCurrentTerritory = defendingArmyRemainingExport[3] + (Math.floor(attackingArmyRemainingExport[3] * 0.5));
+                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            }
+                 break;
         }
     });
 }
@@ -3433,7 +3466,7 @@ function reduceKeywords(str) {
     return reducedString;
   }
 
-  function setRetreatButtonText(situation, button) {
+  export function setRetreatButtonText(situation, button) {
     switch (situation) {
         case 0: //open battle / start of attack round of 5
             button.innerHTML = "Retreat!";
@@ -3449,7 +3482,7 @@ function reduceKeywords(str) {
     return situation;
   }
 
-  function setAdvanceButtonText(situation, button) {
+  export function setAdvanceButtonText(situation, button) {
     switch (situation) {
         case 0: //open battle / start of attack round of 5
             button.innerHTML = "Commit To Battle";
@@ -3471,7 +3504,7 @@ function reduceKeywords(str) {
     return situation;
   }
 
-  function setSiegeButtonText(situation, button) {
+  export function setSiegeButtonText(situation, button) {
     switch (situation) {
         case 0: //not sieged currently
         button.innerHTML = "Siege Territory";
