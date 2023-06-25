@@ -339,7 +339,9 @@ function selectCountry(country, escKeyEntry) {
         if (selectCountryPlayerState && !escKeyEntry) { //in select country state, colour territory and other connected clicked on
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
-                    paths[i].setAttribute('fill', playerColour);
+                    if (country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
+                        paths[i].setAttribute('fill', playerColour);
+                    }
                 }
             }
         } else if (!selectCountryPlayerState && !escKeyEntry) { // in game state, colour player territories when clicked on
@@ -367,7 +369,7 @@ function selectCountry(country, escKeyEntry) {
                         fillPathBasedOnTeam(paths[i]);
                     }
                     setStrokeWidth(paths[i], "1");
-                } else if (selectCountryPlayerState && country.getAttribute("uniqueid") !== lastClickedPath.getAttribute("uniqueid")) {
+                } else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
                     for (let j = 0; j < paths.length; j++) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
                             paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
