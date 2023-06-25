@@ -1973,6 +1973,10 @@ td {
   font-weight: bold;
 }
 
+.siegeButton:hover {
+  background-color: rgb(144, 118, 78);
+}
+
 .defenceIcon {
   display: flex;
   width: 12%;
@@ -2031,5 +2035,13 @@ td {
   font-weight: bold;
   font-size: 2.5rem;
   color: white;
+}
+
+.battleUIRow5Button1:hover {
+  background-color: rgb(151,68,68);
+}
+
+.battleUIRow5Button2:hover {
+  background-color: rgb(30,158,30);
 }
 
