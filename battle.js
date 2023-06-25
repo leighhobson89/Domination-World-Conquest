@@ -468,6 +468,10 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 }
 
 function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+  const retreatButton = document.getElementById("battleUIRow5Button1");
+  const advanceButton = document.getElementById("battleUIRow5Button2");
+  const siegeButton = document.getElementById("siegeButton");
+  
   let contestedPath;
   let won = false;
   for (let i = 0; i < paths.length; i++) {
@@ -492,6 +496,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(2, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 1:
       console.log("Defender won the war!");
@@ -501,6 +510,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setRetreatButtonText(2, retreatButton);
+      advanceButton.disabled = true;
+      advanceButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 2:
       won = true;
@@ -518,6 +532,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(4, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 3:
       won = true;
@@ -535,6 +554,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
       contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(3, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
@@ -544,6 +568,11 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
       contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setRetreatButtonText(2, retreatButton);
+      advanceButton.disabled = true;
+      advanceButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 5:
       //situation where user legs it mid round of 5

@@ -3299,6 +3299,14 @@ function toggleUIButton(makeVisible) {
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
   function setupBattleUI(attackArray) {
+    const retreatButton = document.getElementById("battleUIRow5Button1");
+    const advanceButton = document.getElementById("battleUIRow5Button2");
+    const siegeButton = document.getElementById("siegeButton");
+
+    retreatButton.classList.remove("move-phase-button-grey-background");
+    advanceButton.classList.remove("move-phase-button-grey-background");
+    siegeButton.classList.remove("move-phase-button-grey-background");
+
     let flagStringAttacker;
     let flagStringDefender;
     let attackerCountry;
@@ -3330,9 +3338,22 @@ function toggleUIButton(makeVisible) {
     setArmyTextValues(finalAttackArray, defenderTerritory);
 
     //INITIALISE BUTTONS
-    retreatButtonState = setRetreatButtonText(0);
-    advanceButtonState = setAdvanceButtonText(0);
-    siegeButtonState = setSiegeButtonText(0);
+    retreatButtonState = setRetreatButtonText(0, retreatButton);
+    advanceButtonState = setAdvanceButtonText(0, advanceButton);
+    siegeButtonState = setSiegeButtonText(0, siegeButton);
+
+    //click handler for retreat button
+    retreatButton.addEventListener('click', function() {
+        switch (retreatButtonState) {
+            case 0: //before battle or between rounds of 5 - no penalty
+
+                break;
+            case 1: //scatter during round of 5, 30% penalty
+                break;
+            case 2: //defeat
+                break;
+        }
+    });
 }
 
 function setTitleTextBattleUI(attacker, defender) {
@@ -3412,54 +3433,51 @@ function reduceKeywords(str) {
     return reducedString;
   }
 
-  function setRetreatButtonText(situation) {
-    const retreatButton = document.getElementById("battleUIRow5Button1");
+  function setRetreatButtonText(situation, button) {
     switch (situation) {
         case 0: //open battle / start of attack round of 5
-            retreatButton.innerHTML = "Retreat!";
+            button.innerHTML = "Retreat!";
             break;
         case 1: // midway through round of 5
-            retreatButton.innerHTML = "Scatter!";
+            button.innerHTML = "Scatter!";
             break;
         case 2: // midway through round of 5
-            retreatButton.innerHTML = "Defeat!";
+            button.innerHTML = "Defeat!";
             break;
     }
 
     return situation;
   }
 
-  function setAdvanceButtonText(situation) {
-    const advanceButton = document.getElementById("battleUIRow5Button2");
+  function setAdvanceButtonText(situation, button) {
     switch (situation) {
         case 0: //open battle / start of attack round of 5
-            advanceButton.innerHTML = "Commit To Battle";
+            button.innerHTML = "Commit To Battle";
             break;
         case 1: // midway through round of 5
-            advanceButton.innerHTML = "Next Round";
+            button.innerHTML = "Next Round";
             break;
         case 2: // win war outright
-            advanceButton.innerHTML = "Victory!";
+            button.innerHTML = "Victory!";
             break;
         case 3: // massive assault win
-            advanceButton.innerHTML = "Massive Assault";
+            button.innerHTML = "Massive Assault";
             break;
         case 4: // routing win
-            advanceButton.innerHTML = "Rout The Enemy";
+            button.innerHTML = "Rout The Enemy";
             break;
     }
 
     return situation;
   }
 
-  function setSiegeButtonText(situation) {
-    const siegeButton = document.getElementById("siegeButton");
+  function setSiegeButtonText(situation, button) {
     switch (situation) {
         case 0: //not sieged currently
-        siegeButton.innerHTML = "Siege Territory";
+        button.innerHTML = "Siege Territory";
             break;
         case 1: // sieged currently
-        siegeButton.innerHTML = "Lift Siege";
+        button.innerHTML = "Lift Siege";
             break;
     }
 
