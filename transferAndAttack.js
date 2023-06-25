@@ -69,7 +69,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 continue;
             }
 
-            const multipleValuesArray = [1, 1, 1, 1]; // Initialize with default values for each row
+            const multipleValuesArray = [100000000, 100000000, 100000000, 100000000]; // Initialize with default values for each row
 
             const territoryTransferRow = document.createElement("div");
             territoryTransferRow.classList.add("transfer-table-row-hoverable");
@@ -110,7 +110,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     const inputField = document.createElement("input");
                                     inputField.id = "multipleTextBox";
                                     inputField.classList.add("multipleTextField");
-                                    inputField.value = "x1";
+                                    inputField.value = "All";
                                     innerColumn.appendChild(inputField);
                                     break;
                                 case 2:
@@ -400,11 +400,11 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                         // Reset values
                         quantityTextBox.value = "0";
-                        multipleTextBox.value = "x1";
+                        multipleTextBox.value = "All";
                     } else {
                         // Reset values
                         quantityTextBox.value = "0";
-                        multipleTextBox.value = "x1";
+                        multipleTextBox.value = "All";
                     }
                     const mainArrayValueArray = getCurrentMainArrayValue(mainArrayElement, 0, true, 0);
 
@@ -436,7 +436,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
     
-            const multipleValuesArray = [1, 1, 1, 1]; // Initialize with default values for each row
+            const multipleValuesArray = [100000000, 100000000, 100000000, 100000000]; // Initialize with default values for each row
     
             const territoryAttackFromRow = document.createElement("div");
             territoryAttackFromRow.classList.add("transfer-table-row");
@@ -480,7 +480,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                     inputField.id = "multipleTextBox";
                                     inputField.classList.add("multipleTextField");
                                     inputField.classList.add("attackWhiteDefault");
-                                    inputField.value = "x1";
+                                    inputField.value = "All";
                                     innerColumn.appendChild(inputField);
                                     break;
                                 case 2:
@@ -720,7 +720,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
 // Helper function to get the next multiple value
 function getNextMultipleValue(currentValue) {
-    const multiples = ["x1", "x10", "x100", "x1k", "x10k", "All"];
+    const multiples = ["All", "x1", "x10", "x100", "x1k", "x10k"];
     const currentIndex = multiples.indexOf(currentValue);
     const nextIndex = (currentIndex + 1) % multiples.length;
     return multiples[nextIndex];
