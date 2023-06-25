@@ -1622,7 +1622,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUIRow4Col1 = document.createElement("div");
   battleUIRow4Col1.classList.add("battleUIRow4Col1");
   battleUIRow4Col1.setAttribute("id","battleUIRow4Col1");
-  battleUIRow4Col1.innerHTML = "Round 1 of 5";
+  battleUIRow4Col1.innerHTML = "Starting";
 
   const battleUIRow4Col2 = document.createElement("div");
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
@@ -2694,6 +2694,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   button.addEventListener("click", transferAttackClickHandler);
 
   function transferAttackClickHandler() {
+    tooltip.innerHTML = "";
+    tooltip.style.display = "none";
     playSoundClip();
       if (transferAttackbuttonState == 0) {
           territoryComingFrom = lastClickedPath;
@@ -3128,7 +3130,7 @@ export function setAttackProbabilityOnUI(probability, place) {
         let probabilityColumnBox = document.getElementById("probabilityColumnBox");
 
         let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-        battleUIRow4Col1.innerHTML = battleUIRow4Col1.innerHTML + " : Probability = " + displayProbability + "%";
+        battleUIRow4Col1.innerHTML = battleUIRow4Col1.innerHTML + " Probability: " + displayProbability + "%";
 
         probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
         
