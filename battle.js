@@ -16,7 +16,10 @@ import {
   currentMapColorAndStrokeArray,
   setFlag,
   fillPathBasedOnContinent,
-  setArmyTextValues
+  setArmyTextValues,
+  setAdvanceButtonText,
+  setRetreatButtonText,
+  setSiegeButtonText
 } from './ui.js';
 
 
@@ -26,6 +29,9 @@ let proportionsOfAttackArray = [];
 let reuseableAttackingAverageDevelopmentIndex;
 let reuseableCombatContinentModifier;
 let turnsDeactivatedArray = [];
+
+export let defendingArmyRemainingExport = [0,0,0,0];
+export let attackingArmyRemainingExport = [0,0,0,0];
 
 export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
@@ -505,11 +511,8 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     case 1:
       console.log("Defender won the war!");
       //set main array to remaining defenders values
-      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
-      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
-      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
-      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      defendingArmyRemainingExport = defendingArmyRemaining;
+      defendingArmyRemainingExport.push(0); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
       advanceButton.disabled = true;
       advanceButton.classList.add("move-phase-button-grey-background");
@@ -563,11 +566,8 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
-      contestedTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
-      contestedTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
-      contestedTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
-      contestedTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      defendingArmyRemainingExport = defendingArmyRemaining;
+      defendingArmyRemainingExport.push(1); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
       advanceButton.disabled = true;
       advanceButton.classList.add("move-phase-button-grey-background");
