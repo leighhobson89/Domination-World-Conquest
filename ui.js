@@ -2292,7 +2292,11 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
           r -= 20;
           g -= 20;
           b -= 20;
-          territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+          if (selectCountryPlayerState && territory === currentSelectedPath) {
+            territory.setAttribute("fill", playerColour);
+          } else {
+            territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+          }
       } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
           if (arrayOfSelectedCountries.length > 0) {
               for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
