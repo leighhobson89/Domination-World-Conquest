@@ -138,9 +138,9 @@ export let retreatButtonState;
 export let advanceButtonState;
 export let siegeButtonState;
 
-export const retreatButton = document.getElementById("battleUIRow5Button1");
-export const advanceButton = document.getElementById("battleUIRow5Button2");
-export const siegeButton = document.getElementById("siegeButton");
+const retreatButton = document.getElementById("battleUIRow5Button1");
+const advanceButton = document.getElementById("battleUIRow5Button2");
+const siegeButton = document.getElementById("siegeButton");
 
 let battleStart = true;
 
@@ -3578,3 +3578,18 @@ function reduceKeywords(str) {
     return situation;
   }
   
+  export function setAdvanceButtonState(value) {
+    return advanceButtonState = value;
+  }  
+  
+  export function setRetreatButtonState(value) {
+    return retreatButtonState = value;
+  }  
+
+  export function getAdvanceButtonState() {
+    return advanceButtonState;
+  }  
+
+  export function getRetreatButtonState() {
+    return retreatButtonState;
+  }  
