@@ -20,12 +20,12 @@ import {
   setAdvanceButtonText,
   setRetreatButtonText,
   setSiegeButtonText,
-  advanceButtonState,
-  advanceButton,
-  retreatButtonState,
-  retreatButton
-} from './ui.js';
+  setAdvanceButtonState,
+  setRetreatButtonState,
+  getAdvanceButtonState,
+  getRetreatButtonState
 
+} from './ui.js';
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
@@ -654,10 +654,14 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         ];
         totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
         skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
-        advanceButtonState = 0;
-        setAdvanceButtonText(advanceButtonState, advanceButton);
-        retreatButtonState = 0;
-        setRetreatButtonText(retreatButtonState, retreatButton);
+
+        const retreatButton = document.getElementById("battleUIRow5Button1");
+        const advanceButton = document.getElementById("battleUIRow5Button2");
+
+        setAdvanceButtonState(0);
+        setAdvanceButtonText(getAdvanceButtonState(), advanceButton);
+        setRetreatButtonState(0);
+        setRetreatButtonText(getRetreatButtonState(), retreatButton);
       }
     }
   }
