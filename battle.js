@@ -588,6 +588,9 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
           skirmishesCompleted++;
         }
 
+        //update UI text
+        let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+        setArmyTextValues(attackArrayText, 1);
         console.log(`Attacking ${unitType} Left: ${attackingArmyRemaining[unitTypeIndex]} out of ${totalAttackingArmy[unitTypeIndex]}`);
         console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
       } else if (allZeroDefend) {
