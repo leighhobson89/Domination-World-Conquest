@@ -665,7 +665,11 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
         skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
         exitWhile = false;
-        processRound(1);
+        processRound(1,
+          finalAttackArray,
+          attackingArmyRemaining,
+          defendingArmyRemaining,
+          skirmishesPerRound); //change implementationonce working
       }
     }
   }
@@ -677,6 +681,12 @@ function calculateCombinedForce(army) {
 };
 
 
+  export function getCurrentRound() {
+    return currentRound;
+  }
+
   export function setCurrentRound(value) {
     return currentRound = value;
   }
+
+  
