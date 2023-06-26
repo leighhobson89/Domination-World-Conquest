@@ -3362,7 +3362,7 @@ function toggleUIButton(makeVisible) {
     setAttackProbabilityOnUI(probability, 1);
 
     //SET ARMY TEXT VALUES
-    setArmyTextValues(finalAttackArray, defenderTerritory);
+    setArmyTextValues(finalAttackArray, 0);
 
     //INITIALISE BUTTONS
     retreatButtonState = setRetreatButtonText(0, retreatButton);
@@ -3464,34 +3464,46 @@ function setTitleTextBattleUI(attacker, defender) {
     defenderContainer.innerHTML = defenderTerritory;
 }
 
-export function setArmyTextValues(attackArray) {
+export function setArmyTextValues(attackArray, situation) {
     let totalAttackingArmy = [0,0,0,0];
     let totalDefendingArmy = [0,0,0,0];
-    //get attacking army
-    for (let i = 1; i < attackArray.length; i+= 5) {
-        const infantryCount = attackArray[i + 1];
-        const assaultCount = attackArray[i + 2];
-        const airCount = attackArray[i + 3];
-        const navalCount = attackArray[i + 4];
+    if (situation === 0) {
+         //get attacking army
+        for (let i = 1; i < attackArray.length; i+= 5) {
+            const infantryCount = attackArray[i + 1];
+            const assaultCount = attackArray[i + 2];
+            const airCount = attackArray[i + 3];
+            const navalCount = attackArray[i + 4];
 
-        totalAttackingArmy[0] += infantryCount;
-        totalAttackingArmy[1] += assaultCount;
-        totalAttackingArmy[2] += airCount;
-        totalAttackingArmy[3] += navalCount;
-    }
-    //get defending army
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (mainArrayOfTerritoriesAndResources[i].uniqueId === attackArray[0]) { //any player territory to get country name
-            const infantryCount = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
-            const assaultCount = mainArrayOfTerritoriesAndResources[i].useableAssault;
-            const airCount = mainArrayOfTerritoriesAndResources[i].useableAir;
-            const navalCount = mainArrayOfTerritoriesAndResources[i].useableNaval;
-    
-            totalDefendingArmy[0] += infantryCount;
-            totalDefendingArmy[1] += assaultCount;
-            totalDefendingArmy[2] += airCount;
-            totalDefendingArmy[3] += navalCount;
+            totalAttackingArmy[0] += infantryCount;
+            totalAttackingArmy[1] += assaultCount;
+            totalAttackingArmy[2] += airCount;
+            totalAttackingArmy[3] += navalCount;
         }
+        //get defending army
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            if (mainArrayOfTerritoriesAndResources[i].uniqueId === attackArray[0]) { //any player territory to get country name
+                const infantryCount = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
+                const assaultCount = mainArrayOfTerritoriesAndResources[i].useableAssault;
+                const airCount = mainArrayOfTerritoriesAndResources[i].useableAir;
+                const navalCount = mainArrayOfTerritoriesAndResources[i].useableNaval;
+        
+                totalDefendingArmy[0] += infantryCount;
+                totalDefendingArmy[1] += assaultCount;
+                totalDefendingArmy[2] += airCount;
+                totalDefendingArmy[3] += navalCount;
+            }
+        }
+    } else if (situation === 1) {
+        totalAttackingArmy[0] = attackArray[0];
+        totalAttackingArmy[1] = attackArray[1];
+        totalAttackingArmy[2] = attackArray[2];
+        totalAttackingArmy[3] = attackArray[3];
+
+        totalDefendingArmy[0] = attackArray[4];
+        totalDefendingArmy[1] = attackArray[5];
+        totalDefendingArmy[2] = attackArray[6];
+        totalDefendingArmy[3] = attackArray[7];
     }
     document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0]);
     document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1]);
