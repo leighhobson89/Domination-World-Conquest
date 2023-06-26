@@ -25,13 +25,34 @@ import {
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
-let proportionsOfAttackArray = [];
+export let proportionsOfAttackArray = [];
 let reuseableAttackingAverageDevelopmentIndex;
 let reuseableCombatContinentModifier;
 let turnsDeactivatedArray = [];
 
-export let defendingArmyRemainingExport = [0,0,0,0];
-export let attackingArmyRemainingExport = [0,0,0,0];
+export let currentRound = 1;
+export let attackingArmyRemaining;
+export let defendingArmyRemaining;
+export let updatedProbability;
+export let unchangeableWarStartCombinedForceAttack;
+export let unchangeableWarStartCombinedForceDefend;
+export let initialCombinedForceAttack;
+export let initialCombinedForceDefend;
+export let combinedForceAttack;
+export let combinedForceDefend;
+export let skirmishesPerRound;
+export let totalSkirmishes;
+export let skirmishesPerType;
+export let totalAttackingArmy;
+export let totalDefendingArmy;
+export let tempTotalAttackingArmy;
+export let tempTotalDefendingArmy;
+export let defendingTerritory;
+export let defendingTerritoryId;
+export let defenseBonus;
+
+const unitTypes = ["infantry", "assault", "air", "naval"];
+const rounds = 5;
 
 export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
@@ -193,21 +214,21 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
     }
 }
 
-export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
+export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
   console.log("Battle Underway!");
   console.log("Probability of a win is: " + probability);
 
   console.log("Attack Array: " + arrayOfUniqueIdsAndAttackingUnits);
 
   // Extract defending territory data
-  const defendingTerritoryId = arrayOfUniqueIdsAndAttackingUnits[0];
-  const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === defendingTerritoryId);
+  defendingTerritoryId = arrayOfUniqueIdsAndAttackingUnits[0];
+  defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === defendingTerritoryId);
 
   // Extract defender's territory attributes
   const developmentIndex = defendingTerritory.devIndex;
   const areaWeightDefender = calculateAreaBonus(defendingTerritory, maxAreaThreshold);
   const continentModifier = calculateContinentModifier(defendingTerritoryId, mainArrayOfTerritoriesAndResources);
-  let defenseBonus = defendingTerritory.defenseBonus;
+  defenseBonus = defendingTerritory.defenseBonus;
 
   // Display defender's attributes
   console.log("Development Index: " + developmentIndex);
@@ -216,10 +237,10 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
   console.log("Defense Bonus: " + defenseBonus);
 
   // Calculate total attacking army
-  const totalAttackingArmy = [0, 0, 0, 0]; // [infantry, assault, air, naval]
-  const tempTotalAttackingArmy = [0, 0, 0, 0]; // copy for console output
-  const totalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
-  const tempTotalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
+  totalAttackingArmy = [0, 0, 0, 0];
+  tempTotalAttackingArmy = [0, 0, 0, 0]; // copy for console output
+  totalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
+  tempTotalDefendingArmy = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
 
   // Initialize counts for each unit type
   let totalInfantryCount = 0;
@@ -267,41 +288,264 @@ export function doBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArr
   console.log(proportionsOfAttackArray);
   console.log("Total Attacking Army: " + totalAttackingArmy);
 
-  // Calculate combined forces of attacking and defending armies
-const calculateCombinedForce = (army) => {
-  const [infantry, assault, air, naval] = army;
-  return infantry + (assault * vehicleArmyWorth.assault) + (air * vehicleArmyWorth.air) + (naval * vehicleArmyWorth.naval);
-};
+unchangeableWarStartCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
+unchangeableWarStartCombinedForceDefend= calculateCombinedForce(totalAttackingArmy);
 
-const unchangeableWarStartCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
-const unchangeableWarStartCombinedForceDefend= calculateCombinedForce(totalAttackingArmy);
-
-let initialCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
-let initialCombinedForceDefend = calculateCombinedForce(totalDefendingArmy);
-
-let combinedForceAttack;
-let combinedForceDefend;
+initialCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
+initialCombinedForceDefend = calculateCombinedForce(totalDefendingArmy);
 
 // Calculate the total number of skirmishes
-let skirmishesPerType = [
+skirmishesPerType = [
   Math.min(totalAttackingArmy[0], totalDefendingArmy[0]),
   Math.min(totalAttackingArmy[1], totalDefendingArmy[1]),
   Math.min(totalAttackingArmy[2], totalDefendingArmy[2]),
   Math.min(totalAttackingArmy[3], totalDefendingArmy[3])
 ];
-let totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
+totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
 
 // Divide skirmishes into 5 rounds
-const rounds = 5;
-let skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
+skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
-const unitTypes = ["infantry", "assault", "air", "naval"];
+attackingArmyRemaining = [...totalAttackingArmy];
+defendingArmyRemaining = [...totalDefendingArmy];
+updatedProbability = calculateProbabiltyPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
+}
 
-let attackingArmyRemaining = [...totalAttackingArmy];
-let defendingArmyRemaining = [...totalDefendingArmy];
-let updatedProbability = calculateProbabiltyPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
+  function calculateAreaBonus(defendingTerritory, maxAreaThreshold) {
+    const defendingTerritoryArea = defendingTerritory.area;
 
-const processRound = (currentRound) => {
+    let areaWeightDefender = Math.min(1, maxAreaThreshold / defendingTerritoryArea);
+    areaWeightDefender = 1 + (areaWeightDefender - 1) * 0.5;
+
+    console.log("Defending Territory Area: " + defendingTerritoryArea);
+    console.log("Area Weight (Defender): " + areaWeightDefender);
+
+    return areaWeightDefender;
+}
+
+function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesAndResources) {
+    const territoryToMatchContinent = mainArrayOfTerritoriesAndResources.find(({
+        uniqueId
+    }) => uniqueId === attackedTerritoryId);
+    let combatContinentModifier = 1;
+
+    if (territoryToMatchContinent) {
+        const {
+            continent
+        } = territoryToMatchContinent;
+
+        if (continent === "Europe") {
+            combatContinentModifier = 0.98;
+        } else if (continent === "North America") {
+            combatContinentModifier = 0.99;
+        } else if (continent === "Asia") {
+            combatContinentModifier = 0.87;
+        } else if (continent === "Oceania") {
+            combatContinentModifier = 0.75;
+        } else if (continent === "South America") {
+            combatContinentModifier = 0.82;
+        } else if (continent === "Africa") {
+            combatContinentModifier = 0.81;
+        }
+    }
+
+    console.log("Combat Continent Modifier: " + combatContinentModifier);
+    return combatContinentModifier;
+}
+
+function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+  const retreatButton = document.getElementById("battleUIRow5Button1");
+  const advanceButton = document.getElementById("battleUIRow5Button2");
+  const siegeButton = document.getElementById("siegeButton");
+  
+  let contestedPath;
+  let won = false;
+  for (let i = 0; i < paths.length; i++) {
+    if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
+      contestedPath = paths[i];
+    }
+  }
+  switch (situation) {
+    case 0:
+      won = true;
+      console.log("Attacker won the war!");
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
+      //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
+      contestedTerritory.dataName = playerCountry;
+      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
+      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
+      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
+      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(2, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
+      break;
+    case 1:
+      console.log("Defender won the war!");
+      //set main array to remaining defenders values
+      defendingArmyRemaining.push(0); //add defeat type to array
+      setRetreatButtonText(2, retreatButton);
+      advanceButton.disabled = true;
+      advanceButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
+      break;
+    case 2:
+      won = true;
+      console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
+      //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
+      contestedTerritory.dataName = playerCountry;
+      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
+      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
+      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
+      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(4, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
+      break;
+    case 3:
+      won = true;
+      console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
+      //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
+      playerOwnedTerritories.push(contestedPath);
+      contestedPath.setAttribute("owner", "Player");
+      contestedPath.setAttribute("data-name", playerCountry);
+      contestedTerritory.dataName = playerCountry;
+      contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * 0.8));
+      contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
+      contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
+      contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonText(3, advanceButton);
+      retreatButton.disabled = true;
+      retreatButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
+      break;
+    case 4:
+      console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
+      //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
+      defendingArmyRemaining.push(1); //add defeat type to array
+      setRetreatButtonText(2, retreatButton);
+      advanceButton.disabled = true;
+      advanceButton.classList.add("move-phase-button-grey-background");
+      siegeButton.disabled = true;
+      siegeButton.classList.add("move-phase-button-grey-background");
+      break;
+    case 5:
+      //situation where user legs it mid round of 5
+      break;
+    case 6:
+      //situation where user legs it after round of 5
+      break;
+    case 7:
+      //situation where user sets a siege
+      break;
+    case 8:
+      //situation where user transfers from vehicles to infantry
+      break;
+    case 8:
+    //situation where user transfers from infantry to vehicles
+    break;
+    
+  }
+  contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
+  setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
+  removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false);
+
+  if (won) {
+    setFlag(playerCountry, 2);
+    contestedPath.setAttribute("data-name", playerCountry);
+    deactivateTerritory(contestedPath, contestedTerritory);
+  } else {
+    contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
+  }
+}
+
+function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
+  const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
+  turnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
+  console.log(turnsDeactivatedArray[0][1] + " turns to be deactivated.");
+  console.log(turnsDeactivatedArray[0][2] + " turns waited");
+
+
+  let tempArray = currentMapColorAndStrokeArray;
+  for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
+    if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
+      tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour, 3];
+    }
+  }
+
+  document.getElementById("attack-destination-container").style.display = "none";
+  document.getElementById("move-phase-button").innerHTML = "DEACTIVATED";
+  document.getElementById("move-phase-button").disabled = true;
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-red-background");
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-blue-background");
+  document.getElementById("move-phase-button").classList.remove("move-phase-button-green-background");
+  document.getElementById("move-phase-button").classList.add("move-phase-button-grey-background");
+
+  contestedPath.setAttribute("deactivated", "true");
+  contestedPath.style.stroke = "red";
+  contestedPath.style.strokeDasharray = "10, 5";
+  contestedPath.setAttribute("stroke-width", "3");
+
+  setterritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
+  setcurrentMapColorAndStrokeArrayFromExternal(tempArray);
+}
+
+export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
+  for (let i = 0; i < turnsDeactivatedArray.length; i++) {
+    if (turnsDeactivatedArray[i][1] !== turnsDeactivatedArray[i][2]) {
+      turnsDeactivatedArray[i][2]++;
+    } else {
+      for (let j = 0; j < paths.length; j++) {
+        if (paths[j].getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
+          paths[j].style.stroke = "black";
+          paths[j].style.strokeDasharray = "none";
+          paths[j].setAttribute("stroke-width", "1");
+          paths[j].setAttribute("deactivated", "false");
+        }
+      }      
+    }
+  }
+}
+
+export function assignProportionsToTerritories(proportions, remainingAttackingArmy, mainArrayOfTerritoriesAndResources) {
+  const [infantryRemaining, airRemaining, assaultRemaining, navalRemaining] = remainingAttackingArmy;
+
+  for (const [territoryId, infantryProportion, assaultProportion, airProportion, navalProportion] of proportions) {
+    const territory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryId);
+
+    if (territory) {
+      territory.infantryForCurrentTerritory = Math.floor(infantryProportion / 100 * infantryRemaining);
+      territory.assaultForCurrentTerritory = Math.floor(assaultProportion / 100 * assaultRemaining);
+      territory.airForCurrentTerritory = Math.floor(airProportion / 100 * airRemaining);
+      territory.navalForCurrentTerritory = Math.floor(navalProportion / 100 * navalRemaining);
+    }
+  }
+}
+
+export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackingArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
   combinedForceAttack = calculateCombinedForce(attackingArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;
@@ -427,227 +671,12 @@ const processRound = (currentRound) => {
   }
 };
 
-processRound(1);
-}
+function calculateCombinedForce(army) {
+  const [infantry, assault, air, naval] = army;
+  return infantry + (assault * vehicleArmyWorth.assault) + (air * vehicleArmyWorth.air) + (naval * vehicleArmyWorth.naval);
+};
 
-  
-  function calculateAreaBonus(defendingTerritory, maxAreaThreshold) {
-    const defendingTerritoryArea = defendingTerritory.area;
 
-    let areaWeightDefender = Math.min(1, maxAreaThreshold / defendingTerritoryArea);
-    areaWeightDefender = 1 + (areaWeightDefender - 1) * 0.5;
-
-    console.log("Defending Territory Area: " + defendingTerritoryArea);
-    console.log("Area Weight (Defender): " + areaWeightDefender);
-
-    return areaWeightDefender;
-}
-
-function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesAndResources) {
-    const territoryToMatchContinent = mainArrayOfTerritoriesAndResources.find(({
-        uniqueId
-    }) => uniqueId === attackedTerritoryId);
-    let combatContinentModifier = 1;
-
-    if (territoryToMatchContinent) {
-        const {
-            continent
-        } = territoryToMatchContinent;
-
-        if (continent === "Europe") {
-            combatContinentModifier = 0.98;
-        } else if (continent === "North America") {
-            combatContinentModifier = 0.99;
-        } else if (continent === "Asia") {
-            combatContinentModifier = 0.87;
-        } else if (continent === "Oceania") {
-            combatContinentModifier = 0.75;
-        } else if (continent === "South America") {
-            combatContinentModifier = 0.82;
-        } else if (continent === "Africa") {
-            combatContinentModifier = 0.81;
-        }
-    }
-
-    console.log("Combat Continent Modifier: " + combatContinentModifier);
-    return combatContinentModifier;
-}
-
-function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
-  const retreatButton = document.getElementById("battleUIRow5Button1");
-  const advanceButton = document.getElementById("battleUIRow5Button2");
-  const siegeButton = document.getElementById("siegeButton");
-  
-  let contestedPath;
-  let won = false;
-  for (let i = 0; i < paths.length; i++) {
-    if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
-      contestedPath = paths[i];
-    }
+  export function setCurrentRound(value) {
+    return currentRound = value;
   }
-  switch (situation) {
-    case 0:
-      won = true;
-      console.log("Attacker won the war!");
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
-      //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
-      playerOwnedTerritories.push(contestedPath);
-      contestedPath.setAttribute("owner", "Player");
-      contestedPath.setAttribute("data-name", playerCountry);
-      contestedTerritory.dataName = playerCountry;
-      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
-      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
-      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
-      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      setAdvanceButtonText(2, advanceButton);
-      retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
-      break;
-    case 1:
-      console.log("Defender won the war!");
-      //set main array to remaining defenders values
-      defendingArmyRemainingExport = defendingArmyRemaining;
-      defendingArmyRemainingExport.push(0); //add defeat type to array
-      setRetreatButtonText(2, retreatButton);
-      advanceButton.disabled = true;
-      advanceButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
-      break;
-    case 2:
-      won = true;
-      console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
-      //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
-      playerOwnedTerritories.push(contestedPath);
-      contestedPath.setAttribute("owner", "Player");
-      contestedPath.setAttribute("data-name", playerCountry);
-      contestedTerritory.dataName = playerCountry;
-      contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
-      contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
-      contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
-      contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      setAdvanceButtonText(4, advanceButton);
-      retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
-      break;
-    case 3:
-      won = true;
-      console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
-      //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
-      playerOwnedTerritories.push(contestedPath);
-      contestedPath.setAttribute("owner", "Player");
-      contestedPath.setAttribute("data-name", playerCountry);
-      contestedTerritory.dataName = playerCountry;
-      contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * 0.8));
-      contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
-      contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
-      contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      setAdvanceButtonText(3, advanceButton);
-      retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
-      break;
-    case 4:
-      console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
-      //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
-      defendingArmyRemainingExport = defendingArmyRemaining;
-      defendingArmyRemainingExport.push(1); //add defeat type to array
-      setRetreatButtonText(2, retreatButton);
-      advanceButton.disabled = true;
-      advanceButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
-      break;
-    case 5:
-      //situation where user legs it mid round of 5
-      break;
-    case 6:
-      //situation where user legs it after round of 5
-      break;
-    case 7:
-      //situation where user sets a siege
-      break;
-    case 8:
-      //situation where user transfers from vehicles to infantry
-      break;
-    case 8:
-    //situation where user transfers from infantry to vehicles
-    break;
-    
-  }
-  contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
-  setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
-  removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false);
-
-  if (won) {
-    setFlag(playerCountry, 2);
-    contestedPath.setAttribute("data-name", playerCountry);
-    deactivateTerritory(contestedPath, contestedTerritory);
-  } else {
-    contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
-  }
-}
-
-function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
-  const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
-  turnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
-  console.log(turnsDeactivatedArray[0][1] + " turns to be deactivated.");
-  console.log(turnsDeactivatedArray[0][2] + " turns waited");
-
-
-  let tempArray = currentMapColorAndStrokeArray;
-  for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
-    if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
-      tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour, 3];
-    }
-  }
-
-  document.getElementById("attack-destination-container").style.display = "none";
-  document.getElementById("move-phase-button").innerHTML = "DEACTIVATED";
-  document.getElementById("move-phase-button").disabled = true;
-  document.getElementById("move-phase-button").classList.remove("move-phase-button-red-background");
-  document.getElementById("move-phase-button").classList.remove("move-phase-button-blue-background");
-  document.getElementById("move-phase-button").classList.remove("move-phase-button-green-background");
-  document.getElementById("move-phase-button").classList.add("move-phase-button-grey-background");
-
-  contestedPath.setAttribute("deactivated", "true");
-  contestedPath.style.stroke = "red";
-  contestedPath.style.strokeDasharray = "10, 5";
-  contestedPath.setAttribute("stroke-width", "3");
-
-  setterritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
-  setcurrentMapColorAndStrokeArrayFromExternal(tempArray);
-}
-
-export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
-  for (let i = 0; i < turnsDeactivatedArray.length; i++) {
-    if (turnsDeactivatedArray[i][1] !== turnsDeactivatedArray[i][2]) {
-      turnsDeactivatedArray[i][2]++;
-    } else {
-      for (let j = 0; j < paths.length; j++) {
-        if (paths[j].getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
-          paths[j].style.stroke = "black";
-          paths[j].style.strokeDasharray = "none";
-          paths[j].setAttribute("stroke-width", "1");
-          paths[j].setAttribute("deactivated", "false");
-        }
-      }      
-    }
-  }
-}
