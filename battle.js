@@ -614,8 +614,8 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   updatedProbability = calculateProbabiltyPreBattle(attackingArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
   console.log("New probability for next round is:", updatedProbability);
 
-  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && !exitWhile) {
-    // Continue to the next round without recursive call
+  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0)) {
+    // Continue to the next round
     setCurrentRound(currentRound + 1);
   } else {
     console.log("All rounds completed!");
