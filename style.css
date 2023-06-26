@@ -2039,9 +2039,11 @@ td {
 
 .battleUIRow5Button1:hover {
   background-color: rgb(151,68,68);
+  cursor: pointer;
 }
 
 .battleUIRow5Button2:hover {
   background-color: rgb(30,158,30);
+  cursor: pointer;
 }
 
