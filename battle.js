@@ -19,7 +19,11 @@ import {
   setArmyTextValues,
   setAdvanceButtonText,
   setRetreatButtonText,
-  setSiegeButtonText
+  setSiegeButtonText,
+  advanceButtonState,
+  advanceButton,
+  retreatButtonState,
+  retreatButton
 } from './ui.js';
 
 
@@ -453,18 +457,12 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       siegeButton.classList.add("move-phase-button-grey-background");
       break;
     case 5:
-      //situation where user legs it mid round of 5
-      break;
-    case 6:
-      //situation where user legs it after round of 5
-      break;
-    case 7:
       //situation where user sets a siege
       break;
-    case 8:
+    case 6:
       //situation where user transfers from vehicles to infantry
       break;
-    case 8:
+    case 7:
     //situation where user transfers from infantry to vehicles
     break;
     
@@ -534,13 +532,14 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
   const [infantryRemaining, airRemaining, assaultRemaining, navalRemaining] = remainingAttackingArmy;
 
   for (const [territoryId, infantryProportion, assaultProportion, airProportion, navalProportion] of proportions) {
-    const territory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryId);
+    const territory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryId.toString());
 
     if (territory) {
-      territory.infantryForCurrentTerritory = Math.floor(infantryProportion / 100 * infantryRemaining);
-      territory.assaultForCurrentTerritory = Math.floor(assaultProportion / 100 * assaultRemaining);
-      territory.airForCurrentTerritory = Math.floor(airProportion / 100 * airRemaining);
-      territory.navalForCurrentTerritory = Math.floor(navalProportion / 100 * navalRemaining);
+      territory.infantryForCurrentTerritory += Math.floor(infantryProportion / 100 * infantryRemaining);
+      territory.assaultForCurrentTerritory += Math.floor(assaultProportion / 100 * assaultRemaining);
+      territory.airForCurrentTerritory += Math.floor(airProportion / 100 * airRemaining);
+      territory.navalForCurrentTerritory += Math.floor(navalProportion / 100 * navalRemaining);
+      territory.armyForCurrentTerritory += territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
     }
   }
 }
@@ -550,12 +549,11 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;
 
-  let exitWhile = false;
-
   const allZeroDefend = defendingArmyRemaining.every(count => count === 0);
   const allZeroAttack = attackingArmyRemaining.every(count => count === 0);
 
-  while (skirmishesCompleted < skirmishesPerRound) {
+  // Run the loop for one skirmish per click
+  if (skirmishesCompleted < skirmishesPerRound) {
     const skirmishOrder = unitTypes.slice().sort(() => Math.random() - 0.5);
 
     for (const unitType of skirmishOrder) {
@@ -573,14 +571,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         while (
           attackerCount > 0 &&
           defenderCount > 0 &&
-          skirmishesCompleted < skirmishesPerRound &&
-          (
-            (currentRound === 1 && combinedForceAttack > initialCombinedForceAttack * 0.8) ||
-            (currentRound === 2 && combinedForceAttack > initialCombinedForceAttack * 0.6) ||
-            (currentRound === 3 && combinedForceAttack > initialCombinedForceAttack * 0.4) ||
-            (currentRound === 4 && combinedForceAttack > initialCombinedForceAttack * 0.2) ||
-            (currentRound === 5 && combinedForceAttack > initialCombinedForceAttack * 0)
-          )
+          skirmishesCompleted < skirmishesPerRound
         ) {
           const odds = Math.min(updatedProbability / 100, 0.65);
           const attackerWins = Math.random() <= odds;
@@ -604,8 +595,6 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
       } else if (allZeroDefend) {
         handleWarEndingsAndOptions(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {
-        exitWhile = true;
-        skirmishesCompleted = skirmishesPerRound; //escape loop
         break;
       }
     }
@@ -626,7 +615,8 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   console.log("New probability for next round is:", updatedProbability);
 
   if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && !exitWhile) {
-    processRound(currentRound + 1);
+    // Continue to the next round without recursive call
+    setCurrentRound(currentRound + 1);
   } else {
     console.log("All rounds completed!");
     console.log("Attacking Units Remaining:", attackingArmyRemaining);
@@ -648,14 +638,14 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         handleWarEndingsAndOptions(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {                                                                             // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
-        currentRound = 1;
+        setCurrentRound(1);
         defenseBonus /= 2;
         attackingArmyRemaining = attackingArmyRemaining.map(value => Math.max(0, Math.floor(value * 0.95)));
         initialCombinedForceAttack = calculateCombinedForce(attackingArmyRemaining);
         initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
 
         updatedProbability = calculateProbabiltyPreBattle(attackingArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
-        
+
         skirmishesPerType = [
           Math.min(attackingArmyRemaining[0], defendingArmyRemaining[0]),
           Math.min(attackingArmyRemaining[1], defendingArmyRemaining[1]),
@@ -664,16 +654,14 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         ];
         totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
         skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
-        exitWhile = false;
-        processRound(1,
-          finalAttackArray,
-          attackingArmyRemaining,
-          defendingArmyRemaining,
-          skirmishesPerRound); //change implementationonce working
+        advanceButtonState = 0;
+        setAdvanceButtonText(advanceButtonState, advanceButton);
+        retreatButtonState = 0;
+        setRetreatButtonText(retreatButtonState, retreatButton);
       }
     }
   }
-};
+}
 
 function calculateCombinedForce(army) {
   const [infantry, assault, air, naval] = army;

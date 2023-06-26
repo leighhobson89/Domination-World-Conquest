@@ -134,9 +134,15 @@ export let territoryAboutToBeAttacked = null;
 export let transferToTerritory;
 
 //BATTLE UI BUTTON STATES  
-let retreatButtonState;
-let advanceButtonState;
-let siegeButtonState;
+export let retreatButtonState;
+export let advanceButtonState;
+export let siegeButtonState;
+
+export const retreatButton = document.getElementById("battleUIRow5Button1");
+export const advanceButton = document.getElementById("battleUIRow5Button2");
+export const siegeButton = document.getElementById("siegeButton");
+
+let battleStart = true;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -1484,7 +1490,6 @@ document.addEventListener("DOMContentLoaded", function() {
       playSoundClip();
       toggleTransferAttackWindow(false);
       transferAttackWindowOnScreen = false;
-      svg.style.pointerEvents = 'auto';
       toggleUIButton(true);
       toggleBottomLeftPaneWithTurnAdvance(true);
       handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackbuttonState);
@@ -2718,7 +2723,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   toggleBottomLeftPaneWithTurnAdvance(false);
 
                   toggleTransferAttackWindow(true);
-                  svg.style.pointerEvents = 'none';
                   setTransferAttackWindowTitleText(
                       territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null ?
                       territoryAboutToBeAttacked.getAttribute("territory-name") :
@@ -2768,7 +2772,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     button.innerHTML = "TRANSFER";
                     toggleTransferAttackWindow(false);
                     transferAttackWindowOnScreen = false;
-                    svg.style.pointerEvents = 'auto';
                     toggleUIButton(true);
                     toggleBottomLeftPaneWithTurnAdvance(true);
                     setTimeout(function() {
@@ -2777,14 +2780,12 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
-                        transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                         toggleBattleUI(true);
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
                         setupBattleUI(finalAttackArray);
                         battleUIDisplayed = true;
-                        svg.style.pointerEvents = 'none';
                         setTimeout(function() {
                             eventHandlerExecuted = false; // Reset the flag after a delay
                         }, 200);
@@ -2801,7 +2802,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       if (transferAttackbuttonState === 0) {
                         toggleUIButton(true);
                         toggleBottomLeftPaneWithTurnAdvance(true);
-                        svg.style.pointerEvents = 'auto';
                       }
                       toggleTransferAttackWindow(false);
                       transferAttackWindowOnScreen = false;
@@ -3241,8 +3241,14 @@ function toggleUIButton(makeVisible) {
       let battleUI = document.getElementById("battleContainer");
     if (turnOnBattleUI) {
       battleUI.style.display = "block";
+      svg.style.pointerEvents = 'none';
     } else if (!turnOnBattleUI) {
       battleUI.style.display = "none";
+      toggleUIButton(true);
+      uiButtonCurrentlyOnScreen = true;
+      toggleBottomLeftPaneWithTurnAdvance;
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+      svg.style.pointerEvents = 'auto';
     }
   }
   
@@ -3251,8 +3257,10 @@ function toggleUIButton(makeVisible) {
     if (turnOnTransferAttackWindow) {
         transferAttackWindow.style.display = "block";
         transferAttackWindowOnScreen = true;
+        svg.style.pointerEvents = 'none';
     } else if (!turnOnTransferAttackWindow) {
         transferAttackWindow.style.display = "none";
+        svg.style.pointerEvents = 'auto';
     }
     //set height of colorBars for attack
     const sourceElement = document.getElementById('title-transfer-attack-window');
@@ -3361,27 +3369,36 @@ function toggleUIButton(makeVisible) {
     advanceButtonState = setAdvanceButtonText(0, advanceButton);
     siegeButtonState = setSiegeButtonText(0, siegeButton);
 
+
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
         switch (retreatButtonState) {
             case 0: //before battle or between rounds of 5 - no penalty
-                assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
-                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
-                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
-                defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
-                defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
-                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                if (!battleStart) {
+                    assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
+                    //update top table army value when leaving battle
+                    defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
+                    defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
+                    defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
+                    defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
+                    defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                }                
+                //update bottom table for defender
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
                 break;
             case 1: //scatter during round of 5, 30% penalty
                 for (let i = 0; i < attackingArmyRemaining.length; i++) {
                     attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * 0.7); //apply penalty
                 }
                 assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
+                //update top table army value when leaving battle
                 defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
                 defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
                 defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                //update bottom table for defender and and top table for player
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
                 break;
             case 2: //defeat
             if (defendingArmyRemaining[4] === 0) { //all out defeat
@@ -3390,15 +3407,21 @@ function toggleUIButton(makeVisible) {
                 defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                //update bottom table for defender
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
             } else if (defendingArmyRemaining[4] === 1) { //routing defeat
                 defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
                 defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
                 defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
                 defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
                 defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                //update bottom table for defender
+                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
             }
                  break;
         }
+        toggleBattleUI(false);
+        battleUIDisplayed = false;
     });
 
     //click handler for advance button
@@ -3406,9 +3429,13 @@ function toggleUIButton(makeVisible) {
         let currentRound = getCurrentRound();
         switch (advanceButtonState) {
             case 0: //before battle to start it
+                battleStart = false;
+                transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                 setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
                 advanceButtonState = 1;
                 setAdvanceButtonText(advanceButtonState, advanceButton);
+                retreatButtonState = 1;
+                setRetreatButtonText(retreatButtonState, retreatButton);
                 break;
             case 1:
                 processRound(currentRound,
