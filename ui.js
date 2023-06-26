@@ -1663,11 +1663,11 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow5.classList.add("battleUIRow5");
   battleUIRow5.setAttribute("id","battleUIRow5");
 
-  const battleUIRow5Button1 = document.createElement("div");
+  const battleUIRow5Button1 = document.createElement("button");
   battleUIRow5Button1.classList.add("battleUIRow5Button1");
   battleUIRow5Button1.setAttribute("id","battleUIRow5Button1");
 
-  const battleUIRow5Button2 = document.createElement("div");
+  const battleUIRow5Button2 = document.createElement("button");
   battleUIRow5Button2.classList.add("battleUIRow5Button2");
   battleUIRow5Button2.setAttribute("id","battleUIRow5Button2");
 
@@ -3324,9 +3324,13 @@ function toggleUIButton(makeVisible) {
     const advanceButton = document.getElementById("battleUIRow5Button2");
     const siegeButton = document.getElementById("siegeButton");
 
-    retreatButton.classList.remove("move-phase-button-grey-background");
-    advanceButton.classList.remove("move-phase-button-grey-background");
-    siegeButton.classList.remove("move-phase-button-grey-background");
+    retreatButton.classList.remove("battleUIRowButtonsGreyBg");
+    advanceButton.classList.remove("battleUIRowButtonsGreyBg");
+    siegeButton.classList.remove("battleUIRowButtonsGreyBg");
+
+    retreatButton.classList.add("battleUIRowButtonsRedBg");
+    advanceButton.classList.add("battleUIRowButtonsGreenBg");
+    siegeButton.classList.add("siegeButtonBrownBg");
 
     retreatButton.disabled = false;
     advanceButton.disabled = false;
@@ -3370,6 +3374,41 @@ function toggleUIButton(makeVisible) {
     advanceButtonState = setAdvanceButtonText(0, advanceButton);
     siegeButtonState = setSiegeButtonText(0, siegeButton);
 
+    retreatButton.addEventListener('mouseover', function() {
+        if (!retreatButton.disabled) {
+            retreatButton.style.backgroundColor = "rgb(151, 68, 68)";
+        }
+    });
+
+    retreatButton.addEventListener('mouseout', function() {
+        if (!retreatButton.disabled) {
+            retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
+        }
+    });
+
+    advanceButton.addEventListener('mouseover', function() {
+        if (!advanceButton.disabled) {
+            advanceButton.style.backgroundColor = "rgb(30,158,30)";
+        }
+    });
+
+    advanceButton.addEventListener('mouseout', function() {
+        if (!advanceButton.disabled) {
+            advanceButton.style.backgroundColor = "rgb(0,128,0)";
+        }
+    });
+
+    siegeButton.addEventListener('mouseover', function() {
+        if (!siegeButton.disabled) {
+            siegeButton.style.backgroundColor = "rgb(144,118,78)";
+        }
+    });
+
+    siegeButton.addEventListener('mouseout', function() {
+        if (!siegeButton.disabled) {
+            siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
+        }        
+    });
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {

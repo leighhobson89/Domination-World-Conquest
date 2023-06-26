@@ -388,19 +388,21 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       setAdvanceButtonText(2, advanceButton);
       retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
+      retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
+      retreatButton.disabled = false;
       siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
+      siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
       break;
     case 1:
       console.log("Defender won the war!");
       //set main array to remaining defenders values
       defendingArmyRemaining.push(0); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
+      retreatButton.disabled = false;
       advanceButton.disabled = true;
-      advanceButton.classList.add("move-phase-button-grey-background");
+      advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
       siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
+      siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
       break;
     case 2:
       won = true;
@@ -420,9 +422,10 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       setAdvanceButtonText(4, advanceButton);
       retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
-      siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
+      retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
+      advanceButton.disabled = false;
+      siegeButton.disabled = true; 
+      siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
       break;
     case 3:
       won = true;
@@ -442,19 +445,21 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       setAdvanceButtonText(3, advanceButton);
       retreatButton.disabled = true;
-      retreatButton.classList.add("move-phase-button-grey-background");
+      retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
+      advanceButton.disabled = false;
       siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
+      siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
       break;
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
       defendingArmyRemaining.push(1); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
+      retreatButton.disabled = false;
       advanceButton.disabled = true;
-      advanceButton.classList.add("move-phase-button-grey-background");
+      advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
       siegeButton.disabled = true;
-      siegeButton.classList.add("move-phase-button-grey-background");
+      siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
       break;
     case 5:
       //situation where user sets a siege
