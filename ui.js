@@ -61,7 +61,8 @@ import {
     proportionsOfAttackArray,
     processRound,
     skirmishesPerRound,
-    setCurrentRound
+    setCurrentRound,
+    getCurrentRound
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -3402,6 +3403,7 @@ function toggleUIButton(makeVisible) {
 
     //click handler for advance button
     advanceButton.addEventListener('click', function() {
+        let currentRound = getCurrentRound();
         switch (advanceButtonState) {
             case 0: //before battle to start it
                 setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
