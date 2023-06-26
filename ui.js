@@ -62,7 +62,8 @@ import {
     processRound,
     skirmishesPerRound,
     setCurrentRound,
-    getCurrentRound
+    getCurrentRound,
+    getUpdatedProbability
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -3420,6 +3421,8 @@ function toggleUIButton(makeVisible) {
             }
                  break;
         }
+        let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+        battleUIRow4Col1.innerHTML = "Starting";
         toggleBattleUI(false);
         battleUIDisplayed = false;
     });
@@ -3444,6 +3447,13 @@ function toggleUIButton(makeVisible) {
                     defendingArmyRemaining,
                     skirmishesPerRound);
                     setCurrentRound(currentRound + 1);
+                    //update UI text
+                    let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+                    let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+                    battleUIRow4Col1.innerHTML = "Starting";
+                    setArmyTextValues(attackArrayText, 1);
+                    let updatedProbability = getUpdatedProbability();
+                    setAttackProbabilityOnUI(updatedProbability, 1);
                 break;
         }
         
