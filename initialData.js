@@ -4,7 +4,7 @@ export const dataTableCountriesInitialState = [
 		"country" : "China",
 		"startingPop" : 1447065329,
 		"area" : 9706961,
-		"startingArmy" : 2522849,
+		"startingArmy" : 812546,
 		"continent" : "Asia",
 		"res_gold" : 8000,
 		"res_oil" : 800,
