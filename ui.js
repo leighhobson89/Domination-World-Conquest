@@ -1724,7 +1724,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleResultsRow1FlagCol1 = document.createElement("div");
   battleResultsRow1FlagCol1.classList.add("battleResultsRow1FlagCol1");
   battleResultsRow1FlagCol1.setAttribute("id","battleResultsRow1FlagCol1");
-  battleResultsRow1FlagCol1.innerHTML = '<img src="resources/flags/Russia.png">';
 
   const battleResultsTitleTitleCol = document.createElement("div");
   battleResultsTitleTitleCol.classList.add("battleResultsTitleTitleCol");
@@ -1733,22 +1732,18 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleResultsTitleTitleLeft = document.createElement("div");
   battleResultsTitleTitleLeft.classList.add("battleResultsTitleTitleLeft");
   battleResultsTitleTitleLeft.setAttribute("id","battleResultsTitleTitleLeft");
-  battleResultsTitleTitleLeft.innerHTML = "Russia";
 
   const battleResultsTitleTitleCenter = document.createElement("div");
   battleResultsTitleTitleCenter.classList.add("battleResultsTitleTitleCenter");
   battleResultsTitleTitleCenter.setAttribute("id","battleResultsTitleTitleCenter");
-  battleResultsTitleTitleCenter.innerHTML = "Conquers";
 
   const battleResultsTitleTitleRight = document.createElement("div");
   battleResultsTitleTitleRight.classList.add("battleResultsTitleTitleRight");
   battleResultsTitleTitleRight.setAttribute("id","battleResultsTitleTitleRight");
-  battleResultsTitleTitleRight.innerHTML = "China!";
 
   const battleResultsRow1FlagCol2 = document.createElement("div");
   battleResultsRow1FlagCol2.classList.add("battleResultsRow1FlagCol2");
   battleResultsRow1FlagCol2.setAttribute("id","battleResultsRow1FlagCol2");
-  battleResultsRow1FlagCol2.innerHTML = '<img src="resources/flags/China.png">';
 
   const battleResultsRow2 = document.createElement("div");
   battleResultsRow2.classList.add("battleResultsRow");
@@ -2501,7 +2496,7 @@ export function setFlag(flag, place) {
 
   const img = document.createElement('img');
 
-  if (place !== 4 && place !== 5) {
+  if (place !== 4 && place !== 5 && place !== 6 && place !== 7) {
     img.classList.add("flag");
   }
 
@@ -2521,6 +2516,12 @@ export function setFlag(flag, place) {
     img.style.width = "100%";
   } else if (place === 5) { //Battle UI defender
     flagElement = document.getElementById("battleUITitleFlagCol2");
+    img.style.width = "100%";
+  } else if (place === 6) { //Battle UI attacker
+    flagElement = document.getElementById("battleResultsRow1FlagCol1");
+    img.style.width = "100%";
+  } else if (place === 7) { //Battle UI defender
+    flagElement = document.getElementById("battleResultsRow1FlagCol2");
     img.style.width = "100%";
   } else if (place === 0) {
         return img.src;
@@ -3686,6 +3687,17 @@ function toggleUIButton(makeVisible) {
         }        
     });
 
+    let attackCountry;
+    let defendTerritory;
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
+        }
+        if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            defendTerritory = mainArrayOfTerritoriesAndResources[i];
+        }
+    }
+
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
         switch (retreatButtonState) {
@@ -3742,7 +3754,7 @@ function toggleUIButton(makeVisible) {
         battleUIDisplayed = false;
         toggleBattleResults(true);
         battleResultsDisplayed = true;
-        populateWarResultPopup(1); //lost
+        populateWarResultPopup(1, attackCountry, defendTerritory); //lost
         AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
     });
 
@@ -3801,7 +3813,7 @@ function toggleUIButton(makeVisible) {
                 battleUIDisplayed = false;
                 toggleBattleResults(true);
                 battleResultsDisplayed = true;
-                populateWarResultPopup(0); //won
+                populateWarResultPopup(0, attackCountry, defendTerritory); //won
                 break;
         }
     });
@@ -3974,13 +3986,25 @@ function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function populateWarResultPopup(situation) {
+  function populateWarResultPopup(situation, flagStringAttacker, flagStringDefender) {
+    flagStringDefender = flagStringDefender.territoryName;
+
+    //SET FLAGS
+    setFlag(flagStringAttacker, 6);
+    setFlag(flagStringDefender, 7);
+
+    //SET TITLE COUNTRY NAMES
+    document.getElementById("battleResultsTitleTitleLeft").innerHTML = flagStringAttacker;
+    document.getElementById("battleResultsTitleTitleRight").innerHTML = flagStringDefender;
+
     let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
 
-    if (situation === 0) { //won
+    if (situation === 0) { //won    
+        document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Won");
     } else if (situation === 1) { //lost
+        document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
         confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
     }
@@ -3997,7 +4021,7 @@ function reduceKeywords(str) {
     confirmButtonBattleResults.addEventListener('mouseout', function() {
         confirmButtonBattleResults.style.cursor = "default";
         if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
-            confirmButtonBattleResults.style.backgroundColor = "rgb(128, 128, 128)";
+            confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
         } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
             confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
         }
