@@ -132,6 +132,7 @@ export let uiAppearsAtStartOfTurn = true;
 export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
+export let battleResultsDisplayed = false;
 export let battleUIDisplayed = false;
 export let territoryAboutToBeAttacked = null;
 export let transferToTerritory;
@@ -1923,7 +1924,7 @@ document.addEventListener("DOMContentLoaded", function() {
   battleResultsRow3Row3SiegeStats.setAttribute("id","battleResultsRow3Row3SiegeStats");
   battleResultsRow3Row3SiegeStats.innerHTML = "Sieged: ";
 
-  const battleResultsRow4 = document.createElement("div");
+  const battleResultsRow4 = document.createElement("button");
   battleResultsRow4.classList.add("battleResultsRow");
   battleResultsRow4.classList.add("battleResultsRow4");
   battleResultsRow4.setAttribute("id","battleResultsRow4");
@@ -2006,6 +2007,7 @@ document.addEventListener("keydown", function(event) {
       toggleTransferAttackButton(false);
       toggleTransferAttackWindow(false);
       toggleBattleUI(false);
+      toggleBattleResults(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
       if (uiCurrentlyOnScreen) {
           document.getElementById("main-ui-container").style.display = "flex";
@@ -2017,11 +2019,13 @@ document.addEventListener("keydown", function(event) {
           }
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
       }
-      if (transferAttackWindowOnScreen || battleUIDisplayed) {
+      if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
           if (transferAttackWindowOnScreen) {
             toggleTransferAttackWindow(true);
           } else if (battleUIDisplayed) {
             toggleBattleUI(true);
+          } else if (battleResultsDisplayed) {
+            toggleBattleResults(true);
           }
           uiButtonCurrentlyOnScreen = false;
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
@@ -2050,9 +2054,6 @@ document.addEventListener("keydown", function(event) {
       }
       if (transferAttackButtonDisplayed) {
           toggleTransferAttackButton(true);
-      }
-      if (battleUIDisplayed) {
-        toggleBattleUI(true);
       }
       toggleBottomTableContainer(true);
       document.getElementById("menu-container").style.display = "none";
@@ -3514,6 +3515,16 @@ function toggleUIButton(makeVisible) {
       battleUI.style.display = 'none';
     }
   }
+
+  function toggleBattleResults(turnOnBattleResults) {
+    let battleResults = document.getElementById("battleResultsContainer");
+  if (turnOnBattleResults) {
+    battleResults.style.display = "block";
+  } else if (!turnOnBattleResults) {
+    battleResults.style.display = 'none';
+    svg.style.pointerEvents = 'auto';
+  }
+}
   
   function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
     let transferAttackWindow = document.getElementById("transfer-attack-window-container");
@@ -3729,7 +3740,9 @@ function toggleUIButton(makeVisible) {
         battleUIRow4Col1.innerHTML = "Starting";
         toggleBattleUI(false);
         battleUIDisplayed = false;
-        triggerWarResultPopup(1); //lost
+        toggleBattleResults(true);
+        battleResultsDisplayed = true;
+        populateWarResultPopup(1); //lost
         AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
     });
 
@@ -3784,9 +3797,11 @@ function toggleUIButton(makeVisible) {
                 let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
                 battleUIRow4Col1.innerHTML = "Starting";
                 AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
-                triggerWarResultPopup(0); //won
                 toggleBattleUI(false);
                 battleUIDisplayed = false;
+                toggleBattleResults(true);
+                battleResultsDisplayed = true;
+                populateWarResultPopup(0); //won
                 break;
         }
     });
@@ -3959,6 +3974,39 @@ function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function triggerWarResultPopup() {
-    //todo
+  function populateWarResultPopup(situation) {
+    let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
+
+    if (situation === 0) { //won
+        confirmButtonBattleResults.innerHTML = "Accept Victory!";
+        confirmButtonBattleResults.classList.add("battleResultsRow4Won");
+    } else if (situation === 1) { //lost
+        confirmButtonBattleResults.innerHTML = "Accept Defeat!";
+        confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
+    }
+
+    confirmButtonBattleResults.addEventListener('mouseover', function() {
+        confirmButtonBattleResults.style.cursor = "pointer";
+        if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
+            confirmButtonBattleResults.style.backgroundColor = "rgb(30, 158, 30)";
+        } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
+            confirmButtonBattleResults.style.backgroundColor = "rgb(151, 68, 68)";
+        }
+    });
+
+    confirmButtonBattleResults.addEventListener('mouseout', function() {
+        confirmButtonBattleResults.style.cursor = "default";
+        if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
+            confirmButtonBattleResults.style.backgroundColor = "rgb(128, 128, 128)";
+        } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
+            confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
+        }
+    });
+
+    confirmButtonBattleResults.addEventListener('click', function() {
+        toggleBattleResults(false);
+        battleResultsDisplayed = false;
+        toggleUIButton(true);
+        toggleBottomLeftPaneWithTurnAdvance(true);
+    });
   }
