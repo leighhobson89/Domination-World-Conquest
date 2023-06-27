@@ -1711,6 +1711,282 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("battleContainer").appendChild(battleUIContainer);
 
+  //BATTLE RESULTS WINDOW
+  const battleResultsContainer = document.createElement("div");
+  battleResultsContainer.classList.add("blur-background");
+
+  const battleResultsRow1 = document.createElement("div");
+  battleResultsRow1.classList.add("battleResultsRow");
+  battleResultsRow1.classList.add("battleResultsRow1");
+  battleResultsRow1.setAttribute("id","battleResultsRow1");
+
+  const battleResultsRow1FlagCol1 = document.createElement("div");
+  battleResultsRow1FlagCol1.classList.add("battleResultsRow1FlagCol1");
+  battleResultsRow1FlagCol1.setAttribute("id","battleResultsRow1FlagCol1");
+  battleResultsRow1FlagCol1.innerHTML = '<img src="resources/flags/Russia.png">';
+
+  const battleResultsTitleTitleCol = document.createElement("div");
+  battleResultsTitleTitleCol.classList.add("battleResultsTitleTitleCol");
+  battleResultsTitleTitleCol.setAttribute("id","battleResultsTitleTitleCol");
+
+  const battleResultsTitleTitleLeft = document.createElement("div");
+  battleResultsTitleTitleLeft.classList.add("battleResultsTitleTitleLeft");
+  battleResultsTitleTitleLeft.setAttribute("id","battleResultsTitleTitleLeft");
+  battleResultsTitleTitleLeft.innerHTML = "Russia";
+
+  const battleResultsTitleTitleCenter = document.createElement("div");
+  battleResultsTitleTitleCenter.classList.add("battleResultsTitleTitleCenter");
+  battleResultsTitleTitleCenter.setAttribute("id","battleResultsTitleTitleCenter");
+  battleResultsTitleTitleCenter.innerHTML = "Conquers";
+
+  const battleResultsTitleTitleRight = document.createElement("div");
+  battleResultsTitleTitleRight.classList.add("battleResultsTitleTitleRight");
+  battleResultsTitleTitleRight.setAttribute("id","battleResultsTitleTitleRight");
+  battleResultsTitleTitleRight.innerHTML = "China!";
+
+  const battleResultsRow1FlagCol2 = document.createElement("div");
+  battleResultsRow1FlagCol2.classList.add("battleResultsRow1FlagCol2");
+  battleResultsRow1FlagCol2.setAttribute("id","battleResultsRow1FlagCol2");
+  battleResultsRow1FlagCol2.innerHTML = '<img src="resources/flags/China.png">';
+
+  const battleResultsRow2 = document.createElement("div");
+  battleResultsRow2.classList.add("battleResultsRow");
+  battleResultsRow2.classList.add("battleResultsRow2");
+  battleResultsRow2.setAttribute("id","battleResultsRow2");
+
+  const battleResultsRow2Row1 = document.createElement("div");
+  battleResultsRow2Row1.classList.add("battleResultsRow2Row1");
+  battleResultsRow2Row1.setAttribute("id","battleResultsRow2Row1");
+
+  const battleResultsRow2Row1Icon1 = document.createElement("div");
+  battleResultsRow2Row1Icon1.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon1.setAttribute("id","battleResultsRow2Row1Icon1");
+  battleResultsRow2Row1Icon1.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
+
+  const battleResultsRow2Row1Icon2 = document.createElement("div");
+  battleResultsRow2Row1Icon2.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon2.setAttribute("id","battleResultsRow2Row1Icon2");
+  battleResultsRow2Row1Icon2.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
+
+  const battleResultsRow2Row1Icon3 = document.createElement("div");
+  battleResultsRow2Row1Icon3.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon3.setAttribute("id","battleResultsRow2Row1Icon3");
+  battleResultsRow2Row1Icon3.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
+
+  const battleResultsRow2Row1Icon4 = document.createElement("div");
+  battleResultsRow2Row1Icon4.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon4.setAttribute("id","battleResultsRow2Row1Icon4");
+  battleResultsRow2Row1Icon4.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
+
+  const battleResultsRow2Row1Icon5 = document.createElement("div");
+  battleResultsRow2Row1Icon5.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon5.setAttribute("id","battleResultsRow2Row1Icon5");
+  battleResultsRow2Row1Icon5.classList.add("battleResultsRowDivider");
+  battleResultsRow2Row1Icon5.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
+
+  const battleResultsRow2Row1Icon6 = document.createElement("div");
+  battleResultsRow2Row1Icon6.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon6.setAttribute("id","battleResultsRow2Row1Icon6");
+  battleResultsRow2Row1Icon6.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
+
+  const battleResultsRow2Row1Icon7 = document.createElement("div");
+  battleResultsRow2Row1Icon7.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon7.setAttribute("id","battleResultsRow2Row1Icon7");
+  battleResultsRow2Row1Icon7.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
+
+  const battleResultsRow2Row1Icon8 = document.createElement("div");
+  battleResultsRow2Row1Icon8.classList.add("battleResultsRow2Row1Icon");
+  battleResultsRow2Row1Icon8.setAttribute("id","battleResultsRow2Row1Icon8");
+  battleResultsRow2Row1Icon8.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
+
+  const battleResultsRow2Row2 = document.createElement("div");
+  battleResultsRow2Row2.classList.add("battleResultsRow2Row2");
+  battleResultsRow2Row2.setAttribute("id","battleResultsRow2Row2");
+
+  const battleResultsRow2Row2Quantity1 = document.createElement("div");
+  battleResultsRow2Row2Quantity1.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity1.setAttribute("id","battleResultsRow2Row2Quantity1");
+
+  const battleResultsRow2Row2Quantity2 = document.createElement("div");
+  battleResultsRow2Row2Quantity2.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity2.setAttribute("id","battleResultsRow2Row2Quantity2");
+
+  const battleResultsRow2Row2Quantity3 = document.createElement("div");
+  battleResultsRow2Row2Quantity3.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity3.setAttribute("id","battleResultsRow2Row2Quantity3");
+
+  const battleResultsRow2Row2Quantity4 = document.createElement("div");
+  battleResultsRow2Row2Quantity4.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity4.setAttribute("id","battleResultsRow2Row2Quantity4");
+
+  const battleResultsRow2Row2Quantity5 = document.createElement("div");
+  battleResultsRow2Row2Quantity5.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity5.classList.add("battleResultsRowDivider");
+  battleResultsRow2Row2Quantity5.setAttribute("id","battleResultsRow2Row2Quantity5");
+
+  const battleResultsRow2Row2Quantity6 = document.createElement("div");
+  battleResultsRow2Row2Quantity6.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity6.setAttribute("id","battleResultsRow2Row2Quantity6");
+
+  const battleResultsRow2Row2Quantity7 = document.createElement("div");
+  battleResultsRow2Row2Quantity7.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity7.setAttribute("id","battleResultsRow2Row2Quantity7");
+
+  const battleResultsRow2Row2Quantity8 = document.createElement("div");
+  battleResultsRow2Row2Quantity8.classList.add("battleResultsRow2Row2Quantity");
+  battleResultsRow2Row2Quantity8.setAttribute("id","battleResultsRow2Row2Quantity8");
+
+  const battleResultsRow2Row3 = document.createElement("div");
+  battleResultsRow2Row3.classList.add("battleResultsRow2Row3");
+  battleResultsRow2Row3.setAttribute("id","battleResultsRow2Row3");
+
+  const battleResultsRow2Row3Losses = document.createElement("div");
+  battleResultsRow2Row3Losses.classList.add("battleResultsRow2Row3Column");
+  battleResultsRow2Row3Losses.setAttribute("id","battleResultsRow2Row3Losses");
+  battleResultsRow2Row3Losses.innerHTML = "Losses";
+
+  const battleResultsRow2Row3Kills = document.createElement("div");
+  battleResultsRow2Row3Kills.classList.add("battleResultsRow2Row3Column");
+  battleResultsRow2Row3Kills.classList.add("battleResultsRowDivider");
+  battleResultsRow2Row3Kills.setAttribute("id","battleResultsRow2Row3Kills");
+  battleResultsRow2Row3Kills.innerHTML = "Kills";
+
+  const battleResultsRow3 = document.createElement("div");
+  battleResultsRow3.classList.add("battleResultsRow");
+  battleResultsRow3.classList.add("battleResultsRow3");
+  battleResultsRow3.setAttribute("id","battleResultsRow3");
+
+  const battleResultsRow3Row1 = document.createElement("div");
+  battleResultsRow3Row1.classList.add("battleResultsRow3Row1");
+  battleResultsRow3Row1.setAttribute("id","battleResultsRow3Row1");
+
+  const battleResultsRow3Row1Quantity1 = document.createElement("div");
+  battleResultsRow3Row1Quantity1.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity1.setAttribute("id","battleResultsRow3Row1Quantity1");
+
+  const battleResultsRow3Row1Quantity2 = document.createElement("div");
+  battleResultsRow3Row1Quantity2.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity2.setAttribute("id","battleResultsRow3Row1Quantity2");
+
+  const battleResultsRow3Row1Quantity3 = document.createElement("div");
+  battleResultsRow3Row1Quantity3.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity3.setAttribute("id","battleResultsRow3Row1Quantity3");
+
+  const battleResultsRow3Row1Quantity4 = document.createElement("div");
+  battleResultsRow3Row1Quantity4.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity4.setAttribute("id","battleResultsRow3Row1Quantity4");
+
+  const battleResultsRow3Row1Quantity5 = document.createElement("div");
+  battleResultsRow3Row1Quantity5.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity5.classList.add("battleResultsRowDivider");
+  battleResultsRow3Row1Quantity5.setAttribute("id","battleResultsRow3Row1Quantity5");
+
+  const battleResultsRow3Row1Quantity6 = document.createElement("div");
+  battleResultsRow3Row1Quantity6.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity6.setAttribute("id","battleResultsRow3Row1Quantity6");
+
+  const battleResultsRow3Row1Quantity7 = document.createElement("div");
+  battleResultsRow3Row1Quantity7.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity7.setAttribute("id","battleResultsRow3Row1Quantity7");
+
+  const battleResultsRow3Row1Quantity8 = document.createElement("div");
+  battleResultsRow3Row1Quantity8.classList.add("battleResultsRow3Row1Quantity");
+  battleResultsRow3Row1Quantity8.setAttribute("id","battleResultsRow3Row1Quantity8");
+
+  const battleResultsRow3Row2 = document.createElement("div");
+  battleResultsRow3Row2.classList.add("battleResultsRow3Row2");
+  battleResultsRow3Row2.setAttribute("id","battleResultsRow3Row2");
+
+  const battleResultsRow3Row2Survived = document.createElement("div");
+  battleResultsRow3Row2Survived.classList.add("battleResultsRow3Row2Column");
+  battleResultsRow3Row2Survived.setAttribute("id","battleResultsRow3Row2Survived");
+  battleResultsRow3Row2Survived.innerHTML = "Survived";
+
+  const battleResultsRow3Row2Captured = document.createElement("div");
+  battleResultsRow3Row2Captured.classList.add("battleResultsRow3Row2Column");
+  battleResultsRow3Row2Captured.classList.add("battleResultsRowDivider");
+  battleResultsRow3Row2Captured.setAttribute("id","battleResultsRow3Row2Captured");
+  battleResultsRow3Row2Captured.innerHTML = "Captured";
+
+  const battleResultsRow3Row3 = document.createElement("div");
+  battleResultsRow3Row3.classList.add("battleResultsRow3Row3");
+  battleResultsRow3Row3.setAttribute("id","battleResultsRow3Row3");
+
+  const battleResultsRow3Row3RoundsCount= document.createElement("div");
+  battleResultsRow3Row3RoundsCount.classList.add("battleResultsRow3Row3Column");
+  battleResultsRow3Row3RoundsCount.setAttribute("id","battleResultsRow3Row3RoundsCount");
+  battleResultsRow3Row3RoundsCount.innerHTML = "Rounds To Victory: ";
+
+  const battleResultsRow3Row3SiegeStats = document.createElement("div");
+  battleResultsRow3Row3SiegeStats.classList.add("battleResultsRow3Row3ColumnSiege");
+  battleResultsRow3Row3SiegeStats.classList.add("battleResultsRowDivider");
+  battleResultsRow3Row3SiegeStats.setAttribute("id","battleResultsRow3Row3SiegeStats");
+  battleResultsRow3Row3SiegeStats.innerHTML = "Sieged: ";
+
+  const battleResultsRow4 = document.createElement("div");
+  battleResultsRow4.classList.add("battleResultsRow");
+  battleResultsRow4.classList.add("battleResultsRow4");
+  battleResultsRow4.setAttribute("id","battleResultsRow4");
+
+  battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleLeft);
+  battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleCenter);
+  battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleRight);
+
+  battleResultsRow1.appendChild(battleResultsRow1FlagCol1);
+  battleResultsRow1.appendChild(battleResultsTitleTitleCol);
+  battleResultsRow1.appendChild(battleResultsRow1FlagCol2);
+
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon1);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon2);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon3);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon4);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon5);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon6);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon7);
+  battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon8);
+
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity1);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity2);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity3);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity4);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity5);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity6);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity7);
+  battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity8);
+
+  battleResultsRow2Row3.appendChild(battleResultsRow2Row3Losses);
+  battleResultsRow2Row3.appendChild(battleResultsRow2Row3Kills);
+
+  battleResultsRow2.appendChild(battleResultsRow2Row1);
+  battleResultsRow2.appendChild(battleResultsRow2Row2);
+  battleResultsRow2.appendChild(battleResultsRow2Row3);
+  
+  battleResultsRow3Row3.appendChild(battleResultsRow3Row3RoundsCount);
+  battleResultsRow3Row3.appendChild(battleResultsRow3Row3SiegeStats);
+
+  battleResultsRow3Row2.appendChild(battleResultsRow3Row2Survived);
+  battleResultsRow3Row2.appendChild(battleResultsRow3Row2Captured);
+
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity1);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity2);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity3);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity4);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity5);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity6);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity7);
+  battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity8);
+
+  battleResultsRow3.appendChild(battleResultsRow3Row1);
+  battleResultsRow3.appendChild(battleResultsRow3Row2);
+  battleResultsRow3.appendChild(battleResultsRow3Row3);
+
+  battleResultsContainer.appendChild(battleResultsRow1);
+  battleResultsContainer.appendChild(battleResultsRow2);
+  battleResultsContainer.appendChild(battleResultsRow3);
+  battleResultsContainer.appendChild(battleResultsRow4);
+
+  document.getElementById("battleResultsContainer").appendChild(battleResultsContainer);
+
   pageLoaded = true;
 });
 

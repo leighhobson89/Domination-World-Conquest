@@ -2045,3 +2045,234 @@ td {
   cursor: pointer;
 }
 
+/* --------------------------------------------BATTLE RESULTS-------------------------------------------------- */
+
+#battleResultsContainer {
+  display: none; /* change to none when design done */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 80vh;
+  background-color: rgb(54, 93, 125);
+  border: 3px solid rgb(84, 99, 110);
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.battleResultsRow {
+  display: flex;
+  width: 100%;
+}
+
+.battleResultsRow1 {
+  height: 20%;
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid rgb(54, 93, 125);
+}
+
+.battleResultsRow1FlagCol1 {
+  display: flex;
+  width: 18%;
+  margin: 10px;
+  margin-right: 50px;
+  margin-left: 50px;
+}
+
+.battleResultsRow1FlagCol2 {
+  display: flex;
+  width: 18%;
+  margin: 10px;
+  margin-right: 50px;
+  margin-left: 50px;
+}
+
+.battleResultsTitleTitleCol {
+  display: flex;
+  width: 80%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-size: 2rem;
+  font-weight: bold;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  white-space: normal;
+}
+
+.battleResultsTitleTitleLeft {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-right: 20px;
+  height: 100%;
+  white-space: normal;
+}
+
+.battleResultsTitleTitleCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.battleResultsTitleTitleRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-left: 20px;
+  height: 100%;
+  white-space: normal;
+}
+
+.battleResultsRow2 {
+  height: 35%;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-bottom: 1px solid white;
+  background-color: rgb(84, 123, 155);
+}
+
+.battleResultsRow2Row1 {
+  display: flex;
+  width: 100%;
+  height: 50%;
+}
+
+.battleResultsRow2Row1Icon {
+  display: flex;
+  width: 12.5%;
+  height: 100%;
+  padding-top: 20px;
+  justify-content: center;
+}
+
+.battleResultsRowDivider {
+  border-left: 1px solid white;
+}
+
+.battleResultsRow2Row2 {
+  display: flex;
+  width: 100%;
+  height: 25%;
+}
+
+.battleResultsRow2Row2Quantity {
+  display: flex;
+  width: 12.5%;
+  height: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  font-size: 1.7rem;
+}
+
+.battleResultsRow2Row3 {
+  display: flex;
+  width: 100%;
+  height: 25%;
+}
+
+.battleResultsRow2Row3Column {
+  display: flex;
+  width: 50%;
+  height: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  font-size: 1.7rem;
+  padding-left: 47px;
+}
+
+.battleResultsRow3 {
+  height: 35%;
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid white;
+  flex-direction: column;
+  background-color: rgb(84, 123, 155);
+  border-bottom: 1px solid white;
+}
+
+.battleResultsRow3Row1 {
+  display: flex;
+  width: 100%;
+  height: 50%;
+}
+
+.battleResultsRow3Row2 {
+  display: flex;
+  width: 100%;
+  height: 25%;
+}
+
+.battleResultsRow3Row1Quantity {
+  display: flex;
+  width: 12.5%;
+  height: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  font-size: 1.7rem;
+}
+
+.battleResultsRow3Row2Column {
+  display: flex;
+  width: 50%;
+  height: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  font-size: 1.7rem;
+  padding-left: 47px;
+}
+
+.battleResultsRow3Row3 {
+  display: flex;
+  width: 100%;
+  height: 25%;
+}
+
+.battleResultsRow3Row3Column {
+  display: flex;
+  width: 50%;
+  height: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  font-size: 1.7rem;
+  padding-left: 47px;
+}
+
+.battleResultsRow3Row3ColumnSiege {
+  display: flex;
+  width: 50%;
+  height: 100%;
+  justify-content: flex-end;
+  align-items: flex-start;
+  font-size: 1.7rem;
+  padding-right: 47px;
+}
+
+.battleResultsRow3Row4 {
+  display: flex;
+  width: 100%;
+  height: 25%;
+}
+
+.battleResultsRow4 {
+  height: 10%;
+  display: flex;
+  width: 100%;
+}
+
+.battleResultsRow4Won {
+  background-color: green;
+}
+
+.battleResultsRow4Lost {
+  background-color: rgb(131, 38, 38);
+}
