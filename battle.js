@@ -27,8 +27,8 @@ import {
   getAdvanceButtonState,
   getRetreatButtonState,
   setFirstSetOfRounds,
-  getFirstSetOfRounds
-
+  getFirstSetOfRounds,
+  setDefendingTerritoryCopyStart,
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -58,6 +58,7 @@ export let tempTotalDefendingArmy;
 export let defendingTerritory;
 export let defendingTerritoryId;
 export let defenseBonus;
+let rout = false;
 
 const unitTypes = ["infantry", "assault", "air", "naval"];
 const rounds = 5;
@@ -377,6 +378,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     case 0:
       won = true;
       console.log("Attacker won the war!");
+      setDefendingTerritoryCopyStart(contestedTerritory);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
@@ -400,6 +402,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       break;
     case 1:
       console.log("Defender won the war!");
+      setDefendingTerritoryCopyStart(contestedTerritory);
       //set main array to remaining defenders values
       defendingArmyRemaining.push(0); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
@@ -411,8 +414,10 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       break;
     case 2:
       won = true;
+      rout = true;
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
       //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
+      setDefendingTerritoryCopyStart(contestedTerritory);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
       turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
@@ -437,6 +442,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       won = true;
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
       //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
+      setDefendingTerritoryCopyStart(contestedTerritory);
       turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
       turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
       turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
@@ -460,6 +466,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
     case 4:
       console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
+      setDefendingTerritoryCopyStart(contestedTerritory);
       defendingArmyRemaining.push(1); //add defeat type to array
       setRetreatButtonText(2, retreatButton);
       retreatButton.disabled = false;
@@ -710,4 +717,10 @@ function calculateCombinedForce(army) {
     return updatedProbability = value;
   }
 
-  
+  export function getRoutStatus() {
+    return rout;
+  }
+
+  export function setRoutStatus(value) {
+    return rout = value;
+  }
