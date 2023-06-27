@@ -4,7 +4,9 @@ import {
     setUseableNotUseableWeaponsDueToOilDemand,
     mainArrayOfTerritoriesAndResources,
     oilRequirements,
-    turnGainsArray
+    turnGainsArray,
+    setDemandArray,
+    calculateAllTerritoryDemandsForCountry
 } from './resourceCalculations.js';
 import {
   paths, playerCountry,
@@ -536,7 +538,7 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
 }
 
 export function assignProportionsToTerritories(proportions, remainingAttackingArmy, mainArrayOfTerritoriesAndResources) {
-  const [infantryRemaining, airRemaining, assaultRemaining, navalRemaining] = remainingAttackingArmy;
+  const [infantryRemaining, assaultRemaining, airRemaining, navalRemaining] = remainingAttackingArmy;
 
   for (const [territoryId, infantryProportion, assaultProportion, airProportion, navalProportion] of proportions) {
     const territory = mainArrayOfTerritoriesAndResources.find(territory => territory.uniqueId === territoryId.toString());
@@ -546,10 +548,20 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
       territory.assaultForCurrentTerritory += Math.floor(assaultProportion / 100 * assaultRemaining);
       territory.airForCurrentTerritory += Math.floor(airProportion / 100 * airRemaining);
       territory.navalForCurrentTerritory += Math.floor(navalProportion / 100 * navalRemaining);
-      territory.armyForCurrentTerritory += territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      territory.armyForCurrentTerritory = territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+
+      turnGainsArray.changeOilDemand += (assaultRemaining * oilRequirements.assault);
+      turnGainsArray.changeOilDemand += (airRemaining * oilRequirements.air);
+      turnGainsArray.changeOilDemand += (navalRemaining * oilRequirements.naval);
+
+      territory.oilDemand = ((oilRequirements.assault * territory.assaultForCurrentTerritory) + (oilRequirements.air * territory.airForCurrentTerritory) + (oilRequirements.naval * territory.navalForCurrentTerritory));
+      setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, territory);
+      setDemandArray(calculateAllTerritoryDemandsForCountry());
     }
   }
 }
+
+
 
 export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackingArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
   combinedForceAttack = calculateCombinedForce(attackingArmyRemaining);

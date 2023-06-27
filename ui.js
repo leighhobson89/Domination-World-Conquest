@@ -13,7 +13,8 @@ import {
   playerOwnedTerritories
 } from './resourceCalculations.js';
 import {
-  populateBottomTableWhenSelectingACountry
+  populateBottomTableWhenSelectingACountry,
+  AddUpAllTerritoryResourcesForCountryAndWriteToTopTable
 } from './resourceCalculations.js';
 import {
   currentlySelectedTerritoryForUpgrades,
@@ -3465,6 +3466,7 @@ function toggleUIButton(makeVisible) {
         battleUIRow4Col1.innerHTML = "Starting";
         toggleBattleUI(false);
         battleUIDisplayed = false;
+        AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
     });
 
     //click handler for advance button
@@ -3515,7 +3517,6 @@ function toggleUIButton(makeVisible) {
                 }
                 break;
         }
-        
     });
 }
 

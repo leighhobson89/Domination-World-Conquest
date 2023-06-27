@@ -371,7 +371,7 @@ export function newTurnResources() {
         calculateTerritoryResourceIncomesEachTurn();
     }
 
-    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable();
+    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
     demandArray = calculateAllTerritoryDemandsForCountry();
     if (currentTurn !== 1) {
@@ -648,7 +648,7 @@ export function formatNumbersToKMB(number) {
 }
 
 
-function calculateAllTerritoryDemandsForCountry() {
+export function calculateAllTerritoryDemandsForCountry() {
     const demandArray = [];
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -704,7 +704,7 @@ function calculateAllTerritoryCapacitiesForCountry() {
 
 
 
-function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
+export function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(situation) {
     let totalGold = 0;
     let totalOil = 0;
     let totalFood = 0;
@@ -740,7 +740,7 @@ function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable() {
                 totalUseableAir += mainArrayOfTerritoriesAndResources[i].useableAir;
                 totalUseableNaval += mainArrayOfTerritoriesAndResources[i].useableNaval;
 
-                if (path === currentSelectedPath && currentTurn !== 1) {
+                if (path === currentSelectedPath && currentTurn !== 1 && situation === 0) {
                     writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true);
                 }
             }
@@ -3892,4 +3892,8 @@ function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrent
     const roundedStrength = Math.round(strengthValue);
 
     return roundedStrength;
+}
+
+export function setDemandArray(value) {
+    return demandArray = value;
 }
