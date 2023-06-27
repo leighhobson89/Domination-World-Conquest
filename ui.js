@@ -66,7 +66,9 @@ import {
     setCurrentRound,
     getCurrentRound,
     getUpdatedProbability,
-    setUpdatedProbability
+    setUpdatedProbability,
+    getRoutStatus,
+    setRoutStatus
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -148,6 +150,10 @@ const siegeButton = document.getElementById("siegeButton");
 
 let battleStart = true;
 let firstSetOfRounds = true;
+
+let defendingTerritoryCopyStart;
+let defendingTerritoryCopyEnd;
+
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -3849,6 +3855,7 @@ export function setArmyTextValues(attackArray, situation) {
             totalAttackingArmy[2] += airCount;
             totalAttackingArmy[3] += navalCount;
         }
+        
         //get defending army
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (mainArrayOfTerritoriesAndResources[i].uniqueId === attackArray[0]) { //any player territory to get country name
@@ -3882,6 +3889,7 @@ export function setArmyTextValues(attackArray, situation) {
     document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
     document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
     document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
+    setDefendingTerritoryCopyEnd(totalDefendingArmy);
 }
 
 function reduceKeywords(str) {
@@ -4009,6 +4017,8 @@ function reduceKeywords(str) {
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
     }
 
+    setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation);
+
     confirmButtonBattleResults.addEventListener('mouseover', function() {
         confirmButtonBattleResults.style.cursor = "pointer";
         if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
@@ -4034,3 +4044,84 @@ function reduceKeywords(str) {
         toggleBottomLeftPaneWithTurnAdvance(true);
     });
   }
+
+  function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situation) {
+    let totalAttackingArmy = [0, 0, 0, 0];
+    let totalDefendingArmy = [0, 0, 0, 0];
+
+    // Get attacking army
+    for (let i = 1; i < attackArray.length; i += 5) {
+        const infantryCount = attackArray[i + 1];
+        const assaultCount = attackArray[i + 2];
+        const airCount = attackArray[i + 3];
+        const navalCount = attackArray[i + 4];
+
+        totalAttackingArmy[0] += infantryCount;
+        totalAttackingArmy[1] += assaultCount;
+        totalAttackingArmy[2] += airCount;
+        totalAttackingArmy[3] += navalCount;
+    }
+
+    // Get defending army
+    totalDefendingArmy[0] = defendingTerritoryCopyStart.infantryForCurrentTerritory;
+    totalDefendingArmy[1] = defendingTerritoryCopyStart.useableAssault;
+    totalDefendingArmy[2] = defendingTerritoryCopyStart.useableAir;
+    totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
+
+    let attackingSurvived = [0, 0, 0, 0];
+    // Calculate losses and survivors
+    const attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);
+
+    if (situation === 0) {
+        attackingSurvived = attackingArmyRemaining;
+    }
+    
+    let defendingLosses = [];
+    defendingLosses[0] = totalDefendingArmy[0] - defendingTerritoryCopyEnd[0];
+    defendingLosses[1] = totalDefendingArmy[1] - defendingTerritoryCopyEnd[1];
+    defendingLosses[2] = totalDefendingArmy[2] - defendingTerritoryCopyEnd[2];
+    defendingLosses[3] = totalDefendingArmy[3] - defendingTerritoryCopyEnd[3];
+
+    let rout = getRoutStatus();
+    let capturedArray = [0, 0, 0, 0];
+
+    if (rout) {
+        capturedArray = [Math.floor(defendingTerritoryCopyEnd[0] / 2), Math.floor(defendingTerritoryCopyEnd[1] / 2), Math.floor(defendingTerritoryCopyEnd[2] / 2), Math.floor(defendingTerritoryCopyEnd[3] / 2), ]
+    }
+
+    setRoutStatus(false);
+
+    //LOSSES
+    document.getElementById("battleResultsRow2Row2Quantity1").innerHTML = formatNumbersToKMB(attackingLosses[0]);
+    document.getElementById("battleResultsRow2Row2Quantity2").innerHTML = formatNumbersToKMB(attackingLosses[1]);
+    document.getElementById("battleResultsRow2Row2Quantity3").innerHTML = formatNumbersToKMB(attackingLosses[2]);
+    document.getElementById("battleResultsRow2Row2Quantity4").innerHTML = formatNumbersToKMB(attackingLosses[3]);
+
+    //KILLS
+    document.getElementById("battleResultsRow2Row2Quantity5").innerHTML = formatNumbersToKMB(defendingLosses[0]);
+    document.getElementById("battleResultsRow2Row2Quantity6").innerHTML = formatNumbersToKMB(defendingLosses[1]);
+    document.getElementById("battleResultsRow2Row2Quantity7").innerHTML = formatNumbersToKMB(defendingLosses[2]);
+    document.getElementById("battleResultsRow2Row2Quantity8").innerHTML = formatNumbersToKMB(defendingLosses[3]);
+
+    //SURVIVALS
+    document.getElementById("battleResultsRow3Row1Quantity1").innerHTML = formatNumbersToKMB(attackingSurvived[0]);
+    document.getElementById("battleResultsRow3Row1Quantity2").innerHTML = formatNumbersToKMB(attackingSurvived[1]);
+    document.getElementById("battleResultsRow3Row1Quantity3").innerHTML = formatNumbersToKMB(attackingSurvived[2]);
+    document.getElementById("battleResultsRow3Row1Quantity4").innerHTML = formatNumbersToKMB(attackingSurvived[3]);
+
+    //CAPTURED
+    document.getElementById("battleResultsRow3Row1Quantity5").innerHTML = formatNumbersToKMB(capturedArray[0]);
+    document.getElementById("battleResultsRow3Row1Quantity6").innerHTML = formatNumbersToKMB(capturedArray[1]);
+    document.getElementById("battleResultsRow3Row1Quantity7").innerHTML = formatNumbersToKMB(capturedArray[2]);
+    document.getElementById("battleResultsRow3Row1Quantity8").innerHTML = formatNumbersToKMB(capturedArray[3]);
+}
+
+export function setDefendingTerritoryCopyStart(object) {
+    return defendingTerritoryCopyStart = {...object}; //copies object not just reference it
+}
+
+export function setDefendingTerritoryCopyEnd(array) {
+    return defendingTerritoryCopyEnd = [...array]; //copies object not just reference it
+}
+
+     
