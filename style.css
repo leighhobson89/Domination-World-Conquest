@@ -2267,10 +2267,15 @@ td {
   height: 10%;
   display: flex;
   width: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
 }
 
 .battleResultsRow4Won {
-  background-color: green;
+  background-color: rgb(0, 128, 0);;
 }
 
 .battleResultsRow4Lost {
