@@ -2772,6 +2772,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
+                        toggleTransferAttackWindow(false);
+                        transferAttackWindowOnScreen = false;
                         toggleBattleUI(true);
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
@@ -2795,8 +2797,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleUIButton(true);
                         toggleBottomLeftPaneWithTurnAdvance(true);
                       }
-                      toggleTransferAttackWindow(false);
-                      transferAttackWindowOnScreen = false;
                       setTimeout(function() {
                           eventHandlerExecuted = false; // Reset the flag after a delay
                       }, 200);
@@ -3235,7 +3235,7 @@ function toggleUIButton(makeVisible) {
       battleUI.style.display = "block";
       svg.style.pointerEvents = 'none';
     } else if (!turnOnBattleUI) {
-      battleUI.style.display = "none";
+      battleUI.style.display = 'none';
     }
   }
   
