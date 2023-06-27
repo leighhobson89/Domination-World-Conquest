@@ -132,15 +132,9 @@ function selectRandomEvent() {
       "Food Disaster",
       "Oil Well Fire",
       "Warehouse Fire",
-      "Option 4",
-      "Option 5",
-      "Option 6",
-      "Option 7",
-      "Option 8",
-      "Option 9",
-      "Option 10"
+      "Mutiny"
   ];
   const randomIndex = Math.floor(Math.random() * events.length);
-  /* return events[randomIndex]; */
-  return events[0];
+  return events[randomIndex];
+  /* return events[0]; */
 }

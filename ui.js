@@ -99,7 +99,7 @@ const continentColorArray = [
 
 let teamColorArray = [];
 const greyOutColor = 'rgb(170, 170, 170)';
-const countryGreyOutThreshold = 10000; //countries under this strength greyed out
+const countryGreyOutThreshold = 11000; //countries under this strength greyed out //40
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");

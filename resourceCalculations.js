@@ -99,6 +99,8 @@ export const vehicleArmyWorth = {
     assault: 1000
 }
 
+export const armyCost = 1;
+
 export let totalPlayerResources = [];
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
@@ -216,7 +218,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         });
 
         if (matchingCountry) {
-            let totalArmyForCountry = matchingCountry.startingArmy;
+            let totalArmyForCountry = calculateStartingArmy(matchingCountry);
             let totalGoldForCountry = matchingCountry.res_gold;
             let totalOilForCountry = matchingCountry.res_oil;
             let totalFoodForCountry = matchingCountry.res_food;
@@ -252,7 +254,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             if (continent === "Europe") {
                 continentModifier = 15;
             } else if (continent === "North America") {
-                continentModifier = 15;
+                continentModifier = 14;
             } else if (continent === "Asia") {
                 continentModifier = 1;
             } else if (continent === "Oceania") {
@@ -274,10 +276,10 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 
             // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
-            let goldForCurrentTerritory = (totalGoldForCountry * ((area / 8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation / 50000)) * continentModifier);
+            let goldForCurrentTerritory = Math.max((totalGoldForCountry * ((area / 8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation / 50000)) * continentModifier), 300);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
-            let consMatsForCurrentTerritory = initialConsMatsCalculation(matchingCountry, area);
+            let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 300);
             let consMatsCapacity = consMatsForCurrentTerritory;
             let defenseBonus = 1;
             let farmsBuilt = 0;
@@ -438,7 +440,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
     for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-                changeGold = 10;
+                changeGold = calculateGoldChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
@@ -495,6 +497,55 @@ function calculateConsMatsChange(territory, isSimulation) {
     }
 
     return consMatsChange;
+}
+
+function calculateGoldChange(territory, isSimulation) {
+    let goldChange = 0;
+    let continentModifierGold;
+
+    if (territory.continent === "Europe") {
+        continentModifierGold = 1;
+    } else if (territory.continent === "North America") {
+        continentModifierGold = 1;
+    } else if (territory.continent === "Asia") {
+        continentModifierGold = 0.5;
+    } else if (territory.continent === "Oceania") {
+        continentModifierGold = 0.8;
+    } else if (territory.continent === "South America") {
+        continentModifierGold = 0.4;
+    } else if (territory.continent === "Africa") {
+        continentModifierGold = 0.3;
+    }
+
+    if (randomEventHappening && randomEvent === "Mutiny" && !isSimulation) { //gold disaster
+        const isRandomlyTrue = Math.random() >= 0.5;
+        if (isRandomlyTrue) {
+            let tempGold = territory.goldForCurrentTerritory;
+            territory.goldForCurrentTerritory = Math.floor(territory.goldForCurrentTerritory * 0.75);
+            console.log(territory.dataName + "'s " + territory.territoryName + "was hit by a mutiny and lost 25% its gold!");
+            console.log("It had " + tempGold + " but now it has " + territory.goldForCurrentTerritory);
+        } else {
+            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+        }
+    }
+
+    if (randomEvent !== "Mutiny" || !randomEventHappening) {
+        const areaScalingFactor = Math.log10(territory.area + 1);
+        const populationScalingFactor = Math.log10(territory.productiveTerritoryPop + 1);
+    
+        const goldIncome = (Math.max(territory.area / 10000000), 1) * parseFloat(territory.devIndex) * continentModifierGold * (territory.productiveTerritoryPop * 0.1) - territory.armyForCurrentTerritory * armyCost;
+        const modifier = areaScalingFactor * populationScalingFactor;
+        goldChange = Math.ceil(goldIncome / modifier) * 0.2;
+    
+        const minGoldChange = -800; //this will lift up small countries gold
+        const maxGoldChange = 1000; //increasing this will push down large countries
+    
+        const normalizedGoldChange = (goldChange - minGoldChange) / (maxGoldChange - minGoldChange);
+        const adjustedGoldChange = normalizedGoldChange * 100;
+        goldChange = adjustedGoldChange;
+      }
+    
+      return goldChange;
 }
 
 function calculateOilChange(territory, isSimulation) {
@@ -3896,4 +3947,11 @@ function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrent
 
 export function setDemandArray(value) {
     return demandArray = value;
+}
+
+function calculateStartingArmy(territory) {
+    let startingArmy = (territory.startingPop * 0.01) * parseFloat(territory.dev_index);
+    
+  
+    return startingArmy;
 }
