@@ -390,6 +390,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonState(2);
       setAdvanceButtonText(2, advanceButton);
       retreatButton.disabled = true;
       retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
@@ -424,6 +425,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonState(2);
       setAdvanceButtonText(4, advanceButton);
       retreatButton.disabled = true;
       retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
@@ -447,6 +449,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
       contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setAdvanceButtonState(2);
       setAdvanceButtonText(3, advanceButton);
       retreatButton.disabled = true;
       retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
@@ -611,7 +614,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
       } else if (allZeroDefend) {
         handleWarEndingsAndOptions(0, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
-      } else if (allZeroDefend) {
+      } else if (allZeroAttack) {
         handleWarEndingsAndOptions(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {
         break;
@@ -703,6 +706,10 @@ function calculateCombinedForce(army) {
 
   export function getUpdatedProbability() {
     return updatedProbability;
+  }
+
+  export function setUpdatedProbability(value) {
+    return updatedProbability = value;
   }
 
   
