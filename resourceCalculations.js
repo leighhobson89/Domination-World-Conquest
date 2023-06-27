@@ -9,7 +9,7 @@ import {
 } from './gameTurnsLoop.js';
 import {
     dataTableCountriesInitialState
-} from './ui.js';
+} from './initialData.js';
 import {
     setFlag
 } from './ui.js';
