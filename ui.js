@@ -1,3 +1,4 @@
+import { dataTableCountriesInitialState } from './initialData.js';
 import {
   findMatchingCountries
 } from './manualExceptionsForInteractions.js';
@@ -71,7 +72,6 @@ const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
-export let dataTableCountriesInitialState = [];
 export let pageLoaded = false;
 let eventHandlerExecuted = false;
 
@@ -335,18 +335,6 @@ export function svgMapLoaded() {
   }
 
   console.log("loaded!");
-  readDatabaseAndCreateDataArray(); //import all country data from database
-}
-
-function readDatabaseAndCreateDataArray() {
-  const xhr = new XMLHttpRequest();
-  xhr.open("GET", "http://localhost:8000/getWholeCountryTable.php", false);
-  xhr.onreadystatechange = function() {
-      if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-          dataTableCountriesInitialState = JSON.parse(xhr.responseText); //whole response of country table in this constant
-      }
-  };
-  xhr.send();
 }
 
 function selectCountry(country, escKeyEntry) {
