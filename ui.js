@@ -144,6 +144,7 @@ const advanceButton = document.getElementById("battleUIRow5Button2");
 const siegeButton = document.getElementById("siegeButton");
 
 let battleStart = true;
+let firstSetOfRounds = true;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -3480,12 +3481,25 @@ function toggleUIButton(makeVisible) {
                 setRetreatButtonText(retreatButtonState, retreatButton);
                 break;
             case 1:
-                processRound(currentRound,
-                    finalAttackArray,
-                    attackingArmyRemaining,
-                    defendingArmyRemaining,
-                    skirmishesPerRound);
-                    setCurrentRound(currentRound + 1);
+                if (!firstSetOfRounds && currentRound === 0) {
+                    retreatButton.disabled = false;
+                    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
+                    retreatButtonState = 0;
+                    setRetreatButtonText(retreatButtonState, retreatButton);
+                    setAdvanceButtonText(0, advanceButton);
+                    setCurrentRound(1);
+                    let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+                    let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+                    battleUIRow4Col1.innerHTML = "Starting";
+                    setArmyTextValues(attackArrayText, 1);
+                    let updatedProbability = getUpdatedProbability();
+                    setAttackProbabilityOnUI(updatedProbability, 1);
+                } else {
+                    advanceButtonState = 1;
+                    setAdvanceButtonText(advanceButtonState, advanceButton);
+                    retreatButtonState = 1;
+                    setRetreatButtonText(retreatButtonState, retreatButton);
+
                     //update UI text
                     let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
                     let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
@@ -3493,6 +3507,12 @@ function toggleUIButton(makeVisible) {
                     setArmyTextValues(attackArrayText, 1);
                     let updatedProbability = getUpdatedProbability();
                     setAttackProbabilityOnUI(updatedProbability, 1);
+                    processRound(currentRound,
+                        finalAttackArray,
+                        attackingArmyRemaining,
+                        defendingArmyRemaining,
+                        skirmishesPerRound);
+                }
                 break;
         }
         
@@ -3621,6 +3641,9 @@ function reduceKeywords(str) {
         case 4: // routing win
             button.innerHTML = "Rout The Enemy";
             break;
+        case 5: // routing win
+            button.innerHTML = "End Round";
+            break;
     }
 
     return situation;
@@ -3654,3 +3677,11 @@ function reduceKeywords(str) {
   export function getRetreatButtonState() {
     return retreatButtonState;
   }  
+
+  export function setFirstSetOfRounds(value) {
+    return firstSetOfRounds = value;
+  }
+
+  export function getFirstSetOfRounds() {
+    return firstSetOfRounds;
+  }
