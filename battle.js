@@ -564,8 +564,6 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
   }
 }
 
-
-
 export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackingArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
   combinedForceAttack = calculateCombinedForce(attackingArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
