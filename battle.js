@@ -23,7 +23,9 @@ import {
   setAdvanceButtonState,
   setRetreatButtonState,
   getAdvanceButtonState,
-  getRetreatButtonState
+  getRetreatButtonState,
+  setFirstSetOfRounds,
+  getFirstSetOfRounds
 
 } from './ui.js';
 
@@ -622,6 +624,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0)) {
     // Continue to the next round
     setCurrentRound(currentRound + 1);
+    console.log("Next round: " + getCurrentRound());
   } else {
     console.log("All rounds completed!");
     console.log("Attacking Units Remaining:", attackingArmyRemaining);
@@ -643,7 +646,6 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         handleWarEndingsAndOptions(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {                                                                             // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
-        setCurrentRound(1);
         defenseBonus /= 2;
         attackingArmyRemaining = attackingArmyRemaining.map(value => Math.max(0, Math.floor(value * 0.95)));
         initialCombinedForceAttack = calculateCombinedForce(attackingArmyRemaining);
@@ -663,10 +665,11 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         const retreatButton = document.getElementById("battleUIRow5Button1");
         const advanceButton = document.getElementById("battleUIRow5Button2");
 
-        setAdvanceButtonState(0);
-        setAdvanceButtonText(getAdvanceButtonState(), advanceButton);
-        setRetreatButtonState(0);
-        setRetreatButtonText(getRetreatButtonState(), retreatButton);
+        retreatButton.disabled = true;
+        retreatButton.style.backgroundColor = "rgb(128,128,128)";
+        setCurrentRound(0);
+        setFirstSetOfRounds(false);
+        setAdvanceButtonText(5, advanceButton);
       }
     }
   }
