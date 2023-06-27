@@ -65,7 +65,8 @@ import {
     skirmishesPerRound,
     setCurrentRound,
     getCurrentRound,
-    getUpdatedProbability
+    getUpdatedProbability,
+    setUpdatedProbability
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -3235,11 +3236,6 @@ function toggleUIButton(makeVisible) {
       svg.style.pointerEvents = 'none';
     } else if (!turnOnBattleUI) {
       battleUI.style.display = "none";
-      toggleUIButton(true);
-      uiButtonCurrentlyOnScreen = true;
-      toggleBottomLeftPaneWithTurnAdvance;
-      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-      svg.style.pointerEvents = 'auto';
     }
   }
   
@@ -3310,6 +3306,9 @@ function toggleUIButton(makeVisible) {
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
   function setupBattleUI(attackArray) {
+
+    setCurrentRound(0);
+
     const retreatButton = document.getElementById("battleUIRow5Button1");
     const advanceButton = document.getElementById("battleUIRow5Button2");
     const siegeButton = document.getElementById("siegeButton");
@@ -3454,6 +3453,7 @@ function toggleUIButton(makeVisible) {
         battleUIRow4Col1.innerHTML = "Starting";
         toggleBattleUI(false);
         battleUIDisplayed = false;
+        triggerWarResultPopup(1); //lost
         AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
     });
 
@@ -3503,6 +3503,14 @@ function toggleUIButton(makeVisible) {
                         defendingArmyRemaining,
                         skirmishesPerRound);
                 }
+                break;
+            case 2:
+                let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+                battleUIRow4Col1.innerHTML = "Starting";
+                AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+                triggerWarResultPopup(0); //won
+                toggleBattleUI(false);
+                battleUIDisplayed = false;
                 break;
         }
     });
@@ -3673,4 +3681,8 @@ function reduceKeywords(str) {
 
   export function getFirstSetOfRounds() {
     return firstSetOfRounds;
+  }
+
+  function triggerWarResultPopup() {
+    //todo
   }
