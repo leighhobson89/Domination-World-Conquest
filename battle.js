@@ -721,6 +721,7 @@ function calculateCombinedForce(army) {
   }
 
   export function setCurrentRound(value) {
+    console.log("round set to: " + value);
     return currentRound = value;
   }
 

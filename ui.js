@@ -3751,12 +3751,16 @@ function toggleUIButton(makeVisible) {
         
         if (!currentWarAlreadyInSiegeMode) {
           addRemoveWarSiegeObject(0, currentWarId); // add
+          console.log(siegeObject);
+          return;
         } else { // remove war from siege mode
           addRemoveWarSiegeObject(1, currentWarId); // remove
+          console.log(siegeObject);
+          return;
         }
         
-        console.log(siegeObject);
-      });
+        
+    }, {once : true});
       
 
     //click handler for retreat button
@@ -4270,7 +4274,7 @@ function reduceKeywords(str) {
     //SURVIVALS
     for (let i = 0; i < attackingSurvived.length; i++) {
         const element = document.getElementById(`battleResultsRow3Row1Quantity${i+1}`);
-        if (massiveAssault) {
+        if (massiveAssault && attackingSurvived[i] !== "-") {
             attackingSurvived[i] = Math.floor(attackingSurvived[i] * 0.8);
         }
         let formattedValue;
