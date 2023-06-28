@@ -60,6 +60,7 @@ export let defendingTerritory;
 export let defendingTerritoryId;
 export let defenseBonus;
 let rout = false;
+let massiveAssault = false;
 
 const unitTypes = ["infantry", "assault", "air", "naval"];
 const rounds = 5;
@@ -446,6 +447,7 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       break;
     case 3:
       won = true;
+      massiveAssault = true;
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
       //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
       setDefendingTerritoryCopyStart(contestedTerritory);
@@ -730,4 +732,12 @@ function calculateCombinedForce(army) {
 
   export function setRoutStatus(value) {
     return rout = value;
+  }
+
+  export function getMassiveAssaultStatus() {
+    return massiveAssault;
+  }
+
+  export function setMassiveAssaultStatus(value) {
+    return massiveAssault = value;
   }
