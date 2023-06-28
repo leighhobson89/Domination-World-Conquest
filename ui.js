@@ -3254,6 +3254,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     let imageSrc;
 
     if (buttonState === 0) {
+        document.getElementById("contentTransferHeaderColumn1").innerHTML = "";
         document.getElementById("percentageAttack").style.display = "none";
         document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
         document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
