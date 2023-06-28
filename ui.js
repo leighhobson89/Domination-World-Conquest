@@ -71,7 +71,9 @@ import {
     getRoutStatus,
     setRoutStatus,
     turnsDeactivatedArray,
-    defendingTerritory
+    defendingTerritory,
+    setMassiveAssaultStatus,
+    getMassiveAssaultStatus
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -158,8 +160,6 @@ let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
 let currentAttackingArmyRemaining;
 let roundCounterForStats = 0;
-let lastWar;
-
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -4045,12 +4045,10 @@ function reduceKeywords(str) {
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Won");
-        lastWar = 0;
     } else if (situation === 1) { //lost
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
         confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
-        lastWar = 1;
     }
 
     //MAIN STATS
@@ -4182,6 +4180,7 @@ function reduceKeywords(str) {
     }
 
     let rout = getRoutStatus();
+    let massiveAssault = getMassiveAssaultStatus();
     
 
     if (rout) {
@@ -4237,6 +4236,9 @@ function reduceKeywords(str) {
     //SURVIVALS
     for (let i = 0; i < attackingSurvived.length; i++) {
         const element = document.getElementById(`battleResultsRow3Row1Quantity${i+1}`);
+        if (massiveAssault) {
+            attackingSurvived[i] = Math.floor(attackingSurvived[i] * 0.8);
+        }
         let formattedValue;
         if (attackingSurvived[i] !== "-") {
             formattedValue = formatNumbersToKMB(attackingSurvived[i]);
@@ -4284,6 +4286,7 @@ function reduceKeywords(str) {
     }
 
       setRoutStatus(false);
+      setMassiveAssaultStatus(false);
 }
 
 export function setDefendingTerritoryCopyStart(object) {
