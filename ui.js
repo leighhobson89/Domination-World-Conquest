@@ -154,6 +154,7 @@ let firstSetOfRounds = true;
 let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
 let currentAttackingArmyRemaining;
+let roundCounterForStats = 0;
 
 
 //This determines how the map will be colored for different game modes
@@ -1918,13 +1919,12 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleResultsRow3Row3RoundsCount= document.createElement("div");
   battleResultsRow3Row3RoundsCount.classList.add("battleResultsRow3Row3Column");
   battleResultsRow3Row3RoundsCount.setAttribute("id","battleResultsRow3Row3RoundsCount");
-  battleResultsRow3Row3RoundsCount.innerHTML = "Rounds To Victory: ";
 
   const battleResultsRow3Row3SiegeStats = document.createElement("div");
   battleResultsRow3Row3SiegeStats.classList.add("battleResultsRow3Row3ColumnSiege");
   battleResultsRow3Row3SiegeStats.classList.add("battleResultsRowDivider");
   battleResultsRow3Row3SiegeStats.setAttribute("id","battleResultsRow3Row3SiegeStats");
-  battleResultsRow3Row3SiegeStats.innerHTML = "Sieged: ";
+  battleResultsRow3Row3SiegeStats.innerHTML = "Sieged: "; ///remove when doing siege stuff
 
   const battleResultsRow4 = document.createElement("button");
   battleResultsRow4.classList.add("battleResultsRow");
@@ -3778,6 +3778,7 @@ function toggleUIButton(makeVisible) {
                 setAdvanceButtonText(advanceButtonState, advanceButton);
                 retreatButtonState = 1;
                 setRetreatButtonText(retreatButtonState, retreatButton);
+                roundCounterForStats++;
                 break;
             case 1:
                 if (!firstSetOfRounds && currentRound === 0) {
@@ -3794,6 +3795,9 @@ function toggleUIButton(makeVisible) {
                     let updatedProbability = getUpdatedProbability();
                     setAttackProbabilityOnUI(updatedProbability, 1);
                 } else {
+                    if (advanceButton.innerHTML === "Commit To Battle") {
+                        roundCounterForStats++;
+                    }
                     advanceButtonState = 1;
                     setAdvanceButtonText(advanceButtonState, advanceButton);
                     retreatButtonState = 1;
@@ -4020,7 +4024,17 @@ function reduceKeywords(str) {
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
     }
 
+    //MAIN STATS
     setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation);
+
+    //ROUND COLUMN
+    if (situation === 0) {
+        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory: " + roundCounterForStats;
+    } else if (situation === 1) {
+        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:" + roundCounterForStats;
+    }
+
+    roundCounterForStats = 0;    
 
     confirmButtonBattleResults.addEventListener('mouseover', function() {
         confirmButtonBattleResults.style.cursor = "pointer";
@@ -4084,8 +4098,21 @@ function reduceKeywords(str) {
     // Calculate losses and survivors
     const attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);
 
-    if (retreatButtonState !== 2 && situation === 1) { //if not outright defeat
+    if ((retreatButtonState !== 2 && situation === 1) || (situation === 0)) { //if not outright defeat
         attackingSurvived = attackingArmyRemaining;
+    }
+
+    if (totalAttackingArmy[0] === 0) {
+        attackingSurvived[0] = "-";
+    }
+    if (totalAttackingArmy[1] === 0) {
+        attackingSurvived[1] = "-";
+    }
+    if (totalAttackingArmy[2] === 0) {
+        attackingSurvived[2] = "-";
+    }
+    if (totalAttackingArmy[3] === 0) {
+        attackingSurvived[3] = "-";
     }
     
     let defendingLosses = [];
@@ -4100,8 +4127,6 @@ function reduceKeywords(str) {
     if (rout) {
         capturedArray = [Math.floor(defendingTerritoryCopyEnd[0] / 2), Math.floor(defendingTerritoryCopyEnd[1] / 2), Math.floor(defendingTerritoryCopyEnd[2] / 2), Math.floor(defendingTerritoryCopyEnd[3] / 2), ]
     }
-
-    setRoutStatus(false);
 
     //LOSSES
     for (let i = 0; i < attackingLosses.length; i++) {
@@ -4134,30 +4159,53 @@ function reduceKeywords(str) {
     //SURVIVALS
     for (let i = 0; i < attackingSurvived.length; i++) {
         const element = document.getElementById(`battleResultsRow3Row1Quantity${i+1}`);
-        const formattedValue = formatNumbersToKMB(attackingSurvived[i]);
+        let formattedValue;
+        if (attackingSurvived[i] !== "-") {
+            formattedValue = formatNumbersToKMB(attackingSurvived[i]);
+        } else {
+            formattedValue = "-";
+        }
         
         element.innerHTML = formattedValue;
         
-        if (attackingSurvived[i] > 0) {
-          element.style.color = 'yellow';
+        if (attackingSurvived[i] !== "-") {
+            if (attackingSurvived[i] > 0) {
+                element.style.color = 'yellow';
+            } else {
+                element.style.color = 'rgb(220, 120, 120)';
+            }
         } else {
-            element.style.color = 'rgb(220, 120, 120)';
+            element.style.color = 'white';
         }
+        
       }
 
     //CAPTURED
     for (let i = 0; i < capturedArray.length; i++) {
         const element = document.getElementById(`battleResultsRow3Row1Quantity${i+5}`);
-        const formattedValue = formatNumbersToKMB(capturedArray[i]);
+        let formattedValue;
+
+        if (rout) {
+            formattedValue = formatNumbersToKMB(capturedArray[i]);
+        } else {
+            capturedArray[i] = "-";
+            formattedValue = "-";
+        } 
         
         element.innerHTML = formattedValue;
         
-        if (capturedArray[i] > 0) {
-          element.style.color = 'rgb(0, 200, 0)';
+        if (capturedArray[i] !== "-") {
+            if (capturedArray[i] > 0) {
+                element.style.color = 'rgb(0, 200, 0)';
+            } else {
+                element.style.color = 'yellow';
+            }
         } else {
-            element.style.color = 'yellow';
+            element.style.color = 'white';
         }
-      }
+    }
+
+      setRoutStatus(false);
 }
 
 export function setDefendingTerritoryCopyStart(object) {
