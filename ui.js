@@ -73,7 +73,10 @@ import {
     turnsDeactivatedArray,
     defendingTerritory,
     setMassiveAssaultStatus,
-    getMassiveAssaultStatus
+    getMassiveAssaultStatus,
+    getCurrentWarId,
+    addRemoveWarSiegeArray,
+    siegeArray
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -3728,6 +3731,23 @@ function toggleUIButton(makeVisible) {
             defendTerritory = mainArrayOfTerritoriesAndResources[i];
         }
     }
+
+    //click handler for siege button
+    siegeButton.addEventListener('click', function() {
+        let currentWarAlreadyInSiegeMode = false;
+        let currentWarId = getCurrentWarId();
+        for (let i = 0; i < siegeArray.length; i++) {
+            if (siegeArray[i].warId === currentWarId) {
+                currentWarAlreadyInSiegeMode = true;
+            }
+        }
+        if (!currentWarAlreadyInSiegeMode) { //add war to siege mode
+            addRemoveWarSiegeArray(0, currentWarId); //add
+        } else { //remove war from siege mode
+            addRemoveWarSiegeArray(1, currentWarId); //remove
+        }
+        console.log(siegeArray);
+    });
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
