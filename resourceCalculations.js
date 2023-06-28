@@ -3952,6 +3952,8 @@ export function setDemandArray(value) {
 function calculateStartingArmy(territory) {
     let startingArmy = (territory.startingPop * 0.01) * parseFloat(territory.dev_index);
     
-  
+    if (territory.country === "China" || territory.country === "India") {
+        startingArmy = Math.floor(startingArmy / 4); //moderate china and india due to their large starting pop
+    }
     return startingArmy;
 }
