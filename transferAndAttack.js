@@ -432,6 +432,13 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         });
 
     } else if (transferOrAttack === 1) { // attack
+        //remove deactivated territories from territoriesAbleToAttackArray 
+        for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
+            if (territoriesAbleToAttackTarget[i].getAttribute("deactivated") === "true") {
+              territoriesAbleToAttackTarget.splice(i, 1);
+              i--;
+            }
+          }
         // Create rows
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
