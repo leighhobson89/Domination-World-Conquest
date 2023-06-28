@@ -3766,6 +3766,7 @@ function toggleUIButton(makeVisible) {
             }
                  break;
         }
+        playSoundClip();
         let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
         battleUIRow4Col1.innerHTML = "Starting";
         toggleBattleUI(false);
@@ -3781,6 +3782,7 @@ function toggleUIButton(makeVisible) {
         let currentRound = getCurrentRound();
         switch (advanceButtonState) {
             case 0: //before battle to start it
+                playSoundClip();
                 battleStart = false;
                 transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
                 setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
@@ -3805,7 +3807,8 @@ function toggleUIButton(makeVisible) {
                     let updatedProbability = getUpdatedProbability();
                     setAttackProbabilityOnUI(updatedProbability, 1);
                 } else {
-                    if (advanceButton.innerHTML === "Commit To Battle") {
+                    if (advanceButton.innerHTML === "Commit To Round") {
+                        playSoundClip();
                         roundCounterForStats++;
                     }
                     advanceButtonState = 1;
@@ -3828,6 +3831,7 @@ function toggleUIButton(makeVisible) {
                 }
                 break;
             case 2:
+                playSoundClip();
                 let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
                 battleUIRow4Col1.innerHTML = "Starting";
                 AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
@@ -4065,6 +4069,7 @@ function reduceKeywords(str) {
     });
 
     confirmButtonBattleResults.addEventListener('click', function() {
+        playSoundClip();
         toggleBattleResults(false);
         battleResultsDisplayed = false;
         toggleUIButton(true);
