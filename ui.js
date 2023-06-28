@@ -11,7 +11,8 @@ import {
 } from "./gameTurnsLoop.js"
 import {
   allowSelectionOfCountry,
-  playerOwnedTerritories
+  playerOwnedTerritories,
+  turnGainsArray
 } from './resourceCalculations.js';
 import {
   populateBottomTableWhenSelectingACountry,
@@ -69,6 +70,7 @@ import {
     setUpdatedProbability,
     getRoutStatus,
     setRoutStatus,
+    turnsDeactivatedArray
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2921,9 +2923,17 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
           return;
       } else if (path.getAttribute("owner") === "Player") {
+
+        //if territory is deactivated, then get how many turns are left
+        let deactivatedTurnsLeft;
+        for (let i = 0; i < turnsDeactivatedArray.length; i++) {
+            if (path.getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
+                deactivatedTurnsLeft = (turnsDeactivatedArray[i][1] - turnsDeactivatedArray[i][2]) + 1;
+            }
+        }
           // if clicks on a player-owned territory then show button in transfer state
           if (path.getAttribute("deactivated") === "true") {
-            button.innerHTML = "DEACTIVATED";
+            button.innerHTML = "DEACTIVATED (" + deactivatedTurnsLeft + ")";
             button.classList.remove("move-phase-button-red-background");
             button.classList.remove("move-phase-button-green-background");
             button.classList.add("move-phase-button-grey-background");

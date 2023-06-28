@@ -37,7 +37,7 @@ export let finalAttackArray = [];
 export let proportionsOfAttackArray = [];
 let reuseableAttackingAverageDevelopmentIndex;
 let reuseableCombatContinentModifier;
-let turnsDeactivatedArray = [];
+export let turnsDeactivatedArray = [];
 
 export let currentRound = 1;
 export let attackingArmyRemaining;
