@@ -4141,15 +4141,19 @@ function reduceKeywords(str) {
 
     if (totalAttackingArmy[0] === 0) {
         attackingSurvived[0] = "-";
+        attackingLosses[0] = "-";
     }
     if (totalAttackingArmy[1] === 0) {
         attackingSurvived[1] = "-";
+        attackingLosses[1] = "-";
     }
     if (totalAttackingArmy[2] === 0) {
         attackingSurvived[2] = "-";
+        attackingLosses[2] = "-";
     }
     if (totalAttackingArmy[3] === 0) {
         attackingSurvived[3] = "-";
+        attackingLosses[3] = "-";
     }
     
     let defendingLosses = [];
@@ -4158,8 +4162,27 @@ function reduceKeywords(str) {
     defendingLosses[2] = totalDefendingArmy[2] - defendingTerritoryCopyEnd[2];
     defendingLosses[3] = totalDefendingArmy[3] - defendingTerritoryCopyEnd[3];
 
-    let rout = getRoutStatus();
     let capturedArray = [0, 0, 0, 0];
+
+    if (totalDefendingArmy[0] === 0) {
+        defendingLosses[0] = "-";
+        capturedArray[0] = "-";
+    }
+    if (totalDefendingArmy[1] === 0) {
+        defendingLosses[1] = "-";
+        capturedArray[1] = "-";
+    }
+    if (totalDefendingArmy[2] === 0) {
+        defendingLosses[2] = "-";
+        capturedArray[2] = "-";
+    }
+    if (totalDefendingArmy[3] === 0) {
+        defendingLosses[3] = "-";
+        capturedArray[3] = "-";
+    }
+
+    let rout = getRoutStatus();
+    
 
     if (rout) {
         capturedArray = [Math.floor(defendingTerritoryCopyEnd[0] / 2), Math.floor(defendingTerritoryCopyEnd[1] / 2), Math.floor(defendingTerritoryCopyEnd[2] / 2), Math.floor(defendingTerritoryCopyEnd[3] / 2), ]
@@ -4168,28 +4191,46 @@ function reduceKeywords(str) {
     //LOSSES
     for (let i = 0; i < attackingLosses.length; i++) {
         const element = document.getElementById(`battleResultsRow2Row2Quantity${i+1}`);
-        const formattedValue = formatNumbersToKMB(attackingLosses[i]);
+        let formattedValue;
+        if (attackingLosses[i] !== "-") {
+            formattedValue = formatNumbersToKMB(attackingLosses[i]);
+        } else {
+            formattedValue = "-";
+        }
         
         element.innerHTML = formattedValue;
-        
-        if (attackingLosses[i] > 0) {
-          element.style.color = 'rgb(220, 120, 120)';
+
+        if (attackingLosses[i] !== "-") {
+            if (attackingLosses[i] > 0) {
+                element.style.color = 'rgb(220, 120, 120)';
+            } else {
+                element.style.color = 'rgb(0, 200, 0)';
+            }
         } else {
-            element.style.color = 'rgb(0, 200, 0)';
+            element.style.color = 'white';
         }
       }
 
     //KILLS
     for (let i = 0; i < defendingLosses.length; i++) {
         const element = document.getElementById(`battleResultsRow2Row2Quantity${i+5}`);
-        const formattedValue = formatNumbersToKMB(defendingLosses[i]);
+        let formattedValue;
+        if (defendingLosses[i] !== "-") {
+            formattedValue = formatNumbersToKMB(defendingLosses[i]);
+        } else {
+            formattedValue = "-";
+        }
         
         element.innerHTML = formattedValue;
-        
-        if (defendingLosses[i] > 0) {
-          element.style.color = 'rgb(0, 200, 0)';
+
+        if (defendingLosses[i] !== "-") {
+            if (defendingLosses[i] > 0) {
+                element.style.color = 'rgb(0, 200, 0)';
+            } else {
+                element.style.color = 'yellow';
+            }
         } else {
-            element.style.color = 'yellow';
+            element.style.color = 'white';
         }
       }
 
@@ -4222,7 +4263,7 @@ function reduceKeywords(str) {
         const element = document.getElementById(`battleResultsRow3Row1Quantity${i+5}`);
         let formattedValue;
 
-        if (rout) {
+        if (rout && totalDefendingArmy[i] > 0) {
             formattedValue = formatNumbersToKMB(capturedArray[i]);
         } else {
             capturedArray[i] = "-";

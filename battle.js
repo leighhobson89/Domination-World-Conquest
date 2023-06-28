@@ -432,6 +432,10 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      turnGainsArray.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
+      turnGainsArray.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
+      turnGainsArray.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
+      turnGainsArray.changeNaval += Math.floor(defendingArmyRemaining[3] / 2);
       setAdvanceButtonState(2);
       setAdvanceButtonText(4, advanceButton);
       retreatButton.disabled = true;
