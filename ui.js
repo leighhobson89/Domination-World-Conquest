@@ -4104,28 +4104,60 @@ function reduceKeywords(str) {
     setRoutStatus(false);
 
     //LOSSES
-    document.getElementById("battleResultsRow2Row2Quantity1").innerHTML = formatNumbersToKMB(attackingLosses[0]);
-    document.getElementById("battleResultsRow2Row2Quantity2").innerHTML = formatNumbersToKMB(attackingLosses[1]);
-    document.getElementById("battleResultsRow2Row2Quantity3").innerHTML = formatNumbersToKMB(attackingLosses[2]);
-    document.getElementById("battleResultsRow2Row2Quantity4").innerHTML = formatNumbersToKMB(attackingLosses[3]);
+    for (let i = 0; i < attackingLosses.length; i++) {
+        const element = document.getElementById(`battleResultsRow2Row2Quantity${i+1}`);
+        const formattedValue = formatNumbersToKMB(attackingLosses[i]);
+        
+        element.innerHTML = formattedValue;
+        
+        if (attackingLosses[i] > 0) {
+          element.style.color = 'rgb(220, 120, 120)';
+        } else {
+            element.style.color = 'rgb(0, 200, 0)';
+        }
+      }
 
     //KILLS
-    document.getElementById("battleResultsRow2Row2Quantity5").innerHTML = formatNumbersToKMB(defendingLosses[0]);
-    document.getElementById("battleResultsRow2Row2Quantity6").innerHTML = formatNumbersToKMB(defendingLosses[1]);
-    document.getElementById("battleResultsRow2Row2Quantity7").innerHTML = formatNumbersToKMB(defendingLosses[2]);
-    document.getElementById("battleResultsRow2Row2Quantity8").innerHTML = formatNumbersToKMB(defendingLosses[3]);
+    for (let i = 0; i < defendingLosses.length; i++) {
+        const element = document.getElementById(`battleResultsRow2Row2Quantity${i+5}`);
+        const formattedValue = formatNumbersToKMB(defendingLosses[i]);
+        
+        element.innerHTML = formattedValue;
+        
+        if (defendingLosses[i] > 0) {
+          element.style.color = 'rgb(0, 200, 0)';
+        } else {
+            element.style.color = 'yellow';
+        }
+      }
 
     //SURVIVALS
-    document.getElementById("battleResultsRow3Row1Quantity1").innerHTML = formatNumbersToKMB(attackingSurvived[0]);
-    document.getElementById("battleResultsRow3Row1Quantity2").innerHTML = formatNumbersToKMB(attackingSurvived[1]);
-    document.getElementById("battleResultsRow3Row1Quantity3").innerHTML = formatNumbersToKMB(attackingSurvived[2]);
-    document.getElementById("battleResultsRow3Row1Quantity4").innerHTML = formatNumbersToKMB(attackingSurvived[3]);
+    for (let i = 0; i < attackingSurvived.length; i++) {
+        const element = document.getElementById(`battleResultsRow3Row1Quantity${i+1}`);
+        const formattedValue = formatNumbersToKMB(attackingSurvived[i]);
+        
+        element.innerHTML = formattedValue;
+        
+        if (attackingSurvived[i] > 0) {
+          element.style.color = 'yellow';
+        } else {
+            element.style.color = 'rgb(220, 120, 120)';
+        }
+      }
 
     //CAPTURED
-    document.getElementById("battleResultsRow3Row1Quantity5").innerHTML = formatNumbersToKMB(capturedArray[0]);
-    document.getElementById("battleResultsRow3Row1Quantity6").innerHTML = formatNumbersToKMB(capturedArray[1]);
-    document.getElementById("battleResultsRow3Row1Quantity7").innerHTML = formatNumbersToKMB(capturedArray[2]);
-    document.getElementById("battleResultsRow3Row1Quantity8").innerHTML = formatNumbersToKMB(capturedArray[3]);
+    for (let i = 0; i < capturedArray.length; i++) {
+        const element = document.getElementById(`battleResultsRow3Row1Quantity${i+5}`);
+        const formattedValue = formatNumbersToKMB(capturedArray[i]);
+        
+        element.innerHTML = formattedValue;
+        
+        if (capturedArray[i] > 0) {
+          element.style.color = 'rgb(0, 200, 0)';
+        } else {
+            element.style.color = 'yellow';
+        }
+      }
 }
 
 export function setDefendingTerritoryCopyStart(object) {
