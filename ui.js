@@ -372,7 +372,7 @@ function selectCountry(country, escKeyEntry) {
             }
         } else if (!selectCountryPlayerState && !escKeyEntry) { // in game state, colour player territories when clicked on
             for (let i = 0; i < paths.length; i++) {
-                if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
+                if (paths[i].getAttribute("owner") === "Player") {
                     paths[i].setAttribute('fill', playerColour);
                     if (territoryAboutToBeAttacked) {
                         removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false, false);
