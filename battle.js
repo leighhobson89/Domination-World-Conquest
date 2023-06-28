@@ -29,6 +29,7 @@ import {
   setFirstSetOfRounds,
   getFirstSetOfRounds,
   setDefendingTerritoryCopyStart,
+  retreatButtonState,
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -405,7 +406,8 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       setDefendingTerritoryCopyStart(contestedTerritory);
       //set main array to remaining defenders values
       defendingArmyRemaining.push(0); //add defeat type to array
-      setRetreatButtonText(2, retreatButton);
+      setRetreatButtonState(2);
+      setRetreatButtonText(retreatButtonState, retreatButton);
       retreatButton.disabled = false;
       advanceButton.disabled = true;
       advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
@@ -468,7 +470,8 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
       //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
       setDefendingTerritoryCopyStart(contestedTerritory);
       defendingArmyRemaining.push(1); //add defeat type to array
-      setRetreatButtonText(2, retreatButton);
+      setRetreatButtonState(2);
+      setRetreatButtonText(retreatButtonState, retreatButton);
       retreatButton.disabled = false;
       advanceButton.disabled = true;
       advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
