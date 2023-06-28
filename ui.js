@@ -75,8 +75,12 @@ import {
     setMassiveAssaultStatus,
     getMassiveAssaultStatus,
     getCurrentWarId,
-    addRemoveWarSiegeArray,
-    siegeArray
+    getNextWarId,
+    setCurrentWarId,
+    setNextWarId,
+    addRemoveWarSiegeObject,
+    siegeObject,
+    nextWarId
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -1651,7 +1655,7 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
   battleUIRow4Col2.setAttribute("id","battleUIRow4Col2");
 
-  const siegeButton = document.createElement("div");
+  const siegeButton = document.createElement("button");
   siegeButton.classList.add("siegeButton");
   siegeButton.setAttribute("id","siegeButton");
 
@@ -3073,9 +3077,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
+                        let nextwarId = getNextWarId();
+                        setCurrentWarId(nextWarId);
+                        setNextWarId(nextWarId + 1);
                         toggleTransferAttackWindow(false);
                         transferAttackWindowOnScreen = false;
                         toggleBattleUI(true);
+                        enableDisableSiegeButton(1); //disable siege button at start
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
@@ -3637,15 +3645,12 @@ function toggleUIButton(makeVisible) {
 
     retreatButton.classList.remove("battleUIRowButtonsGreyBg");
     advanceButton.classList.remove("battleUIRowButtonsGreyBg");
-    siegeButton.classList.remove("battleUIRowButtonsGreyBg");
 
     retreatButton.classList.add("battleUIRowButtonsRedBg");
     advanceButton.classList.add("battleUIRowButtonsGreenBg");
-    siegeButton.classList.add("siegeButtonBrownBg");
 
     retreatButton.disabled = false;
     advanceButton.disabled = false;
-    siegeButton.disabled = false;
 
     let flagStringAttacker;
     let flagStringDefender;
@@ -3732,22 +3737,27 @@ function toggleUIButton(makeVisible) {
         }
     }
 
-    //click handler for siege button
     siegeButton.addEventListener('click', function() {
         let currentWarAlreadyInSiegeMode = false;
         let currentWarId = getCurrentWarId();
-        for (let i = 0; i < siegeArray.length; i++) {
-            if (siegeArray[i].warId === currentWarId) {
-                currentWarAlreadyInSiegeMode = true;
-            }
+        
+        // Search the siegeObject for the warId
+        for (let territoryName in siegeObject) {
+          if (siegeObject.hasOwnProperty(territoryName) && siegeObject[territoryName].warId === currentWarId) {
+            currentWarAlreadyInSiegeMode = true;
+            break;
+          }
         }
-        if (!currentWarAlreadyInSiegeMode) { //add war to siege mode
-            addRemoveWarSiegeArray(0, currentWarId); //add
-        } else { //remove war from siege mode
-            addRemoveWarSiegeArray(1, currentWarId); //remove
+        
+        if (!currentWarAlreadyInSiegeMode) {
+          addRemoveWarSiegeObject(0, currentWarId); // add
+        } else { // remove war from siege mode
+          addRemoveWarSiegeObject(1, currentWarId); // remove
         }
-        console.log(siegeArray);
-    });
+        
+        console.log(siegeObject);
+      });
+      
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
@@ -3825,6 +3835,7 @@ function toggleUIButton(makeVisible) {
                 retreatButtonState = 1;
                 setRetreatButtonText(retreatButtonState, retreatButton);
                 roundCounterForStats++;
+                enableDisableSiegeButton(1);
                 break;
             case 1:
                 if (!firstSetOfRounds && currentRound === 0) {
@@ -3840,10 +3851,12 @@ function toggleUIButton(makeVisible) {
                     setArmyTextValues(attackArrayText, 1);
                     let updatedProbability = getUpdatedProbability();
                     setAttackProbabilityOnUI(updatedProbability, 1);
+                    enableDisableSiegeButton(0);
                 } else {
                     if (advanceButton.innerHTML === "Commit To Round") {
                         playSoundClip();
                         roundCounterForStats++;
+                        enableDisableSiegeButton(1);
                     }
                     advanceButtonState = 1;
                     setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -4320,6 +4333,17 @@ export function setDefendingTerritoryCopyEnd(array) {
 
 export function setCurrentAttackingArmyRemaining(array) {
     return currentAttackingArmyRemaining = [...array];
+}
+
+export function enableDisableSiegeButton(enableOrDisable) {
+    let siegeButton = document.getElementById("siegeButton");
+    if (enableOrDisable === 0) { //enable
+        siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
+        siegeButton.disabled = false;
+    } else if (enableOrDisable === 1) { //disable
+        siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+        siegeButton.disabled = true;
+    }
 }
 
      

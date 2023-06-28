@@ -29,7 +29,7 @@ import {
   setFirstSetOfRounds,
   getFirstSetOfRounds,
   setDefendingTerritoryCopyStart,
-  retreatButtonState,
+  retreatButtonState
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -60,9 +60,9 @@ export let defendingTerritory;
 export let defendingTerritoryId;
 export let defenseBonus;
 
-export let siegeArray = [];
-let currentWarId;
-let nextWarId = 0;
+export let siegeObject = {};
+export let currentWarId;
+export let nextWarId = 0;
 
 let rout = false;
 let massiveAssault = false;
@@ -231,8 +231,6 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
 }
 
 export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
-  currentWarId = nextWarId;
-  nextWarId++;
   console.log("warId = " + currentWarId);
   console.log("Battle Underway!");
   console.log("Probability of a win is: " + probability);
@@ -754,20 +752,29 @@ function calculateCombinedForce(army) {
     return currentWarId;
   }
 
-  export function addRemoveWarSiegeArray(addOrRemove, warId) {
-    if (addOrRemove === 0) { //add war to siege array
-      siegeArray.push({warId: warId,
+  export function getNextWarId() {
+    return nextWarId;
+  }
+
+  export function setCurrentWarId(value) {
+    return currentWarId = value;
+  }
+
+  export function setNextWarId(value) {
+    return nextWarId = value;
+  }
+
+  export function addRemoveWarSiegeObject(addOrRemove, warId) {
+    if (addOrRemove === 0) { // add war to siege object
+      siegeObject[defendingTerritory.territoryName] = {
+        warId: warId,
         defendingTerritory: defendingTerritory,
         defendingArmyRemaining: defendingArmyRemaining,
         defenseBonus: defendingTerritory.defenseBonus,
         attackingArmyRemaining: attackingArmyRemaining,
-        turnsInSiege: 0});
-    } else if (addOrRemove === 1) { //remove war from siege array
-      for (let i = 0; i < siegeArray.length; i++) {
-        if (siegeArray[i].warId === warId) {
-          siegeArray.splice(i, 1);
-          break;
-        }
-      }
+        turnsInSiege: 0
+      };
+    } else if (addOrRemove === 1) { // remove war from siege object
+      delete siegeObject[defendingTerritory.territoryName];
     }
   }
