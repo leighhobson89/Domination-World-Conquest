@@ -68,7 +68,7 @@ import {
     getUpdatedProbability,
     setUpdatedProbability,
     getRoutStatus,
-    setRoutStatus
+    setRoutStatus,
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -153,6 +153,7 @@ let firstSetOfRounds = true;
 
 let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
+let currentAttackingArmyRemaining;
 
 
 //This determines how the map will be colored for different game modes
@@ -3706,6 +3707,7 @@ function toggleUIButton(makeVisible) {
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
+        setDefendingTerritoryCopyStart(defendingTerritory);
         switch (retreatButtonState) {
             case 0: //before battle or between rounds of 5 - no penalty
                 if (!battleStart) {
@@ -3890,6 +3892,7 @@ export function setArmyTextValues(attackArray, situation) {
     document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
     document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
+    setCurrentAttackingArmyRemaining(totalAttackingArmy);
 }
 
 function reduceKeywords(str) {
@@ -4068,11 +4071,20 @@ function reduceKeywords(str) {
     totalDefendingArmy[2] = defendingTerritoryCopyStart.useableAir;
     totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
 
+    if (situation === 1) {
+        attackingArmyRemaining = currentAttackingArmyRemaining;
+        if (retreatButtonState === 1) { //scatter
+            for (let i = 0; i < attackingArmyRemaining.length; i++) {
+                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * 0.7);
+            }
+        }
+    }
+
     let attackingSurvived = [0, 0, 0, 0];
     // Calculate losses and survivors
     const attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);
 
-    if (situation === 0) {
+    if (retreatButtonState !== 2 && situation === 1) { //if not outright defeat
         attackingSurvived = attackingArmyRemaining;
     }
     
@@ -4122,6 +4134,10 @@ export function setDefendingTerritoryCopyStart(object) {
 
 export function setDefendingTerritoryCopyEnd(array) {
     return defendingTerritoryCopyEnd = [...array]; //copies object not just reference it
+}
+
+export function setCurrentAttackingArmyRemaining(array) {
+    return currentAttackingArmyRemaining = [...array];
 }
 
      
