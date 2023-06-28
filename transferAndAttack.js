@@ -935,46 +935,51 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
     console.log("To: " + transferArray[0] + " From: " + transferArray[1] + " Infantry: " + transferArray[2] + ", Assault: " + transferArray[3] + ", Air: " + transferArray[4] + ", Naval: " + transferArray[5]);
     let newArmyValueTo = 0;
     let newArmyValueFrom = 0;
+    let originalArmyValue;
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (parseInt(mainArrayOfTerritoriesAndResources[i].uniqueId) === transferArray[0]) { //To
-            for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-                if (parseInt(mainArrayOfTerritoriesAndResources[j].uniqueId) === transferArray[1]) { //From
-                    mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory += transferArray[2];
-                    newArmyValueTo += transferArray[2];
-                    mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory += transferArray[3];
-                    newArmyValueTo += transferArray[3] * vehicleArmyWorth.assault;
-                    mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory += transferArray[4];
-                    newArmyValueTo += transferArray[4] * vehicleArmyWorth.air;
-                    mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory += transferArray[5];
-                    newArmyValueTo += transferArray[5] * vehicleArmyWorth.naval;
-
-                    mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory -= transferArray[2];
-                    newArmyValueFrom -= transferArray[2];
-                    mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory -= transferArray[3];
-                    newArmyValueFrom -= transferArray[3] * vehicleArmyWorth.assault;
-                    mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory -= transferArray[4];
-                    newArmyValueFrom -= transferArray[4] * vehicleArmyWorth.air;
-                    mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory -= transferArray[5];
-                    newArmyValueFrom -= transferArray[5] * vehicleArmyWorth.naval;
-
-                    mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += newArmyValueTo;
-                    mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory += newArmyValueFrom;
-
-                    mainArrayOfTerritoriesAndResources[i].territoryPopulation += newArmyValueTo;
-                    mainArrayOfTerritoriesAndResources[j].territoryPopulation += newArmyValueFrom;
-
-                    /* mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[i].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex) - mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory); //commenting this means prod pop not updated til next turn on main ui but uncommenting screws up the army on the next turn.
-                    mainArrayOfTerritoriesAndResources[j].productiveTerritoryPop = (((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory); */
-
-                    colourTableText(document.getElementById("bottom-table"), mainArrayOfTerritoriesAndResources[j]);
-                    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory);
-                    document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].territoryPopulation) + ")";
-                    break;
-                }
+          for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+            if (parseInt(mainArrayOfTerritoriesAndResources[j].uniqueId) === transferArray[1]) { //From
+              mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory += transferArray[2];
+              newArmyValueTo += transferArray[2];
+              mainArrayOfTerritoriesAndResources[i].assaultForCurrentTerritory += transferArray[3];
+              newArmyValueTo += transferArray[3] * vehicleArmyWorth.assault;
+              mainArrayOfTerritoriesAndResources[i].airForCurrentTerritory += transferArray[4];
+              newArmyValueTo += transferArray[4] * vehicleArmyWorth.air;
+              mainArrayOfTerritoriesAndResources[i].navalForCurrentTerritory += transferArray[5];
+              newArmyValueTo += transferArray[5] * vehicleArmyWorth.naval;
+      
+              originalArmyValue = mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory;
+              mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory -= transferArray[2];
+              newArmyValueFrom -= transferArray[2];
+              mainArrayOfTerritoriesAndResources[j].assaultForCurrentTerritory -= transferArray[3];
+              newArmyValueFrom -= transferArray[3] * vehicleArmyWorth.assault;
+              mainArrayOfTerritoriesAndResources[j].airForCurrentTerritory -= transferArray[4];
+              newArmyValueFrom -= transferArray[4] * vehicleArmyWorth.air;
+              mainArrayOfTerritoriesAndResources[j].navalForCurrentTerritory -= transferArray[5];
+              newArmyValueFrom -= transferArray[5] * vehicleArmyWorth.naval;
+      
+              mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory += newArmyValueTo;
+              mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory += newArmyValueFrom;
+      
+              mainArrayOfTerritoriesAndResources[i].territoryPopulation += newArmyValueTo;
+              mainArrayOfTerritoriesAndResources[j].territoryPopulation += newArmyValueFrom;
+      
+              if (mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory < 0) {
+                mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory = 0;
+                mainArrayOfTerritoriesAndResources[j].territoryPopulation -= originalArmyValue;
+                mainArrayOfTerritoriesAndResources[j].oilDemand = 0;
+              }
+      
+              colourTableText(document.getElementById("bottom-table"), mainArrayOfTerritoriesAndResources[j]);
+              document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory);
+              document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(((((mainArrayOfTerritoriesAndResources[j].territoryPopulation) / 100) * 45) * mainArrayOfTerritoriesAndResources[j].devIndex) - mainArrayOfTerritoriesAndResources[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainArrayOfTerritoriesAndResources[j].territoryPopulation) + ")";
+              break;
             }
+          }
         }
-    }
+      }      
 }
 
 export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainArrayOfTerritoriesAndResources) {
