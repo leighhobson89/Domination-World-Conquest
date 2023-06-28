@@ -70,7 +70,8 @@ import {
     setUpdatedProbability,
     getRoutStatus,
     setRoutStatus,
-    turnsDeactivatedArray
+    turnsDeactivatedArray,
+    defendingTerritory
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -157,6 +158,7 @@ let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
 let currentAttackingArmyRemaining;
 let roundCounterForStats = 0;
+let lastWar;
 
 
 //This determines how the map will be colored for different game modes
@@ -263,10 +265,10 @@ export function svgMapLoaded() {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
           toggleTransferAttackButton(false);
           if (lastClickedPath.getAttribute("deactivated" === "false")) {
-            removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false);
+            removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false, false);
           }
           if (territoryAboutToBeAttacked) {
-            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, true, false);
+            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, true, false, false);
             document.getElementById("attack-destination-container").style.display = "none";
           }
           transferAttackButtonDisplayed = false;
@@ -373,7 +375,7 @@ function selectCountry(country, escKeyEntry) {
                 if (paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") {
                     paths[i].setAttribute('fill', playerColour);
                     if (territoryAboutToBeAttacked) {
-                        removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false);
+                        removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false, false);
                         document.getElementById("attack-destination-container").style.display = "none";
                         attackTextCurrentlyDisplayed = false;
                     }
@@ -613,7 +615,7 @@ document.addEventListener("DOMContentLoaded", function() {
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-          removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false);
+          removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false, false);
           toggleTransferAttackButton(false);
           transferAttackButtonDisplayed = false;
           restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
@@ -2065,7 +2067,7 @@ document.addEventListener("keydown", function(event) {
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttacked) {
-              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, true);
+              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, true, false);
               addImageToPath(territoryAboutToBeAttacked, "army.png");
           }
       }
@@ -2923,6 +2925,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
           return;
       } else if (path.getAttribute("owner") === "Player") {
+        territoryAboutToBeAttacked = null;
 
         //if territory is deactivated, then get how many turns are left
         let deactivatedTurnsLeft;
@@ -3080,6 +3083,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         }, 200);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0, 0);
+                        toggleTransferAttackWindow(false);
+                        transferAttackWindowOnScreen = false;
+                        toggleBottomLeftPaneWithTurnAdvance(true);
+                        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+                        toggleUIButton(true);
+                        uiButtonCurrentlyOnScreen = true;
+
                     }
                       territoryUniqueIds.length = 0;
 
@@ -3185,11 +3195,14 @@ function addImageToPath(pathElement, imagePath) {
 }
 
 
-export function removeImageFromPathAndRestoreNormalStroke(path, clickedSeaWithTerritoryToAttackSelected, escKeyEntry) {
+export function removeImageFromPathAndRestoreNormalStroke(path, clickedSeaWithTerritoryToAttackSelected, escKeyEntry, cameFromBattleLoss) {
   const imageElement = path.parentNode.getElementById("armyImage");
 
   if (imageElement) {
       imageElement.parentNode.removeChild(imageElement);
+      if (cameFromBattleLoss) {
+        return;
+      }
   }
   if (path !== territoryAboutToBeAttacked && escKeyEntry) {
     path.style.strokeDasharray = "none";
@@ -4032,10 +4045,12 @@ function reduceKeywords(str) {
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Won");
+        lastWar = 0;
     } else if (situation === 1) { //lost
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
         confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
+        lastWar = 1;
     }
 
     //MAIN STATS
@@ -4069,11 +4084,18 @@ function reduceKeywords(str) {
     });
 
     confirmButtonBattleResults.addEventListener('click', function() {
+        let defendingTerritory;
+        for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("territory-name") === flagStringDefender) {
+                defendingTerritory = paths[i];
+            }
+        }
         playSoundClip();
         toggleBattleResults(false);
         battleResultsDisplayed = false;
         toggleUIButton(true);
         toggleBottomLeftPaneWithTurnAdvance(true);
+        removeImageFromPathAndRestoreNormalStroke(defendingTerritory, false, false, true);
     });
   }
 
