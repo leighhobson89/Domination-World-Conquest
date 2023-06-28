@@ -2162,7 +2162,9 @@ td {
 .battleResultsRow2Row2 {
   display: flex;
   width: 100%;
-  height: 25%;
+  height: 30%;
+  background-color: rgb(54, 93, 125);
+  border-top: 1px white solid;
 }
 
 .battleResultsRow2Row2Quantity {
@@ -2170,14 +2172,15 @@ td {
   width: 12.5%;
   height: 100%;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   font-size: 1.7rem;
 }
 
 .battleResultsRow2Row3 {
   display: flex;
   width: 100%;
-  height: 25%;
+  height: 20%;
+  background-color: rgb(54, 93, 125);
 }
 
 .battleResultsRow2Row3Column {
@@ -2185,9 +2188,9 @@ td {
   width: 50%;
   height: 100%;
   justify-content: flex-start;
-  align-items: flex-start;
-  font-size: 1.7rem;
-  padding-left: 47px;
+  align-items: center;
+  font-size: 1.1rem;
+  padding-left: 10px;
 }
 
 .battleResultsRow3 {
@@ -2203,13 +2206,15 @@ td {
 .battleResultsRow3Row1 {
   display: flex;
   width: 100%;
-  height: 50%;
+  height: 25%;
+  background-color: rgb(54, 93, 125);
 }
 
 .battleResultsRow3Row2 {
   display: flex;
   width: 100%;
   height: 25%;
+  background-color: rgb(54, 93, 125);
 }
 
 .battleResultsRow3Row1Quantity {
@@ -2217,7 +2222,7 @@ td {
   width: 12.5%;
   height: 100%;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   font-size: 1.7rem;
 }
 
@@ -2226,35 +2231,36 @@ td {
   width: 50%;
   height: 100%;
   justify-content: flex-start;
-  align-items: flex-start;
-  font-size: 1.7rem;
-  padding-left: 47px;
+  align-items: center;
+  font-size: 1.1rem;
+  padding-left: 10px;
 }
 
 .battleResultsRow3Row3 {
   display: flex;
   width: 100%;
-  height: 25%;
+  height: 50%;
+  border-top: 1px white solid;
 }
 
 .battleResultsRow3Row3Column {
   display: flex;
   width: 50%;
   height: 100%;
-  justify-content: flex-start;
-  align-items: flex-start;
-  font-size: 1.7rem;
-  padding-left: 47px;
+  justify-content: center;
+  align-items: center;
+  font-size: 3rem;
+  font-weight: bold;
 }
 
 .battleResultsRow3Row3ColumnSiege {
   display: flex;
   width: 50%;
   height: 100%;
-  justify-content: flex-end;
-  align-items: flex-start;
-  font-size: 1.7rem;
-  padding-right: 47px;
+  justify-content: center;
+  align-items: center;
+  font-size: 3rem;
+  font-weight: bold;
 }
 
 .battleResultsRow3Row4 {
