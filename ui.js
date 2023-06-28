@@ -3942,10 +3942,10 @@ function reduceKeywords(str) {
   export function setAdvanceButtonText(situation, button) {
     switch (situation) {
         case 0: //open battle / start of attack round of 5
-            button.innerHTML = "Commit To Battle";
+            button.innerHTML = "Commit To Round";
             break;
         case 1: // midway through round of 5
-            button.innerHTML = "Next Round";
+            button.innerHTML = "Next Skirmish";
             break;
         case 2: // win war outright
             button.innerHTML = "Victory!";
