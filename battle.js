@@ -29,7 +29,8 @@ import {
   setFirstSetOfRounds,
   getFirstSetOfRounds,
   setDefendingTerritoryCopyStart,
-  retreatButtonState
+  retreatButtonState,
+  setAttackProbabilityOnUI
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -371,6 +372,8 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 }
 
 function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+  let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+  setArmyTextValues(attackArrayText, 1);
   const retreatButton = document.getElementById("retreatButton");
   const advanceButton = document.getElementById("advanceButton");
   const siegeButton = document.getElementById("siegeButton");
@@ -637,6 +640,13 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
       } else if (allZeroAttack) {
         handleWarEndingsAndOptions(1, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else {
+        //update UI text
+        let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+        let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
+        battleUIRow4Col1.innerHTML = "Starting";
+        setArmyTextValues(attackArrayText, 1);
+        let updatedProbability = getUpdatedProbability();
+        setAttackProbabilityOnUI(updatedProbability, 1);
         break;
       }
     }
@@ -679,7 +689,9 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         handleWarEndingsAndOptions(3, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
       } else if (combinedForceAttack < (0.10 * unchangeableWarStartCombinedForceAttack)) { // you were routed
         handleWarEndingsAndOptions(4, defendingTerritory, attackingArmyRemaining, defendingArmyRemaining);
-      } else {                                                                             // fight again
+      } else {   
+        let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];  
+        setArmyTextValues(attackArrayText, 1);                                                                        // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
         defenseBonus /= 2;
         attackingArmyRemaining = attackingArmyRemaining.map(value => Math.max(0, Math.floor(value * 0.95)));
@@ -775,7 +787,14 @@ function calculateCombinedForce(army) {
         attackingArmyRemaining: attackingArmyRemaining,
         turnsInSiege: 0
       };
+
+      return siegeObject[defendingTerritory.territoryName].defendingTerritory;
+
     } else if (addOrRemove === 1) { // remove war from siege object
       delete siegeObject[defendingTerritory.territoryName];
     }
+  }
+
+  export function getDefendingTerritory() {
+    return defendingTerritory;
   }
