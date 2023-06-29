@@ -2011,7 +2011,7 @@ td {
   white-space: pre;
 }
 
-.battleUIRow5Button1 {
+.retreatButton {
   display: flex;
   width: 50%;
   height: 100%;
@@ -2024,7 +2024,7 @@ td {
   color: white;
 }
 
-.battleUIRow5Button2 {
+.advanceButton {
   display: flex;
   width: 50%;
   height: 100%;
@@ -2037,11 +2037,11 @@ td {
   color: white;
 }
 
-.battleUIRow5Button1:hover {
+.retreatButton:hover {
   cursor: pointer;
 }
 
-.battleUIRow5Button2:hover {
+.advanceButton:hover {
   cursor: pointer;
 }
 

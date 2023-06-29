@@ -371,8 +371,8 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 }
 
 function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
-  const retreatButton = document.getElementById("battleUIRow5Button1");
-  const advanceButton = document.getElementById("battleUIRow5Button2");
+  const retreatButton = document.getElementById("retreatButton");
+  const advanceButton = document.getElementById("advanceButton");
   const siegeButton = document.getElementById("siegeButton");
   
   let contestedPath;
@@ -656,7 +656,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   updatedProbability = calculateProbabiltyPreBattle(attackingArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
   console.log("New probability for next round is:", updatedProbability);
 
-  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0)) {
+  if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && currentRound !== 0) {
     // Continue to the next round
     setCurrentRound(currentRound + 1);
     console.log("Next round: " + getCurrentRound());
@@ -697,8 +697,8 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
         skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
-        const retreatButton = document.getElementById("battleUIRow5Button1");
-        const advanceButton = document.getElementById("battleUIRow5Button2");
+        const retreatButton = document.getElementById("retreatButton");
+        const advanceButton = document.getElementById("advanceButton");
 
         retreatButton.disabled = true;
         retreatButton.style.backgroundColor = "rgb(128,128,128)";
