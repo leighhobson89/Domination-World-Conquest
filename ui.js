@@ -2026,7 +2026,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     
-}, {once : true});
+});
   
 
 //click handler for retreat button
@@ -2143,14 +2143,14 @@ advanceButton.addEventListener('click', function() {
                 let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
                 let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
                 battleUIRow4Col1.innerHTML = "Starting";
-                setArmyTextValues(attackArrayText, 1);
-                let updatedProbability = getUpdatedProbability();
-                setAttackProbabilityOnUI(updatedProbability, 1);
                 processRound(currentRound,
                     finalAttackArray,
                     attackingArmyRemaining,
                     defendingArmyRemaining,
                     skirmishesPerRound);
+                setArmyTextValues(attackArrayText, 1);
+                let updatedProbability = getUpdatedProbability();
+                setAttackProbabilityOnUI(updatedProbability, 1);
             }
             break;
         case 2:
@@ -3921,7 +3921,7 @@ function setTitleTextBattleUI(attacker, defender) {
 export function setArmyTextValues(attackArray, situation) {
     let totalAttackingArmy = [0,0,0,0];
     let totalDefendingArmy = [0,0,0,0];
-    if (situation === 0) {
+    if (situation === 0) { //pre battle
          //get attacking army
         for (let i = 1; i < attackArray.length; i+= 5) {
             const infantryCount = attackArray[i + 1];
