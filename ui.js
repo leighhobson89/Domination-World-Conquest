@@ -2061,9 +2061,13 @@ siegeButton.addEventListener('mouseout', function() {
       }
     }
     
-    //turn off battle ui 
+    //turn off battle ui and activate map again
     toggleBattleUI(false, true);
     battleUIDisplayed = false;
+    toggleUIButton(true);
+    uiButtonCurrentlyOnScreen = true;
+    toggleBottomLeftPaneWithTurnAdvance(true);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
 
     if (!currentWarAlreadyInSiegeMode) {
       let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId); // add to siege
