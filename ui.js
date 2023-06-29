@@ -274,7 +274,6 @@ export function svgMapLoaded() {
           }
           if (territoryAboutToBeAttacked && lastClickedPath.getAttribute("underSiege") === "false") {
             removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Sea");
-            document.getElementById("attack-destination-container").style.display = "none";
           }
           transferAttackButtonDisplayed = false;
           attackTextCurrentlyDisplayed = false;
@@ -391,10 +390,10 @@ function selectCountry(country, escKeyEntry) {
                 if (paths[i].getAttribute("owner") === "Player") {
                     paths[i].setAttribute('fill', playerColour);
                     if (territoryAboutToBeAttacked) {
+                        document.getElementById("attack-destination-container").style.display = "none";
+                        attackTextCurrentlyDisplayed = false;
                         if (lastClickedPath.getAttribute("underSiege") === "false") {
-                            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "");
-                            document.getElementById("attack-destination-container").style.display = "none";
-                            attackTextCurrentlyDisplayed = false;
+                            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "");  
                         }
                     }
                 }
