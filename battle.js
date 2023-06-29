@@ -778,6 +778,7 @@ function calculateCombinedForce(army) {
   }
 
   export function addRemoveWarSiegeObject(addOrRemove, warId) {
+    const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritory.territoryName] = {
         warId: warId,
@@ -785,7 +786,8 @@ function calculateCombinedForce(army) {
         defendingArmyRemaining: defendingArmyRemaining,
         defenseBonus: defendingTerritory.defenseBonus,
         attackingArmyRemaining: attackingArmyRemaining,
-        turnsInSiege: 0
+        turnsInSiege: 0,
+        strokeColor: strokeColor
       };
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
@@ -797,4 +799,12 @@ function calculateCombinedForce(army) {
 
   export function getDefendingTerritory() {
     return defendingTerritory;
+  }
+
+  function getStrokeColorOfDefendingTerritory(defendingTerritory) {
+    for (let i = 0; i < paths.length; i++) {
+      if (paths[i].getAttribute("uniqueid") === defendingTerritory.uniqueId) {
+        return paths[i].style.stroke;
+      }
+    }
   }
