@@ -2078,7 +2078,7 @@ siegeButton.addEventListener('mouseout', function() {
 
       //set graphics for territory under siege (include defense bonus)
       removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Siege");
-      addImageToPath(territoryAboutToBeAttacked, "siege.png");
+      addImageToPath(territoryAboutToBeAttacked, "siege.png", true);
 
       //in select country, add siege conditions so it doesnt screw up when not selected
       //set button state when siege territory selected //number of turns sieged
@@ -2302,7 +2302,7 @@ document.addEventListener("keydown", function(event) {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttacked) {
               removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "EscapeKey");
-              addImageToPath(territoryAboutToBeAttacked, "battle.png");
+              addImageToPath(territoryAboutToBeAttacked, "battle.png", false);
           }
       }
 
@@ -3423,21 +3423,20 @@ function setTerritoryForAttack(territoryToAttack) {
   document.getElementById("attack-destination-container").style.display = "flex";
   attackTextCurrentlyDisplayed = true;
   if (territoryToAttack.getAttribute("underSiege") === "true") {
-    territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
-    territoryToAttack.setAttribute("fill", playerColour);
+    territoryToAttack.style.stroke = siegeObject[territoryToAttack.getAttribute("territory-name")].strokeColor;
     territoryToAttack.setAttribute("stroke-width", "5px");
     territoryToAttack.style.strokeDasharray = "10, 5";
-    addImageToPath(territoryToAttack, "siege.png");
+    addImageToPath(territoryToAttack, "siege.png", true);
   } else {
     territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
     territoryToAttack.setAttribute("fill", playerColour);
     territoryToAttack.setAttribute("stroke-width", "5px");
     territoryToAttack.style.strokeDasharray = "10, 5";
-    addImageToPath(territoryToAttack, "battle.png");
+    addImageToPath(territoryToAttack, "battle.png", false);
   }
 }
 
-function addImageToPath(pathElement, imagePath) {
+function addImageToPath(pathElement, imagePath, siege) {
   const pathBounds = pathElement.getBBox();
 
   const centerX = pathBounds.x + pathBounds.width / 2;
@@ -3458,13 +3457,24 @@ function addImageToPath(pathElement, imagePath) {
   imageElement.setAttribute("width", imageWidth);
   imageElement.setAttribute("height", imageHeight);
   imageElement.setAttribute("z-index", 9999);
-  imageElement.setAttribute("id", "territoryImage"); // Add ID "territoryImage" to the image element
 
+  if (siege) {
+    imageElement.setAttribute("id", "siegeImage"); // Add ID "territoryImage" to the image element
+  } else {
+    imageElement.setAttribute("id", "attackImage"); // Add ID "territoryImage" to the image element
+  }
+  
   pathElement.parentNode.appendChild(imageElement);
 }
 
 export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
-    const imageElement = path.parentNode.getElementById("territoryImage");
+    let imageElement;
+    if (path.getAttribute("underSiege") === "true" && whereExecuted !== "Siege" && path === lastClickedPath) {
+        imageElement = path.parentNode.getElementById("siegeImage");
+    } else{
+        imageElement = path.parentNode.getElementById("attackImage");
+    }
+    
   
     if (imageElement) {
       imageElement.parentNode.removeChild(imageElement);
