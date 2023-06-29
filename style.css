@@ -1800,6 +1800,9 @@ td {
   display: flex;
   width: 100%;
   border-bottom: 1px solid rgb(54, 93, 125);
+  color: yellow;
+  font-size: 1.8rem;
+  font-weight: bold;
 }
 
 .battleUIRow2AttackBg {

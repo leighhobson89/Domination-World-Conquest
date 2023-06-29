@@ -1544,7 +1544,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUITitleTitleCenter = document.createElement("div");
   battleUITitleTitleCenter.classList.add("centerTitleBattle");
   battleUITitleTitleCenter.setAttribute("id","battleUITitleTitleCenter");
-  battleUITitleTitleCenter.innerHTML = "vs";
 
   const battleUITitleTitleRight = document.createElement("div");
   battleUITitleTitleRight.classList.add("rightHalfTitleBattle");
@@ -3317,10 +3316,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
-                        let war = getWarById(territoryAboutToBeAttackedOrSieged); //Identify correct war in siege array
                         enableDisableSiegeButton(0)
 
-                        /* setupBattleUI(finalAttackArray);*/ //TODO CHANGE THIS TO SETUP THE UI FOR SIEGE
+                        setupSiegeUI(territoryAboutToBeAttackedOrSieged); //TODO CHANGE THIS TO SETUP THE UI FOR SIEGE
 
                         setTimeout(function() {
                             eventHandlerExecuted = false; // Reset the flag after a delay
@@ -3936,6 +3934,44 @@ function toggleUIButton(makeVisible) {
   
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
+  function setupSiegeUI(territory) {
+    const siegeObjectElement = getSiegeObject(territory);
+    const siegeButton = document.getElementById("siegeButton");
+
+    const attackerCountry = playerCountry;
+    const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
+
+    //SET FLAGS
+    setFlag(attackerCountry, 4);
+    setFlag(defenderTerritory, 5);
+
+    //SET TITLE TEXT
+    setTitleTextBattleUI(attackerCountry, defenderTerritory, 1);
+
+    document.getElementById("battleUITitleTitleCenter").innerHTML = "Sieges";
+
+    prepareProbabilityBar(1);
+
+    //SET ARMY TEXT VALUES
+    setArmyTextValues(finalAttackArray, 0);
+
+    //INITIALISE BUTTONS
+    retreatButtonState = setRetreatButtonText(0, retreatButton);
+    advanceButtonState = 0;
+    setAdvanceButtonText(6, advanceButton);
+    siegeButtonState = setSiegeButtonText(0, siegeButton);
+
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
+        }
+        if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            defendTerritory = mainArrayOfTerritoriesAndResources[i];
+        }
+    }
+
+
+  } 
   function setupBattleUI(attackArray) {
 
     setCurrentRound(0);
@@ -3978,7 +4014,11 @@ function toggleUIButton(makeVisible) {
     setFlag(flagStringDefender, 5);
 
     //SET TITLE TEXT
-    setTitleTextBattleUI(attackerCountry, defenderTerritory);
+    setTitleTextBattleUI(attackerCountry, defenderTerritory, 0);
+
+    document.getElementById("battleUITitleTitleCenter").innerHTML = "vs";
+    document.getElementById("probabilityColumnBox").style.display = "flex";
+    prepareProbabilityBar(0);
 
     //SET PROBABILITY ON UI
     setAttackProbabilityOnUI(probability, 1);
@@ -4002,18 +4042,26 @@ function toggleUIButton(makeVisible) {
     }
 }
 
-function setTitleTextBattleUI(attacker, defender) {
+function setTitleTextBattleUI(attacker, defender, attackSiege) {
     let attackerContainer = document.getElementById("battleUITitleTitleLeft");
     let defenderContainer = document.getElementById("battleUITitleTitleRight");
 
-    let attackerCountry = attacker.getAttribute("data-name");
-    let defenderTerritory = defender.getAttribute("territory-name");
+    if (attackSiege === 0) { //attack
+        let attackerCountry = attacker.getAttribute("data-name");
+        let defenderTerritory = defender.getAttribute("territory-name");
 
-    attackerCountry = reduceKeywords(attackerCountry);
-    defenderTerritory = reduceKeywords(defenderTerritory);
+        attackerCountry = reduceKeywords(attackerCountry);
+        defenderTerritory = reduceKeywords(defenderTerritory);
 
-    attackerContainer.innerHTML = attackerCountry;
-    defenderContainer.innerHTML = defenderTerritory;
+        attackerContainer.innerHTML = attackerCountry;
+        defenderContainer.innerHTML = defenderTerritory;
+    } else if (attackSiege === 1) { //siege
+        attacker = reduceKeywords(attacker);
+        defender = reduceKeywords(defender);
+
+        attackerContainer.innerHTML = attacker;
+        defenderContainer.innerHTML = defender;
+    }
 }
 
 export function setArmyTextValues(attackArray, situation) {
@@ -4463,9 +4511,34 @@ export function enableDisableSiegeButton(enableOrDisable) {
     }
 }
 
-export function getWarById(territory) {
+export function getSiegeObject(territory) {
     if (territory.getAttribute("territory-name") in siegeObject) {
-      return siegeObject[territory.getAttribute("territory-name")].warId;
+    return siegeObject[territory.getAttribute("territory-name")];
     }
-  }
+}
+
+function prepareProbabilityBar(siegeOrAttack) {
+    const battleUIRow2 = document.getElementById("battleUIRow2");
+    const probabilityColumnBox = document.getElementById("probabilityColumnBox");
+
+    if (siegeOrAttack === 0) { // Attack
+        probabilityColumnBox.style.display = "flex";
+        battleUIRow2.classList.remove("battleUIRow2SiegeBg");
+        battleUIRow2.classList.add("battleUIRow2AttackBg");
+        battleUIRow2.style.backgroundColor = "rgb(131, 38, 38)";
+        battleUIRow2.style.alignItems = "none";
+        battleUIRow2.style.justifyContent = "none";
+        battleUIRow2.innerHTML = "";
+        battleUIRow2.appendChild(probabilityColumnBox);
+    } else if (siegeOrAttack === 1) { // Siege
+        probabilityColumnBox.style.display = "none";
+        battleUIRow2.classList.remove("battleUIRow2AttackBg");
+        battleUIRow2.classList.add("battleUIRow2SiegeBg");
+        battleUIRow2.style.backgroundColor = "rgb(114, 88, 48)";
+        battleUIRow2.style.alignItems = "center";
+        battleUIRow2.style.justifyContent = "center";
+        battleUIRow2.removeChild(probabilityColumnBox);
+        battleUIRow2.innerHTML = "Under Siege!";
+    }      
+}
   
