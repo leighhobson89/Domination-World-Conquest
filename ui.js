@@ -2081,10 +2081,10 @@ siegeButton.addEventListener('mouseout', function() {
 
       currentMapColorAndStrokeArray = saveMapColorState(false);
 
-      //in select country, add siege conditions so it doesnt screw up when not selected
-      //set button state when siege territory selected //number of turns sieged
+
       console.log(siegeObject);
       return;
+
     } else { // remove war from siege mode
       addRemoveWarSiegeObject(1, currentWarId); // remove
 
@@ -3218,7 +3218,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           setTerritoryForAttack(path);
       } else if (path.getAttribute("underSiege") === "true") {
         // if clicks on an enemy territory that is within reach but under siege then set it up for that
-        button.innerHTML = "LIFT SIEGE"; // + TODO turns under siege so far
+        button.innerHTML = "LIFT SIEGE (" + siegeObject[path.getAttribute("territory-name")].turnsInSiege + ")";
         button.classList.remove("move-phase-button-green-background");
         button.classList.remove("move-phase-button-grey-background");
         button.classList.remove("move-phase-button-red-background");

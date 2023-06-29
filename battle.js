@@ -808,3 +808,11 @@ function calculateCombinedForce(army) {
       }
     }
   }
+  
+export function incrementSiegeTurns() {
+  for (const territory in siegeObject) {
+    if (siegeObject.hasOwnProperty(territory)) {
+      siegeObject[territory].turnsInSiege += 1;
+    }
+  }
+}

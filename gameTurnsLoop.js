@@ -12,7 +12,8 @@ import {
   mainArrayOfTerritoriesAndResources
 } from './resourceCalculations.js';
 import {
-  activateAllTerritoriesForNewTurn
+  activateAllTerritoriesForNewTurn,
+  incrementSiegeTurns
 } from './battle.js';
 
 export let currentTurn = 1;
@@ -41,6 +42,7 @@ export function initialiseGame() {
 
 function gameLoop() {
   activateAllTerritoriesForNewTurn();
+  incrementSiegeTurns();
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");
   randomEventHappening = handleRandomEventLikelihood();
