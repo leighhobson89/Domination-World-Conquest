@@ -80,7 +80,7 @@ import {
     setNextWarId,
     addRemoveWarSiegeObject,
     siegeObject,
-    nextWarId
+    nextWarId,
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -155,10 +155,6 @@ export let transferToTerritory;
 export let retreatButtonState;
 export let advanceButtonState;
 export let siegeButtonState;
-
-const retreatButton = document.getElementById("retreatButton");
-const advanceButton = document.getElementById("advanceButton");
-const siegeButton = document.getElementById("siegeButton");
 
 let battleStart = true;
 let firstSetOfRounds = true;
@@ -274,10 +270,10 @@ export function svgMapLoaded() {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
           toggleTransferAttackButton(false);
           if (lastClickedPath.getAttribute("deactivated" === "false")) {
-            removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false, false);
+            removeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
           }
           if (territoryAboutToBeAttacked) {
-            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, true, false, false);
+            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Sea");
             document.getElementById("attack-destination-container").style.display = "none";
           }
           transferAttackButtonDisplayed = false;
@@ -362,6 +358,7 @@ export function svgMapLoaded() {
 
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
+    if (country.getAttribute("underSiege" === false)) {
         const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
 
         if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
@@ -370,6 +367,16 @@ function selectCountry(country, escKeyEntry) {
         } else {
         svgMap.documentElement.appendChild(country);
         }
+    } else {
+        const siegedPaths = paths.filter(path => path.getAttribute("underSiege") === "true");
+
+        if (siegedPaths.length > 0) { //make sure order correct for sieged paths
+        const lowestIndex = paths.indexOf(siegedPaths[0]);
+        svgMap.documentElement.insertBefore(country, paths[lowestIndex]);
+        } else {
+        svgMap.documentElement.appendChild(country);
+        }
+    }
 
         if (selectCountryPlayerState && !escKeyEntry) { //in select country state, colour territory and other connected clicked on
             for (let i = 0; i < paths.length; i++) {
@@ -384,9 +391,11 @@ function selectCountry(country, escKeyEntry) {
                 if (paths[i].getAttribute("owner") === "Player") {
                     paths[i].setAttribute('fill', playerColour);
                     if (territoryAboutToBeAttacked) {
-                        removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, false, false);
-                        document.getElementById("attack-destination-container").style.display = "none";
-                        attackTextCurrentlyDisplayed = false;
+                        if (lastClickedPath.getAttribute("underSiege") === "false") {
+                            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "");
+                            document.getElementById("attack-destination-container").style.display = "none";
+                            attackTextCurrentlyDisplayed = false;
+                        }
                     }
                 }
             }
@@ -395,6 +404,8 @@ function selectCountry(country, escKeyEntry) {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previusly been clicked, handle deselecting previous
             for (let i = 0; i < paths.length; i++) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
+                    paths[i].setAttribute('fill', playerColour);
+                } else if (paths[i].getAttribute("underSiege") === "true") {
                     paths[i].setAttribute('fill', playerColour);
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     if (mapMode === 0) {
@@ -425,10 +436,10 @@ function selectCountry(country, escKeyEntry) {
 
       if (lastClickedPath !== null && !escKeyEntry) {
           if (lastClickedPath.getAttribute('d') !== 'M0 0 L50 50') {
-            if (lastClickedPath.getAttribute("deactivated") === "false") {
+            if (lastClickedPath.getAttribute("deactivated") === "false" && lastClickedPath.getAttribute("underSiege") === "false") {
                 lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
             }
-            if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player") {
+            if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player" && lastClickedPath.getAttribute("underSiege") === "false") {
                   setStrokeWidth(lastClickedPath, "1");
             }
           }
@@ -624,7 +635,7 @@ document.addEventListener("DOMContentLoaded", function() {
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-          removeImageFromPathAndRestoreNormalStroke(lastClickedPath, false, false, false);
+          removeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
           toggleTransferAttackButton(false);
           transferAttackButtonDisplayed = false;
           restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
@@ -2003,6 +2014,42 @@ document.addEventListener("DOMContentLoaded", function() {
 
   document.getElementById("battleResultsContainer").appendChild(battleResultsContainer);
 
+  retreatButton.addEventListener('mouseover', function() {
+    if (!retreatButton.disabled) {
+        retreatButton.style.backgroundColor = "rgb(151, 68, 68)";
+    }
+});
+
+retreatButton.addEventListener('mouseout', function() {
+    if (!retreatButton.disabled) {
+        retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
+    }
+});
+
+advanceButton.addEventListener('mouseover', function() {
+    if (!advanceButton.disabled) {
+        advanceButton.style.backgroundColor = "rgb(30,158,30)";
+    }
+});
+
+advanceButton.addEventListener('mouseout', function() {
+    if (!advanceButton.disabled) {
+        advanceButton.style.backgroundColor = "rgb(0,128,0)";
+    }
+});
+
+siegeButton.addEventListener('mouseover', function() {
+    if (!siegeButton.disabled) {
+        siegeButton.style.backgroundColor = "rgb(144,118,78)";
+    }
+});
+
+siegeButton.addEventListener('mouseout', function() {
+    if (!siegeButton.disabled) {
+        siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
+    }        
+});
+
   siegeButton.addEventListener('click', function() {
     let currentWarAlreadyInSiegeMode = false;
     let currentWarId = getCurrentWarId();
@@ -2016,35 +2063,57 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     if (!currentWarAlreadyInSiegeMode) {
-      addRemoveWarSiegeObject(0, currentWarId); // add
+      let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId); // add to siege
+
+      //turn off battle ui 
+      toggleBattleUI(false, true);
+      battleUIDisplayed = false;
+
+      for (let i = 0; i < paths.length; i++) {
+        //set in siege mode on svg
+        if (paths[i].getAttribute("territory-name") === territoryToAddToSiege.territoryName) {
+            paths[i].setAttribute("underSiege", "true");
+        }
+      }
+
+      //set graphics for territory under siege (include defense bonus)
+      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Siege");
+      addImageToPath(territoryAboutToBeAttacked, "siege.png");
+
+      //in select country, add siege conditions so it doesnt screw up when not selected
+      //set button state when siege territory selected //number of turns sieged
       console.log(siegeObject);
       return;
     } else { // remove war from siege mode
       addRemoveWarSiegeObject(1, currentWarId); // remove
+      //redraw ui to start battle and get soldiers etc from array
       console.log(siegeObject);
       return;
     }
-    
-    
 });
-  
 
 //click handler for retreat button
 retreatButton.addEventListener('click', function() {
-    setDefendingTerritoryCopyStart(defendingTerritory);
+    let defendingTerritoryRetreatClick; 
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryAboutToBeAttacked.getAttribute("uniqueid")) {
+            defendingTerritoryRetreatClick = mainArrayOfTerritoriesAndResources[i];
+        }
+    }
+    setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
             if (!battleStart) {
                 assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
                 //update top table army value when leaving battle
-                defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
-                defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
-                defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
-                defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
-                defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
+                defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
+                defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
+                defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
+                defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             }                
             //update bottom table for defender
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 1: //scatter during round of 5, 30% penalty
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
@@ -2052,38 +2121,38 @@ retreatButton.addEventListener('click', function() {
             }
             assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
             //update top table army value when leaving battle
-            defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
-            defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
-            defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
-            defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
-            defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
+            defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
+            defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
+            defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender and and top table for player
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 2: //defeat
         if (defendingArmyRemaining[4] === 0) { //all out defeat
-            defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0];
-            defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1];
-            defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2];
-            defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3];
-            defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
+            defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
+            defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
+            defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
         } else if (defendingArmyRemaining[4] === 1) { //routing defeat
-            defendingTerritory.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
-            defendingTerritory.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
-            defendingTerritory.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
-            defendingTerritory.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
-            defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
+            defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
+            defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
+            defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
         }
              break;
     }
     playSoundClip();
     let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
     battleUIRow4Col1.innerHTML = "Starting";
-    toggleBattleUI(false);
+    toggleBattleUI(false, false);
     battleUIDisplayed = false;
     toggleBattleResults(true);
     battleResultsDisplayed = true;
@@ -2138,19 +2207,11 @@ advanceButton.addEventListener('click', function() {
                 setAdvanceButtonText(advanceButtonState, advanceButton);
                 retreatButtonState = 1;
                 setRetreatButtonText(retreatButtonState, retreatButton);
-
-                //update UI text
-                let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-                let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-                battleUIRow4Col1.innerHTML = "Starting";
                 processRound(currentRound,
                     finalAttackArray,
                     attackingArmyRemaining,
                     defendingArmyRemaining,
                     skirmishesPerRound);
-                setArmyTextValues(attackArrayText, 1);
-                let updatedProbability = getUpdatedProbability();
-                setAttackProbabilityOnUI(updatedProbability, 1);
             }
             break;
         case 2:
@@ -2158,7 +2219,7 @@ advanceButton.addEventListener('click', function() {
             let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
             battleUIRow4Col1.innerHTML = "Starting";
             AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
-            toggleBattleUI(false);
+            toggleBattleUI(false, false);
             battleUIDisplayed = false;
             toggleBattleResults(true);
             battleResultsDisplayed = true;
@@ -2185,7 +2246,7 @@ document.addEventListener("keydown", function(event) {
       toggleBuyMenu(false);
       toggleTransferAttackButton(false);
       toggleTransferAttackWindow(false);
-      toggleBattleUI(false);
+      toggleBattleUI(false, false);
       toggleBattleResults(false);
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
       if (uiCurrentlyOnScreen) {
@@ -2202,7 +2263,7 @@ document.addEventListener("keydown", function(event) {
           if (transferAttackWindowOnScreen) {
             toggleTransferAttackWindow(true);
           } else if (battleUIDisplayed) {
-            toggleBattleUI(true);
+            toggleBattleUI(true, false);
           } else if (battleResultsDisplayed) {
             toggleBattleResults(true);
           }
@@ -2240,8 +2301,8 @@ document.addEventListener("keydown", function(event) {
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttacked) {
-              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, false, true, false);
-              addImageToPath(territoryAboutToBeAttacked, "army.png");
+              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "EscapeKey");
+              addImageToPath(territoryAboutToBeAttacked, "battle.png");
           }
       }
 
@@ -3112,6 +3173,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             button.innerHTML = "DEACTIVATED (" + deactivatedTurnsLeft + ")";
             button.classList.remove("move-phase-button-red-background");
             button.classList.remove("move-phase-button-green-background");
+            button.classList.remove("move-phase-button-brown-background");
+            button.classList.remove("move-phase-button-blue-background");
             button.classList.add("move-phase-button-grey-background");
             button.disabled = true;
             button.style.display = "flex";
@@ -3121,11 +3184,15 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           if (playerOwnedTerritories.length <= 1) {
               button.classList.remove("move-phase-button-red-background");
               button.classList.remove("move-phase-button-green-background");
+              button.classList.remove("move-phase-button-brown-background");
+              button.classList.remove("move-phase-button-blue-background");
               button.classList.add("move-phase-button-grey-background");
               button.disabled = true;
           } else {
               button.classList.remove("move-phase-button-red-background");
               button.classList.remove("move-phase-button-grey-background");
+              button.classList.remove("move-phase-button-brown-background");
+              button.classList.remove("move-phase-button-blue-background");
               button.classList.add("move-phase-button-green-background");
               button.disabled = false;
               transferAttackbuttonState = 0; //transfer
@@ -3133,17 +3200,32 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.style.display = "flex";
           transferAttackButtonDisplayed = true;
           }
-      } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+      } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")) && path.getAttribute("underSiege") === "false") {
           // if clicks on an enemy territory that is within reach then show attack state
           button.innerHTML = "ATTACK";
           button.classList.remove("move-phase-button-green-background");
           button.classList.remove("move-phase-button-grey-background");
+          button.classList.remove("move-phase-button-brown-background");
+          button.classList.remove("move-phase-button-blue-background");
           button.classList.add("move-phase-button-red-background");
           button.style.display = "flex";
           transferAttackButtonDisplayed = true;
           button.disabled = false;
           transferAttackbuttonState = 1; //attack
           setTerritoryForAttack(path);
+      } else if (path.getAttribute("underSiege") === "true") {
+        // if clicks on an enemy territory that is within reach but under siege then set it up for that
+        button.innerHTML = "LIFT SIEGE"; // + TODO turns under siege so far
+        button.classList.remove("move-phase-button-green-background");
+        button.classList.remove("move-phase-button-grey-background");
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.remove("move-phase-button-blue-background");
+        button.classList.add("move-phase-button-brown-background");
+        button.style.display = "flex";
+        transferAttackButtonDisplayed = true;
+        button.disabled = false;
+        transferAttackbuttonState = 2; //lift siege
+        setTerritoryForAttack(path);
       }
   } else {
       if (xButtonFromWhere === 0) { //transfer
@@ -3152,6 +3234,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-blue-background");
           button.classList.remove("move-phase-button-red-background");
           button.classList.remove("move-phase-button-grey-background");
+          button.classList.remove("move-phase-button-brown-background");
           button.classList.add("move-phase-button-green-background");
           transferAttackbuttonState = 0;
           return;
@@ -3161,6 +3244,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-blue-background");
           button.classList.remove("move-phase-button-green-background");
           button.classList.remove("move-phase-button-grey-background");
+          button.classList.remove("move-phase-button-brown-background");
           button.classList.add("move-phase-button-red-background");
           transferAttackbuttonState = 1;
           return;
@@ -3248,7 +3332,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setNextWarId(nextWarId + 1);
                         toggleTransferAttackWindow(false);
                         transferAttackWindowOnScreen = false;
-                        toggleBattleUI(true);
+                        toggleBattleUI(true, false);
                         enableDisableSiegeButton(1); //disable siege button at start
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
@@ -3338,11 +3422,19 @@ function setTerritoryForAttack(territoryToAttack) {
   document.getElementById("rightBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
   document.getElementById("attack-destination-container").style.display = "flex";
   attackTextCurrentlyDisplayed = true;
-  territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
-  territoryToAttack.setAttribute("fill", playerColour);
-  territoryToAttack.setAttribute("stroke-width", "5px");
-  territoryToAttack.style.strokeDasharray = "10, 5";
-  addImageToPath(territoryToAttack, "army.png");
+  if (territoryToAttack.getAttribute("underSiege") === "true") {
+    territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
+    territoryToAttack.setAttribute("fill", playerColour);
+    territoryToAttack.setAttribute("stroke-width", "5px");
+    territoryToAttack.style.strokeDasharray = "10, 5";
+    addImageToPath(territoryToAttack, "siege.png");
+  } else {
+    territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
+    territoryToAttack.setAttribute("fill", playerColour);
+    territoryToAttack.setAttribute("stroke-width", "5px");
+    territoryToAttack.style.strokeDasharray = "10, 5";
+    addImageToPath(territoryToAttack, "battle.png");
+  }
 }
 
 function addImageToPath(pathElement, imagePath) {
@@ -3366,40 +3458,43 @@ function addImageToPath(pathElement, imagePath) {
   imageElement.setAttribute("width", imageWidth);
   imageElement.setAttribute("height", imageHeight);
   imageElement.setAttribute("z-index", 9999);
-  imageElement.setAttribute("id", "armyImage"); // Add ID "armyImage" to the image element
+  imageElement.setAttribute("id", "territoryImage"); // Add ID "territoryImage" to the image element
 
   pathElement.parentNode.appendChild(imageElement);
 }
 
-
-export function removeImageFromPathAndRestoreNormalStroke(path, clickedSeaWithTerritoryToAttackSelected, escKeyEntry, cameFromBattleLoss) {
-  const imageElement = path.parentNode.getElementById("armyImage");
-
-  if (imageElement) {
+export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
+    const imageElement = path.parentNode.getElementById("territoryImage");
+  
+    if (imageElement) {
       imageElement.parentNode.removeChild(imageElement);
-      if (cameFromBattleLoss) {
+      if (whereExecuted === "Defeat" || whereExecuted === "Siege") {
         return;
       }
+    }
+  
+    if (path !== territoryAboutToBeAttacked && whereExecuted === "EscapeKey") {
+      path.style.strokeDasharray = "none";
+      path.style.stroke = "rgb(0,0,0)";
+      path.setAttribute("stroke-width", "1");
+    }
+  
+    if (whereExecuted === "Sea") {
+      path.style.strokeDasharray = "none";
+      path.style.stroke = "rgb(0,0,0)";
+      path.setAttribute("stroke-width", "1");
+    }
+  
+    if (path === territoryAboutToBeAttacked && whereExecuted !== "EscapeKey") {
+      path.style.strokeDasharray = "none";
+      path.style.stroke = "rgb(0,0,0)";
+      path.setAttribute("stroke-width", "1");
+      toggleTransferAttackButton(false);
+      transferAttackButtonDisplayed = false;
+      attackTextCurrentlyDisplayed = false;
+    }
   }
-  if (path !== territoryAboutToBeAttacked && escKeyEntry) {
-    path.style.strokeDasharray = "none";
-    path.style.stroke = "rgb(0,0,0)";
-    path.setAttribute("stroke-width", "1");
-  }
-  if (clickedSeaWithTerritoryToAttackSelected) {
-    path.style.strokeDasharray = "none";
-    path.style.stroke = "rgb(0,0,0)";
-    path.setAttribute("stroke-width", "1");
-  }
-  if (path === territoryAboutToBeAttacked && !escKeyEntry) {
-    path.style.strokeDasharray = "none";
-    path.style.stroke = "rgb(0,0,0)";
-    path.setAttribute("stroke-width", "1");
-    toggleTransferAttackButton(false);
-    transferAttackButtonDisplayed = false;
-    attackTextCurrentlyDisplayed = false;
-  }
-}
+  
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
     let elementInMainArray;
@@ -3715,13 +3810,18 @@ function toggleUIButton(makeVisible) {
     }
   }
   
-  function toggleBattleUI(turnOnBattleUI) {
-      let battleUI = document.getElementById("battleContainer");
-    if (turnOnBattleUI) {
-      battleUI.style.display = "block";
-      svg.style.pointerEvents = 'none';
-    } else if (!turnOnBattleUI) {
-      battleUI.style.display = 'none';
+  function toggleBattleUI(turnOnBattleUI, enterSiege) {
+    let battleUI = document.getElementById("battleContainer");
+    if (enterSiege) {
+        battleUI.style.display = 'none';
+        svg.style.pointerEvents = 'auto';
+    } else {
+        if (turnOnBattleUI) {
+          battleUI.style.display = "block";
+          svg.style.pointerEvents = 'none';
+        } else if (!turnOnBattleUI) {
+          battleUI.style.display = 'none';
+        }
     }
   }
 
@@ -3814,6 +3914,8 @@ function toggleUIButton(makeVisible) {
 
     retreatButton.classList.add("battleUIRowButtonsRedBg");
     advanceButton.classList.add("battleUIRowButtonsGreenBg");
+    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
+    advanceButton.style.backgroundColor = "rgb(0, 128, 0)";
 
     retreatButton.disabled = false;
     advanceButton.disabled = false;
@@ -3836,8 +3938,6 @@ function toggleUIButton(makeVisible) {
         }
     }
 
-    const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === defenderTerritory.getAttribute("uniqueid"));
-
     //SET FLAGS
     setFlag(flagStringAttacker, 4);
     setFlag(flagStringDefender, 5);
@@ -3856,43 +3956,6 @@ function toggleUIButton(makeVisible) {
     advanceButtonState = 0;
     setAdvanceButtonText(6, advanceButton);
     siegeButtonState = setSiegeButtonText(0, siegeButton);
-    
-
-    retreatButton.addEventListener('mouseover', function() {
-        if (!retreatButton.disabled) {
-            retreatButton.style.backgroundColor = "rgb(151, 68, 68)";
-        }
-    });
-
-    retreatButton.addEventListener('mouseout', function() {
-        if (!retreatButton.disabled) {
-            retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
-        }
-    });
-
-    advanceButton.addEventListener('mouseover', function() {
-        if (!advanceButton.disabled) {
-            advanceButton.style.backgroundColor = "rgb(30,158,30)";
-        }
-    });
-
-    advanceButton.addEventListener('mouseout', function() {
-        if (!advanceButton.disabled) {
-            advanceButton.style.backgroundColor = "rgb(0,128,0)";
-        }
-    });
-
-    siegeButton.addEventListener('mouseover', function() {
-        if (!siegeButton.disabled) {
-            siegeButton.style.backgroundColor = "rgb(144,118,78)";
-        }
-    });
-
-    siegeButton.addEventListener('mouseout', function() {
-        if (!siegeButton.disabled) {
-            siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
-        }        
-    });
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
@@ -4090,14 +4153,18 @@ function reduceKeywords(str) {
 
     let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
 
-    if (situation === 0) { //won    
+    if (situation === 0) { //won   
+        confirmButtonBattleResults.classList.remove("battleResultsRow4Lost");
+        confirmButtonBattleResults.classList.add("battleResultsRow4Won");
+        confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
-        confirmButtonBattleResults.classList.add("battleResultsRow4Won");
     } else if (situation === 1) { //lost
+        confirmButtonBattleResults.classList.remove("battleResultsRow4Won");
+        confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
+        confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
         confirmButtonBattleResults.innerHTML = "Accept Defeat!";
-        confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
     }
 
     //MAIN STATS
@@ -4142,7 +4209,7 @@ function reduceKeywords(str) {
         battleResultsDisplayed = false;
         toggleUIButton(true);
         toggleBottomLeftPaneWithTurnAdvance(true);
-        removeImageFromPathAndRestoreNormalStroke(defendingTerritory, false, false, true);
+        removeImageFromPathAndRestoreNormalStroke(defendingTerritory, "Defeat");
     });
   }
 
@@ -4360,5 +4427,3 @@ export function enableDisableSiegeButton(enableOrDisable) {
         siegeButton.disabled = true;
     }
 }
-
-     
