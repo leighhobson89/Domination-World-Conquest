@@ -43,7 +43,6 @@ import {
   mainArrayOfTerritoriesAndResources,
   countryStrengthsArray,
   vehicleArmyWorth,
-
 } from './resourceCalculations.js';
 import {
   drawAndHandleTransferAttackTable
@@ -148,7 +147,7 @@ export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
 export let battleResultsDisplayed = false;
 export let battleUIDisplayed = false;
-export let territoryAboutToBeAttacked = null;
+export let territoryAboutToBeAttackedOrSieged = null;
 export let transferToTerritory;
 
 //BATTLE UI BUTTON STATES  
@@ -272,8 +271,8 @@ export function svgMapLoaded() {
           if (lastClickedPath.getAttribute("deactivated" === "false")) {
             removeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
           }
-          if (territoryAboutToBeAttacked && lastClickedPath.getAttribute("underSiege") === "false") {
-            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Sea");
+          if (territoryAboutToBeAttackedOrSieged && lastClickedPath.getAttribute("underSiege") === "false") {
+            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "Sea");
           }
           transferAttackButtonDisplayed = false;
           attackTextCurrentlyDisplayed = false;
@@ -389,11 +388,11 @@ function selectCountry(country, escKeyEntry) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("owner") === "Player") {
                     paths[i].setAttribute('fill', playerColour);
-                    if (territoryAboutToBeAttacked) {
+                    if (territoryAboutToBeAttackedOrSieged) {
                         document.getElementById("attack-destination-container").style.display = "none";
                         attackTextCurrentlyDisplayed = false;
                         if (lastClickedPath.getAttribute("underSiege") === "false") {
-                            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "");  
+                            removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "");  
                         }
                     }
                 }
@@ -2080,8 +2079,8 @@ siegeButton.addEventListener('mouseout', function() {
       }
 
       //set graphics for territory under siege (include defense bonus)
-      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Siege");
-      addImageToPath(territoryAboutToBeAttacked, "siege.png", true);
+      removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "Siege");
+      addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
 
       currentMapColorAndStrokeArray = saveMapColorState(false);
 
@@ -2103,7 +2102,7 @@ siegeButton.addEventListener('mouseout', function() {
 retreatButton.addEventListener('click', function() {
     let defendingTerritoryRetreatClick; 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryAboutToBeAttacked.getAttribute("uniqueid")) {
+        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
             defendingTerritoryRetreatClick = mainArrayOfTerritoriesAndResources[i];
         }
     }
@@ -2307,9 +2306,9 @@ document.addEventListener("keydown", function(event) {
 
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
-          if (territoryAboutToBeAttacked) {
-              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "EscapeKey");
-              addImageToPath(territoryAboutToBeAttacked, "battle.png", false);
+          if (territoryAboutToBeAttackedOrSieged) {
+              removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "EscapeKey");
+              addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
           }
       }
 
@@ -3166,7 +3165,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
       if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
           return;
       } else if (path.getAttribute("owner") === "Player") {
-        territoryAboutToBeAttacked = null;
+        territoryAboutToBeAttackedOrSieged = null;
 
         //if territory is deactivated, then get how many turns are left
         let deactivatedTurnsLeft;
@@ -3222,7 +3221,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           setTerritoryForAttack(path);
       } else if (path.getAttribute("underSiege") === "true") {
         // if clicks on an enemy territory that is within reach but under siege then set it up for that
-        button.innerHTML = "LIFT SIEGE (" + siegeObject[path.getAttribute("territory-name")].turnsInSiege + ")";
+        button.innerHTML = "VIEW SIEGE (" + siegeObject[path.getAttribute("territory-name")].turnsInSiege + ")";
         button.classList.remove("move-phase-button-green-background");
         button.classList.remove("move-phase-button-grey-background");
         button.classList.remove("move-phase-button-red-background");
@@ -3276,12 +3275,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   toggleUIButton(false);
                   toggleBottomLeftPaneWithTurnAdvance(false);
 
-                  toggleTransferAttackWindow(true);
+                  if (transferAttackbuttonState === 0 || transferAttackbuttonState === 1) {
+                    toggleTransferAttackWindow(true);
                   setTransferAttackWindowTitleText(
-                      territoryAboutToBeAttacked && territoryAboutToBeAttacked.getAttribute("territory-name") !== null ?
-                      territoryAboutToBeAttacked.getAttribute("territory-name") :
+                      territoryAboutToBeAttackedOrSieged && territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") !== null ?
+                      territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") :
                       "transferring",
-                      territoryAboutToBeAttacked ? territoryAboutToBeAttacked.getAttribute("data-name") : null,
+                      territoryAboutToBeAttackedOrSieged ? territoryAboutToBeAttackedOrSieged.getAttribute("data-name") : null,
                       territoryComingFrom,
                       transferAttackbuttonState,
                       mainArrayOfTerritoriesAndResources
@@ -3311,7 +3311,22 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       eventHandlerExecuted = false; // Reset the flag after a delay
                   }, 200);
                   return;
-              } else if (transferAttackWindowOnScreen) {
+
+                  } else if (transferAttackbuttonState === 2) { //click lift siege button
+                        toggleBattleUI(true, false);
+                        battleUIDisplayed = true;
+                        toggleTransferAttackButton(false);
+                        transferAttackButtonDisplayed = false;
+                        let war = getWarById(territoryAboutToBeAttackedOrSieged); //Identify correct war in siege array
+                        enableDisableSiegeButton(0)
+
+                        /* setupBattleUI(finalAttackArray);*/ //TODO CHANGE THIS TO SETUP THE UI FOR SIEGE
+
+                        setTimeout(function() {
+                            eventHandlerExecuted = false; // Reset the flag after a delay
+                        }, 200);
+                      }
+                  } else if (transferAttackWindowOnScreen) {
                 if (button.innerHTML === "CONFIRM" || button.innerHTML === "INVADE!") {
                     button.style.fontWeight = "normal";
                     button.style.color = "white";
@@ -3411,11 +3426,14 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         tooltip.innerHTML = "Click to confirm the transfer and move the selected units to the destination territory!";
       } else if (!button.disabled && button.innerHTML === "INVADE!") {
         tooltip.innerHTML = "Click to launch your attack!";
+      } else if (!button.disabled && button.innerHTML.includes("VIEW SIEGE")) {
+        tooltip.innerHTML = "Click to view the war and options to lift the siege!";
       }
 
       tooltip.style.display = "block";
 
   });
+  
   button.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
@@ -3423,8 +3441,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 }
 
 function setTerritoryForAttack(territoryToAttack) {
-  territoryAboutToBeAttacked = territoryToAttack;
-  document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttacked.getAttribute("territory-name");
+  territoryAboutToBeAttackedOrSieged = territoryToAttack;
+  document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
   document.getElementById("leftBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
   document.getElementById("rightBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
   document.getElementById("attack-destination-container").style.display = "flex";
@@ -3490,7 +3508,7 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       }
     }
   
-    if (path !== territoryAboutToBeAttacked && whereExecuted === "EscapeKey") {
+    if (path !== territoryAboutToBeAttackedOrSieged && whereExecuted === "EscapeKey") {
       path.style.strokeDasharray = "none";
       path.style.stroke = "rgb(0,0,0)";
       path.setAttribute("stroke-width", "1");
@@ -3502,7 +3520,7 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       path.setAttribute("stroke-width", "1");
     }
   
-    if (path === territoryAboutToBeAttacked && whereExecuted !== "EscapeKey" && path.getAttribute("underSiege") === "false") {
+    if (path === territoryAboutToBeAttackedOrSieged && whereExecuted !== "EscapeKey" && path.getAttribute("underSiege") === "false") {
       path.style.strokeDasharray = "none";
       path.style.stroke = "rgb(0,0,0)";
       path.setAttribute("stroke-width", "1");
@@ -3745,7 +3763,7 @@ export function setAttackProbabilityOnUI(probability, place) {
   }
 
   export function setterritoryAboutToBeAttackedFromExternal(value) {
-    territoryAboutToBeAttacked = value;
+    territoryAboutToBeAttackedOrSieged = value;
   }
 
   export function setAttackTextCurrentlyDisplayedFromExternal(value) {
@@ -4444,3 +4462,10 @@ export function enableDisableSiegeButton(enableOrDisable) {
         siegeButton.disabled = true;
     }
 }
+
+export function getWarById(territory) {
+    if (territory.getAttribute("territory-name") in siegeObject) {
+      return siegeObject[territory.getAttribute("territory-name")].warId;
+    }
+  }
+  
