@@ -272,7 +272,7 @@ export function svgMapLoaded() {
           if (lastClickedPath.getAttribute("deactivated" === "false")) {
             removeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
           }
-          if (territoryAboutToBeAttacked) {
+          if (territoryAboutToBeAttacked && lastClickedPath.getAttribute("underSiege") === "false") {
             removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Sea");
             document.getElementById("attack-destination-container").style.display = "none";
           }
@@ -2062,12 +2062,12 @@ siegeButton.addEventListener('mouseout', function() {
       }
     }
     
+    //turn off battle ui 
+    toggleBattleUI(false, true);
+    battleUIDisplayed = false;
+
     if (!currentWarAlreadyInSiegeMode) {
       let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId); // add to siege
-
-      //turn off battle ui 
-      toggleBattleUI(false, true);
-      battleUIDisplayed = false;
 
       for (let i = 0; i < paths.length; i++) {
         //set in siege mode on svg
@@ -2080,12 +2080,16 @@ siegeButton.addEventListener('mouseout', function() {
       removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttacked, "Siege");
       addImageToPath(territoryAboutToBeAttacked, "siege.png", true);
 
+      currentMapColorAndStrokeArray = saveMapColorState(false);
+
       //in select country, add siege conditions so it doesnt screw up when not selected
       //set button state when siege territory selected //number of turns sieged
       console.log(siegeObject);
       return;
     } else { // remove war from siege mode
       addRemoveWarSiegeObject(1, currentWarId); // remove
+
+      currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
       //redraw ui to start battle and get soldiers etc from array
       console.log(siegeObject);
       return;
@@ -2836,7 +2840,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
               for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
                   let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
                   arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
-                  if (arrayOfSelectedCountries[i][0].getAttribute("deactivated") ==="false") {
+                  if (arrayOfSelectedCountries[i][0].getAttribute("deactivated") ==="false" && arrayOfSelectedCountries[i][0].getAttribute("underSiege") ==="false") {
                     setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
                   }
               }
@@ -3489,13 +3493,13 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       path.setAttribute("stroke-width", "1");
     }
   
-    if (whereExecuted === "Sea") {
+    if (whereExecuted === "Sea" && path.getAttribute("underSiege") === "false") {
       path.style.strokeDasharray = "none";
       path.style.stroke = "rgb(0,0,0)";
       path.setAttribute("stroke-width", "1");
     }
   
-    if (path === territoryAboutToBeAttacked && whereExecuted !== "EscapeKey") {
+    if (path === territoryAboutToBeAttacked && whereExecuted !== "EscapeKey" && path.getAttribute("underSiege") === "false") {
       path.style.strokeDasharray = "none";
       path.style.stroke = "rgb(0,0,0)";
       path.setAttribute("stroke-width", "1");
