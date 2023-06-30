@@ -80,7 +80,6 @@ import {
     addRemoveWarSiegeObject,
     siegeObject,
     nextWarId,
-    calculateProbabiltyPreBattle,
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -150,6 +149,7 @@ export let battleResultsDisplayed = false;
 export let battleUIDisplayed = false;
 export let territoryAboutToBeAttackedOrSieged = null;
 export let transferToTerritory;
+export let battleUIState = 0;
 
 //BATTLE UI BUTTON STATES  
 export let retreatButtonState;
@@ -165,6 +165,8 @@ let currentAttackingArmyRemaining;
 let roundCounterForStats = 0;
 let attackCountry;
 let defendTerritory;
+
+const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
 let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
@@ -2152,18 +2154,7 @@ siegeButton.addEventListener('mouseout', function() {
       addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
 
       currentMapColorAndStrokeArray = saveMapColorState(false);
-
-
       console.log(siegeObject);
-      return;
-
-    } else { // remove war from siege mode
-      addRemoveWarSiegeObject(1, currentWarId); // remove
-
-      currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
-      //redraw ui to start battle and get soldiers etc from array
-      console.log(siegeObject);
-      return;
     }
 });
 
@@ -2188,6 +2179,16 @@ retreatButton.addEventListener('click', function() {
                 defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            }
+            if (battleUIState === 1) { //in siege screen
+                let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
+                addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
+                removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
+                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg               
+
+                currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
+                //redraw ui to start battle and get soldiers etc from array
+                console.log(siegeObject);
             }                
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
@@ -2195,7 +2196,7 @@ retreatButton.addEventListener('click', function() {
         case 1: //scatter during round of 5, 30% penalty
             defeatType = "defeat";
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
-                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * 0.7); //apply penalty
+                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
             }
             assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
             //update top table army value when leaving battle
@@ -2230,7 +2231,6 @@ retreatButton.addEventListener('click', function() {
              break;
     }
     playSoundClip();
-    let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
     toggleBattleUI(false, false);
     battleUIDisplayed = false;
     toggleBattleResults(true);
@@ -2270,7 +2270,6 @@ advanceButton.addEventListener('click', function() {
                 setAdvanceButtonText(0, advanceButton);
                 setCurrentRound(1);
                 let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-                let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
                 setArmyTextValues(attackArrayText, 1);
                 let updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
@@ -2294,7 +2293,6 @@ advanceButton.addEventListener('click', function() {
             break;
         case 2:
             playSoundClip();
-            let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
             AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
             battleUIDisplayed = false;
@@ -2716,7 +2714,6 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
 
     return validDestinationsArray;
   }
-  
 
 function getClosestPointsDestinationPaths(coord, paths) {
   const closestPoints = [];
@@ -2954,7 +2951,6 @@ export function saveMapColorState(onResourcePage) {
   }
 }
 
-
 function restoreMapColorState(array, countrySelectionState) {
   if (validDestinationsArray !== undefined) {
       validDestinationsArray.length = 0;
@@ -2979,7 +2975,6 @@ function restoreMapColorState(array, countrySelectionState) {
       }
   });
 }
-
 
 export function fillPathBasedOnContinent(path) {
   const continentAttribute = path.getAttribute("continent");
@@ -3233,7 +3228,6 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
       paths[i].setAttribute("greyedOut", "false");
   }
 }
-
 
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
   let button = document.getElementById("move-phase-button");
@@ -3580,12 +3574,17 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
         imageElement = path.parentNode.getElementById("attackImage");
     }
     
-  
     if (imageElement) {
       imageElement.parentNode.removeChild(imageElement);
       if (whereExecuted === "Defeat" || whereExecuted === "Siege") {
         return;
       }
+    } else {
+        if (whereExecuted === "Defeat") {
+            imageElement = path.parentNode.getElementById("siegeImage");
+            imageElement.parentNode.removeChild(imageElement);
+            return;
+        }
     }
   
     if (path !== territoryAboutToBeAttackedOrSieged && whereExecuted === "EscapeKey") {
@@ -3607,6 +3606,13 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       toggleTransferAttackButton(false);
       transferAttackButtonDisplayed = false;
       attackTextCurrentlyDisplayed = false;
+    }
+
+    if (path === territoryAboutToBeAttackedOrSieged && whereExecuted === "RemoveSiege") {
+        path.style.strokeDasharray = "none";
+        path.style.stroke = "rgb(0,0,0)";
+        path.setAttribute("stroke-width", "1");
+        territoryAboutToBeAttackedOrSieged.setAttribute("fill", fillPathBasedOnContinent(territoryAboutToBeAttackedOrSieged));
     }
   }
   
@@ -3835,7 +3841,6 @@ export function setAttackProbabilityOnUI(probability, situation) {
         probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";  
     }
 }
-    
 
   export function setcurrentMapColorAndStrokeArrayFromExternal(changesArray) {
     currentMapColorAndStrokeArray = changesArray;
@@ -3881,7 +3886,6 @@ function toggleUIButton(makeVisible) {
         document.getElementById("popup-with-confirm-container").style.display = "none";
     }
   }
-  
   
   export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
@@ -4016,6 +4020,7 @@ function toggleUIButton(makeVisible) {
   //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
   
   function setupSiegeUI(territory) {
+    battleUIState = 1;
     const siegeObjectElement = getSiegeObject(territory);
 
     const retreatButton = document.getElementById("retreatButton");
@@ -4064,18 +4069,9 @@ function toggleUIButton(makeVisible) {
     retreatButton.innerHTML = "Pull Out";
     siegeButtonState = setSiegeButtonText(0, siegeButton);
 
-    /* for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
-        }
-        if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            defendTerritory = mainArrayOfTerritoriesAndResources[i];
-        }
-    } */
-
   } 
   function setupBattleUI(attackArray) {
-
+    battleUIState = 0;
     setCurrentRound(0);
 
     const retreatButton = document.getElementById("retreatButton");
@@ -4476,7 +4472,7 @@ function reduceKeywords(str) {
         attackingArmyRemaining = currentAttackingArmyRemaining;
         if (retreatButtonState === 1) { //scatter
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
-                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * 0.7);
+                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss);
             }
         }
     }
@@ -4710,7 +4706,6 @@ function setRow4(siegeOrAttack) { //move to bottom when done
     const row4RightColumnC = document.getElementById("battleUIRow4Col2C");
     const row4RightColumnD = document.getElementById("battleUIRow4Col2D");
     const row4RightColumnE = document.getElementById("battleUIRow4Col2E");
-    const row4RightColumnF = document.getElementById("battleUIRow4Col2F");
 
     const prodPopIcon = document.getElementById("prodPopIcon");
     const foodIcon = document.getElementById("foodIcon");
