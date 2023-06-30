@@ -567,6 +567,7 @@ document.addEventListener("DOMContentLoaded", function() {
           toggleUIMenu(false);
       } else {
           toggleUIMenu(true);
+          summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
       }
 
   });
@@ -870,11 +871,16 @@ document.addEventListener("DOMContentLoaded", function() {
   summaryButton.innerHTML = "Summary";
 
   summaryButton.addEventListener("click", function() {
+      summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
       playSoundClip();
       summaryButton.classList.add("tab-button");
       uiButtons(summaryButton);
       drawUITable(uiTable, 0);
   });
+
+  summaryButton.addEventListener("mouseover", function() {
+    summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
+});
 
   const territoryButton = document.createElement("button");
   territoryButton.classList.add("tab-button");
@@ -882,6 +888,7 @@ document.addEventListener("DOMContentLoaded", function() {
   territoryButton.innerHTML = "Territories";
 
   territoryButton.addEventListener("click", function() {
+      summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
       playSoundClip();
       territoryButton.classList.add("tab-button");
       uiButtons(territoryButton);
@@ -894,6 +901,7 @@ document.addEventListener("DOMContentLoaded", function() {
   armyButton.innerHTML = "Military";
 
   armyButton.addEventListener("click", function() {
+      summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
       playSoundClip();
       uiButtons(armyButton);
       drawUITable(uiTable, 2);
@@ -2298,6 +2306,10 @@ advanceButton.addEventListener('click', function() {
             playSoundClip();
             toggleBattleUI(false, true);
             battleUIDisplayed = false;
+            toggleUIButton(true);
+            uiButtonCurrentlyOnScreen = true;
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
             break;
 
     }
