@@ -2364,6 +2364,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
         siegeAttackArray.push(war.attackingArmyRemaining[i]);
     }
+    
     setupBattleUI(siegeAttackArray);
     setTimeout(function() {
         eventHandlerExecuted = false; // Reset the flag after a delay
@@ -4124,6 +4125,7 @@ function toggleUIButton(makeVisible) {
 
   } 
   function setupBattleUI(attackArray) {
+    let war = historicSieges.find((siege) => siege.warId === currentWarId);
     battleUIState = 0;
     setCurrentRound(0);
 
@@ -4189,7 +4191,14 @@ function toggleUIButton(makeVisible) {
     setAttackProbabilityOnUI(probability, 1);
 
     //SET ARMY TEXT VALUES
-    setArmyTextValues(attackArray, 0);
+
+    let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+    if (hasSiegedBefore) {
+        setArmyTextValues(war, 2);
+    } else {
+        setArmyTextValues(attackArray, 0);
+    }
+    
 
     //SET ATTACK ROW 4
     setRow4(0);
@@ -4282,18 +4291,16 @@ export function setArmyTextValues(attackArray, situation) {
         totalDefendingArmy[3] = attackArray[7];
 
     } else if (situation === 2) { //return from siege
-        const { attackingArmyRemaining } = attackArray;
-        const { defendingArmyRemaining } = attackArray;
 
-        totalAttackingArmy[0] = attackingArmyRemaining[0];
-        totalAttackingArmy[1] = attackingArmyRemaining[1];
-        totalAttackingArmy[2] = attackingArmyRemaining[2];
-        totalAttackingArmy[3] = attackingArmyRemaining[3];
+        totalAttackingArmy[0] = attackArray.attackingArmyRemaining[0];
+        totalAttackingArmy[1] = attackArray.attackingArmyRemaining[1];
+        totalAttackingArmy[2] = attackArray.attackingArmyRemaining[2];
+        totalAttackingArmy[3] = attackArray.attackingArmyRemaining[3];
 
-        totalDefendingArmy[0] = defendingArmyRemaining[0];
-        totalDefendingArmy[1] = defendingArmyRemaining[1];
-        totalDefendingArmy[2] = defendingArmyRemaining[2];
-        totalDefendingArmy[3] = defendingArmyRemaining[3];
+        totalDefendingArmy[0] = attackArray.defendingArmyRemaining[0];
+        totalDefendingArmy[1] = attackArray.defendingArmyRemaining[1];
+        totalDefendingArmy[2] = attackArray.defendingArmyRemaining[2];
+        totalDefendingArmy[3] = attackArray.defendingArmyRemaining[3];
 
     }
 
@@ -4402,6 +4409,14 @@ function reduceKeywords(str) {
   }
 
   function populateWarResultPopup(situation, flagStringAttacker, territoryStringDefender, defeatType) {
+    
+    let territoryPath;
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === territoryStringDefender.uniqueId) {
+            territoryPath = paths[i];
+        }
+    }
+
     let flagStringDefender = territoryStringDefender.dataName;
     territoryStringDefender = territoryStringDefender.territoryName;
 
@@ -4421,6 +4436,8 @@ function reduceKeywords(str) {
         confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
+        territoryPath.setAttribute("fill", playerColour);
+        currentMapColorAndStrokeArray = saveMapColorState(false);
     } else if (situation === 1) { //lost
         confirmButtonBattleResults.classList.remove("battleResultsRow4Won");
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
