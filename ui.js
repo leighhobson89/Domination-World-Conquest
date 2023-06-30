@@ -2249,7 +2249,10 @@ advanceButton.addEventListener('click', function() {
         case 0: //before battle to start it
             playSoundClip();
             battleStart = false;
-            transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
+            let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+            if (!hasSiegedBefore) {
+                transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
+            }
             setCurrentRound(currentRound + 1);
             setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
             advanceButtonState = 1;
@@ -2273,9 +2276,9 @@ advanceButton.addEventListener('click', function() {
                 setAttackProbabilityOnUI(updatedProbability, 1);
                 let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
                 if (hasSiegedBefore) {
-                enableDisableSiegeButton(1);
+                    enableDisableSiegeButton(1);
                 } else {
-                enableDisableSiegeButton(0);
+                    enableDisableSiegeButton(0);
                 }                
             } else { //start new round
                 if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
