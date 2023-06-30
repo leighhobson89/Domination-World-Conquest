@@ -322,11 +322,18 @@ skirmishesPerType = [
 ];
 totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
 
+let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+
 // Divide skirmishes into 5 rounds
 skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
 attackingArmyRemaining = [...totalAttackingArmy];
-defendingArmyRemaining = [...totalDefendingArmy];
+if (hasSiegedBefore) {
+  let war = historicSieges.find((siege) => siege.warId === currentWarId);
+  defendingArmyRemaining = war.defendingArmyRemaining;
+} else {
+  defendingArmyRemaining = [...totalDefendingArmy];
+}
 updatedProbability = calculateProbabiltyPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
 }
 
