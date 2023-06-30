@@ -823,7 +823,8 @@ export function incrementSiegeTurns() {
   }
 }
 
-export function restoreArmyToStartingTerritories(war) {
+//FOLLOWING FUNCTION WAS WRITTEN TO RESTORE ARMY BACK AFTER A SIEGE BUT THIS IS ALREADY DONE BY THE FUNCTION "assignProportionsToTerritories()"
+/* export function restoreArmyToStartingTerritories(war) {
   let territory;
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         for (let j = 0; j < war.proportionsAttackers.length; j++) {
@@ -853,4 +854,4 @@ export function restoreArmyToStartingTerritories(war) {
     }
     setDemandArray(calculateAllTerritoryDemandsForCountry());
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
-}
+} */
