@@ -2254,7 +2254,18 @@ advanceButton.addEventListener('click', function() {
                 transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
             }
             setCurrentRound(currentRound + 1);
-            setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
+            if (hasSiegedBefore) {
+            let war = historicSieges.find((siege) => siege.warId === currentWarId);
+                let siegeAttackArray = [];
+                siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+                siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
+                for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
+                    siegeAttackArray.push(war.attackingArmyRemaining[i]);
+                }
+                setupBattle(probability, siegeAttackArray, mainArrayOfTerritoriesAndResources);
+            } else {
+                setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
+            }
             advanceButtonState = 1;
             setAdvanceButtonText(advanceButtonState, advanceButton);
             retreatButtonState = 1;
@@ -2290,11 +2301,28 @@ advanceButton.addEventListener('click', function() {
                 setAdvanceButtonText(advanceButtonState, advanceButton);
                 retreatButtonState = 1;
                 setRetreatButtonText(retreatButtonState, retreatButton);
-                processRound(currentRound,
-                    finalAttackArray,
-                    attackingArmyRemaining,
-                    defendingArmyRemaining,
-                    skirmishesPerRound);
+                let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+                if (hasSiegedBefore) {
+                    let war = historicSieges.find((siege) => siege.warId === currentWarId);
+                    let siegeAttackArray = [];
+                    siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+                    siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
+                    for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
+                        siegeAttackArray.push(war.attackingArmyRemaining[i]);
+                    }
+                    processRound(currentRound,
+                        siegeAttackArray,
+                        attackingArmyRemaining,
+                        defendingArmyRemaining,
+                        skirmishesPerRound);
+                } else {
+                    processRound(currentRound,
+                        finalAttackArray,
+                        attackingArmyRemaining,
+                        defendingArmyRemaining,
+                        skirmishesPerRound);
+                }  
+                
             }
             break;
         case 2: //accept victory
@@ -4161,7 +4189,7 @@ function toggleUIButton(makeVisible) {
     setAttackProbabilityOnUI(probability, 1);
 
     //SET ARMY TEXT VALUES
-    setArmyTextValues(finalAttackArray, 0);
+    setArmyTextValues(attackArray, 0);
 
     //SET ATTACK ROW 4
     setRow4(0);
@@ -4179,7 +4207,7 @@ function toggleUIButton(makeVisible) {
     setAdvanceButtonText(6, advanceButton);
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+        if (attackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
             attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
         }
         if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
