@@ -22,7 +22,6 @@ import {
   setArmyTextValues,
   setAdvanceButtonText,
   setRetreatButtonText,
-  setSiegeButtonText,
   setAdvanceButtonState,
   setRetreatButtonState,
   getAdvanceButtonState,
@@ -63,6 +62,7 @@ export let defendingTerritoryId;
 export let defenseBonus;
 
 export let siegeObject = {};
+export let historicSieges = [];
 export let currentWarId;
 export let nextWarId = 0;
 
@@ -368,7 +368,6 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
         }
     }
 
-    console.log("Combat Continent Modifier: " + combatContinentModifier);
     return combatContinentModifier;
 }
 
@@ -521,8 +520,6 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
 function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
   const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
   turnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
-  console.log(turnsDeactivatedArray[0][1] + " turns to be deactivated.");
-  console.log(turnsDeactivatedArray[0][2] + " turns waited");
 
 
   let tempArray = currentMapColorAndStrokeArray;
@@ -734,7 +731,6 @@ function calculateCombinedForce(army) {
   }
 
   export function setCurrentRound(value) {
-    console.log("round set to: " + value);
     return currentRound = value;
   }
 
@@ -799,8 +795,10 @@ function calculateCombinedForce(army) {
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
 
     } else if (addOrRemove === 1) { // remove war from siege object
+      historicSieges.push(siegeObject[defendingTerritory.territoryName]); //add to historic sieges array
       delete siegeObject[defendingTerritory.territoryName];
     }
+    console.log(historicSieges);
   }
 
   export function getDefendingTerritory() {
@@ -822,36 +820,3 @@ export function incrementSiegeTurns() {
     }
   }
 }
-
-//FOLLOWING FUNCTION WAS WRITTEN TO RESTORE ARMY BACK AFTER A SIEGE BUT THIS IS ALREADY DONE BY THE FUNCTION "assignProportionsToTerritories()"
-/* export function restoreArmyToStartingTerritories(war) {
-  let territory;
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        for (let j = 0; j < war.proportionsAttackers.length; j++) {
-            if (war.proportionsAttackers[j][0].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-                territory = mainArrayOfTerritoriesAndResources[i];
-
-                //calculate proportions of remaining attacking army to return to territories that entered the war
-                let infantryChange = Math.floor(war.attackingArmyRemaining[0] * (war.proportionsAttackers[j][1] / 100));
-                let assaultChange = Math.floor(war.attackingArmyRemaining[1] * (war.proportionsAttackers[j][2] / 100));
-                let airChange = Math.floor(war.attackingArmyRemaining[2] * (war.proportionsAttackers[j][3] / 100));
-                let navalChange = Math.floor(war.attackingArmyRemaining[3] * (war.proportionsAttackers[j][4] / 100));
-
-                territory.infantryForCurrentTerritory += infantryChange;
-                territory.assaultForCurrentTerritory += assaultChange;
-                territory.airForCurrentTerritory += airChange;
-                territory.navalForCurrentTerritory += navalChange;
-
-                turnGainsArray.changeOilDemand += (assaultChange * oilRequirements.assault);
-                turnGainsArray.changeOilDemand += (airChange * oilRequirements.air);
-                turnGainsArray.changeOilDemand += (navalChange * oilRequirements.naval);
-
-                territory.oilDemand = ((oilRequirements.assault * territory.assaultForCurrentTerritory) + (oilRequirements.air * territory.airForCurrentTerritory) + (oilRequirements.naval * territory.navalForCurrentTerritory));
-                setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, territory);
-                territory.armyForCurrentTerritory = territory.infantryForCurrentTerritory + (territory.useableAssault * vehicleArmyWorth.assault) + (territory.useableAir * vehicleArmyWorth.air) + (territory.useableNaval * vehicleArmyWorth.naval);
-            }
-        }
-    }
-    setDemandArray(calculateAllTerritoryDemandsForCountry());
-    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
-} */

@@ -80,7 +80,8 @@ import {
     addRemoveWarSiegeObject,
     siegeObject,
     nextWarId,
-    restoreArmyToStartingTerritories
+    historicSieges,
+    currentWarId
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -1703,6 +1704,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const siegeButton = document.createElement("button");
   siegeButton.classList.add("siegeButton");
   siegeButton.setAttribute("id","siegeButton");
+  siegeButton.innerHTML = "Siege Territory";
 
   const prodPopIcon = document.createElement("div");
   prodPopIcon.classList.add("battleRow4Icon");
@@ -2155,7 +2157,6 @@ siegeButton.addEventListener('mouseout', function() {
       addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
 
       currentMapColorAndStrokeArray = saveMapColorState(false);
-      console.log(siegeObject);
     }
 });
 
@@ -2181,7 +2182,7 @@ retreatButton.addEventListener('click', function() {
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             }
-            if (battleUIState === 1) { //in siege screen
+            if (battleUIState === 1) { //removing a siege
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
                 //army is restored already by assignProportionsToTerritories in case "0"
                 addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
@@ -2190,7 +2191,6 @@ retreatButton.addEventListener('click', function() {
 
                 currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
                 //redraw ui to start battle and get soldiers etc from array
-                console.log(siegeObject);
             }                
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
@@ -2244,9 +2244,6 @@ retreatButton.addEventListener('click', function() {
 //click handler for advance button
 advanceButton.addEventListener('click', function() {
     let currentRound = getCurrentRound();
-    console.log("advance button clicked, current round before any processing is:" + currentRound);
-    console.log("text was: " + advanceButton.innerHTML);
-    console.log("advanceButtonState was: " + advanceButtonState);
     console.log("firstSetOfRounds was: " + firstSetOfRounds);
     switch (advanceButtonState) {
         case 0: //before battle to start it
@@ -2254,7 +2251,6 @@ advanceButton.addEventListener('click', function() {
             battleStart = false;
             transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
             setCurrentRound(currentRound + 1);
-            console.log("round now advanced to: " + getCurrentRound());
             setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
             advanceButtonState = 1;
             setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -2263,7 +2259,7 @@ advanceButton.addEventListener('click', function() {
             roundCounterForStats++;
             enableDisableSiegeButton(1);
             break;
-        case 1:
+        case 1: //progress through rounds
             if (!firstSetOfRounds && currentRound === 0) {
                 retreatButton.disabled = false;
                 retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
@@ -2275,8 +2271,13 @@ advanceButton.addEventListener('click', function() {
                 setArmyTextValues(attackArrayText, 1);
                 let updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
+                let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+                if (hasSiegedBefore) {
+                enableDisableSiegeButton(1);
+                } else {
                 enableDisableSiegeButton(0);
-            } else {
+                }                
+            } else { //start new round
                 if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
                     playSoundClip();
                     roundCounterForStats++;
@@ -2293,7 +2294,7 @@ advanceButton.addEventListener('click', function() {
                     skirmishesPerRound);
             }
             break;
-        case 2:
+        case 2: //accept victory
             playSoundClip();
             AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
@@ -2302,7 +2303,7 @@ advanceButton.addEventListener('click', function() {
             battleResultsDisplayed = true;
             populateWarResultPopup(0, attackCountry, defendTerritory, "victory"); //won
             break;
-        case 3:
+        case 3: //continue siege
             playSoundClip();
             toggleBattleUI(false, true);
             battleUIDisplayed = false;
@@ -2313,6 +2314,29 @@ advanceButton.addEventListener('click', function() {
             break;
 
     }
+});
+
+siegeBottomBarButton.addEventListener('click', function() {
+
+    //"assault" i.e. return to battle state
+    //remove siege status
+    let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
+    setCurrentWarId(war.warId);
+    addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
+    removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
+    territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg   
+    //setup  battle to conquer territory
+    enableDisableSiegeButton(1); //disable siege button at start
+    let siegeAttackArray = [];
+    siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+    siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportioinsAttackers part of siegeObject
+    for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
+        siegeAttackArray.push(war.attackingArmyRemaining[i]);
+    }
+    setupBattleUI(siegeAttackArray);
+    setTimeout(function() {
+        eventHandlerExecuted = false; // Reset the flag after a delay
+    }, 200);
 });
 
   pageLoaded = true;
@@ -2926,8 +2950,6 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                     setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
                   }
               }
-          } else {
-              console.log("array empty");
           }
       }
   }
@@ -3394,7 +3416,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
-                        enableDisableSiegeButton(0)
 
                         setupSiegeUI(territoryAboutToBeAttackedOrSieged);
 
@@ -4069,7 +4090,6 @@ function toggleUIButton(makeVisible) {
 
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     retreatButton.innerHTML = "Pull Out";
-    siegeButtonState = setSiegeButtonText(0, siegeButton);
 
   } 
   function setupBattleUI(attackArray) {
@@ -4154,7 +4174,6 @@ function toggleUIButton(makeVisible) {
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     advanceButtonState = 0;
     setAdvanceButtonText(6, advanceButton);
-    siegeButtonState = setSiegeButtonText(0, siegeButton);
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
@@ -4321,19 +4340,6 @@ function reduceKeywords(str) {
             break;
         case 6: // start of war
             button.innerHTML = "Begin War!";
-            break;
-    }
-
-    return situation;
-  }
-
-  export function setSiegeButtonText(situation, button) {
-    switch (situation) {
-        case 0: //not sieged currently
-        button.innerHTML = "Siege Territory";
-            break;
-        case 1: // sieged currently
-        button.innerHTML = "Lift Siege";
             break;
     }
 
