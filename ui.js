@@ -1660,7 +1660,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const battleUIRow4Col1 = document.createElement("div");
   battleUIRow4Col1.classList.add("battleUIRow4Col1");
   battleUIRow4Col1.setAttribute("id","battleUIRow4Col1");
-  battleUIRow4Col1.innerHTML = "Starting";
 
   const battleUIRow4Col2 = document.createElement("div");
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
@@ -2224,7 +2223,6 @@ retreatButton.addEventListener('click', function() {
     }
     playSoundClip();
     let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-    battleUIRow4Col1.innerHTML = "Starting";
     toggleBattleUI(false, false);
     battleUIDisplayed = false;
     toggleBattleResults(true);
@@ -2265,7 +2263,6 @@ advanceButton.addEventListener('click', function() {
                 setCurrentRound(1);
                 let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
                 let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-                battleUIRow4Col1.innerHTML = "Starting";
                 setArmyTextValues(attackArrayText, 1);
                 let updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
@@ -2290,7 +2287,6 @@ advanceButton.addEventListener('click', function() {
         case 2:
             playSoundClip();
             let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-            battleUIRow4Col1.innerHTML = "Starting";
             AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
             battleUIDisplayed = false;
@@ -2298,6 +2294,12 @@ advanceButton.addEventListener('click', function() {
             battleResultsDisplayed = true;
             populateWarResultPopup(0, attackCountry, defendTerritory, "victory"); //won
             break;
+        case 3:
+            playSoundClip();
+            toggleBattleUI(false, true);
+            battleUIDisplayed = false;
+            break;
+
     }
 });
 
@@ -3379,14 +3381,14 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   }, 200);
                   return;
 
-                  } else if (transferAttackbuttonState === 2) { //click lift siege button
+                  } else if (transferAttackbuttonState === 2) { //click view siege button //button says VIEW SIEGE
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         enableDisableSiegeButton(0)
 
-                        setupSiegeUI(territoryAboutToBeAttackedOrSieged); //TODO CHANGE THIS TO SETUP THE UI FOR SIEGE
+                        setupSiegeUI(territoryAboutToBeAttackedOrSieged);
 
                         setTimeout(function() {
                             eventHandlerExecuted = false; // Reset the flag after a delay
@@ -3816,7 +3818,7 @@ export function setAttackProbabilityOnUI(probability, situation) {
         let probabilityColumnBox = document.getElementById("probabilityColumnBox");
 
         let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-        battleUIRow4Col1.innerHTML = battleUIRow4Col1.innerHTML + " Probability: " + displayProbability + "%";
+        battleUIRow4Col1.innerHTML = "Probability: " + displayProbability + "%";
 
         probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";  
     }
@@ -4012,6 +4014,8 @@ function toggleUIButton(makeVisible) {
     const attackerCountry = playerCountry;
     const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
 
+    let probBarAdded = false;
+
     //SET FLAGS
     setFlag(attackerCountry, 4);
     setFlag(defenderTerritory, 5);
@@ -4021,7 +4025,7 @@ function toggleUIButton(makeVisible) {
 
     document.getElementById("battleUITitleTitleCenter").innerHTML = "Sieges";
 
-    prepareProbabilityBar(1);
+    prepareProbabilityBar(1, probBarAdded);
 
     //SET ARMY TEXT VALUES
     setArmyTextValues(siegeObjectElement, 2);
@@ -4029,24 +4033,33 @@ function toggleUIButton(makeVisible) {
     //SET SIEGE TURNS TEXT
     setSiegeTurnsText(siegeObjectElement);
 
+    //SET SIEGE ROW 4
+    setRow4(1);
+
     //INITIALISE BUTTONS
     retreatButton.style.display = "flex";
-    advanceButton.style.display = "none";
+    advanceButton.style.display = "flex";
     siegeBottomBarButton.style.display = "flex";
+
+    retreatButton.style.width = "33%";
+    advanceButton.style.width = "33%";
+    siegeBottomBarButton.style.width = "34%";
+
+    advanceButton.innerHTML = "Continue Siege";
+    advanceButtonState = 3;
 
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     retreatButton.innerHTML = "Pull Out";
     siegeButtonState = setSiegeButtonText(0, siegeButton);
 
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+    /* for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (finalAttackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
             attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
         }
         if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
             defendTerritory = mainArrayOfTerritoriesAndResources[i];
         }
-    }
-
+    } */
 
   } 
   function setupBattleUI(attackArray) {
@@ -4094,8 +4107,22 @@ function toggleUIButton(makeVisible) {
     setTitleTextBattleUI(attackerCountry, defenderTerritory, 0);
 
     document.getElementById("battleUITitleTitleCenter").innerHTML = "vs";
-    document.getElementById("probabilityColumnBox").style.display = "flex";
-    prepareProbabilityBar(0);
+
+    let probBarAdded = false;
+
+    if (document.getElementById("probabilityColumnBox")) {
+        document.getElementById("probabilityColumnBox").style.display = "flex";
+    } else {
+        probBarAdded = true;
+        const battleUIRow2 = document.getElementById("battleUIRow2");
+        battleUIRow2.innerHTML = "";
+        const probabilityColumnBox = document.createElement("div");
+        probabilityColumnBox.classList.add("probabilityColumnBox");
+        probabilityColumnBox.classList.add("probabilityColumnBox");
+        probabilityColumnBox.setAttribute("id","probabilityColumnBox");
+        battleUIRow2.appendChild(probabilityColumnBox);
+    }
+    prepareProbabilityBar(0, probBarAdded);
 
     //SET PROBABILITY ON UI
     setAttackProbabilityOnUI(probability, 1);
@@ -4103,10 +4130,16 @@ function toggleUIButton(makeVisible) {
     //SET ARMY TEXT VALUES
     setArmyTextValues(finalAttackArray, 0);
 
+    //SET ATTACK ROW 4
+    setRow4(0);
+
     //INITIALISE BUTTONS
     retreatButton.style.display = "flex";
     advanceButton.style.display = "flex";
     siegeBottomBarButton.style.display = "none";
+
+    retreatButton.style.width = "50%";
+    advanceButton.style.width = "50%";
 
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     advanceButtonState = 0;
@@ -4625,7 +4658,7 @@ export function getSiegeObject(territory) {
     }
 }
 
-function prepareProbabilityBar(siegeOrAttack) {
+function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
     const battleUIRow2 = document.getElementById("battleUIRow2");
     const probabilityColumnBox = document.getElementById("probabilityColumnBox");
 
@@ -4634,18 +4667,21 @@ function prepareProbabilityBar(siegeOrAttack) {
         battleUIRow2.classList.remove("battleUIRow2SiegeBg");
         battleUIRow2.classList.add("battleUIRow2AttackBg");
         battleUIRow2.style.backgroundColor = "rgb(131, 38, 38)";
-        battleUIRow2.style.alignItems = "none";
-        battleUIRow2.style.justifyContent = "none";
-        battleUIRow2.innerHTML = "";
-        battleUIRow2.appendChild(probabilityColumnBox);
+        battleUIRow2.style.alignItems = "";
+        battleUIRow2.style.justifyContent = "";
+        if (!probBarAdded) {
+            battleUIRow2.appendChild(probabilityColumnBox);
+        }
     } else if (siegeOrAttack === 1) { // Siege
-        probabilityColumnBox.style.display = "none";
+        if (probabilityColumnBox) {
+            probabilityColumnBox.style.display = "none";
+            battleUIRow2.removeChild(probabilityColumnBox);
+        }
         battleUIRow2.classList.remove("battleUIRow2AttackBg");
         battleUIRow2.classList.add("battleUIRow2SiegeBg");
         battleUIRow2.style.backgroundColor = "rgb(114, 88, 48)";
         battleUIRow2.style.alignItems = "center";
         battleUIRow2.style.justifyContent = "center";
-        battleUIRow2.removeChild(probabilityColumnBox);
         battleUIRow2.innerHTML = "Under Siege!";
     }      
 }
@@ -4654,4 +4690,55 @@ function setSiegeTurnsText(siegeObject) {
     const { turnsInSiege } = siegeObject;
     document.getElementById("battleUIRow4Col1").innerHTML = "Turns Sieged: " + turnsInSiege;
 }
-  
+
+function setRow4(siegeOrAttack) { //move to bottom when done
+    //get appropriate columns
+    const row4RightColumnA = document.getElementById("battleUIRow4Col2A");
+    const row4RightColumnB = document.getElementById("battleUIRow4Col2B");
+    const row4RightColumnC = document.getElementById("battleUIRow4Col2C");
+    const row4RightColumnD = document.getElementById("battleUIRow4Col2D");
+    const row4RightColumnE = document.getElementById("battleUIRow4Col2E");
+    const row4RightColumnF = document.getElementById("battleUIRow4Col2F");
+
+    const prodPopIcon = document.getElementById("prodPopIcon");
+    const foodIcon = document.getElementById("foodIcon");
+
+    const siegeButton = document.getElementById("siegeButton");
+
+    if (siegeOrAttack === 0) { //attack
+
+        row4RightColumnB.style.display = "none";
+        row4RightColumnC.style.display = "none";
+        row4RightColumnD.style.display = "none";
+
+        prodPopIcon.style.display = "none";
+        foodIcon.style.display = "none";
+
+        siegeButton.style.display = "flex";
+
+        row4RightColumnA.style.width = "70%";
+        row4RightColumnE.style.width = "";
+        
+        row4RightColumnA.style.marginLeft = "";
+        row4RightColumnE.style.marginLeft = "";
+        
+    } else if (siegeOrAttack === 1) { //siege
+
+        row4RightColumnB.style.display = "flex";
+        row4RightColumnC.style.display = "flex";
+        row4RightColumnD.style.display = "flex";
+
+        prodPopIcon.style.display = "flex";
+        foodIcon.style.display = "flex";
+
+        siegeButton.style.display = "none";
+
+        row4RightColumnA.style.width = "10%";
+        row4RightColumnC.style.width = "10%";
+        row4RightColumnE.style.width = "10%";
+
+        row4RightColumnA.style.marginLeft = "10px";
+        row4RightColumnC.style.marginLeft = "10px";
+        row4RightColumnE.style.marginLeft = "10px";
+    }
+}

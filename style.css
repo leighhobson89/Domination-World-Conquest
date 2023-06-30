@@ -1971,24 +1971,31 @@ td {
   display: flex;
   width: 70%;
   height: 100%;
+  justify-content: flex-end;
 }
 
 .battleUIRow4Col2B {
   display: none;
   width: 16.5%;
+  justify-content: flex-start;
   height: 100%;
+  padding-left: 10px;
 }
 
 .battleUIRow4Col2C {
   display: none;
   width: 16.5%;
+  justify-content: flex-end;
   height: 100%;
+  margin-left: 10px;
 }
 
 .battleUIRow4Col2D {
   display: none;
   width: 16.5%;
+  justify-content: flex-start;
   height: 100%;
+  padding-left: 10px;
 }
 
 .battleUIRow4Col2E {
@@ -2000,7 +2007,7 @@ td {
 
 .battleUIRow4Col2F {
   display: flex;
-  width: 15%;
+  width: 16.5%;
   height: 100%;
   justify-content: flex-start;
   padding-left: 10px;
@@ -2032,8 +2039,6 @@ td {
   justify-content: center;
   text-align: center;
   align-items: center;
-  color: white;
-  border: 2px solid rgb(83, 62, 30);
   border-radius: 10px;
 }
 
