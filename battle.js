@@ -6,7 +6,8 @@ import {
     oilRequirements,
     turnGainsArray,
     setDemandArray,
-    calculateAllTerritoryDemandsForCountry
+    calculateAllTerritoryDemandsForCountry,
+    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable
 } from './resourceCalculations.js';
 import {
   paths, playerCountry,
@@ -778,10 +779,15 @@ function calculateCombinedForce(army) {
   }
 
   export function addRemoveWarSiegeObject(addOrRemove, warId) {
+    let proportionsAttackers = proportionsOfAttackArray;
+    for (let i = 1; i < finalAttackArray.length; i+=5) {
+
+    }
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritory.territoryName] = {
         warId: warId,
+        proportionsAttackers: proportionsAttackers,
         defendingTerritory: defendingTerritory,
         defendingArmyRemaining: defendingArmyRemaining,
         defenseBonus: defendingTerritory.defenseBonus,
@@ -815,4 +821,36 @@ export function incrementSiegeTurns() {
       siegeObject[territory].turnsInSiege += 1;
     }
   }
+}
+
+export function restoreArmyToStartingTerritories(war) {
+  let territory;
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        for (let j = 0; j < war.proportionsAttackers.length; j++) {
+            if (war.proportionsAttackers[j][0].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+                territory = mainArrayOfTerritoriesAndResources[i];
+
+                //calculate proportions of remaining attacking army to return to territories that entered the war
+                let infantryChange = Math.floor(war.attackingArmyRemaining[0] * (war.proportionsAttackers[j][1] / 100));
+                let assaultChange = Math.floor(war.attackingArmyRemaining[1] * (war.proportionsAttackers[j][2] / 100));
+                let airChange = Math.floor(war.attackingArmyRemaining[2] * (war.proportionsAttackers[j][3] / 100));
+                let navalChange = Math.floor(war.attackingArmyRemaining[3] * (war.proportionsAttackers[j][4] / 100));
+
+                territory.infantryForCurrentTerritory += infantryChange;
+                territory.assaultForCurrentTerritory += assaultChange;
+                territory.airForCurrentTerritory += airChange;
+                territory.navalForCurrentTerritory += navalChange;
+
+                turnGainsArray.changeOilDemand += (assaultChange * oilRequirements.assault);
+                turnGainsArray.changeOilDemand += (airChange * oilRequirements.air);
+                turnGainsArray.changeOilDemand += (navalChange * oilRequirements.naval);
+
+                territory.oilDemand = ((oilRequirements.assault * territory.assaultForCurrentTerritory) + (oilRequirements.air * territory.airForCurrentTerritory) + (oilRequirements.naval * territory.navalForCurrentTerritory));
+                setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, territory);
+                territory.armyForCurrentTerritory = territory.infantryForCurrentTerritory + (territory.useableAssault * vehicleArmyWorth.assault) + (territory.useableAir * vehicleArmyWorth.air) + (territory.useableNaval * vehicleArmyWorth.naval);
+            }
+        }
+    }
+    setDemandArray(calculateAllTerritoryDemandsForCountry());
+    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
 }
