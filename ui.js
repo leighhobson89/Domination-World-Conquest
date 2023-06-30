@@ -80,6 +80,7 @@ import {
     addRemoveWarSiegeObject,
     siegeObject,
     nextWarId,
+    restoreArmyToStartingTerritories
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2182,9 +2183,10 @@ retreatButton.addEventListener('click', function() {
             }
             if (battleUIState === 1) { //in siege screen
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
+                restoreArmyToStartingTerritories(war);
                 addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
                 removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
-                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg               
+                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg             
 
                 currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
                 //redraw ui to start battle and get soldiers etc from array
@@ -4362,8 +4364,9 @@ function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function populateWarResultPopup(situation, flagStringAttacker, flagStringDefender, defeatType) {
-    flagStringDefender = flagStringDefender.territoryName;
+  function populateWarResultPopup(situation, flagStringAttacker, territoryStringDefender, defeatType) {
+    let flagStringDefender = territoryStringDefender.dataName;
+    territoryStringDefender = territoryStringDefender.territoryName;
 
     //SET FLAGS
     setFlag(flagStringAttacker, 6);
@@ -4371,7 +4374,7 @@ function reduceKeywords(str) {
 
     //SET TITLE COUNTRY NAMES
     document.getElementById("battleResultsTitleTitleLeft").innerHTML = flagStringAttacker;
-    document.getElementById("battleResultsTitleTitleRight").innerHTML = flagStringDefender;
+    document.getElementById("battleResultsTitleTitleRight").innerHTML = territoryStringDefender;
 
     let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
 
@@ -4432,7 +4435,7 @@ function reduceKeywords(str) {
     confirmButtonBattleResults.addEventListener('click', function() {
         let defendingTerritory;
         for (let i = 0; i < paths.length; i++) {
-            if (paths[i].getAttribute("territory-name") === flagStringDefender) {
+            if (paths[i].getAttribute("territory-name") === territoryStringDefender) {
                 defendingTerritory = paths[i];
             }
         }
