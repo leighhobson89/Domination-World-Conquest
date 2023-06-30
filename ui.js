@@ -2183,7 +2183,7 @@ retreatButton.addEventListener('click', function() {
             }
             if (battleUIState === 1) { //in siege screen
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
-                restoreArmyToStartingTerritories(war);
+                /* restoreArmyToStartingTerritories(war); */
                 addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
                 removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
                 territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg             
