@@ -80,6 +80,7 @@ import {
     addRemoveWarSiegeObject,
     siegeObject,
     nextWarId,
+    calculateProbabiltyPreBattle,
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -1665,19 +1666,64 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
   battleUIRow4Col2.setAttribute("id","battleUIRow4Col2");
 
+  const battleUIRow4Col2A = document.createElement("div");
+  battleUIRow4Col2A.classList.add("battleUIRow4Col2A");
+  battleUIRow4Col2A.setAttribute("id","battleUIRow4Col2A");
+
+  const battleUIRow4Col2B = document.createElement("div");
+  battleUIRow4Col2B.classList.add("battleUIRow4Col2B");
+  battleUIRow4Col2B.setAttribute("id","battleUIRow4Col2B");
+
+  const battleUIRow4Col2C = document.createElement("div");
+  battleUIRow4Col2C.classList.add("battleUIRow4Col2C");
+  battleUIRow4Col2C.setAttribute("id","battleUIRow4Col2C");
+
+  const battleUIRow4Col2D = document.createElement("div");
+  battleUIRow4Col2D.classList.add("battleUIRow4Col2D");
+  battleUIRow4Col2D.setAttribute("id","battleUIRow4Col2D");
+
+  const battleUIRow4Col2E = document.createElement("div");
+  battleUIRow4Col2E.classList.add("battleUIRow4Col2E");
+  battleUIRow4Col2E.setAttribute("id","battleUIRow4Col2E");
+
+  const battleUIRow4Col2F = document.createElement("div");
+  battleUIRow4Col2F.classList.add("battleUIRow4Col2F");
+  battleUIRow4Col2F.setAttribute("id","battleUIRow4Col2F");
+
   const siegeButton = document.createElement("button");
   siegeButton.classList.add("siegeButton");
   siegeButton.setAttribute("id","siegeButton");
 
+  const prodPopIcon = document.createElement("div");
+  prodPopIcon.classList.add("battleRow4Icon");
+  prodPopIcon.setAttribute("id","prodPopIcon");
+  prodPopIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/prodPopulation.png'>";
+
+  const foodIcon = document.createElement("div");
+  foodIcon.classList.add("battleRow4Icon");
+  foodIcon.setAttribute("id","foodIcon");
+  foodIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/food.png'>";
+
   const defenceIcon = document.createElement("div");
-  defenceIcon.classList.add("defenceIcon");
+  defenceIcon.classList.add("battleRow4Icon");
+  defenceIcon.style.display = "flex";
   defenceIcon.setAttribute("id","defenceIcon");
-  defenceIcon.innerHTML = "<img class='sizingPositionDefenceBonusIconBattleUI' src='./resources/fortIcon.png'>"
+  defenceIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+
+  const prodPopText = document.createElement("div");
+  prodPopText.classList.add("battleRow4IconText");
+  prodPopText.setAttribute("id","prodPopText");
+  prodPopText.innerHTML = "15.1M";
+
+  const foodText = document.createElement("div");
+  foodText.classList.add("battleRow4IconText");
+  foodText.setAttribute("id","foodText");
+  foodText.innerHTML = "200k";
 
   const defenceBonusText = document.createElement("div");
-  defenceBonusText.classList.add("defenceBonusText");
+  defenceBonusText.classList.add("battleRow4IconText");
   defenceBonusText.setAttribute("id","defenceBonusText");
-  defenceBonusText.innerHTML = "  20%";
+  defenceBonusText.innerHTML = "20%";
 
   const battleUIRow5 = document.createElement("div");
   battleUIRow5.classList.add("battleUIRow");
@@ -1691,6 +1737,11 @@ document.addEventListener("DOMContentLoaded", function() {
   const advanceButton = document.createElement("button");
   advanceButton.classList.add("advanceButton");
   advanceButton.setAttribute("id","advanceButton");
+
+  const siegeBottomBarButton  = document.createElement("button");
+  siegeBottomBarButton.classList.add("siegeBottomBarButton");
+  siegeBottomBarButton.setAttribute("id","siegeBottomBarButton");
+  siegeBottomBarButton.innerHTML = "Assault!";
 
   battleUITitleTitleCol.appendChild(battleUITitleTitleLeft);
   battleUITitleTitleCol.appendChild(battleUITitleTitleCenter);
@@ -1723,15 +1774,27 @@ document.addEventListener("DOMContentLoaded", function() {
   battleUIRow3.appendChild(armyRowRow1);
   battleUIRow3.appendChild(armyRowRow2);
 
-  battleUIRow4Col2.appendChild(siegeButton);
-  battleUIRow4Col2.appendChild(defenceIcon);
-  battleUIRow4Col2.appendChild(defenceBonusText);
+  battleUIRow4Col2A.appendChild(siegeButton);
+  battleUIRow4Col2A.appendChild(prodPopIcon);
+  battleUIRow4Col2B.appendChild(prodPopText);
+  battleUIRow4Col2C.appendChild(foodIcon);
+  battleUIRow4Col2D.appendChild(foodText);
+  battleUIRow4Col2E.appendChild(defenceIcon);
+  battleUIRow4Col2F.appendChild(defenceBonusText);
+
+  battleUIRow4Col2.appendChild(battleUIRow4Col2A);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2B);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2C);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2D);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2E);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2F);
 
   battleUIRow4.appendChild(battleUIRow4Col1);
   battleUIRow4.appendChild(battleUIRow4Col2);
 
   battleUIRow5.appendChild(retreatButton);
   battleUIRow5.appendChild(advanceButton);
+  battleUIRow5.appendChild(siegeBottomBarButton);
 
   battleUIContainer.appendChild(battleUIRow1);
   battleUIContainer.appendChild(battleUIRow2);
@@ -2106,9 +2169,11 @@ retreatButton.addEventListener('click', function() {
         }
     }
     setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
+    let defeatType;
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
             if (!battleStart) {
+                defeatType = "retreat";
                 assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
                 //update top table army value when leaving battle
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
@@ -2121,6 +2186,7 @@ retreatButton.addEventListener('click', function() {
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 1: //scatter during round of 5, 30% penalty
+            defeatType = "defeat";
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
                 attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * 0.7); //apply penalty
             }
@@ -2136,6 +2202,7 @@ retreatButton.addEventListener('click', function() {
             break;
         case 2: //defeat
         if (defendingArmyRemaining[4] === 0) { //all out defeat
+            defeatType = "defeat";
             defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
@@ -2144,6 +2211,7 @@ retreatButton.addEventListener('click', function() {
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
         } else if (defendingArmyRemaining[4] === 1) { //routing defeat
+            defeatType = "defeat";
             defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
@@ -2161,7 +2229,7 @@ retreatButton.addEventListener('click', function() {
     battleUIDisplayed = false;
     toggleBattleResults(true);
     battleResultsDisplayed = true;
-    populateWarResultPopup(1, attackCountry, defendTerritory); //lost
+    populateWarResultPopup(1, attackCountry, defendTerritory, defeatType); //lost
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
 });
 
@@ -2228,7 +2296,7 @@ advanceButton.addEventListener('click', function() {
             battleUIDisplayed = false;
             toggleBattleResults(true);
             battleResultsDisplayed = true;
-            populateWarResultPopup(0, attackCountry, defendTerritory); //won
+            populateWarResultPopup(0, attackCountry, defendTerritory, "victory"); //won
             break;
     }
 });
@@ -3732,11 +3800,11 @@ export function getLastClickedPath() {
   return lastClickedPath;
 }
 
-export function setAttackProbabilityOnUI(probability, place) {
+export function setAttackProbabilityOnUI(probability, situation) {
     const roundedProbability = Math.ceil(probability);
     const displayProbability = roundedProbability >= 100 ? 100 : roundedProbability;
 
-    if (place === 0) { //attackUI
+    if (situation === 0) { //attackUI
         document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
         if (displayProbability >= 1) {
             document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
@@ -3744,14 +3812,13 @@ export function setAttackProbabilityOnUI(probability, place) {
             document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
         }
         document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
-    } else if (place === 1) { //battleUI
+    } else if (situation === 1) { //battleUI
         let probabilityColumnBox = document.getElementById("probabilityColumnBox");
 
         let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
         battleUIRow4Col1.innerHTML = battleUIRow4Col1.innerHTML + " Probability: " + displayProbability + "%";
 
-        probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
-        
+        probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";  
     }
 }
     
@@ -3936,6 +4003,10 @@ function toggleUIButton(makeVisible) {
   
   function setupSiegeUI(territory) {
     const siegeObjectElement = getSiegeObject(territory);
+
+    const retreatButton = document.getElementById("retreatButton");
+    const advanceButton = document.getElementById("advanceButton");
+    const siegeBottomBarButton = document.getElementById("siegeBottomBarButton");
     const siegeButton = document.getElementById("siegeButton");
 
     const attackerCountry = playerCountry;
@@ -3953,12 +4024,18 @@ function toggleUIButton(makeVisible) {
     prepareProbabilityBar(1);
 
     //SET ARMY TEXT VALUES
-    setArmyTextValues(finalAttackArray, 0);
+    setArmyTextValues(siegeObjectElement, 2);
+
+    //SET SIEGE TURNS TEXT
+    setSiegeTurnsText(siegeObjectElement);
 
     //INITIALISE BUTTONS
+    retreatButton.style.display = "flex";
+    advanceButton.style.display = "none";
+    siegeBottomBarButton.style.display = "flex";
+
     retreatButtonState = setRetreatButtonText(0, retreatButton);
-    advanceButtonState = 0;
-    setAdvanceButtonText(6, advanceButton);
+    retreatButton.innerHTML = "Pull Out";
     siegeButtonState = setSiegeButtonText(0, siegeButton);
 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -4027,6 +4104,10 @@ function toggleUIButton(makeVisible) {
     setArmyTextValues(finalAttackArray, 0);
 
     //INITIALISE BUTTONS
+    retreatButton.style.display = "flex";
+    advanceButton.style.display = "flex";
+    siegeBottomBarButton.style.display = "none";
+
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     advanceButtonState = 0;
     setAdvanceButtonText(6, advanceButton);
@@ -4095,7 +4176,8 @@ export function setArmyTextValues(attackArray, situation) {
                 totalDefendingArmy[3] += navalCount;
             }
         }
-    } else if (situation === 1) {
+    } else if (situation === 1) { //middle battle
+
         totalAttackingArmy[0] = attackArray[0];
         totalAttackingArmy[1] = attackArray[1];
         totalAttackingArmy[2] = attackArray[2];
@@ -4105,7 +4187,23 @@ export function setArmyTextValues(attackArray, situation) {
         totalDefendingArmy[1] = attackArray[5];
         totalDefendingArmy[2] = attackArray[6];
         totalDefendingArmy[3] = attackArray[7];
+
+    } else if (situation === 2) { //return from siege
+        const { attackingArmyRemaining } = attackArray;
+        const { defendingArmyRemaining } = attackArray;
+
+        totalAttackingArmy[0] = attackingArmyRemaining[0];
+        totalAttackingArmy[1] = attackingArmyRemaining[1];
+        totalAttackingArmy[2] = attackingArmyRemaining[2];
+        totalAttackingArmy[3] = attackingArmyRemaining[3];
+
+        totalDefendingArmy[0] = defendingArmyRemaining[0];
+        totalDefendingArmy[1] = defendingArmyRemaining[1];
+        totalDefendingArmy[2] = defendingArmyRemaining[2];
+        totalDefendingArmy[3] = defendingArmyRemaining[3];
+
     }
+
     document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0]);
     document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1]);
     document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2]);
@@ -4223,7 +4321,7 @@ function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function populateWarResultPopup(situation, flagStringAttacker, flagStringDefender) {
+  function populateWarResultPopup(situation, flagStringAttacker, flagStringDefender, defeatType) {
     flagStringDefender = flagStringDefender.territoryName;
 
     //SET FLAGS
@@ -4246,8 +4344,13 @@ function reduceKeywords(str) {
         confirmButtonBattleResults.classList.remove("battleResultsRow4Won");
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
         confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
-        document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
-        confirmButtonBattleResults.innerHTML = "Accept Defeat!";
+        if (defeatType === "retreat") {
+            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Pulls  Out  of";
+            confirmButtonBattleResults.innerHTML = "Accept Retreat!";
+        } else {
+            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
+            confirmButtonBattleResults.innerHTML = "Accept Defeat!";
+        }
     }
 
     //MAIN STATS
@@ -4255,9 +4358,14 @@ function reduceKeywords(str) {
 
     //ROUND COLUMN
     if (situation === 0) {
-        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory: " + roundCounterForStats;
+        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory:  " + roundCounterForStats;
     } else if (situation === 1) {
-        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:" + roundCounterForStats;
+        if (defeatType === "retreat") {
+            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
+        } else {
+            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
+        }
+        
     }
 
     roundCounterForStats = 0;    
@@ -4540,5 +4648,10 @@ function prepareProbabilityBar(siegeOrAttack) {
         battleUIRow2.removeChild(probabilityColumnBox);
         battleUIRow2.innerHTML = "Under Siege!";
     }      
+}
+
+function setSiegeTurnsText(siegeObject) {
+    const { turnsInSiege } = siegeObject;
+    document.getElementById("battleUIRow4Col1").innerHTML = "Turns Sieged: " + turnsInSiege;
 }
   
