@@ -4051,11 +4051,13 @@ function toggleUIButton(makeVisible) {
     let transferAttackButton = document.getElementById("move-phase-button");
     let attackText = document.getElementById("attack-destination-container");
     if (turnOnButton) {
+        document.getElementById("move-phase-buttons-container").style.display = "flex";
         transferAttackButton.style.display = "flex";
         if (attackTextCurrentlyDisplayed) {
             attackText.style.display = "flex";
         }
     } else if (!turnOnButton) {
+        document.getElementById("move-phase-buttons-container").style.display = "none";
         transferAttackButton.style.display = "none";
         attackText.style.display = "none";
     }
