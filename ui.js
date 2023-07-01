@@ -153,7 +153,7 @@ export let territoryAboutToBeAttackedOrSieged = null;
 export let transferToTerritory;
 export let battleUIState = 0;
 
-//BATTLE UI BUTTON STATES  
+//BATTLE UI STATES  
 export let retreatButtonState;
 export let advanceButtonState;
 export let siegeButtonState;
@@ -167,6 +167,7 @@ let currentAttackingArmyRemaining;
 let roundCounterForStats = 0;
 let attackCountry;
 let defendTerritory;
+let currentWarFlagString;
 
 const multiplierForScatterLoss = 0.7;
 
@@ -2296,6 +2297,7 @@ advanceButton.addEventListener('click', function() {
                     playSoundClip();
                     roundCounterForStats++;
                     enableDisableSiegeButton(1);
+                    currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
                 }
                 advanceButtonState = 1;
                 setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -2904,12 +2906,13 @@ export function setFlag(flag, place) {
   } else if (place === 5) { //Battle UI defender
     flagElement = document.getElementById("battleUITitleFlagCol2");
     img.style.width = "100%";
-  } else if (place === 6) { //Battle UI attacker
+  } else if (place === 6) { //Battle Results UI attacker
     flagElement = document.getElementById("battleResultsRow1FlagCol1");
     img.style.width = "100%";
-  } else if (place === 7) { //Battle UI defender
+  } else if (place === 7) { //Battle Results UI defender
     flagElement = document.getElementById("battleResultsRow1FlagCol2");
     img.style.width = "100%";
+    img.src = `./resources/flags/${currentWarFlagString}.png`;
   } else if (place === 0) {
         return img.src;
   }
