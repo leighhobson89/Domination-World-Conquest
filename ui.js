@@ -3988,12 +3988,15 @@ function toggleUIButton(makeVisible) {
     if (enterSiege) {
         battleUI.style.display = 'none';
         svg.style.pointerEvents = 'auto';
+        document.getElementById("move-phase-buttons-container").style.display = "flex";
     } else {
         if (turnOnBattleUI) {
           battleUI.style.display = "block";
           svg.style.pointerEvents = 'none';
+          document.getElementById("move-phase-buttons-container").style.display = "none";
         } else if (!turnOnBattleUI) {
           battleUI.style.display = 'none';
+          document.getElementById("move-phase-buttons-container").style.display = "flex";
         }
     }
   }
@@ -4002,7 +4005,9 @@ function toggleUIButton(makeVisible) {
     let battleResults = document.getElementById("battleResultsContainer");
   if (turnOnBattleResults) {
     battleResults.style.display = "block";
+    document.getElementById("move-phase-buttons-container").style.display = "none";
   } else if (!turnOnBattleResults) {
+    document.getElementById("move-phase-buttons-container").style.display = "flex";
     battleResults.style.display = 'none';
     svg.style.pointerEvents = 'auto';
   }
@@ -4051,13 +4056,11 @@ function toggleUIButton(makeVisible) {
     let transferAttackButton = document.getElementById("move-phase-button");
     let attackText = document.getElementById("attack-destination-container");
     if (turnOnButton) {
-        document.getElementById("move-phase-buttons-container").style.display = "flex";
         transferAttackButton.style.display = "flex";
         if (attackTextCurrentlyDisplayed) {
             attackText.style.display = "flex";
         }
     } else if (!turnOnButton) {
-        document.getElementById("move-phase-buttons-container").style.display = "none";
         transferAttackButton.style.display = "none";
         attackText.style.display = "none";
     }
