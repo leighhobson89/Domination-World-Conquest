@@ -800,9 +800,14 @@ function calculateCombinedForce(army) {
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
 
-    } else if (addOrRemove === 1) { // remove war from siege object
-      historicSieges.push(siegeObject[defendingTerritory.territoryName]); //add to historic sieges array
-      delete siegeObject[defendingTerritory.territoryName];
+    } else if (addOrRemove === 1) { 
+      for (const key in siegeObject) {
+        if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
+          historicSieges.push(siegeObject[key]);
+          delete siegeObject[key];
+          break;
+        }
+      }
     }
     console.log(historicSieges);
   }

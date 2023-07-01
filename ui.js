@@ -2360,7 +2360,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     enableDisableSiegeButton(1); //disable siege button at start
     let siegeAttackArray = [];
     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
-    siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportioinsAttackers part of siegeObject
+    siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportioinsAttackers part of siegeObject
     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
         siegeAttackArray.push(war.attackingArmyRemaining[i]);
     }
@@ -4224,7 +4224,7 @@ function toggleUIButton(makeVisible) {
         if (attackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
             attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
         }
-        if (finalAttackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+        if (attackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
             defendTerritory = mainArrayOfTerritoriesAndResources[i];
         }
     }
