@@ -362,7 +362,7 @@ export function svgMapLoaded() {
 
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
-    if (country.getAttribute("underSiege" === false)) {
+    if (country.getAttribute("underSiege" === "false")) {
         const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
 
         if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
@@ -2189,8 +2189,6 @@ retreatButton.addEventListener('click', function() {
                 addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
                 removeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
                 territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg             
-
-                currentMapColorAndStrokeArray = saveMapColorState(false); //put after changing graphics
                 //redraw ui to start battle and get soldiers etc from array
             }                
             //update bottom table for defender
@@ -3583,7 +3581,7 @@ function setTerritoryForAttack(territoryToAttack) {
     territoryToAttack.style.stroke = siegeObject[territoryToAttack.getAttribute("territory-name")].strokeColor;
     territoryToAttack.setAttribute("stroke-width", "5px");
     territoryToAttack.style.strokeDasharray = "10, 5";
-    if (!document.querySelectorAll("#siegeImage_" + territoryToAttack.getAttribute("territory-name"))) { //stop duplication of siegfe image
+    if (!svgMap.querySelector("#siegeImage_" + territoryToAttack.getAttribute("territory-name"))) { //stop duplication of siegfe image
         addImageToPath(territoryToAttack, "siege.png", true);
     }
   } else {
@@ -3640,20 +3638,29 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
     let siegeObjectElement = getHistoricSiegeObject(path);
     let imageElement;
     if (path.getAttribute("underSiege") === "true" && whereExecuted !== "Siege" && path === lastClickedPath) {
-        imageElement = document.querySelector("siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
+        imageElement = svgMap.querySelector("siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
     } else{
-        imageElement = path.parentNode.getElementById("attackImage");
+        imageElement = svgMap.querySelector("attackImage");
     }
     
     if (imageElement) {
-      imageElement.parentNode.removeChild(imageElement);
+      svgMap.removeChild(imageElement);
       if (whereExecuted === "Defeat" || whereExecuted === "Siege") {
         return;
       }
     } else {
         if (whereExecuted === "Defeat") {
-                imageElement = document.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
+                imageElement = svgMap.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
                 imageElement.remove();
+                if (path.parentNode.querySelectorAll("#attackImage")) {
+                    svgMap.getElementById("attackImage").remove();
+                }
+                if (path.getAttribute("owner") !== "Player") {
+                    path.setAttribute("fill", fillPathBasedOnContinent(path));
+                    path.style.stroke = "0,0,0";
+                    path.style.strokeDasharray = "none";
+                    path.setAttribute("stroke-width", 1);
+                }   
             }
             return;
         }
@@ -4143,6 +4150,8 @@ function toggleUIButton(makeVisible) {
 
     retreatButtonState = setRetreatButtonText(0, retreatButton);
     retreatButton.innerHTML = "Pull Out";
+    retreatButton.disabled = false;
+    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
 
   } 
   function setupBattleUI(attackArray) {
@@ -4429,17 +4438,17 @@ function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function populateWarResultPopup(situation, flagStringAttacker, territoryStringDefender, defeatType) {
+  function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType) {
     
     let territoryPath;
     for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === territoryStringDefender.uniqueId) {
+        if (paths[i].getAttribute("uniqueid") === territoryDefender.uniqueId) {
             territoryPath = paths[i];
         }
     }
 
-    let flagStringDefender = territoryStringDefender.dataName;
-    territoryStringDefender = territoryStringDefender.territoryName;
+    let flagStringDefender = territoryDefender.dataName;
+    let territoryStringDefender = territoryDefender.territoryName;
 
     //SET FLAGS
     setFlag(flagStringAttacker, 6);
@@ -4520,6 +4529,8 @@ function reduceKeywords(str) {
         toggleUIButton(true);
         toggleBottomLeftPaneWithTurnAdvance(true);
         removeImageFromPathAndRestoreNormalStroke(defendingTerritory, "Defeat");
+        currentMapColorAndStrokeArray = saveMapColorState(false);
+        svgMap.querySelectorAll("#attackImage").remove();
     });
   }
 
