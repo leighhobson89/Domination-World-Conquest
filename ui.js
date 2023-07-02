@@ -2912,7 +2912,7 @@ export function setFlag(flag, place) {
   } else if (place === 7) { //Battle Results UI defender
     flagElement = document.getElementById("battleResultsRow1FlagCol2");
     img.style.width = "100%";
-    img.src = `./resources/flags/${currentWarFlagString}.png`;
+    img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
   } else if (place === 0) {
         return img.src;
   }
@@ -3616,15 +3616,15 @@ function addImageToPath(pathElement, imagePath, siege) {
   imageElement.setAttribute("z-index", 9999);
 
   if (siege) {
-    imageElement.setAttribute("id", "siegeImage"); // Add ID "territoryImage" to the image element
+    imageElement.setAttribute("id", "siegeImage");
   } else {
-    imageElement.setAttribute("id", "attackImage"); // Add ID "territoryImage" to the image element
+    imageElement.setAttribute("id", "attackImage");
   }
-  
   pathElement.parentNode.appendChild(imageElement);
 }
 
 export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
+    let siegeObjectElement = getHistoricSiegeObject(path);
     let imageElement;
     if (path.getAttribute("underSiege") === "true" && whereExecuted !== "Siege" && path === lastClickedPath) {
         imageElement = path.parentNode.getElementById("siegeImage");
@@ -3639,7 +3639,7 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       }
     } else {
         if (whereExecuted === "Defeat") {
-            imageElement = path.parentNode.getElementById("siegeImage");
+            imageElement = path.parentNode.getElementById("siegeImage_" + siegeObjectElement.warId);
             imageElement.parentNode.removeChild(imageElement);
             return;
         }
@@ -4460,7 +4460,7 @@ function reduceKeywords(str) {
     }
 
     //MAIN STATS
-    setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation);
+    setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
 
     //ROUND COLUMN
     if (situation === 0) {
@@ -4728,6 +4728,15 @@ export function enableDisableSiegeButton(enableOrDisable) {
 export function getSiegeObject(territory) {
     if (territory.getAttribute("territory-name") in siegeObject) {
     return siegeObject[territory.getAttribute("territory-name")];
+    }
+}
+
+export function getHistoricSiegeObject(territory) {
+    const territoryName = territory.getAttribute("territory-name");
+    const siege = historicSieges.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+
+    if (siege) {
+        return siege;
     }
 }
 
