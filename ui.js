@@ -3583,7 +3583,9 @@ function setTerritoryForAttack(territoryToAttack) {
     territoryToAttack.style.stroke = siegeObject[territoryToAttack.getAttribute("territory-name")].strokeColor;
     territoryToAttack.setAttribute("stroke-width", "5px");
     territoryToAttack.style.strokeDasharray = "10, 5";
-    addImageToPath(territoryToAttack, "siege.png", true);
+    if (!document.querySelectorAll("#siegeImage_" + territoryToAttack.getAttribute("territory-name"))) { //stop duplication of siegfe image
+        addImageToPath(territoryToAttack, "siege.png", true);
+    }
   } else {
     territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
     territoryToAttack.setAttribute("fill", playerColour);
@@ -3616,18 +3618,29 @@ function addImageToPath(pathElement, imagePath, siege) {
   imageElement.setAttribute("z-index", 9999);
 
   if (siege) {
-    imageElement.setAttribute("id", "siegeImage");
+    for (const key in siegeObject) {
+        if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === currentWarId) {
+          for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("territory-name") === siegeObject[key].defendingTerritory.territoryName) {
+              pathElement.parentNode.appendChild(imageElement);
+              imageElement.setAttribute("id", `siegeImage_${siegeObject[key].defendingTerritory.territoryName}`);
+              break;
+            }
+          }
+          break;
+        }
+      }
   } else {
     imageElement.setAttribute("id", "attackImage");
+    pathElement.parentNode.appendChild(imageElement);
   }
-  pathElement.parentNode.appendChild(imageElement);
 }
 
 export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
     let siegeObjectElement = getHistoricSiegeObject(path);
     let imageElement;
     if (path.getAttribute("underSiege") === "true" && whereExecuted !== "Siege" && path === lastClickedPath) {
-        imageElement = path.parentNode.getElementById("siegeImage");
+        imageElement = document.querySelector("siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
     } else{
         imageElement = path.parentNode.getElementById("attackImage");
     }
@@ -3639,11 +3652,11 @@ export function removeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
       }
     } else {
         if (whereExecuted === "Defeat") {
-            imageElement = path.parentNode.getElementById("siegeImage_" + siegeObjectElement.warId);
-            imageElement.parentNode.removeChild(imageElement);
+                imageElement = document.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
+                imageElement.remove();
+            }
             return;
         }
-    }
   
     if (path !== territoryAboutToBeAttackedOrSieged && whereExecuted === "EscapeKey") {
       path.style.strokeDasharray = "none";
