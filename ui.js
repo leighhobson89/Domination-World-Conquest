@@ -196,7 +196,7 @@ export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
 }
 
 export function svgMapLoaded() {
-  //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
+         //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
   svg = document.getElementById('svg-map');
   svgMap = document.getElementById('svg-map').contentDocument;
   svgTag = svgMap.querySelector('svg');
@@ -358,7 +358,10 @@ export function svgMapLoaded() {
   }
 
   console.log("loaded!");
-}
+
+      }, 1000);
+    }
+ 
 
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
