@@ -1,4 +1,4 @@
-const { runTest, switchContext, clickNewGame, clickCountryPath, clickPopupConfirm } = require('./openAppAndSelectCountry.js');
+const { runTest, switchContext, clickNewGame, clickCountryPath, clickPopupConfirm } = require('./e2etestFunctions.js');
 const { Builder, By, Key, until } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
@@ -10,7 +10,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-describe('App Tests', function () {
+describe('Military Tests', function () {
   let driver;
   let pathArgument;
 
@@ -28,19 +28,14 @@ describe('App Tests', function () {
       }
     }
 
-    pathArgument = process.argv[3];
-    if (pathArgument === "none") {
-      let country = await getUserInput('Which Country / Territory are you selecting? ');
-      pathArgument = lookupTable[country];
-      rl.close();
-    } else {
-      pathArgument = lookupTable[pathArgument];
-    }
+    //interpret launch.json territory name to be player
+    pathArgument = lookupTable[process.argv[3]];
+  });
 
-    // Navigate to website
+  beforeEach(async function () {
     await driver.get('http://localhost:3000');
-
     await runTest(driver);
+    await wait(1000);
   });
 
   after(async function () {
@@ -48,8 +43,6 @@ describe('App Tests', function () {
   });
 
   it('should select a country for the player', async function () {
-    this.timeout(20000);
-      await wait(1000);
       let proceed = await switchContext(driver, 'default');
       if (proceed) {
         await clickNewGame(driver);
@@ -68,28 +61,26 @@ describe('App Tests', function () {
       if (proceed) {
         proceed = await clickPopupConfirm(driver, "Confirm");
       }
-      if (proceed) {
-        await wait(500);
-        proceed = await clickPopupConfirm(driver, "MILITARY");
-      }
   });
 
-  it('should perform some validations', async function () {
-    // Test code for validations
-    // Perform necessary actions and assertions
+  it('should do a basic attack', async function () {
+    //load next test file
+  });
+
+  it('should do a basic siege', async function () {
+    //load next test file
+  });
+
+  it('should do a basic assault after a siege', async function () {
+    //load next test file
+  });
+
+  it('should do a siege after another siege', async function () {
+    //load next test file
   });
 
   // Add more tests as needed
 });
-
-// Utility function to read user input from the console
-function getUserInput(question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer);
-    });
-  });
-}
 
 async function wait(time) {
   await new Promise(resolve => setTimeout(resolve, time));

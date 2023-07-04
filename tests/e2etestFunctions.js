@@ -1,6 +1,6 @@
-const { By, until } = require('selenium-webdriver');
+const { By } = require('selenium-webdriver');
 
-async function runTest(driver) {
+async function validateSVG(driver) {
   try {
     let retries = 0;
     let foundSVG = false;
@@ -9,15 +9,18 @@ async function runTest(driver) {
     while (retries < 10 && !foundSVG) {
       try {
         const svgMap = await driver.findElement(By.id('svg-map'));
-        foundSVG = true;
-        console.log('Loaded App. SVG:');
+        if (svgMap) {
+          foundSVG = true;
+          console.log('Loaded App. SVG:');
+        }
       } catch (error) {
-        console.log('SVG not found. Retrying...');
+        console.log('SVG not found. Retrying attempt... ' + retries);
         await driver.navigate().refresh();
         retries++;
       }
     }
-  } finally {
+  } catch (error) {
+    console.log("Max Retries attempted, SVG file not loading");
   }
 }
 
@@ -89,7 +92,7 @@ async function clickPopupConfirm(driver, situation) {
 }
 
 module.exports = {
-  runTest: runTest,
+  runTest: validateSVG,
   clickPopupConfirm: clickPopupConfirm,
   clickCountryPath: clickCountryPath,
   clickNewGame: clickNewGame,
