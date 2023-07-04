@@ -122,19 +122,18 @@ async function clickAttackTransferButton(driver) {
 
 async function validateAttackTransferWindowOpen(driver) {
   let table = await driver.findElement(By.id('transferTable'));
-  if (table) {
-    console.log("Table On Screen!");
-  } else {
-    console.log("Table Not On screen!")
+  if (!table) {
+    console.log("Table Not On Screen!");
     return false;
   }
+  console.log("Table On Screen!");
+
   let firstRow = await driver.findElement(By.css('.transfer-table-row:first-child'));
-  if (firstRow) {
-    console.log("At Least One Row In Table!");
-  } else {
-    console.log("No Rows In Table!")
+  if (!firstRow) {
+    console.log("No Rows In Table!");
     return false;
   }
+  console.log("At Least One Row In Table!");
 
   const colSelectors = await getTransferAttackColumnSelectors();  
 
@@ -185,6 +184,8 @@ async function getTransferAttackColumnSelectors() {
   ];
   return colSelectors;
 }
+
+
 
 module.exports = {
   runTest: validateSVG,

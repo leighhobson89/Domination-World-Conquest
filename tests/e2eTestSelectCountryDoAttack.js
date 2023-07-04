@@ -51,7 +51,8 @@ describe('Military Tests', function () {
     this.timeout(20000);
     await selectAPlayerCountry(driver, pathArgument);
     await clickUIToSetUpAttack(driver, pathArgument);
-    await validateAttackWindow(driver, pathArgument);
+    let tableElements = await validateAttackWindow(driver, pathArgument);
+    console.log(tableElements);
   });
 
   /* it('should do a basic siege', async function () {
@@ -128,19 +129,21 @@ async function clickUIToSetUpAttack(driver, pathArgument) {
     console.log("Clicking 'Attack' button...");
     proceed = await switchContext(driver, 'default');
     proceed = await clickAttackTransferButton(driver);
-    await wait(2500); //just to check end of test display
   }
 }
 
 async function validateAttackWindow(driver) {
+  let tableElements;
+  await wait(500);
   console.log("Validating Attack Window Elements...");
   let proceed = await switchContext(driver, 'default');
   if (proceed) {
-    attackWindowValues = await validateAttackTransferWindowOpen(driver);
-    proceed = attackWindowValues;
+    tableElements = await validateAttackTransferWindowOpen(driver);
+    proceed = tableElements;
   }
   if (proceed !== false) {
     proceed = true;
     console.log("Passed Attack Window Validation Check");
   }
+  return tableElements;
 }
