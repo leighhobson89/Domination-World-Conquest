@@ -2704,5 +2704,3 @@ export const dataTableCountriesInitialState = [
 	   "dev_index":0.796
 	}
  ]
-
-console.log(dataTableCountriesInitialState);

@@ -1,6 +1,28 @@
+const readline = require('readline');
+const fs = require('fs');
+
+try { //handles manual and F5 launches
+  lookupTable = JSON.parse(fs.readFileSync('./tests/uniqueIdLookup.json'));
+} catch (error) {
+  try {
+    lookupTable = JSON.parse(fs.readFileSync('uniqueIdLookup.json'));
+  } catch (error) {
+    console.error('Failed to read the lookup table from both URLs.');
+    // Handle the error or perform any necessary actions
+  }
+}
+
+
+// Load the unique ID lookup table from the JSON file
 const { Builder, By, Key, until } = require('selenium-webdriver');
 
-async function run() {
+// Create a readline interface to read user input from the console
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+async function run(path) {
   const driver = await new Builder().forBrowser('chrome').build();
   try {
     // Navigate to a website
@@ -8,14 +30,14 @@ async function run() {
     let retries = 0;
     let foundSVG = false;
 
-    //find SVG file to start game
+    // Find SVG file to start the game
     while (retries < 10 && !foundSVG) {
       try {
         let svgMap = await driver.findElement(By.id('svg-map'));
         foundSVG = true;
 
         console.log('Element found: ', svgMap);
-        console.log('Sleeping 2000ms to allow async process...'); 
+        console.log('Sleeping 2000ms to allow async process...');
         await driver.sleep(2000);
       } catch (error) {
         console.log('SVG not found. Retrying...');
@@ -28,20 +50,34 @@ async function run() {
     }
 
     if (foundSVG) {
-      let proceed = await switchContext(driver, "default");
+      let proceed = await switchContext(driver, 'default');
       if (proceed) {
         await clickNewGame(driver);
       }
       if (proceed) {
         await driver.sleep(500);
-        proceed = await switchContext(driver, "svg");
+        proceed = await switchContext(driver, 'svg');
       }
       if (proceed) {
-        proceed = await clickCountryPath(driver, 93);
+        if (path === "none") { // manual selection of country mode
+          path = null;
+          let country;
+          while (path === null) {
+            country = await getUserInput('Which Country / Territory are you selecting? ');
+            path = lookupTable[country];
+            if (!path) {
+              console.log('Invalid country or territory entered.');
+            }
+          }
+          rl.close();
+        } else {
+          path = lookupTable[path];
+        }
+        proceed = await clickCountryPath(driver, path);
       }
       if (proceed) {
         await driver.sleep(500);
-        proceed = await switchContext(driver, "default");
+        proceed = await switchContext(driver, 'default');
       }
       if (proceed) {
         proceed = await clickPopupConfirm(driver, "Confirm");
@@ -49,7 +85,7 @@ async function run() {
       if (proceed) {
         await driver.sleep(500);
         proceed = await clickPopupConfirm(driver, "MILITARY");
-      }  
+      }
     } else {
       console.log('SVG not found after maximum retries, quitting.');
     }
@@ -60,17 +96,15 @@ async function run() {
   }
 }
 
-run();
-
 async function switchContext(driver, context) {
-  switch(context) {
-    case "svg":
-    await driver.switchTo().frame(driver.findElement(By.id('svg-map')));
-      console.log("switched context to " + context);
+  switch (context) {
+    case 'svg':
+      await driver.switchTo().frame(driver.findElement(By.id('svg-map')));
+      console.log('Switched context to ' + context);
       return true;
-    case "default":
+    case 'default':
       await driver.switchTo().defaultContent();
-      console.log("switched context to " + context);
+      console.log('Switched context to ' + context);
       return true;
     default:
       console.log("Couldn't find context, quitting");
@@ -86,10 +120,9 @@ async function clickNewGame(driver) {
     console.log('Clicked on "new-game-btn" element.');
     return true;
   } else {
-    console.log('Couldnt find "new-game-btn" element.');
+    console.log('Could not find "new-game-btn" element.');
     return false;
   }
-  
 }
 
 async function clickCountryPath(driver, path) {
@@ -100,7 +133,7 @@ async function clickCountryPath(driver, path) {
     console.log('Clicked on path element with uniqueid="' + path + '".');
     return true;
   } else {
-    console.log('Couldnt find path element ' + path);
+    console.log('Could not find path element ' + path);
     return false;
   }
 }
@@ -114,13 +147,33 @@ async function clickPopupConfirm(driver, situation) {
       await popupConfirmElement.click();
       console.log('Clicked on "popup-confirm" element with text ' + situation);
       return true;
-    }
-   else {
-      console.log('Inner HTML of "popup-confirm" element is not equal to ' + situation + ' but instead ' + innerHTML + '.');
+    } else {
+      console.log(
+        'Inner HTML of "popup-confirm" element is not equal to ' +
+          situation +
+          ' but instead ' +
+          innerHTML +
+          '.'
+      );
     }
     return false;
   } else {
-    console.log("Couldn't find element " + popupConfirmElement);
+    console.log("Could not find element " + popupConfirmElement);
     return false;
   }
 }
+
+// Utility function to read user input from the console
+function getUserInput(question) {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer);
+    });
+  });
+}
+
+// Get the argument passed from the launch configuration
+const pathArgument = process.argv[2];
+run(pathArgument);
+
+
