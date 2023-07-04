@@ -340,7 +340,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             });
         }
     }
-
     return mainArrayOfTerritoriesAndResources;
 }
 
@@ -348,6 +347,9 @@ function createArrayOfInitialData() {
     return calculatePathAreasWhenPageLoaded().then(pathAreas => {
         return new Promise((resolve, reject) => {
             mainArrayOfTerritoriesAndResources = assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState);
+            for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+                console.log('"' + mainArrayOfTerritoriesAndResources[i].territoryName + '": ' + '"' + mainArrayOfTerritoriesAndResources[i].uniqueId + '",');
+            }
             resolve(mainArrayOfTerritoriesAndResources);
         });
     });
