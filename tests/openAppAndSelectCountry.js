@@ -1,98 +1,23 @@
-const readline = require('readline');
-const fs = require('fs');
+const { By, until } = require('selenium-webdriver');
 
-try { //handles manual and F5 launches
-  lookupTable = JSON.parse(fs.readFileSync('./tests/uniqueIdLookup.json'));
-} catch (error) {
+async function runTest(driver) {
   try {
-    lookupTable = JSON.parse(fs.readFileSync('uniqueIdLookup.json'));
-  } catch (error) {
-    console.error('Failed to read the lookup table from both URLs.');
-    // Handle the error or perform any necessary actions
-  }
-}
-
-
-// Load the unique ID lookup table from the JSON file
-const { Builder, By, Key, until } = require('selenium-webdriver');
-
-// Create a readline interface to read user input from the console
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-async function run(path) {
-  const driver = await new Builder().forBrowser('chrome').build();
-  try {
-    // Navigate to a website
-    await driver.get('http://localhost:3000');
     let retries = 0;
     let foundSVG = false;
 
     // Find SVG file to start the game
     while (retries < 10 && !foundSVG) {
       try {
-        let svgMap = await driver.findElement(By.id('svg-map'));
+        const svgMap = await driver.findElement(By.id('svg-map'));
         foundSVG = true;
-
-        console.log('Element found: ', svgMap);
-        console.log('Sleeping 2000ms to allow async process...');
-        await driver.sleep(2000);
+        console.log('Loaded App. SVG:');
       } catch (error) {
         console.log('SVG not found. Retrying...');
-
-        await driver.sleep(2000);
         await driver.navigate().refresh();
-
         retries++;
       }
     }
-
-    if (foundSVG) {
-      let proceed = await switchContext(driver, 'default');
-      if (proceed) {
-        await clickNewGame(driver);
-      }
-      if (proceed) {
-        await driver.sleep(500);
-        proceed = await switchContext(driver, 'svg');
-      }
-      if (proceed) {
-        if (path === "none") { // manual selection of country mode
-          path = null;
-          let country;
-          while (path === null) {
-            country = await getUserInput('Which Country / Territory are you selecting? ');
-            path = lookupTable[country];
-            if (!path) {
-              console.log('Invalid country or territory entered.');
-            }
-          }
-          rl.close();
-        } else {
-          path = lookupTable[path];
-        }
-        proceed = await clickCountryPath(driver, path);
-      }
-      if (proceed) {
-        await driver.sleep(500);
-        proceed = await switchContext(driver, 'default');
-      }
-      if (proceed) {
-        proceed = await clickPopupConfirm(driver, "Confirm");
-      }
-      if (proceed) {
-        await driver.sleep(500);
-        proceed = await clickPopupConfirm(driver, "MILITARY");
-      }
-    } else {
-      console.log('SVG not found after maximum retries, quitting.');
-    }
   } finally {
-    // Quit the WebDriver session
-    await driver.quit();
-    console.log('Got to the end.');
   }
 }
 
@@ -163,17 +88,11 @@ async function clickPopupConfirm(driver, situation) {
   }
 }
 
-// Utility function to read user input from the console
-function getUserInput(question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer);
-    });
-  });
-}
-
-// Get the argument passed from the launch configuration
-const pathArgument = process.argv[2];
-run(pathArgument);
-
+module.exports = {
+  runTest: runTest,
+  clickPopupConfirm: clickPopupConfirm,
+  clickCountryPath: clickCountryPath,
+  clickNewGame: clickNewGame,
+  switchContext: switchContext
+};
 
