@@ -136,8 +136,32 @@ async function validateAttackTransferWindowOpen(driver) {
     return false;
   }
 
-  const columnNames = ['first', 'second', 'third', 'fourth'];
-  const selectors = [
+  const colSelectors = await getTransferAttackColumnSelectors();  
+
+  const columnElements = [[], [], [], []];
+
+    for (let i = 0; i < colSelectors.length; i++) {
+      const [selector, elementName] = colSelectors[i];
+      const element = await driver.findElement(By.css(selector));
+
+      if (elementName.includes("first")) {
+        columnElements[0].push(element);
+      } else if (elementName.includes("second")) {
+        columnElements[1].push(element);
+      } else if (elementName.includes("third")) {
+        columnElements[2].push(element);
+      } else if (elementName.includes("fourth")) {
+        columnElements[3].push(element);
+      }
+      if (i === 15) { //if gets to end of selector validations
+        console.log("All Elements Found In Table Row!");
+      }
+    }
+  return columnElements;
+}
+
+async function getTransferAttackColumnSelectors() {
+  const colSelectors = [
     ['.transfer-table-row .army-type-column:nth-child(1) .multipleIncrementerButton', 'firstColumnMultiple'],
     ['.transfer-table-row .army-type-column:nth-child(1) .multipleTextField', 'firstColumnMultAmount'],
     ['.transfer-table-row .army-type-column:nth-child(1) .transferMinusButton', 'firstColumnMinus'],
@@ -159,31 +183,7 @@ async function validateAttackTransferWindowOpen(driver) {
     ['.transfer-table-row .army-type-column:nth-child(4) .quantityTextField', 'fourthColumnAttackAmount'],
     ['.transfer-table-row .army-type-column:nth-child(4) .transferPlusButton', 'fourthColumnPlus']
   ];
-
-  const elements = [];
-
-  for (let i = 0; i < columnNames.length; i++) {
-    const column = columnNames[i];
-    const columnElements = [];
-
-    for (let j = 0; j < selectors.length; j++) {
-      const [selector, elementName] = selectors[j];
-      const element = await driver.findElement(By.css(selector));
-
-      if (!element) {
-        console.log(`Not Found: ${column} column, ${elementName}`);
-        return false;
-      } else {
-        console.log(`Found ${column} column, ${elementName}`);
-      }
-
-      columnElements.push(element);
-    }
-
-    elements.push(columnElements);
-  }
-  console.log("All Elements Found In Table Row!");
-  return elements;
+  return colSelectors;
 }
 
 module.exports = {
