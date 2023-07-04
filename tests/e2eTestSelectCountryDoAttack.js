@@ -1,4 +1,4 @@
-const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton } = require('./e2etestFunctions.js');
+const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen } = require('./e2etestFunctions.js');
 const { Builder } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
@@ -17,6 +17,7 @@ describe('Military Tests', function () {
   before(async function () {
     // INITIALISE APP
     driver = await new Builder().forBrowser('chrome').build();
+    await driver.manage().window().maximize();
 
     try {
       lookupTable = JSON.parse(fs.readFileSync('./tests/uniqueIdLookup.json'));
@@ -50,6 +51,7 @@ describe('Military Tests', function () {
     this.timeout(20000);
     await selectAPlayerCountry(driver, pathArgument);
     await clickUIToSetUpAttack(driver, pathArgument);
+    await validateAttackWindow(driver, pathArgument);
   });
 
   /* it('should do a basic siege', async function () {
@@ -127,5 +129,18 @@ async function clickUIToSetUpAttack(driver, pathArgument) {
     proceed = await switchContext(driver, 'default');
     proceed = await clickAttackTransferButton(driver);
     await wait(2500); //just to check end of test display
+  }
+}
+
+async function validateAttackWindow(driver) {
+  console.log("Validating Attack Window Elements...");
+  let proceed = await switchContext(driver, 'default');
+  if (proceed) {
+    attackWindowValues = await validateAttackTransferWindowOpen(driver);
+    proceed = attackWindowValues;
+  }
+  if (proceed !== false) {
+    proceed = true;
+    console.log("Passed Attack Window Validation Check");
   }
 }

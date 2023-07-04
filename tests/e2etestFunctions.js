@@ -120,6 +120,72 @@ async function clickAttackTransferButton(driver) {
   }
 }
 
+async function validateAttackTransferWindowOpen(driver) {
+  let table = await driver.findElement(By.id('transferTable'));
+  if (table) {
+    console.log("Table On Screen!");
+  } else {
+    console.log("Table Not On screen!")
+    return false;
+  }
+  let firstRow = await driver.findElement(By.css('.transfer-table-row:first-child'));
+  if (firstRow) {
+    console.log("At Least One Row In Table!");
+  } else {
+    console.log("No Rows In Table!")
+    return false;
+  }
+
+  const columnNames = ['first', 'second', 'third', 'fourth'];
+  const selectors = [
+    ['.transfer-table-row .army-type-column:nth-child(1) .multipleIncrementerButton', 'firstColumnMultiple'],
+    ['.transfer-table-row .army-type-column:nth-child(1) .multipleTextField', 'firstColumnMultAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(1) .transferMinusButton', 'firstColumnMinus'],
+    ['.transfer-table-row .army-type-column:nth-child(1) .quantityTextField', 'firstColumnAttackAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(1) .transferPlusButton', 'firstColumnPlus'],
+    ['.transfer-table-row .army-type-column:nth-child(2) .multipleIncrementerButton', 'secondColumnMultiple'],
+    ['.transfer-table-row .army-type-column:nth-child(2) .multipleTextField', 'secondColumnMultAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(2) .transferMinusButton', 'secondColumnMinus'],
+    ['.transfer-table-row .army-type-column:nth-child(2) .quantityTextField', 'secondColumnAttackAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(2) .transferPlusButton', 'secondColumnPlus'],
+    ['.transfer-table-row .army-type-column:nth-child(3) .multipleIncrementerButton', 'thirdColumnMultiple'],
+    ['.transfer-table-row .army-type-column:nth-child(3) .multipleTextField', 'thirdColumnMultAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(3) .transferMinusButton', 'thirdColumnMinus'],
+    ['.transfer-table-row .army-type-column:nth-child(3) .quantityTextField', 'thirdColumnAttackAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(3) .transferPlusButton', 'thirdColumnPlus'],
+    ['.transfer-table-row .army-type-column:nth-child(4) .multipleIncrementerButton', 'fourthColumnMultiple'],
+    ['.transfer-table-row .army-type-column:nth-child(4) .multipleTextField', 'fourthColumnMultAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(4) .transferMinusButton', 'fourthColumnMinus'],
+    ['.transfer-table-row .army-type-column:nth-child(4) .quantityTextField', 'fourthColumnAttackAmount'],
+    ['.transfer-table-row .army-type-column:nth-child(4) .transferPlusButton', 'fourthColumnPlus']
+  ];
+
+  const elements = [];
+
+  for (let i = 0; i < columnNames.length; i++) {
+    const column = columnNames[i];
+    const columnElements = [];
+
+    for (let j = 0; j < selectors.length; j++) {
+      const [selector, elementName] = selectors[j];
+      const element = await driver.findElement(By.css(selector));
+
+      if (!element) {
+        console.log(`Not Found: ${column} column, ${elementName}`);
+        return false;
+      } else {
+        console.log(`Found ${column} column, ${elementName}`);
+      }
+
+      columnElements.push(element);
+    }
+
+    elements.push(columnElements);
+  }
+  console.log("All Elements Found In Table Row!");
+  return elements;
+}
+
 module.exports = {
   runTest: validateSVG,
   clickPopupConfirm: clickPopupConfirm,
@@ -128,6 +194,7 @@ module.exports = {
   switchContext: switchContext,
   findAvailableAttackPaths: findAvailableAttackPaths,
   selectRandomCountryToAttack: selectRandomCountryToAttack,
-  clickAttackTransferButton: clickAttackTransferButton
+  clickAttackTransferButton: clickAttackTransferButton,
+  validateAttackTransferWindowOpen: validateAttackTransferWindowOpen
 };
 
