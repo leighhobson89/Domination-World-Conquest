@@ -53,7 +53,7 @@ async function clickNewGame(driver) {
   }
 }
 
-async function clickCountryPath(driver, path) {
+async function clickPlayerCountryPath(driver, path) {
   // Find the path element with attribute "uniqueid" equal to "path"
   let pathElement = await driver.findElement(By.css('path[uniqueid="' + path + '"]'));
   if (pathElement) {
@@ -91,11 +91,30 @@ async function clickPopupConfirm(driver, situation) {
   }
 }
 
+async function findAvailableAttackPaths(driver) {
+  //select paths not belonging to player from those available to interact with
+  const elements = await driver.findElements(By.css('path[fill*="url"]:not([owner="Player"])'));
+  return elements;
+}
+
+
+async function selectRandomCountryToAttack(interactablePaths) {
+  const randomIndex = Math.floor(Math.random() * interactablePaths.length);
+  const randomElement = interactablePaths[randomIndex];
+  if (randomElement) {
+    const territoryName = await randomElement.getAttribute('territory-name');
+    console.log("Picked to Attack: " + territoryName);
+  }
+  return randomElement;
+}
+
 module.exports = {
   runTest: validateSVG,
   clickPopupConfirm: clickPopupConfirm,
-  clickCountryPath: clickCountryPath,
+  clickPlayerCountryPath: clickPlayerCountryPath,
   clickNewGame: clickNewGame,
-  switchContext: switchContext
+  switchContext: switchContext,
+  findAvailableAttackPaths: findAvailableAttackPaths,
+  selectRandomCountryToAttack: selectRandomCountryToAttack
 };
 
