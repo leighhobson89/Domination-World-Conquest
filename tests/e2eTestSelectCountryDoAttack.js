@@ -1,5 +1,5 @@
-const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack } = require('./e2etestFunctions.js');
-const { Builder, By, Key, until } = require('selenium-webdriver');
+const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton } = require('./e2etestFunctions.js');
+const { Builder } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
 const readline = require('readline');
@@ -42,9 +42,9 @@ describe('Military Tests', function () {
 
   //----------------------------------------------TEST STEPS-----------------------------------------------//
 
-  it('should select a country for the player', async function () {
+/*   it('should select a country for the player', async function () {
     await selectAPlayerCountry(driver, pathArgument);
-  });
+  }); */
 
   it('should do a basic attack', async function () {
     this.timeout(20000);
@@ -52,7 +52,7 @@ describe('Military Tests', function () {
     await clickUIToSetUpAttack(driver, pathArgument);
   });
 
-  it('should do a basic siege', async function () {
+  /* it('should do a basic siege', async function () {
     //load next test file
   });
 
@@ -62,7 +62,7 @@ describe('Military Tests', function () {
 
   it('should do a siege after another siege', async function () {
     //load next test file
-  });
+  }); */
 
   // Add more tests as needed
 });
@@ -120,6 +120,12 @@ async function clickUIToSetUpAttack(driver, pathArgument) {
     console.log("Clicking enemy path...");
     await wait(500);
     proceed = await clickPlayerCountryPath(driver, await randomTerritoryToAttack.getAttribute("uniqueid"));
-    await wait(2500);
+    await wait(500);
+  }
+  if (proceed) {
+    console.log("Clicking 'Attack' button...");
+    proceed = await switchContext(driver, 'default');
+    proceed = await clickAttackTransferButton(driver);
+    await wait(2500); //just to check end of test display
   }
 }
