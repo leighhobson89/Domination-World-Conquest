@@ -97,7 +97,6 @@ async function findAvailableAttackPaths(driver) {
   return elements;
 }
 
-
 async function selectRandomCountryToAttack(interactablePaths) {
   const randomIndex = Math.floor(Math.random() * interactablePaths.length);
   const randomElement = interactablePaths[randomIndex];
@@ -108,6 +107,19 @@ async function selectRandomCountryToAttack(interactablePaths) {
   return randomElement;
 }
 
+async function clickAttackTransferButton(driver) {
+  // Click on the element with id="new-game-btn"
+  let attackTransferButton = await driver.findElement(By.id('move-phase-button'));
+  if (attackTransferButton) {
+    console.log('Clicked on "move-phase-button" element, which reads: ' + await (await driver.findElement(By.id('move-phase-button'))).getAttribute('innerHTML'));
+    await attackTransferButton.click();
+    return true;
+  } else {
+    console.log('Could not find "move-phase-button" element.');
+    return false;
+  }
+}
+
 module.exports = {
   runTest: validateSVG,
   clickPopupConfirm: clickPopupConfirm,
@@ -115,6 +127,7 @@ module.exports = {
   clickNewGame: clickNewGame,
   switchContext: switchContext,
   findAvailableAttackPaths: findAvailableAttackPaths,
-  selectRandomCountryToAttack: selectRandomCountryToAttack
+  selectRandomCountryToAttack: selectRandomCountryToAttack,
+  clickAttackTransferButton: clickAttackTransferButton
 };
 
