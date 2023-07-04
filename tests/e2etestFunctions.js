@@ -122,19 +122,18 @@ async function clickAttackTransferButton(driver) {
 
 async function validateAttackTransferWindowOpen(driver) {
   let table = await driver.findElement(By.id('transferTable'));
-  if (table) {
-    console.log("Table On Screen!");
-  } else {
-    console.log("Table Not On screen!")
+  if (!table) {
+    console.log("Table Not On Screen!");
     return false;
   }
+  console.log("Table On Screen!");
+
   let firstRow = await driver.findElement(By.css('.transfer-table-row:first-child'));
-  if (firstRow) {
-    console.log("At Least One Row In Table!");
-  } else {
-    console.log("No Rows In Table!")
+  if (!firstRow) {
+    console.log("No Rows In Table!");
     return false;
   }
+  console.log("At Least One Row In Table!");
 
   const columnNames = ['first', 'second', 'third', 'fourth'];
   const selectors = [
@@ -166,25 +165,27 @@ async function validateAttackTransferWindowOpen(driver) {
     const column = columnNames[i];
     const columnElements = [];
 
-    for (let j = 0; j < selectors.length; j++) {
+    for (let j = i * selectors.length; j < (i + 1) * selectors.length; j++) {
       const [selector, elementName] = selectors[j];
       const element = await driver.findElement(By.css(selector));
 
       if (!element) {
         console.log(`Not Found: ${column} column, ${elementName}`);
         return false;
-      } else {
-        console.log(`Found ${column} column, ${elementName}`);
       }
 
+      console.log(`Found ${column} column, ${elementName}`);
       columnElements.push(element);
     }
 
     elements.push(columnElements);
   }
+
   console.log("All Elements Found In Table Row!");
   return elements;
 }
+
+
 
 module.exports = {
   runTest: validateSVG,
