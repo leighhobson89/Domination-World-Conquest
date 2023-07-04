@@ -15,7 +15,7 @@ describe('App Tests', function () {
   let pathArgument;
 
   before(async function () {
-    // Setup code before the tests start
+    // Setup code before the tests start i.e. open the app and validate that the svg file is loaded
     driver = await new Builder().forBrowser('chrome').build();
 
     try {
@@ -44,30 +44,32 @@ describe('App Tests', function () {
   });
 
   after(async function () {
+    driver.close();
   });
 
   it('should select a country for the player', async function () {
-      await new Promise(resolve => setTimeout(resolve, 1000)); //wait 2 seconds for page load
+    this.timeout(20000);
+      await wait(1000);
       let proceed = await switchContext(driver, 'default');
       if (proceed) {
         await clickNewGame(driver);
       }
       if (proceed) {
-        await new Promise(resolve => setTimeout(resolve, 500)); //wait 2 seconds for page load
+        await wait(500);
         proceed = await switchContext(driver, 'svg');
       }
       if (proceed) {
         proceed = await clickCountryPath(driver, pathArgument);
       }
       if (proceed) {
-        await new Promise(resolve => setTimeout(resolve, 500)); //wait 2 seconds for page load
+        await wait(500);
         proceed = await switchContext(driver, 'default');
       }
       if (proceed) {
         proceed = await clickPopupConfirm(driver, "Confirm");
       }
       if (proceed) {
-        await driver.sleep(500);
+        await wait(500);
         proceed = await clickPopupConfirm(driver, "MILITARY");
       }
   });
@@ -87,4 +89,8 @@ function getUserInput(question) {
       resolve(answer);
     });
   });
+}
+
+async function wait(time) {
+  await new Promise(resolve => setTimeout(resolve, time));
 }
