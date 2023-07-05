@@ -250,6 +250,9 @@ async function clickThroughAttack(driver) {
   const retreatButton = await driver.findElement(By.id('retreatButton'));
   const siegeButton = await driver.findElement(By.id('siegeButton'));
 
+  let probability = await driver.findElement(By.id('battleUIRow4Col1')).getText();
+  let probabilityValue = parseInt(probability.match(/\d+/)[0]);
+
   let advanceButtonText = await advanceButton.getText();
   let retreatButtonText = await retreatButton.getText();
   let siegeButtonDisabled = await siegeButton.getAttribute('disabled');
@@ -270,6 +273,10 @@ async function clickThroughAttack(driver) {
   let battleResolution = '';
 
   while (true) {
+    probability = await driver.findElement(By.id('battleUIRow4Col1')).getText();
+    probabilityValue = parseInt(probability.match(/\d+/)[0]);
+    console.log(probability);
+
     advanceButtonText = await advanceButton.getText();
     retreatButtonText = await retreatButton.getText();
     siegeButtonDisabled = await siegeButton.getAttribute('disabled');
@@ -278,6 +285,17 @@ async function clickThroughAttack(driver) {
 
     await wait(200);
     if (advanceButtonText === 'Next Skirmish') {
+      if (probabilityValue < 25) {
+        if (Math.random() > 0.5) {
+          console.log("Scattering!");
+          battleResolution = "DS";
+          break;
+        } else {
+          await advanceButton.click();
+          console.log('Resisted Urge To Scatter And Clicked Next Skirmish');
+          continue;
+        }
+      }
       await advanceButton.click();
       console.log('Clicked Next Skirmish');
 
@@ -289,7 +307,17 @@ async function clickThroughAttack(driver) {
 
       if (advanceButtonText === 'Massive Assault' || advanceButtonText === 'Rout The Enemy' || advanceButtonText === 'Victory!') {
         console.log('Battle Resolution Available:', advanceButtonText);
-        battleResolution = advanceButtonText;
+        switch (advanceButtonText) {
+          case "Massive Assault":
+            battleResolution = "VMA";
+            break;
+          case "Rout The Enemy":
+            battleResolution = "VR";
+            break;
+          case "Victory!":
+            battleResolution = "V";
+            break;
+        }
         await wait(500);
         break;
       } else if (advanceButtonText === 'End Round' && retreatButtonText === 'Scatter!' && siegeButtonDisabled && retreatButtonDisabled) {
