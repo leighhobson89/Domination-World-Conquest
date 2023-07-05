@@ -8,7 +8,7 @@
             "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
             "args": [
                 "tests/e2eTestSelectCountryDoAttack.js",
-                "Guyana"
+                "Chad"
             ],
             "internalConsoleOptions": "openOnSessionStart",
             "skipFiles": [

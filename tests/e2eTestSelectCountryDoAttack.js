@@ -1,4 +1,4 @@
-const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy, validateBattleUI, clickThroughAttack } = require('./e2etestFunctions.js');
+const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy, validateBattleUI, clickThroughAttack, clickButtonToEndBattle, validateResultsPage, clickButtonToCloseResultsPage, validateAttackedPathColor, validateAttackedPathOwner, getAllPathColors, getAllPathOwners } = require('./e2etestFunctions.js');
 const { Builder } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
@@ -48,12 +48,16 @@ describe('Military Tests', function () {
   }); */
 
   it('should do a basic attack', async function () {
-    this.timeout(40000);
+    this.timeout(80000); //battle can take a while
     await selectAPlayerCountry(driver, pathArgument);
-    await clickUIToSetUpAttack(driver, pathArgument);
+    let pathColors = await getAllPathColors(driver);
+    let pathOwners = await getAllPathOwners(driver);
+    let attackedPathUniqueIdColorAndName = await clickUIToSetUpAttack(driver, pathArgument);
     await validateAttackWindow(driver);
     let attackValues = await addMaxArmyAndClickInvade(driver);
-    await doAttack(driver, attackValues);
+    let battleOutcome = await doAttack(driver, attackValues);
+    await validateResultsAndClickToEndBattle(driver, battleOutcome);
+    await validateTerritoryIsInCorrectState(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors, pathOwners);
   });
 
   /* it('should do a basic siege', async function () {
@@ -76,6 +80,7 @@ async function wait(time) {
 }
 
 async function selectAPlayerCountry(driver, pathArgument) {
+  await switchContext(driver, 'default');
   console.log("Selecting a Player Country");
   await clickNewGame(driver);
   await wait(500);
@@ -87,28 +92,42 @@ async function selectAPlayerCountry(driver, pathArgument) {
 }
 
 async function clickUIToSetUpAttack(driver, pathArgument) {
+  await switchContext(driver, 'default');
+
+  let attackedPathUniqueIdColorAndName = [];
   let randomTerritoryToAttack;
   console.log("Setting Up A Basic Attack");
+
   await clickPopupConfirm(driver, "MILITARY");
   await switchContext(driver, 'svg');
   await clickPlayerCountryPath(driver, pathArgument);
   console.log("Finding enemy paths and selecting one...");
   await wait(500);
+
   let interactablePaths = await findAvailableAttackPaths(driver);
   randomTerritoryToAttack = await selectRandomCountryToAttack(interactablePaths);
+
+  attackedPathUniqueIdColorAndName[0] = await randomTerritoryToAttack.getAttribute("uniqueid");
+  attackedPathUniqueIdColorAndName[1] = await randomTerritoryToAttack.getAttribute("fill");
+  attackedPathUniqueIdColorAndName[2] = await randomTerritoryToAttack.getAttribute("territory-name");
+
   if (interactablePaths.length === 0) {
     console.log("No territories to attack, something went wrong!");
   }
   console.log("Clicking enemy path...");
   await wait(500);
-  await clickPlayerCountryPath(driver, await randomTerritoryToAttack.getAttribute("uniqueid"));
+
+  await clickPlayerCountryPath(driver, attackedPathUniqueIdColorAndName[0]);
   await wait(500);
   console.log("Clicking 'Attack' button...");
   await switchContext(driver, 'default');
   await clickAttackTransferButton(driver);
+
+  return attackedPathUniqueIdColorAndName;
 }
 
 async function validateAttackWindow(driver) {
+  await switchContext(driver, 'default');
   let tableElements;
   await wait(500);
   console.log("Validating Attack Window Elements...");
@@ -118,6 +137,7 @@ async function validateAttackWindow(driver) {
 }
 
 async function addMaxArmyAndClickInvade(driver) {
+  await switchContext(driver, 'default');
   console.log("Adding Max Army and entering Attack Interface...");
   let attackValues = await addMaxArmy(driver);
   console.log("Added Attack Army!");
@@ -127,6 +147,23 @@ async function addMaxArmyAndClickInvade(driver) {
 }
 
 async function doAttack(driver, attackValues) { //attackValues come from the attack window and are for a future validation of battle
+  await switchContext(driver, 'default');
+  console.log("Running Battle...");
   await validateBattleUI(driver);
-  await clickThroughAttack(driver);
+  let battleOutcome = await clickThroughAttack(driver);
+  return battleOutcome;
+}
+
+async function validateResultsAndClickToEndBattle(driver, battleOutcome) {
+  await switchContext(driver, 'default');
+  console.log("Validating Battle Results Page And Ending Battle...");
+  await clickButtonToEndBattle(driver, battleOutcome);
+  await validateResultsPage(driver, battleOutcome);
+  await clickButtonToCloseResultsPage(driver);
+}
+
+async function validateTerritoryIsInCorrectState(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors, pathOwners) {
+  await switchContext(driver, 'default');
+  await validateAttackedPathColor(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors);
+  await validateAttackedPathOwner(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathOwners);
 }
