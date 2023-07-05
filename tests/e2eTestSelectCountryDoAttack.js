@@ -1,4 +1,4 @@
-const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy } = require('./e2etestFunctions.js');
+const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy, validateBattleUI, clickThroughAttack } = require('./e2etestFunctions.js');
 const { Builder } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
@@ -48,11 +48,12 @@ describe('Military Tests', function () {
   }); */
 
   it('should do a basic attack', async function () {
-    this.timeout(20000);
+    this.timeout(40000);
     await selectAPlayerCountry(driver, pathArgument);
     await clickUIToSetUpAttack(driver, pathArgument);
     await validateAttackWindow(driver);
-    await addMaxArmyAndClickInvade(driver);
+    let attackValues = await addMaxArmyAndClickInvade(driver);
+    await doAttack(driver, attackValues);
   });
 
   /* it('should do a basic siege', async function () {
@@ -118,6 +119,14 @@ async function validateAttackWindow(driver) {
 
 async function addMaxArmyAndClickInvade(driver) {
   console.log("Adding Max Army and entering Attack Interface...");
-  let attackAmounts = await addMaxArmy(driver);
-  console.log("Added Attack Army! (" + attackAmounts[0] + " " + attackAmounts[1] + " " + attackAmounts[2] + " " + attackAmounts[3]);
+  let attackValues = await addMaxArmy(driver);
+  console.log("Added Attack Army!");
+  await clickAttackTransferButton(driver);
+  await wait(1000);
+  return attackValues;
+}
+
+async function doAttack(driver, attackValues) { //attackValues come from the attack window and are for a future validation of battle
+  await validateBattleUI(driver);
+  await clickThroughAttack(driver);
 }
