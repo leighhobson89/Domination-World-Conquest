@@ -29,14 +29,14 @@ async function switchContext(driver, context) {
     case 'svg':
       await driver.switchTo().frame(driver.findElement(By.id('svg-map')));
       console.log('Switched context to ' + context);
-      return true;
+      break;
     case 'default':
       await driver.switchTo().defaultContent();
       console.log('Switched context to ' + context);
-      return true;
+      break;
     default:
       console.log("Couldn't find context, quitting");
-      return false;
+      break;
   }
 }
 
@@ -59,10 +59,8 @@ async function clickPlayerCountryPath(driver, path) {
   if (pathElement) {
     await pathElement.click();
     console.log('Clicked on path element with uniqueid="' + path + '".');
-    return true;
   } else {
     console.log('Could not find path element ' + path);
-    return false;
   }
 }
 
@@ -74,7 +72,6 @@ async function clickPopupConfirm(driver, situation) {
     if (innerHTML === situation) {
       await popupConfirmElement.click();
       console.log('Clicked on "popup-confirm" element with text ' + situation);
-      return true;
     } else {
       console.log(
         'Inner HTML of "popup-confirm" element is not equal to ' +
@@ -84,10 +81,8 @@ async function clickPopupConfirm(driver, situation) {
           '.'
       );
     }
-    return false;
   } else {
     console.log("Could not find element " + popupConfirmElement);
-    return false;
   }
 }
 
@@ -113,10 +108,8 @@ async function clickAttackTransferButton(driver) {
   if (attackTransferButton) {
     console.log('Clicked on "move-phase-button" element, which reads: ' + await (await driver.findElement(By.id('move-phase-button'))).getAttribute('innerHTML'));
     await attackTransferButton.click();
-    return true;
   } else {
     console.log('Could not find "move-phase-button" element.');
-    return false;
   }
 }
 
@@ -124,14 +117,14 @@ async function validateAttackTransferWindowOpen(driver) {
   let table = await driver.findElement(By.id('transferTable'));
   if (!table) {
     console.log("Table Not On Screen!");
-    return false;
+    return;
   }
   console.log("Table On Screen!");
 
   let firstRow = await driver.findElement(By.css('.transfer-table-row:first-child'));
   if (!firstRow) {
     console.log("No Rows In Table!");
-    return false;
+    return;
   }
   console.log("At Least One Row In Table!");
 
@@ -185,7 +178,23 @@ async function getTransferAttackColumnSelectors() {
   return colSelectors;
 }
 
+async function addMaxArmy(driver) {
+  let col;
+  let amountsArray = [0, 0, 0, 0];
 
+  for (let i = 1; i < 5; i++) {
+    col = await driver.findElement(By.css(`.transfer-table-row:first-child .army-type-column:nth-child(${i}) .transferPlusButton`));
+    await col.click();
+    await wait(100);
+    amountsArray[i] = await driver.findElement(By.css(`.transfer-table-row:first-child .army-type-column:nth-child(${i}) .quantityTextField`));
+    console.log("Added " + amountsArray[i] + " for column " + i);
+  }
+  return amountsArray;
+}
+
+async function wait(time) {
+  await new Promise(resolve => setTimeout(resolve, time));
+}
 
 module.exports = {
   runTest: validateSVG,
@@ -196,6 +205,7 @@ module.exports = {
   findAvailableAttackPaths: findAvailableAttackPaths,
   selectRandomCountryToAttack: selectRandomCountryToAttack,
   clickAttackTransferButton: clickAttackTransferButton,
-  validateAttackTransferWindowOpen: validateAttackTransferWindowOpen
+  validateAttackTransferWindowOpen: validateAttackTransferWindowOpen,
+  addMaxArmy: addMaxArmy
 };
 

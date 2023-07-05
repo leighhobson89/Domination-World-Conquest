@@ -1,4 +1,4 @@
-const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen } = require('./e2etestFunctions.js');
+const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy } = require('./e2etestFunctions.js');
 const { Builder } = require('selenium-webdriver');
 const assert = require('assert');
 const fs = require('fs');
@@ -43,7 +43,7 @@ describe('Military Tests', function () {
 
   //----------------------------------------------TEST STEPS-----------------------------------------------//
 
-/*   it('should select a country for the player', async function () {
+  /* it('should select a country for the player', async function () {
     await selectAPlayerCountry(driver, pathArgument);
   }); */
 
@@ -51,8 +51,8 @@ describe('Military Tests', function () {
     this.timeout(20000);
     await selectAPlayerCountry(driver, pathArgument);
     await clickUIToSetUpAttack(driver, pathArgument);
-    let tableElements = await validateAttackWindow(driver, pathArgument);
-    console.log(tableElements);
+    await validateAttackWindow(driver);
+    await addMaxArmyAndClickInvade(driver);
   });
 
   /* it('should do a basic siege', async function () {
@@ -76,74 +76,48 @@ async function wait(time) {
 
 async function selectAPlayerCountry(driver, pathArgument) {
   console.log("Selecting a Player Country");
-  let proceed = await switchContext(driver, 'default');
-      if (proceed) {
-        await clickNewGame(driver);
-      }
-      if (proceed) {
-        await wait(500);
-        proceed = await switchContext(driver, 'svg');
-      }
-      if (proceed) {
-        proceed = await clickPlayerCountryPath(driver, pathArgument);
-      }
-      if (proceed) {
-        await wait(500);
-        proceed = await switchContext(driver, 'default');
-      }
-      if (proceed) {
-        proceed = await clickPopupConfirm(driver, "Confirm");
-      }
+  await clickNewGame(driver);
+  await wait(500);
+  await switchContext(driver, 'svg');
+  await clickPlayerCountryPath(driver, pathArgument);
+  await wait(500);
+  await switchContext(driver, 'default');
+  await clickPopupConfirm(driver, "Confirm");
 }
 
 async function clickUIToSetUpAttack(driver, pathArgument) {
   let randomTerritoryToAttack;
   console.log("Setting Up A Basic Attack");
-  let proceed = await switchContext(driver, 'default');
-  if (proceed) {
-    proceed = await clickPopupConfirm(driver, "MILITARY");
+  await clickPopupConfirm(driver, "MILITARY");
+  await switchContext(driver, 'svg');
+  await clickPlayerCountryPath(driver, pathArgument);
+  console.log("Finding enemy paths and selecting one...");
+  await wait(500);
+  let interactablePaths = await findAvailableAttackPaths(driver);
+  randomTerritoryToAttack = await selectRandomCountryToAttack(interactablePaths);
+  if (interactablePaths.length === 0) {
+    console.log("No territories to attack, something went wrong!");
   }
-  if (proceed) {
-    proceed = await switchContext(driver, 'svg');
-  }
-  if (proceed) {
-    proceed = await clickPlayerCountryPath(driver, pathArgument);
-  }
-  if (proceed) {
-    console.log("Finding enemy paths and selecting one...");
-    await wait(500);
-    let interactablePaths = await findAvailableAttackPaths(driver);
-    randomTerritoryToAttack = await selectRandomCountryToAttack(interactablePaths);
-    if (interactablePaths.length === 0) {
-      console.log("No territories to attack, something went wrong!");
-      proceed = false;
-    }
-  }
-  if (proceed) {
-    console.log("Clicking enemy path...");
-    await wait(500);
-    proceed = await clickPlayerCountryPath(driver, await randomTerritoryToAttack.getAttribute("uniqueid"));
-    await wait(500);
-  }
-  if (proceed) {
-    console.log("Clicking 'Attack' button...");
-    proceed = await switchContext(driver, 'default');
-    proceed = await clickAttackTransferButton(driver);
-  }
+  console.log("Clicking enemy path...");
+  await wait(500);
+  await clickPlayerCountryPath(driver, await randomTerritoryToAttack.getAttribute("uniqueid"));
+  await wait(500);
+  console.log("Clicking 'Attack' button...");
+  await switchContext(driver, 'default');
+  await clickAttackTransferButton(driver);
 }
 
 async function validateAttackWindow(driver) {
   let tableElements;
   await wait(500);
   console.log("Validating Attack Window Elements...");
-  let proceed = await switchContext(driver, 'default');
-  if (proceed) {
-    tableElements = await validateAttackTransferWindowOpen(driver);
-    proceed = tableElements;
-  }
-  if (proceed !== false) {
-    proceed = true;
-    console.log("Passed Attack Window Validation Check");
-  }
+  tableElements = await validateAttackTransferWindowOpen(driver);
+  console.log("Passed Attack Window Validation Check");
   return tableElements;
+}
+
+async function addMaxArmyAndClickInvade(driver) {
+  console.log("Adding Max Army and entering Attack Interface...");
+  let attackAmounts = await addMaxArmy(driver);
+  console.log("Added Attack Army! (" + attackAmounts[0] + " " + attackAmounts[1] + " " + attackAmounts[2] + " " + attackAmounts[3]);
 }
