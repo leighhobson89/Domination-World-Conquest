@@ -1,4 +1,5 @@
 const { By } = require('selenium-webdriver');
+const PLAYER_COLOUR = "rgb(255,255,255)";
 
 async function validateSVG(driver) {
   try {
@@ -412,6 +413,151 @@ async function wait(time) {
   await new Promise(resolve => setTimeout(resolve, time));
 }
 
+async function clickButtonToEndBattle(driver, battleOutcome) {
+  const advanceButton = await driver.findElement(By.id('advanceButton'));
+  const retreatButton = await driver.findElement(By.id('retreatButton'));
+
+  switch (battleOutcome[2]) {
+    case "V":
+    case "VR":
+    case "VMA":
+      await advanceButton.click();
+      console.log("Clicked advanceButton To Exit Battle");
+      break;
+    case "D":
+    case "DS":
+      await retreatButton.click();
+      console.log("Clicked retreatButton To Exit Battle");
+      break;
+  }
+
+}
+
+async function validateResultsPage(driver, battleOutcome) {
+  const battleResultsTitleTitleLeft = await driver.findElement(By.id('battleResultsTitleTitleLeft')).getText();
+  const battleResultsTitleTitleCenter = await driver.findElement(By.id('battleResultsTitleTitleCenter')).getText();
+  const battleResultsTitleTitleRight = await driver.findElement(By.id('battleResultsTitleTitleRight')).getText();
+
+  console.log('Title Reads: ' + battleResultsTitleTitleLeft + ' ' + battleResultsTitleTitleCenter + ' ' + battleResultsTitleTitleRight);
+
+  const lossesIds = ['battleResultsRow2Row2Quantity1', 'battleResultsRow2Row2Quantity2', 'battleResultsRow2Row2Quantity3', 'battleResultsRow2Row2Quantity4'];
+  const killsIds = ['battleResultsRow2Row2Quantity5', 'battleResultsRow2Row2Quantity6', 'battleResultsRow2Row2Quantity7', 'battleResultsRow2Row2Quantity8'];
+  const survivedIds = ['battleResultsRow3Row1Quantity1', 'battleResultsRow3Row1Quantity2', 'battleResultsRow3Row1Quantity3', 'battleResultsRow3Row1Quantity4'];
+  const capturedIds = ['battleResultsRow3Row1Quantity5', 'battleResultsRow3Row1Quantity6', 'battleResultsRow3Row1Quantity7', 'battleResultsRow3Row1Quantity8'];
+
+  const losses = await Promise.all(lossesIds.map(async (id) => {
+    const element = await driver.findElement(By.id(id));
+    return element.getText();
+  }));
+
+  const kills = await Promise.all(killsIds.map(async (id) => {
+    const element = await driver.findElement(By.id(id));
+    return element.getText();
+  }));
+
+  const survived = await Promise.all(survivedIds.map(async (id) => {
+    const element = await driver.findElement(By.id(id));
+    return element.getText();
+  }));
+
+  const captured = await Promise.all(capturedIds.map(async (id) => {
+    const element = await driver.findElement(By.id(id));
+    return element.getText();
+  }));
+
+  console.log('Losses are: ' + losses.join(', '));
+  console.log('Kills are: ' + kills.join(', '));
+  console.log('Survived are: ' + survived.join(', '));
+  console.log('Captured are: ' + captured.join(', '));
+
+  const roundsElement = await driver.findElement(By.id('battleResultsRow3Row3RoundsCount'));
+  const roundsText = await roundsElement.getText();
+  const rounds = parseInt(roundsText.match(/\d+/)[0]);
+
+  console.log("It took " + rounds + " rounds to resolve the battle.");
+}
+
+async function clickButtonToCloseResultsPage(driver) {
+  const resultsCloseButton = await driver.findElement(By.id('battleResultsRow4'));
+  await resultsCloseButton.click();
+  console.log("Clicked Results Close Button To Return To Map");
+}
+
+async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors) {
+  const svgMap = await driver.findElement(By.id('svg-map'));
+  const pathElements = await svgMap.findElements(By.css('path'));
+  const playerColour = PLAYER_COLOUR;
+
+  const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
+  const originalPathFillValue = await attackedPathUniqueIdColorAndName[1];
+  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[2];
+
+  for (const pathElement of pathElements) {
+    const pathUniqueId = await pathElement.getAttribute('uniqueid');
+    if (pathUniqueId === attackedPathUniqueId) {
+      newAttackedPathColor = await pathElement.getAttribute('fill');
+      break;
+    }
+  }
+
+  let newAttackedPathColor = null;
+
+  switch (battleOutcome[2]) {
+    case "V":
+    case "VR":
+    case "VMA":
+      console.log(attackedPathTerritoryName + " had a colour of: " + originalPathFillValue + ", but after the victory it is now: " + newAttackedPathColor + " (Player Colour is: " + playerColour + ")");
+      break;
+    case "D":
+    case "DS":
+      console.log(attackedPathTerritoryName + " had a colour of: " + originalPathFillValue + ", and after the defeat it is now: " + newAttackedPathColor + " (Player Colour is: " + playerColour + ")");
+      break;
+  }
+}
+
+
+async function validateAttackedPathOwner(driver, battleOutcome, attackedPathUniqueId, pathOwners) {
+  switch (battleOutcome[2]) {
+    case "V":
+    case "VR":
+    case "VMA":
+      break;
+    case "D":
+    case "DS":
+      break;
+  }
+}
+
+async function getAllPathColors(driver) {
+  switchContext(driver, "svg");
+  const pathElements = await driver.findElements(By.css('path[uniqueid]'));
+
+  const pathColors = [];
+  for (const pathElement of pathElements) {
+    const uniqueId = await pathElement.getAttribute('uniqueid');
+    const fill = await pathElement.getAttribute('fill');
+    pathColors.push([uniqueId, fill]);
+  }
+
+  return pathColors;
+}
+
+
+async function getAllPathOwners(driver) {
+  switchContext(driver, "default");
+  const svgMapElement = await driver.findElement(By.id('svg-map'));
+  const pathElements = await svgMapElement.findElements(By.css('path'));
+
+  const pathOwners = [];
+  for (const pathElement of pathElements) {
+    const uniqueId = await pathElement.getAttribute('uniqueid');
+    const owner = await pathElement.getAttribute('owner');
+    pathOwners.push([uniqueId, owner]);
+  }
+
+  return pathOwners;
+}
+
 module.exports = {
   runTest: validateSVG,
   clickPopupConfirm: clickPopupConfirm,
@@ -424,6 +570,13 @@ module.exports = {
   validateAttackTransferWindowOpen: validateAttackTransferWindowOpen,
   addMaxArmy: addMaxArmy,
   validateBattleUI: validateBattleUI,
-  clickThroughAttack: clickThroughAttack
+  clickThroughAttack: clickThroughAttack,
+  clickButtonToEndBattle: clickButtonToEndBattle,
+  validateResultsPage: validateResultsPage,
+  clickButtonToCloseResultsPage: clickButtonToCloseResultsPage,
+  validateAttackedPathColor: validateAttackedPathColor,
+  validateAttackedPathOwner: validateAttackedPathOwner,
+  getAllPathColors: getAllPathColors,
+  getAllPathOwners: getAllPathOwners
 };
 
