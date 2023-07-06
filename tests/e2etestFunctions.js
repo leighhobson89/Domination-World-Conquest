@@ -291,7 +291,7 @@ async function clickThroughAttack(driver, siege) {
           console.log("Scattering!");
           battleResolution = "DS";
           if (siege) {
-            console.log("Sorry, siege was not possible this time, trying again...");
+            console.log("Sorry, siege was not possible this time...");
           }
           break;
         } else {
@@ -311,7 +311,7 @@ async function clickThroughAttack(driver, siege) {
 
       if (advanceButtonText === 'Massive Assault' || advanceButtonText === 'Rout The Enemy' || advanceButtonText === 'Victory!') {
         if (siege) {
-          console.log("Sorry, siege was not possible this time, trying again...");
+          console.log("Sorry, siege was not possible this time...");
         }
         console.log('Battle Resolution Available:', advanceButtonText);
         switch (advanceButtonText) {
@@ -382,7 +382,7 @@ async function clickThroughAttack(driver, siege) {
     console.log('Advance Button Disabled, Siege Button Disabled, Retreat Button says "Defeat!"');
     battleResolution = 'D';
     if (siege) {
-      console.log("Sorry, siege was not possible this time, trying again...");
+      console.log("Sorry, siege was not possible this time...");
     }
   }
 
