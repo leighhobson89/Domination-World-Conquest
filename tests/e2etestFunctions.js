@@ -246,7 +246,7 @@ async function validateBattleUI(driver) {
   console.log("retreatButton - Disabled: " + retreatDisabled + ", Text: " + retreatText);
 }
 
-async function clickThroughAttack(driver) {
+async function clickThroughAttack(driver, siege) {
   const advanceButton = await driver.findElement(By.id('advanceButton'));
   const retreatButton = await driver.findElement(By.id('retreatButton'));
   const siegeButton = await driver.findElement(By.id('siegeButton'));
@@ -290,6 +290,9 @@ async function clickThroughAttack(driver) {
         if (Math.random() > 0.5) {
           console.log("Scattering!");
           battleResolution = "DS";
+          if (siege) {
+            console.log("Sorry, siege was not possible this time, trying again...");
+          }
           break;
         } else {
           await advanceButton.click();
@@ -307,6 +310,9 @@ async function clickThroughAttack(driver) {
       advanceButtonDisabled = await advanceButton.getAttribute('disabled');
 
       if (advanceButtonText === 'Massive Assault' || advanceButtonText === 'Rout The Enemy' || advanceButtonText === 'Victory!') {
+        if (siege) {
+          console.log("Sorry, siege was not possible this time, trying again...");
+        }
         console.log('Battle Resolution Available:', advanceButtonText);
         switch (advanceButtonText) {
           case "Massive Assault":
@@ -328,6 +334,11 @@ async function clickThroughAttack(driver) {
           continue;
       }
     } else if (retreatButtonText === 'Retreat!' && advanceButtonText === 'Start Attack!' && !advanceButtonDisabled && !siegeButtonDisabled) {
+        if (siege) {
+          await siegeButton.click();
+          console.log('Clicked Siege Button!');
+          return 1;
+        }
         await advanceButton.click();
         console.log('Clicked Start Attack!');
         continue;
@@ -370,6 +381,9 @@ async function clickThroughAttack(driver) {
   if (advanceButtonDisabled && siegeButtonDisabled && retreatButtonText === 'Defeat!') {
     console.log('Advance Button Disabled, Siege Button Disabled, Retreat Button says "Defeat!"');
     battleResolution = 'D';
+    if (siege) {
+      console.log("Sorry, siege was not possible this time, trying again...");
+    }
   }
 
   if (retreatButtonDisabled && siegeButtonDisabled && advanceButtonText === 'Rout The Enemy') {
@@ -497,7 +511,7 @@ async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniq
   let newAttackedPathColor;
 
   const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
-  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[2];
+  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[1];
 
   for (const pathElement of pathElements) {
     const pathUniqueId = await pathElement.getAttribute('uniqueid');
@@ -533,7 +547,7 @@ async function validateAttackedPathOwner(driver, battleOutcome, attackedPathUniq
   let newAttackedPathOwner;
 
   const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
-  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[2];
+  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[1];
 
   for (const pathElement of pathElements) {
     const pathUniqueId = await pathElement.getAttribute('uniqueid');
