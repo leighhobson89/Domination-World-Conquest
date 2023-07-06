@@ -484,13 +484,19 @@ async function clickButtonToCloseResultsPage(driver) {
 }
 
 async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors) {
+  let originalPathFillValue;
+  for (let i = 0; i < pathColors.length; i++) {
+    if (attackedPathUniqueIdColorAndName[0] === pathColors[i][0]){
+      originalPathFillValue = pathColors[i][1];
+    }
+  }
+  
   await switchContext(driver, "svg");
-/*   const svgMap = await driver.findElement(By.id('svg-map')); */
   const pathElements = await driver.findElements(By.css('path'));
   const playerColour = PLAYER_COLOUR;
+  let newAttackedPathColor;
 
   const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
-  const originalPathFillValue = await attackedPathUniqueIdColorAndName[1];
   const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[2];
 
   for (const pathElement of pathElements) {
@@ -500,8 +506,6 @@ async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniq
       break;
     }
   }
-
-  let newAttackedPathColor = null;
 
   switch (battleOutcome[2]) {
     case "V":
@@ -517,21 +521,44 @@ async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniq
 }
 
 
-async function validateAttackedPathOwner(driver, battleOutcome, attackedPathUniqueId, pathOwners) {
+async function validateAttackedPathOwner(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathOwners) {
+  let originalPathOwnerValue;
+  for (let i = 0; i < pathOwners.length; i++) {
+    if (attackedPathUniqueIdColorAndName[0] === pathOwners[i][0]){
+      originalPathOwnerValue = pathOwners[i][1];
+    }
+  }
+  
+  const pathElements = await driver.findElements(By.css('path'));
+  let newAttackedPathOwner;
+
+  const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
+  const attackedPathTerritoryName = await attackedPathUniqueIdColorAndName[2];
+
+  for (const pathElement of pathElements) {
+    const pathUniqueId = await pathElement.getAttribute('uniqueid');
+    if (pathUniqueId === attackedPathUniqueId) {
+      newAttackedPathOwner = await pathElement.getAttribute('owner');
+      break;
+    }
+  }
+
   switch (battleOutcome[2]) {
     case "V":
     case "VR":
     case "VMA":
+      console.log(attackedPathTerritoryName + "'s owner was: " + originalPathOwnerValue + ", but after the victory it is now: " + newAttackedPathOwner);
       break;
     case "D":
     case "DS":
+      console.log(attackedPathTerritoryName + "'s owner was: " + originalPathOwnerValue + ", and after the defeat it is now: " + newAttackedPathOwner);
       break;
   }
 }
 
 async function getAllPathColors(driver) {
-  switchContext(driver, "svg");
-  const pathElements = await driver.findElements(By.css('path[uniqueid]'));
+  await switchContext(driver, "svg");
+  const pathElements = await driver.findElements(By.css('path'));
 
   const pathColors = [];
   for (const pathElement of pathElements) {
@@ -543,11 +570,9 @@ async function getAllPathColors(driver) {
   return pathColors;
 }
 
-
 async function getAllPathOwners(driver) {
-  switchContext(driver, "default");
-  const svgMapElement = await driver.findElement(By.id('svg-map'));
-  const pathElements = await svgMapElement.findElements(By.css('path'));
+  switchContext(driver, "svg");
+  const pathElements = await driver.findElements(By.css('path'));
 
   const pathOwners = [];
   for (const pathElement of pathElements) {
