@@ -48,6 +48,7 @@ describe('Military Tests', function () {
     await selectAPlayerCountry(driver, pathArgument);
   }); */
 
+  
   it('should do a basic attack', async function () {
     this.timeout(80000); //battle can take a while
     await selectAPlayerCountry(driver, pathArgument);
@@ -56,16 +57,30 @@ describe('Military Tests', function () {
     let attackedPathUniqueIdColorAndName = await clickUIToSetUpAttack(driver, pathArgument);
     await validateAttackWindow(driver);
     let attackValues = await addMaxArmyAndClickInvade(driver);
-    let battleOutcome = await doAttack(driver, attackValues);
+    let battleOutcome = await doAttack(driver, attackValues, false);
     await validateResultsAndClickToEndBattle(driver, battleOutcome);
     await wait(500); //allow map to update
     await validateTerritoryIsInCorrectState(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors, pathOwners);
   });
+ 
 
-  /* it('should do a basic siege', async function () {
-    //load next test file
-  });
+/*   it('should do a basic siege', async function () {
+    this.timeout(80000); //battle can take a while
+    await selectAPlayerCountry(driver, pathArgument);
+    let pathColors = await getAllPathColors(driver);
+    let pathOwners = await getAllPathOwners(driver);
+      let attackedPathUniqueIdColorAndName = await clickUIToSetUpAttack(driver, pathArgument);
+      await validateAttackWindow(driver);
+      let attackValues = await addMaxArmyAndClickInvade(driver);
+      let succesfulSiege = await doAttack(driver, attackValues, true);
+      if (succesfulSiege === 1) { //siege code
+        console.log("Did A siege!");
+      } else {
+        console.log("Unfortunately the siege was not possible due to the outcome of the battle, please try again.");
+      }
+  }); */
 
+  /*
   it('should do a basic assault after a siege', async function () {
     //load next test file
   });
@@ -110,8 +125,7 @@ async function clickUIToSetUpAttack(driver, pathArgument) {
   randomTerritoryToAttack = await selectRandomCountryToAttack(interactablePaths);
 
   attackedPathUniqueIdColorAndName[0] = await randomTerritoryToAttack.getAttribute("uniqueid");
-  attackedPathUniqueIdColorAndName[1] = await randomTerritoryToAttack.getAttribute("fill");
-  attackedPathUniqueIdColorAndName[2] = await randomTerritoryToAttack.getAttribute("territory-name");
+  attackedPathUniqueIdColorAndName[1] = await randomTerritoryToAttack.getAttribute("territory-name");
 
   if (interactablePaths.length === 0) {
     console.log("No territories to attack, something went wrong!");
@@ -148,11 +162,11 @@ async function addMaxArmyAndClickInvade(driver) {
   return attackValues;
 }
 
-async function doAttack(driver, attackValues) { //attackValues come from the attack window and are for a future validation of battle
+async function doAttack(driver, attackValues, siege) { //attackValues come from the attack window and are for a future validation of battle
   await switchContext(driver, 'default');
   console.log("Running Battle...");
   await validateBattleUI(driver);
-  let battleOutcome = await clickThroughAttack(driver);
+  let battleOutcome = await clickThroughAttack(driver, siege);
   return battleOutcome;
 }
 
