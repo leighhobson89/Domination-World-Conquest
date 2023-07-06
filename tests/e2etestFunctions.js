@@ -484,8 +484,9 @@ async function clickButtonToCloseResultsPage(driver) {
 }
 
 async function validateAttackedPathColor(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors) {
-  const svgMap = await driver.findElement(By.id('svg-map'));
-  const pathElements = await svgMap.findElements(By.css('path'));
+  await switchContext(driver, "svg");
+/*   const svgMap = await driver.findElement(By.id('svg-map')); */
+  const pathElements = await driver.findElements(By.css('path'));
   const playerColour = PLAYER_COLOUR;
 
   const attackedPathUniqueId = attackedPathUniqueIdColorAndName[0];
