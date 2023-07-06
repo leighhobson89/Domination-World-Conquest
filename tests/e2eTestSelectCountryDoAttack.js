@@ -1,14 +1,8 @@
 const { runTest, switchContext, clickNewGame, clickPlayerCountryPath, clickPopupConfirm, findAvailableAttackPaths, selectRandomCountryToAttack, clickAttackTransferButton, validateAttackTransferWindowOpen, addMaxArmy, validateBattleUI, clickThroughAttack, clickButtonToEndBattle, validateResultsPage, clickButtonToCloseResultsPage, validateAttackedPathColor, validateAttackedPathOwner, getAllPathColors, getAllPathOwners } = require('./e2etestFunctions.js');
 const { Builder } = require('selenium-webdriver');
-const assert = require('assert');
+const chrome = require('selenium-webdriver/chrome');
 const fs = require('fs');
-const readline = require('readline');
 let lookupTable;
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
 
 describe('Military Tests', function () {
   let driver;
@@ -16,8 +10,15 @@ describe('Military Tests', function () {
 
   before(async function () {
     // INITIALISE APP
-    driver = await new Builder().forBrowser('chrome').build();
-    await driver.manage().window().maximize();
+    const chromeOptions = new chrome.Options();
+    /* chromeOptions.addArguments('--headless'); */ //cant return array of valid destinations in headless mode
+    /* chromeOptions.addArguments('--disable-gpu'); */
+
+    driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(chromeOptions)
+      .build();
+     await driver.manage().window().maximize();
 
     try {
       lookupTable = JSON.parse(fs.readFileSync('./tests/uniqueIdLookup.json'));
@@ -38,7 +39,7 @@ describe('Military Tests', function () {
   });
 
   after(async function () {
-    driver.close();
+    await driver.quit();
   });
 
   //----------------------------------------------TEST STEPS-----------------------------------------------//
