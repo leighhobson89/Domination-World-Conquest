@@ -57,6 +57,7 @@ describe('Military Tests', function () {
     let attackValues = await addMaxArmyAndClickInvade(driver);
     let battleOutcome = await doAttack(driver, attackValues);
     await validateResultsAndClickToEndBattle(driver, battleOutcome);
+    await wait(500); //allow map to update
     await validateTerritoryIsInCorrectState(driver, battleOutcome, attackedPathUniqueIdColorAndName, pathColors, pathOwners);
   });
 
