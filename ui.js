@@ -274,11 +274,8 @@ export function svgMapLoaded() {
       if (e.target.tagName === "rect" && currentTurnPhase === 1) {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
           toggleTransferAttackButton(false);
-          if (lastClickedPath.getAttribute("deactivated" === "false")) {
-            removeSiegeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
-          }
-          if (territoryAboutToBeAttackedOrSieged && lastClickedPath.getAttribute("underSiege") === "false") {
-            removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "Sea");
+          if (svgMap.querySelector("#attackImage")) {
+            svgMap.getElementById("attackImage").remove(); 
           }
           transferAttackButtonDisplayed = false;
           attackTextCurrentlyDisplayed = false;
@@ -398,11 +395,8 @@ function selectCountry(country, escKeyEntry) {
                     if (territoryAboutToBeAttackedOrSieged) {
                         document.getElementById("attack-destination-container").style.display = "none";
                         attackTextCurrentlyDisplayed = false;
-                        if (lastClickedPath.getAttribute("underSiege") === "false") {
-                            removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "");
-                            if (svgMap.querySelector("#attackImage")) {
-                                svgMap.getElementById("attackImage").remove(); 
-                            }
+                        if (svgMap.querySelector("#attackImage")) {
+                            svgMap.getElementById("attackImage").remove(); 
                         }
                     }
                 }
@@ -2160,6 +2154,7 @@ siegeButton.addEventListener('mouseout', function() {
       //set graphics for territory under siege (include defense bonus)
       removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "Siege");
       addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
+      svgMap.getElementById("attackImage").remove();
 
       currentMapColorAndStrokeArray = saveMapColorState(false);
     }

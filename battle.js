@@ -11,8 +11,6 @@ import {
 } from './resourceCalculations.js';
 import {
   paths, playerCountry,
-  removeSiegeImageFromPathAndRestoreNormalStroke,
-  lastClickedPath,
   setcurrentMapColorAndStrokeArrayFromExternal,
   setterritoryAboutToBeAttackedFromExternal,
   playerColour,
