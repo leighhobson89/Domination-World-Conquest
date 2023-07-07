@@ -638,7 +638,6 @@ document.addEventListener("DOMContentLoaded", function() {
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-          removeSiegeImageFromPathAndRestoreNormalStroke(lastClickedPath, "");
           toggleTransferAttackButton(false);
           transferAttackButtonDisplayed = false;
           restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
@@ -2152,7 +2151,6 @@ siegeButton.addEventListener('mouseout', function() {
       }
 
       //set graphics for territory under siege (include defense bonus)
-      removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "Siege");
       addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
       svgMap.getElementById("attackImage").remove();
 
@@ -2173,7 +2171,7 @@ retreatButton.addEventListener('click', function() {
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
             if (!battleStart) {
-                defeatType = "retreat";
+                defeatType = "retreat"; //also pull out from siege before starting assault
                 assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
                 //update top table army value when leaving battle
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
@@ -2184,11 +2182,11 @@ retreatButton.addEventListener('click', function() {
             }
             if (battleUIState === 1) { //removing a siege
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
-                //army is restored already by assignProportionsToTerritories in case "0"
-                addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray
-                removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
-                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg             
-                //redraw ui to start battle and get soldiers etc from array
+                //army is restored already by assignProportionsToTerritories in case "0" 
+                //"pull out" i.e. retreat respectfully and return all remaining army as a white peace
+                addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
+                removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
+                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg  
             }                
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
@@ -2355,7 +2353,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
     setCurrentWarId(war.warId);
     addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
-    removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "RemoveSiege");
+    removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
     territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg   
     //setup  battle to conquer territory
     enableDisableSiegeButton(1); //disable siege button at start
@@ -2445,10 +2443,14 @@ document.addEventListener("keydown", function(event) {
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttackedOrSieged) {
-              removeSiegeImageFromPathAndRestoreNormalStroke(territoryAboutToBeAttackedOrSieged, "EscapeKey");
-              addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
+            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and readds it so it is on top of the svg path
+                svgMap.getElementById("attackImage").remove();
+                addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
+            }
           }
       }
+
+      //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
 
       menuState = false;
   }
@@ -3582,9 +3584,6 @@ function setTerritoryForAttack(territoryToAttack) {
     territoryToAttack.style.stroke = siegeObject[territoryToAttack.getAttribute("territory-name")].strokeColor;
     territoryToAttack.setAttribute("stroke-width", "5px");
     territoryToAttack.style.strokeDasharray = "10, 5";
-    if (!svgMap.querySelector("#siegeImage_" + territoryToAttack.getAttribute("territory-name"))) { //stop duplication of siegfe image
-        addImageToPath(territoryToAttack, "siege.png", true);
-    }
   } else {
     territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
     territoryToAttack.setAttribute("fill", playerColour);
@@ -3635,61 +3634,20 @@ function addImageToPath(pathElement, imagePath, siege) {
   }
 }
 
-export function removeSiegeImageFromPathAndRestoreNormalStroke(path, whereExecuted) {
+export function removeSiegeImageFromPath(path) {
     const siegeObjectElement = getHistoricSiegeObject(path);
     let imageElement;
   
-    if (path.getAttribute("underSiege") === "true" && whereExecuted !== "Siege" && path === lastClickedPath) {
-      imageElement = svgMap.querySelector("siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
-    }
+    imageElement = svgMap.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
   
-    if (imageElement) {
-      svgMap.removeChild(imageElement);
-      if (whereExecuted === "Defeat" || whereExecuted === "Siege") {
-        return;
-      }
-    } else {
-      if (whereExecuted === "Defeat") {
-        imageElement = svgMap.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
+    if (imageElement) { //always remove siege image after entering battle ui again and clicking assault
         imageElement.remove();
-        
-        if (path.getAttribute("owner") !== "Player") {
-          path.setAttribute("fill", fillPathBasedOnContinent(path));
-          path.style.stroke = "rgb(0,0,0)";
-          path.style.strokeDasharray = "none";
-          path.setAttribute("stroke-width", "1");
-        }
-        return;
-      }
-    }
-  
-    if (path !== territoryAboutToBeAttackedOrSieged && whereExecuted === "EscapeKey") {
-      path.style.strokeDasharray = "none";
-      path.style.stroke = "rgb(0,0,0)";
-      path.setAttribute("stroke-width", "1");
-    }
-  
-    if (whereExecuted === "Sea" && path.getAttribute("underSiege") === "false") {
-      path.style.strokeDasharray = "none";
-      path.style.stroke = "rgb(0,0,0)";
-      path.setAttribute("stroke-width", "1");
-    }
-  
-    if (path === territoryAboutToBeAttackedOrSieged && whereExecuted !== "EscapeKey" && path.getAttribute("underSiege") === "false") {
-      path.style.strokeDasharray = "none";
-      path.style.stroke = "rgb(0,0,0)";
-      path.setAttribute("stroke-width", "1");
-      toggleTransferAttackButton(false);
-      transferAttackButtonDisplayed = false;
-      attackTextCurrentlyDisplayed = false;
-    }
-  
-    if (path === territoryAboutToBeAttackedOrSieged && whereExecuted === "RemoveSiege") {
-      path.style.strokeDasharray = "none";
-      path.style.stroke = "rgb(0,0,0)";
-      path.setAttribute("stroke-width", "1");
-      territoryAboutToBeAttackedOrSieged.setAttribute("fill", fillPathBasedOnContinent(territoryAboutToBeAttackedOrSieged));
-    }
+    } 
+
+    path.setAttribute("fill", fillPathBasedOnContinent(path));
+    path.style.stroke = "rgb(0,0,0)";
+    path.style.strokeDasharray = "none";
+    path.setAttribute("stroke-width", "1");
   }  
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
@@ -4106,7 +4064,6 @@ function toggleUIButton(makeVisible) {
     const retreatButton = document.getElementById("retreatButton");
     const advanceButton = document.getElementById("advanceButton");
     const siegeBottomBarButton = document.getElementById("siegeBottomBarButton");
-    const siegeButton = document.getElementById("siegeButton");
 
     const attackerCountry = playerCountry;
     const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
@@ -4158,7 +4115,6 @@ function toggleUIButton(makeVisible) {
 
     const retreatButton = document.getElementById("retreatButton");
     const advanceButton = document.getElementById("advanceButton");
-    const siegeButton = document.getElementById("siegeButton");
 
     retreatButton.classList.remove("battleUIRowButtonsGreyBg");
     advanceButton.classList.remove("battleUIRowButtonsGreyBg");
@@ -4525,12 +4481,10 @@ function reduceKeywords(str) {
         battleResultsDisplayed = false;
         toggleUIButton(true);
         toggleBottomLeftPaneWithTurnAdvance(true);
-        for (let i = 0; i < historicSieges.length; i++) {
-            if (historicSieges[i].territoryName === defendingTerritory.getAttribute("territory-name")) { //if has sieged before
-                removeSiegeImageFromPathAndRestoreNormalStroke(defendingTerritory, "Defeat");
-            }
+
+        if (svgMap.getElementById("attackImage")) {
+            svgMap.getElementById("attackImage").remove();
         }
-        svgMap.getElementById("attackImage").remove();
         currentMapColorAndStrokeArray = saveMapColorState(false);     
     });
   }
