@@ -63,6 +63,7 @@ export let siegeObject = {};
 export let historicWars = [];
 export let currentWarId;
 export let nextWarId = 0;
+let resolution;
 
 let rout = false;
 let massiveAssault = false;
@@ -809,7 +810,7 @@ function calculateCombinedForce(army) {
     console.log(historicWars);
   }
 
-  export function addWarToHistoricWarArray(resolution, warId) {
+  export function addWarToHistoricWarArray(warResolution, warId) {
     let proportionsAttackers = proportionsOfAttackArray;
 
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
@@ -823,7 +824,7 @@ function calculateCombinedForce(army) {
       attackingArmyRemaining: attackingArmyRemaining,
       turnsInSiege: null,
       strokeColor: strokeColor,
-      resolution: resolution
+      resolution: warResolution
     });
 
     console.log(historicWars);
@@ -849,11 +850,19 @@ export function incrementSiegeTurns() {
   }
 }
 
-export function setBattleResolutionOnHistoricWarArrayAfterSiege(resolution, id) {
+export function setBattleResolutionOnHistoricWarArrayAfterSiege(warResolution, id) {
   for (const siege of historicWars) {
     const { warId } = siege;
     if (warId === id) {
-      siege.resolution = resolution;
+      siege.resolution = warResolution;
     }
   }
+}
+
+export function getResolution() {
+  return resolution;
+}
+
+export function setResolution(value) {
+  return resolution = value;
 }
