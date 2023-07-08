@@ -866,3 +866,15 @@ export function getResolution() {
 export function setResolution(value) {
   return resolution = value;
 }
+
+export function getFinalAttackArray() {
+  return finalAttackArray;
+}
+
+export function setFinalAttackArray(array) {
+  return finalAttackArray = array;
+}
+
+export function getAttackingArmyRemaining() {
+  return attackingArmyRemaining;
+}
