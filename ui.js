@@ -2265,7 +2265,8 @@ advanceButton.addEventListener('click', function() {
                 for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
                     siegeAttackArray.push(war.attackingArmyRemaining[i]);
                 }
-                setupBattle(probability, siegeAttackArray, mainArrayOfTerritoriesAndResources);
+                setFinalAttackArray(siegeAttackArray);
+                setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
             } else {
                 setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
             }
