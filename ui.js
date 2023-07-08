@@ -80,8 +80,10 @@ import {
     addRemoveWarSiegeObject,
     siegeObject,
     nextWarId,
-    historicSieges,
-    currentWarId
+    historicWars,
+    currentWarId,
+    setBattleResolutionOnHistoricWarArrayAfterSiege,
+    addWarToHistoricWarArray
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2245,13 +2247,13 @@ advanceButton.addEventListener('click', function() {
         case 0: //before battle to start it
             playSoundClip();
             battleStart = false;
-            let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+            let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
                 transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
             }
             setCurrentRound(currentRound + 1);
             if (hasSiegedBefore) {
-            let war = historicSieges.find((siege) => siege.warId === currentWarId);
+            let war = historicWars.find((siege) => siege.warId === currentWarId);
                 let siegeAttackArray = [];
                 siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
                 siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
@@ -2281,7 +2283,7 @@ advanceButton.addEventListener('click', function() {
                 setArmyTextValues(attackArrayText, 1);
                 let updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
-                let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+                let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
                 if (hasSiegedBefore) {
                     enableDisableSiegeButton(1);
                 } else {
@@ -2297,9 +2299,9 @@ advanceButton.addEventListener('click', function() {
                 setAdvanceButtonText(advanceButtonState, advanceButton);
                 retreatButtonState = 1;
                 setRetreatButtonText(retreatButtonState, retreatButton);
-                let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+                let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
                 if (hasSiegedBefore) {
-                    let war = historicSieges.find((siege) => siege.warId === currentWarId);
+                    let war = historicWars.find((siege) => siege.warId === currentWarId);
                     let siegeAttackArray = [];
                     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
                     siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
@@ -3635,7 +3637,7 @@ function addImageToPath(pathElement, imagePath, siege) {
 }
 
 export function removeSiegeImageFromPath(path) {
-    const siegeObjectElement = getHistoricSiegeObject(path);
+    const siegeObjectElement = getHistoricWarObject(path);
     let imageElement;
   
     imageElement = svgMap.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
@@ -4109,8 +4111,12 @@ function toggleUIButton(makeVisible) {
 
   } 
   function setupBattleUI(attackArray) {
-    let war = historicSieges.find((siege) => siege.warId === currentWarId);
-    battleUIState = 0;
+    let war = historicWars.find((siege) => siege.warId === currentWarId);
+    if (war) {
+        battleUIState = 1;
+    } else {
+        battleUIState = 0;
+    }
     setCurrentRound(0);
 
     const retreatButton = document.getElementById("retreatButton");
@@ -4175,7 +4181,7 @@ function toggleUIButton(makeVisible) {
 
     //SET ARMY TEXT VALUES
 
-    let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+    let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
     if (hasSiegedBefore) {
         setArmyTextValues(war, 2);
     } else {
@@ -4434,16 +4440,21 @@ function reduceKeywords(str) {
         }
     }
 
+    let resolution;
+
     //MAIN STATS
     setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
 
     //ROUND COLUMN
     if (situation === 0) {
+        resolution = "Victory";
         document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory:  " + roundCounterForStats;
     } else if (situation === 1) {
         if (defeatType === "retreat") {
+            resolution = "Retreat";
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
         } else {
+            resolution = "Defeat";
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
         }
         
@@ -4475,6 +4486,12 @@ function reduceKeywords(str) {
             if (paths[i].getAttribute("territory-name") === territoryStringDefender) {
                 defendingTerritory = paths[i];
             }
+        }
+        let warId = getCurrentWarId();
+        if (battleUIState === 1) {
+            setBattleResolutionOnHistoricWarArrayAfterSiege(resolution, warId);
+        } else {
+            addWarToHistoricWarArray(resolution, warId);
         }
         playSoundClip();
         toggleBattleResults(false);
@@ -4710,9 +4727,9 @@ export function getSiegeObject(territory) {
     }
 }
 
-export function getHistoricSiegeObject(territory) {
+export function getHistoricWarObject(territory) {
     const territoryName = territory.getAttribute("territory-name");
-    const siege = historicSieges.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+    const siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
 
     if (siege) {
         return siege;

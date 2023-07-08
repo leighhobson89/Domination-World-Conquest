@@ -60,7 +60,7 @@ export let defendingTerritoryId;
 export let defenseBonus;
 
 export let siegeObject = {};
-export let historicSieges = [];
+export let historicWars = [];
 export let currentWarId;
 export let nextWarId = 0;
 
@@ -320,14 +320,14 @@ skirmishesPerType = [
 ];
 totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
 
-let hasSiegedBefore = historicSieges.some((siege) => siege.warId === currentWarId);
+let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
 
 // Divide skirmishes into 5 rounds
 skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
 attackingArmyRemaining = [...totalAttackingArmy];
 if (hasSiegedBefore) {
-  let war = historicSieges.find((siege) => siege.warId === currentWarId);
+  let war = historicWars.find((siege) => siege.warId === currentWarId);
   defendingArmyRemaining = war.defendingArmyRemaining;
 } else {
   defendingArmyRemaining = [...totalDefendingArmy];
@@ -800,13 +800,33 @@ function calculateCombinedForce(army) {
     } else if (addOrRemove === 1) {
       for (const key in siegeObject) {
         if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
-          historicSieges.push(siegeObject[key]);
+          historicWars.push(siegeObject[key]);
           delete siegeObject[key];
           break;
         }
       }
     }
-    console.log(historicSieges);
+    console.log(historicWars);
+  }
+
+  export function addWarToHistoricWarArray(resolution, warId) {
+    let proportionsAttackers = proportionsOfAttackArray;
+
+    const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
+
+    historicWars.push({
+      warId: warId,
+      proportionsAttackers: proportionsAttackers,
+      defendingTerritory: defendingTerritory,
+      defendingArmyRemaining: defendingArmyRemaining,
+      defenseBonus: defendingTerritory.defenseBonus,
+      attackingArmyRemaining: attackingArmyRemaining,
+      turnsInSiege: null,
+      strokeColor: strokeColor,
+      resolution: resolution
+    });
+
+    console.log(historicWars);
   }
 
   export function getDefendingTerritory() {
@@ -825,6 +845,15 @@ export function incrementSiegeTurns() {
   for (const territory in siegeObject) {
     if (siegeObject.hasOwnProperty(territory)) {
       siegeObject[territory].turnsInSiege += 1;
+    }
+  }
+}
+
+export function setBattleResolutionOnHistoricWarArrayAfterSiege(resolution, id) {
+  for (const siege of historicWars) {
+    const { warId } = siege;
+    if (warId === id) {
+      siege.resolution = resolution;
     }
   }
 }
