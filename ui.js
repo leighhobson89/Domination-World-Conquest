@@ -83,7 +83,9 @@ import {
     historicWars,
     currentWarId,
     setBattleResolutionOnHistoricWarArrayAfterSiege,
-    addWarToHistoricWarArray
+    addWarToHistoricWarArray,
+    getResolution,
+    setResolution
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -170,6 +172,7 @@ let roundCounterForStats = 0;
 let attackCountry;
 let defendTerritory;
 let currentWarFlagString;
+let territoryStringDefender;
 
 const multiplierForScatterLoss = 0.7;
 
@@ -2372,6 +2375,51 @@ siegeBottomBarButton.addEventListener('click', function() {
     }, 200);
 });
 
+let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
+
+confirmButtonBattleResults.addEventListener('mouseover', function() {
+    confirmButtonBattleResults.style.cursor = "pointer";
+    if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
+        confirmButtonBattleResults.style.backgroundColor = "rgb(30, 158, 30)";
+    } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
+        confirmButtonBattleResults.style.backgroundColor = "rgb(151, 68, 68)";
+    }
+});
+
+confirmButtonBattleResults.addEventListener('mouseout', function() {
+    confirmButtonBattleResults.style.cursor = "default";
+    if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
+        confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
+    } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
+        confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
+    }
+});
+
+confirmButtonBattleResults.addEventListener('click', function() {
+    let defendingTerritory;
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("territory-name") === territoryStringDefender) {
+            defendingTerritory = paths[i];
+        }
+    }
+    let warId = getCurrentWarId();
+    if (battleUIState === 1) {
+        setBattleResolutionOnHistoricWarArrayAfterSiege(getResolution(), warId);
+    } else {
+        addWarToHistoricWarArray(getResolution(), warId);
+    }
+    playSoundClip();
+    toggleBattleResults(false);
+    battleResultsDisplayed = false;
+    toggleUIButton(true);
+    toggleBottomLeftPaneWithTurnAdvance(true);
+
+    if (svgMap.getElementById("attackImage")) {
+        svgMap.getElementById("attackImage").remove();
+    }
+    currentMapColorAndStrokeArray = saveMapColorState(false);     
+});
+
   pageLoaded = true;
 });
 
@@ -4407,7 +4455,7 @@ function reduceKeywords(str) {
     }
 
     let flagStringDefender = territoryDefender.dataName;
-    let territoryStringDefender = territoryDefender.territoryName;
+    territoryStringDefender = territoryDefender.territoryName;
 
     //SET FLAGS
     setFlag(flagStringAttacker, 6);
@@ -4440,70 +4488,25 @@ function reduceKeywords(str) {
         }
     }
 
-    let resolution;
-
     //MAIN STATS
     setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
 
     //ROUND COLUMN
     if (situation === 0) {
-        resolution = "Victory";
+        setResolution("Victory");
         document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory:  " + roundCounterForStats;
     } else if (situation === 1) {
         if (defeatType === "retreat") {
-            resolution = "Retreat";
+            setResolution("Retreat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
         } else {
-            resolution = "Defeat";
+            setResolution("Defeat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
         }
         
     }
 
-    roundCounterForStats = 0;    
-
-    confirmButtonBattleResults.addEventListener('mouseover', function() {
-        confirmButtonBattleResults.style.cursor = "pointer";
-        if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
-            confirmButtonBattleResults.style.backgroundColor = "rgb(30, 158, 30)";
-        } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
-            confirmButtonBattleResults.style.backgroundColor = "rgb(151, 68, 68)";
-        }
-    });
-
-    confirmButtonBattleResults.addEventListener('mouseout', function() {
-        confirmButtonBattleResults.style.cursor = "default";
-        if (confirmButtonBattleResults.innerHTML === "Accept Victory!") {
-            confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
-        } else if (confirmButtonBattleResults.innerHTML === "Accept Defeat!") {
-            confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
-        }
-    });
-
-    confirmButtonBattleResults.addEventListener('click', function() {
-        let defendingTerritory;
-        for (let i = 0; i < paths.length; i++) {
-            if (paths[i].getAttribute("territory-name") === territoryStringDefender) {
-                defendingTerritory = paths[i];
-            }
-        }
-        let warId = getCurrentWarId();
-        if (battleUIState === 1) {
-            setBattleResolutionOnHistoricWarArrayAfterSiege(resolution, warId);
-        } else {
-            addWarToHistoricWarArray(resolution, warId);
-        }
-        playSoundClip();
-        toggleBattleResults(false);
-        battleResultsDisplayed = false;
-        toggleUIButton(true);
-        toggleBottomLeftPaneWithTurnAdvance(true);
-
-        if (svgMap.getElementById("attackImage")) {
-            svgMap.getElementById("attackImage").remove();
-        }
-        currentMapColorAndStrokeArray = saveMapColorState(false);     
-    });
+    roundCounterForStats = 0;
   }
 
   function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situation) {
