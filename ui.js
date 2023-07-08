@@ -56,9 +56,7 @@ import {
 } from './transferAndAttack.js';
 import {
     setupBattle,
-    finalAttackArray,
     defendingArmyRemaining,
-    attackingArmyRemaining,
     assignProportionsToTerritories,
     proportionsOfAttackArray,
     processRound,
@@ -85,7 +83,10 @@ import {
     setBattleResolutionOnHistoricWarArrayAfterSiege,
     addWarToHistoricWarArray,
     getResolution,
-    setResolution
+    setResolution,
+    getFinalAttackArray,
+    setFinalAttackArray,
+    getAttackingArmyRemaining
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -167,7 +168,6 @@ let firstSetOfRounds = true;
 
 let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
-let currentAttackingArmyRemaining;
 let roundCounterForStats = 0;
 let attackCountry;
 let defendTerritory;
@@ -2172,12 +2172,13 @@ retreatButton.addEventListener('click', function() {
         }
     }
     setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
+    let attackingArmyRemaining = getAttackingArmyRemaining();
     let defeatType;
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
             if (!battleStart) {
                 defeatType = "retreat"; //also pull out from siege before starting assault
-                assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
+                assignProportionsToTerritories(proportionsOfAttackArray, getAttackingArmyRemaining(), mainArrayOfTerritoriesAndResources);
                 //update top table army value when leaving battle
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
                 defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
@@ -2245,6 +2246,7 @@ retreatButton.addEventListener('click', function() {
 //click handler for advance button
 advanceButton.addEventListener('click', function() {
     let currentRound = getCurrentRound();
+    let attackingArmyRemaining = getAttackingArmyRemaining();
     console.log("firstSetOfRounds was: " + firstSetOfRounds);
     switch (advanceButtonState) {
         case 0: //before battle to start it
@@ -2252,7 +2254,7 @@ advanceButton.addEventListener('click', function() {
             battleStart = false;
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
-                transferArmyOutOfTerritoryOnStartingInvasion(finalAttackArray, mainArrayOfTerritoriesAndResources);
+                transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
             }
             setCurrentRound(currentRound + 1);
             if (hasSiegedBefore) {
@@ -2265,7 +2267,7 @@ advanceButton.addEventListener('click', function() {
                 }
                 setupBattle(probability, siegeAttackArray, mainArrayOfTerritoriesAndResources);
             } else {
-                setupBattle(probability, finalAttackArray, mainArrayOfTerritoriesAndResources);
+                setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
             }
             advanceButtonState = 1;
             setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -2318,7 +2320,7 @@ advanceButton.addEventListener('click', function() {
                         skirmishesPerRound);
                 } else {
                     processRound(currentRound,
-                        finalAttackArray,
+                        getFinalAttackArray(),
                         attackingArmyRemaining,
                         defendingArmyRemaining,
                         skirmishesPerRound);
@@ -3542,7 +3544,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
-                        setupBattleUI(finalAttackArray);
+                        setupBattleUI(getFinalAttackArray());
                         battleUIDisplayed = true;
                         setTimeout(function() {
                             eventHandlerExecuted = false; // Reset the flag after a delay
@@ -4350,7 +4352,6 @@ export function setArmyTextValues(attackArray, situation) {
     document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
     document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
-    setCurrentAttackingArmyRemaining(totalAttackingArmy);
 }
 
 function reduceKeywords(str) {
@@ -4489,7 +4490,7 @@ function reduceKeywords(str) {
     }
 
     //MAIN STATS
-    setBattleResultsTextValues(finalAttackArray, attackingArmyRemaining, situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
+    setBattleResultsTextValues(getFinalAttackArray(), getAttackingArmyRemaining(), situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
 
     //ROUND COLUMN
     if (situation === 0) {
@@ -4533,7 +4534,6 @@ function reduceKeywords(str) {
     totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
 
     if (situation === 1) {
-        attackingArmyRemaining = currentAttackingArmyRemaining;
         if (retreatButtonState === 1) { //scatter
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
                 attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss);
@@ -4707,10 +4707,6 @@ export function setDefendingTerritoryCopyStart(object) {
 
 export function setDefendingTerritoryCopyEnd(array) {
     return defendingTerritoryCopyEnd = [...array]; //copies object not just reference it
-}
-
-export function setCurrentAttackingArmyRemaining(array) {
-    return currentAttackingArmyRemaining = [...array];
 }
 
 export function enableDisableSiegeButton(enableOrDisable) {
