@@ -275,6 +275,10 @@ export function svgMapLoaded() {
       clickActionsDone = false;
   });
 
+  svgMap.addEventListener("keydown", function(event) {
+    setUnsetMenuOnEscape();
+  });
+
   svgMap.addEventListener("click", function(e) {
       if (e.target.tagName === "rect" && currentTurnPhase === 1) {
           restoreMapColorState(currentMapColorAndStrokeArray, false);
@@ -2427,86 +2431,7 @@ confirmButtonBattleResults.addEventListener('click', function() {
 });
 
 document.addEventListener("keydown", function(event) {
-  playSoundClip();
-  if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
-      document.getElementById("menu-container").style.display = "block";
-      document.getElementById("main-ui-container").style.display = "none";
-      document.getElementById("upgrade-container").style.display = "none";
-      toggleBottomTableContainer(false);
-      toggleTopTableContainer(false);
-      menuState = true;
-      toggleBottomLeftPaneWithTurnAdvance(false);
-      toggleUIButton(false);
-      toggleUpgradeMenu(false);
-      toggleBuyMenu(false);
-      toggleTransferAttackButton(false);
-      toggleTransferAttackWindow(false);
-      toggleBattleUI(false, false);
-      toggleBattleResults(false);
-  } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
-      if (uiCurrentlyOnScreen) {
-          document.getElementById("main-ui-container").style.display = "flex";
-          uiButtonCurrentlyOnScreen = false;
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-      } else {
-          if (countrySelectedAndGameStarted) {
-              uiButtonCurrentlyOnScreen = true;
-          }
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-      }
-      if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
-          if (transferAttackWindowOnScreen) {
-            toggleTransferAttackWindow(true);
-          } else if (battleUIDisplayed) {
-            toggleBattleUI(true, false);
-          } else if (battleResultsDisplayed) {
-            toggleBattleResults(true);
-          }
-          uiButtonCurrentlyOnScreen = false;
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-      } else {
-          if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
-              uiButtonCurrentlyOnScreen = true;
-          }
-          if (!uiCurrentlyOnScreen) {
-              bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-          }
-      }
-      if (upgradeWindowCurrentlyOnScreen) {
-          toggleUpgradeMenu(true);
-      }
-      if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
-          toggleBottomLeftPaneWithTurnAdvance(true);
-      }
-      if (uiButtonCurrentlyOnScreen) {
-          toggleUIButton(true);
-      }
-      if (buyWindowCurrentlyOnScreen) {
-          toggleBuyMenu(true);
-      }
-      if (countrySelectedAndGameStarted) {
-          toggleTopTableContainer(true);
-      }
-      if (transferAttackButtonDisplayed) {
-          toggleTransferAttackButton(true);
-      }
-      toggleBottomTableContainer(true);
-      document.getElementById("menu-container").style.display = "none";
-
-      if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
-          selectCountry(lastClickedPath, true);
-          if (territoryAboutToBeAttackedOrSieged) {
-            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and readds it so it is on top of the svg path
-                svgMap.getElementById("attackImage").remove();
-                addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
-            }
-          }
-      }
-
-      //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
-
-      menuState = false;
-  }
+  setUnsetMenuOnEscape();
 });
 
 function adjustTextToFit(elementId, text) {
@@ -4818,4 +4743,87 @@ function setRow4(siegeOrAttack) { //move to bottom when done
         row4RightColumnC.style.marginLeft = "10px";
         row4RightColumnE.style.marginLeft = "10px";
     }
+}
+
+function setUnsetMenuOnEscape() {
+    playSoundClip();
+  if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
+      document.getElementById("menu-container").style.display = "block";
+      document.getElementById("main-ui-container").style.display = "none";
+      document.getElementById("upgrade-container").style.display = "none";
+      toggleBottomTableContainer(false);
+      toggleTopTableContainer(false);
+      menuState = true;
+      toggleBottomLeftPaneWithTurnAdvance(false);
+      toggleUIButton(false);
+      toggleUpgradeMenu(false);
+      toggleBuyMenu(false);
+      toggleTransferAttackButton(false);
+      toggleTransferAttackWindow(false);
+      toggleBattleUI(false, false);
+      toggleBattleResults(false);
+  } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
+      if (uiCurrentlyOnScreen) {
+          document.getElementById("main-ui-container").style.display = "flex";
+          uiButtonCurrentlyOnScreen = false;
+          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+      } else {
+          if (countrySelectedAndGameStarted) {
+              uiButtonCurrentlyOnScreen = true;
+          }
+          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+      }
+      if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
+          if (transferAttackWindowOnScreen) {
+            toggleTransferAttackWindow(true);
+          } else if (battleUIDisplayed) {
+            toggleBattleUI(true, false);
+          } else if (battleResultsDisplayed) {
+            toggleBattleResults(true);
+          }
+          uiButtonCurrentlyOnScreen = false;
+          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+      } else {
+          if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
+              uiButtonCurrentlyOnScreen = true;
+          }
+          if (!uiCurrentlyOnScreen) {
+              bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+          }
+      }
+      if (upgradeWindowCurrentlyOnScreen) {
+          toggleUpgradeMenu(true);
+      }
+      if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
+          toggleBottomLeftPaneWithTurnAdvance(true);
+      }
+      if (uiButtonCurrentlyOnScreen) {
+          toggleUIButton(true);
+      }
+      if (buyWindowCurrentlyOnScreen) {
+          toggleBuyMenu(true);
+      }
+      if (countrySelectedAndGameStarted) {
+          toggleTopTableContainer(true);
+      }
+      if (transferAttackButtonDisplayed) {
+          toggleTransferAttackButton(true);
+      }
+      toggleBottomTableContainer(true);
+      document.getElementById("menu-container").style.display = "none";
+
+      if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
+          selectCountry(lastClickedPath, true);
+          if (territoryAboutToBeAttackedOrSieged) {
+            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and readds it so it is on top of the svg path
+                svgMap.getElementById("attackImage").remove();
+                addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
+            }
+          }
+      }
+
+      //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
+
+      menuState = false;
+  }
 }
