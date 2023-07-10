@@ -918,6 +918,19 @@ document.addEventListener("DOMContentLoaded", function() {
       drawUITable(uiTable, 2);
   });
 
+  const warsSiegesButton = document.createElement("button");
+  warsSiegesButton.classList.add("tab-button");
+  warsSiegesButton.setAttribute("id", "warsSiegesButton");
+  warsSiegesButton.innerHTML = "Wars / Sieges";
+
+  warsSiegesButton.addEventListener("click", function() {
+      summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
+      playSoundClip();
+      warsSiegesButton.classList.add("tab-button");
+      uiButtons(warsSiegesButton);
+      drawUITable(uiTable, 3);
+  });
+
   const checkBox = document.createElement("button");
   checkBox.classList.add("checkBox-appear-start-of-turn");
   checkBox.setAttribute("id", "checkBox-appear-start-of-turn");
@@ -981,6 +994,7 @@ document.addEventListener("DOMContentLoaded", function() {
   tabButtons.appendChild(summaryButton);
   tabButtons.appendChild(territoryButton);
   tabButtons.appendChild(armyButton);
+  tabButtons.appendChild(warsSiegesButton);
   tabButtons.appendChild(checkBox);
   tabButtons.appendChild(xButton);
   mainUIContainer.appendChild(contentWindow);
@@ -2911,19 +2925,27 @@ export function setFlag(flag, place) {
 }
 
 function uiButtons(button) {
-  if (button === summaryButton) {
-      summaryButton.classList.add("active");
-      territoryButton.classList.remove("active");
-      armyButton.classList.remove("active");
-  } else if (button === territoryButton) {
-      summaryButton.classList.remove("active");
-      territoryButton.classList.add("active");
-      armyButton.classList.remove("active");
-  } else if (button === armyButton) {
-      summaryButton.classList.remove("active");
-      territoryButton.classList.remove("active");
-      armyButton.classList.add("active");
-  }
+    if (button === summaryButton) {
+        summaryButton.classList.add("active");
+        territoryButton.classList.remove("active");
+        armyButton.classList.remove("active");
+        warsSiegesButton.classList.remove("active");
+    } else if (button === territoryButton) {
+        summaryButton.classList.remove("active");
+        territoryButton.classList.add("active");
+        armyButton.classList.remove("active");
+        warsSiegesButton.classList.remove("active");
+    } else if (button === armyButton) {
+        summaryButton.classList.remove("active");
+        territoryButton.classList.remove("active");
+        armyButton.classList.add("active");
+        warsSiegesButton.classList.remove("active");
+    } else if (button === warsSiegesButton) {
+        summaryButton.classList.remove("active");
+        territoryButton.classList.remove("active");
+        armyButton.classList.remove("active");
+        warsSiegesButton.classList.add("active");
+    }
 }
 
 function colorMapAtBeginningOfGame() {
@@ -4280,7 +4302,7 @@ export function setArmyTextValues(attackArray, situation) {
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
 }
 
-function reduceKeywords(str) {
+export function reduceKeywords(str) {
     const keywords = {
       'and': '&',
       'republic': 'Rp.',
