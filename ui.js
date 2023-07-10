@@ -580,6 +580,7 @@ document.addEventListener("DOMContentLoaded", function() {
       } else {
           toggleUIMenu(true);
           summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
+          summaryButton.classList.add("active");
       }
 
   });
@@ -893,6 +894,12 @@ document.addEventListener("DOMContentLoaded", function() {
     summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
 });
 
+summaryButton.addEventListener("mouseout", function() {
+    if (!summaryButton.classList.contains("active")) {
+        summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
+    }
+});
+
   const territoryButton = document.createElement("button");
   territoryButton.classList.add("tab-button");
   territoryButton.setAttribute("id", "territoryButton");
@@ -967,6 +974,7 @@ document.addEventListener("DOMContentLoaded", function() {
       uiCurrentlyOnScreen = false;
       territoryButton.classList.remove("active");
       armyButton.classList.remove("active");
+      warsSiegesButton.classList.remove("active");
       uiTable.style.display = "none";
   });
 

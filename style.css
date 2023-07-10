@@ -685,6 +685,7 @@ td {
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.5);
+  height: 10px;
 }
 
 .ui-table-row-hoverable:first-child {
@@ -714,6 +715,17 @@ td {
   border-bottom: white 1px solid;
   border-left: white 1px solid;
   border-right: white 1px solid;
+}
+
+.ui-table-row-hoverable-all-border {
+  width: calc(99% + 2px);
+  display: flex;
+  justify-content: space-between;
+  background-color: rgba(45, 81, 110, 0.7);
+  border: white 1px solid;
+  align-items: center;
+  padding-left: 10px;
+  height: 40px;
 }
 
 .ui-table-row-hoverable:hover {
