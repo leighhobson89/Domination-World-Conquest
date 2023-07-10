@@ -793,7 +793,9 @@ function calculateCombinedForce(army) {
         defenseBonus: defendingTerritory.defenseBonus,
         attackingArmyRemaining: attackingArmyRemaining,
         turnsInSiege: 0,
-        strokeColor: strokeColor
+        strokeColor: strokeColor,
+        startingAtt: totalAttackingArmy,
+        startingDef: totalDefendingArmy
       };
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
@@ -824,7 +826,9 @@ function calculateCombinedForce(army) {
       attackingArmyRemaining: attackingArmyRemaining,
       turnsInSiege: null,
       strokeColor: strokeColor,
-      resolution: warResolution
+      resolution: warResolution,
+      startingAtt: totalAttackingArmy,
+      startingDef: totalDefendingArmy
     });
 
     console.log(historicWars);
