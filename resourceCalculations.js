@@ -1076,7 +1076,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         //create empty row
         const emptyRow = document.createElement("div");
         emptyRow.classList.add("ui-empty-row");
-        emptyRow.style.height = "20px"; // Adjust the height as needed
         table.appendChild(emptyRow);
     }
 
@@ -1235,7 +1234,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         // Create an empty row
         const secondEmptyRow = document.createElement("div");
         secondEmptyRow.classList.add("ui-empty-row");
-        secondEmptyRow.style.height = "20px"; // Adjust the height as needed
         table.appendChild(secondEmptyRow);
 
         // Add the second header row
@@ -1551,7 +1549,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             table.appendChild(territorySummaryRow);
         }  
     } else {
-
         const siegeArray = Object.values(siegeObject).map(siege => ({
             warId: siege.warId,
             proportionsAttackers: siege.proportionsAttackers,
@@ -1568,158 +1565,171 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         // Sort the warArray by warId
         siegeArray.sort((a, b) => a.warId - b.warId);
 
-        for (let i = 0; i < siegeArray.length; i++) { //ongoing sieges
-            const warSiegeRow = document.createElement("div");
-            warSiegeRow.classList.add("ui-table-row-hoverable");
-
-            for (let j = 0; j < 13; j++) {
-                const column = document.createElement("div");
-                column.classList.add("ui-table-column");
-                if (j === 0) {
-                    column.style.width = "5%";
-
-                    const outcomeOfWar = "Ongoing"
-                    column.textContent = outcomeOfWar;
-                } else {
-                    column.classList.add("centerIcons");
-                    const warData = siegeArray[i];
-                    switch (j) {
-                        case 1:
-                            if (warData.turnsInSiege) {
-                                column.textContent = "Yes: " + warData.turnsInSiege;
-                            } else {
-                                column.textContent = "No";
-                            }                            
-                            break;
-                        case 2:
-                            column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
-                            break;
-                        case 3:
-                            column.textContent = reduceKeywords(playerCountry);
-                            break;
-                        case 4:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
-                            break;
-                        case 5:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
-                            break;
-                        case 6:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
-                            break;
-                        case 7:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
-                            break;
-                        case 8:
-                            column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
-                            break;
-                        case 9:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
-                            break;
-                        case 10:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
-                            break;
-                        case 11:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
-                            break;
-                        case 12:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
-                            break;
+        if (siegeArray.length === 0) {
+        const noSiegesRow = document.createElement("div");
+        noSiegesRow.classList.add("ui-table-row-hoverable-all-border");
+        noSiegesRow.innerHTML = "Currently no Sieges";
+        table.appendChild(noSiegesRow);
+        } else {
+            for (let i = 0; i < siegeArray.length; i++) { //ongoing sieges
+                const warSiegeRow = document.createElement("div");
+                warSiegeRow.classList.add("ui-table-row-hoverable");
+    
+                for (let j = 0; j < 13; j++) {
+                    const column = document.createElement("div");
+                    column.classList.add("ui-table-column");
+                    if (j === 0) {
+                        column.style.width = "5%";
+    
+                        const outcomeOfWar = "Ongoing"
+                        column.textContent = outcomeOfWar;
+                    } else {
+                        column.classList.add("centerIcons");
+                        const warData = siegeArray[i];
+                        switch (j) {
+                            case 1:
+                                if (warData.turnsInSiege) {
+                                    column.textContent = "Yes: " + warData.turnsInSiege;
+                                } else {
+                                    column.textContent = "No";
+                                }                            
+                                break;
+                            case 2:
+                                column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
+                                break;
+                            case 3:
+                                column.textContent = reduceKeywords(playerCountry);
+                                break;
+                            case 4:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
+                                break;
+                            case 5:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
+                                break;
+                            case 6:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
+                                break;
+                            case 7:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
+                                break;
+                            case 8:
+                                column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
+                                break;
+                            case 9:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
+                                break;
+                            case 10:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
+                                break;
+                            case 11:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
+                                break;
+                            case 12:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
+                                break;
+                        }
                     }
+                    warSiegeRow.addEventListener("mouseover", (e) => {
+                        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
+    
+                        tooltipUIArmyRow(warSiegeRow, territoryData, e);
+                    });
+                    warSiegeRow.addEventListener("mouseout", () => {
+                        tooltip.style.display = "none";
+                        warSiegeRow.style.cursor = "default";
+                    });
+                    warSiegeRow.appendChild(column);
                 }
-                warSiegeRow.addEventListener("mouseover", (e) => {
-                    const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                    const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
-
-                    tooltipUIArmyRow(warSiegeRow, territoryData, e);
-                });
-                warSiegeRow.addEventListener("mouseout", () => {
-                    tooltip.style.display = "none";
-                    warSiegeRow.style.cursor = "default";
-                });
-                warSiegeRow.appendChild(column);
+                table.appendChild(warSiegeRow);
             }
-            table.appendChild(warSiegeRow);
         }
 
         // Create an empty row
         const emptyRow = document.createElement("div");
         emptyRow.classList.add("ui-empty-row");
-        emptyRow.style.height = "20px";
         table.appendChild(emptyRow);
 
-        historicWars.sort((a, b) => a.warId - b.warId); //sort array by warId ie which started first including sieges
+        if (historicWars.length === 0) {
+            const noWarsRow = document.createElement("div");
+            noWarsRow.classList.add("ui-table-row-hoverable-all-border");
+            noWarsRow.innerHTML = "Currently no Wars";
+            table.appendChild(noWarsRow);
+        } else {
+            historicWars.sort((a, b) => a.warId - b.warId); //sort array by warId ie which started first including sieges
 
-        for (let i = 0; i < historicWars.length; i++) { //historic wars
-            const warSiegeRow = document.createElement("div");
-            warSiegeRow.classList.add("ui-table-row-hoverable");
+            for (let i = 0; i < historicWars.length; i++) { //historic wars
+                const warSiegeRow = document.createElement("div");
+                warSiegeRow.classList.add("ui-table-row-hoverable");
 
-            for (let j = 0; j < 13; j++) {
-                const column = document.createElement("div");
-                column.classList.add("ui-table-column");
-                if (j === 0) {
-                    column.style.width = "5%";
-                    
-                    const outcomeOfWar = historicWars[i].resolution;
-                    column.textContent = outcomeOfWar;
-                } else {
-                    column.classList.add("centerIcons");
-                    const warData = historicWars[i];
-                    switch (j) {
-                        case 1:
-                            if (warData.turnsInSiege) {
-                                column.textContent = "Yes: " + warData.turnsInSiege;
-                            } else {
-                                column.textContent = "No";
-                            }                            
-                            break;
-                        case 2:
-                            column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
-                            break;
-                        case 3:
-                            column.textContent = reduceKeywords(playerCountry);
-                            break;
-                        case 4:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
-                            break;
-                        case 5:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
-                            break;
-                        case 6:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
-                            break;
-                        case 7:
-                            column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
-                            break;
-                        case 8:
-                            column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
-                            break;
-                        case 9:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
-                            break;
-                        case 10:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
-                            break;
-                        case 11:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
-                            break;
-                        case 12:
-                            column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
-                            break;
+                for (let j = 0; j < 13; j++) {
+                    const column = document.createElement("div");
+                    column.classList.add("ui-table-column");
+                    if (j === 0) {
+                        column.style.width = "5%";
+                        
+                        const outcomeOfWar = historicWars[i].resolution;
+                        column.textContent = outcomeOfWar;
+                    } else {
+                        column.classList.add("centerIcons");
+                        const warData = historicWars[i];
+                        switch (j) {
+                            case 1:
+                                if (warData.turnsInSiege) {
+                                    column.textContent = "Yes: " + warData.turnsInSiege;
+                                } else {
+                                    column.textContent = "No";
+                                }                            
+                                break;
+                            case 2:
+                                column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
+                                break;
+                            case 3:
+                                column.textContent = reduceKeywords(playerCountry);
+                                break;
+                            case 4:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
+                                break;
+                            case 5:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
+                                break;
+                            case 6:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
+                                break;
+                            case 7:
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
+                                break;
+                            case 8:
+                                column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
+                                break;
+                            case 9:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
+                                break;
+                            case 10:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
+                                break;
+                            case 11:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
+                                break;
+                            case 12:
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
+                                break;
+                        }
                     }
-                }
-                warSiegeRow.addEventListener("mouseover", (e) => {
-                    const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                    const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
+                    warSiegeRow.addEventListener("mouseover", (e) => {
+                        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
+                        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
 
-                    tooltipUIArmyRow(warSiegeRow, territoryData, e);
-                });
-                warSiegeRow.addEventListener("mouseout", () => {
-                    tooltip.style.display = "none";
-                    warSiegeRow.style.cursor = "default";
-                });
-                warSiegeRow.appendChild(column);
+                        tooltipUIArmyRow(warSiegeRow, territoryData, e);
+                    });
+                    warSiegeRow.addEventListener("mouseout", () => {
+                        tooltip.style.display = "none";
+                        warSiegeRow.style.cursor = "default";
+                    });
+                    warSiegeRow.appendChild(column);
+                }
+                table.appendChild(warSiegeRow);
             }
-            table.appendChild(warSiegeRow);
         }
     }     
 
