@@ -649,13 +649,19 @@ document.addEventListener("DOMContentLoaded", function() {
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase == 2) {
-          toggleTransferAttackButton(false);
-          transferAttackButtonDisplayed = false;
-          restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
-          popupTitle.innerText = "AI turn";
-          popupConfirm.innerText = "AI Moving...";
-          modifyCurrentTurnPhase(turnPhase);
-          turnPhase = 0;
+        if (svgMap.querySelector("#attackImage")) {
+            svgMap.getElementById("attackImage").remove();
+            lastClickedPath.style.stroke = "rgb(0,0,0)";
+            lastClickedPath.setAttribute("stroke-width", "1");
+            lastClickedPath.style.strokeDasharray = "none";
+        }
+        toggleTransferAttackButton(false);
+        transferAttackButtonDisplayed = false;
+        restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
+        popupTitle.innerText = "AI turn";
+        popupConfirm.innerText = "AI Moving...";
+        modifyCurrentTurnPhase(turnPhase);
+        turnPhase = 0;
       }
   });
 
@@ -2192,6 +2198,10 @@ siegeButton.addEventListener('mouseout', function() {
 
 //click handler for retreat button
 retreatButton.addEventListener('click', function() {
+    lastClickedPath.style.fill = fillPathBasedOnContinent(lastClickedPath);
+    lastClickedPath.style.stroke = "rgb(0,0,0)";
+    lastClickedPath.setAttribute("stroke-width", "1");
+    lastClickedPath.style.strokeDasharray = "none";
     let defendingTerritoryRetreatClick; 
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
