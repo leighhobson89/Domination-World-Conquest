@@ -1120,17 +1120,22 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 countrySummaryHeaderColumn.style.justifyContent = "center";
             }
         } else {
-            if (summaryTerritoryArmySiegesTable == 3 && j == 1) {
+            if (summaryTerritoryArmySiegesTable == 3 && (j === 1 || j === 3 || j === 8)) {
                 countrySummaryHeaderColumn.style.width = "5%";
             }
-            if (summaryTerritoryArmySiegesTable == 3 && (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11 || j === 12)) {
-                countrySummaryHeaderColumn.style.width = "7%"; 
+            if (summaryTerritoryArmySiegesTable == 3 && (j === 2)) {
+                countrySummaryHeaderColumn.style.width = "12%"; 
             }
-            
+            if (summaryTerritoryArmySiegesTable == 3 && (j === 4 || j === 9)) {
+                countrySummaryHeaderColumn.style.width = "10%"; 
+            }
+            if (summaryTerritoryArmySiegesTable == 3 && (j === 5 || j === 6 || j === 7 || j === 10 || j === 11 || j === 12 )) {
+                countrySummaryHeaderColumn.style.width = "8%"; 
+            }
             countrySummaryHeaderColumn.classList.add("centerIcons");
         }
 
-        countrySummaryHeaderColumn.classList.add("ui-table-column");
+        countrySummaryHeaderColumn.classList.add("ui-table-column-siege-war");
 
         countrySummaryHeaderColumn.addEventListener("mouseover", (e) => {
             const x = e.clientX;
@@ -1595,7 +1600,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     
                 for (let j = 0; j < 13; j++) {
                     const column = document.createElement("div");
-                    column.classList.add("ui-table-column");
+                    column.classList.add("ui-table-column-siege-war");
                     if (j === 0) {
                         column.style.width = "5%";
                         column.style.justifyContent = "center";
@@ -1605,28 +1610,32 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         image.src = "/resources/siege.png";
                         column.appendChild(image);
                     } else {
-                        if (j === 1) {
+                        if (j === 1 || j === 3 || j === 8) {
                             column.style.width = "5%";
                         }
                         if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
-                            column.style.width = "7%";
+                            column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                             column.style.whiteSpace = "nowrap";
                             if (j === 4 || j === 5 || j === 6 || j === 7) {
                                 column.style.color = "rgb(0,235,0)";
                             }
-                        } else if (j !== 0 && j !== 1) {
-                            column.style.width = "12.33%";
                         }
                         if (j == 12) {
                             column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                         }
-                        if (j === 2 || j === 3 || j === 8) {
+                        if (j === 2) {
                             column.style.color = "rgb(235,235,0)";
+                            column.style.width = "12%";
+                        }
+                        if (j === 4) {
+                            column.style.width = "10%";
                         }
                         column.classList.add("centerIcons");
                         const warData = siegeArray[i];
+                        let img;
+                        let flagString;                        
                         switch (j) {
                             case 1:
                                 if (warData.turnsInSiege) {
@@ -1639,7 +1648,12 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
                                 break;
                             case 3:
-                                column.textContent = reduceKeywords(playerCountry);
+                                flagString = playerCountry;
+                                img = document.createElement('img');
+                                img.classList.add("flag-war");
+                                img.src = `./resources/flags/${flagString}.png`;
+                                column.innerHTML = '';
+                                column.appendChild(img);
                                 break;
                             case 4:
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);
@@ -1654,7 +1668,12 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + " / " + formatNumbersToKMB(warData.startingAtt[3]);
                                 break;
                             case 8:
-                                column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
+                                flagString = warData.defendingTerritory.dataName;
+                                img = document.createElement('img');
+                                img.classList.add("flag-war");
+                                img.src = `./resources/flags/${flagString}.png`;
+                                column.innerHTML = '';
+                                column.appendChild(img);
                                 break;
                             case 9:
                                 column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingDef[0]);
@@ -1705,7 +1724,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
                 for (let j = 0; j < 13; j++) {
                     const column = document.createElement("div");
-                    column.classList.add("ui-table-column");
+                    column.classList.add("ui-table-column-siege-war");
                     if (j === 0) {
                         column.style.width = "5%";
                         column.style.justifyContent = "center";
@@ -1724,18 +1743,16 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         }
                         column.appendChild(image);
                     } else {
-                        if (j === 1) {
+                        if (j === 1 || j === 3 || j === 8) {
                             column.style.width = "5%";
                         }
                         if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
-                            column.style.width = "7%";
+                            column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                             column.style.whiteSpace = "nowrap";
                             if (j === 4 || j === 5 || j === 6 || j === 7) {
                                 column.style.color = "rgb(0,235,0)";
                             }
-                        } else if (j !== 0 && j !== 1) {
-                            column.style.width = "12.33%";
                         }
                         if (j == 12) {
                             column.style.width = "8%";
@@ -1743,9 +1760,15 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         }
                         if (j === 2) {
                             column.style.color = "rgb(235,235,0)";
+                            column.style.width = "12%";
+                        }
+                        if (j === 4) {
+                            column.style.width = "10%";
                         }
                         column.classList.add("centerIcons");
                         const warData = historicWars[i];
+                        let img;
+                        let flagString;
                         switch (j) {
                             case 1:
                                 if (warData.turnsInSiege) {
@@ -1758,7 +1781,12 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
                                 break;
                             case 3:
-                                column.textContent = reduceKeywords(playerCountry);
+                                flagString = playerCountry;
+                                img = document.createElement('img');
+                                img.classList.add("flag-war");
+                                img.src = `./resources/flags/${flagString}.png`;
+                                column.innerHTML = '';
+                                column.appendChild(img);
                                 break;
                             case 4:
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);                             
@@ -1785,7 +1813,12 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 }
                                 break;
                             case 8:
-                                column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
+                                flagString = warData.defendingTerritory.dataName;
+                                img = document.createElement('img');
+                                img.classList.add("flag-war");
+                                img.src = `./resources/flags/${flagString}.png`;
+                                column.innerHTML = '';
+                                column.appendChild(img);
                                 break;
                             case 9:
                                 column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingDef[0]);
