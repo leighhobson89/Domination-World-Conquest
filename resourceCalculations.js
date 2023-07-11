@@ -270,9 +270,15 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 continentModifier = 2;
             }
 
+            let initialCalculationTerritory;
+            let isCoastal;
+
             for (const path of paths) {
                 if (path.getAttribute("uniqueid") === uniqueId) {
                     territoryName = path.getAttribute("territory-name");
+                    initialCalculationTerritory = path;
+                    isCoastal = path.getAttribute("isCoastal");
+                    isCoastal = (isCoastal === "true") ? true : false;
                 }
             }
 
@@ -292,7 +298,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let forestsBuilt = 0;
             let fortsBuilt = 0;
 
-            let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory);
+            let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let useableAssault = assaultForCurrentTerritory;
@@ -343,7 +349,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 forestsBuilt: forestsBuilt,
                 fortsBuilt: fortsBuilt,
                 defenseBonus: defenseBonus,
-                isDeactivated: isDeactivated
+                isDeactivated: isDeactivated,
+                isCoastal: isCoastal
             });
         }
     }
@@ -2405,8 +2412,10 @@ export function colourTableText(table, territory) {
     }
 }
 
-function calculateAvailablePurchases() {
+function calculateAvailablePurchases(territory) {
     const availablePurchases = [];
+
+    const isCoastal = territory.isCoastal;
 
     const infantryGoldCost = 0;
     const assaultGoldCost = 50;
@@ -2507,7 +2516,15 @@ function calculateAvailablePurchases() {
         });
     }
 
-    if (hasEnoughGoldForNaval && hasEnoughProdPopForNaval) {
+    if (!isCoastal) {
+        availablePurchases.push({
+            type: 'Naval',
+            purchaseGoldCost: navalGoldCost,
+            purchasePopCost: navalPopCost,
+            effect: "+1 Naval",
+            condition: 'Not a Coastal Territory'
+        });
+    } else if (hasEnoughGoldForNaval && hasEnoughProdPopForNaval) {
         availablePurchases.push({
             type: 'Naval',
             purchaseGoldCost: navalGoldCost,
@@ -3944,7 +3961,7 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     drawUITable(document.getElementById("uiTable"), 1);
 }
 
-function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory) {
+function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory, territory) {
     let initialValue = Math.ceil(armyTerritory);
     oilTerritory = Math.ceil(oilTerritory);
 
@@ -3959,12 +3976,17 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
 
     // Allocate naval units based on available oil (limited to 25% of oilTerritory)
     const maxNavalOil = Math.floor(oilTerritory * 0.35);
-    initialDistribution.naval = Math.min(
-        Math.floor(maxNavalOil / oilRequirements.naval),
-        Math.floor(remainingArmyValue / vehicleArmyWorth.naval)
-    );
-    remainingArmyValue -= initialDistribution.naval * vehicleArmyWorth.naval;
-
+    if (territory.getAttribute("isCoastal") === "true") { //non coastal territories cannot have naval forces
+        initialDistribution.naval = Math.min(
+            Math.floor(maxNavalOil / oilRequirements.naval),
+            Math.floor(remainingArmyValue / vehicleArmyWorth.naval)
+        );
+        remainingArmyValue -= initialDistribution.naval * vehicleArmyWorth.naval;
+    } else {
+        initialDistribution.naval = 0;
+        remainingArmyValue -= initialDistribution.naval * vehicleArmyWorth.naval;
+    }
+    
     // Allocate air units based on available oil (limited to 12.5% of oilTerritory)
     const maxAirOil = Math.floor(oilTerritory * 0.2);
     initialDistribution.air = Math.min(
