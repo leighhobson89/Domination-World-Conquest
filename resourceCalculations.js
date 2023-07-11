@@ -1610,11 +1610,20 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         }
                         if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
                             column.style.width = "7%";
+                            column.style.color = "rgb(220,120,120)";
+                            column.style.whiteSpace = "nowrap";
+                            if (j === 4 || j === 5 || j === 6 || j === 7) {
+                                column.style.color = "rgb(0,235,0)";
+                            }
                         } else if (j !== 0 && j !== 1) {
                             column.style.width = "12.33%";
                         }
                         if (j == 12) {
                             column.style.width = "8%";
+                            column.style.color = "rgb(220,120,120)";
+                        }
+                        if (j === 2 || j === 3 || j === 8) {
+                            column.style.color = "rgb(235,235,0)";
                         }
                         column.classList.add("centerIcons");
                         const warData = siegeArray[i];
@@ -1633,31 +1642,31 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(playerCountry);
                                 break;
                             case 4:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);
                                 break;
                             case 5:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + " / " + formatNumbersToKMB(warData.startingAtt[1]);
                                 break;
                             case 6:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + " / " + formatNumbersToKMB(warData.startingAtt[2]);
                                 break;
                             case 7:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + " / " + formatNumbersToKMB(warData.startingAtt[3]);
                                 break;
                             case 8:
                                 column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
                                 break;
                             case 9:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingDef[0]);
                                 break;
                             case 10:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + " / " + formatNumbersToKMB(warData.startingDef[1]);
                                 break;
                             case 11:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + " / " + formatNumbersToKMB(warData.startingDef[2]);
                                 break;
                             case 12:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingDef[3]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + " / " + formatNumbersToKMB(warData.startingDef[3]);
                                 break;
                         }
                     }
@@ -1720,11 +1729,20 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         }
                         if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
                             column.style.width = "7%";
+                            column.style.color = "rgb(220,120,120)";
+                            column.style.whiteSpace = "nowrap";
+                            if (j === 4 || j === 5 || j === 6 || j === 7) {
+                                column.style.color = "rgb(0,235,0)";
+                            }
                         } else if (j !== 0 && j !== 1) {
                             column.style.width = "12.33%";
                         }
                         if (j == 12) {
                             column.style.width = "8%";
+                            column.style.color = "rgb(220,120,120)";
+                        }
+                        if (j === 2) {
+                            column.style.color = "rgb(235,235,0)";
                         }
                         column.classList.add("centerIcons");
                         const warData = historicWars[i];
@@ -1743,25 +1761,25 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(playerCountry);
                                 break;
                             case 4:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);                             
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);                             
                                 if (column.textContent === "0/All") {
                                     column.textContent = "All/All";
                                 }
                                 break;
                             case 5:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + " / " + formatNumbersToKMB(warData.startingAtt[1]);
                                 if (column.textContent === "0/All") {
                                     column.textContent = "All/All";
                                 }
                                 break;
                             case 6:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + " / " + formatNumbersToKMB(warData.startingAtt[2]);
                                 if (column.textContent === "0/All") {
                                     column.textContent = "All/All";
                                 }
                                 break;
                             case 7:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + " / " + formatNumbersToKMB(warData.startingAtt[3]);
                                 if (column.textContent === "0/All") {
                                     column.textContent = "All/All";
                                 }
@@ -1770,16 +1788,16 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
                                 break;
                             case 9:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingDef[0]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingDef[0]);
                                 break;
                             case 10:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingDef[1]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[1]) + " / " + formatNumbersToKMB(warData.startingDef[1]);
                                 break;
                             case 11:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + " / " + formatNumbersToKMB(warData.startingDef[2]);
                                 break;
                             case 12:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingDef[3]);
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + " / " + formatNumbersToKMB(warData.startingDef[3]);
                                 break;
                         }
                     }
