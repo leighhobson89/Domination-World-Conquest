@@ -135,6 +135,7 @@ let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
 let colorArray;
 let territoriesAbleToAttackTarget;
+let originalDefendingTerritory;
 
 // Game States
 let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
@@ -4218,6 +4219,7 @@ function toggleUIButton(makeVisible) {
             defendTerritory = mainArrayOfTerritoriesAndResources[i];
         }
     }
+    originalDefendingTerritory = { ...defendTerritory };
 }
 
 function setTitleTextBattleUI(attacker, defender, attackSiege) {
@@ -4856,4 +4858,8 @@ function setUnsetMenuOnEscape() {
 
       menuState = false;
   }
+}
+
+export function getOriginalDefendingTerritory() {
+    return originalDefendingTerritory;
 }
