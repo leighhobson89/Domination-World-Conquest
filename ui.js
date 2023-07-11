@@ -2203,8 +2203,8 @@ retreatButton.addEventListener('click', function() {
     let defeatType;
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
+        defeatType = "retreat"; //also pull out from siege before starting assault
             if (!battleStart) {
-                defeatType = "retreat"; //also pull out from siege before starting assault
                 assignProportionsToTerritories(proportionsOfAttackArray, getAttackingArmyRemaining(), mainArrayOfTerritoriesAndResources);
                 //update top table army value when leaving battle
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
@@ -2212,6 +2212,8 @@ retreatButton.addEventListener('click', function() {
                 defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            } else {
+                addWarToHistoricWarArray("Retreat", 0, true);
             }
             if (battleUIState === 1) { //removing a siege
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
@@ -2267,6 +2269,9 @@ retreatButton.addEventListener('click', function() {
     battleUIDisplayed = false;
     toggleBattleResults(true);
     battleResultsDisplayed = true;
+    if (!defeatType) {
+        defeatType = "retreat";
+    }
     populateWarResultPopup(1, attackCountry, defendTerritory, defeatType); //lost
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
 });
@@ -2437,7 +2442,9 @@ confirmButtonBattleResults.addEventListener('click', function() {
     if (battleUIState === 1) {
         setBattleResolutionOnHistoricWarArrayAfterSiege(getResolution(), warId);
     } else {
-        addWarToHistoricWarArray(getResolution(), warId);
+        if (!historicWars.some(war => war.warId === currentWarId)) {
+            addWarToHistoricWarArray(getResolution(), warId, false);
+        }
     }
     playSoundClip();
     toggleBattleResults(false);
@@ -4449,7 +4456,7 @@ export function reduceKeywords(str) {
     }
 
     //MAIN STATS
-    setBattleResultsTextValues(getFinalAttackArray(), getAttackingArmyRemaining(), situation); //COULD BE A BUG FOR END OF WAR STATS IF A SIEGE - CHECK AND INVESTIGATE IT
+    setBattleResultsTextValues(getFinalAttackArray(), getAttackingArmyRemaining(), situation);
 
     //ROUND COLUMN
     if (situation === 0) {
@@ -4611,7 +4618,7 @@ export function reduceKeywords(str) {
             attackingSurvived[i] = Math.floor(attackingSurvived[i] * 0.8);
         }
         let formattedValue;
-        if (attackingSurvived[i] !== "-") {
+        if (attackingSurvived[i] !== "-" && attackingSurvived[i] !== "All") {
             formattedValue = formatNumbersToKMB(attackingSurvived[i]);
         } else {
             formattedValue = "-";
@@ -4619,7 +4626,7 @@ export function reduceKeywords(str) {
         
         element.innerHTML = formattedValue;
         
-        if (attackingSurvived[i] !== "-") {
+        if (attackingSurvived[i] !== "-" && attackingSurvived[i] !== "All") {
             if (attackingSurvived[i] > 0) {
                 element.style.color = 'yellow';
             } else {
@@ -4645,7 +4652,7 @@ export function reduceKeywords(str) {
         
         element.innerHTML = formattedValue;
         
-        if (capturedArray[i] !== "-") {
+        if (capturedArray[i] !== "-" && capturedArray[i] !== "All") {
             if (capturedArray[i] > 0) {
                 element.style.color = 'rgb(0, 200, 0)';
             } else {
