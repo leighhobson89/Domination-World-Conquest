@@ -2215,11 +2215,12 @@ retreatButton.addEventListener('click', function() {
             }
             if (battleUIState === 1) { //removing a siege
                 let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
-                //army is restored already by assignProportionsToTerritories in case "0" 
-                //"pull out" i.e. retreat respectfully and return all remaining army as a white peace
-                addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
-                removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
-                territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg  
+                if (war) { //handle case where retreat after coming back from a siege
+                    addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
+                    removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
+                    territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg 
+                    //army is restored already by assignProportionsToTerritories in case "0" 
+                } 
             }                
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
