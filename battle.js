@@ -28,7 +28,8 @@ import {
   getFirstSetOfRounds,
   setDefendingTerritoryCopyStart,
   retreatButtonState,
-  setAttackProbabilityOnUI
+  setAttackProbabilityOnUI,
+  getOriginalDefendingTerritory
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -781,14 +782,16 @@ function calculateCombinedForce(army) {
   }
 
   export function addRemoveWarSiegeObject(addOrRemove, warId) {
+    let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
 
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
+
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritory.territoryName] = {
         warId: warId,
         proportionsAttackers: proportionsAttackers,
-        defendingTerritory: defendingTerritory,
+        defendingTerritory: defendingTerritoryCopy,
         defendingArmyRemaining: defendingArmyRemaining,
         defenseBonus: defendingTerritory.defenseBonus,
         attackingArmyRemaining: attackingArmyRemaining,
@@ -813,6 +816,7 @@ function calculateCombinedForce(army) {
   }
 
   export function addWarToHistoricWarArray(warResolution, warId) {
+    let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
 
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
@@ -820,7 +824,7 @@ function calculateCombinedForce(army) {
     historicWars.push({
       warId: warId,
       proportionsAttackers: proportionsAttackers,
-      defendingTerritory: defendingTerritory,
+      defendingTerritory: defendingTerritoryCopy,
       defendingArmyRemaining: defendingArmyRemaining,
       defenseBonus: defendingTerritory.defenseBonus,
       attackingArmyRemaining: attackingArmyRemaining,

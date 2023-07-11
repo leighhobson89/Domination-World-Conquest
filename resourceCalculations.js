@@ -692,6 +692,10 @@ export function formatNumbersToKMB(number) {
         return 0;
     }
 
+    if (number === "-" ) {
+        return 0;
+    }
+
     let absNumber = Math.abs(number);
 
     if (absNumber >= 1000000000) {
