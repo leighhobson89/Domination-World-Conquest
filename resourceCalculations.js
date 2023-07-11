@@ -308,6 +308,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let foodForCurrentTerritory = (territoryPopulation / 10000) + (armyForCurrentTerritory / 10000);
             let foodCapacity = territoryPopulation + armyForCurrentTerritory;
             let foodConsumption = territoryPopulation + armyForCurrentTerritory;
+            let isDeactivated = false;
             // Add updated path data to the new array
             mainArrayOfTerritoriesAndResources.push({
                 uniqueId: uniqueId,
@@ -341,7 +342,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 oilWellsBuilt: oilWellsBuilt,
                 forestsBuilt: forestsBuilt,
                 fortsBuilt: fortsBuilt,
-                defenseBonus: defenseBonus
+                defenseBonus: defenseBonus,
+                isDeactivated: isDeactivated
             });
         }
     }
@@ -1118,6 +1120,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             } else {
                 countrySummaryHeaderColumn.style.width = "5%";
                 countrySummaryHeaderColumn.style.justifyContent = "center";
+                countrySummaryHeaderColumn.style.marginLeft = "10px";
             }
         } else {
             if (summaryTerritoryArmySiegesTable == 3 && (j === 1 || j === 3 || j === 8)) {
@@ -1135,7 +1138,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             countrySummaryHeaderColumn.classList.add("centerIcons");
         }
 
-        countrySummaryHeaderColumn.classList.add("ui-table-column-siege-war");
+        countrySummaryHeaderColumn.classList.add("ui-table-column");
 
         countrySummaryHeaderColumn.addEventListener("mouseover", (e) => {
             const x = e.clientX;
@@ -1689,16 +1692,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 break;
                         }
                     }
-                    warSiegeRow.addEventListener("mouseover", (e) => {
-                        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
-    
-                        tooltipUIArmyRow(warSiegeRow, territoryData, e);
-                    });
-                    warSiegeRow.addEventListener("mouseout", () => {
-                        tooltip.style.display = "none";
-                        warSiegeRow.style.cursor = "default";
-                    });
                     warSiegeRow.appendChild(column);
                 }
                 table.appendChild(warSiegeRow);
@@ -1834,16 +1827,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 break;
                         }
                     }
-                    warSiegeRow.addEventListener("mouseover", (e) => {
-                        const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainArrayOfTerritoriesAndResources.find((t) => t.uniqueId === uniqueId);
-
-                        tooltipUIArmyRow(warSiegeRow, territoryData, e);
-                    });
-                    warSiegeRow.addEventListener("mouseout", () => {
-                        tooltip.style.display = "none";
-                        warSiegeRow.style.cursor = "default";
-                    });
                     warSiegeRow.appendChild(column);
                 }
                 table.appendChild(warSiegeRow);

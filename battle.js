@@ -550,6 +550,13 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
 
   setterritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
   setcurrentMapColorAndStrokeArrayFromExternal(tempArray);
+
+  //set deactivated in main array
+  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+    if (mainArrayOfTerritoriesAndResources[i].uniqueId === contestedPath.getAttribute("uniqueid")) {
+      mainArrayOfTerritoriesAndResources[i].isDeactivated = true;
+    }
+  }
 }
 
 export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
@@ -563,6 +570,11 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
           paths[j].style.strokeDasharray = "none";
           paths[j].setAttribute("stroke-width", "1");
           paths[j].setAttribute("deactivated", "false");
+          for (let k = 0; k < mainArrayOfTerritoriesAndResources.length; k++) {
+            if (mainArrayOfTerritoriesAndResources[k].uniqueId === paths[j].getAttribute("uniqueid")) {
+              mainArrayOfTerritoriesAndResources[k].isDeactivated = false;
+            }
+          }
         }
       }      
     }

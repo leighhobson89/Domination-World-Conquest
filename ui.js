@@ -3674,7 +3674,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     if (buttonState === 1) {
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
             for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId) {
+                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId && territoriesAbleToAttackTarget[i].isDeactivated === false) {
                     totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
                     totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].useableAssault;
                     totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].useableAir;
