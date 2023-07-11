@@ -1115,8 +1115,18 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 countrySummaryHeaderColumn.style.width = "55%";
             } else if (summaryTerritoryArmySiegesTable !== 3) {
                 countrySummaryHeaderColumn.style.width = "30%";
+            } else {
+                countrySummaryHeaderColumn.style.width = "5%";
+                countrySummaryHeaderColumn.style.justifyContent = "center";
             }
         } else {
+            if (summaryTerritoryArmySiegesTable == 3 && j == 1) {
+                countrySummaryHeaderColumn.style.width = "5%";
+            }
+            if (summaryTerritoryArmySiegesTable == 3 && (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11 || j === 12)) {
+                countrySummaryHeaderColumn.style.width = "7%"; 
+            }
+            
             countrySummaryHeaderColumn.classList.add("centerIcons");
         }
 
@@ -1588,10 +1598,24 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     column.classList.add("ui-table-column");
                     if (j === 0) {
                         column.style.width = "5%";
+                        column.style.justifyContent = "center";
     
-                        const outcomeOfWar = "Ongoing"
-                        column.textContent = outcomeOfWar;
+                        const image = document.createElement("img");
+                        image.classList.add("sizingIcons");
+                        image.src = "/resources/siege.png";
+                        column.appendChild(image);
                     } else {
+                        if (j === 1) {
+                            column.style.width = "5%";
+                        }
+                        if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
+                            column.style.width = "7%";
+                        } else if (j !== 0 && j !== 1) {
+                            column.style.width = "12.33%";
+                        }
+                        if (j == 12) {
+                            column.style.width = "8%";
+                        }
                         column.classList.add("centerIcons");
                         const warData = siegeArray[i];
                         switch (j) {
@@ -1675,10 +1699,33 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     column.classList.add("ui-table-column");
                     if (j === 0) {
                         column.style.width = "5%";
+                        column.style.justifyContent = "center";
                         
                         const outcomeOfWar = historicWars[i].resolution;
-                        column.textContent = outcomeOfWar;
+                        const image = document.createElement("img");
+                        image.classList.add("sizingIcons");
+                        
+                        if (outcomeOfWar === "Victory") {
+                            image.src = "/resources/victory.png";
+                        } else if (outcomeOfWar === "Defeat") {
+                            image.src = "/resources/defeat.png";
+
+                        } else if (outcomeOfWar === "Retreat") {
+                            image.src = "/resources/retreat.png";
+                        }
+                        column.appendChild(image);
                     } else {
+                        if (j === 1) {
+                            column.style.width = "5%";
+                        }
+                        if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
+                            column.style.width = "7%";
+                        } else if (j !== 0 && j !== 1) {
+                            column.style.width = "12.33%";
+                        }
+                        if (j == 12) {
+                            column.style.width = "8%";
+                        }
                         column.classList.add("centerIcons");
                         const warData = historicWars[i];
                         switch (j) {

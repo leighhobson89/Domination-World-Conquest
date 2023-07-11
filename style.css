@@ -718,7 +718,7 @@ td {
 }
 
 .ui-table-row-siege {
-  width: calc(99% + 2px);
+  width: calc(99% + 12px);
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
@@ -726,13 +726,12 @@ td {
   border-left: white 1px solid;
   border-right: white 1px solid;
   align-items: center;
-  padding-left: 10px;
   height: 40px;
   justify-content: center;
 }
 
 .ui-table-row-siege:last-child {
-  width: calc(99% + 2px);
+  width: calc(99% + 12px);
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
@@ -740,38 +739,35 @@ td {
   border-left: white 1px solid;
   border-right: white 1px solid;
   align-items: center;
-  padding-left: 10px;
   height: 40px;
   justify-content: center;
 }
 
 .ui-empty-row + .ui-table-row-war { /* this selects the first row of the historic wars table */
-  width: calc(99% + 2px);
+  width: calc(99% + 12px);
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border: 1px white solid;
   align-items: center;
-  padding-left: 10px;
   height: 40px;
   justify-content: center;
 }
 
 .ui-table-row-war {
-  width: calc(99% + 2px);
+  width: calc(99% + 12px);
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border-left: white 1px solid;
   border-right: white 1px solid;
   align-items: center;
-  padding-left: 10px;
   height: 40px;
   justify-content: center;
 }
 
 .ui-table-row-war:last-child {
-  width: calc(99% + 2px);
+  width: calc(99% + 12px);
   display: flex;
   justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
@@ -779,7 +775,6 @@ td {
   border-right: white 1px solid;
   border-bottom: white 1px solid;
   align-items: center;
-  padding-left: 10px;
   height: 40px;
   justify-content: center;
 }
