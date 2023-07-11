@@ -815,18 +815,29 @@ function calculateCombinedForce(army) {
     console.log(historicWars);
   }
 
-  export function addWarToHistoricWarArray(warResolution, warId) {
+  export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStart) {
+    let proportionsAttackers;
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
-    let proportionsAttackers = proportionsOfAttackArray;
-
-    const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
-
-    historicWars.push({
+    let strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
+    if (retreatBeforeStart) {
+      console.log(nextWarId + " " + currentWarId);
+      warId = currentWarId;
+      proportionsAttackers = [0,0,0,0];
+      defendingArmyRemaining = [defendingTerritoryCopy.infantryForCurrentTerritory, defendingTerritoryCopy.assaultForCurrentTerritory, defendingTerritoryCopy.airForCurrentTerritory, defendingTerritoryCopy.navalForCurrentTerritory];
+      attackingArmyRemaining = ["All", "All", "All", "All"];
+      totalAttackingArmy = ["All", "All", "All", "All"];
+      totalDefendingArmy = [defendingTerritoryCopy.infantryForCurrentTerritory, defendingTerritoryCopy.assaultForCurrentTerritory, defendingTerritoryCopy.airForCurrentTerritory, defendingTerritoryCopy.navalForCurrentTerritory];
+      defenseBonus = defendingTerritoryCopy.defenseBonus;
+    } else {
+      proportionsAttackers = proportionsOfAttackArray;
+      strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
+    }
+     historicWars.push({
       warId: warId,
       proportionsAttackers: proportionsAttackers,
       defendingTerritory: defendingTerritoryCopy,
       defendingArmyRemaining: defendingArmyRemaining,
-      defenseBonus: defendingTerritory.defenseBonus,
+      defenseBonus: defendingTerritoryCopy.defenseBonus,
       attackingArmyRemaining: attackingArmyRemaining,
       turnsInSiege: null,
       strokeColor: strokeColor,

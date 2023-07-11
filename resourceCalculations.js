@@ -696,6 +696,10 @@ export function formatNumbersToKMB(number) {
         return 0;
     }
 
+    if (number === "All") {
+        return "All";
+    }
+
     let absNumber = Math.abs(number);
 
     if (absNumber >= 1000000000) {
@@ -1571,13 +1575,13 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
         if (siegeArray.length === 0) {
         const noSiegesRow = document.createElement("div");
-        noSiegesRow.classList.add("ui-table-row-hoverable-all-border");
+        noSiegesRow.classList.add("ui-table-row-siege");
         noSiegesRow.innerHTML = "Currently no Sieges";
         table.appendChild(noSiegesRow);
         } else {
             for (let i = 0; i < siegeArray.length; i++) { //ongoing sieges
                 const warSiegeRow = document.createElement("div");
-                warSiegeRow.classList.add("ui-table-row-hoverable");
+                warSiegeRow.classList.add("ui-table-row-siege");
     
                 for (let j = 0; j < 13; j++) {
                     const column = document.createElement("div");
@@ -1629,7 +1633,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
                                 break;
                             case 12:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingDef[3]);
                                 break;
                         }
                     }
@@ -1656,7 +1660,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
         if (historicWars.length === 0) {
             const noWarsRow = document.createElement("div");
-            noWarsRow.classList.add("ui-table-row-hoverable-all-border");
+            noWarsRow.classList.add("ui-table-row-war");
             noWarsRow.innerHTML = "Currently no Wars";
             table.appendChild(noWarsRow);
         } else {
@@ -1664,7 +1668,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
             for (let i = 0; i < historicWars.length; i++) { //historic wars
                 const warSiegeRow = document.createElement("div");
-                warSiegeRow.classList.add("ui-table-row-hoverable");
+                warSiegeRow.classList.add("ui-table-row-war");
 
                 for (let j = 0; j < 13; j++) {
                     const column = document.createElement("div");
@@ -1692,16 +1696,28 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(playerCountry);
                                 break;
                             case 4:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + "/" + formatNumbersToKMB(warData.startingAtt[0]);                             
+                                if (column.textContent === "0/All") {
+                                    column.textContent = "All/All";
+                                }
                                 break;
                             case 5:
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[1]) + "/" + formatNumbersToKMB(warData.startingAtt[1]);
+                                if (column.textContent === "0/All") {
+                                    column.textContent = "All/All";
+                                }
                                 break;
                             case 6:
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingAtt[2]);
+                                if (column.textContent === "0/All") {
+                                    column.textContent = "All/All";
+                                }
                                 break;
                             case 7:
                                 column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingAtt[3]);
+                                if (column.textContent === "0/All") {
+                                    column.textContent = "All/All";
+                                }
                                 break;
                             case 8:
                                 column.textContent = reduceKeywords(warData.defendingTerritory.dataName);
@@ -1716,7 +1732,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[2]) + "/" + formatNumbersToKMB(warData.startingDef[2]);
                                 break;
                             case 12:
-                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "(" + formatNumbersToKMB(warData.startingDef[3]) + ")";
+                                column.textContent = formatNumbersToKMB(warData.defendingArmyRemaining[3]) + "/" + formatNumbersToKMB(warData.startingDef[3]);
                                 break;
                         }
                     }
