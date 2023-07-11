@@ -44,6 +44,7 @@ importModuleWithTimeout()
 
 // Declare multipleValuesArray outside the drawTransferAttackTable function
 export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTerritories, territoriesAbleToAttackTarget, transferOrAttack) {
+    let navalDisabled = false;
     table.innerHTML = "";
 
     let selectedRow = null; // Track the selected row
@@ -82,7 +83,14 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 if (j === 0) {
                     territoryTransferColumn.style.width = "50%";
                     const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
-                    territoryTransferColumn.textContent = territoryName;
+                    let coastalOrNot;
+                    if (playerOwnedTerritories[i].getAttribute("isCoastal") === "true") {
+                        coastalOrNot = "Coastal";
+                    } else {
+                        coastalOrNot = "Landlocked";
+                    }
+                    territoryTransferColumn.textContent = territoryName + " (" + coastalOrNot + ")";
+                    coastalOrNot = "";
                 } else {
                     for (let k = 0; k < 4; k++) {
                         const armyTypeColumn = document.createElement("div");
@@ -338,6 +346,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 const territoryTextString = document.getElementById("territoryTextString"); // change title to white text when selected a row
                 territoryTextString.style.color = "white";
                 territoryTextString.style.fontWeight = "normal";
+                territoryTextString.innerHTML = column.innerHTML;
 
                 const territoryTransferRow = column.parentNode;
 
@@ -414,6 +423,20 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         const multipleIncrementCycler = column.querySelector("#multipleIncrementCycler");
                         const multipleTextBox = column.querySelector("#multipleTextBox");
                         const quantityTextBox = column.querySelector("#quantityTextBox");
+
+                        for (let i = 0; i < playerOwnedTerritories.length; i++) {
+                            const territoryName = playerOwnedTerritories[i].getAttribute("territory-name");
+                            const regex = /^([^(\s]+)\s?\(/;
+                            const match = selectedRow.textContent.match(regex);
+
+                            if (match && match[1] === territoryName) {
+                                if (playerOwnedTerritories[i].getAttribute("isCoastal") === "false") {
+                                    navalDisabled = true;
+                                } else {
+                                    navalDisabled = false;
+                                }
+                            }
+                        }
                     
                         if (mainArrayValueArray[index] === 0) {
                             plusButton.src = "resources/plusButtonGrey.png";
@@ -423,6 +446,15 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
                         
                             disabledFlagsTransfer[index] = true;
+                        } else if (navalDisabled) { //if territory is coastal
+                            if (index === 3) { //if last column i.e. naval
+                                plusButton.src = "resources/plusButtonGrey.png";
+                                multipleTextBox.style.color = "grey";
+                                quantityTextBox.style.color = "grey";
+                                minusButton.src = "resources/minusButtonGrey.png";
+                                multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
+                                disabledFlagsTransfer[index] = true;
+                            }
                         } else {
                             disabledFlagsTransfer[index] = false;
                         }
@@ -601,7 +633,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 const multiplier = Math.pow(10, Math.floor(Math.log10(multipleValue)));
                                 newValue = currentValue + (multiplier > 1 ? multiplier : multipleValue);
                             }
-
 
                             // Compare with main array values
                             const arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 1);

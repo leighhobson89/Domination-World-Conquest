@@ -3680,6 +3680,7 @@ export function removeSiegeImageFromPath(path) {
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
     let elementInMainArray;
     let totalAttackAmountArray = [0,0,0,0];
+    let coastalOrNot;
 
     if (buttonState === 1) {
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
@@ -3697,6 +3698,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     for (let i = 0; i < mainArray.length; i++) {
         if (territoryComingFrom.getAttribute("uniqueid") === mainArray[i].uniqueId) {
             elementInMainArray = mainArray[i];
+        }
+        if (territory === mainArray[i].territoryName) {
+            coastalOrNot = mainArray[i].isCoastal;
         }
     }
   
@@ -3838,8 +3842,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
       territoryTextString.style.color = "rgb(221, 107, 107)";
       territoryTextString.style.fontWeight = "bold";
     } else {
-      territoryTextString.innerHTML = territory + " (" + country + ")";
-      territoryTextString.style.color = "white";
+
+        territoryTextString.innerHTML = territory + " (" + country + ") - " + coastalOrNot;
+        territoryTextString.style.color = "white";
     }
   
     const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
@@ -3851,7 +3856,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     }
   
     transferToAttackHeading.innerHTML = attackingOrTransferring;
-    territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ")");
+    coastalOrNot = coastalOrNot ? "Coastal" : "Landlocked";
+
+    territoryTextString.innerHTML = (territory === "transferring" ? " (please select an option...)" : territory + " (" + country + ") - " + coastalOrNot);
     if (buttonState === 0) {
         fromHeading.innerHTML = "From: ";
         attackingFromTerritory.innerHTML = territoryComingFrom.getAttribute("territory-name");
@@ -3864,7 +3871,14 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 function setTransferToTerritory(listOfTerritories) {
   listOfTerritories.forEach(territory => {
       territory.addEventListener('click', function() {
-          const clickedTerritoryName = territory.innerHTML;
+          let clickedTerritoryName = territory.innerHTML;
+          const regex = /^(.*?)\s?\(/;
+          const match = clickedTerritoryName.match(regex);
+
+          if (match && match[1]) {
+            clickedTerritoryName = match[1].trim();
+          }
+
           transferToTerritory = playerOwnedTerritories.find(territory => territory.getAttribute("territory-name") === clickedTerritoryName);
 
           if (transferToTerritory) {
