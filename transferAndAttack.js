@@ -1,6 +1,6 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArray, oilRequirements } from './resourceCalculations.js';
 import { calculateProbabiltyPreBattle, finalAttackArray } from './battle.js';
-import { setAttackProbabilityOnUI, transferAttackbuttonState } from './ui.js';
+import { setAttackProbabilityOnUI, territoryAboutToBeAttackedOrSieged, transferAttackbuttonState } from './ui.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
@@ -1063,6 +1063,9 @@ function disableAttackScreenOptions(table, territoryUniqueIds) {
             disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
           } else {
             disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
+          }
+          if (territoryAboutToBeAttackedOrSieged.getAttribute("isCoastal") === "false" && columnIndex % 4 === 3) {
+            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
           }
         }
       });      
