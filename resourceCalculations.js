@@ -273,6 +273,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let initialCalculationTerritory;
             let isCoastal;
             let isLandLockedBonus;
+            let mountainDefense;
 
             for (const path of paths) {
                 if (path.getAttribute("uniqueid") === uniqueId) {
@@ -281,6 +282,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     isCoastal = path.getAttribute("isCoastal");
                     isCoastal = (isCoastal === "true") ? true : false;
                     isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
+                    mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
                 }
             }
 
@@ -297,9 +299,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let farmsBuilt = 0;
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
-            let fortsBuilt = 1;
-            let defenseBonus = 1 + (fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
-            /* console.log(defenseBonus + ", " + territoryName); */
+            let fortsBuilt = 0;
+            let defenseBonus = Math.ceil(1 + (fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus + (mountainDefense) * 10);
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
 
@@ -353,11 +354,23 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 fortsBuilt: fortsBuilt,
                 defenseBonus: defenseBonus,
                 isDeactivated: isDeactivated,
-                isCoastal: isCoastal
+                isCoastal: isCoastal,
+                isLandLockedBonus: isLandLockedBonus,
+                mountainDefense : mountainDefense
             });
-            console.log(uniqueId + ", " + territoryName);
         }
     }
+
+    mainArrayOfTerritoriesAndResources.sort(function(a, b) { //console out defense bonus
+        return b.defenseBonus - a.defenseBonus;
+    });
+
+    for (var i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        var territory = mainArrayOfTerritoriesAndResources[i];
+        console.log(territory.defenseBonus + ", " + territory.territoryName);
+    }
+    
+
     return mainArrayOfTerritoriesAndResources;
 }
 

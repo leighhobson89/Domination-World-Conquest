@@ -199,12 +199,11 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
             navalCounts.reduce((sum, count) => sum + count * vehicleArmyWorth.naval, 0);
 
         // Calculate total defending strength
-        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyWorth.assault) + (useableAir * vehicleArmyWorth.air) + (useableNaval * vehicleArmyWorth.naval)) * (1 + defenseBonus);
+        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyWorth.assault) + (useableAir * vehicleArmyWorth.air) + (useableNaval * vehicleArmyWorth.naval)) * (Math.ceil(defenseBonus / 15));
 
         const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({
             uniqueId
         }) => uniqueId === attackedTerritoryId);
-        const defendingDevelopmentIndex = parseFloat(defendingTerritory.devIndex);
 
         const attackingDevelopmentIndex = attackingTerritories.reduce((sum, territoryUniqueId) => {
             const territory = mainArrayOfTerritoriesAndResources.find(({
@@ -216,7 +215,6 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
         reuseableAttackingAverageDevelopmentIndex = attackingDevelopmentIndex;
 
         let modifiedAttackingStrength = totalAttackingStrength * attackingDevelopmentIndex; //more advanced attackers will have it easier to attack
-        const modifiedDefendingStrength = totalDefendingStrength * defendingDevelopmentIndex; //more advanced defenders will have it easier to defend
 
         modifiedAttackingStrength = modifiedAttackingStrength * combatContinentModifier; //attacking on certain continents can be harder due to many islands or infrastructure issues
 
@@ -230,7 +228,7 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
         areaWeightDefender = 1 + (areaWeightDefender - 1) * 0.5;
 
         // Adjust the defending strength based on the area weight
-        const modifiedDefendingStrengthWithArea = modifiedDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
+        const modifiedDefendingStrengthWithArea = totalDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
 
         // Calculate probability with area weight adjustment
         const probability = (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
@@ -918,21 +916,19 @@ export function getAttackingArmyRemaining() {
 
 export function calculateSiegePerTurn() { 
   for (const key in siegeObject) { //main siege loop
-    //DEBUG - COMMENT OUT LATER
+/*     //DEBUG - COMMENT OUT LATER
     //SET CHINA TO HAVE A DEFENSE BONUS OF X
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
       if (mainArrayOfTerritoriesAndResources[i].uniqueId === "73") { //china 239
         mainArrayOfTerritoriesAndResources[i].fortsBuilt++;
         console.log("Number of forts = " + mainArrayOfTerritoriesAndResources[i].fortsBuilt);
         const fortsBuilt = mainArrayOfTerritoriesAndResources[i].fortsBuilt;
-        const devIndex = mainArrayOfTerritoriesAndResources[i].devIndex;
-        const area = mainArrayOfTerritoriesAndResources[i].area;
-        const defenseBonus = 1 + (fortsBuilt * (fortsBuilt + 1) * 10) * devIndex * (area/1000000);
+        let defenseBonus = Math.ceil(1 + (fortsBuilt * (fortsBuilt + 1) * 10) * mainArrayOfTerritoriesAndResources[i].devIndex + mainArrayOfTerritoriesAndResources[i].isLandLockedBonus + (mainArrayOfTerritoriesAndResources[i].mountainDefense * 10));
         mainArrayOfTerritoriesAndResources[i].defenseBonus = defenseBonus;
         siegeObject[key].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus;
       }
     }
-    //END OF DEBUG
+    //END OF DEBUG */
     const totalSiegeScore = (siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval);
     const defenseBonusAttackedTerritory = siegeObject[key].defenseBonus;
     console.log ("SiegeScore = " + totalSiegeScore);
