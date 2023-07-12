@@ -3966,6 +3966,7 @@ function toggleUIButton(makeVisible) {
   
   export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
+        document.getElementById("move-phase-buttons-container").style.pointerEvents = "none";
         document.getElementById("main-ui-container").style.display = "block";
         drawUITable(uiTable, 0);
         svg.style.pointerEvents = 'none';
@@ -3974,6 +3975,7 @@ function toggleUIButton(makeVisible) {
         document.getElementById("popup-with-confirm-container").style.display = "none";
         toggleTransferAttackButton(false);
     } else {
+        document.getElementById("move-phase-buttons-container").style.pointerEvents = "auto";
         document.getElementById("main-ui-container").style.display = "none";
         svg.style.pointerEvents = 'auto';
         uiCurrentlyOnScreen = false;
