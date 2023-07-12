@@ -202,6 +202,7 @@ export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
 }
 
 export function svgMapLoaded() {
+    console.log("Starting Page Load Process");
          //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
   svg = document.getElementById('svg-map');
   svgMap = svg.contentDocument;

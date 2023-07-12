@@ -8,14 +8,17 @@
     <script type="module" src="resourceCalculations.js"></script>
     <script type="module" src="gameTurnsLoop.js"></script>
     <script type="module">
-    import {
-        svgMapLoaded
-    } from "./ui.js";
-    const svg = document.getElementById("svg-map");
-    svg.addEventListener("load", () => {
+        import { svgMapLoaded } from "./ui.js";
+      
+        document.addEventListener("DOMContentLoaded", () => {
+        console.log("Starting script to load page...");
+        const svg = document.getElementById("svg-map");
+        console.log("Set svg variable successfully. Now adding load event listener for SVG file...");
+        console.log(svg);
+        console.log("SVG detected, calling svgLoaded function...");
         svgMapLoaded();
-    });
-    </script>
+        });
+      </script>
     <script type="module" src="ui.js"></script>
     <script type="module" src="music.js"></script>
     <script type="module" src="manualExceptionsForInteractions.js"></script>

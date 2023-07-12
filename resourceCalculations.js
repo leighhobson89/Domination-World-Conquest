@@ -124,6 +124,7 @@ if (!pageLoaded) {
         })
         .catch(error => {
             console.log(error);
+            console.log("Reload page, promises not resolved on page load!");
         });
 }
 
