@@ -36,6 +36,7 @@ import {
     reduceKeywords
 } from './ui.js';
 import {
+    defenseBonus,
     historicWars,
     siegeObject
 } from './battle.js';
@@ -2010,6 +2011,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     let nextUpgradeCostGold;
     let nextUpgradeCostConsMats;
     let simulatedTotal;
+    let currentDefenseBonus = territoryData.defenseBonus;
 
     const upgradeRow = event.currentTarget.closest('.upgrade-row');
     if (!upgradeRow) {
@@ -2071,6 +2073,15 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         currentEffect = "0% -> ";
     }
 
+    let simulatedEffect;
+
+    if (type === "Fort") {
+        simulatedEffect = Math.ceil(1 + (simulatedTotal * (simulatedTotal + 1) * 10) * territoryData.devIndex + territoryData.isLandLockedBonus + (territoryData.mountainDefense) * 10);
+        currentEffect = currentDefenseBonus + " -> ";
+    } else {
+        simulatedEffect = simulatedTotal;
+    }
+
     let whiteStyle = "font-weight: bold; color: white;";
     let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
     let redStyle = "font-weight: bold; color: rgb(235,0,0);";
@@ -2092,7 +2103,7 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
       <div>Upgrade Type: ${type}</div>
       <br />
       <div>Currently Built In Territory: <span style="${whiteStyle}">${amountAlreadyBuilt}</span></div>
-      <div>Current Effect -> Next Effect: <span style="${whiteStyle}">${currentEffect}<span style="${greenStyle}">${simulatedTotal}0%</span></div>
+      <div>Current Effect -> Next Effect: <span style="${whiteStyle}">${currentEffect}<span style="${greenStyle}">${simulatedEffect}</span></div>
       <br />
       <div>Cost Of Next Upgrade (Gold): <span style="${whiteStyle}">${nextUpgradeCostGold}</span></div>
       <div>Cost Of Next Upgrade (Cons. Mats.): <span style="${whiteStyle}">${nextUpgradeCostConsMats}</span></div>
@@ -2707,7 +2718,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Defence +10%",
+            effect: "Increase Defence Bonus",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForFort && (territory.fortsBuilt < maxForts)) {
@@ -2715,7 +2726,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Defence +10%",
+            effect: "Increase Defence Bonus",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
@@ -2723,7 +2734,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Defence +10%",
+            effect: "Increase Defence Bonus",
             condition: 'Not enough Cons. Mats.'
         });
     } else {
@@ -2731,7 +2742,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Defence +10%",
+            effect: "Increase Defence Bonus",
             condition: 'Max Forts Reached'
         });
     }
@@ -3952,7 +3963,7 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
                 turnGainsArray.changeOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity - totalOilCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].fortsBuilt > 0) {
-                mainArrayOfTerritoriesAndResources[i].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus + (mainArrayOfTerritoriesAndResources[i].defenseBonus * ((territory.fortsBuilt * 10) / 100)); //calculate new defenseBonus
+                mainArrayOfTerritoriesAndResources[i].defenseBonus = Math.ceil(1 + (mainArrayOfTerritoriesAndResources[i].fortsBuilt * (mainArrayOfTerritoriesAndResources[i].fortsBuilt + 1) * 10) * mainArrayOfTerritoriesAndResources[i].devIndex + mainArrayOfTerritoriesAndResources[i].isLandLockedBonus + (mainArrayOfTerritoriesAndResources[i].mountainDefense) * 10);
             }
         }
     }
