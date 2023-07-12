@@ -1750,7 +1750,7 @@ summaryButton.addEventListener("mouseout", function() {
   const foodIcon = document.createElement("div");
   foodIcon.classList.add("battleRow4Icon");
   foodIcon.setAttribute("id","foodIcon");
-  foodIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/food.png'>";
+  foodIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/foodCap.png'>";
 
   const defenceIcon = document.createElement("div");
   defenceIcon.classList.add("battleRow4Icon");
@@ -1761,17 +1761,14 @@ summaryButton.addEventListener("mouseout", function() {
   const prodPopText = document.createElement("div");
   prodPopText.classList.add("battleRow4IconText");
   prodPopText.setAttribute("id","prodPopText");
-  prodPopText.innerHTML = "15.1M";
 
   const foodText = document.createElement("div");
   foodText.classList.add("battleRow4IconText");
   foodText.setAttribute("id","foodText");
-  foodText.innerHTML = "200k";
 
   const defenceBonusText = document.createElement("div");
   defenceBonusText.classList.add("battleRow4IconText");
   defenceBonusText.setAttribute("id","defenceBonusText");
-  defenceBonusText.innerHTML = "20%";
 
   const battleUIRow5 = document.createElement("div");
   battleUIRow5.classList.add("battleUIRow");
@@ -4130,6 +4127,18 @@ function toggleUIButton(makeVisible) {
     //SET ARMY TEXT VALUES
     setArmyTextValues(siegeObjectElement, 2);
 
+    let defendingTerritory = siegeObjectElement.defendingTerritory;
+
+    //SET DEFENSE BONUS VALUE
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+            //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
+            document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop);
+            document.getElementById("foodText").innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[i].foodCapacity);
+        }
+    }
+
     //SET SIEGE TURNS TEXT
     setSiegeTurnsText(siegeObjectElement);
 
@@ -4224,15 +4233,20 @@ function toggleUIButton(makeVisible) {
     setAttackProbabilityOnUI(probability, 1);
 
     //SET ARMY TEXT VALUES
-
     let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
     if (hasSiegedBefore) {
         setArmyTextValues(war, 2);
     } else {
         setArmyTextValues(attackArray, 0);
     }
-    
 
+    //SET DEFENSE BONUS VALUE
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        if (defenderTerritory.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+        }
+    }
+    
     //SET ATTACK ROW 4
     setRow4(0);
 
