@@ -107,23 +107,20 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
       airCounts * vehicleArmyWorth.air +
       navalCounts * vehicleArmyWorth.naval;
 
-    const totalDefendingStrength =
+    let totalDefendingStrength =
       infantryForCurrentTerritory * 1 +
       useableAssault * vehicleArmyWorth.assault +
       useableAir * vehicleArmyWorth.air +
       useableNaval * vehicleArmyWorth.naval;
 
-    let modifiedDefendingStrength = totalDefendingStrength * (1 + defenseBonus);
+    totalDefendingStrength = totalDefendingStrength * (Math.ceil(defenseBonus / 15));
 
     const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === attackedTerritoryId);
-    const defendingDevelopmentIndex = parseFloat(defendingTerritory.devIndex);
 
     let modifiedAttackingStrength = totalAttackingStrength * reuseableAttackingAverageDevelopmentIndex; //more advanced attackers will have it easier to attack
     modifiedAttackingStrength = modifiedAttackingStrength * reuseableCombatContinentModifier;
 
-    modifiedDefendingStrength = totalDefendingStrength * defendingDevelopmentIndex; //more advanced defenders will have it easier to defend
-
-    const modifiedDefendingStrengthWithArea = modifiedDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
+    const modifiedDefendingStrengthWithArea = totalDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
 
     const probability = (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
 
