@@ -370,7 +370,7 @@ export function svgMapLoaded() {
 
 function selectCountry(country, escKeyEntry) {
   if (country.getAttribute("greyedOut") === "false") {
-    if (country.getAttribute("underSiege" === "false")) {
+    if (country.getAttribute("underSiege") === "false") {
         const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
 
         if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
@@ -2198,7 +2198,7 @@ siegeButton.addEventListener('mouseout', function() {
 
 //click handler for retreat button
 retreatButton.addEventListener('click', function() {
-    lastClickedPath.style.fill = fillPathBasedOnContinent(lastClickedPath);
+    lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
     lastClickedPath.style.stroke = "rgb(0,0,0)";
     lastClickedPath.setAttribute("stroke-width", "1");
     lastClickedPath.style.strokeDasharray = "none";
