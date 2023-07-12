@@ -8,17 +8,21 @@
     <script type="module" src="resourceCalculations.js"></script>
     <script type="module" src="gameTurnsLoop.js"></script>
     <script type="module">
-        import { svgMapLoaded } from "./ui.js";
-      
-        document.addEventListener("DOMContentLoaded", () => {
-        console.log("Starting script to load page...");
-        const svg = document.getElementById("svg-map");
-        console.log("Set svg variable successfully. Now adding load event listener for SVG file...");
-        console.log(svg);
+    import {
+        svgMapLoaded
+    } from "./ui.js";
+    console.log("Starting scipt to load page... about to set svg element after finding it by document.getElementByID(\"svg-map\")");
+    const svg = document.getElementById("svg-map");
+    console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
+    console.log(svg);
+    setTimeout(function() {
+        console.log("Performed 500ms timeout to process everything before loading event handler, now loading");
+    }, 500);
+    svg.addEventListener("load", () => {
         console.log("SVG detected, calling svgLoaded function...");
         svgMapLoaded();
-        });
-      </script>
+    });
+    </script>
     <script type="module" src="ui.js"></script>
     <script type="module" src="music.js"></script>
     <script type="module" src="manualExceptionsForInteractions.js"></script>
