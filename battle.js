@@ -79,6 +79,8 @@ const armyTypeSiegeValues = {
   naval: 10
 };
 
+const hitIterations = 10; //number of loops to determine hit for siege
+
 export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
     const attackedTerritoryId = defendingTerritoryId;
@@ -911,25 +913,35 @@ export function getAttackingArmyRemaining() {
   return attackingArmyRemaining;
 }
 
-export function calculateSiegePerTurn() { 
-  for (const key in siegeObject) { //main siege loop
-/*     //DEBUG - COMMENT OUT LATER
-    //SET CHINA TO HAVE A DEFENSE BONUS OF X
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-      if (mainArrayOfTerritoriesAndResources[i].uniqueId === "73") { //china 239
-        mainArrayOfTerritoriesAndResources[i].fortsBuilt++;
-        console.log("Number of forts = " + mainArrayOfTerritoriesAndResources[i].fortsBuilt);
-        const fortsBuilt = mainArrayOfTerritoriesAndResources[i].fortsBuilt;
-        let defenseBonus = Math.ceil(1 + (fortsBuilt * (fortsBuilt + 1) * 10) * mainArrayOfTerritoriesAndResources[i].devIndex + mainArrayOfTerritoriesAndResources[i].isLandLockedBonus + (mainArrayOfTerritoriesAndResources[i].mountainDefense * 10));
-        mainArrayOfTerritoriesAndResources[i].defenseBonus = defenseBonus;
-        siegeObject[key].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+export function calculateSiegePerTurn() {
+  if (siegeObject && Object.keys(siegeObject).length > 0) {
+    let hitThisTurn;
+    let hitCount = 0;
+    //calculate chance of a siege "hit"
+    for (const key in siegeObject) {
+      for (let i = 0; i < hitIterations; i++) {
+        const totalSiegeScore = Math.floor((siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
+        const defenseBonusAttackedTerritory = siegeObject[key].defenseBonus;
+        const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory);
+        
+        let hit = Math.random() < hitChance;
+        hit ? hitCount++ : null;
       }
-    }
-    //END OF DEBUG */
-    const totalSiegeScore = (siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval);
-    const defenseBonusAttackedTerritory = siegeObject[key].defenseBonus;
-    console.log ("SiegeScore = " + totalSiegeScore);
+      hitCount > hitIterations / 2 ? (hitThisTurn = true, console.log("Hit this turn for the " + key + " war, " + hitCount + " hits from " + hitIterations)) : (hitThisTurn = false, console.log("No hit this turn for the " + key + " war, " + hitCount + " hits from " + hitIterations));
+      console.log(key + " war: " + hitThisTurn);
+      hitCount = 0;
     
-    console.log("Defense Bonus = " + defenseBonusAttackedTerritory);
-  }
+     //from this point the hit is decided
+    }
+  }  
+}
+
+function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory) {
+  const scoreDifference = totalSiegeScore - defenseBonusAttackedTerritory;
+  const baseProbability = 0.5;
+
+  let hitProbability = baseProbability + (scoreDifference / 1000);
+  hitProbability = Math.max(0, Math.min(1, hitProbability));
+
+  return hitProbability;
 }
