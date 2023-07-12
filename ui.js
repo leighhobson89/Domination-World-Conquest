@@ -2282,6 +2282,9 @@ retreatButton.addEventListener('click', function() {
     if (!defeatType) {
         defeatType = "retreat";
     }
+    if (territoryAboutToBeAttackedOrSieged) {
+        currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
+    }
     populateWarResultPopup(1, attackCountry, defendTerritory, defeatType); //lost
     AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
 });
@@ -4442,6 +4445,7 @@ export function reduceKeywords(str) {
     for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("uniqueid") === territoryDefender.uniqueId) {
             territoryPath = paths[i];
+            break;
         }
     }
 
@@ -4533,7 +4537,13 @@ export function reduceKeywords(str) {
 
     let attackingSurvived = [0, 0, 0, 0];
     // Calculate losses and survivors
-    const attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);
+    let attackingLosses;
+    if (!attackingArmyRemaining.includes("All")) {
+        attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);  
+    } else {
+        attackingLosses = ["-", "-", "-", "-"];
+    }
+    
 
     if ((retreatButtonState !== 2 && situation === 1) || (situation === 0)) { //if not outright defeat
         attackingSurvived = attackingArmyRemaining;
@@ -4554,6 +4564,10 @@ export function reduceKeywords(str) {
     if (totalAttackingArmy[3] === 0) {
         attackingSurvived[3] = "-";
         attackingLosses[3] = "-";
+    }
+
+    if (attackingArmyRemaining.includes("All")) {
+        attackingSurvived = attackingArmyRemaining;
     }
     
     let defendingLosses = [];
@@ -4580,6 +4594,14 @@ export function reduceKeywords(str) {
         defendingLosses[3] = "-";
         capturedArray[3] = "-";
     }
+
+    for (let i = 0; i < defendingLosses.length; i++) {
+        if (attackingArmyRemaining.includes("All") && defendingLosses[i] !== "-") {
+            defendingLosses[i] = "None";
+        }
+    }
+    
+
 
     let rout = getRoutStatus();
     let massiveAssault = getMassiveAssaultStatus();
@@ -4616,15 +4638,17 @@ export function reduceKeywords(str) {
     for (let i = 0; i < defendingLosses.length; i++) {
         const element = document.getElementById(`battleResultsRow2Row2Quantity${i+5}`);
         let formattedValue;
-        if (defendingLosses[i] !== "-") {
+        if (defendingLosses[i] !== "-" && defendingLosses[i] !== "None") {
             formattedValue = formatNumbersToKMB(defendingLosses[i]);
+        } else if (defendingLosses[i] === "None") {
+            formattedValue = "None";
         } else {
             formattedValue = "-";
         }
         
         element.innerHTML = formattedValue;
 
-        if (defendingLosses[i] !== "-") {
+        if (defendingLosses[i] !== "-" && defendingLosses[i] !== "None") {
             if (defendingLosses[i] > 0) {
                 element.style.color = 'rgb(0, 200, 0)';
             } else {
@@ -4644,6 +4668,8 @@ export function reduceKeywords(str) {
         let formattedValue;
         if (attackingSurvived[i] !== "-" && attackingSurvived[i] !== "All") {
             formattedValue = formatNumbersToKMB(attackingSurvived[i]);
+        } else if (attackingSurvived[i] === "All"){
+            formattedValue = "All";
         } else {
             formattedValue = "-";
         }
