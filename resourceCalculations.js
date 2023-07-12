@@ -272,6 +272,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 
             let initialCalculationTerritory;
             let isCoastal;
+            let isLandLockedBonus;
 
             for (const path of paths) {
                 if (path.getAttribute("uniqueid") === uniqueId) {
@@ -279,6 +280,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     initialCalculationTerritory = path;
                     isCoastal = path.getAttribute("isCoastal");
                     isCoastal = (isCoastal === "true") ? true : false;
+                    isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
                 }
             }
 
@@ -292,11 +294,12 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilCapacity = oilForCurrentTerritory;
             let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 300);
             let consMatsCapacity = consMatsForCurrentTerritory;
-            let defenseBonus = 1;
             let farmsBuilt = 0;
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
-            let fortsBuilt = 0;
+            let fortsBuilt = 1;
+            let defenseBonus = 1 + (fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
+            /* console.log(defenseBonus + ", " + territoryName); */
 
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
 
@@ -352,6 +355,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 isDeactivated: isDeactivated,
                 isCoastal: isCoastal
             });
+            console.log(uniqueId + ", " + territoryName);
         }
     }
     return mainArrayOfTerritoriesAndResources;
@@ -361,9 +365,9 @@ function createArrayOfInitialData() {
     return calculatePathAreasWhenPageLoaded().then(pathAreas => {
         return new Promise((resolve, reject) => {
             mainArrayOfTerritoriesAndResources = assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState);
-            for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            /* for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
                 console.log('"' + mainArrayOfTerritoriesAndResources[i].territoryName + '": ' + '"' + mainArrayOfTerritoriesAndResources[i].uniqueId + '",');
-            }
+            } */
             resolve(mainArrayOfTerritoriesAndResources);
         });
     });

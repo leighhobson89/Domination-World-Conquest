@@ -72,6 +72,13 @@ let massiveAssault = false;
 const unitTypes = ["infantry", "assault", "air", "naval"];
 const rounds = 5;
 
+const armyTypeSiegeValues = {
+  infantry: 0.0001,
+  assault: 3,
+  air: 5,
+  naval: 10
+};
+
 export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
     const attackedTerritoryId = defendingTerritoryId;
@@ -708,8 +715,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
       } else {   
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];  
         setArmyTextValues(attackArrayText, 1);                                                                        // fight again
-        console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts and defense bonus halved for defender");
-        defenseBonus /= 2;
+        console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts");
         attackArmyRemaining = attackArmyRemaining.map(value => Math.max(0, Math.floor(value * 0.95)));
         initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
         initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
@@ -908,4 +914,29 @@ export function setFinalAttackArray(array) {
 
 export function getAttackingArmyRemaining() {
   return attackingArmyRemaining;
+}
+
+export function calculateSiegePerTurn() { 
+  for (const key in siegeObject) { //main siege loop
+    //DEBUG - COMMENT OUT LATER
+    //SET CHINA TO HAVE A DEFENSE BONUS OF X
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+      if (mainArrayOfTerritoriesAndResources[i].uniqueId === "73") { //china 239
+        mainArrayOfTerritoriesAndResources[i].fortsBuilt++;
+        console.log("Number of forts = " + mainArrayOfTerritoriesAndResources[i].fortsBuilt);
+        const fortsBuilt = mainArrayOfTerritoriesAndResources[i].fortsBuilt;
+        const devIndex = mainArrayOfTerritoriesAndResources[i].devIndex;
+        const area = mainArrayOfTerritoriesAndResources[i].area;
+        const defenseBonus = 1 + (fortsBuilt * (fortsBuilt + 1) * 10) * devIndex * (area/1000000);
+        mainArrayOfTerritoriesAndResources[i].defenseBonus = defenseBonus;
+        siegeObject[key].defenseBonus = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+      }
+    }
+    //END OF DEBUG
+    const totalSiegeScore = (siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval);
+    const defenseBonusAttackedTerritory = siegeObject[key].defenseBonus;
+    console.log ("SiegeScore = " + totalSiegeScore);
+    
+    console.log("Defense Bonus = " + defenseBonusAttackedTerritory);
+  }
 }
