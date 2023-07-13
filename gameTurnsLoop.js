@@ -4,7 +4,6 @@ import {
   toggleUIMenu
 } from './ui.js';
 import {
-  countryStrengthsArray,
   getPlayerTerritories,
   newTurnResources,
   drawUITable,
@@ -44,8 +43,15 @@ export function initialiseGame() {
 
 function gameLoop() {
   activateAllTerritoriesForNewTurn();
-  let continueSiege = calculateSiegePerTurn(); //large function to work out siege effects per turn
-  continueSiege === false ? handleEndSiegeDueArrest() : incrementSiegeTurns();
+  let continueSiege = true;
+  let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
+  continueSiegeArray.forEach(element => {
+    if (element !== true) {
+      continueSiege = false;
+      handleEndSiegeDueArrest(element);
+    }
+  });
+  incrementSiegeTurns();
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");
   randomEventHappening = handleRandomEventLikelihood();

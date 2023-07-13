@@ -918,6 +918,7 @@ export function getAttackingArmyRemaining() {
 }
 
 export function calculateSiegePerTurn() {
+  let continueSiegeArray = [];
   if (siegeObject && Object.keys(siegeObject).length > 0) {
     
     //calculate chance of a siege "hit"
@@ -942,21 +943,19 @@ export function calculateSiegePerTurn() {
       hitCount = 0;
     
       let damage = [];
-     //from this point the hit is decided
-     for (let i = 0; i < 50; i++) { //debu loop
-      hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = [false,false,false]; 
-     }
-     if (damage[2]) {
-      siegeObject[key].defendingArmyRemaining.push(1); //add routing defeat to array
-      return false; //end siege due to arrest
-     }
-
-
+      //from this point the hit is decided
+      /* for (let i = 0; i < 50; i++) { //debu loop */
+        hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = [false,false,false]; 
+      /* } */
+      if (damage[2]) {
+        siegeObject[key].defendingArmyRemaining.push(1); //add routing defeat to array
+        continueSiegeArray.push(siegeObject[key]);
+      } else {
+        continueSiegeArray.push(true);
+      }
     }
-    return true;
-  } else {
-    return true;
-  } 
+  }
+  return continueSiegeArray;
 }
 
 function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory) {
@@ -1039,48 +1038,51 @@ function calculateCollateralDamage(difference) {
   }
 }
 
-export function handleEndSiegeDueArrest() {
+export function handleEndSiegeDueArrest(siege) {
   let defendingTerritory;
   let defendingPath;
-  for (const key in siegeObject) {
-    if (siegeObject[key].defendingArmyRemaining[4]) { //if siege marked as arrested
-      //set siege data to player and defender territory
-      for (let i = 0; i < paths.length; i++) {
-        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-          if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[j].uniqueId) {
-            defendingTerritory = mainArrayOfTerritoriesAndResources[j];
-          }
-          if (defendingTerritory) {
-            if (defendingTerritory.uniqueId === paths[i].getAttribute("uniqueid")) {
-              defendingPath = paths[i];
-              break;
-            }
+
+  if (siege.defendingArmyRemaining[4]) { //if siege marked as arrested
+    //set siege data to player and defender territory
+    for (let i = 0; i < paths.length; i++) {
+      for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+        if (siege.defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[j].uniqueId) {
+          defendingTerritory = mainArrayOfTerritoriesAndResources[j];
+        }
+        if (defendingTerritory) {
+          if (defendingTerritory.uniqueId === paths[i].getAttribute("uniqueid")) {
+            defendingPath = paths[i];
+            break;
           }
         }
       }
-      
+    }
 
-      defendingTerritory.infantryForCurrentTerritory = siegeObject[key].defendingArmyRemaining[0] + (Math.floor(siegeObject[key].attackingArmyRemaining[0] * 0.5));
-      defendingTerritory.assaultForCurrentTerritory = siegeObject[key].defendingArmyRemaining[1 + (Math.floor(siegeObject[key].attackingArmyRemaining[1] * 0.5))];
-      defendingTerritory.airForCurrentTerritory = siegeObject[key].defendingArmyRemaining[2] + (Math.floor(siegeObject[key].attackingArmyRemaining[2] * 0.5));
-      defendingTerritory.navalForCurrentTerritory = siegeObject[key].defendingArmyRemaining[3] + (Math.floor(siegeObject[key].attackingArmyRemaining[3] * 0.5));
-      defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+    defendingTerritory.infantryForCurrentTerritory = siege.defendingArmyRemaining[0] + (Math.floor(siege.attackingArmyRemaining[0] * 0.5));
+    defendingTerritory.assaultForCurrentTerritory = siege.defendingArmyRemaining[1 + (Math.floor(siege.attackingArmyRemaining[1] * 0.5))];
+    defendingTerritory.airForCurrentTerritory = siege.defendingArmyRemaining[2] + (Math.floor(siege.attackingArmyRemaining[2] * 0.5));
+    defendingTerritory.navalForCurrentTerritory = siege.defendingArmyRemaining[3] + (Math.floor(siege.attackingArmyRemaining[3] * 0.5));
+    defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
 
-      siegeObject[key].attackingArmyRemaining = [0,0,0,0];
-      siegeObject[key].resolution = "Arrested";
+    siege.attackingArmyRemaining = [0,0,0,0];
+    siege.resolution = "Arrested";
 
-      setUpResultsOfWarExternal(true);
-      setCurrentWarFlagString(defendingTerritory.dataName);
+    setUpResultsOfWarExternal(true);
+    setCurrentWarFlagString(defendingTerritory.dataName);
 
-      populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siegeObject[key]);
-      addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+    populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siege);
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
 
-      historicWars.push(siegeObject[key]);
-      removeSiegeImageFromPath(defendingPath);
-      defendingPath.setAttribute("underSiege", "false");
+    historicWars.push(siege);
+    removeSiegeImageFromPath(defendingPath);
+    defendingPath.setAttribute("underSiege", "false");
 
-      delete siegeObject[key];
+    for (const key in siegeObject) {
+      if (key === siege.defendingTerritory.territoryName) {
+        delete siegeObject[key];
+        break;       
+      }
     }
   }
 }
