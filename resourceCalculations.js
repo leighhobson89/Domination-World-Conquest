@@ -36,7 +36,6 @@ import {
     reduceKeywords
 } from './ui.js';
 import {
-    defenseBonus,
     historicWars,
     siegeObject
 } from './battle.js';
@@ -471,17 +470,29 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    //loop to update all new values for new turn
     for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            if (path.getAttribute("owner") === "Player" && path.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+            const defendingTerritoryId = mainArrayOfTerritoriesAndResources[i].uniqueId;
+            
+            // Update values only if territory is not defending against a siege war
+            if (!Object.values(siegeObject).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)) {
+                for (let i = 0; i < historicWars.length; i++) {
+                    if (historicWars[i].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[i].resetStatsAfterWar) {
+                        if (historicWars[i].turnsInSiege !== null) {
+                            //reset the stats here for food capacity after the siege is finished
+                            mainArrayOfTerritoriesAndResources[i].foodCapacity = historicWars[i].startingFoodCapacity;
+                            historicWars[i].resetStatsAfterWar = true;
+                        }
+                    }
+                }
+                
                 changeGold = calculateGoldChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
-                changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false);
+                changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false, false);
                 changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
-                changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i]);
+                changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i], false);
                 changeProdPopTemp = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-
+    
                 mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
                 mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
                 mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
@@ -489,16 +500,41 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
                 mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
                 mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-
+    
                 changeProdPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
                 changeProdPop = changeProdPop - changeProdPopTemp;
-
+    
                 turnGainsArray.changeGold += changeGold;
                 turnGainsArray.changeOil += changeOil;
                 turnGainsArray.changeFood += changeFood;
                 turnGainsArray.changeConsMats += changeConsMats;
                 turnGainsArray.changePop += changePop;
                 turnGainsArray.changeProdPop += changeProdPop;
+            } else { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
+                let siegeTerritory;
+                for (const key in siegeObject) {
+                    if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+                      siegeTerritory = siegeObject[key];
+                      break;
+                    }
+                  }
+                //changeGold = calculateGoldChange(siegeTerritory, false);
+                //changeOil = calculateOilChange(siegeTerritory, false);
+                changeFood = calculateFoodChange(siegeTerritory, false, true);
+                //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
+                changePop = calculatePopulationChange(siegeTerritory, true);
+                changeProdPopTemp = (((siegeTerritory.territoryPopulation / 100) * 45) * siegeTerritory.devIndex);
+    
+                //mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
+                //mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
+                mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
+                mainArrayOfTerritoriesAndResources[i].foodConsumption = siegeTerritory.defendingTerritory.territoryPopulation + siegeTerritory.defendingTerritory.armyForCurrentTerritory;
+                //mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
+                mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
+                mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
+    
+                changeProdPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
+                changeProdPop = changeProdPop - changeProdPopTemp;
             }
         }
     }
@@ -613,7 +649,11 @@ function calculateOilChange(territory, isSimulation) {
     return oilChange;
 }
 
-function calculateFoodChange(territory, isSimulation) {
+function calculateFoodChange(territory, isSimulation, cameFromSiege) {
+    if (cameFromSiege) {
+        territory = territory.defendingTerritory; //drill into array to make this function work
+    }
+
     let foodChange = 0;
 
     if (randomEventHappening && randomEvent === "Food Disaster" && !isSimulation) { //food disaster
@@ -643,7 +683,11 @@ function calculateFoodChange(territory, isSimulation) {
     return foodChange;
 }
 
-function calculatePopulationChange(territory) {
+function calculatePopulationChange(territory, cameFromSiege) {
+    if (cameFromSiege) {
+        territory = territory.defendingTerritory; //drill into array to make this function work
+    }
+    
     if (!randomEventHappening) {
         const currentPopulation = territory.territoryPopulation + territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
         const devIndex = territory.devIndex;

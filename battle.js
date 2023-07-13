@@ -806,6 +806,9 @@ function calculateCombinedForce(army) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
+    let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
+    let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
+    let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
 
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritory.territoryName] = {
@@ -818,6 +821,9 @@ function calculateCombinedForce(army) {
         strokeColor: strokeColor,
         startingAtt: totalAttackingArmy,
         startingDef: totalDefendingArmy,
+        startingDefenseBonus: startingDefenseBonus,
+        startingFoodCapacity: startingFoodCapacity,
+        startingProdPop: startingProdPop
       };
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
@@ -838,6 +844,9 @@ function calculateCombinedForce(army) {
     let proportionsAttackers;
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
+    let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
+    let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
+    let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
 
     if (retreatBeforeStart) {
       console.log(nextWarId + " " + currentWarId);
@@ -863,6 +872,9 @@ function calculateCombinedForce(army) {
       resolution: warResolution,
       startingAtt: totalAttackingArmy,
       startingDef: totalDefendingArmy,
+      startingDefenseBonus: startingDefenseBonus,
+      startingFoodCapacity: startingFoodCapacity,
+      startingProdPop: startingProdPop
     });
 
     console.log(historicWars);
@@ -943,16 +955,19 @@ export function calculateSiegePerTurn() {
       hitCount = 0;
     
       let damage = [];
-      //from this point the hit is decided
-      /* for (let i = 0; i < 50; i++) { //debu loop */
-        hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = [false,false,false]; 
-      /* } */
-      if (damage[2]) {
+
+      hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = false; 
+
+      if (!damage) { //if no hit
+        return;
+      } else if (damage[2]) { //if arrested
         siegeObject[key].defendingArmyRemaining.push(1); //add routing defeat to array
         continueSiegeArray.push(siegeObject[key]);
       } else {
-        continueSiegeArray.push(true);
-      }
+        //do the damage
+        changeDefendingTerritoryStatsBasedOnSiege(siegeObject[key], damage);
+        continueSiegeArray.push(true); //siege can continue
+      }     
     }
   }
   return continueSiegeArray;
@@ -969,13 +984,8 @@ function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerrito
 }
 
 function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory) {
-  console.log("forts built before debug: " + siegeObject.defendingTerritory.fortsBuilt); // DEBUG
-  // DEBUG
-  defenseBonusAttackedTerritory = Math.ceil(1 + (siegeObject.defendingTerritory.fortsBuilt * (siegeObject.defendingTerritory.fortsBuilt + 1) * 10) * siegeObject.defendingTerritory.devIndex + siegeObject.defendingTerritory.isLandLockedBonus + (siegeObject.defendingTerritory.mountainDefense) * 10); // DEBUG
-  
   const difference = totalSiegeScore - defenseBonusAttackedTerritory;
   let arrested = false;
-  siegeObject.defendingTerritory.fortsBuilt = 2; // DEBUG
 
   // Define the sliding scale probabilities
   const slidingScale = [
@@ -1084,6 +1094,20 @@ export function handleEndSiegeDueArrest(siege) {
         break;       
       }
     }
+  }
+}
+
+function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
+  if (siege.defendingTerritory.fortsBuilt >= damage[0]) { //remove forts
+    siege.defendingTerritory.fortsBuilt -= damage[0];
+  } else {
+    siege.defendingTerritory.fortsBuilt = 0;
+  }
+  //recalculate defense bonus
+  siege.defendingTerritory.defenseBonus = Math.ceil(1 + (siege.defendingTerritory.fortsBuilt * (siege.defendingTerritory.fortsBuilt + 1) * 10) * siege.defendingTerritory.devIndex + siege.defendingTerritory.isLandLockedBonus + (siege.defendingTerritory.mountainDefense) * 10);
+  
+  if (siege.defendingTerritory.foodCapacity > 0) { //lower food capacity
+    siege.defendingTerritory.foodCapacity -= damage[1];
   }
 }
 
