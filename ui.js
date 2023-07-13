@@ -43,6 +43,7 @@ import {
   mainArrayOfTerritoriesAndResources,
   countryStrengthsArray,
   vehicleArmyWorth,
+  addRandomFortsToAllNonPlayerTerritories
 } from './resourceCalculations.js';
 import {
   drawAndHandleTransferAttackTable
@@ -631,6 +632,7 @@ document.addEventListener("DOMContentLoaded", function() {
           toggleUIButton(true);
           restoreMapColorState(currentMapColorAndStrokeArray, true);
           initialiseGame();
+          addRandomFortsToAllNonPlayerTerritories();
           document.getElementById("top-table-container").style.display = "block";
           popupTitle.innerText = "Buy / Upgrade Phase";
           popupSubTitle.innerText = "";
@@ -3639,17 +3641,18 @@ function addImageToPath(pathElement, imagePath, siege) {
 
   if (siege) {
     for (const key in siegeObject) {
-        if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === currentWarId) {
-          for (let i = 0; i < paths.length; i++) {
-            if (paths[i].getAttribute("territory-name") === siegeObject[key].defendingTerritory.territoryName) {
-              pathElement.parentNode.appendChild(imageElement);
-              imageElement.setAttribute("id", `siegeImage_${siegeObject[key].defendingTerritory.territoryName}`);
-              break;
-            }
+      if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === currentWarId) {
+        for (let i = 0; i < paths.length; i++) {
+          if (paths[i].getAttribute("territory-name") === siegeObject[key].defendingTerritory.territoryName) {
+            const territoryName = siegeObject[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+            pathElement.parentNode.appendChild(imageElement);
+            imageElement.setAttribute("id", `siegeImage_${territoryName}`);
+            break;
           }
-          break;
         }
+        break;
       }
+    }
   } else {
     imageElement.setAttribute("id", "attackImage");
     pathElement.parentNode.appendChild(imageElement);
@@ -3660,7 +3663,9 @@ export function removeSiegeImageFromPath(path) {
     const siegeObjectElement = getHistoricWarObject(path);
     let imageElement;
   
-    imageElement = svgMap.querySelector("#siegeImage_" + siegeObjectElement.defendingTerritory.territoryName);
+    const formattedTerritoryName = siegeObjectElement.defendingTerritory.territoryName.replace(/\s+/g, "_");
+    imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
+
   
     if (imageElement) { //always remove siege image after entering battle ui again and clicking assault
         imageElement.remove();

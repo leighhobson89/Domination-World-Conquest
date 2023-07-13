@@ -4303,3 +4303,17 @@ function calculateStartingArmy(territory) {
     }
     return startingArmy;
 }
+
+export function addRandomFortsToAllNonPlayerTerritories() {
+    mainArrayOfTerritoriesAndResources.forEach(element => {
+        if (!playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId)) {
+            element.fortsBuilt = Math.floor(Math.random() * 4);
+            element.defenseBonus = Math.ceil(1 + (element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus + (element.mountainDefense) * 10);
+        }
+        
+        const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);
+        const wasPlayerTerritory = isPlayerTerritory ? "was" : "was not";
+        
+        console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
+    });
+}
