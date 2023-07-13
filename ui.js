@@ -16,7 +16,7 @@ import {
 } from './resourceCalculations.js';
 import {
   populateBottomTableWhenSelectingACountry,
-  AddUpAllTerritoryResourcesForCountryAndWriteToTopTable
+  addUpAllTerritoryResourcesForCountryAndWriteToTopTable
 } from './resourceCalculations.js';
 import {
   currentlySelectedTerritoryForUpgrades,
@@ -2283,8 +2283,8 @@ retreatButton.addEventListener('click', function() {
     if (territoryAboutToBeAttackedOrSieged) {
         currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
     }
-    populateWarResultPopup(1, attackCountry, defendTerritory, defeatType); //lost
-    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+    populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
 });
 
 //click handler for advance button
@@ -2375,12 +2375,12 @@ advanceButton.addEventListener('click', function() {
             break;
         case 2: //accept victory
             playSoundClip();
-            AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+            addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
             battleUIDisplayed = false;
             toggleBattleResults(true);
             battleResultsDisplayed = true;
-            populateWarResultPopup(0, attackCountry, defendTerritory, "victory"); //won
+            populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false); //won
             break;
         case 3: //continue siege
             playSoundClip();
@@ -2443,12 +2443,6 @@ confirmButtonBattleResults.addEventListener('mouseout', function() {
 });
 
 confirmButtonBattleResults.addEventListener('click', function() {
-    let defendingTerritory;
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("territory-name") === territoryStringDefender) {
-            defendingTerritory = paths[i];
-        }
-    }
     let warId = getCurrentWarId();
     if (battleUIState === 1) {
         setBattleResolutionOnHistoricWarArrayAfterSiege(getResolution(), warId);
@@ -4456,7 +4450,7 @@ export function reduceKeywords(str) {
     return firstSetOfRounds;
   }
 
-  function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType) {
+  export function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType, arrayIfArrest) {
     
     let territoryPath;
     for (let i = 0; i < paths.length; i++) {
@@ -4492,8 +4486,11 @@ export function reduceKeywords(str) {
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
         confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
         if (defeatType === "retreat") {
-            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Pulls  Out  of";
+            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Pulls  Out  Of";
             confirmButtonBattleResults.innerHTML = "Accept Retreat!";
+        } else if (defeatType === "arrest") {
+            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Arrested By";
+            confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         } else {
             document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
             confirmButtonBattleResults.innerHTML = "Accept Defeat!";
@@ -4501,7 +4498,11 @@ export function reduceKeywords(str) {
     }
 
     //MAIN STATS
-    setBattleResultsTextValues(getFinalAttackArray(), getAttackingArmyRemaining(), situation);
+    if (defeatType === "arrest") {
+        setBattleResultsTextValues(arrayIfArrest.startingAtt, arrayIfArrest.attackingArmyRemaining, situation, true, arrayIfArrest);
+    } else {
+        setBattleResultsTextValues(getFinalAttackArray(), getAttackingArmyRemaining(), situation, false, 0);
+    }
 
     //ROUND COLUMN
     if (situation === 0) {
@@ -4511,6 +4512,8 @@ export function reduceKeywords(str) {
         if (defeatType === "retreat") {
             setResolution("Retreat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
+        } else if (defeatType === "arrest") {
+            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Siege Troops Arrested";
         } else {
             setResolution("Defeat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
@@ -4521,28 +4524,44 @@ export function reduceKeywords(str) {
     roundCounterForStats = 0;
   }
 
-  function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situation) {
+  function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situation, leftSiegeByArrest, siegeObject) {
     let totalAttackingArmy = [0, 0, 0, 0];
     let totalDefendingArmy = [0, 0, 0, 0];
 
+    let infantryCount;
+    let assaultCount;
+    let airCount;
+    let navalCount;
+
+    if (leftSiegeByArrest) {
+        attackArray.unshift(0,0); //format array to work in loop below
+    }
+
     // Get attacking army
     for (let i = 1; i < attackArray.length; i += 5) {
-        const infantryCount = attackArray[i + 1];
-        const assaultCount = attackArray[i + 2];
-        const airCount = attackArray[i + 3];
-        const navalCount = attackArray[i + 4];
+        infantryCount = attackArray[i + 1];
+        assaultCount = attackArray[i + 2];
+        airCount = attackArray[i + 3];
+        navalCount = attackArray[i + 4];
 
         totalAttackingArmy[0] += infantryCount;
         totalAttackingArmy[1] += assaultCount;
         totalAttackingArmy[2] += airCount;
-        totalAttackingArmy[3] += navalCount;
+        totalAttackingArmy[3] += navalCount;  
     }
 
     // Get defending army
-    totalDefendingArmy[0] = defendingTerritoryCopyStart.infantryForCurrentTerritory;
-    totalDefendingArmy[1] = defendingTerritoryCopyStart.useableAssault;
-    totalDefendingArmy[2] = defendingTerritoryCopyStart.useableAir;
-    totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
+    if (leftSiegeByArrest) {
+        totalDefendingArmy[0] = siegeObject.defendingTerritory.infantryForCurrentTerritory;
+        totalDefendingArmy[1] = siegeObject.defendingTerritory.useableAssault;
+        totalDefendingArmy[2] = siegeObject.defendingTerritory.useableAir;
+        totalDefendingArmy[3] = siegeObject.defendingTerritory.useableNaval;
+    } else {
+        totalDefendingArmy[0] = defendingTerritoryCopyStart.infantryForCurrentTerritory;
+        totalDefendingArmy[1] = defendingTerritoryCopyStart.useableAssault;
+        totalDefendingArmy[2] = defendingTerritoryCopyStart.useableAir;
+        totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
+    }
 
     if (situation === 1) {
         if (retreatButtonState === 1) { //scatter
@@ -4588,10 +4607,17 @@ export function reduceKeywords(str) {
     }
     
     let defendingLosses = [];
-    defendingLosses[0] = totalDefendingArmy[0] - defendingTerritoryCopyEnd[0];
-    defendingLosses[1] = totalDefendingArmy[1] - defendingTerritoryCopyEnd[1];
-    defendingLosses[2] = totalDefendingArmy[2] - defendingTerritoryCopyEnd[2];
-    defendingLosses[3] = totalDefendingArmy[3] - defendingTerritoryCopyEnd[3];
+    if (leftSiegeByArrest) {
+        defendingLosses[0] = totalDefendingArmy[0] - siegeObject.defendingArmyRemaining[0];
+        defendingLosses[1] = totalDefendingArmy[1] - siegeObject.defendingArmyRemaining[1];
+        defendingLosses[2] = totalDefendingArmy[2] - siegeObject.defendingArmyRemaining[2];
+        defendingLosses[3] = totalDefendingArmy[3] - siegeObject.defendingArmyRemaining[3];
+    } else {
+        defendingLosses[0] = totalDefendingArmy[0] - defendingTerritoryCopyEnd[0];
+        defendingLosses[1] = totalDefendingArmy[1] - defendingTerritoryCopyEnd[1];
+        defendingLosses[2] = totalDefendingArmy[2] - defendingTerritoryCopyEnd[2];
+        defendingLosses[3] = totalDefendingArmy[3] - defendingTerritoryCopyEnd[3];
+    }
 
     let capturedArray = [0, 0, 0, 0];
 
@@ -4937,4 +4963,27 @@ function setUnsetMenuOnEscape() {
 
 export function getOriginalDefendingTerritory() {
     return originalDefendingTerritory;
+}
+
+export function setCurrentWarFlagString(value) {
+    return currentWarFlagString = value;
+}
+
+export function setUpResultsOfWarExternal(value) {
+    if (value) {
+        toggleBattleResults(true);
+        battleResultsDisplayed = true;
+        toggleUIButton(false);
+        uiButtonCurrentlyOnScreen = false;
+        toggleBottomLeftPaneWithTurnAdvance(false);
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    } else {
+        toggleBattleResults(false);
+        battleResultsDisplayed = false;
+        toggleUIButton(true);
+        uiButtonCurrentlyOnScreen = true;
+        toggleBottomLeftPaneWithTurnAdvance(true);
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+    }
+
 }

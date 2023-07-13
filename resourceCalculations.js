@@ -408,7 +408,7 @@ export function newTurnResources() {
         calculateTerritoryResourceIncomesEachTurn();
     }
 
-    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(0);
     capacityArray = calculateAllTerritoryCapacitiesForCountry();
     demandArray = calculateAllTerritoryDemandsForCountry();
     if (currentTurn !== 1) {
@@ -798,7 +798,7 @@ function calculateAllTerritoryCapacitiesForCountry() {
 
 
 
-export function AddUpAllTerritoryResourcesForCountryAndWriteToTopTable(situation) {
+export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(situation) { //situation means if selected territory is a player owned territory 0 if yes 1 if no
     let totalGold = 0;
     let totalOil = 0;
     let totalFood = 0;
@@ -1756,9 +1756,10 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                             image.src = "/resources/victory.png";
                         } else if (outcomeOfWar === "Defeat") {
                             image.src = "/resources/defeat.png";
-
                         } else if (outcomeOfWar === "Retreat") {
                             image.src = "/resources/retreat.png";
+                        } else if (outcomeOfWar === "Arrested") {
+                            image.src = "/resources/arrest.png";
                         }
                         column.appendChild(image);
                     } else {

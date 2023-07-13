@@ -7,7 +7,8 @@ import {
     turnGainsArray,
     setDemandArray,
     calculateAllTerritoryDemandsForCountry,
-    AddUpAllTerritoryResourcesForCountryAndWriteToTopTable
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
+    formatNumbersToKMB
 } from './resourceCalculations.js';
 import {
   paths, playerCountry,
@@ -29,7 +30,12 @@ import {
   setDefendingTerritoryCopyStart,
   retreatButtonState,
   setAttackProbabilityOnUI,
-  getOriginalDefendingTerritory
+  getOriginalDefendingTerritory,
+  setCurrentWarFlagString,
+  populateWarResultPopup,
+  setUpResultsOfWarExternal,
+  removeSiegeImageFromPath,
+  saveMapColorState
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -799,7 +805,6 @@ function calculateCombinedForce(army) {
   export function addRemoveWarSiegeObject(addOrRemove, warId) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
-
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
 
     if (addOrRemove === 0) { // add war to siege object
@@ -808,12 +813,11 @@ function calculateCombinedForce(army) {
         proportionsAttackers: proportionsAttackers,
         defendingTerritory: defendingTerritoryCopy,
         defendingArmyRemaining: defendingArmyRemaining,
-        defenseBonus: defendingTerritory.defenseBonus,
         attackingArmyRemaining: attackingArmyRemaining,
         turnsInSiege: 0,
         strokeColor: strokeColor,
         startingAtt: totalAttackingArmy,
-        startingDef: totalDefendingArmy
+        startingDef: totalDefendingArmy,
       };
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
@@ -834,6 +838,7 @@ function calculateCombinedForce(army) {
     let proportionsAttackers;
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
+
     if (retreatBeforeStart) {
       console.log(nextWarId + " " + currentWarId);
       warId = currentWarId;
@@ -852,13 +857,12 @@ function calculateCombinedForce(army) {
       proportionsAttackers: proportionsAttackers,
       defendingTerritory: defendingTerritoryCopy,
       defendingArmyRemaining: defendingArmyRemaining,
-      defenseBonus: defendingTerritoryCopy.defenseBonus,
       attackingArmyRemaining: attackingArmyRemaining,
       turnsInSiege: null,
       strokeColor: strokeColor,
       resolution: warResolution,
       startingAtt: totalAttackingArmy,
-      startingDef: totalDefendingArmy
+      startingDef: totalDefendingArmy,
     });
 
     console.log(historicWars);
@@ -915,13 +919,19 @@ export function getAttackingArmyRemaining() {
 
 export function calculateSiegePerTurn() {
   if (siegeObject && Object.keys(siegeObject).length > 0) {
-    let hitThisTurn;
-    let hitCount = 0;
+    
     //calculate chance of a siege "hit"
     for (const key in siegeObject) {
+      let hitThisTurn;
+      let hitCount = 0;
+      let totalSiegeScore;
+      let numberOfForts;
+      let defenseBonusAttackedTerritory;
+
       for (let i = 0; i < hitIterations; i++) {
-        const totalSiegeScore = Math.floor((siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
-        const defenseBonusAttackedTerritory = siegeObject[key].defenseBonus;
+        totalSiegeScore = Math.floor((siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
+        defenseBonusAttackedTerritory = siegeObject[key].defendingTerritory.defenseBonus;
+        numberOfForts = siegeObject[key].defendingTerritory.fortsBuilt;
         const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory);
         
         let hit = Math.random() < hitChance;
@@ -931,9 +941,22 @@ export function calculateSiegePerTurn() {
       console.log(key + " war: " + hitThisTurn);
       hitCount = 0;
     
+      let damage = [];
      //from this point the hit is decided
+     for (let i = 0; i < 50; i++) { //debu loop
+      hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = [false,false,false]; 
+     }
+     if (damage[2]) {
+      siegeObject[key].defendingArmyRemaining.push(1); //add routing defeat to array
+      return false; //end siege due to arrest
+     }
+
+
     }
-  }  
+    return true;
+  } else {
+    return true;
+  } 
 }
 
 function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory) {
@@ -945,3 +968,121 @@ function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerrito
 
   return hitProbability;
 }
+
+function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory) {
+  console.log("forts built before debug: " + siegeObject.defendingTerritory.fortsBuilt); // DEBUG
+  // DEBUG
+  defenseBonusAttackedTerritory = Math.ceil(1 + (siegeObject.defendingTerritory.fortsBuilt * (siegeObject.defendingTerritory.fortsBuilt + 1) * 10) * siegeObject.defendingTerritory.devIndex + siegeObject.defendingTerritory.isLandLockedBonus + (siegeObject.defendingTerritory.mountainDefense) * 10); // DEBUG
+  
+  const difference = totalSiegeScore - defenseBonusAttackedTerritory;
+  let arrested = false;
+  siegeObject.defendingTerritory.fortsBuilt = 2; // DEBUG
+
+  // Define the sliding scale probabilities
+  const slidingScale = [
+    { scoreDifference: 0, destroyProbability: 0 },
+    { scoreDifference: 20, destroyProbability: 0.3 },
+    { scoreDifference: 70, destroyProbability: 0.5 },
+    { scoreDifference: 130, destroyProbability: 0.7 },
+    { scoreDifference: 200, destroyProbability: 0.9 },
+    { scoreDifference: 280, destroyProbability: 1 },
+  ];
+
+  let fortsDestroyed = 0;
+  let collateralDamage;
+
+  // Find the appropriate destroy probability based on the difference
+  const destroyProbability = slidingScale.reduce((acc, scale) => (difference >= scale.scoreDifference ? scale.destroyProbability : acc), 0);
+
+  // Generate a random number and compare it with the destroy probability
+  console.log("difference: " + difference);
+  if (Math.random() < destroyProbability) {
+    // Determine the number of forts to destroy based on the sliding scale
+    if (difference >= 200) {
+      console.log("2 forts destroyed!");
+      fortsDestroyed = 2;
+    } else if (difference >= 50) {
+      console.log("a fort destroyed!");
+      fortsDestroyed = 1;
+    }
+    collateralDamage = calculateCollateralDamage(difference);
+  } else {
+    console.log("collateral damage only!");
+    collateralDamage = calculateCollateralDamage(difference);
+  }
+  const foodCapacityDestroyed = Math.floor(siegeObject.defendingTerritory.foodCapacity * collateralDamage / 100);
+  collateralDamage === 0 ? arrested = true : arrested = false;
+  const damage = [fortsDestroyed, foodCapacityDestroyed, arrested];
+  console.log("Damage Done: " + fortsDestroyed + " forts destroyed and " + foodCapacityDestroyed + " reduced from food capacity, representing a " + collateralDamage + "% fall");
+
+  return damage;
+}
+
+function calculateCollateralDamage(difference) {
+  let collateralDamage;
+  if (difference >= 0 && difference < 20) {
+    return collateralDamage = Math.floor(Math.random() * 3) + 1;
+  } else if (difference >= 20 && difference < 50) {
+    return collateralDamage = Math.floor(Math.random() * 5) + 1;
+  } else if (difference >= 50 && difference < 100) {
+    return collateralDamage = Math.floor(Math.random() * 7) + 1;
+  } else if (difference >= 100) {
+    return collateralDamage = Math.floor(Math.random() * 10) + 1;
+  } else {
+    let arrested = Math.random();
+    if (arrested > 0.7) {
+      console.log("arrested for being too pathetic to siege!");
+      return collateralDamage = 0; //end siege due to arrest
+    } else {
+      return collateralDamage = 1;
+    }
+  }
+}
+
+export function handleEndSiegeDueArrest() {
+  let defendingTerritory;
+  let defendingPath;
+  for (const key in siegeObject) {
+    if (siegeObject[key].defendingArmyRemaining[4]) { //if siege marked as arrested
+      //set siege data to player and defender territory
+      for (let i = 0; i < paths.length; i++) {
+        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+          if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[j].uniqueId) {
+            defendingTerritory = mainArrayOfTerritoriesAndResources[j];
+          }
+          if (defendingTerritory) {
+            if (defendingTerritory.uniqueId === paths[i].getAttribute("uniqueid")) {
+              defendingPath = paths[i];
+              break;
+            }
+          }
+        }
+      }
+      
+
+      defendingTerritory.infantryForCurrentTerritory = siegeObject[key].defendingArmyRemaining[0] + (Math.floor(siegeObject[key].attackingArmyRemaining[0] * 0.5));
+      defendingTerritory.assaultForCurrentTerritory = siegeObject[key].defendingArmyRemaining[1 + (Math.floor(siegeObject[key].attackingArmyRemaining[1] * 0.5))];
+      defendingTerritory.airForCurrentTerritory = siegeObject[key].defendingArmyRemaining[2] + (Math.floor(siegeObject[key].attackingArmyRemaining[2] * 0.5));
+      defendingTerritory.navalForCurrentTerritory = siegeObject[key].defendingArmyRemaining[3] + (Math.floor(siegeObject[key].attackingArmyRemaining[3] * 0.5));
+      defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+
+      siegeObject[key].attackingArmyRemaining = [0,0,0,0];
+      siegeObject[key].resolution = "Arrested";
+
+      setUpResultsOfWarExternal(true);
+      setCurrentWarFlagString(defendingTerritory.dataName);
+
+      populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siegeObject[key]);
+      addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+
+      historicWars.push(siegeObject[key]);
+      removeSiegeImageFromPath(defendingPath);
+      defendingPath.setAttribute("underSiege", "false");
+
+      delete siegeObject[key];
+    }
+  }
+}
+
+

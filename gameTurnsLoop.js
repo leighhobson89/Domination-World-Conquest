@@ -14,7 +14,8 @@ import {
 import {
   activateAllTerritoriesForNewTurn,
   incrementSiegeTurns,
-  calculateSiegePerTurn
+  calculateSiegePerTurn,
+  handleEndSiegeDueArrest
 } from './battle.js';
 
 export let currentTurn = 1;
@@ -43,8 +44,8 @@ export function initialiseGame() {
 
 function gameLoop() {
   activateAllTerritoriesForNewTurn();
-  calculateSiegePerTurn(); //large function to work out siege effects per turn
-  incrementSiegeTurns();
+  let continueSiege = calculateSiegePerTurn(); //large function to work out siege effects per turn
+  continueSiege === false ? handleEndSiegeDueArrest() : incrementSiegeTurns();
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");
   randomEventHappening = handleRandomEventLikelihood();
@@ -54,7 +55,7 @@ function gameLoop() {
   }
   newTurnResources();
   calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
-  if (uiAppearsAtStartOfTurn && currentTurn !== 1) {
+  if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
       toggleUIMenu(true);
       drawUITable(document.getElementById("uiTable"), 0);
   }
