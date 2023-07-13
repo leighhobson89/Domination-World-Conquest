@@ -45,12 +45,14 @@ function gameLoop() {
   activateAllTerritoriesForNewTurn();
   let continueSiege = true;
   let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
-  continueSiegeArray.forEach(element => {
-    if (element !== true) {
-      continueSiege = false;
-      handleEndSiegeDueArrest(element);
-    }
-  });
+  if (continueSiegeArray) {
+    continueSiegeArray.forEach(element => {
+      if (element !== true) {
+        continueSiege = false;
+        handleEndSiegeDueArrest(element);
+      }
+    });
+  }
   incrementSiegeTurns();
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");

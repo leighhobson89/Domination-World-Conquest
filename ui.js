@@ -4130,14 +4130,11 @@ function toggleUIButton(makeVisible) {
     let defendingTerritory = siegeObjectElement.defendingTerritory;
 
     //SET DEFENSE BONUS VALUE
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
-            //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
-            document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop);
-            document.getElementById("foodText").innerHTML = formatNumbersToKMB(mainArrayOfTerritoriesAndResources[i].foodCapacity);
-        }
-    }
+    document.getElementById("defenceBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
+    //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
+    document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop);
+    document.getElementById("foodText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity);
+
 
     //SET SIEGE TURNS TEXT
     setSiegeTurnsText(siegeObjectElement);
@@ -4241,12 +4238,21 @@ function toggleUIButton(makeVisible) {
     }
 
     //SET DEFENSE BONUS VALUE
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (defenderTerritory.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+    if (!hasSiegedBefore) {
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            if (defenderTerritory.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+                document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+            }
+        }
+    } else {
+        for (const key in siegeObject) {
+            if (siegeObject[key] === defenderTerritory.getAttribute("territory-name")) {
+                document.getElementById("defenceBonusText").innerHTML = siegeObject[key].defenderTerritory.defenseBonus;
+                break;       
+            }
         }
     }
-    
+
     //SET ATTACK ROW 4
     setRow4(0);
 
