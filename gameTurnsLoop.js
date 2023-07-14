@@ -88,7 +88,7 @@ function gameLoop() {
 function handleSpendUpgradePhase() {
   return new Promise(resolve => {
       console.log("Handling Spend Upgrade Phase");
-      console.log("Current turnphase is: " + currentTurnPhase);
+      console.log("Current turn-phase is: " + currentTurnPhase);
       const popupConfirmButton = document.getElementById("popup-confirm");
       const onClickHandler = () => {
           popupConfirmButton.removeEventListener("click", onClickHandler);
@@ -101,7 +101,7 @@ function handleSpendUpgradePhase() {
 function handleMoveAttackPhase() {
   return new Promise(resolve => {
       console.log("Handling Move Attack Phase");
-      console.log("Current turnphase is: " + currentTurnPhase);
+      console.log("Current turn-phase is: " + currentTurnPhase);
       const popupConfirmButton = document.getElementById("popup-confirm");
       const onClickHandler = () => {
           popupConfirmButton.removeEventListener("click", onClickHandler);
@@ -114,7 +114,7 @@ function handleMoveAttackPhase() {
 function handleAITurn() {
   return new Promise(resolve => {
       console.log("Handling AI Turn");
-      console.log("Current turnphase is: " + currentTurnPhase);
+      console.log("Current turn-phase is: " + currentTurnPhase);
       const popupConfirmButton = document.getElementById("popup-confirm");
       const onClickHandler = () => {
           popupConfirmButton.removeEventListener("click", onClickHandler);

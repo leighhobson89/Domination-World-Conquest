@@ -3874,6 +3874,7 @@ function setTransferToTerritory(listOfTerritories) {
       });
   });
 }
+// noinspection JSUnusedGlobalSymbols
 export function getLastClickedPath() {
     return lastClickedPath;
 }
@@ -5057,5 +5058,3 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
   document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
   document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
 }
-
-  

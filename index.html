@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <script type="module" src="initialData.js"></script>
@@ -11,7 +11,7 @@
     import {
         svgMapLoaded
     } from "./ui.js";
-    console.log("Starting scipt to load page... about to set svg element after finding it by document.getElementByID(\"svg-map\")");
+    console.log("Starting script to load page... about to set svg element after finding it by document.getElementByID(\"svg-map\")");
     const svg = document.getElementById("svg-map");
     console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
     console.log(svg);
@@ -35,7 +35,7 @@
     <div id="main-ui-container"></div>
     <div id="upgrade-container"></div>
     <div id="buy-container"></div>
-    <input type="color" id="player-color-picker" name="player-color-picker" value="#000000">
+    <label for="player-color-picker">Select Your Color</label><input type="color" id="player-color-picker" name="player-color-picker" value="#000000">
     <div id="menu-container" class="blur-background"></div>
     <div id="popup-with-confirm-container"></div>
     <div id="attack-destination-containers"></div>

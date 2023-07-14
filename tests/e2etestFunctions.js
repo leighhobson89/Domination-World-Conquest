@@ -156,7 +156,7 @@ async function validateAttackTransferWindowOpen(driver) {
       } else if (elementName.includes("fourth")) {
         columnElements[3].push(element);
       }
-      if (i === 15) { //if gets to end of selector validations
+      if (i === 15) { //if it gets to end of selector validations
         console.log("All Elements Found In Table Row!");
       }
     }
@@ -415,7 +415,7 @@ async function clickThroughAttack(driver, siege) {
 
   armyQuantities = [attInfantry, attAssault, attAir, attNaval];
   enemyArmyQuantities = [defInfantry, defAssault, defAir, defNaval];
-  result = [armyQuantities, enemyArmyQuantities, battleResolution];
+  let result = [armyQuantities, enemyArmyQuantities, battleResolution];
 
   console.log("Attackers Remaining " + armyQuantities.join(', ') + "!");
   console.log("Defenders remaining " + enemyArmyQuantities.join(', ') + "!");
@@ -587,7 +587,7 @@ async function getAllPathColors(driver) {
 }
 
 async function getAllPathOwners(driver) {
-  switchContext(driver, "svg");
+  await switchContext(driver, "svg");
   const pathElements = await driver.findElements(By.css('path'));
 
   const pathOwners = [];
