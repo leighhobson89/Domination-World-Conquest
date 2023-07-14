@@ -1678,7 +1678,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             } 
             table.appendChild(territorySummaryRow);
         }  
-    } else {
+    } else if (summaryTerritoryArmySiegesTable === 3) {
         const siegeArray = Object.values(siegeObject).map(siege => ({
             warId: siege.warId,
             proportionsAttackers: siege.proportionsAttackers,
@@ -1940,6 +1940,9 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     }     
 
     uiTableContainer.appendChild(table);
+    if (summaryTerritoryArmySiegesTable === 3) {
+        allWorkaroundOnSiegeTable();
+    }
 }
 
 function setGainsRowTextColor(element, value) {
@@ -4394,4 +4397,28 @@ export function addRandomFortsToAllNonPlayerTerritories() {
         
         console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
     });
+}
+
+function allWorkaroundOnSiegeTable() {
+    const warTable = document.getElementById("uiTable"); // Assuming you have a reference to the warTable element
+
+    // Iterate through each warRow element
+    const warRows = warTable.getElementsByClassName("ui-table-row-war");
+    for (let i = 0; i < warRows.length; i++) {
+        const warRow = warRows[i];
+        const warRowChildren = warRow.children;
+
+        // Iterate through each child element of warRow
+        for (let j = 0; j < warRowChildren.length; j++) {
+            const child = warRowChildren[j];
+
+            // Check if the child's index is between 5 and 8 (inclusive)
+            if (j >= 5 && j <= 8 && child.innerHTML.includes("All")) {
+                // Change any "0" values to "All / All"
+                if (child.innerHTML.includes("0")) {
+                  child.innerHTML = "All / All";
+                }
+            }
+        }
+    }
 }

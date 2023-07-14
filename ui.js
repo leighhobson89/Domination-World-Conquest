@@ -168,7 +168,7 @@ export let retreatButtonState;
 export let advanceButtonState;
 export let siegeButtonState;
 
-let battleStart = true;
+let battleStart;
 let firstSetOfRounds = true;
 
 let defendingTerritoryCopyStart;
@@ -2221,6 +2221,7 @@ retreatButton.addEventListener('click', function() {
         defeatType = "retreat"; //also pull out from siege before starting assault
             if (!battleStart) {
                 assignProportionsToTerritories(proportionsOfAttackArray, getAttackingArmyRemaining(), mainArrayOfTerritoriesAndResources);
+                proportionsOfAttackArray.length = 0;
                 //update top table army value when leaving battle
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
                 defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
@@ -2248,6 +2249,7 @@ retreatButton.addEventListener('click', function() {
                 attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
             }
             assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
+            proportionsOfAttackArray.length = 0;
             //update top table army value when leaving battle
             defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
@@ -2303,6 +2305,7 @@ advanceButton.addEventListener('click', function() {
         case 0: //before battle to start it
             playSoundClip();
             battleStart = false;
+            console.log ("battlestart set to false");
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
                 transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
@@ -3510,6 +3513,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     return;
                   } else if (transferAttackbuttonState === 1) {
                     if (button.innerHTML === "INVADE!") {
+                        battleStart = true;
                         let nextwarId = getNextWarId();
                         setCurrentWarId(nextWarId);
                         setNextWarId(nextWarId + 1);
@@ -5007,5 +5011,4 @@ export function setUpResultsOfWarExternal(value) {
         toggleBottomLeftPaneWithTurnAdvance(true);
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
     }
-
 }
