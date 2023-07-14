@@ -501,7 +501,6 @@ td {
   width: 30px;
   height: 20px;
   display: block;
-  margin: none;
   border: 2px solid rgb(45, 81, 110);
   border-radius: 25%;
 }
@@ -635,8 +634,7 @@ td {
   height: 100%;
   opacity: 0.1;
   z-index: -1;
-  background: rgba(0, 0, 0, 0.5) no-repeat center / 100% 100%;
-  background-image: var(--bg-image);
+  background: rgba(0, 0, 0, 0.5) no-repeat center;
 }
 
 .info-panel>* {
@@ -729,7 +727,6 @@ td {
 .ui-table-row-siege {
   width: 100%;
   display: flex;
-  justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border-bottom: white 1px solid;
   border-left: white 1px solid;
@@ -739,23 +736,11 @@ td {
   justify-content: center;
 }
 
-.ui-table-row-siege:last-child {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: rgba(45, 81, 110, 0.7);
-  border-bottom: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-  align-items: center;
-  height: 40px;
-  justify-content: center;
-}
+
 
 .ui-empty-row + .ui-table-row-war { /* this selects the first row of the historic wars table */
   width: 100%;
   display: flex;
-  justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border: 1px white solid;
   align-items: center;
@@ -766,7 +751,6 @@ td {
 .ui-table-row-war {
   width: 100%;
   display: flex;
-  justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border-left: white 1px solid;
   border-right: white 1px solid;
@@ -778,7 +762,6 @@ td {
 .ui-table-row-war:last-child {
   width: 100%;
   display: flex;
-  justify-content: space-between;
   background-color: rgba(45, 81, 110, 0.7);
   border-left: white 1px solid;
   border-right: white 1px solid;
@@ -1024,7 +1007,7 @@ td {
 }
 
 .upgrade-column:first-child {
-  padding: 0px;
+  padding: 0;
   width: 70px;
 }
 
@@ -1058,7 +1041,7 @@ td {
 
 .column5A {
   width: 20px;
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -1071,7 +1054,7 @@ td {
 }
 
 .column5B {
-  padding: 0px;
+  padding: 0;
   align-items: center;
   display: flex;
   width: 15px;
@@ -1091,7 +1074,7 @@ td {
 }
 
 .column5C {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1328,7 +1311,7 @@ td {
 }
 
 .buy-column:first-child {
-  padding: 0px;
+  padding: 0;
   width: 70px;
 }
 
@@ -1368,14 +1351,14 @@ td {
 
 .buyColumn5A {
   width: 20px;
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
 }
 
 .buyColumn5B {
-  padding: 0px;
+  padding: 0;
   align-items: center;
   display: flex;
   width: 15px;
@@ -1395,7 +1378,7 @@ td {
 }
 
 .buyColumn5C {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1500,7 +1483,7 @@ td {
   font-size: 1.4rem;
   text-align: center;
   height: auto;
-  top: 0%;
+  top: 0;
   border-top: 1px solid white;
 }
 
@@ -1517,12 +1500,12 @@ td {
   font-size: 1.4rem;
   text-align: center;
   height: auto;
-  top: 0%;
+  top: 0;
 }
 
 .color-bar-attack-overlay-green {
   position: fixed;
-  width: 0%;
+  width: 0;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1533,7 +1516,7 @@ td {
   font-size: 1.4rem;
   text-align: center;
   height: auto;
-  top: 0%;
+  top: 0;
 }
 
 .title-transfer-window-title-row {
@@ -1740,7 +1723,7 @@ td {
 }
 
 .multipleIncrementerButton {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1754,7 +1737,7 @@ td {
 
 .multipleTextField {
   width: 40px;
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -1763,7 +1746,6 @@ td {
   pointer-events: none;
   cursor: default;
   border-style: none;
-  border: none;
   text-align: left;
 }
 
@@ -1775,7 +1757,7 @@ td {
 }
 
 #quantityMinusContainer {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -1784,7 +1766,7 @@ td {
 }
 
 .transferMinusButton {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -1799,7 +1781,7 @@ td {
 
 .quantityTextField {
   width: 50px;
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -1808,7 +1790,6 @@ td {
   pointer-events: none;
   cursor: default;
   border-style: none;
-  border: none;
   text-align: center;
 }
 
@@ -1829,7 +1810,7 @@ td {
 }
 
 .transferPlusButton {
-  padding: 0px;
+  padding: 0;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1922,17 +1903,13 @@ td {
 .battleUITitleFlagCol1 {
   display: flex;
   width: 18%;
-  margin: 10px;
-  margin-right: 50px;
-  margin-left: 50px;
+  margin: 10px 50px;
 }
 
 .battleUITitleFlagCol2 {
   display: flex;
   width: 18%;
-  margin: 10px;
-  margin-right: 50px;
-  margin-left: 50px;
+  margin: 10px 50px;
 }
 
 .battleUITitleTitleCol {
@@ -2126,7 +2103,6 @@ td {
   width: 100%;
   height: 100%;
   border-radius: 10px;
-  border-radius: 10px;
 }
 
 .battleRow4IconText {
@@ -2230,17 +2206,13 @@ td {
 .battleResultsRow1FlagCol1 {
   display: flex;
   width: 18%;
-  margin: 10px;
-  margin-right: 50px;
-  margin-left: 50px;
+  margin: 10px 50px;
 }
 
 .battleResultsRow1FlagCol2 {
   display: flex;
   width: 18%;
-  margin: 10px;
-  margin-right: 50px;
-  margin-left: 50px;
+  margin: 10px 50px;
 }
 
 .battleResultsTitleTitleCol {

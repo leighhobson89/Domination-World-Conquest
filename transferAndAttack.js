@@ -1,6 +1,6 @@
 import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArray, oilRequirements } from './resourceCalculations.js';
-import { calculateProbabiltyPreBattle, finalAttackArray } from './battle.js';
-import { setAttackProbabilityOnUI, territoryAboutToBeAttackedOrSieged, transferAttackbuttonState } from './ui.js';
+import { calculateProbabilityPreBattle, finalAttackArray } from './battle.js';
+import { setAttackProbabilityOnUI, territoryAboutToBeAttackedOrSieged, transferAttackButtonState } from './ui.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
@@ -430,11 +430,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             const match = selectedRow.textContent.match(regex);
 
                             if (match && match[1] === territoryName) {
-                                if (playerOwnedTerritories[i].getAttribute("isCoastal") === "false") {
-                                    navalDisabled = true;
-                                } else {
-                                    navalDisabled = false;
-                                }
+                                navalDisabled = playerOwnedTerritories[i].getAttribute("isCoastal") === "false";
                             }
                         }
                     
@@ -661,7 +657,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
+                            probability = calculateProbabilityPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
@@ -738,7 +734,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateProbabiltyPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
+                            probability = calculateProbabilityPreBattle(preAttackArray, mainArrayOfTerritoriesAndResources, false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
@@ -860,9 +856,9 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
     const currentValue = parseInt(quantityTextBox.value);
     let rowElement;
-    if (transferAttackbuttonState === 0) {
+    if (transferAttackButtonState === 0) {
         rowElement = armyTypeColumn.closest('.transfer-table-row-hoverable');
-    } else if (transferAttackbuttonState === 1) {
+    } else if (transferAttackButtonState === 1) {
         rowElement = armyTypeColumn.closest('.transfer-table-row');
     }
     const rowIndex = Array.from(rowElement.parentNode.children).indexOf(rowElement);
@@ -882,22 +878,22 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
     let arrayOfMainArrayValues;
   
     // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
-    if (transferAttackbuttonState === 0) {
+    if (transferAttackButtonState === 0) {
         arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
-    } else if (transferAttackbuttonState === 1) {
+    } else if (transferAttackButtonState === 1) {
         arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 1);
     }
 
     const newValue = currentValue + newMultipleValue;
   
-    if (transferAttackbuttonState === 0) {
+    if (transferAttackButtonState === 0) {
         if (newValue <= arrayOfMainArrayValues) {
             quantityTextBox.value = newValue.toString();
           } else {
             const difference = arrayOfMainArrayValues - currentValue;
             quantityTextBox.value = (currentValue + difference).toString();
           }
-    } else if (transferAttackbuttonState === 1) {
+    } else if (transferAttackButtonState === 1) {
         if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
             quantityTextBox.value = newValue.toString();
           } else {
@@ -1059,11 +1055,7 @@ function disableAttackScreenOptions(table, territoryUniqueIds) {
             disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
           } else if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
             disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          } else if (matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3) {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          } else {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = false;
-          }
+          } else disabledFlagsAttack[rowIndex * 4 + columnIndex] = matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3;
           if (territoryAboutToBeAttackedOrSieged.getAttribute("isCoastal") === "false" && columnIndex % 4 === 3) {
             disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
           }
