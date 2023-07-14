@@ -486,31 +486,37 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         }
                     }
                 }
-                
-                changeGold = calculateGoldChange(mainArrayOfTerritoriesAndResources[i], false);
-                changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
-                changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false, false);
-                changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
-                changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i], false);
-                changeProdPopTemp = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-    
-                mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
-                mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
-                mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
-                mainArrayOfTerritoriesAndResources[i].foodConsumption = mainArrayOfTerritoriesAndResources[i].territoryPopulation + mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
-                mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
-                mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
-                mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-    
-                changeProdPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
-                changeProdPop = changeProdPop - changeProdPopTemp;
-    
-                turnGainsArray.changeGold += changeGold;
-                turnGainsArray.changeOil += changeOil;
-                turnGainsArray.changeFood += changeFood;
-                turnGainsArray.changeConsMats += changeConsMats;
-                turnGainsArray.changePop += changePop;
-                turnGainsArray.changeProdPop += changeProdPop;
+
+                if (path.getAttribute("uniqueid") === defendingTerritoryId) {
+                    changeGold = calculateGoldChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changeOil = calculateOilChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changeFood = calculateFoodChange(mainArrayOfTerritoriesAndResources[i], false, false);
+                    changeConsMats = calculateConsMatsChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changePop = calculatePopulationChange(mainArrayOfTerritoriesAndResources[i], false);
+                    changeProdPopTemp = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
+        
+                    mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
+                    mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
+                    mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory += changeFood;
+                    mainArrayOfTerritoriesAndResources[i].foodConsumption = mainArrayOfTerritoriesAndResources[i].territoryPopulation + mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory;
+                    mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
+                    mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
+                    mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
+        
+                    changeProdPop = (((mainArrayOfTerritoriesAndResources[i].territoryPopulation / 100) * 45) * mainArrayOfTerritoriesAndResources[i].devIndex);
+                    changeProdPop = changeProdPop - changeProdPopTemp;
+        
+                    if (path.getAttribute("owner") === "Player") {
+                        turnGainsArray.changeGold += changeGold;
+                        turnGainsArray.changeOil += changeOil;
+                        turnGainsArray.changeFood += changeFood;
+                        turnGainsArray.changeConsMats += changeConsMats;
+                        turnGainsArray.changePop += changePop;
+                        turnGainsArray.changeProdPop += changeProdPop;
+                        break;
+                    }
+                    
+                }
             } else if (!changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
                 changeDuringSiege = true;
                 let siegeTerritory;
@@ -697,6 +703,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
     }
     
     if (!randomEventHappening) {
+        let randomHitArmy = false;
         const currentPopulation = territory.territoryPopulation + territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyWorth.naval);
         const devIndex = territory.devIndex;
         const foodForCurrentTerritory = territory.foodForCurrentTerritory;
@@ -709,6 +716,10 @@ function calculatePopulationChange(territory, cameFromSiege) {
             const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
 
             populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+            if (cameFromSiege) {
+                randomHitArmy = Math.random();
+                randomHitArmy = randomHitArmy > 0.3 ? true : false;
+            }
         } else {
             // Growth situation
             const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
@@ -719,8 +730,12 @@ function calculatePopulationChange(territory, cameFromSiege) {
 
         const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation - populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
 
-        if (simulatedProductiveTerritoryPop < 0) { //if large army and not enough prodpop, then starve army instead of population
-            starveArmyInstead(territory, populationChange);
+        if (simulatedProductiveTerritoryPop < 0 || (cameFromSiege && randomHitArmy)) { //if large army and not enough prodpop, then starve army instead of population
+            if (cameFromSiege) {
+                const proportion = territory.armyForCurrentTerritory / territory.territoryPopulation;
+                populationChange = Math.floor(proportion * populationChange) * 10; //factor may have to change
+            }
+            starveArmyInstead(territory, populationChange, cameFromSiege);
             return 0;
         }
 
@@ -730,7 +745,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
     }
 }
 
-function starveArmyInstead(territory, populationChange) {
+function starveArmyInstead(territory, populationChange, cameFromSiege) {
 
     if (territory.infantryForCurrentTerritory > Math.abs(populationChange)) {
         territory.infantryForCurrentTerritory -= Math.abs(populationChange);
@@ -762,6 +777,17 @@ function starveArmyInstead(territory, populationChange) {
                         }
                     }
                 }
+            }
+        }
+    }
+    if (cameFromSiege) {
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+            if ( mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
+                mainArrayOfTerritoriesAndResources[i].armyForCurrentTerritory = territory.armyForCurrentTerritory;
+                mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory = territory.infantryForCurrentTerritory;
+                mainArrayOfTerritoriesAndResources[i].useableAssault = territory.useableAssault;
+                mainArrayOfTerritoriesAndResources[i].useableAir = territory.useableAir;
+                mainArrayOfTerritoriesAndResources[i].useableNaval = territory.useableNaval;
             }
         }
     }
@@ -924,7 +950,7 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(situation
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
 }
 
-function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
+export function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
     if (userClickingANewTerritory) {
         colourTableText(document.getElementById("bottom-table"), territory);
         document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
