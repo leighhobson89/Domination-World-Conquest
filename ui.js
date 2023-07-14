@@ -3481,6 +3481,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setValuesForBattleFromSiegeObject(lastClickedPath);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
+                        setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath);
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
 
@@ -5012,3 +5013,94 @@ export function setUpResultsOfWarExternal(value) {
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
     }
 }
+
+function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
+  let siegeObject = getSiegeObjectFromPath(lastClickedPath);
+  
+  const defendingTerritory = siegeObject.defendingTerritory;
+  const defendingArmyRemaining = siegeObject.defendingArmyRemaining;
+  const startingDef = siegeObject.startingDef;
+
+  const colorGreen = "rgb(0, 255, 0)";
+  const colorYellow = "rgb(255, 255, 0)";
+  const colorOrange = "rgb(255, 165, 0)";
+  const colorRed = "rgb(235, 235, 0)";
+
+  // Calculate the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
+  const startingDefenseBonus = siegeObject.startingDefenseBonus;
+  const startingProdPop = siegeObject.startingProdPop;
+  const startingFoodCapacity = siegeObject.startingFoodCapacity;
+
+  const defenseBonus = defendingTerritory.defenseBonus;
+  const foodCapacity = defendingTerritory.foodCapacity;
+  const productiveTerritoryPop = defendingTerritory.productiveTerritoryPop;
+
+  const defenseBonusPercentage = (defenseBonus / startingDefenseBonus) * 100;
+  const foodCapacityPercentage = (foodCapacity / startingFoodCapacity) * 100;
+  const productiveTerritoryPopPercentage = (productiveTerritoryPop / startingProdPop) * 100;
+
+  // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
+  if (defenseBonusPercentage <= 25) {
+    defendingTerritory.defenseBonusColor = colorRed;
+  } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
+    defendingTerritory.defenseBonusColor = colorOrange;
+  } else if (defenseBonusPercentage >50 && defenseBonusPercentage <= 75) {
+    defendingTerritory.defenseBonusColor = colorYellow;
+  } else {
+    defendingTerritory.defenseBonusColor = colorGreen;
+  }
+
+  if (foodCapacityPercentage <= 25) {
+    defendingTerritory.foodCapacityColor = colorRed;
+  } else if (foodCapacityPercentage > 25 && foodCapacityPercentage <= 50) {
+    defendingTerritory.foodCapacityColor = colorOrange;
+  } else if (foodCapacityPercentage > 50 && foodCapacityPercentage <= 75) {
+    defendingTerritory.foodCapacityColor = colorYellow;
+  } else {
+    defendingTerritory.foodCapacityColor = colorGreen;
+  }
+
+  if (productiveTerritoryPopPercentage <= 25) {
+    defendingTerritory.productiveTerritoryPopColor = colorRed;
+  } else if (productiveTerritoryPopPercentage > 25 && productiveTerritoryPopPercentage <= 50) {
+    defendingTerritory.productiveTerritoryPopColor = colorOrange;
+  } else if (productiveTerritoryPopPercentage > 50 && productiveTerritoryPopPercentage <= 75) {
+    defendingTerritory.productiveTerritoryPopColor = colorYellow;
+  } else {
+    defendingTerritory.productiveTerritoryPopColor = colorGreen;
+  }
+
+  // Calculate the percentages for defendingArmyRemaining
+  const remainingPercentages = defendingArmyRemaining.map((remaining, index) => {
+    return (remaining / startingDef[index]) * 100;
+  });
+
+  // Apply colors based on the percentages for defendingArmyRemaining
+  const elements = [
+    document.getElementById("armyRowRow2Quantity5"),
+    document.getElementById("armyRowRow2Quantity6"),
+    document.getElementById("armyRowRow2Quantity7"),
+    document.getElementById("armyRowRow2Quantity8"),
+  ];
+
+  for (let i = 0; i < elements.length; i++) {
+    const element = elements[i];
+    const percentage = remainingPercentages[i];
+
+    if (percentage <= 25) {
+      element.style.color = colorRed;
+    } else if (percentage > 25 && percentage <= 50) {
+      element.style.color = colorOrange;
+    } else if (percentage > 50 && percentage <= 75) {
+      element.style.color = colorYellow;
+    } else {
+      element.style.color = colorGreen;
+    }
+  }
+
+  document.getElementById("defenceBonusText").style.color = defendingTerritory.defenseBonusColor;
+  document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
+  document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
+}
+
+  

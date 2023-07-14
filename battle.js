@@ -1141,5 +1141,3 @@ export function setMainArrayToArmyRemaining(territory) {
   }
   return mainElement;
 }
-
-
