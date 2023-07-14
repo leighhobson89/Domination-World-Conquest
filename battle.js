@@ -35,7 +35,9 @@ import {
   populateWarResultPopup,
   setUpResultsOfWarExternal,
   removeSiegeImageFromPath,
-  saveMapColorState
+  saveMapColorState,
+  lastClickedPath,
+  getSiegeObjectFromPath
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
@@ -805,13 +807,13 @@ function calculateCombinedForce(army) {
   export function addRemoveWarSiegeObject(addOrRemove, warId) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
-    const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritory);
+    const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
     let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
 
     if (addOrRemove === 0) { // add war to siege object
-      siegeObject[defendingTerritory.territoryName] = {
+      siegeObject[defendingTerritoryCopy.territoryName] = {
         warId: warId,
         proportionsAttackers: proportionsAttackers,
         defendingTerritory: defendingTerritoryCopy,
@@ -1030,13 +1032,13 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
 function calculateCollateralDamage(difference) {
   let collateralDamage;
   if (difference >= 0 && difference < 20) {
-    return collateralDamage = Math.floor(Math.random() * 3) + 1;
+    return collateralDamage = Math.floor(Math.random() * 6) + 1;
   } else if (difference >= 20 && difference < 50) {
-    return collateralDamage = Math.floor(Math.random() * 5) + 1;
+    return collateralDamage = Math.floor(Math.random() * 12) + 1;
   } else if (difference >= 50 && difference < 100) {
-    return collateralDamage = Math.floor(Math.random() * 7) + 1;
+    return collateralDamage = Math.floor(Math.random() * 18) + 1;
   } else if (difference >= 100) {
-    return collateralDamage = Math.floor(Math.random() * 10) + 1;
+    return collateralDamage = Math.floor(Math.random() * 25) + 1;
   } else {
     let arrested = Math.random();
     if (arrested > 0.7) {
@@ -1109,6 +1111,35 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
   if (siege.defendingTerritory.foodCapacity > 0) { //lower food capacity
     siege.defendingTerritory.foodCapacity -= damage[1];
   }
+}
+
+export function setValuesForBattleFromSiegeObject(lastClickedPath) {
+  let siegeObject = getSiegeObjectFromPath(lastClickedPath);
+
+  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+    const mainElement = mainArrayOfTerritoriesAndResources[i];
+    if (mainElement.uniqueId === siegeObject.defendingTerritory.uniqueId) {
+      siegeObject.defendingArmyRemaining = [mainElement.infantryForCurrentTerritory, mainElement.useableAssault, mainElement.useableAir, mainElement.useableNaval];
+      break;
+    } 
+  }
+}
+
+export function setMainArrayToArmyRemaining(territory) {
+  let mainElement;
+  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+    mainElement = mainArrayOfTerritoriesAndResources[i];
+    if (mainElement.uniqueId === territory.defendingTerritory.uniqueId) {
+      mainElement.infantryForCurrentTerritory = territory.defendingArmyRemaining[0];
+      mainElement.assaultForCurrentTerritory = territory.defendingArmyRemaining[1];
+      mainElement.airForCurrentTerritory = territory.defendingArmyRemaining[2];
+      mainElement.navalForCurrentTerritory = territory.defendingArmyRemaining[3];
+      mainElement.armyForCurrentTerritory = mainElement.infantryForCurrentTerritory + (mainElement.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (mainElement.airForCurrentTerritory * vehicleArmyWorth.air) + (mainElement.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, territory);
+      break;
+    }
+  }
+  return mainElement;
 }
 
 

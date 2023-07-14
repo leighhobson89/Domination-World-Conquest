@@ -43,7 +43,8 @@ import {
   mainArrayOfTerritoriesAndResources,
   countryStrengthsArray,
   vehicleArmyWorth,
-  addRandomFortsToAllNonPlayerTerritories
+  addRandomFortsToAllNonPlayerTerritories,
+  writeBottomTableInformation
 } from './resourceCalculations.js';
 import {
   drawAndHandleTransferAttackTable
@@ -87,7 +88,9 @@ import {
     setResolution,
     getFinalAttackArray,
     setFinalAttackArray,
-    getAttackingArmyRemaining
+    getAttackingArmyRemaining,
+    setValuesForBattleFromSiegeObject,
+    setMainArrayToArmyRemaining
 } from './battle.js';
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -2180,6 +2183,8 @@ siegeButton.addEventListener('mouseout', function() {
 
     if (!currentWarAlreadyInSiegeMode) {
       let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId); // add to siege
+      let mainArrayElementForSiege = setMainArrayToArmyRemaining(getSiegeObjectFromObject(territoryToAddToSiege));
+      writeBottomTableInformation(mainArrayElementForSiege, true, null);
 
       for (let i = 0; i < paths.length; i++) {
         //set in siege mode on svg
@@ -2226,7 +2231,7 @@ retreatButton.addEventListener('click', function() {
                 addWarToHistoricWarArray("Retreat", 0, true);
             }
             if (battleUIState === 1) { //removing a siege
-                let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
+                let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
                 if (war) { //handle case where retreat after coming back from a siege
                     addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
                     removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
@@ -2312,8 +2317,6 @@ advanceButton.addEventListener('click', function() {
                     siegeAttackArray.push(war.attackingArmyRemaining[i]);
                 }
                 setFinalAttackArray(siegeAttackArray);
-                setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
-            } else {
                 setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
             }
             advanceButtonState = 1;
@@ -2404,7 +2407,7 @@ siegeBottomBarButton.addEventListener('click', function() {
 
     //"assault" i.e. return to battle state
     //remove siege status
-    let war = getSiegeObject(territoryAboutToBeAttackedOrSieged);
+    let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
     setCurrentWarId(war.warId);
     addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
     removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
@@ -3472,6 +3475,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   return;
 
                   } else if (transferAttackbuttonState === 2) { //click view siege button //button says VIEW SIEGE
+                        setValuesForBattleFromSiegeObject(lastClickedPath);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false);
@@ -3512,10 +3516,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackWindow(false);
                         transferAttackWindowOnScreen = false;
                         toggleBattleUI(true, false);
-                        enableDisableSiegeButton(1); //disable siege button at start
+                        enableDisableSiegeButton(0); //disable siege button at start
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
+                        setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
                         setupBattleUI(getFinalAttackArray());
                         battleUIDisplayed = true;
                         setTimeout(function() {
@@ -4102,7 +4107,7 @@ function toggleUIButton(makeVisible) {
   
   function setupSiegeUI(territory) {
     battleUIState = 1;
-    const siegeObjectElement = getSiegeObject(territory);
+    const siegeObjectElement = getSiegeObjectFromPath(territory);
 
     const retreatButton = document.getElementById("retreatButton");
     const advanceButton = document.getElementById("advanceButton");
@@ -4790,9 +4795,15 @@ export function enableDisableSiegeButton(enableOrDisable) {
     }
 }
 
-export function getSiegeObject(territory) {
+export function getSiegeObjectFromPath(territory) {
     if (territory.getAttribute("territory-name") in siegeObject) {
     return siegeObject[territory.getAttribute("territory-name")];
+    }
+}
+
+export function getSiegeObjectFromObject(territory) {
+    if (territory.territoryName in siegeObject) {
+    return siegeObject[territory.territoryName];
     }
 }
 
