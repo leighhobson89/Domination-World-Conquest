@@ -5051,13 +5051,13 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
 
   // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
   if (defenseBonusPercentage <= 25) {
-    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort25.png";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'></img>";
     defendingTerritory.defenseBonusColor = colorRed;
   } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
-    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort50.png";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'></img>";
     defendingTerritory.defenseBonusColor = colorOrange;
   } else if (defenseBonusPercentage >50 && defenseBonusPercentage <= 75) {
-    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort75.png";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'></img>";
     defendingTerritory.defenseBonusColor = colorYellow;
   } else {
     defendingTerritory.defenseBonusColor = colorGreen;
