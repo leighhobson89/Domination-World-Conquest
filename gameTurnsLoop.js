@@ -62,7 +62,7 @@ function gameLoop() {
       console.log("There's been a " + randomEvent + "!")
   }
   newTurnResources();
-  calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources);
+  calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources); //might not be necessary every turn
   if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
       toggleUIMenu(true);
       drawUITable(document.getElementById("uiTable"), 0);

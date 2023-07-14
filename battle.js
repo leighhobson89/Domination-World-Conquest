@@ -811,6 +811,7 @@ function calculateCombinedForce(army) {
     let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
+    let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
 
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritoryCopy.territoryName] = {
@@ -825,7 +826,8 @@ function calculateCombinedForce(army) {
         startingDef: totalDefendingArmy,
         startingDefenseBonus: startingDefenseBonus,
         startingFoodCapacity: startingFoodCapacity,
-        startingProdPop: startingProdPop
+        startingProdPop: startingProdPop,
+        startingTerritoryPop: startingTerritoryPop
       };
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
@@ -849,6 +851,7 @@ function calculateCombinedForce(army) {
     let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
+    let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
 
     if (retreatBeforeStart) {
       console.log(nextWarId + " " + currentWarId);
@@ -876,7 +879,8 @@ function calculateCombinedForce(army) {
       startingDef: totalDefendingArmy,
       startingDefenseBonus: startingDefenseBonus,
       startingFoodCapacity: startingFoodCapacity,
-      startingProdPop: startingProdPop
+      startingProdPop: startingProdPop,
+      startingTerritoryPop: startingTerritoryPop
     });
 
     console.log(historicWars);
@@ -1113,7 +1117,7 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
   }
 }
 
-export function setValuesForBattleFromSiegeObject(lastClickedPath) {
+export function setValuesForBattleFromSiegeObject(lastClickedPath) { //when clicking view siege
   let siegeObject = getSiegeObjectFromPath(lastClickedPath);
 
   for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -1125,7 +1129,7 @@ export function setValuesForBattleFromSiegeObject(lastClickedPath) {
   }
 }
 
-export function setMainArrayToArmyRemaining(territory) {
+export function setMainArrayToArmyRemaining(territory) { //when clicking siege button
   let mainElement;
   for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
     mainElement = mainArrayOfTerritoriesAndResources[i];
@@ -1135,7 +1139,13 @@ export function setMainArrayToArmyRemaining(territory) {
       mainElement.airForCurrentTerritory = territory.defendingArmyRemaining[2];
       mainElement.navalForCurrentTerritory = territory.defendingArmyRemaining[3];
       mainElement.armyForCurrentTerritory = mainElement.infantryForCurrentTerritory + (mainElement.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (mainElement.airForCurrentTerritory * vehicleArmyWorth.air) + (mainElement.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, territory);
+
+      let siegeObject = getSiegeObjectFromPath(lastClickedPath);
+      siegeObject.defendingTerritory.infantryForCurrentTerritory = mainElement.infantryForCurrentTerritory;
+      siegeObject.defendingTerritory.assaultForCurrentTerritory = mainElement.assaultForCurrentTerritory;
+      siegeObject.defendingTerritory.airForCurrentTerritory = mainElement.airForCurrentTerritory;
+      siegeObject.defendingTerritory.navalForCurrentTerritory = mainElement.navalForCurrentTerritory;
+      siegeObject.defendingTerritory.armyForCurrentTerritory = siegeObject.defendingTerritory.infantryForCurrentTerritory + (siegeObject.defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (siegeObject.defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (siegeObject.defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
       break;
     }
   }

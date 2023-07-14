@@ -470,7 +470,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    let changeDuringSiege = false;
+    let changeDuringSiege = true;
     for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             const defendingTerritoryId = mainArrayOfTerritoriesAndResources[i].uniqueId;
@@ -517,8 +517,8 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     }
                     
                 }
-            } else if (!changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
-                changeDuringSiege = true;
+            } else if (changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
+                changeDuringSiege = false;
                 let siegeTerritory;
                 for (const key in siegeObject) {
                     if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
@@ -746,38 +746,51 @@ function calculatePopulationChange(territory, cameFromSiege) {
 }
 
 function starveArmyInstead(territory, populationChange, cameFromSiege) {
-
     if (territory.infantryForCurrentTerritory > Math.abs(populationChange)) {
         territory.infantryForCurrentTerritory -= Math.abs(populationChange);
         territory.armyForCurrentTerritory -= Math.abs(populationChange);
     } else {
         let difference = Math.abs(populationChange) - territory.infantryForCurrentTerritory;
         territory.infantryForCurrentTerritory = 0;
-        if (difference < territory.useableAssault * vehicleArmyWorth.assault) {
-            let amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.assault);
+
+        if (difference > 0 && difference < territory.useableAssault * vehicleArmyWorth.assault) {
+            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyWorth.assault);
             if (amountToMakeUnuseable <= territory.useableAssault) {
                 territory.useableAssault -= amountToMakeUnuseable;
-            } else {
                 difference -= amountToMakeUnuseable * vehicleArmyWorth.assault;
+            } else {
+                difference -= territory.useableAssault * vehicleArmyWorth.assault;
                 territory.useableAssault = 0;
-                if (difference < territory.useableAir * vehicleArmyWorth.air) {
-                    amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.air);
-                    if (amountToMakeUnuseable <= territory.useableAir) {
-                        territory.useableAir -= amountToMakeUnuseable;
-                    } else {
-                        difference -= amountToMakeUnuseable * vehicleArmyWorth.air;
-                        territory.useableAir = 0;
-                        if (difference < territory.useableNaval * vehicleArmyWorth.naval) {
-                            amountToMakeUnuseable = Math.floor(difference / vehicleArmyWorth.naval);
-                            if (amountToMakeUnuseable <= territory.useableNaval) {
-                                territory.useableNaval -= amountToMakeUnuseable;
-                            } else {
-                                territory.useableNaval = 0;
-                            }
-                        }
-                    }
-                }
             }
+        } else {
+            difference -= territory.useableAssault * vehicleArmyWorth.assault;
+                territory.useableAssault = 0;
+        }
+
+        if (difference > 0 && difference < territory.useableAir * vehicleArmyWorth.air) {
+            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyWorth.air);
+            if (amountToMakeUnuseable <= territory.useableAir) {
+                territory.useableAir -= amountToMakeUnuseable;
+                difference -= amountToMakeUnuseable * vehicleArmyWorth.air;
+            } else {
+                difference -= territory.useableAir * vehicleArmyWorth.air;
+                territory.useableAir = 0;
+            }
+        } else {
+            difference -= territory.useableAir * vehicleArmyWorth.air;
+                territory.useableAir = 0;
+        }
+
+        if (difference > 0 && difference < territory.useableNaval * vehicleArmyWorth.naval) {
+            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyWorth.naval);
+            if (amountToMakeUnuseable <= territory.useableNaval) {
+                territory.useableNaval -= amountToMakeUnuseable;
+            } else {
+                territory.useableNaval = 0;
+            }
+        } else {
+            difference -= territory.useableNaval * vehicleArmyWorth.naval;
+                territory.useableNaval = 0;
         }
     }
     if (cameFromSiege) {
@@ -788,6 +801,7 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
                 mainArrayOfTerritoriesAndResources[i].useableAssault = territory.useableAssault;
                 mainArrayOfTerritoriesAndResources[i].useableAir = territory.useableAir;
                 mainArrayOfTerritoriesAndResources[i].useableNaval = territory.useableNaval;
+                console.log("Useable: Assault: " + mainArrayOfTerritoriesAndResources[i].useableAssault + " Air: " + mainArrayOfTerritoriesAndResources[i].useableAir + " Naval: " + mainArrayOfTerritoriesAndResources[i].useableNaval);
             }
         }
     }
@@ -2345,7 +2359,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const territoryName = row.querySelector(".ui-table-column").textContent;
     const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
     const prodPopulation = territoryData.productiveTerritoryPop;
-    const popNextTurnValue = calculatePopulationChange(territoryData);
+    const popNextTurnValue = calculatePopulationChange(territoryData, false);
     const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
     const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
     /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
@@ -2485,7 +2499,7 @@ export function colourTableText(table, territory) {
     let changeOil = calculateOilChange(territory, true);
     let changeFood = calculateFoodChange(territory, true);
     let changeConsMats = calculateConsMatsChange(territory, true);
-    let changePop = calculatePopulationChange(territory);
+    let changePop = calculatePopulationChange(territory, false);
 
     /* const goldCell = table.rows[0].cells[3]; */
     const oilCell = table.rows[0].cells[5];
