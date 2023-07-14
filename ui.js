@@ -643,6 +643,16 @@ document.addEventListener("DOMContentLoaded", function() {
           turnPhase++;
           currentMapColorAndStrokeArray = saveMapColorState(false);
       } else if (countrySelectedAndGameStarted && turnPhase == 0) {
+          if (siegeObject) {
+            for (const key in siegeObject) {
+                for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+                    if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
+                        console.log("Beginning of turn Useable for " + mainArrayOfTerritoriesAndResources[i].territoryName + ": Assault: " + mainArrayOfTerritoriesAndResources[i].useableAssault + " Air: " + mainArrayOfTerritoriesAndResources[i].useableAir + " Naval: " + mainArrayOfTerritoriesAndResources[i].useableNaval);
+                    }
+                }
+                break;
+            }
+          }
           currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
           popupTitle.innerText = "Buy / Upgrade Phase";
           popupConfirm.innerText = "MILITARY";
@@ -5024,16 +5034,16 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
   const colorGreen = "rgb(0, 255, 0)";
   const colorYellow = "rgb(255, 255, 0)";
   const colorOrange = "rgb(255, 165, 0)";
-  const colorRed = "rgb(235, 235, 0)";
+  const colorRed = "rgb(245,128,128)";
 
   // Calculate the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
   const startingDefenseBonus = siegeObject.startingDefenseBonus;
-  const startingProdPop = siegeObject.startingProdPop;
+  const startingProdPop = siegeObject.startingTerritoryPop;
   const startingFoodCapacity = siegeObject.startingFoodCapacity;
 
   const defenseBonus = defendingTerritory.defenseBonus;
   const foodCapacity = defendingTerritory.foodCapacity;
-  const productiveTerritoryPop = defendingTerritory.productiveTerritoryPop;
+  const productiveTerritoryPop = defendingTerritory.territoryPopulation;
 
   const defenseBonusPercentage = (defenseBonus / startingDefenseBonus) * 100;
   const foodCapacityPercentage = (foodCapacity / startingFoodCapacity) * 100;
@@ -5041,10 +5051,13 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
 
   // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
   if (defenseBonusPercentage <= 25) {
+    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort25.png";
     defendingTerritory.defenseBonusColor = colorRed;
   } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
+    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort50.png";
     defendingTerritory.defenseBonusColor = colorOrange;
   } else if (defenseBonusPercentage >50 && defenseBonusPercentage <= 75) {
+    document.getElementsByClassName("#defenceIcon .sizingPositionRow4IconBattleUI").src = "/resources/fort75.png";
     defendingTerritory.defenseBonusColor = colorYellow;
   } else {
     defendingTerritory.defenseBonusColor = colorGreen;
