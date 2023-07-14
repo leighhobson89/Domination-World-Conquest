@@ -1,99 +1,72 @@
-import { dataTableCountriesInitialState } from './initialData.js';
+import {findMatchingCountries} from './manualExceptionsForInteractions.js';
+import {currentTurnPhase, initialiseGame as initialiseGame, modifyCurrentTurnPhase} from './gameTurnsLoop.js';
 import {
-  findMatchingCountries
-} from './manualExceptionsForInteractions.js';
-import {
-  initialiseGame as initialiseGame
-} from './gameTurnsLoop.js';
-import {
-  currentTurnPhase,
-  modifyCurrentTurnPhase
-} from "./gameTurnsLoop.js"
-import {
-  allowSelectionOfCountry,
-  playerOwnedTerritories,
-  turnGainsArray
+    addPlayerPurchases,
+    addPlayerUpgrades,
+    addRandomFortsToAllNonPlayerTerritories,
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
+    allowSelectionOfCountry,
+    capacityArray,
+    countryStrengthsArray,
+    currentlySelectedTerritoryForPurchases,
+    currentlySelectedTerritoryForUpgrades,
+    demandArray,
+    drawUITable,
+    formatNumbersToKMB,
+    mainArrayOfTerritoriesAndResources,
+    playerOwnedTerritories,
+    populateBottomTableWhenSelectingACountry,
+    totalConsMats,
+    totalGoldPrice,
+    totalPopulationCost,
+    totalPurchaseGoldPrice,
+    vehicleArmyWorth,
+    writeBottomTableInformation
 } from './resourceCalculations.js';
+import {playSoundClip} from './sfx.js';
 import {
-  populateBottomTableWhenSelectingACountry,
-  addUpAllTerritoryResourcesForCountryAndWriteToTopTable
-} from './resourceCalculations.js';
-import {
-  currentlySelectedTerritoryForUpgrades,
-  currentlySelectedTerritoryForPurchases,
-  totalGoldPrice,
-  totalConsMats,
-  totalPurchaseGoldPrice,
-  totalPopulationCost
-} from './resourceCalculations.js';
-import {
-  addPlayerUpgrades,
-  addPlayerPurchases
-} from './resourceCalculations.js';
-import {
-  drawUITable,
-  formatNumbersToKMB
-} from './resourceCalculations.js';
-import {
-  playSoundClip
-} from './sfx.js';
-import {
-  capacityArray,
-  demandArray,
-  mainArrayOfTerritoriesAndResources,
-  countryStrengthsArray,
-  vehicleArmyWorth,
-  addRandomFortsToAllNonPlayerTerritories,
-  writeBottomTableInformation
-} from './resourceCalculations.js';
-import {
-  drawAndHandleTransferAttackTable
-} from './transferAndAttack.js';
-import {
-    transferQuantitiesArray,
-    transferArmyToNewTerritory,
-    territoryUniqueIds,
+    drawAndHandleTransferAttackTable,
     probability,
-    transferArmyOutOfTerritoryOnStartingInvasion
+    territoryUniqueIds,
+    transferArmyOutOfTerritoryOnStartingInvasion,
+    transferArmyToNewTerritory,
+    transferQuantitiesArray
 } from './transferAndAttack.js';
 import {
-    setupBattle,
-    defendingArmyRemaining,
-    assignProportionsToTerritories,
-    proportionsOfAttackArray,
-    processRound,
-    skirmishesPerRound,
-    setCurrentRound,
-    getCurrentRound,
-    getUpdatedProbability,
-    setUpdatedProbability,
-    getRoutStatus,
-    setRoutStatus,
-    turnsDeactivatedArray,
-    defendingTerritory,
-    setMassiveAssaultStatus,
-    getMassiveAssaultStatus,
-    getCurrentWarId,
-    getNextWarId,
-    setCurrentWarId,
-    setNextWarId,
     addRemoveWarSiegeObject,
-    siegeObject,
-    nextWarId,
-    historicWars,
-    currentWarId,
-    setBattleResolutionOnHistoricWarArrayAfterSiege,
     addWarToHistoricWarArray,
-    getResolution,
-    setResolution,
-    getFinalAttackArray,
-    setFinalAttackArray,
+    assignProportionsToTerritories,
+    currentWarId,
+    defendingArmyRemaining,
+    defendingTerritory,
     getAttackingArmyRemaining,
+    getCurrentRound,
+    getCurrentWarId,
+    getFinalAttackArray,
+    getMassiveAssaultStatus,
+    getResolution,
+    getRoutStatus,
+    getUpdatedProbability,
+    historicWars,
+    nextWarId,
+    processRound,
+    proportionsOfAttackArray,
+    setBattleResolutionOnHistoricWarArrayAfterSiege,
+    setCurrentRound,
+    setCurrentWarId,
+    setFinalAttackArray,
+    setMainArrayToArmyRemaining,
+    setMassiveAssaultStatus,
+    setNextWarId,
+    setResolution,
+    setRoutStatus,
+    setupBattle,
     setValuesForBattleFromSiegeObject,
-    setMainArrayToArmyRemaining
+    siegeObject,
+    skirmishesPerRound,
+    turnsDeactivatedArray
 } from './battle.js';
 
-const svgns = "http://www.w3.org/2000/svg";
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
@@ -107,7 +80,7 @@ export let paths = [];
 export let defs = [];
 export let patterns = [];
 
-//variables that receive information for resources of countrys after database reading and calculations, before game starts
+//variables that receive information for resources of country's after database reading and calculations, before game starts
 export let playerCountry;
 export let playerColour = "rgb(255,255,255)"; //default to white player
 export let flag;
@@ -150,7 +123,7 @@ let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
-export let transferAttackbuttonState;
+export let transferAttackButtonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
 export let uiAppearsAtStartOfTurn = true;
@@ -166,8 +139,6 @@ export let battleUIState = 0;
 //BATTLE UI STATES  
 export let retreatButtonState;
 export let advanceButtonState;
-export let siegeButtonState;
-
 let battleStart;
 let firstSetOfRounds = true;
 
@@ -270,7 +241,7 @@ export function svgMapLoaded() {
   });
 
   // Add a mouseout event listener to the SVG element
-  svgMap.addEventListener("mouseout", function(e) {
+  svgMap.addEventListener("mouseout", function() {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
       if (currentPath) {
@@ -281,7 +252,7 @@ export function svgMapLoaded() {
       clickActionsDone = false;
   });
 
-  svgMap.addEventListener("keydown", function(event) {
+  svgMap.addEventListener("keydown", function() {
     setUnsetMenuOnEscape();
   });
 
@@ -298,7 +269,7 @@ export function svgMapLoaded() {
       }
       if (e.target.tagName === "path") {
           currentPath = e.target;
-          document.getElementById("popup-confirm").style.opacity = 1;
+          document.getElementById("popup-confirm").style.opacity = "1";
           if (allowSelectionOfCountry) {
               selectCountry(currentPath, false);
           }
@@ -418,9 +389,9 @@ function selectCountry(country, escKeyEntry) {
             }
         }
 
-        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previusly been clicked, handle deselecting previous
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previously been clicked, handle deselecting previous
             for (let i = 0; i < paths.length; i++) {
-                if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iteratingpath is a player territory
+                if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
                     paths[i].setAttribute('fill', playerColour);
                 } else if (paths[i].getAttribute("underSiege") === "true") {
                     paths[i].setAttribute('fill', playerColour);
@@ -451,7 +422,7 @@ function selectCountry(country, escKeyEntry) {
   if (!clickActionsDone) {
       populateBottomTableWhenSelectingACountry(country);
 
-      if (lastClickedPath !== null && !escKeyEntry) {
+      if (!escKeyEntry) {
           if (lastClickedPath.getAttribute('d') !== 'M0 0 L50 50') {
             if (lastClickedPath.getAttribute("deactivated") === "false" && lastClickedPath.getAttribute("underSiege") === "false") {
                 lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
@@ -599,7 +570,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById("player-color-picker").addEventListener('change', function() {
-      playerColour = convertHexValuetoRGB(document.getElementById("player-color-picker").value);
+      playerColour = convertHexValueToRGB(document.getElementById("player-color-picker").value);
       restoreMapColorState(currentMapColorAndStrokeArray, false);
       document.getElementById("popup-color").style.color = playerColour;
       if (selectCountryPlayerState) {
@@ -629,8 +600,8 @@ document.addEventListener("DOMContentLoaded", function() {
           popupSubTitle.style.opacity = "0.5";
           playerCountry = document.getElementById("popup-body").innerHTML;
           flag = playerCountry;
-          setFlag(flag, 1); //set playerflag in top table
-          setFlag(flag, 3); //set playerflag in ui info panel
+          setFlag(flag, 1); //set player flag in top table
+          setFlag(flag, 3); //set player flag in ui info panel
           uiButtonCurrentlyOnScreen = true;
           toggleUIButton(true);
           restoreMapColorState(currentMapColorAndStrokeArray, true);
@@ -642,7 +613,7 @@ document.addEventListener("DOMContentLoaded", function() {
           popupConfirm.innerText = "MILITARY";
           turnPhase++;
           currentMapColorAndStrokeArray = saveMapColorState(false);
-      } else if (countrySelectedAndGameStarted && turnPhase == 0) {
+      } else if (countrySelectedAndGameStarted && turnPhase === 0) {
           if (siegeObject) {
             for (const key in siegeObject) {
                 for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -650,7 +621,6 @@ document.addEventListener("DOMContentLoaded", function() {
                         console.log("Beginning of turn Useable for " + mainArrayOfTerritoriesAndResources[i].territoryName + ": Assault: " + mainArrayOfTerritoriesAndResources[i].useableAssault + " Air: " + mainArrayOfTerritoriesAndResources[i].useableAir + " Naval: " + mainArrayOfTerritoriesAndResources[i].useableNaval);
                     }
                 }
-                break;
             }
           }
           currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
@@ -658,13 +628,13 @@ document.addEventListener("DOMContentLoaded", function() {
           popupConfirm.innerText = "MILITARY";
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
-      } else if (countrySelectedAndGameStarted && turnPhase == 1) {
+      } else if (countrySelectedAndGameStarted && turnPhase === 1) {
           currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
           popupTitle.innerText = "Military Phase";
           popupConfirm.innerText = "END TURN";
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
-      } else if (countrySelectedAndGameStarted && turnPhase == 2) {
+      } else if (countrySelectedAndGameStarted && turnPhase === 2) {
         if (svgMap.querySelector("#attackImage")) {
             svgMap.getElementById("attackImage").remove();
             lastClickedPath.style.stroke = "rgb(0,0,0)";
@@ -699,11 +669,11 @@ document.addEventListener("DOMContentLoaded", function() {
   const topTableFlag = document.createElement("td");
   topTableFlag.classList.add("iconCell");
   topTableFlag.setAttribute("id", "flag-top");
-  topTableFlag.addEventListener("mouseover", (e) => {
+  topTableFlag.addEventListener("mouseover", () => {
       tooltip.innerHTML = playerCountry;
       tooltip.style.display = "block";
   });
-  topTableFlag.addEventListener("mouseout", (e) => {
+  topTableFlag.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
@@ -724,18 +694,17 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableOil = document.createElement("td");
   topTableOil.classList.add("iconCell");
-  topTableOil.addEventListener("mouseover", (e) => {
+  topTableOil.addEventListener("mouseover", () => {
       let totalOilDemandCountry = demandArray.totalOilDemand;
 
-      let tooltipContent = `
+      tooltip.innerHTML = `
     <div><span style="color: rgb(235,235,0)">Oil:</span></div>
     <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
     <div>Total Oil Demand: ${totalOilDemandCountry}</div>
   `;
-      tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableOil.addEventListener("mouseout", (e) => {
+  topTableOil.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
@@ -747,24 +716,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableOilValue = document.createElement("td");
   topTableOilValue.classList.add("resourceFields");
-  topTableOilValue.addEventListener("mouseover", (e) => {
+  topTableOilValue.addEventListener("mouseover", () => {
       let totalOilDemandCountry = demandArray.totalOilDemand;
-      let tooltipContent = `
+      tooltip.innerHTML = `
     <div><span style="color: rgb(235,235,0)">Oil:</span></div>
     <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
     <div>Total Oil Demand: ${totalOilDemandCountry}</div>
   `;
-      tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableOilValue.addEventListener("mouseout", (e) => {
+  topTableOilValue.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
 
   const topTableFood = document.createElement("td");
   topTableFood.classList.add("iconCell");
-  topTableFood.addEventListener("mouseover", (e) => {
+  topTableFood.addEventListener("mouseover", () => {
       let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Food:</span></div>
     <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
@@ -772,7 +740,7 @@ document.addEventListener("DOMContentLoaded", function() {
       tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableFood.addEventListener("mouseout", (e) => {
+  topTableFood.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
@@ -784,7 +752,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableFoodValue = document.createElement("td");
   topTableFoodValue.classList.add("resourceFields");
-  topTableFoodValue.addEventListener("mouseover", (e) => {
+  topTableFoodValue.addEventListener("mouseover", () => {
       let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Food:</span></div>
     <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
@@ -792,14 +760,14 @@ document.addEventListener("DOMContentLoaded", function() {
       tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableFoodValue.addEventListener("mouseout", (e) => {
+  topTableFoodValue.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
 
   const topTableConsMats = document.createElement("td");
   topTableConsMats.classList.add("iconCell");
-  topTableConsMats.addEventListener("mouseover", (e) => {
+  topTableConsMats.addEventListener("mouseover", () => {
       let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
     <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
@@ -807,7 +775,7 @@ document.addEventListener("DOMContentLoaded", function() {
       tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableConsMats.addEventListener("mouseout", (e) => {
+  topTableConsMats.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
@@ -819,7 +787,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const topTableConsMatsValue = document.createElement("td");
   topTableConsMatsValue.classList.add("resourceFields");
-  topTableConsMatsValue.addEventListener("mouseover", (e) => {
+  topTableConsMatsValue.addEventListener("mouseover", () => {
       let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
     <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
@@ -827,21 +795,21 @@ document.addEventListener("DOMContentLoaded", function() {
       tooltip.innerHTML = tooltipContent;
       tooltip.style.display = "block";
   });
-  topTableConsMatsValue.addEventListener("mouseout", (e) => {
+  topTableConsMatsValue.addEventListener("mouseout", () => {
       tooltip.innerHTML = "";
       tooltip.style.display = "none";
   });
 
-  const topTableprodPopulation = document.createElement("td");
-  topTableprodPopulation.classList.add("iconCell");
+  const topTableProdPopulation = document.createElement("td");
+  topTableProdPopulation.classList.add("iconCell");
 
   const prodPopulationImg = document.createElement("img");
   prodPopulationImg.classList.add("sizingIcons");
   prodPopulationImg.alt = "Population";
   prodPopulationImg.src = "resources/prodPopulation.png";
 
-  const topTableprodPopulationValue = document.createElement("td");
-  topTableprodPopulationValue.classList.add("population");
+  const topTableProdPopulationValue = document.createElement("td");
+  topTableProdPopulationValue.classList.add("population");
 
   const topTablelandArea = document.createElement("td");
   topTablelandArea.classList.add("iconCell");
@@ -880,9 +848,9 @@ document.addEventListener("DOMContentLoaded", function() {
   topTableRow.appendChild(topTableConsMats);
   topTableConsMats.appendChild(consMatsImg);
   topTableRow.appendChild(topTableConsMatsValue);
-  topTableRow.appendChild(topTableprodPopulation);
-  topTableprodPopulation.appendChild(prodPopulationImg);
-  topTableRow.appendChild(topTableprodPopulationValue);
+  topTableRow.appendChild(topTableProdPopulation);
+  topTableProdPopulation.appendChild(prodPopulationImg);
+  topTableRow.appendChild(topTableProdPopulationValue);
   topTableRow.appendChild(topTablelandArea);
   topTablelandArea.appendChild(landAreaImg);
   topTableRow.appendChild(topTablelandAreaValue);
@@ -1159,7 +1127,7 @@ summaryButton.addEventListener("mouseout", function() {
   pricesInfoCol2.classList.add("prices-info-column");
   pricesInfoCol2.classList.add("prices-info-total-justification");
   pricesInfoCol2.setAttribute("id", "prices-info-column2");
-  pricesInfoCol2.innerHTML = 0;
+  pricesInfoCol2.innerHTML = "0";
 
   const pricesInfoCol3 = document.createElement("div");
   pricesInfoCol3.classList.add("prices-info-column");
@@ -1176,7 +1144,7 @@ summaryButton.addEventListener("mouseout", function() {
   pricesInfoCol4.classList.add("prices-info-column");
   pricesInfoCol4.classList.add("prices-info-total-justification");
   pricesInfoCol4.setAttribute("id", "prices-info-column4");
-  pricesInfoCol4.innerHTML = 0;
+  pricesInfoCol4.innerHTML = "0";
 
   const bottomBarConfirmButton = document.createElement("button");
   bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
@@ -1347,7 +1315,7 @@ summaryButton.addEventListener("mouseout", function() {
   pricesBuyInfoCol2.classList.add("prices-buy-info-column");
   pricesBuyInfoCol2.classList.add("prices-buy-info-total-justification");
   pricesBuyInfoCol2.setAttribute("id", "prices-buy-info-column2");
-  pricesBuyInfoCol2.innerHTML = 0;
+  pricesBuyInfoCol2.innerHTML = "0";
 
   const pricesBuyInfoCol3 = document.createElement("div");
   pricesBuyInfoCol3.classList.add("prices-buy-info-column");
@@ -1364,7 +1332,7 @@ summaryButton.addEventListener("mouseout", function() {
   pricesBuyInfoCol4.classList.add("prices-buy-info-column");
   pricesBuyInfoCol4.classList.add("prices-buy-info-total-justification");
   pricesBuyInfoCol4.setAttribute("id", "prices-buy-info-column4");
-  pricesBuyInfoCol4.innerHTML = 0;
+  pricesBuyInfoCol4.innerHTML = "0";
 
   const bottomBarBuyConfirmButton = document.createElement("button");
   bottomBarBuyConfirmButton.classList.add("bottom-bar-buy-confirm-button");
@@ -1567,10 +1535,10 @@ summaryButton.addEventListener("mouseout", function() {
   document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
 
   xButtonTransferAttack.addEventListener("click", function() {
-      if ((transferAttackbuttonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackbuttonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
+      if ((transferAttackButtonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackButtonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
         transferAttackButton.style.fontWeight = "normal";
         transferAttackButton.style.color = "white";
-        if (transferAttackbuttonState === 1) {
+        if (transferAttackButtonState === 1) {
             setAttackProbabilityOnUI(0, 0);
             territoryUniqueIds.length = 0;
         }
@@ -1580,7 +1548,7 @@ summaryButton.addEventListener("mouseout", function() {
       transferAttackWindowOnScreen = false;
       toggleUIButton(true);
       toggleBottomLeftPaneWithTurnAdvance(true);
-      handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackbuttonState);
+      handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackButtonState);
   });
 
   //BATTLE UI
@@ -2266,7 +2234,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
             defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
-            //update bottom table for defender and and top table for player
+            //update bottom table for defender and top table for player
             document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 2: //defeat
@@ -2315,7 +2283,6 @@ advanceButton.addEventListener('click', function() {
         case 0: //before battle to start it
             playSoundClip();
             battleStart = false;
-            console.log ("battlestart set to false");
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
                 transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
@@ -2429,7 +2396,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     enableDisableSiegeButton(1); //disable siege button at start
     let siegeAttackArray = [];
     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
-    siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportioinsAttackers part of siegeObject
+    siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
         siegeAttackArray.push(war.attackingArmyRemaining[i]);
     }
@@ -2484,7 +2451,7 @@ confirmButtonBattleResults.addEventListener('click', function() {
   pageLoaded = true;
 });
 
-document.addEventListener("keydown", function(event) {
+document.addEventListener("keydown", function() {
   setUnsetMenuOnEscape();
 });
 
@@ -2743,11 +2710,11 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
     manualExceptionsArray = findMatchingCountries(targetPath, 1); //set up manual exceptions for this targetPath
     manualDenialArray = findMatchingCountries(targetPath, 0); //set up denial countries
 
-    destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray); //remove denied countrys (manual exception)
+    destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray); //remove denied countries (manual exception)
   
     if (manualExceptionsArray.length > 0) { //works correctly
         for (let i = 0; i < manualExceptionsArray.length; i++) {
-            tempValidDestinationsArray.push(changeCountryColor(manualExceptionsArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            tempValidDestinationsArray.push(changeCountryColor(manualExceptionsArray[i], false, "pattern", count, attacking)[0]); //change color of touching country's
             count++;
         }
     }
@@ -2757,10 +2724,10 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         const destName = destinationPathObjectArray[i].getAttribute("data-name");
   
         if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
-            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
             count++;
         } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
-            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
             count++;
         } else {
             for (let j = 0; j < destinationPathObjectArray.length; j++) {
@@ -2776,7 +2743,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
                 }
   
                 if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
-                    tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countrys
+                    tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
                     count++;
                 }
   
@@ -2808,7 +2775,7 @@ function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
     return validDestinationsArray;
   }
 
-function getClosestPointsDestinationPaths(coord, paths) {
+function getClosestPointsDestinationPaths(coordinate, paths) {
   const closestPoints = [];
 
   for (let i = 0; i < paths.length; i++) {
@@ -2818,7 +2785,7 @@ function getClosestPointsDestinationPaths(coord, paths) {
 
       for (let j = 0; j < path.length; j++) {
           const point = path[j];
-          const distance = Math.sqrt((coord[0][1] - point.x) ** 2 + (coord[0][2] - point.y) ** 2);
+          const distance = Math.sqrt((coordinate[0][1] - point.x) ** 2 + (coordinate[0][2] - point.y) ** 2);
 
           if (distance < closestDistance) {
               closestPoint = {
@@ -3001,13 +2968,13 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
       let fillValue = territory.getAttribute("fill");
       let rgbValues = fillValue.match(/\d+/g).map(Number);
       let [r, g, b] = rgbValues;
-      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when hovering (doesnt run on selected or interactable territories)
+      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when hovering (doesn't run on selected or interactable territories)
           hoveredNonInteractableAndNonSelectedTerritory = true;
           r += 20;
           g += 20;
           b += 20;
           territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-      } else if (mouseAction === "mouseOut" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when leaving a hover (doesnt run on selected or interactable territories)
+      } else if (mouseAction === "mouseOut" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when leaving a hover (doesn't run on selected or interactable territories)
           hoveredNonInteractableAndNonSelectedTerritory = false;
           r -= 20;
           g -= 20;
@@ -3060,7 +3027,7 @@ function restoreMapColorState(array, countrySelectionState) {
 
   paths.forEach(path => {
       for (let i = 0; i < array.length; i++) {
-          if (array[i][0] == path.getAttribute("uniqueid")) {
+          if (array[i][0] === path.getAttribute("uniqueid")) {
               if (countrySelectionState) {
                   if (path.getAttribute("data-name") !== currentSelectedPath.getAttribute("data-name")) {
                       path.setAttribute("fill", array[i][1]);
@@ -3100,11 +3067,10 @@ function generateRandomRGB() {
   const val1 = Math.floor(Math.random() * 235) + 1;
   const val2 = Math.floor(Math.random() * 235) + 1;
   const val3 = Math.floor(Math.random() * 235) + 1;
-  const rgbString = `rgb(${val1}, ${val2}, ${val3})`;
-  return rgbString;
+  return `rgb(${val1}, ${val2}, ${val3})`;
 }
 
-function convertHexValuetoRGB(value) {
+function convertHexValueToRGB(value) {
   // Strip the "#" prefix if present
   const hex = value.replace(/^#/, "");
   // Convert the hex string to an integer
@@ -3376,7 +3342,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
               button.classList.remove("move-phase-button-blue-background");
               button.classList.add("move-phase-button-green-background");
               button.disabled = false;
-              transferAttackbuttonState = 0; //transfer
+              transferAttackButtonState = 0; //transfer
           }
           button.style.display = "flex";
           transferAttackButtonDisplayed = true;
@@ -3392,7 +3358,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.style.display = "flex";
           transferAttackButtonDisplayed = true;
           button.disabled = false;
-          transferAttackbuttonState = 1; //attack
+          transferAttackButtonState = 1; //attack
           setTerritoryForAttack(path);
       } else if (path.getAttribute("underSiege") === "true") {
         // if clicks on an enemy territory that is within reach but under siege then set it up for that
@@ -3405,7 +3371,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         button.style.display = "flex";
         transferAttackButtonDisplayed = true;
         button.disabled = false;
-        transferAttackbuttonState = 2; //lift siege
+        transferAttackButtonState = 2; //lift siege
         setTerritoryForAttack(path);
       }
   } else {
@@ -3417,7 +3383,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-grey-background");
           button.classList.remove("move-phase-button-brown-background");
           button.classList.add("move-phase-button-green-background");
-          transferAttackbuttonState = 0;
+          transferAttackButtonState = 0;
           return;
       } else if (xButtonFromWhere === 1) { //attack
           button.style.display = "flex";
@@ -3427,7 +3393,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
           button.classList.remove("move-phase-button-grey-background");
           button.classList.remove("move-phase-button-brown-background");
           button.classList.add("move-phase-button-red-background");
-          transferAttackbuttonState = 1;
+          transferAttackButtonState = 1;
           return;
       }
   }
@@ -3440,7 +3406,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
     playSoundClip();
-      if (transferAttackbuttonState == 0) {
+      if (transferAttackButtonState === 0) {
           territoryComingFrom = lastClickedPath;
       }
       if (!eventHandlerExecuted) {
@@ -3450,7 +3416,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   toggleUIButton(false);
                   toggleBottomLeftPaneWithTurnAdvance(false);
 
-                  if (transferAttackbuttonState === 0 || transferAttackbuttonState === 1) {
+                  if (transferAttackButtonState === 0 || transferAttackButtonState === 1) {
                     toggleTransferAttackWindow(true);
                   setTransferAttackWindowTitleText(
                       territoryAboutToBeAttackedOrSieged && territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") !== null ?
@@ -3458,7 +3424,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       "transferring",
                       territoryAboutToBeAttackedOrSieged ? territoryAboutToBeAttackedOrSieged.getAttribute("data-name") : null,
                       territoryComingFrom,
-                      transferAttackbuttonState,
+                      transferAttackButtonState,
                       mainArrayOfTerritoriesAndResources
                   );
 
@@ -3471,13 +3437,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       mainArrayOfTerritoriesAndResources,
                       playerOwnedTerritories,
                       territoriesAbleToAttackTarget,
-                      transferAttackbuttonState
+                      transferAttackButtonState
                   );
 
                   const selection = document.querySelectorAll('.transfer-table-row-hoverable > .transfer-table-outer-column:first-of-type');
                   setTransferToTerritory(selection);
 
-                  if (transferAttackbuttonState === 1) {
+                  if (transferAttackButtonState === 1) {
                       for (let i = 0; i < paths.length; i++) {
                           paths[i].setAttribute("attackableTerritory", "false");
                       }
@@ -3487,7 +3453,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   }, 200);
                   return;
 
-                  } else if (transferAttackbuttonState === 2) { //click view siege button //button says VIEW SIEGE
+                  } else if (transferAttackButtonState === 2) { //click view siege button //button says VIEW SIEGE
                         setValuesForBattleFromSiegeObject(lastClickedPath);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
@@ -3507,7 +3473,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     button.style.color = "white";
                     setAttackProbabilityOnUI(0, 0);
                 }
-                  if (transferAttackbuttonState === 0) {
+                  if (transferAttackButtonState === 0) {
                     if (button.innerHTML === "CONFIRM") {
                         transferArmyToNewTerritory(transferQuantitiesArray);
                     }
@@ -3522,10 +3488,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         eventHandlerExecuted = false; // Reset the flag after a delay
                     }, 200);
                     return;
-                  } else if (transferAttackbuttonState === 1) {
+                  } else if (transferAttackButtonState === 1) {
                     if (button.innerHTML === "INVADE!") {
                         battleStart = true;
-                        let nextwarId = getNextWarId();
                         setCurrentWarId(nextWarId);
                         setNextWarId(nextWarId + 1);
                         toggleTransferAttackWindow(false);
@@ -3558,7 +3523,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         button.classList.add("move-phase-button-red-background");
                         button.innerHTML = "ATTACK";
                       }
-                      if (transferAttackbuttonState === 0) {
+                      if (transferAttackButtonState === 0) {
                         toggleUIButton(true);
                         toggleBottomLeftPaneWithTurnAdvance(true);
                       }
@@ -3653,11 +3618,11 @@ function addImageToPath(pathElement, imagePath, siege) {
   const imageHeight = Math.min(maxImageWidth, maxImageHeight);
   const imageX = centerX - imageWidth / 2;
   const imageY = centerY - imageHeight / 2;
-  imageElement.setAttribute("x", imageX);
-  imageElement.setAttribute("y", imageY);
-  imageElement.setAttribute("width", imageWidth);
-  imageElement.setAttribute("height", imageHeight);
-  imageElement.setAttribute("z-index", 9999);
+  imageElement.setAttribute("x", imageX.toString());
+  imageElement.setAttribute("y", imageY.toString());
+  imageElement.setAttribute("width", imageWidth.toString());
+  imageElement.setAttribute("height", imageHeight.toString());
+  imageElement.setAttribute("z-index", "9999");
 
   if (siege) {
     for (const key in siegeObject) {
@@ -3817,17 +3782,17 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
                                         Infantry: ${matchingElement.infantryForCurrentTerritory}<br />
                                         Assault: ${
                                             matchingElement.useableAssault < matchingElement.assaultForCurrentTerritory
-                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableAssault}</span>`
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160);">${matchingElement.useableAssault}</span>`
                                                 : matchingElement.useableAssault
                                         }/${matchingElement.assaultForCurrentTerritory}<br />
                                         Air: ${
                                             matchingElement.useableAir < matchingElement.airForCurrentTerritory
-                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableAir}</span>`
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160);">${matchingElement.useableAir}</span>`
                                                 : matchingElement.useableAir
                                         }/${matchingElement.airForCurrentTerritory}<br />
                                         Naval: ${
                                             matchingElement.useableNaval < matchingElement.navalForCurrentTerritory
-                                                ? `<span style="font-weight: bold; color: rgb(245,160,160)";>${matchingElement.useableNaval}</span>`
+                                                ? `<span style="font-weight: bold; color: rgb(245,160,160);">${matchingElement.useableNaval}</span>`
                                                 : matchingElement.useableNaval
                                         }/${matchingElement.navalForCurrentTerritory}<br />
                                     </div>
@@ -3909,9 +3874,8 @@ function setTransferToTerritory(listOfTerritories) {
       });
   });
 }
-
 export function getLastClickedPath() {
-  return lastClickedPath;
+    return lastClickedPath;
 }
 
 export function setAttackProbabilityOnUI(probability, situation) {
@@ -3936,20 +3900,12 @@ export function setAttackProbabilityOnUI(probability, situation) {
     }
 }
 
-  export function setcurrentMapColorAndStrokeArrayFromExternal(changesArray) {
+  export function setCurrentMapColorAndStrokeArrayFromExternal(changesArray) {
     currentMapColorAndStrokeArray = changesArray;
   }
 
-  export function setterritoryAboutToBeAttackedFromExternal(value) {
+  export function setTerritoryAboutToBeAttackedFromExternal(value) {
     territoryAboutToBeAttackedOrSieged = value;
-  }
-
-  export function setAttackTextCurrentlyDisplayedFromExternal(value) {
-    attackTextCurrentlyDisplayed = value;
-  }
-
-  export function setTransferAttackButtonDisplayedFromExternal(value) {
-    transferAttackButtonDisplayed = value;
   }
 
   function removeDeniedDestinations(destinationPathObjectArray, manualDenialArray) {
@@ -4146,8 +4102,6 @@ function toggleUIButton(makeVisible) {
 
     //SET ARMY TEXT VALUES
     setArmyTextValues(siegeObjectElement, 2);
-
-    let defendingTerritory = siegeObjectElement.defendingTerritory;
 
     //SET DEFENSE BONUS VALUE
     document.getElementById("defenceBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
@@ -4463,22 +4417,10 @@ export function reduceKeywords(str) {
   
   export function setRetreatButtonState(value) {
     return retreatButtonState = value;
-  }  
-
-  export function getAdvanceButtonState() {
-    return advanceButtonState;
-  }  
-
-  export function getRetreatButtonState() {
-    return retreatButtonState;
-  }  
+  }
 
   export function setFirstSetOfRounds(value) {
     return firstSetOfRounds = value;
-  }
-
-  export function getFirstSetOfRounds() {
-    return firstSetOfRounds;
   }
 
   export function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType, arrayIfArrest) {
@@ -4985,7 +4927,7 @@ function setUnsetMenuOnEscape() {
       if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
           selectCountry(lastClickedPath, true);
           if (territoryAboutToBeAttackedOrSieged) {
-            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and readds it so it is on top of the svg path
+            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and reads it, so it is on top of the svg path
                 svgMap.getElementById("attackImage").remove();
                 addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
             }
@@ -5051,13 +4993,13 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
 
   // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
   if (defenseBonusPercentage <= 25) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'></img>";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
     defendingTerritory.defenseBonusColor = colorRed;
   } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'></img>";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
     defendingTerritory.defenseBonusColor = colorOrange;
   } else if (defenseBonusPercentage >50 && defenseBonusPercentage <= 75) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'></img>";
+    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
     defendingTerritory.defenseBonusColor = colorYellow;
   } else {
     defendingTerritory.defenseBonusColor = colorGreen;

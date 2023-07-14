@@ -1,50 +1,47 @@
 import {
-    vehicleArmyWorth,
-    playerOwnedTerritories,
-    setUseableNotUseableWeaponsDueToOilDemand,
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
+    calculateAllTerritoryDemandsForCountry,
+    formatNumbersToKMB,
     mainArrayOfTerritoriesAndResources,
     oilRequirements,
-    turnGainsArray,
+    playerOwnedTerritories,
     setDemandArray,
-    calculateAllTerritoryDemandsForCountry,
-    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
-    formatNumbersToKMB
+    setUseableNotUseableWeaponsDueToOilDemand,
+    turnGainsArray,
+    vehicleArmyWorth
 } from './resourceCalculations.js';
 import {
-  paths, playerCountry,
-  setcurrentMapColorAndStrokeArrayFromExternal,
-  setterritoryAboutToBeAttackedFromExternal,
-  playerColour,
-  currentMapColorAndStrokeArray,
-  setFlag,
-  fillPathBasedOnContinent,
-  setArmyTextValues,
-  setAdvanceButtonText,
-  setRetreatButtonText,
-  setAdvanceButtonState,
-  setRetreatButtonState,
-  getAdvanceButtonState,
-  getRetreatButtonState,
-  setFirstSetOfRounds,
-  getFirstSetOfRounds,
-  setDefendingTerritoryCopyStart,
-  retreatButtonState,
-  setAttackProbabilityOnUI,
-  getOriginalDefendingTerritory,
-  setCurrentWarFlagString,
-  populateWarResultPopup,
-  setUpResultsOfWarExternal,
-  removeSiegeImageFromPath,
-  saveMapColorState,
-  lastClickedPath,
-  getSiegeObjectFromPath
+    currentMapColorAndStrokeArray,
+    fillPathBasedOnContinent,
+    getOriginalDefendingTerritory,
+    getSiegeObjectFromPath,
+    lastClickedPath,
+    paths,
+    playerColour,
+    playerCountry,
+    populateWarResultPopup,
+    removeSiegeImageFromPath,
+    retreatButtonState,
+    setAdvanceButtonState,
+    setAdvanceButtonText,
+    setArmyTextValues,
+    setAttackProbabilityOnUI,
+    setCurrentMapColorAndStrokeArrayFromExternal,
+    setCurrentWarFlagString,
+    setDefendingTerritoryCopyStart,
+    setFirstSetOfRounds,
+    setFlag,
+    setRetreatButtonState,
+    setRetreatButtonText,
+    setTerritoryAboutToBeAttackedFromExternal,
+    setUpResultsOfWarExternal
 } from './ui.js';
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
 export let proportionsOfAttackArray = [];
-let reuseableAttackingAverageDevelopmentIndex;
-let reuseableCombatContinentModifier;
+let reusableAttackingAverageDevelopmentIndex;
+let reusableCombatContinentModifier;
 export let turnsDeactivatedArray = [];
 
 export let currentRound = 1;
@@ -89,7 +86,7 @@ const armyTypeSiegeValues = {
 
 const hitIterations = 10; //number of loops to determine hit for siege
 
-export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
+export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
   if (reCalculationWithinBattle) {
     const attackedTerritoryId = defendingTerritoryId;
 
@@ -127,14 +124,12 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
 
     const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === attackedTerritoryId);
 
-    let modifiedAttackingStrength = totalAttackingStrength * reuseableAttackingAverageDevelopmentIndex; //more advanced attackers will have it easier to attack
-    modifiedAttackingStrength = modifiedAttackingStrength * reuseableCombatContinentModifier;
+    let modifiedAttackingStrength = totalAttackingStrength * reusableAttackingAverageDevelopmentIndex; //more advanced attackers will have it easier to attack
+    modifiedAttackingStrength = modifiedAttackingStrength * reusableCombatContinentModifier;
 
     const modifiedDefendingStrengthWithArea = totalDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
 
-    const probability = (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
-
-    return probability;
+    return (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
   } else {
         // Initialize the modifiedAttackArray with the first element
         finalAttackArray = [attackArray[0]];
@@ -168,7 +163,7 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
         const navalCounts = [];
 
         const combatContinentModifier = calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesAndResources);
-        reuseableCombatContinentModifier = combatContinentModifier;
+        reusableCombatContinentModifier = combatContinentModifier;
 
         // Loop through the attacks array and extract the values for each attacking territory
         for (let i = 0; i < attacks.length; i += 5) {
@@ -219,28 +214,17 @@ export function calculateProbabiltyPreBattle(attackArray, mainArrayOfTerritories
             return sum + parseFloat(territory.devIndex);
         }, 0) / attackingTerritories.length;
 
-        reuseableAttackingAverageDevelopmentIndex = attackingDevelopmentIndex;
+        reusableAttackingAverageDevelopmentIndex = attackingDevelopmentIndex;
 
         let modifiedAttackingStrength = totalAttackingStrength * attackingDevelopmentIndex; //more advanced attackers will have it easier to attack
 
         modifiedAttackingStrength = modifiedAttackingStrength * combatContinentModifier; //attacking on certain continents can be harder due to many islands or infrastructure issues
 
-        // Consider territory area weight
-        const defendingTerritoryArea = defendingTerritory.area;
-
-        // Calculate the normalized area weight for the defending territory with bonus
-        let areaWeightDefender = Math.min(1, maxAreaThreshold / defendingTerritoryArea);
-
-        // Adjust the area weight to gradually increase for smaller territories
-        areaWeightDefender = 1 + (areaWeightDefender - 1) * 0.5;
-
         // Adjust the defending strength based on the area weight
         const modifiedDefendingStrengthWithArea = totalDefendingStrength * calculateAreaBonus(defendingTerritory, maxAreaThreshold);
 
         // Calculate probability with area weight adjustment
-        const probability = (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
-
-        return probability;
+      return (modifiedAttackingStrength / (modifiedAttackingStrength + modifiedDefendingStrengthWithArea)) * 100;
     }
 }
 
@@ -308,10 +292,10 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
   // Calculate the proportions of attacking units per territory
   for (let i = 0; i < proportionsOfAttackArray.length; i++) {
     const territoryData = proportionsOfAttackArray[i];
-    const infantryPercentage = totalInfantryCount !== 0 ? parseFloat((territoryData[1] / totalInfantryCount) * 100) : 0;
-    const assaultPercentage = totalAssaultCount !== 0 ? parseFloat((territoryData[2] / totalAssaultCount) * 100) : 0;
-    const airPercentage = totalAirCount !== 0 ? parseFloat((territoryData[3] / totalAirCount) * 100) : 0;
-    const navalPercentage = totalNavalCount !== 0 ? parseFloat((territoryData[4] / totalNavalCount) * 100) : 0;
+    const infantryPercentage = totalInfantryCount !== 0 ? (territoryData[1] / totalInfantryCount) * 100 : 0;
+    const assaultPercentage = totalAssaultCount !== 0 ? (territoryData[2] / totalAssaultCount) * 100 : 0;
+    const airPercentage = totalAirCount !== 0 ? (territoryData[3] / totalAirCount) * 100 : 0;
+    const navalPercentage = totalNavalCount !== 0 ? (territoryData[4] / totalNavalCount) * 100 : 0;
 
     proportionsOfAttackArray[i] = [territoryData[0], infantryPercentage, assaultPercentage, airPercentage, navalPercentage];
   }
@@ -346,7 +330,7 @@ if (hasSiegedBefore) {
 } else {
   defendingArmyRemaining = [...totalDefendingArmy];
 }
-updatedProbability = calculateProbabiltyPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
+updatedProbability = calculateProbabilityPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
 }
 
   function calculateAreaBonus(defendingTerritory, maxAreaThreshold) {
@@ -560,8 +544,8 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
   contestedPath.style.strokeDasharray = "10, 5";
   contestedPath.setAttribute("stroke-width", "3");
 
-  setterritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
-  setcurrentMapColorAndStrokeArrayFromExternal(tempArray);
+  setTerritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
+  setCurrentMapColorAndStrokeArrayFromExternal(tempArray);
 
   //set deactivated in main array
   for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
@@ -691,7 +675,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
   console.log("Defending Naval Left:", defendingArmyRemaining[3], "out of", totalDefendingArmy[3]);
   console.log("Combined Attack Force: " + combinedForceAttack + " Defence Force: " + combinedForceDefend);
 
-  updatedProbability = calculateProbabiltyPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+  updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
   console.log("New probability for next round is:", updatedProbability);
 
   if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && currentRound !== 0) {
@@ -725,7 +709,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
         initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
 
-        updatedProbability = calculateProbabiltyPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+        updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
 
         skirmishesPerType = [
           Math.min(attackArmyRemaining[0], defendingArmyRemaining[0]),
@@ -753,7 +737,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
 function calculateCombinedForce(army) {
   const [infantry, assault, air, naval] = army;
   return infantry + (assault * vehicleArmyWorth.assault) + (air * vehicleArmyWorth.air) + (naval * vehicleArmyWorth.naval);
-};
+}
 
 
   export function getCurrentRound() {
@@ -766,10 +750,6 @@ function calculateCombinedForce(army) {
 
   export function getUpdatedProbability() {
     return updatedProbability;
-  }
-
-  export function setUpdatedProbability(value) {
-    return updatedProbability = value;
   }
 
   export function getRoutStatus() {
@@ -790,10 +770,6 @@ function calculateCombinedForce(army) {
 
   export function getCurrentWarId() {
     return currentWarId;
-  }
-
-  export function getNextWarId() {
-    return nextWarId;
   }
 
   export function setCurrentWarId(value) {
@@ -886,10 +862,6 @@ function calculateCombinedForce(army) {
     console.log(historicWars);
   }
 
-  export function getDefendingTerritory() {
-    return defendingTerritory;
-  }
-
   function getStrokeColorOfDefendingTerritory(defendingTerritory) {
     for (let i = 0; i < paths.length; i++) {
       if (paths[i].getAttribute("uniqueid") === defendingTerritory.uniqueId) {
@@ -962,7 +934,8 @@ export function calculateSiegePerTurn() {
     
       let damage = [];
 
-      hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = false; 
+      // noinspection JSUnusedAssignment
+        hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = false;
 
       if (!damage) { //if no hit
         return;

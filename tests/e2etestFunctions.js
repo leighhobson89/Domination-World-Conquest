@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 const { By } = require('selenium-webdriver');
 const PLAYER_COLOUR = "rgb(255,255,255)";
 

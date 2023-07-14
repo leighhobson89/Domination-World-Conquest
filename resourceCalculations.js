@@ -1734,7 +1734,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         if (j === 1 || j === 3 || j === 8) {
                             column.style.width = "5%";
                         }
-                        if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
+                        if (j === 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
                             column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                             column.style.whiteSpace = "nowrap";
