@@ -72,10 +72,10 @@ describe('Military Tests', function () {
       let attackedPathUniqueIdColorAndName = await clickUIToSetUpAttack(driver, pathArgument);
       await validateAttackWindow(driver);
       let attackValues = await addMaxArmyAndClickInvade(driver);
-      let succesfulSiege = await doAttack(driver, attackValues, true);
-      if (succesfulSiege === 1) { //siege code
+      let successfulSiege = await doAttack(driver, attackValues, true);
+      if (successfulSiege === 1) { //siege code
         //validate siege image on screen
-        validateSiegeImageOnPath(driver, attackedPathUniqueIdColorAndName);
+        await validateSiegeImageOnPath(driver, attackedPathUniqueIdColorAndName);
         //validate color and stroke of attacked territory
       } else {
         console.log("Unfortunately the siege was not possible due to the outcome of the battle, please try again.");

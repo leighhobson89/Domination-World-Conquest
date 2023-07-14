@@ -49,7 +49,6 @@ export let totalGoldPrice = 0;
 export let totalConsMats = 0;
 export let totalPurchaseGoldPrice = 0;
 export let totalPopulationCost = 0;
-export let totalOilCapacity = 0;
 export let capacityArray;
 export let demandArray;
 export let countryStrengthsArray;
@@ -281,7 +280,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     territoryName = path.getAttribute("territory-name");
                     initialCalculationTerritory = path;
                     isCoastal = path.getAttribute("isCoastal");
-                    isCoastal = (isCoastal === "true") ? true : false;
+                    isCoastal = (isCoastal === "true");
                     isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
                     mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
                 }
@@ -366,8 +365,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         return b.defenseBonus - a.defenseBonus;
     });
 
-    for (var i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        var territory = mainArrayOfTerritoriesAndResources[i];
+    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+        const territory = mainArrayOfTerritoriesAndResources[i];
         console.log(territory.defenseBonus + ", " + territory.territoryName);
     }
     
@@ -454,7 +453,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
 
     //continent modifier or possibly handle upgrades in future
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        //set each turn so that we can make exceptions ater due to upgrades when introduced that code but HC for now
+        //set each turn so that we can make exceptions after due to upgrades when introduced that code but HC for now
         if (mainArrayOfTerritoriesAndResources[i].continent === "Europe") {
             mainArrayOfTerritoriesAndResources[i].continentModifier = 1;
         } else if (mainArrayOfTerritoriesAndResources[i].continent === "North America") {
@@ -517,7 +516,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     }
                     
                 }
-            } else if (changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
+            } else if (changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
                 changeDuringSiege = false;
                 let siegeTerritory;
                 for (const key in siegeObject) {
@@ -622,7 +621,7 @@ function calculateGoldChange(territory, isSimulation) {
         const modifier = areaScalingFactor * populationScalingFactor;
         goldChange = Math.ceil(goldIncome / modifier) * 0.2;
 
-        const minGoldChange = -800; //this will lift up small countries gold
+        const minGoldChange = -800; //this will lift small countries gold
         const maxGoldChange = 1000; //increasing this will push down large countries
 
         const normalizedGoldChange = (goldChange - minGoldChange) / (maxGoldChange - minGoldChange);
@@ -718,7 +717,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
             populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
             if (cameFromSiege) {
                 randomHitArmy = Math.random();
-                randomHitArmy = randomHitArmy > 0.3 ? true : false;
+                randomHitArmy = randomHitArmy > 0.3;
             }
         } else {
             // Growth situation
@@ -730,7 +729,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
 
         const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation - populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
 
-        if (simulatedProductiveTerritoryPop < 0 || (cameFromSiege && randomHitArmy)) { //if large army and not enough prodpop, then starve army instead of population
+        if (simulatedProductiveTerritoryPop < 0 || (cameFromSiege && randomHitArmy)) { //if large army and not enough prod-pop, then starve army instead of population
             if (cameFromSiege) {
                 const proportion = territory.armyForCurrentTerritory / territory.territoryPopulation;
                 populationChange = Math.floor(proportion * populationChange) * 10; //factor may have to change
@@ -955,10 +954,10 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(situation
 
     //write new data to top table
     document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
-    document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil);
-    document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood);
-    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
+    document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil).toString();
+    document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood).toString();
+    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats).toString();
     document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
     document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
@@ -968,20 +967,20 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     if (userClickingANewTerritory) {
         colourTableText(document.getElementById("bottom-table"), territory);
         document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
         document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
         document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
     } else { //turn update resources for selected territory
         colourTableText(document.getElementById("bottom-table"), territory);
         document.getElementById("bottom-table").rows[0].cells[1].innerHTML = reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + territory.continent + ")";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory);
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
         document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
         document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
@@ -1122,81 +1121,81 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
         // Create columns
         for (let j = 0; j < countryGainsHeaderColumns.length; j++) {
-            const countryGainscolumn = document.createElement("div");
-            countryGainscolumn.classList.add("ui-table-column");
+            const countryGainsColumn = document.createElement("div");
+            countryGainsColumn.classList.add("ui-table-column");
 
             if (j === 0) {
-                countryGainscolumn.style.width = "55%";
+                countryGainsColumn.style.width = "55%";
                 // Set the value of the first column to a custom value
-                countryGainscolumn.textContent = playerCountry;
+                countryGainsColumn.textContent = playerCountry;
             } else {
-                countryGainscolumn.classList.add("centerIcons");
+                countryGainsColumn.classList.add("centerIcons");
                 let displayText;
                 switch (j) {
                     case 1:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changePop);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changePop);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changePop);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changePop);
                         break;
                     case 2:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeGold);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeGold);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeGold);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeGold);
                         break;
                     case 3:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOil);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeOil);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOil);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeOil);
                         break;
                     case 4:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilCapacity);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeOilCapacity);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilCapacity);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeOilCapacity);
                         break;
                     case 5:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilDemand);
-                        setGainsRowTextColor(countryGainscolumn, -turnGainsArrayLastTurn.changeOilDemand); // Reverse sign
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeOilDemand);
+                        setGainsRowTextColor(countryGainsColumn, -turnGainsArrayLastTurn.changeOilDemand); // Reverse sign
                         break;
                     case 6:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFood);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeFood);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFood);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeFood);
                         break;
                     case 7:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodCapacity);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeFoodCapacity);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodCapacity);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeFoodCapacity);
                         break;
                     case 8:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodConsumption);
-                        setGainsRowTextColor(countryGainscolumn, -turnGainsArrayLastTurn.changeFoodConsumption); // Reverse sign
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeFoodConsumption);
+                        setGainsRowTextColor(countryGainsColumn, -turnGainsArrayLastTurn.changeFoodConsumption); // Reverse sign
                         break;
                     case 9:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMats);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeConsMats);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMats);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeConsMats);
                         break;
                     case 10:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMatsCapacity);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeConsMatsCapacity);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeConsMatsCapacity);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeConsMatsCapacity);
                         break;
                     case 11:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeArmy);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeArmy);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeArmy);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeArmy);
                         break;
                     case 12:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeInfantry);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeInfantry);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeInfantry);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeInfantry);
                         break;
                     case 13:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAssault);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeAssault);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAssault);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeAssault);
                         break;
                     case 14:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAir);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeAir);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeAir);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeAir);
                         break;
                     case 15:
-                        countryGainscolumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeNaval);
-                        setGainsRowTextColor(countryGainscolumn, turnGainsArrayLastTurn.changeNaval);
+                        countryGainsColumn.textContent = formatNumbersToKMB(turnGainsArrayLastTurn.changeNaval);
+                        setGainsRowTextColor(countryGainsColumn, turnGainsArrayLastTurn.changeNaval);
                         break;
                 }
             }
 
-            countryGainsRow.appendChild(countryGainscolumn);
+            countryGainsRow.appendChild(countryGainsColumn);
         }
 
         table.appendChild(countryGainsRow);
@@ -1241,16 +1240,16 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 countrySummaryHeaderColumn.style.marginLeft = "10px";
             }
         } else {
-            if (summaryTerritoryArmySiegesTable == 3 && (j === 1 || j === 3 || j === 8)) {
+            if (summaryTerritoryArmySiegesTable === 3 && (j === 1 || j === 3 || j === 8)) {
                 countrySummaryHeaderColumn.style.width = "5%";
             }
-            if (summaryTerritoryArmySiegesTable == 3 && (j === 2)) {
+            if (summaryTerritoryArmySiegesTable === 3 && (j === 2)) {
                 countrySummaryHeaderColumn.style.width = "12%"; 
             }
-            if (summaryTerritoryArmySiegesTable == 3 && (j === 4 || j === 9)) {
+            if (summaryTerritoryArmySiegesTable === 3 && (j === 4 || j === 9)) {
                 countrySummaryHeaderColumn.style.width = "10%"; 
             }
-            if (summaryTerritoryArmySiegesTable == 3 && (j === 5 || j === 6 || j === 7 || j === 10 || j === 11 || j === 12 )) {
+            if (summaryTerritoryArmySiegesTable === 3 && (j === 5 || j === 6 || j === 7 || j === 10 || j === 11 || j === 12 )) {
                 countrySummaryHeaderColumn.style.width = "8%"; 
             }
             countrySummaryHeaderColumn.classList.add("centerIcons");
@@ -1300,78 +1299,78 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
         // Create columns
         for (let j = 0; j < countrySummaryHeaderColumns.length; j++) {
-            const countrySummarycolumn = document.createElement("div");
-            countrySummarycolumn.classList.add("ui-table-column");
+            const countrySummaryColumn = document.createElement("div");
+            countrySummaryColumn.classList.add("ui-table-column");
 
             if (j === 0) {
-                countrySummarycolumn.style.width = "55%";
+                countrySummaryColumn.style.width = "55%";
                 // Set the value of the first column to a custom value
-                countrySummarycolumn.textContent = playerCountry;
+                countrySummaryColumn.textContent = playerCountry;
             } else {
-                countrySummarycolumn.classList.add("centerIcons");
+                countrySummaryColumn.classList.add("centerIcons");
                 let displayText;
                 switch (j) {
                     case 1:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalPop);
                         break;
                     case 2:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalGold);
                         break;
                     case 3:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalOil);
                         break;
                     case 4:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(capacityArray.totalOilCapacity);
                         break;
                     case 5:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(demandArray.totalOilDemand);
                         break;
                     case 6:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalFood);
                         break;
                     case 7:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(capacityArray.totalFoodCapacity);
                         break;
                     case 8:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(demandArray.totalFoodConsumption);
                         break;
                     case 9:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalConsMats);
                         break;
                     case 10:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(capacityArray.totalConsMatsCapacity);
                         break;
                     case 11:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
                         break;
                     case 12:
-                        countrySummarycolumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
+                        countrySummaryColumn.textContent = formatNumbersToKMB(totalPlayerResources[0].totalInfantry);
                         break;
                     case 13:
                         const useableAssault = formatNumbersToKMB(totalPlayerResources[0].totalUseableAssault);
                         const assault = formatNumbersToKMB(totalPlayerResources[0].totalAssault);
                         displayText = (totalPlayerResources[0].totalUseableAssault < totalPlayerResources[0].totalAssault) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAssault}</span>` : useableAssault;
                         displayText += `/${assault}`;
-                        countrySummarycolumn.innerHTML = displayText;
+                        countrySummaryColumn.innerHTML = displayText;
                         break;
                     case 14:
                         const useableAir = formatNumbersToKMB(totalPlayerResources[0].totalUseableAir);
                         const air = formatNumbersToKMB(totalPlayerResources[0].totalAir);
                         displayText = (totalPlayerResources[0].totalUseableAir < totalPlayerResources[0].totalAir) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableAir}</span>` : useableAir;
                         displayText += `/${air}`;
-                        countrySummarycolumn.innerHTML = displayText;
+                        countrySummaryColumn.innerHTML = displayText;
                         break;
                     case 15:
                         const useableNaval = formatNumbersToKMB(totalPlayerResources[0].totalUseableNaval);
                         const naval = formatNumbersToKMB(totalPlayerResources[0].totalNaval);
                         displayText = (totalPlayerResources[0].totalUseableNaval < totalPlayerResources[0].totalNaval) ? `<span style="font-weight: bold; color:rgb(220, 120, 120)">${useableNaval}</span>` : useableNaval;
                         displayText += `/${naval}`;
-                        countrySummarycolumn.innerHTML = displayText;
+                        countrySummaryColumn.innerHTML = displayText;
                         break;
                 }
             }
 
-            countrySummaryRow.appendChild(countrySummarycolumn);
+            countrySummaryRow.appendChild(countrySummaryColumn);
         }
 
         table.appendChild(countrySummaryRow);
@@ -1533,25 +1532,25 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
                         switch (j) {
                             case 1:
-                                column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop);
+                                column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop).toString();
                                 break;
                             case 2:
-                                column.textContent = formatNumbersToKMB(territoryData.territoryPopulation);
+                                column.textContent = formatNumbersToKMB(territoryData.territoryPopulation).toString();
                                 break;
                             case 3:
-                                column.textContent = formatNumbersToKMB(territoryData.area);
+                                column.textContent = formatNumbersToKMB(territoryData.area).toString();
                                 break;
                             case 4:
-                                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory).toString();
                                 break;
                             case 5:
-                                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory).toString();
                                 break;
                             case 6:
-                                column.textContent = Math.ceil(territoryData.foodForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.foodForCurrentTerritory).toString();
                                 break;
                             case 7:
-                                column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.consMatsForCurrentTerritory).toString();
                                 break;
                             case 8:
                                 const upgradeButtonImageElement = document.createElement("img");
@@ -1619,25 +1618,25 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         const territoryData = mainArrayOfTerritoriesAndResources.find(t => t.uniqueId === uniqueId);
                         switch (j) {
                             case 1:
-                                column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory);
+                                column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory).toString();
                                 break;
                             case 2:
-                                column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory);
+                                column.textContent = formatNumbersToKMB(territoryData.infantryForCurrentTerritory).toString();
                                 break;
                             case 3:
-                                column.textContent = formatNumbersToKMB(territoryData.assaultForCurrentTerritory);
+                                column.textContent = formatNumbersToKMB(territoryData.assaultForCurrentTerritory).toString();
                                 break;
                             case 4:
-                                column.textContent = Math.ceil(territoryData.airForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.airForCurrentTerritory).toString();
                                 break;
                             case 5:
-                                column.textContent = Math.ceil(territoryData.navalForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.navalForCurrentTerritory).toString();
                                 break;
                             case 6:
-                                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.goldForCurrentTerritory).toString();
                                 break;
                             case 7:
-                                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory);
+                                column.textContent = Math.ceil(territoryData.oilForCurrentTerritory).toString();
                                 break;
                             case 8:
                                 const buyButtonImageElement = document.createElement("img");
@@ -1742,7 +1741,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.style.color = "rgb(0,235,0)";
                             }
                         }
-                        if (j == 12) {
+                        if (j === 12) {
                             column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                         }
@@ -1858,7 +1857,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         if (j === 1 || j === 3 || j === 8) {
                             column.style.width = "5%";
                         }
-                        if (j == 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
+                        if (j === 4 || j === 5 || j === 6 || j === 7 || j === 9 || j === 10 || j === 11) {
                             column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                             column.style.whiteSpace = "nowrap";
@@ -1866,7 +1865,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.style.color = "rgb(0,235,0)";
                             }
                         }
-                        if (j == 12) {
+                        if (j === 12) {
                             column.style.width = "8%";
                             column.style.color = "rgb(220,120,120)";
                         }
@@ -2304,7 +2303,7 @@ function tooltipUIArmyRow(row, territoryData, event) {
 
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
-        if (currentTurnPhase == 0) {
+        if (currentTurnPhase === 0) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (paths[i].getAttribute("deactivated") === "true") {
@@ -2447,7 +2446,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
 
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
-        if (currentTurnPhase == 0) {
+        if (currentTurnPhase === 0) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (paths[i].getAttribute("deactivated") === "true") {
@@ -2893,11 +2892,11 @@ function populateBuyTable(territory) {
 
         const buyColumn3 = document.createElement("div");
         buyColumn3.classList.add("buy-column");
-        buyColumn3.textContent = 0;
+        buyColumn3.textContent = "0";
 
         const buyColumn4 = document.createElement("div");
         buyColumn4.classList.add("buy-column");
-        buyColumn4.textContent = 0;
+        buyColumn4.textContent = "0";
 
         const buyColumn5 = document.createElement("div");
         buyColumn5.classList.add("buy-column");
@@ -2922,10 +2921,10 @@ function populateBuyTable(territory) {
         const buyColumn5B = document.createElement("div");
         buyColumn5B.classList.add("buy-column");
         buyColumn5B.classList.add("buyColumn5B");
-        const buyTextfield = document.createElement("input");
-        buyTextfield.type = "text";
-        buyTextfield.value = "0";
-        buyColumn5B.appendChild(buyTextfield);
+        const buyTextField = document.createElement("input");
+        buyTextField.type = "text";
+        buyTextField.value = "0";
+        buyColumn5B.appendChild(buyTextField);
 
         const buyColumn5C = document.createElement("div");
         buyColumn5C.classList.add("buy-column");
@@ -2968,13 +2967,13 @@ function populateBuyTable(territory) {
         totalPurchaseGoldPrice += goldCost;
         totalPopulationCost += prodPopulationCost;
 
-        simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, true);
+        simulatedPurchaseCosts = incrementDecrementPurchases(buyTextField, -1, purchaseRow.type, true);
 
         buyImageMinus.addEventListener("click", (e) => {
             if (buyImageMinus.src.includes("resources/minusButton.png")) {
                 tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
-                if (parseInt(buyTextfield.value) > 0) {
-                    simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, -1, purchaseRow.type, false);
+                if (parseInt(buyTextField.value) > 0) {
+                    simulatedPurchaseCosts = incrementDecrementPurchases(buyTextField, -1, purchaseRow.type, false);
                     switch (simulatedPurchaseCosts[2]) {
                         case "Infantry":
                             simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
@@ -3028,7 +3027,7 @@ function populateBuyTable(territory) {
         buyImagePlus.addEventListener("click", (e) => {
             if (buyImagePlus.src.includes("resources/plusButton.png")) {
                 tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
-                simulatedPurchaseCosts = incrementDecrementPurchases(buyTextfield, 1, purchaseRow.type, false);
+                simulatedPurchaseCosts = incrementDecrementPurchases(buyTextField, 1, purchaseRow.type, false);
                 switch (simulatedPurchaseCosts[2]) {
                     case "Infantry":
                         simulatedCostsAllMilitary[0] = simulatedPurchaseCosts[0];
@@ -3135,10 +3134,10 @@ function populateUpgradeTable(territory) {
 
         const column3 = document.createElement("div");
         column3.classList.add("upgrade-column");
-        column3.textContent = 0;
+        column3.textContent = "0";
         const column4 = document.createElement("div");
         column4.classList.add("upgrade-column");
-        column4.textContent = 0;
+        column4.textContent = "0";
 
         const column5 = document.createElement("div");
         column5.classList.add("upgrade-column");
@@ -3460,32 +3459,32 @@ function incrementDecrementUpgrades(textField, increment, upgradeType, territory
             goldBaseCost = 200;
             consMatsBaseCost = 500;
             farmsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * (parseFloat(territory.devIndex / 4)));
+            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * (territory.devIndex / 4));
             break;
         case "Forest":
             currentValueQuantityTemp += forestsBuilt;
             goldBaseCost = 200;
             consMatsBaseCost = 500;
             forestsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
+            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             break;
         case "Oil Well":
             currentValueQuantityTemp += oilWellsBuilt;
             goldBaseCost = 1000;
             consMatsBaseCost = 200;
             oilWellsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
+            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             break;
         case "Fort":
             currentValueQuantityTemp += fortsBuilt;
             goldBaseCost = 500;
             consMatsBaseCost = 2000;
             fortsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex / 4)));
+            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
+            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             break;
     }
 
@@ -3619,14 +3618,14 @@ function calculateTotalConsMats(upgradeTable) {
 
 function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simulatedCostsAllMilitary, buyTable, button) {
 
-    const simulatedgoldElements = [simulatedCostsAllMilitary[0], simulatedCostsAllMilitary[2], simulatedCostsAllMilitary[4], simulatedCostsAllMilitary[6]];
+    const simulatedGoldElements = [simulatedCostsAllMilitary[0], simulatedCostsAllMilitary[2], simulatedCostsAllMilitary[4], simulatedCostsAllMilitary[6]];
     const simulatedProdPopElements = [simulatedCostsAllMilitary[1], simulatedCostsAllMilitary[3], simulatedCostsAllMilitary[5], simulatedCostsAllMilitary[7]];
 
     let amountToAdd;
     let popAmountToAdd;
 
     if (button === "plus") {
-        simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+        simulatedGoldElements.forEach((simulatedGoldElement, index) => {
 
             switch (index) {
                 case 0:
@@ -3703,7 +3702,7 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
             }
         });
     } else if (button === "minus") {
-        simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+        simulatedGoldElements.forEach((simulatedGoldElement, index) => {
 
             switch (index) {
                 case 0:
@@ -3751,11 +3750,13 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
 }
 
 function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
-    const simulatedgoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
+    let column5CImage;
+    let firstRowImage;
+    const simulatedGoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
 
     if (button === "plus") {
-        simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+        simulatedGoldElements.forEach((simulatedGoldElement, index) => {
             if (territory.goldForCurrentTerritory - totalGoldPrice < simulatedGoldElement) {
                 const rowIndex = index + 1;
                 const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
@@ -3801,52 +3802,52 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
         });
         if (type === "Farm") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5B input`).value) + territory.farmsBuilt >= 5) {
-                var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) img`);
+                firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) img`);
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
 
-                var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5C img`);
+                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5C img`);
                 if (!column5CImage.src.includes('Grey.png')) {
                     column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
                 }
             }
         } else if (type === "Forest") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5B input`).value) + territory.forestsBuilt >= 5) {
-                var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) img`);
+                firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) img`);
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5C img`);
+                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5C img`);
                 if (!column5CImage.src.includes('Grey.png')) {
                     column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
                 }
             }
         } else if (type === "Oil Well") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5B input`).value) + territory.oilWellsBuilt >= 5) {
-                var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) img`);
+                firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) img`);
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5C img`);
+                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5C img`);
                 if (!column5CImage.src.includes('Grey.png')) {
                     column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
                 }
             }
         } else if (type === "Fort") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5B input`).value) + territory.fortsBuilt >= 5) {
-                var firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) img`);
+                firstRowImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) img`);
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                var column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5C img`);
+                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5C img`);
                 if (!column5CImage.src.includes('Grey.png')) {
                     column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
                 }
             }
         }
     } else if (button === "minus") {
-        simulatedgoldElements.forEach((simulatedGoldElement, index) => {
+        simulatedGoldElements.forEach((simulatedGoldElement, index) => {
             const rowIndex = index + 1;
             const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
             const upgradeRowTextField = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .column5B input`);
@@ -3992,7 +3993,7 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
             if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
                 //update bottom table for selected territory
-                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
                 document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
                 document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
                 break;
@@ -4001,7 +4002,7 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     }
 
     //update top table for selected territory
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
     document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
 
@@ -4068,16 +4069,16 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
             if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory);
-                document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+                document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
                 break;
             }
         }
     }
 
     //update top table for selected territory
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold);
-    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats);
+    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
+    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats).toString();
 
     //close upgrade window for selected territory
     totalGoldPrice = 0;
