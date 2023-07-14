@@ -470,6 +470,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
+    let changeDuringSiege = false;
     for (const path of paths) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             const defendingTerritoryId = mainArrayOfTerritoriesAndResources[i].uniqueId;
@@ -510,7 +511,8 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 turnGainsArray.changeConsMats += changeConsMats;
                 turnGainsArray.changePop += changePop;
                 turnGainsArray.changeProdPop += changeProdPop;
-            } else { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
+            } else if (!changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say its from a siege
+                changeDuringSiege = true;
                 let siegeTerritory;
                 for (const key in siegeObject) {
                     if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
@@ -523,7 +525,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 changeFood = calculateFoodChange(siegeTerritory, false, true);
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true);
-                changeProdPopTemp = (((siegeTerritory.territoryPopulation / 100) * 45) * siegeTerritory.devIndex);
+                changeProdPopTemp = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
     
                 //mainArrayOfTerritoriesAndResources[i].goldForCurrentTerritory += changeGold;
                 //mainArrayOfTerritoriesAndResources[i].oilForCurrentTerritory += changeOil;
@@ -532,9 +534,15 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 //mainArrayOfTerritoriesAndResources[i].consMatsForCurrentTerritory += changeConsMats;
                 mainArrayOfTerritoriesAndResources[i].territoryPopulation += changePop;
                 mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
-    
+
+                siegeTerritory.defendingTerritory.foodForCurrentTerritory = mainArrayOfTerritoriesAndResources[i].foodForCurrentTerritory;
+                siegeTerritory.defendingTerritory.foodConsumption = mainArrayOfTerritoriesAndResources[i].foodConsumption;
+                siegeTerritory.defendingTerritory.territoryPopulation = mainArrayOfTerritoriesAndResources[i].territoryPopulation;
+                siegeTerritory.defendingTerritory.productiveTerritoryPop = mainArrayOfTerritoriesAndResources[i].productiveTerritoryPop;
+
                 changeProdPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
                 changeProdPop = changeProdPop - changeProdPopTemp;
+                writeBottomTableInformation(mainArrayOfTerritoriesAndResources[i], true, null);
             }
         }
     }
