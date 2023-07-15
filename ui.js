@@ -97,7 +97,7 @@ const continentColorArray = [
 
 let teamColorArray = [];
 const greyOutColor = 'rgb(170, 170, 170)';
-const countryGreyOutThreshold = 11000; //countries under this strength greyed out //40
+const countryGreyOutThreshold = 40000; //countries under this strength greyed out //40
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -5003,6 +5003,7 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
     document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
     defendingTerritory.defenseBonusColor = colorYellow;
   } else {
+      document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
     defendingTerritory.defenseBonusColor = colorGreen;
   }
 
