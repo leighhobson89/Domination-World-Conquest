@@ -300,8 +300,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
             let fortsBuilt = 0;
-            let defenseBonus = Math.ceil(1 + (fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus + (mountainDefense) * 10);
-
+            let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus + (mountainDefense) * 10;
+            let mountainDefenseBonus = defenseBonus;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
@@ -356,7 +356,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 isDeactivated: isDeactivated,
                 isCoastal: isCoastal,
                 isLandLockedBonus: isLandLockedBonus,
-                mountainDefense : mountainDefense
+                mountainDefense : mountainDefense,
+                mountainDefenseBonus : mountainDefenseBonus
             });
         }
     }
@@ -967,23 +968,25 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     if (userClickingANewTerritory) {
         colourTableText(document.getElementById("bottom-table"), territory);
         document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
-        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
+        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
+        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
     } else { //turn update resources for selected territory
         colourTableText(document.getElementById("bottom-table"), territory);
         document.getElementById("bottom-table").rows[0].cells[1].innerHTML = reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + territory.continent + ")";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
-        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
+        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
+        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
     }
 }
 
@@ -3993,9 +3996,9 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
             if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
                 //update bottom table for selected territory
-                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-                document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+                document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
+                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
                 break;
             }
         }
@@ -4069,8 +4072,8 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
         if (mainArrayOfTerritoriesAndResources[i].uniqueId === territory.uniqueId) {
             if (mainArrayOfTerritoriesAndResources[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                document.getElementById("bottom-table").rows[0].cells[3].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-                document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
+                document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
+                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
                 break;
             }
         }
@@ -4201,7 +4204,7 @@ export function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) 
 
             if (mainArray[i].uniqueId === territory.uniqueId) {
                 if (mainArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                    document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
                     break;
                 }
             }

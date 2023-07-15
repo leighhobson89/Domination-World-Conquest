@@ -2219,7 +2219,7 @@ retreatButton.addEventListener('click', function() {
                 } 
             }                
             //update bottom table for defender
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 1: //scatter during round of 5, 30% penalty
             defeatType = "defeat";
@@ -2235,7 +2235,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
             defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender and top table for player
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 2: //defeat
         if (defendingArmyRemaining[4] === 0) { //all out defeat
@@ -2246,7 +2246,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
             defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
         } else if (defendingArmyRemaining[4] === 1) { //routing defeat
             defeatType = "defeat";
             defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
@@ -2255,7 +2255,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
             defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
             //update bottom table for defender
-            document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+            document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
         }
              break;
     }
