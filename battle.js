@@ -34,8 +34,39 @@ import {
     setRetreatButtonState,
     setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
-    setUpResultsOfWarExternal
+    setUpResultsOfWarExternal,
 } from './ui.js';
+
+let transferArmyOutOfTerritoryOnStartingInvasionFn;
+
+function handleImportedModule(module) {
+    const {
+        transferArmyOutOfTerritoryOnStartingInvasion
+    } = module;
+    transferArmyOutOfTerritoryOnStartingInvasionFn = transferArmyOutOfTerritoryOnStartingInvasion;
+}
+
+function importModuleWithTimeout() {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            import('./transferAndAttack.js')
+                .then(module => {
+                    resolve(module);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        }, 1000);
+    });
+}
+
+importModuleWithTimeout()
+    .then(module => {
+        handleImportedModule(module);
+    })
+    .catch(error => {
+        console.log(error);
+    });
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
@@ -780,7 +811,7 @@ function calculateCombinedForce(army) {
     return nextWarId = value;
   }
 
-  export function addRemoveWarSiegeObject(addOrRemove, warId) {
+  export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     let proportionsAttackers = proportionsOfAttackArray;
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
@@ -805,6 +836,8 @@ function calculateCombinedForce(army) {
         startingProdPop: startingProdPop,
         startingTerritoryPop: startingTerritoryPop
       };
+
+      battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainArrayOfTerritoriesAndResources) : null;
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
 
