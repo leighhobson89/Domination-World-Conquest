@@ -2160,7 +2160,7 @@ siegeButton.addEventListener('mouseout', function() {
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
 
     if (!currentWarAlreadyInSiegeMode) {
-      let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId); // add to siege
+      let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId, battleStart); // add to siege
       let mainArrayElementForSiege = setMainArrayToArmyRemaining(getSiegeObjectFromObject(territoryToAddToSiege));
       writeBottomTableInformation(mainArrayElementForSiege, true, null);
 
@@ -2403,7 +2403,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     
     setupBattleUI(siegeAttackArray);
     setTimeout(function() {
-        eventHandlerExecuted = false; // Reset the flag after a delay
+        eventHandlerExecuted = false;
     }, 200);
 });
 
@@ -3449,7 +3449,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       }
                   }
                   setTimeout(function() {
-                      eventHandlerExecuted = false; // Reset the flag after a delay
+                      eventHandlerExecuted = false;
                   }, 200);
                   return;
 
@@ -3464,7 +3464,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setupSiegeUI(territoryAboutToBeAttackedOrSieged);
 
                         setTimeout(function() {
-                            eventHandlerExecuted = false; // Reset the flag after a delay
+                            eventHandlerExecuted = false;
                         }, 200);
                       }
                   } else if (transferAttackWindowOnScreen) {
@@ -3485,7 +3485,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     toggleUIButton(true);
                     toggleBottomLeftPaneWithTurnAdvance(true);
                     setTimeout(function() {
-                        eventHandlerExecuted = false; // Reset the flag after a delay
+                        eventHandlerExecuted = false;
                     }, 200);
                     return;
                   } else if (transferAttackButtonState === 1) {
@@ -3496,7 +3496,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackWindow(false);
                         transferAttackWindowOnScreen = false;
                         toggleBattleUI(true, false);
-                        enableDisableSiegeButton(0); //disable siege button at start
+                        enableDisableSiegeButton(0);
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
@@ -3504,7 +3504,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setupBattleUI(getFinalAttackArray());
                         battleUIDisplayed = true;
                         setTimeout(function() {
-                            eventHandlerExecuted = false; // Reset the flag after a delay
+                            eventHandlerExecuted = false;
                         }, 200);
                     } else if (button.innerHTML === "CANCEL") {
                         setAttackProbabilityOnUI(0, 0);
@@ -3528,14 +3528,14 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleBottomLeftPaneWithTurnAdvance(true);
                       }
                       setTimeout(function() {
-                          eventHandlerExecuted = false; // Reset the flag after a delay
+                          eventHandlerExecuted = false;
                       }, 200);
                       return;
                   }
               }
           }
           setTimeout(function() {
-              eventHandlerExecuted = false; // Reset the flag after a delay
+              eventHandlerExecuted = false;
           }, 200);
       }
   }
