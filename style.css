@@ -96,7 +96,7 @@ td {
   border: none;
   table-layout: fixed;
   width: 100%;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
 }
 
 #bottom-table td {
@@ -107,8 +107,8 @@ td {
   font-weight: normal;
 }
 
-#bottom-table td:first-child {
-  width: 25%;
+#bottom-table td:nth-child(2) {
+  width: 7%;
   text-align: left;
   font-size: 0.90rem;
   font-weight: normal;
@@ -116,7 +116,7 @@ td {
 
 #bottom-table td:last-child {
   text-align: left;
-  width: 2% !important;
+  width: 3% !important;
 }
 
 #menu-container {
