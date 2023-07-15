@@ -1730,7 +1730,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     
                         const image = document.createElement("img");
                         image.classList.add("sizingIcons");
-                        image.src = "/resources/siege.png";
+                        image.src = "./resources/siege.png";
                         column.appendChild(image);
                     } else {
                         if (j === 1 || j === 3 || j === 8) {
@@ -1847,13 +1847,13 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         image.classList.add("sizingIcons");
                         
                         if (outcomeOfWar === "Victory") {
-                            image.src = "/resources/victory.png";
+                            image.src = "./resources/victory.png";
                         } else if (outcomeOfWar === "Defeat") {
-                            image.src = "/resources/defeat.png";
+                            image.src = "./resources/defeat.png";
                         } else if (outcomeOfWar === "Retreat") {
-                            image.src = "/resources/retreat.png";
+                            image.src = "./resources/retreat.png";
                         } else if (outcomeOfWar === "Arrested") {
-                            image.src = "/resources/arrest.png";
+                            image.src = "./resources/arrest.png";
                         }
                         column.appendChild(image);
                     } else {
