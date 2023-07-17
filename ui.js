@@ -4180,6 +4180,7 @@ function toggleUIButton(makeVisible) {
     //SET SIEGE ROW 4
     let siegeScore = calculateSiegeScore(siegeObjectElement);
     setSiegeScoreText(siegeScore, 0);
+    document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege").style.color = "rgb(255,255,255)";
     let difference = siegeScore - (siegeObjectElement.defendingTerritory.defenseBonus + siegeObjectElement.defendingTerritory.mountainDefenseBonus);
     if (difference <= 0) {
         document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(245,128,128)";
