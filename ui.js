@@ -1,5 +1,10 @@
 import {findMatchingCountries} from './manualExceptionsForInteractions.js';
-import {currentTurnPhase, initialiseGame as initialiseGame, modifyCurrentTurnPhase} from './gameTurnsLoop.js';
+import {
+    currentTurn,
+    currentTurnPhase,
+    initialiseGame as initialiseGame,
+    modifyCurrentTurnPhase
+} from './gameTurnsLoop.js';
 import {
     addPlayerPurchases,
     addPlayerUpgrades,
@@ -65,7 +70,9 @@ import {
     siegeObject,
     skirmishesPerRound,
     turnsDeactivatedArray,
-    calculateSiegeScore
+    calculateSiegeScore,
+    retrievalArray,
+    addAttackingArmyToRetrievalArray
 } from './battle.js';
 
 let currentlySelectedColorsArray = [];
@@ -2244,6 +2251,10 @@ retreatButton.addEventListener('click', function() {
         case 0: //before battle or between rounds of 5 - no penalty
         defeatType = "retreat"; //also pull out from siege before starting assault
             if (!battleStart) {
+                //new code
+                retrievalArray.push([getCurrentWarId(), addAttackingArmyToRetrievalArray(getAttackingArmyRemaining(), proportionsOfAttackArray), currentTurn]);
+                console.log (retrievalArray);
+                //end of new code
                 assignProportionsToTerritories(proportionsOfAttackArray, getAttackingArmyRemaining(), mainArrayOfTerritoriesAndResources);
                 proportionsOfAttackArray.length = 0;
                 //update top table army value when leaving battle
