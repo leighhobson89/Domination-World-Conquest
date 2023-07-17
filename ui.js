@@ -2315,7 +2315,9 @@ advanceButton.addEventListener('click', function() {
                 setAdvanceButtonText(0, advanceButton);
                 setCurrentRound(1);
                 let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-                setArmyTextValues(attackArrayText, 1);
+                let defendingUniqueId = getFinalAttackArray();
+                defendingUniqueId = defendingUniqueId[0];
+                setArmyTextValues(attackArrayText, 1, defendingUniqueId);
                 let updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
                 let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
@@ -2388,6 +2390,8 @@ siegeBottomBarButton.addEventListener('click', function() {
     //"assault" i.e. return to battle state
     //remove siege status
     let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
+    setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 1);
+    setArmyTextValues(war, 3, territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
     setCurrentWarId(war.warId);
     addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
     removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
@@ -3457,11 +3461,12 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setValuesForBattleFromSiegeObject(lastClickedPath);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
-                        setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath);
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
 
                         setupSiegeUI(territoryAboutToBeAttackedOrSieged);
+
+                        setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 0);
 
                         setTimeout(function() {
                             eventHandlerExecuted = false;
@@ -3502,6 +3507,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         attackTextCurrentlyDisplayed = false;
                         setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
                         setupBattleUI(getFinalAttackArray());
+                        setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);
                         battleUIDisplayed = true;
                         setTimeout(function() {
                             eventHandlerExecuted = false;
@@ -4102,7 +4108,7 @@ function toggleUIButton(makeVisible) {
     prepareProbabilityBar(1, probBarAdded);
 
     //SET ARMY TEXT VALUES
-    setArmyTextValues(siegeObjectElement, 2);
+    setArmyTextValues(siegeObjectElement, 2, siegeObjectElement.defendingTerritory.uniqueId);
 
     //SET DEFENSE BONUS VALUE
     document.getElementById("defenceBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
@@ -4206,10 +4212,8 @@ function toggleUIButton(makeVisible) {
 
     //SET ARMY TEXT VALUES
     let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
-    if (hasSiegedBefore) {
-        setArmyTextValues(war, 2);
-    } else {
-        setArmyTextValues(attackArray, 0);
+    if (!hasSiegedBefore) {
+        setArmyTextValues(attackArray, 0, defenderTerritory.getAttribute("uniqueid"));
     }
 
     //SET DEFENSE BONUS VALUE
@@ -4276,9 +4280,13 @@ function setTitleTextBattleUI(attacker, defender, attackSiege) {
     }
 }
 
-export function setArmyTextValues(attackArray, situation) {
+export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
     let totalAttackingArmy = [0,0,0,0];
     let totalDefendingArmy = [0,0,0,0];
+    let startingAssault;
+    let startingAir;
+    let startingNaval;
+
     if (situation === 0) { //pre battle
          //get attacking army
         for (let i = 1; i < attackArray.length; i+= 5) {
@@ -4295,7 +4303,7 @@ export function setArmyTextValues(attackArray, situation) {
         
         //get defending army
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            if (mainArrayOfTerritoriesAndResources[i].uniqueId === attackArray[0]) { //any player territory to get country name
+            if (mainArrayOfTerritoriesAndResources[i].uniqueId === defendingUniqueId) { //any player territory to get country name
                 const infantryCount = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
                 const assaultCount = mainArrayOfTerritoriesAndResources[i].useableAssault;
                 const airCount = mainArrayOfTerritoriesAndResources[i].useableAir;
@@ -4318,7 +4326,6 @@ export function setArmyTextValues(attackArray, situation) {
         totalDefendingArmy[1] = attackArray[5];
         totalDefendingArmy[2] = attackArray[6];
         totalDefendingArmy[3] = attackArray[7];
-
     } else if (situation === 2) { //return from siege
 
         totalAttackingArmy[0] = attackArray.attackingArmyRemaining[0];
@@ -4331,6 +4338,18 @@ export function setArmyTextValues(attackArray, situation) {
         totalDefendingArmy[2] = attackArray.defendingArmyRemaining[2];
         totalDefendingArmy[3] = attackArray.defendingArmyRemaining[3];
 
+        startingAssault = attackArray.startingDef[1];
+        startingAir = attackArray.startingDef[2];
+        startingNaval = attackArray.startingDef[3];
+    } else if (situation === 3) { //return from siege, click assault
+        totalDefendingArmy[0] = attackArray.defendingArmyRemaining[0];
+        totalDefendingArmy[1] = attackArray.defendingArmyRemaining[1];
+        totalDefendingArmy[2] = attackArray.defendingArmyRemaining[2];
+        totalDefendingArmy[3] = attackArray.defendingArmyRemaining[3];
+
+        startingAssault = attackArray.startingDef[1];
+        startingAir = attackArray.startingDef[2];
+        startingNaval = attackArray.startingDef[3];
     }
 
     document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0]);
@@ -4338,9 +4357,16 @@ export function setArmyTextValues(attackArray, situation) {
     document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2]);
     document.getElementById("armyRowRow2Quantity4").innerHTML = formatNumbersToKMB(totalAttackingArmy[3]);
     document.getElementById("armyRowRow2Quantity5").innerHTML = formatNumbersToKMB(totalDefendingArmy[0]);
-    document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
-    document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
-    document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
+    if (situation === 2) {
+        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]) + " / " + startingAssault;
+        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]) + " / " + startingAir;
+        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]) + " / " + startingNaval;
+    } else {
+        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
+        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
+        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
+    }
+
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
 }
 
@@ -4967,95 +4993,120 @@ export function setUpResultsOfWarExternal(value) {
     }
 }
 
-function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath) {
-  let siegeObject = getSiegeObjectFromPath(lastClickedPath);
-  
-  const defendingTerritory = siegeObject.defendingTerritory;
-  const defendingArmyRemaining = siegeObject.defendingArmyRemaining;
-  const startingDef = siegeObject.startingDef;
-
-  const colorGreen = "rgb(0, 255, 0)";
-  const colorYellow = "rgb(255, 255, 0)";
-  const colorOrange = "rgb(255, 165, 0)";
-  const colorRed = "rgb(245,128,128)";
-
-  // Calculate the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
-  const startingDefenseBonus = siegeObject.startingDefenseBonus;
-  const startingProdPop = siegeObject.startingTerritoryPop;
-  const startingFoodCapacity = siegeObject.startingFoodCapacity;
-
-  const defenseBonus = defendingTerritory.defenseBonus;
-  const foodCapacity = defendingTerritory.foodCapacity;
-  const productiveTerritoryPop = defendingTerritory.territoryPopulation;
-
-  const defenseBonusPercentage = (defenseBonus / startingDefenseBonus) * 100;
-  const foodCapacityPercentage = (foodCapacity / startingFoodCapacity) * 100;
-  const productiveTerritoryPopPercentage = (productiveTerritoryPop / startingProdPop) * 100;
-
-  // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
-  if (defenseBonusPercentage <= 25) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
-    defendingTerritory.defenseBonusColor = colorRed;
-  } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
-    defendingTerritory.defenseBonusColor = colorOrange;
-  } else if (defenseBonusPercentage >50 && defenseBonusPercentage <= 75) {
-    document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
-    defendingTerritory.defenseBonusColor = colorYellow;
-  } else {
-      document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
-    defendingTerritory.defenseBonusColor = colorGreen;
-  }
-
-  if (foodCapacityPercentage <= 25) {
-    defendingTerritory.foodCapacityColor = colorRed;
-  } else if (foodCapacityPercentage > 25 && foodCapacityPercentage <= 50) {
-    defendingTerritory.foodCapacityColor = colorOrange;
-  } else if (foodCapacityPercentage > 50 && foodCapacityPercentage <= 75) {
-    defendingTerritory.foodCapacityColor = colorYellow;
-  } else {
-    defendingTerritory.foodCapacityColor = colorGreen;
-  }
-
-  if (productiveTerritoryPopPercentage <= 25) {
-    defendingTerritory.productiveTerritoryPopColor = colorRed;
-  } else if (productiveTerritoryPopPercentage > 25 && productiveTerritoryPopPercentage <= 50) {
-    defendingTerritory.productiveTerritoryPopColor = colorOrange;
-  } else if (productiveTerritoryPopPercentage > 50 && productiveTerritoryPopPercentage <= 75) {
-    defendingTerritory.productiveTerritoryPopColor = colorYellow;
-  } else {
-    defendingTerritory.productiveTerritoryPopColor = colorGreen;
-  }
-
-  // Calculate the percentages for defendingArmyRemaining
-  const remainingPercentages = defendingArmyRemaining.map((remaining, index) => {
-    return (remaining / startingDef[index]) * 100;
-  });
-
-  // Apply colors based on the percentages for defendingArmyRemaining
-  const elements = [
-    document.getElementById("armyRowRow2Quantity5"),
-    document.getElementById("armyRowRow2Quantity6"),
-    document.getElementById("armyRowRow2Quantity7"),
-    document.getElementById("armyRowRow2Quantity8"),
-  ];
-
-  for (let i = 0; i < elements.length; i++) {
-    const element = elements[i];
-    const percentage = remainingPercentages[i];
-
-    if (percentage <= 25) {
-      element.style.color = colorRed;
-    } else if (percentage > 25 && percentage <= 50) {
-      element.style.color = colorOrange;
-    } else if (percentage > 50 && percentage <= 75) {
-      element.style.color = colorYellow;
+function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
+    let siegeObject = getSiegeObjectFromPath(lastClickedPath);
+    let defendingTerritory;
+    if (situation === 0) {
+        defendingTerritory = siegeObject.defendingTerritory;
     } else {
-      element.style.color = colorGreen;
+        for (let i = 0; i < mainArrayOfTerritoriesAndResources; i++) {
+            if (mainArrayOfTerritoriesAndResources[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                defendingTerritory = mainArrayOfTerritoriesAndResources[i];
+            }
+        }
     }
-  }
 
-  document.getElementById("defenceBonusText").style.color = defendingTerritory.defenseBonusColor;
-  document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
-  document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
+    const colorGreen = "rgb(0, 255, 0)";
+    const colorYellow = "rgb(255, 255, 0)";
+    const colorOrange = "rgb(255, 165, 0)";
+    const colorRed = "rgb(245,128,128)";
+    const colorWhite = "rgb(255,255,255)";
+
+    let remainingPercentages;
+
+    if (situation === 0) { //click view siege
+        const defendingArmyRemaining = siegeObject.defendingArmyRemaining;
+        const startingDef = siegeObject.startingDef;
+
+        // Calculate the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
+        const startingDefenseBonus = siegeObject.startingDefenseBonus;
+        const startingProdPop = siegeObject.startingTerritoryPop;
+        const startingFoodCapacity = siegeObject.startingFoodCapacity;
+
+        const defenseBonus = defendingTerritory.defenseBonus;
+        const foodCapacity = defendingTerritory.foodCapacity;
+        const productiveTerritoryPop = defendingTerritory.territoryPopulation;
+
+        const defenseBonusPercentage = (defenseBonus / startingDefenseBonus) * 100;
+        const foodCapacityPercentage = (foodCapacity / startingFoodCapacity) * 100;
+        const productiveTerritoryPopPercentage = (productiveTerritoryPop / startingProdPop) * 100;
+
+        // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
+        if (defenseBonusPercentage <= 25) {
+            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
+            defendingTerritory.defenseBonusColor = colorRed;
+        } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
+            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
+            defendingTerritory.defenseBonusColor = colorOrange;
+        } else if (defenseBonusPercentage > 50 && defenseBonusPercentage <= 75) {
+            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
+            defendingTerritory.defenseBonusColor = colorYellow;
+        } else {
+            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+            defendingTerritory.defenseBonusColor = colorGreen;
+        }
+
+        if (foodCapacityPercentage <= 25) {
+            defendingTerritory.foodCapacityColor = colorRed;
+        } else if (foodCapacityPercentage > 25 && foodCapacityPercentage <= 50) {
+            defendingTerritory.foodCapacityColor = colorOrange;
+        } else if (foodCapacityPercentage > 50 && foodCapacityPercentage <= 75) {
+            defendingTerritory.foodCapacityColor = colorYellow;
+        }
+
+        if (productiveTerritoryPopPercentage <= 25) {
+            defendingTerritory.productiveTerritoryPopColor = colorRed;
+        } else if (productiveTerritoryPopPercentage > 25 && productiveTerritoryPopPercentage <= 50) {
+            defendingTerritory.productiveTerritoryPopColor = colorOrange;
+        } else if (productiveTerritoryPopPercentage > 50 && productiveTerritoryPopPercentage <= 75) {
+            defendingTerritory.productiveTerritoryPopColor = colorYellow;
+        }
+
+        // Calculate the percentages for defendingArmyRemaining
+        remainingPercentages = defendingArmyRemaining.map((remaining, index) => {
+            return (remaining / startingDef[index]) * 100;
+        });
+
+        applyColorsToArmyQuantityText(0, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
+
+        document.getElementById("defenceBonusText").style.color = defendingTerritory.defenseBonusColor;
+        document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
+        document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
+    } else if (situation === 1) { //click assault
+        remainingPercentages = "";
+        applyColorsToArmyQuantityText(1, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
+    }  else if (situation === 2) {  //click invade
+        remainingPercentages = "";
+        applyColorsToArmyQuantityText(1, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
+        document.getElementById("defenceBonusText").style.color = colorGreen;
+        document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+    }
+}
+
+function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite) {
+    const elements = [
+        document.getElementById("armyRowRow2Quantity5"),
+        document.getElementById("armyRowRow2Quantity6"),
+        document.getElementById("armyRowRow2Quantity7"),
+        document.getElementById("armyRowRow2Quantity8"),
+    ];
+
+    for (let i = 0; i < elements.length; i++) {
+        const element = elements[i];
+        const percentage = remainingPercentages[i];
+
+        if (situation === 0) {
+            if (percentage <= 25) {
+                element.style.color = colorRed;
+            } else if (percentage > 25 && percentage <= 50) {
+                element.style.color = colorOrange;
+            } else if (percentage > 50 && percentage <= 75) {
+                element.style.color = colorYellow;
+            } else {
+                element.style.color = colorGreen;
+            }
+        } else {
+            element.style.color = colorWhite;
+        }
+    }
 }

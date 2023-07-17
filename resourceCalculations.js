@@ -971,7 +971,7 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
         document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
         document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[8].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
+        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
         document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.area) + " (km²)";
