@@ -187,6 +187,8 @@ function handleArmyRetrievals(retrievalArray) {
                     }
                 }
             }
+            retrievalArray.splice(i, 1); // Remove the element at index i from retrievalArray
+            i--; // Decrement i to account for the removed element
         }
     }
 }
