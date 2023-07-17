@@ -1179,11 +1179,32 @@ export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proport
     for (let i = 0; i < proportionsArray.length; i += 5) {
         const uniqueId = proportionsArray[i];
         const values = proportionsArray.slice(i + 1, i + 5);
-        returnArray.push(uniqueId, ...values);
+        const newArray = [uniqueId, ...values];
+        returnArray.push(newArray);
     }
 
-    // Add attackingArmyRemaining elements to the end of returnArray
-    returnArray[0].push(...attackingArmyRemaining);
+    for (let i = 0; i < returnArray.length; i++) {
+        for (let j = 0; j < returnArray[i].length; j++) {
+            returnArray[i][j].push(...attackingArmyRemaining);
+        }
+    }
+
+    console.log(returnArray);
 
     return returnArray;
+}
+
+
+
+export function getRetrievalArray() {
+    return retrievalArray;
+}
+
+export function setNewWarOnRetrievalArray(warId, array, turn, type) {
+    if (retrievalArray.length === 0) {
+        retrievalArray = [[warId, array, turn, type]]; // Initialize the array with the first element
+    } else {
+        retrievalArray.push([warId, array, turn, type]); // Add subsequent elements
+    }
+    return retrievalArray;
 }

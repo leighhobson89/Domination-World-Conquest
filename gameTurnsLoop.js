@@ -1,7 +1,7 @@
 import {
   playerCountry,
   uiAppearsAtStartOfTurn,
-  toggleUIMenu
+  toggleUIMenu,
 } from './ui.js';
 import {
   getPlayerTerritories,
@@ -14,7 +14,8 @@ import {
   activateAllTerritoriesForNewTurn,
   incrementSiegeTurns,
   calculateSiegePerTurn,
-  handleEndSiegeDueArrest
+  handleEndSiegeDueArrest,
+  getRetrievalArray
 } from './battle.js';
 
 export let currentTurn = 1;
@@ -54,6 +55,10 @@ function gameLoop() {
     });
   }
   incrementSiegeTurns();
+  if (currentTurn > 1) {
+      handleArmyRetrievals(getRetrievalArray());
+      console.log(getRetrievalArray());
+  }
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");
   randomEventHappening = handleRandomEventLikelihood();
@@ -150,4 +155,38 @@ function selectRandomEvent() {
   const randomIndex = Math.floor(Math.random() * events.length);
   return events[randomIndex];
   /* return events[0]; */
+}
+
+function handleArmyRetrievals(retrievalArray) {
+    for (let i = 0; i < retrievalArray.length; i++) {
+        if (currentTurn === retrievalArray[i][2] + retrievalArray[i][3]) {
+            const armySets = retrievalArray[i][1];
+            for (let j = 0; j < armySets[0].length; j++) {
+                const uniqueId = armySets[0][j][0].toString();
+                for (let k = 0; k < mainArrayOfTerritoriesAndResources.length; k++) {
+                    if (mainArrayOfTerritoriesAndResources[k].uniqueId === uniqueId) {
+                        const totalInfantry = armySets[0][j][armySets[0][j].length - 4];
+                        const totalAssault = armySets[0][j][armySets[0][j].length - 3];
+                        const totalAir = armySets[0][j][armySets[0][j].length - 2];
+                        const totalNaval = armySets[0][j][armySets[0][j].length - 1];
+
+                        const infantryPercentage = armySets[0][j][1];
+                        const assaultPercentage = armySets[0][j][2];
+                        const airPercentage = armySets[0][j][3];
+                        const navalPercentage = armySets[0][j][4];
+
+                        const infantryQuantity = Math.floor((infantryPercentage * totalInfantry) / 100);
+                        const assaultQuantity = Math.floor((assaultPercentage * totalAssault) / 100);
+                        const airQuantity = Math.floor((airPercentage * totalAir) / 100);
+                        const navalQuantity = Math.floor((navalPercentage * totalNaval) / 100);
+
+                        mainArrayOfTerritoriesAndResources[k].infantryForCurrentTerritory += infantryQuantity;
+                        mainArrayOfTerritoriesAndResources[k].assaultForCurrentTerritory += assaultQuantity;
+                        mainArrayOfTerritoriesAndResources[k].airForCurrentTerritory += airQuantity;
+                        mainArrayOfTerritoriesAndResources[k].navalForCurrentTerritory += navalQuantity;
+                    }
+                }
+            }
+        }
+    }
 }
