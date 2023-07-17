@@ -407,7 +407,7 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 
 function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
   let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-  setArmyTextValues(attackArrayText, 1);
+  setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
   const retreatButton = document.getElementById("retreatButton");
   const advanceButton = document.getElementById("advanceButton");
   const siegeButton = document.getElementById("siegeButton");
@@ -687,7 +687,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
         let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
         battleUIRow4Col1.innerHTML = "Starting";
-        setArmyTextValues(attackArrayText, 1);
+        setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]);
         let updatedProbability = getUpdatedProbability();
         setAttackProbabilityOnUI(updatedProbability, 1);
         break;
@@ -734,7 +734,7 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
         handleWarEndingsAndOptions(4, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
       } else {   
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];  
-        setArmyTextValues(attackArrayText, 1);                                                                        // fight again
+        setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]);                                                                        // fight again
         console.log("you will have to fight again with a bit of desertion for war weariness - redo 5 rounds with new values - 5% attacker amounts");
         attackArmyRemaining = attackArmyRemaining.map(value => Math.max(0, Math.floor(value * 0.95)));
         initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
@@ -819,6 +819,9 @@ function calculateCombinedForce(army) {
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
     let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
+    let defenseBonusColor = "rgb(0,255,0)";
+    let foodCapacityColor = "rgb(0,255,0)";
+    let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (addOrRemove === 0) { // add war to siege object
       siegeObject[defendingTerritoryCopy.territoryName] = {
@@ -834,7 +837,10 @@ function calculateCombinedForce(army) {
         startingDefenseBonus: startingDefenseBonus,
         startingFoodCapacity: startingFoodCapacity,
         startingProdPop: startingProdPop,
-        startingTerritoryPop: startingTerritoryPop
+        startingTerritoryPop: startingTerritoryPop,
+        defenseBonusColor: defenseBonusColor,
+        foodCapacityColor: foodCapacityColor,
+        productiveTerritoryPopColor: productiveTerritoryPopColor
       };
 
       battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainArrayOfTerritoriesAndResources) : null;
@@ -861,6 +867,9 @@ function calculateCombinedForce(army) {
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
     let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
+    let defenseBonusColor = "rgb(0,255,0)";
+    let foodCapacityColor = "rgb(0,255,0)";
+    let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (retreatBeforeStart) {
       console.log(nextWarId + " " + currentWarId);
@@ -889,7 +898,10 @@ function calculateCombinedForce(army) {
       startingDefenseBonus: startingDefenseBonus,
       startingFoodCapacity: startingFoodCapacity,
       startingProdPop: startingProdPop,
-      startingTerritoryPop: startingTerritoryPop
+      startingTerritoryPop: startingTerritoryPop,
+      defenseBonusColor: defenseBonusColor,
+      foodCapacityColor: foodCapacityColor,
+      productiveTerritoryPopColor: productiveTerritoryPopColor
     });
 
     console.log(historicWars);
