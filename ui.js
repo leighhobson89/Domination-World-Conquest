@@ -71,7 +71,7 @@ import {
     skirmishesPerRound,
     turnsDeactivatedArray,
     calculateSiegeScore,
-    retrievalArray,
+    setNewWarOnRetrievalArray,
     addAttackingArmyToRetrievalArray
 } from './battle.js';
 
@@ -2247,25 +2247,26 @@ retreatButton.addEventListener('click', function() {
     setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
     let attackingArmyRemaining = getAttackingArmyRemaining();
     let defeatType;
+    let currentWarId = getCurrentWarId();
+    let warArrayToRetrieveLater = addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsOfAttackArray);
     switch (retreatButtonState) {
         case 0: //before battle or between rounds of 5 - no penalty
         defeatType = "retreat"; //also pull out from siege before starting assault
             if (!battleStart) {
-                //new code
-                retrievalArray.push([getCurrentWarId(), addAttackingArmyToRetrievalArray(getAttackingArmyRemaining(), proportionsOfAttackArray), currentTurn]);
-                console.log (retrievalArray);
-                //end of new code
-                assignProportionsToTerritories(proportionsOfAttackArray, getAttackingArmyRemaining(), mainArrayOfTerritoriesAndResources);
+                setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 1);
                 proportionsOfAttackArray.length = 0;
-                //update top table army value when leaving battle
+
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
                 defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
                 defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                //update top table army value when leaving battle
+
             } else {
                 addWarToHistoricWarArray("Retreat", 0, true);
             }
+
             if (battleUIState === 1) { //removing a siege
                 let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
                 if (war) { //handle case where retreat after coming back from a siege
@@ -2274,7 +2275,7 @@ retreatButton.addEventListener('click', function() {
                     territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg 
                     //army is restored already by assignProportionsToTerritories in case "0" 
                 } 
-            }                
+            }
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
@@ -2283,15 +2284,15 @@ retreatButton.addEventListener('click', function() {
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
                 attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
             }
-            assignProportionsToTerritories(proportionsOfAttackArray, attackingArmyRemaining, mainArrayOfTerritoriesAndResources);
+            setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 2);
             proportionsOfAttackArray.length = 0;
-            //update top table army value when leaving battle
+
             defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
             defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
-            //update bottom table for defender and top table for player
+
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 2: //defeat
