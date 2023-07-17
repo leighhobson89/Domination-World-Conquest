@@ -122,7 +122,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
     const attackedTerritoryId = defendingTerritoryId;
 
     const {
-      defenseBonus
+      defenseBonus, mountainDefenseBonus
     } = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === attackedTerritoryId);
 
     const [
@@ -151,7 +151,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
       useableAir * vehicleArmyWorth.air +
       useableNaval * vehicleArmyWorth.naval;
 
-    totalDefendingStrength = totalDefendingStrength * (Math.ceil(defenseBonus / 15));
+    totalDefendingStrength = totalDefendingStrength * (Math.ceil((defenseBonus + mountainDefenseBonus) / 15));
 
     const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({ uniqueId }) => uniqueId === attackedTerritoryId);
 
@@ -216,6 +216,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
 
         const {
             defenseBonus,
+            mountainDefenseBonus,
             infantryForCurrentTerritory,
             useableAssault,
             useableAir,
@@ -232,7 +233,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
             navalCounts.reduce((sum, count) => sum + count * vehicleArmyWorth.naval, 0);
 
         // Calculate total defending strength
-        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyWorth.assault) + (useableAir * vehicleArmyWorth.air) + (useableNaval * vehicleArmyWorth.naval)) * (Math.ceil(defenseBonus / 15));
+        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyWorth.assault) + (useableAir * vehicleArmyWorth.air) + (useableNaval * vehicleArmyWorth.naval)) * (Math.ceil((defenseBonus + mountainDefenseBonus) / 15));
 
         const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({
             uniqueId
@@ -685,8 +686,6 @@ export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, at
       } else {
         //update UI text
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
-        let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-        battleUIRow4Col1.innerHTML = "Starting";
         setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]);
         let updatedProbability = getUpdatedProbability();
         setAttackProbabilityOnUI(updatedProbability, 1);
@@ -963,12 +962,13 @@ export function calculateSiegePerTurn() {
       let totalSiegeScore;
       let numberOfForts;
       let defenseBonusAttackedTerritory;
+      let mountainDefenseBonusAttackedTerritory = siegeObject[key].defendingTerritory.mountainDefenseBonus;
 
       for (let i = 0; i < hitIterations; i++) {
-        totalSiegeScore = Math.floor((siegeObject[key].attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObject[key].attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObject[key].attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObject[key].attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
+        totalSiegeScore = calculateSiegeScore(siegeObject[key]);
         defenseBonusAttackedTerritory = siegeObject[key].defendingTerritory.defenseBonus;
         numberOfForts = siegeObject[key].defendingTerritory.fortsBuilt;
-        const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory);
+        const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory);
         
         let hit = Math.random() < hitChance;
         hit ? hitCount++ : null;
@@ -979,8 +979,7 @@ export function calculateSiegePerTurn() {
     
       let damage = [];
 
-      // noinspection JSUnusedAssignment
-        hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, numberOfForts) : damage = false;
+        hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
 
       if (!damage) { //if no hit
         return;
@@ -997,8 +996,8 @@ export function calculateSiegePerTurn() {
   return continueSiegeArray;
 }
 
-function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory) {
-  const scoreDifference = totalSiegeScore - defenseBonusAttackedTerritory;
+function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) {
+  const scoreDifference = totalSiegeScore - (defenseBonusAttackedTerritory + mountainDefenseBonusAttackedTerritory);
   const baseProbability = 0.5;
 
   let hitProbability = baseProbability + (scoreDifference / 1000);
@@ -1007,8 +1006,8 @@ function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerrito
   return hitProbability;
 }
 
-function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory) {
-  const difference = totalSiegeScore - defenseBonusAttackedTerritory;
+function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) {
+  const difference = totalSiegeScore - (defenseBonusAttackedTerritory + mountainDefenseBonusAttackedTerritory);
   let arrested = false;
 
   // Define the sliding scale probabilities
@@ -1063,7 +1062,7 @@ function calculateCollateralDamage(difference) {
     return collateralDamage = Math.floor(Math.random() * 25) + 1;
   } else {
     let arrested = Math.random();
-    if (arrested > 0.7) {
+    if (arrested > 0.6) {
       console.log("arrested for being too pathetic to siege!");
       return collateralDamage = 0; //end siege due to arrest
     } else {
@@ -1128,7 +1127,7 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
     siege.defendingTerritory.fortsBuilt = 0;
   }
   //recalculate defense bonus
-  siege.defendingTerritory.defenseBonus = Math.ceil(1 + (siege.defendingTerritory.fortsBuilt * (siege.defendingTerritory.fortsBuilt + 1) * 10) * siege.defendingTerritory.devIndex + siege.defendingTerritory.isLandLockedBonus + (siege.defendingTerritory.mountainDefense) * 10);
+  siege.defendingTerritory.defenseBonus = Math.ceil((siege.defendingTerritory.fortsBuilt * (siege.defendingTerritory.fortsBuilt + 1) * 10) * siege.defendingTerritory.devIndex + siege.defendingTerritory.isLandLockedBonus);
   
   if (siege.defendingTerritory.foodCapacity > 0) { //lower food capacity
     siege.defendingTerritory.foodCapacity -= damage[1];
@@ -1168,4 +1167,8 @@ export function setMainArrayToArmyRemaining(territory) { //when clicking siege b
     }
   }
   return mainElement;
+}
+
+export function calculateSiegeScore(siegeObjectElement) {
+    return Math.floor((siegeObjectElement.attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObjectElement.attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObjectElement.attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObjectElement.attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
 }

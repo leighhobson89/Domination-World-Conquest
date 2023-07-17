@@ -220,7 +220,7 @@ async function validateBattleUI(driver) {
   const defAir = await driver.findElement(By.id('armyRowRow2Quantity7')).getText();
   const defNaval = await driver.findElement(By.id('armyRowRow2Quantity8')).getText();
 
-  const probability = await driver.findElement(By.id('battleUIRow4Col1')).getText();
+  const probability = await driver.findElement(By.id('battleUIRow4Col1IconProbabilityTurnsSiege')).getText();
   const defenceBonus = await driver.findElement(By.id('defenceBonusText')).getText();
 
   const probabilityColumnBox = await driver.findElement(By.id('probabilityColumnBox'));
@@ -253,7 +253,7 @@ async function clickThroughAttack(driver, siege) {
   const retreatButton = await driver.findElement(By.id('retreatButton'));
   const siegeButton = await driver.findElement(By.id('siegeButton'));
 
-  let probability = await driver.findElement(By.id('battleUIRow4Col1')).getText();
+  let probability = await driver.findElement(By.id('battleUIRow4Col1IconProbabilityTurnsSiege')).getText();
   let probabilityValue = parseInt(probability.match(/\d+/)[0]);
 
   let advanceButtonText = await advanceButton.getText();
@@ -276,7 +276,7 @@ async function clickThroughAttack(driver, siege) {
   let battleResolution = '';
 
   while (true) {
-    probability = await driver.findElement(By.id('battleUIRow4Col1')).getText();
+    probability = await driver.findElement(By.id('battleUIRow4Col1IconProbabilityTurnsSiege')).getText();
     probabilityValue = parseInt(probability.match(/\d+/)[0]);
     console.log(probability);
 
