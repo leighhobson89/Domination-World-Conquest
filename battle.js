@@ -95,6 +95,7 @@ export let tempTotalDefendingArmy;
 export let defendingTerritory;
 export let defendingTerritoryId;
 export let defenseBonus;
+export let retrievalArray = [];
 
 export let siegeObject = {};
 export let historicWars = [];
@@ -1171,4 +1172,18 @@ export function setMainArrayToArmyRemaining(territory) { //when clicking siege b
 
 export function calculateSiegeScore(siegeObjectElement) {
     return Math.floor((siegeObjectElement.attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObjectElement.attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObjectElement.attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObjectElement.attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
+}
+export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsArray, mainArray) {
+    let returnArray = [];
+
+    for (let i = 0; i < proportionsArray.length; i += 5) {
+        const uniqueId = proportionsArray[i];
+        const values = proportionsArray.slice(i + 1, i + 5);
+        returnArray.push(uniqueId, ...values);
+    }
+
+    // Add attackingArmyRemaining elements to the end of returnArray
+    returnArray[0].push(...attackingArmyRemaining);
+
+    return returnArray;
 }
