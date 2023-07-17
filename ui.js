@@ -64,7 +64,8 @@ import {
     setValuesForBattleFromSiegeObject,
     siegeObject,
     skirmishesPerRound,
-    turnsDeactivatedArray
+    turnsDeactivatedArray,
+    calculateSiegeScore
 } from './battle.js';
 
 let currentlySelectedColorsArray = [];
@@ -539,7 +540,7 @@ document.addEventListener("DOMContentLoaded", function() {
   popupSubTitle.setAttribute("id", "popup-body");
 
   const popupConfirm = document.createElement("button");
-  popupConfirm.innerText = "Confirm";
+  popupConfirm.innerText = "CONFIRM";
   popupConfirm.classList.add("popup-option");
   popupConfirm.classList.add("popup-option-confirm");
   popupConfirm.setAttribute("id", "popup-confirm");
@@ -1693,6 +1694,23 @@ summaryButton.addEventListener("mouseout", function() {
   battleUIRow4Col1.classList.add("battleUIRow4Col1");
   battleUIRow4Col1.setAttribute("id","battleUIRow4Col1");
 
+  const battleUIRow4Col1IconProbabilityTurnsSiege = document.createElement("div");
+  battleUIRow4Col1IconProbabilityTurnsSiege.classList.add("battleUIRow4Col1IconProbabilityTurnsSiege");
+  battleUIRow4Col1IconProbabilityTurnsSiege.setAttribute("id","battleUIRow4Col1IconProbabilityTurnsSiege");
+
+  const battleUIRow4Col1TextProbabilityTurnsSiege = document.createElement("div");
+  battleUIRow4Col1TextProbabilityTurnsSiege.classList.add("battleUIRow4Col1");
+  battleUIRow4Col1TextProbabilityTurnsSiege.setAttribute("id","battleUIRow4Col1TextProbabilityTurnsSiege");
+
+  const battleUIRow4Col1IconSiegeScore = document.createElement("div");
+  battleUIRow4Col1IconSiegeScore.classList.add("battleUIRow4Col1IconProbabilityTurnsSiege");
+  battleUIRow4Col1IconSiegeScore.setAttribute("id","battleUIRow4Col1IconSiegeScore");
+
+  const battleUIRow4Col1TextSiegeScore = document.createElement("div");
+  battleUIRow4Col1TextSiegeScore.classList.add("battleUIRow4Col1");
+  battleUIRow4Col1TextSiegeScore.classList.add("battleUIRow4Col1TextWidth");
+  battleUIRow4Col1TextSiegeScore.setAttribute("id","battleUIRow4Col1TextSiegeScore");
+
   const battleUIRow4Col2 = document.createElement("div");
   battleUIRow4Col2.classList.add("battleUIRow4Col2");
   battleUIRow4Col2.setAttribute("id","battleUIRow4Col2");
@@ -1721,6 +1739,14 @@ summaryButton.addEventListener("mouseout", function() {
   battleUIRow4Col2F.classList.add("battleUIRow4Col2F");
   battleUIRow4Col2F.setAttribute("id","battleUIRow4Col2F");
 
+  const battleUIRow4Col2G = document.createElement("div");
+  battleUIRow4Col2G.classList.add("battleUIRow4Col2G");
+  battleUIRow4Col2G.setAttribute("id","battleUIRow4Col2G");
+
+  const battleUIRow4Col2H = document.createElement("div");
+  battleUIRow4Col2H.classList.add("battleUIRow4Col2H");
+  battleUIRow4Col2H.setAttribute("id","battleUIRow4Col2H");
+
   const siegeButton = document.createElement("button");
   siegeButton.classList.add("siegeButton");
   siegeButton.setAttribute("id","siegeButton");
@@ -1742,6 +1768,12 @@ summaryButton.addEventListener("mouseout", function() {
   defenceIcon.setAttribute("id","defenceIcon");
   defenceIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
 
+  const mountainDefenceIcon = document.createElement("div");
+  mountainDefenceIcon.classList.add("battleRow4Icon");
+  mountainDefenceIcon.style.display = "flex";
+  mountainDefenceIcon.setAttribute("id","mountainDefenceIcon");
+  mountainDefenceIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/mountainDefenceIcon.png'>";
+
   const prodPopText = document.createElement("div");
   prodPopText.classList.add("battleRow4IconText");
   prodPopText.setAttribute("id","prodPopText");
@@ -1753,6 +1785,11 @@ summaryButton.addEventListener("mouseout", function() {
   const defenceBonusText = document.createElement("div");
   defenceBonusText.classList.add("battleRow4IconText");
   defenceBonusText.setAttribute("id","defenceBonusText");
+
+  const mountainDefenceText = document.createElement("div");
+  mountainDefenceText.classList.add("battleRow4IconText");
+  mountainDefenceText.classList.add("mountainDefenceText");
+  mountainDefenceText.setAttribute("id","mountainDefenceText");
 
   const battleUIRow5 = document.createElement("div");
   battleUIRow5.classList.add("battleUIRow");
@@ -1810,6 +1847,13 @@ summaryButton.addEventListener("mouseout", function() {
   battleUIRow4Col2D.appendChild(foodText);
   battleUIRow4Col2E.appendChild(defenceIcon);
   battleUIRow4Col2F.appendChild(defenceBonusText);
+  battleUIRow4Col2G.appendChild(mountainDefenceIcon);
+  battleUIRow4Col2H.appendChild(mountainDefenceText);
+
+  battleUIRow4Col1.appendChild(battleUIRow4Col1IconProbabilityTurnsSiege);
+  battleUIRow4Col1.appendChild(battleUIRow4Col1TextProbabilityTurnsSiege);
+  battleUIRow4Col1.appendChild(battleUIRow4Col1IconSiegeScore);
+  battleUIRow4Col1.appendChild(battleUIRow4Col1TextSiegeScore);
 
   battleUIRow4Col2.appendChild(battleUIRow4Col2A);
   battleUIRow4Col2.appendChild(battleUIRow4Col2B);
@@ -1817,6 +1861,8 @@ summaryButton.addEventListener("mouseout", function() {
   battleUIRow4Col2.appendChild(battleUIRow4Col2D);
   battleUIRow4Col2.appendChild(battleUIRow4Col2E);
   battleUIRow4Col2.appendChild(battleUIRow4Col2F);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2G);
+  battleUIRow4Col2.appendChild(battleUIRow4Col2H);
 
   battleUIRow4.appendChild(battleUIRow4Col1);
   battleUIRow4.appendChild(battleUIRow4Col2);
@@ -3900,8 +3946,18 @@ export function setAttackProbabilityOnUI(probability, situation) {
     } else if (situation === 1) { //battleUI
         let probabilityColumnBox = document.getElementById("probabilityColumnBox");
 
-        let battleUIRow4Col1 = document.getElementById("battleUIRow4Col1");
-        battleUIRow4Col1.innerHTML = "Probability: " + displayProbability + "%";
+        let battleUIRow4Col1IconProbabilityTurnsSiege = document.getElementById("battleUIRow4Col1IconProbabilityTurnsSiege");
+        let battleUIRow4Col1TextProbabilityTurnsSiege = document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege");
+        battleUIRow4Col1IconProbabilityTurnsSiege.innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/probability.png'>";
+        battleUIRow4Col1TextProbabilityTurnsSiege.innerHTML = displayProbability + "%";
+
+        if (displayProbability >= 75) {
+            battleUIRow4Col1TextProbabilityTurnsSiege.style.color = "rgb(0,255,0)";
+        } else if (displayProbability <= 25) {
+            battleUIRow4Col1TextProbabilityTurnsSiege.style.color = "rgb(245,128,128)";
+        } else {
+            battleUIRow4Col1TextProbabilityTurnsSiege.style.color = "rgb(255,255,255)";
+        }
 
         probabilityColumnBox.style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";  
     }
@@ -4111,6 +4167,7 @@ function toggleUIButton(makeVisible) {
     setArmyTextValues(siegeObjectElement, 2, siegeObjectElement.defendingTerritory.uniqueId);
 
     //SET DEFENSE BONUS VALUE
+    document.getElementById("mountainDefenceText").innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
     document.getElementById("defenceBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
     //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
     document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop);
@@ -4121,6 +4178,17 @@ function toggleUIButton(makeVisible) {
     setSiegeTurnsText(siegeObjectElement);
 
     //SET SIEGE ROW 4
+    let siegeScore = calculateSiegeScore(siegeObjectElement);
+    setSiegeScoreText(siegeScore, 0);
+    let difference = siegeScore - (siegeObjectElement.defendingTerritory.defenseBonus + siegeObjectElement.defendingTerritory.mountainDefenseBonus);
+    if (difference <= 0) {
+        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(245,128,128)";
+    } else if (difference > 0 && difference < 50) {
+        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(255, 255, 0)";
+    } else {
+        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(0, 255, 0)";
+    }
+
     setRow4(1);
 
     //INITIALISE BUTTONS
@@ -4139,7 +4207,6 @@ function toggleUIButton(makeVisible) {
     retreatButton.innerHTML = "Pull Out";
     retreatButton.disabled = false;
     retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
-
   } 
   function setupBattleUI(attackArray) {
     let war = historicWars.find((siege) => siege.warId === currentWarId);
@@ -4221,18 +4288,21 @@ function toggleUIButton(makeVisible) {
         for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
             if (defenderTerritory.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
                 document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
+                document.getElementById("mountainDefenceText").innerHTML = mainArrayOfTerritoriesAndResources[i].mountainDefenseBonus;
             }
         }
     } else {
         for (const key in siegeObject) {
             if (siegeObject[key] === defenderTerritory.getAttribute("territory-name")) {
                 document.getElementById("defenceBonusText").innerHTML = siegeObject[key].defenderTerritory.defenseBonus;
-                break;       
+                document.getElementById("mountainDefenceText").innerHTML = siegeObject[key].defenderTerritory.mountainDefenseBonus;
+                break;
             }
         }
     }
 
     //SET ATTACK ROW 4
+    setSiegeScoreText(0, 1);
     setRow4(0);
 
     //INITIALISE BUTTONS
@@ -4342,6 +4412,11 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
         startingAir = attackArray.startingDef[2];
         startingNaval = attackArray.startingDef[3];
     } else if (situation === 3) { //return from siege, click assault
+        totalAttackingArmy[0] = attackArray.attackingArmyRemaining[0];
+        totalAttackingArmy[1] = attackArray.attackingArmyRemaining[1];
+        totalAttackingArmy[2] = attackArray.attackingArmyRemaining[2];
+        totalAttackingArmy[3] = attackArray.attackingArmyRemaining[3];
+
         totalDefendingArmy[0] = attackArray.defendingArmyRemaining[0];
         totalDefendingArmy[1] = attackArray.defendingArmyRemaining[1];
         totalDefendingArmy[2] = attackArray.defendingArmyRemaining[2];
@@ -4608,10 +4683,10 @@ export function reduceKeywords(str) {
     
     let defendingLosses = [];
     if (leftSiegeByArrest) {
-        defendingLosses[0] = totalDefendingArmy[0] - siegeObject.defendingArmyRemaining[0];
-        defendingLosses[1] = totalDefendingArmy[1] - siegeObject.defendingArmyRemaining[1];
-        defendingLosses[2] = totalDefendingArmy[2] - siegeObject.defendingArmyRemaining[2];
-        defendingLosses[3] = totalDefendingArmy[3] - siegeObject.defendingArmyRemaining[3];
+        defendingLosses[0] = siegeObject.defendingArmyRemaining[0] - totalDefendingArmy[0];
+        defendingLosses[1] = siegeObject.defendingArmyRemaining[1] - totalDefendingArmy[1];
+        defendingLosses[2] = siegeObject.defendingArmyRemaining[2] - totalDefendingArmy[2];
+        defendingLosses[3] = siegeObject.defendingArmyRemaining[3] - totalDefendingArmy[3];
     } else {
         defendingLosses[0] = totalDefendingArmy[0] - defendingTerritoryCopyEnd[0];
         defendingLosses[1] = totalDefendingArmy[1] - defendingTerritoryCopyEnd[1];
@@ -4830,8 +4905,11 @@ function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
 
 function setSiegeTurnsText(siegeObject) {
     const { turnsInSiege } = siegeObject;
-    document.getElementById("battleUIRow4Col1").innerHTML = "Turns Sieged: " + turnsInSiege;
+    document.getElementById("battleUIRow4Col1IconProbabilityTurnsSiege").innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/turnsIcon.png'>";
+    document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege").innerHTML = turnsInSiege;
 }
+
+
 
 function setRow4(siegeOrAttack) { //move to bottom when done
     //get appropriate columns
@@ -4840,6 +4918,9 @@ function setRow4(siegeOrAttack) { //move to bottom when done
     const row4RightColumnC = document.getElementById("battleUIRow4Col2C");
     const row4RightColumnD = document.getElementById("battleUIRow4Col2D");
     const row4RightColumnE = document.getElementById("battleUIRow4Col2E");
+    const row4RightColumnF = document.getElementById("battleUIRow4Col2F");
+    const row4RightColumnG = document.getElementById("battleUIRow4Col2G");
+    const row4RightColumnH = document.getElementById("battleUIRow4Col2H");
 
     const prodPopIcon = document.getElementById("prodPopIcon");
     const foodIcon = document.getElementById("foodIcon");
@@ -5081,6 +5162,17 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
         document.getElementById("defenceBonusText").style.color = colorGreen;
         document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
     }
+
+    let mountainDefenceText = document.getElementById("mountainDefenceText");
+    if (parseInt(mountainDefenceText.innerHTML) >= 50) {
+        mountainDefenceText.style.color = colorRed;
+    } else if (parseInt(mountainDefenceText.innerHTML) >= 30) {
+        mountainDefenceText.style.color = colorOrange;
+    } else if (parseInt(mountainDefenceText.innerHTML) >= 20) {
+        mountainDefenceText.style.color = colorYellow;
+    } else {
+        mountainDefenceText.style.color = colorGreen;
+    }
 }
 
 function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite) {
@@ -5108,5 +5200,18 @@ function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGre
         } else {
             element.style.color = colorWhite;
         }
+    }
+}
+
+function setSiegeScoreText(siegeScore, situation) {
+    if (situation === 0) {
+        document.getElementById("battleUIRow4Col1TextSiegeScore").innerHTML = siegeScore;
+        document.getElementById("battleUIRow4Col1IconSiegeScore").innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/sword.png'>";
+        document.getElementById("battleUIRow4Col1TextSiegeScore").style.display = "flex";
+        document.getElementById("battleUIRow4Col1IconSiegeScore").style.display = "flex";
+    }
+    else if (situation === 1) {
+        document.getElementById("battleUIRow4Col1TextSiegeScore").style.display = "none";
+        document.getElementById("battleUIRow4Col1IconSiegeScore").style.display = "none";
     }
 }

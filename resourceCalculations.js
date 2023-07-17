@@ -300,8 +300,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
             let fortsBuilt = 0;
-            let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus + (mountainDefense) * 10;
-            let mountainDefenseBonus = defenseBonus;
+            let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
+            let mountainDefenseBonus = mountainDefense * 10;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
 
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
@@ -4064,7 +4064,7 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
                 turnGainsArray.changeOilCapacity += mainArrayOfTerritoriesAndResources[i].oilCapacity - totalOilCapacityTemp;
             }
             if (mainArrayOfTerritoriesAndResources[i].fortsBuilt > 0) {
-                mainArrayOfTerritoriesAndResources[i].defenseBonus = Math.ceil(1 + (mainArrayOfTerritoriesAndResources[i].fortsBuilt * (mainArrayOfTerritoriesAndResources[i].fortsBuilt + 1) * 10) * mainArrayOfTerritoriesAndResources[i].devIndex + mainArrayOfTerritoriesAndResources[i].isLandLockedBonus + (mainArrayOfTerritoriesAndResources[i].mountainDefense) * 10);
+                mainArrayOfTerritoriesAndResources[i].defenseBonus = Math.ceil((mainArrayOfTerritoriesAndResources[i].fortsBuilt * (mainArrayOfTerritoriesAndResources[i].fortsBuilt + 1) * 10) * mainArrayOfTerritoriesAndResources[i].devIndex + mainArrayOfTerritoriesAndResources[i].isLandLockedBonus);
             }
         }
     }
@@ -4407,7 +4407,7 @@ export function addRandomFortsToAllNonPlayerTerritories() {
     mainArrayOfTerritoriesAndResources.forEach(element => {
         if (!playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId)) {
             element.fortsBuilt = Math.floor(Math.random() * 4);
-            element.defenseBonus = Math.ceil(1 + (element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus + (element.mountainDefense) * 10);
+            element.defenseBonus = Math.ceil((element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus);
         }
         
         const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);

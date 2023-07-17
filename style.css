@@ -2007,19 +2007,31 @@ td {
 .battleUIRow4Col1 {
   padding-left: 10px;
   display: flex;
-  width: 50%;
+  width: 40%;
   height: 100%;
   justify-content: flex-start;
   text-align: left;
   font-size: 2rem;
-  color: yellow;
+  color: white;
   font-weight: bold;
+  align-items: center;
+}
+
+.battleUIRow4Col1TextWidth {
+  width: 20%;
+}
+
+.battleUIRow4Col1IconProbabilityTurnsSiege {
+  padding-left: 10px;
+  display: flex;
+  width: 25%;
+  justify-content: left;
   align-items: center;
 }
 
 .battleUIRow4Col2 {
   display: flex;
-  width: 50%;
+  width: 60%;
   height: 85%;
   align-items: center;
   text-align: center;
@@ -2071,9 +2083,24 @@ td {
   padding-left: 10px;
 }
 
+.battleUIRow4Col2G {
+  display: flex;
+  height: 100%;
+  justify-content: flex-end;
+  margin-left: 10px;
+}
+
+.battleUIRow4Col2H {
+  display: flex;
+  width: 16.5%;
+  height: 100%;
+  justify-content: flex-start;
+  padding-left: 10px;
+}
+
 .siegeButton {
   display: flex;
-  width: 100%;
+  width: 70%;
   height: 100%;
   justify-content: center;
   text-align: center;
@@ -2102,14 +2129,19 @@ td {
 
 .sizingPositionRow4IconBattleUI {
   display: flex;
-  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.sizingPositionRow4Column1IconBattleUI {
+  width: 60%;
+  display: flex;
   height: 100%;
   border-radius: 10px;
 }
 
 .battleRow4IconText {
   display: flex;
-  width: 30%;
   height: 100%;
   justify-content: flex-start;
   text-align: center;
@@ -2118,6 +2150,10 @@ td {
   font-size: 1.8rem;
   font-weight: bold;
   white-space: pre;
+}
+
+.mountainDefenceText {
+  color: rgb(255, 255, 255);
 }
 
 .retreatButton {
