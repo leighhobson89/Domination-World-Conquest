@@ -366,10 +366,10 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         return b.defenseBonus - a.defenseBonus;
     });
 
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        const territory = mainArrayOfTerritoriesAndResources[i];
-        console.log(territory.defenseBonus + ", " + territory.territoryName);
-    }
+    // for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
+    //     const territory = mainArrayOfTerritoriesAndResources[i];
+    //     console.log(territory.defenseBonus + ", " + territory.territoryName);
+    // }
     
 
     return mainArrayOfTerritoriesAndResources;
