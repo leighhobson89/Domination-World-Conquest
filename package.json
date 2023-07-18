@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build-cannon && npm run build-three",
+    "build": "npm run build-cannon && npm run build-three  && npm run build-buffer-utils",
     "build-cannon": "webpack --config webpack-cannon.config.js",
-    "build-three": "webpack --config webpack-three.config.js"
+    "build-three": "webpack --config webpack-three.config.js",
+    "build-buffer-utils": "webpack --config webpack-buffer-utils.config.js"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "babel-loader": "^9.1.3",
+    "depcheck": "^1.4.3",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
   }
