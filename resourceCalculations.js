@@ -1573,7 +1573,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 // Add event listeners for click and mouseup events
                                 upgradeButtonDiv.addEventListener("mousedown", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
-                                        playSoundClip();
+                                        playSoundClip("click");
                                         upgradeButtonImageElement.src = "resources/upgradeButtonIconPressed.png";
                                     }
                                 });
@@ -1659,7 +1659,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 // Add event listeners for click and mouseup events
                                 buyButtonDiv.addEventListener("mousedown", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
-                                        playSoundClip();
+                                        playSoundClip("click");
                                         buyButtonImageElement.src = "resources/buyButtonIconPressed.png";
                                     }
                                 });

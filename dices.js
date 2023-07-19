@@ -464,3 +464,49 @@ function createCanvas() {
     canvasContainer.appendChild(newCanvas);
     canvasEl = newCanvas;
 }
+
+export function resetThreeCannonDiceScene() {
+    scene = new THREE.Scene();
+    physicsWorld = new CANNON.World();
+}
+
+function measureAllSidesOfDice() {
+    const closestFacesArray = [];
+
+    for (let i = 0; i < diceArray.length; i++) {
+        const dice = diceArray[i];
+
+        // Calculate the closest plane's y position to y = 0
+        let closestPlaneY = Infinity;
+        let closestFace = -1;
+
+        for (let face = 1; face <= 6; face++) {
+            dice.body.quaternion.setFromEuler(0, 0, 0);
+            dice.body.angularVelocity.set(0, 0, 0);
+            showRollResults(face, i);
+            dice.body.allowSleep = true;
+            physicsWorld.step(1 / 60);
+
+            // Calculate the average y position of all vertices in the current face
+            let totalY = 0;
+            const vertices = dice.mesh.geometry.faces[0].normal;
+            for (const vertexIndex of vertices) {
+                const vertex = dice.mesh.geometry.vertices[vertexIndex];
+                const worldVertex = vertex.clone().applyMatrix4(dice.mesh.matrixWorld);
+                totalY += worldVertex.y;
+            }
+
+            const averageY = totalY / vertices.length;
+
+            // Update the closest face if this one is closer to y = 0
+            if (Math.abs(averageY) < Math.abs(closestPlaneY)) {
+                closestPlaneY = averageY;
+                closestFace = face;
+            }
+        }
+
+        closestFacesArray.push(closestFace);
+    }
+
+    return closestFacesArray;
+}

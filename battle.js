@@ -35,7 +35,7 @@ import {
     setUpResultsOfWarExternal,
 } from './ui.js';
 import {
-    callDice
+    callDice,
 } from './dices.js';
 
 let transferArmyOutOfTerritoryOnStartingInvasionFn;
