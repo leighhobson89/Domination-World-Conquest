@@ -7,7 +7,7 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bufferutils-bundle.js',
-        library: 'BufferUtilsGeometry',
+        library: 'BufferGeometryUtils',
     },
     module: {
         rules: [

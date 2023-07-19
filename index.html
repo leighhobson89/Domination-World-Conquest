@@ -5,6 +5,7 @@
     <link rel="stylesheet" type="text/css" href="style.css">
     <script src="./dist/cannon-bundle.js"></script>
     <script src="./dist/three-bundle.js"></script>
+    <script src="./dist/bufferutils-bundle.js"></script>
     <script type="module" src="initialData.js"></script>
     <script type="module" src="transferAndAttack.js"></script>
     <script type="module" src="resourceCalculations.js"></script>
@@ -45,9 +46,14 @@
     <div id="move-phase-buttons-container"></div>
     <div id="transfer-attack-window-container"></div>
     <div id="battleContainer"></div>
-<!--    <div id="threeCanvasForDice">-->
-<!--        <canvas style="width: 100%; height: 100%;"></canvas>-->
-<!--    </div>-->
+    <div id="threeCanvasForDice">
+        <canvas id="canvas">
+            <div class="ui-controls">
+                <div class="score">Score: <span id="score-result"></span></div>
+                <button id="roll-btn">Throw the dice</button>
+            </div>
+        </canvas>
+    </div>
     <div id="battleResultsContainer"></div>
     <div id="tooltip"></div>
     <div class="top-table-container" id="top-table-container">
