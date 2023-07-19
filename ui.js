@@ -2316,6 +2316,7 @@ retreatButton.addEventListener('click', function() {
         }
              break;
     }
+    toggleDiceCanvas(false);
     playSoundClip();
     toggleBattleUI(false, false);
     battleUIDisplayed = false;
@@ -2338,6 +2339,7 @@ advanceButton.addEventListener('click', function() {
     console.log("firstSetOfRounds was: " + firstSetOfRounds);
     switch (advanceButtonState) {
         case 0: //before battle to start it
+            toggleDiceCanvas(true);
             playSoundClip();
             battleStart = false;
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
@@ -2418,6 +2420,7 @@ advanceButton.addEventListener('click', function() {
             }
             break;
         case 2: //accept victory
+            toggleDiceCanvas(false);
             playSoundClip();
             addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
@@ -5232,5 +5235,13 @@ function setSiegeScoreText(siegeScore, situation) {
     else if (situation === 1) {
         document.getElementById("battleUIRow4Col1TextSiegeScore").style.display = "none";
         document.getElementById("battleUIRow4Col1IconSiegeScore").style.display = "none";
+    }
+}
+
+export function toggleDiceCanvas(value) {
+    if (value) {
+        document.getElementById("threeCanvasForDice").style.display = "block";
+    } else {
+        document.getElementById("threeCanvasForDice").style.display = "none";
     }
 }
