@@ -2447,13 +2447,66 @@ td {
   background-color: rgb(131, 38, 38);
 }
 
+/*----------------------------------------------------DICE----------------------------------------------------*/
+
 #threeCanvasForDice {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
   width: 800px;
-  height: 300px;
+  height: 600px;
   border: 5px yellow solid;
   display: block;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.ui-controls {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  font-family: inherit;
+  user-select: none;
+  line-height: 1.5;
+  padding: 10px;
+  pointer-events: none;
+}
+
+.score {
+  font-weight: bold;
+}
+
+.ui-controls #score-result {
+  display: inline-block;
+  min-width: 1.8em;
+  color: #d45f2e;
+}
+.ui-controls #score-result:after {
+  content: "\200b";
+}
+.ui-controls #roll-btn {
+  background-color: #273e9a;
+  font-weight: bold;
+  color: #ffffff;
+  border: none;
+  padding: 1em 1.5em;
+  border-radius: 1.5em;
+  text-decoration: none;
+  display: inline-block;
+  cursor: pointer;
+  margin: 2em 0 0 0;
+  transition: background-color 0.2s, transform 0.1s;
+  pointer-events: auto;
+}
+.ui-controls #roll-btn:active {
+  transform: translateY(2px);
+}
+.ui-controls #roll-btn:hover {
+  background-color: #3737af;
 }
