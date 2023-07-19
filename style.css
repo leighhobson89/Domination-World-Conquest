@@ -2456,16 +2456,17 @@ td {
   transform: translate(-50%, -50%);
   width: 800px;
   height: 600px;
-  border: 5px yellow solid;
-  display: block;
+  display: none;
+  pointer-events: none;
 }
 
 #canvas {
-  width: 100%;
-  height: 100%;
+  width: 800px;
+  height: 600px;
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: none;
 }
 .ui-controls {
   position: relative;

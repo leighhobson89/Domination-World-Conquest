@@ -1,15 +1,11 @@
+import { convertHexValueToRGBOrViceVersa } from './ui.js';
+import { playerColour } from "./ui.js";
+
 const canvasEl = document.querySelector('#canvas');
 const scoreResult = document.querySelector('#score-result');
-const rollBtn = document.querySelector('#roll-btn');
-
-console.dir(THREE);
-console.dir(CANNON);
-console.dir(BufferGeometryUtils);
-
-let renderer, scene, camera, diceMesh, physicsWorld;
 
 const params = {
-    numberOfDice: 4,
+    numberOfDice: 2,
     segments: 40,
     edgeRadius: .07,
     notchRadius: .12,
@@ -18,52 +14,52 @@ const params = {
 
 const diceArray = [];
 
-initPhysics();
-initScene();
+let renderer, scene, camera, diceMesh, physicsWorld;
 
-window.addEventListener('dblclick', throwDice);
-rollBtn.addEventListener('click', throwDice);
+export function callDice(enemyColor) {
+    initPhysics();
+    initScene();
 
-function initScene() {
+    function initScene() {
+        renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: true,
+            canvas: canvasEl
+        });
+        renderer.shadowMap.enabled = true
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true,
-        canvas: canvasEl
-    });
-    renderer.shadowMap.enabled = true
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        scene = new THREE.Scene();
 
-    scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, .1, 300)
+        camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
+        camera.rotation.set(-0.4,0,0);
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, .1, 300)
-    camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
-    camera.rotation.set(-0.4,0,0);
+        const ambientLight = new THREE.AmbientLight(0xffffff, .5);
+        scene.add(ambientLight);
+        const topLight = new THREE.PointLight(0xffffff, .5);
+        topLight.position.set(10, 15, 0);
+        topLight.castShadow = true;
+        topLight.shadow.mapSize.width = 2048;
+        topLight.shadow.mapSize.height = 2048;
+        topLight.shadow.camera.near = 5;
+        topLight.shadow.camera.far = 400;
+        scene.add(topLight);
 
-    // updateSceneSize();
+        createFloor();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, .5);
-    scene.add(ambientLight);
-    const topLight = new THREE.PointLight(0xffffff, .5);
-    topLight.position.set(10, 15, 0);
-    topLight.castShadow = true;
-    topLight.shadow.mapSize.width = 2048;
-    topLight.shadow.mapSize.height = 2048;
-    topLight.shadow.camera.near = 5;
-    topLight.shadow.camera.far = 400;
-    scene.add(topLight);
+        for (let i = 0; i < params.numberOfDice; i++) {
+            diceMesh = createDiceMesh(i, enemyColor);
+            diceArray.push(createDice());
+            addDiceEvents(diceArray[i],i);
+        }
 
-    createFloor();
-    diceMesh = createDiceMesh();
-    for (let i = 0; i < params.numberOfDice; i++) {
-        diceArray.push(createDice());
-        addDiceEvents(diceArray[i]);
+        throwDice();
+
+        render();
     }
-
-    throwDice();
-
-    render();
 }
+
 
 function initPhysics() {
     physicsWorld = new CANNON.World({
@@ -95,16 +91,30 @@ function createFloor() {
     physicsWorld.addBody(floorBody);
 }
 
-function createDiceMesh() {
-    const boxMaterialOuter = new THREE.MeshStandardMaterial({
-        color: 0xD43E3E,
-    })
-    const boxMaterialInner = new THREE.MeshStandardMaterial({
-        color: 0xFFFFFF,
-        roughness: 0,
-        shininess: 2,
-        side: THREE.DoubleSide
-    })
+function createDiceMesh(diceNumber, enemyColor) {
+    let boxMaterialOuter;
+    let boxMaterialInner;
+    if (diceNumber === 0) {
+        boxMaterialOuter = new THREE.MeshStandardMaterial({
+            color: convertHexValueToRGBOrViceVersa(playerColour, 1),
+        })
+        boxMaterialInner = new THREE.MeshStandardMaterial({
+            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(playerColour), 1),
+            roughness: 0,
+            shininess: 2,
+            side: THREE.DoubleSide
+        })
+    } else if (diceNumber === 1) {
+        boxMaterialOuter = new THREE.MeshStandardMaterial({
+            color: convertHexValueToRGBOrViceVersa(enemyColor, 1),
+        })
+        boxMaterialInner = new THREE.MeshStandardMaterial({
+            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(enemyColor), 1),
+            roughness: 0,
+            shininess: 2,
+            side: THREE.DoubleSide
+        })
+    }
 
     const diceMesh = new THREE.Group();
     const innerMesh = new THREE.Mesh(createInnerGeometry(), boxMaterialInner);
@@ -309,4 +319,18 @@ function throwDice() {
 
         d.body.allowSleep = true;
     });
+}
+
+export function pickContrastingColor(rgbColor) {
+    // Extract the red, green, and blue values from the RGB color string
+    const rgb = rgbColor.slice(4, -1).split(",");
+    const red = parseInt(rgb[0]);
+    const green = parseInt(rgb[1]);
+    const blue = parseInt(rgb[2]);
+
+    // Calculate the perceived brightness of the color
+    const brightness = (red * 299 + green * 587 + blue * 114) / 1000;
+
+    // Return black or white based on the brightness
+    return brightness > 128 ? "rgb(0,0,0)" : "rgb(255,255,255)";
 }
