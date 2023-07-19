@@ -40,7 +40,6 @@ import {
 import {
     addRemoveWarSiegeObject,
     addWarToHistoricWarArray,
-    assignProportionsToTerritories,
     currentWarId,
     defendingArmyRemaining,
     defendingTerritory,
@@ -578,7 +577,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById("player-color-picker").addEventListener('change', function() {
-      playerColour = convertHexValueToRGB(document.getElementById("player-color-picker").value);
+      playerColour = convertHexValueToRGBOrViceVersa(document.getElementById("player-color-picker").value, 0);
       restoreMapColorState(currentMapColorAndStrokeArray, false);
       document.getElementById("popup-color").style.color = playerColour;
       if (selectCountryPlayerState) {
@@ -3132,17 +3131,24 @@ function generateRandomRGB() {
   return `rgb(${val1}, ${val2}, ${val3})`;
 }
 
-function convertHexValueToRGB(value) {
-  // Strip the "#" prefix if present
-  const hex = value.replace(/^#/, "");
-  // Convert the hex string to an integer
-  const intValue = parseInt(hex, 16);
-  // Extract the red, green, and blue color components from the integer
-  const red = (intValue >> 16) & 0xff;
-  const green = (intValue >> 8) & 0xff;
-  const blue = intValue & 0xff;
-  // Construct the RGB string and return it
-  return `rgb(${red},${green},${blue})`;
+export function convertHexValueToRGBOrViceVersa(value, direction) {
+    if (direction === 0) {
+        // Convert from hex to RGB
+        const hex = value.replace(/^#/, "");
+        const intValue = parseInt(hex, 16);
+        const red = (intValue >> 16) & 0xff;
+        const green = (intValue >> 8) & 0xff;
+        const blue = intValue & 0xff;
+        return `rgb(${red},${green},${blue})`;
+    } else if (direction === 1) {
+        // Convert from RGB to hex
+        const rgb = value.slice(4, -1).split(",");
+        const red = parseInt(rgb[0]);
+        const green = parseInt(rgb[1]);
+        const blue = parseInt(rgb[2]);
+        const hexValue = ((red << 16) | (green << 8) | blue).toString(16);
+        return `#${hexValue.padStart(6, "0")}`;
+    }
 }
 
 colorArray = generateDistinctRGBs();

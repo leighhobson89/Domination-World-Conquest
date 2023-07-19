@@ -36,6 +36,9 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
 } from './ui.js';
+import {
+    callDice
+} from './dices.js';
 
 let transferArmyOutOfTerritoryOnStartingInvasionFn;
 
@@ -635,6 +638,9 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
 }
 
 export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
+    document.getElementById("threeCanvasForDice").style.display = "block";
+    callDice(fillPathBasedOnContinent(lastClickedPath));
+    //show feedback
   combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;
