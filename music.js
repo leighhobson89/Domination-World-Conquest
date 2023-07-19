@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let firstTime;
     if (musicButton) {
         musicButton.addEventListener("click", function() {
-            playSoundClip();
+            playSoundClip("click");
             if (isPlaying === undefined) {
                 firstTime = true;
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");

@@ -73,6 +73,7 @@ import {
     setNewWarOnRetrievalArray,
     addAttackingArmyToRetrievalArray
 } from './battle.js';
+import { resetThreeCannonDiceScene } from "./dices.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -494,7 +495,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to New Game button
   newGameButton.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       resetGameState();
       greyOutTerritoriesForUnselectableCountries();
   });
@@ -558,7 +559,7 @@ document.addEventListener("DOMContentLoaded", function() {
   UIToggleButton.setAttribute("id", "UIToggleButton");
 
   UIToggleButton.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       if (uiCurrentlyOnScreen) {
           toggleUIMenu(false);
       } else {
@@ -572,7 +573,7 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
 
   colorPicker.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       document.getElementById("player-color-picker").style.display = "block";
   });
 
@@ -598,7 +599,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // add event listener to popup confirm button
   popupConfirm.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       if (selectCountryPlayerState) {
           setAllGreyedOutAttributesToFalseOnGameStart();
           selectCountryPlayerState = false;
@@ -882,7 +883,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   summaryButton.addEventListener("click", function() {
       summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
-      playSoundClip();
+      playSoundClip("click");
       summaryButton.classList.add("tab-button");
       uiButtons(summaryButton);
       drawUITable(uiTable, 0);
@@ -905,7 +906,7 @@ summaryButton.addEventListener("mouseout", function() {
 
   territoryButton.addEventListener("click", function() {
       summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
-      playSoundClip();
+      playSoundClip("click");
       territoryButton.classList.add("tab-button");
       uiButtons(territoryButton);
       drawUITable(uiTable, 1);
@@ -918,7 +919,7 @@ summaryButton.addEventListener("mouseout", function() {
 
   armyButton.addEventListener("click", function() {
       summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
-      playSoundClip();
+      playSoundClip("click");
       uiButtons(armyButton);
       drawUITable(uiTable, 2);
   });
@@ -930,7 +931,7 @@ summaryButton.addEventListener("mouseout", function() {
 
   warsSiegesButton.addEventListener("click", function() {
       summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
-      playSoundClip();
+      playSoundClip("click");
       warsSiegesButton.classList.add("tab-button");
       uiButtons(warsSiegesButton);
       drawUITable(uiTable, 3);
@@ -957,7 +958,7 @@ summaryButton.addEventListener("mouseout", function() {
   });
 
   checkBox.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn);
   });
 
@@ -967,7 +968,7 @@ summaryButton.addEventListener("mouseout", function() {
   xButton.innerHTML = "X";
 
   xButton.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       toggleUIMenu(false);
       uiCurrentlyOnScreen = false;
       territoryButton.classList.remove("active");
@@ -1084,7 +1085,7 @@ summaryButton.addEventListener("mouseout", function() {
   xButtonUpgrade.innerHTML = "X";
 
   xButtonUpgrade.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       toggleUpgradeMenu(false);
       upgradeWindowCurrentlyOnScreen = false;
   });
@@ -1159,7 +1160,7 @@ summaryButton.addEventListener("mouseout", function() {
   bottomBarConfirmButton.innerHTML = "Cancel";
 
   bottomBarConfirmButton.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       if (bottomBarConfirmButton.innerHTML === "Cancel") {
           toggleUpgradeMenu(false);
           upgradeWindowCurrentlyOnScreen = false;
@@ -1272,7 +1273,7 @@ summaryButton.addEventListener("mouseout", function() {
   xButtonBuy.innerHTML = "X";
 
   xButtonBuy.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       toggleBuyMenu(false);
       buyWindowCurrentlyOnScreen = false;
   });
@@ -1347,7 +1348,7 @@ summaryButton.addEventListener("mouseout", function() {
   bottomBarBuyConfirmButton.innerHTML = "Cancel";
 
   bottomBarBuyConfirmButton.addEventListener("click", function() {
-      playSoundClip();
+      playSoundClip("click");
       if (bottomBarBuyConfirmButton.innerHTML === "Cancel") {
           toggleBuyMenu(false);
           buyWindowCurrentlyOnScreen = false;
@@ -1550,7 +1551,7 @@ summaryButton.addEventListener("mouseout", function() {
             territoryUniqueIds.length = 0;
         }
       }
-      playSoundClip();
+      playSoundClip("click");
       toggleTransferAttackWindow(false);
       transferAttackWindowOnScreen = false;
       toggleUIButton(true);
@@ -2317,7 +2318,7 @@ retreatButton.addEventListener('click', function() {
              break;
     }
     toggleDiceCanvas(false);
-    playSoundClip();
+    playSoundClip("click");
     toggleBattleUI(false, false);
     battleUIDisplayed = false;
     toggleBattleResults(true);
@@ -2340,7 +2341,7 @@ advanceButton.addEventListener('click', function() {
     switch (advanceButtonState) {
         case 0: //before battle to start it
             toggleDiceCanvas(true);
-            playSoundClip();
+            playSoundClip("click");
             battleStart = false;
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
@@ -2366,7 +2367,8 @@ advanceButton.addEventListener('click', function() {
             enableDisableSiegeButton(1);
             break;
         case 1: //progress through rounds
-            if (!firstSetOfRounds && currentRound === 0) {
+            if (!firstSetOfRounds && currentRound === 0) { //have clicked End Round
+                resetThreeCannonDiceScene();
                 retreatButton.disabled = false;
                 retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
                 retreatButtonState = 0;
@@ -2387,9 +2389,12 @@ advanceButton.addEventListener('click', function() {
                 }                
             } else { //start new round
                 if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
-                    playSoundClip();
+                    advanceButton.innerHTML === "Start Attack!" ? playSoundClip("dice1") : playSoundClip("click");
                     roundCounterForStats++;
                     enableDisableSiegeButton(1);
+                } else {
+                    let diceSound = Math.random() < 0.5;
+                    diceSound ? playSoundClip("dice1") : playSoundClip("dice2");
                 }
                 advanceButtonState = 1;
                 setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -2421,7 +2426,7 @@ advanceButton.addEventListener('click', function() {
             break;
         case 2: //accept victory
             toggleDiceCanvas(false);
-            playSoundClip();
+            playSoundClip("click");
             addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
             toggleBattleUI(false, false);
             battleUIDisplayed = false;
@@ -2430,7 +2435,7 @@ advanceButton.addEventListener('click', function() {
             populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false); //won
             break;
         case 3: //continue siege
-            playSoundClip();
+            playSoundClip("click");
             toggleBattleUI(false, true);
             battleUIDisplayed = false;
             toggleUIButton(true);
@@ -2500,7 +2505,7 @@ confirmButtonBattleResults.addEventListener('click', function() {
             addWarToHistoricWarArray(getResolution(), warId, false);
         }
     }
-    playSoundClip();
+    playSoundClip("click");
     toggleBattleResults(false);
     battleResultsDisplayed = false;
     toggleUIButton(true);
@@ -3476,7 +3481,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
   function transferAttackClickHandler() {
     tooltip.innerHTML = "";
     tooltip.style.display = "none";
-    playSoundClip();
+    playSoundClip("click");
       if (transferAttackButtonState === 0) {
           territoryComingFrom = lastClickedPath;
       }
@@ -4524,7 +4529,7 @@ export function reduceKeywords(str) {
         case 4: // routing win
             button.innerHTML = "Rout The Enemy";
             break;
-        case 5: // routing win
+        case 5: // end round
             button.innerHTML = "End Round";
             break;
         case 6: // start of war
@@ -4988,7 +4993,6 @@ function setRow4(siegeOrAttack) { //move to bottom when done
 }
 
 function setUnsetMenuOnEscape() {
-    playSoundClip();
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
       document.getElementById("menu-container").style.display = "block";
       document.getElementById("main-ui-container").style.display = "none";
