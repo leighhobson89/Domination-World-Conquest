@@ -1,7 +1,7 @@
 import { convertHexValueToRGBOrViceVersa } from './ui.js';
 import { playerColour } from "./ui.js";
 
-const canvasEl = document.querySelector('#canvas');
+let canvasEl = document.querySelector('#canvas');
 const scoreResult = document.querySelector('#score-result');
 let scoreResultArray = [];
 
@@ -17,8 +17,15 @@ const diceArray = [];
 
 let renderer, scene, camera, diceMesh, physicsWorld;
 let diceAnimationFinished = false;
+const wallBodyMaterial = new CANNON.Material("wallMaterial");
 
 export function callDice(enemyColor) {
+
+    document.getElementById("battleContainer").style.pointerEvents = "none"; //disable all UI until dice run
+
+    removeCanvasIfExist();
+    createCanvas();
+
     diceAnimationFinished = false;
     scoreResultArray = [0,0];
     return new Promise((resolve) => {
@@ -32,15 +39,15 @@ export function callDice(enemyColor) {
                 canvas: canvasEl
             });
             renderer.shadowMap.enabled = true
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 4));
 
             scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, .1, 300)
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, .1, 300)
             camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
             camera.rotation.set(-0.4, 0, 0);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, .5);
+            const ambientLight = new THREE.AmbientLight(0xffffff, .8);
             scene.add(ambientLight);
             const topLight = new THREE.PointLight(0xffffff, .5);
             topLight.position.set(10, 15, 0);
@@ -52,6 +59,7 @@ export function callDice(enemyColor) {
             scene.add(topLight);
 
             createFloor();
+            createWall();
 
             for (let i = 0; i < params.numberOfDice; i++) {
                 diceMesh = createDiceMesh(i, enemyColor);
@@ -67,9 +75,9 @@ export function callDice(enemyColor) {
         const checkAnimationComplete = () => {
             if (diceAnimationFinished) {
                 diceArray.length = 0;
+                document.getElementById("battleContainer").style.pointerEvents = "auto";
                 resolve(scoreResultArray);
             } else {
-                // Keep checking in a short interval (e.g., 100ms) until it becomes true.
                 setTimeout(checkAnimationComplete, 100);
             }
         };
@@ -81,9 +89,13 @@ export function callDice(enemyColor) {
 function initPhysics() {
     physicsWorld = new CANNON.World({
         allowSleep: true,
-        gravity: new CANNON.Vec3(0, -85, 10),
+        gravity: new CANNON.Vec3(0, -65, 5),
     })
-    physicsWorld.defaultContactMaterial.restitution = .3;
+
+    physicsWorld.defaultContactMaterial.restitution = .3
+    const wallContactMaterial = new CANNON.ContactMaterial(wallBodyMaterial, {
+        restitution: .8
+    });
 }
 
 
@@ -106,6 +118,85 @@ function createFloor() {
     floorBody.position.copy(floor.position);
     floorBody.quaternion.copy(floor.quaternion);
     physicsWorld.addBody(floorBody);
+}
+
+function createWall() {
+    const wallSize = 2;
+    const wallDepth = 1;
+    const wallGeometry = new THREE.BoxGeometry(wallSize * 50, wallSize, wallDepth); // Use BoxGeometry for the wall with specified depth
+
+    // First Wall (Light Blue)
+    const wallColor1 = new THREE.Color(0xadd8e6); // Light blue color
+    const wallMaterial1 = new THREE.MeshBasicMaterial({ color: wallColor1, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+
+    const wallMesh1 = new THREE.Mesh(wallGeometry, wallMaterial1);
+    wallMesh1.position.set(4, -6.0, 7); // Position the first wall at the specified coordinates
+    wallMesh1.rotation.set(0, Math.PI, 0); // Rotate the first wall 180 degrees around the Y axis
+    scene.add(wallMesh1);
+
+    const wallShape1 = new CANNON.Box(new CANNON.Vec3(wallSize * 25, wallSize / 2, wallDepth / 2));
+    const wallBody1 = new CANNON.Body({
+        type: CANNON.Body.STATIC,
+        shape: wallShape1,
+        material: wallBodyMaterial,
+    });
+    wallBody1.position.copy(wallMesh1.position);
+    wallBody1.quaternion.copy(wallMesh1.quaternion);
+    physicsWorld.addBody(wallBody1);
+
+    // Second Wall (Green)
+    const wallColor2 = new THREE.Color(0x00ff00); // Green color
+    const wallMaterial2 = new THREE.MeshBasicMaterial({ color: wallColor2, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+
+    const wallMesh2 = new THREE.Mesh(wallGeometry, wallMaterial2);
+    wallMesh2.position.set(2, -6.0, -3); // Position the second wall at the specified coordinates (z-index + 10)
+    wallMesh2.rotation.set(0, Math.PI, 0); // Rotate the second wall 180 degrees around the Y axis
+    scene.add(wallMesh2);
+
+    const wallShape2 = new CANNON.Box(new CANNON.Vec3(wallSize * 25, wallSize / 2, wallDepth / 2));
+    const wallBody2 = new CANNON.Body({
+        type: CANNON.Body.STATIC,
+        shape: wallShape2,
+    });
+    wallBody2.position.copy(wallMesh2.position);
+    wallBody2.quaternion.copy(wallMesh2.quaternion);
+    physicsWorld.addBody(wallBody2);
+
+    //3rd wall yellow
+    const wallColor3 = new THREE.Color(0xffff00); // Yellow color
+    const wallMaterial3 = new THREE.MeshBasicMaterial({ color: wallColor3, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+
+    const wallMesh3 = new THREE.Mesh(wallGeometry, wallMaterial3);
+    wallMesh3.position.set(12, -6.0, 5); // Position the third wall at the specified coordinates (same as the first wall)
+    wallMesh3.rotation.set(0, Math.PI / 2, 0); // Rotate the third wall 90 degrees around the Y axis
+    scene.add(wallMesh3);
+
+    const wallShape3 = new CANNON.Box(new CANNON.Vec3(wallSize * 25, wallSize / 2, wallDepth / 2));
+    const wallBody3 = new CANNON.Body({
+        type: CANNON.Body.STATIC,
+        shape: wallShape3,
+    });
+    wallBody3.position.copy(wallMesh3.position);
+    wallBody3.quaternion.copy(wallMesh3.quaternion);
+    physicsWorld.addBody(wallBody3);
+
+    // Fourth Wall (Red)
+    const wallColor4 = new THREE.Color(0xff0000); // Red color
+    const wallMaterial4 = new THREE.MeshBasicMaterial({ color: wallColor4, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+
+    const wallMesh4 = new THREE.Mesh(wallGeometry, wallMaterial4);
+    wallMesh4.position.set(-6, -6.0, 5); // Position the fourth wall at the specified coordinates (same as the other walls)
+    wallMesh4.rotation.set(0, -Math.PI / 2, 0); // Rotate the fourth wall -90 degrees around the Y axis
+    scene.add(wallMesh4);
+
+    const wallShape4 = new CANNON.Box(new CANNON.Vec3(wallSize * 25, wallSize / 2, wallDepth / 2));
+    const wallBody4 = new CANNON.Body({
+        type: CANNON.Body.STATIC,
+        shape: wallShape4,
+    });
+    wallBody4.position.copy(wallMesh4.position);
+    wallBody4.quaternion.copy(wallMesh4.quaternion);
+    physicsWorld.addBody(wallBody4);
 }
 
 function createDiceMesh(diceNumber, enemyColor) {
@@ -263,7 +354,7 @@ function addDiceEvents(dice, id) {
         const euler = new CANNON.Vec3();
         e.target.quaternion.toEuler(euler);
 
-        const eps = .1;
+        const eps = .5;
         let isZero = (angle) => Math.abs(angle) < eps;
         let isHalfPi = (angle) => Math.abs(angle - .5 * Math.PI) < eps;
         let isMinusHalfPi = (angle) => Math.abs(.5 * Math.PI + angle) < eps;
@@ -356,4 +447,20 @@ export function pickContrastingColor(rgbColor) {
 
     // Return black or white based on the brightness
     return brightness > 128 ? "rgb(0,0,0)" : "rgb(255,255,255)";
+}
+
+function removeCanvasIfExist() {
+    const canvasContainer = document.getElementById("threeCanvasForDice");
+    const canvasElement = document.getElementById("canvas");
+    if (canvasElement) {
+        canvasContainer.removeChild(canvasElement);
+    }
+}
+
+function createCanvas() {
+    const canvasContainer = document.getElementById("threeCanvasForDice");
+    const newCanvas = document.createElement("canvas");
+    newCanvas.id = "canvas";
+    canvasContainer.appendChild(newCanvas);
+    canvasEl = newCanvas;
 }
