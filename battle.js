@@ -639,7 +639,8 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
 
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
     document.getElementById("threeCanvasForDice").style.display = "block";
-    await callDice(fillPathBasedOnContinent(lastClickedPath));
+    let diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
+    console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
     //show feedback
   combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);

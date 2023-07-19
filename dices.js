@@ -3,6 +3,7 @@ import { playerColour } from "./ui.js";
 
 const canvasEl = document.querySelector('#canvas');
 const scoreResult = document.querySelector('#score-result');
+let scoreResultArray = [];
 
 const params = {
     numberOfDice: 2,
@@ -19,6 +20,7 @@ let diceAnimationFinished = false;
 
 export function callDice(enemyColor) {
     diceAnimationFinished = false;
+    scoreResultArray = [0,0];
     return new Promise((resolve) => {
         initPhysics();
         initScene();
@@ -54,7 +56,7 @@ export function callDice(enemyColor) {
             for (let i = 0; i < params.numberOfDice; i++) {
                 diceMesh = createDiceMesh(i, enemyColor);
                 diceArray.push(createDice());
-                addDiceEvents(diceArray[i]);
+                addDiceEvents(diceArray[i], i);
             }
 
             throwDice();
@@ -65,7 +67,7 @@ export function callDice(enemyColor) {
         const checkAnimationComplete = () => {
             if (diceAnimationFinished) {
                 diceArray.length = 0;
-                resolve();
+                resolve(scoreResultArray);
             } else {
                 // Keep checking in a short interval (e.g., 100ms) until it becomes true.
                 setTimeout(checkAnimationComplete, 100);
@@ -253,7 +255,7 @@ function createInnerGeometry() {
     ], false);
 }
 
-function addDiceEvents(dice) {
+function addDiceEvents(dice, id) {
     dice.body.addEventListener('sleep', (e) => {
 
         dice.body.allowSleep = false;
@@ -270,21 +272,21 @@ function addDiceEvents(dice) {
 
         if (isZero(euler.z)) {
             if (isZero(euler.x)) {
-                showRollResults(1);
+                showRollResults(1, id);
             } else if (isHalfPi(euler.x)) {
-                showRollResults(4);
+                showRollResults(4, id);
             } else if (isMinusHalfPi(euler.x)) {
-                showRollResults(3);
+                showRollResults(3, id);
             } else if (isPiOrMinusPi(euler.x)) {
-                showRollResults(6);
+                showRollResults(6, id);
             } else {
                 // landed on edge => wait to fall on side and fire the event again
                 dice.body.allowSleep = true;
             }
         } else if (isHalfPi(euler.z)) {
-            showRollResults(2);
+            showRollResults(2, id);
         } else if (isMinusHalfPi(euler.z)) {
-            showRollResults(5);
+            showRollResults(5, id);
         } else {
             // landed on edge => wait to fall on side and fire the event again
             dice.body.allowSleep = true;
@@ -292,14 +294,18 @@ function addDiceEvents(dice) {
     });
 }
 
-function showRollResults(score) {
-    if (scoreResult.innerHTML === '') {
-        scoreResult.innerHTML += score;
+function showRollResults(score, id) {
+    if (scoreResultArray[0] === 0 && scoreResultArray[1] === 0) {
+        id === 0 ? scoreResultArray[0] = score : scoreResultArray[1] = score;
     } else {
-        scoreResult.innerHTML += ('+' + score);
+        if (id === 0 && scoreResultArray[0] === 0) {
+            scoreResultArray[0] = score;
+        }
+        if (id === 1 && scoreResultArray[1] === 0) {
+            scoreResultArray[1] = score;
+        }
         diceAnimationFinished = true;
     }
-    console.log(scoreResult.innerHTML);
 }
 
 function render() {
