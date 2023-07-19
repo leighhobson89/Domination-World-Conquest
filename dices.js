@@ -15,49 +15,64 @@ const params = {
 const diceArray = [];
 
 let renderer, scene, camera, diceMesh, physicsWorld;
+let diceAnimationFinished = false;
 
 export function callDice(enemyColor) {
-    initPhysics();
-    initScene();
+    diceAnimationFinished = false;
+    return new Promise((resolve) => {
+        initPhysics();
+        initScene();
 
-    function initScene() {
-        renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: true,
-            canvas: canvasEl
-        });
-        renderer.shadowMap.enabled = true
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        function initScene() {
+            renderer = new THREE.WebGLRenderer({
+                alpha: true,
+                antialias: true,
+                canvas: canvasEl
+            });
+            renderer.shadowMap.enabled = true
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-        scene = new THREE.Scene();
+            scene = new THREE.Scene();
 
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, .1, 300)
-        camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
-        camera.rotation.set(-0.4,0,0);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, .1, 300)
+            camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
+            camera.rotation.set(-0.4, 0, 0);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, .5);
-        scene.add(ambientLight);
-        const topLight = new THREE.PointLight(0xffffff, .5);
-        topLight.position.set(10, 15, 0);
-        topLight.castShadow = true;
-        topLight.shadow.mapSize.width = 2048;
-        topLight.shadow.mapSize.height = 2048;
-        topLight.shadow.camera.near = 5;
-        topLight.shadow.camera.far = 400;
-        scene.add(topLight);
+            const ambientLight = new THREE.AmbientLight(0xffffff, .5);
+            scene.add(ambientLight);
+            const topLight = new THREE.PointLight(0xffffff, .5);
+            topLight.position.set(10, 15, 0);
+            topLight.castShadow = true;
+            topLight.shadow.mapSize.width = 2048;
+            topLight.shadow.mapSize.height = 2048;
+            topLight.shadow.camera.near = 5;
+            topLight.shadow.camera.far = 400;
+            scene.add(topLight);
 
-        createFloor();
+            createFloor();
 
-        for (let i = 0; i < params.numberOfDice; i++) {
-            diceMesh = createDiceMesh(i, enemyColor);
-            diceArray.push(createDice());
-            addDiceEvents(diceArray[i],i);
+            for (let i = 0; i < params.numberOfDice; i++) {
+                diceMesh = createDiceMesh(i, enemyColor);
+                diceArray.push(createDice());
+                addDiceEvents(diceArray[i]);
+            }
+
+            throwDice();
+
+            render();
         }
 
-        throwDice();
-
-        render();
-    }
+        const checkAnimationComplete = () => {
+            if (diceAnimationFinished) {
+                diceArray.length = 0;
+                resolve();
+            } else {
+                // Keep checking in a short interval (e.g., 100ms) until it becomes true.
+                setTimeout(checkAnimationComplete, 100);
+            }
+        };
+        checkAnimationComplete();
+    });
 }
 
 
@@ -282,7 +297,9 @@ function showRollResults(score) {
         scoreResult.innerHTML += score;
     } else {
         scoreResult.innerHTML += ('+' + score);
+        diceAnimationFinished = true;
     }
+    console.log(scoreResult.innerHTML);
 }
 
 function render() {

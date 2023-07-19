@@ -637,9 +637,9 @@ export function assignProportionsToTerritories(proportions, remainingAttackingAr
   }
 }
 
-export function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
+export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
     document.getElementById("threeCanvasForDice").style.display = "block";
-    callDice(fillPathBasedOnContinent(lastClickedPath));
+    await callDice(fillPathBasedOnContinent(lastClickedPath));
     //show feedback
   combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
