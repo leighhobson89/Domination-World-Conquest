@@ -1,8 +1,7 @@
 import { convertHexValueToRGBOrViceVersa } from './ui.js';
 import { playerColour } from "./ui.js";
 
-let canvasEl = document.querySelector('#canvas');
-const scoreResult = document.querySelector('#score-result');
+let canvasElement = document.querySelector('#canvas');
 let scoreResultArray = [];
 
 const params = {
@@ -36,7 +35,7 @@ export function callDice(enemyColor) {
             renderer = new THREE.WebGLRenderer({
                 alpha: true,
                 antialias: true,
-                canvas: canvasEl
+                canvas: canvasElement
             });
             renderer.shadowMap.enabled = true
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 4));
@@ -412,8 +411,6 @@ function render() {
 }
 
 function throwDice() {
-    scoreResult.innerHTML = '';
-
     diceArray.forEach((d, dIdx) => {
 
         d.body.velocity.setZero();
@@ -462,5 +459,5 @@ function createCanvas() {
     const newCanvas = document.createElement("canvas");
     newCanvas.id = "canvas";
     canvasContainer.appendChild(newCanvas);
-    canvasEl = newCanvas;
+    canvasElement = newCanvas;
 }
