@@ -1127,8 +1127,13 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
   }
 }
 
-export function setValuesForBattleFromSiegeObject(lastClickedPath) { //when clicking view siege
-  let siegeObject = getSiegeObjectFromPath(lastClickedPath);
+export function setValuesForBattleFromSiegeObject(lastClickedPath, routCheck) { //when clicking view siege
+  let siegeObject;
+  if (!routCheck) {
+      siegeObject = getSiegeObjectFromPath(lastClickedPath);
+  } else {
+      siegeObject = lastClickedPath; //confusing but if checking for rout from siege, we pass the object directly
+  }
 
   for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
     const mainElement = mainArrayOfTerritoriesAndResources[i];

@@ -2388,7 +2388,9 @@ advanceButton.addEventListener('click', function() {
                     enableDisableSiegeButton(1);
                 } else if (updatedProbability >= PROBABILITY_THRESHOLD_FOR_SIEGE) {
                     enableDisableSiegeButton(0);
-                }                
+                } else {
+                    enableDisableSiegeButton(1);
+                }
             } else { //start new round
                 if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
                     advanceButton.innerHTML === "Start Attack!" ? playSoundClip("dice1") : playSoundClip("click");
@@ -2467,7 +2469,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     enableDisableSiegeButton(1); //disable siege button at start
     let siegeAttackArray = [];
     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
-    siegeAttackArray.push(0); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
+    siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
         siegeAttackArray.push(war.attackingArmyRemaining[i]);
     }
@@ -3532,7 +3534,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   return;
 
                   } else if (transferAttackButtonState === 2) { //click view siege button //button says VIEW SIEGE
-                        setValuesForBattleFromSiegeObject(lastClickedPath);
+                        setValuesForBattleFromSiegeObject(lastClickedPath, false);
+                        enableDisableAssaultButton(0);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false);
@@ -3577,6 +3580,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleBattleUI(true, false);
                         if (probability < PROBABILITY_THRESHOLD_FOR_SIEGE) {
                             enableDisableSiegeButton(1);
+                        } else {
+                            enableDisableSiegeButton(0);
                         }
 
                         toggleTransferAttackButton(false);
@@ -5254,10 +5259,24 @@ export function toggleDiceCanvas(value) {
 
 export function routeSiegeUIProcesses() {
     battleUIState = 0;
+    enableDisableAssaultButton(1);
     toggleBattleUI(true, false);
     battleUIDisplayed = true;
     toggleBottomLeftPaneWithTurnAdvance(false);
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
     toggleUIButton(false);
     uiButtonCurrentlyOnScreen = false;
+}
+
+function enableDisableAssaultButton(enableDisable) {
+    const siegeButton = document.getElementById("siegeBottomBarButton")
+    switch(enableDisable) {
+        case 0: //enable
+            siegeButton.disabled = false;
+            siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
+            break;
+        case 1: //disable
+            siegeButton.disabled = true;
+            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+    }
 }
