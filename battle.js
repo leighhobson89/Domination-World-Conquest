@@ -827,13 +827,17 @@ function calculateCombinedForce(army) {
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
 
     } else if (addOrRemove === 1) {
-      for (const key in siegeObject) {
-        if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
-          historicWars.push(siegeObject[key]);
-          delete siegeObject[key];
-          break;
+        let isDuplicate = false;
+        for (const key in siegeObject) {
+            if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
+                isDuplicate = historicWars.some(obj => obj.warId === warId);
+                if (!isDuplicate) {
+                    historicWars.push(siegeObject[key]);
+                }
+                delete siegeObject[key];
+                break;
+            }
         }
-      }
     }
     console.log(historicWars);
   }

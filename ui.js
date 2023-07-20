@@ -73,7 +73,7 @@ import {
     setNewWarOnRetrievalArray,
     addAttackingArmyToRetrievalArray
 } from './battle.js';
-import { resetThreeCannonDiceScene } from "./dices.js";
+import { removeCanvasIfExist } from "./dices.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -2280,7 +2280,7 @@ retreatButton.addEventListener('click', function() {
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
         case 1: //scatter during round of 5, 30% penalty
-            defeatType = "defeat";
+            defeatType = "scatter";
             for (let i = 0; i < attackingArmyRemaining.length; i++) {
                 attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
             }
@@ -2340,6 +2340,7 @@ advanceButton.addEventListener('click', function() {
     console.log("firstSetOfRounds was: " + firstSetOfRounds);
     switch (advanceButtonState) {
         case 0: //before battle to start it
+            removeCanvasIfExist();
             toggleDiceCanvas(true);
             playSoundClip("click");
             battleStart = false;
@@ -2368,7 +2369,7 @@ advanceButton.addEventListener('click', function() {
             break;
         case 1: //progress through rounds
             if (!firstSetOfRounds && currentRound === 0) { //have clicked End Round
-                resetThreeCannonDiceScene();
+                removeCanvasIfExist();
                 retreatButton.disabled = false;
                 retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
                 retreatButtonState = 0;
@@ -2465,7 +2466,7 @@ siegeBottomBarButton.addEventListener('click', function() {
     enableDisableSiegeButton(1); //disable siege button at start
     let siegeAttackArray = [];
     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
-    siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
+    siegeAttackArray.push(0); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
         siegeAttackArray.push(war.attackingArmyRemaining[i]);
     }
@@ -4590,6 +4591,9 @@ export function reduceKeywords(str) {
         if (defeatType === "retreat") {
             document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Pulls  Out  Of";
             confirmButtonBattleResults.innerHTML = "Accept Retreat!";
+        } else if (defeatType === "scatter") {
+            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Scatters From";
+            confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         } else if (defeatType === "arrest") {
             document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Arrested By";
             confirmButtonBattleResults.innerHTML = "Accept Defeat!";
@@ -4614,13 +4618,15 @@ export function reduceKeywords(str) {
         if (defeatType === "retreat") {
             setResolution("Retreat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
+        } else if (defeatType === "scatter") {
+            setResolution("Retreat");
+            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Troops Scatter";
         } else if (defeatType === "arrest") {
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Siege Troops Arrested";
         } else {
             setResolution("Defeat");
             document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
         }
-        
     }
 
     roundCounterForStats = 0;
@@ -4663,14 +4669,6 @@ export function reduceKeywords(str) {
         totalDefendingArmy[1] = defendingTerritoryCopyStart.useableAssault;
         totalDefendingArmy[2] = defendingTerritoryCopyStart.useableAir;
         totalDefendingArmy[3] = defendingTerritoryCopyStart.useableNaval;
-    }
-
-    if (situation === 1) {
-        if (retreatButtonState === 1) { //scatter
-            for (let i = 0; i < attackingArmyRemaining.length; i++) {
-                attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss);
-            }
-        }
     }
 
     let attackingSurvived = [0, 0, 0, 0];
