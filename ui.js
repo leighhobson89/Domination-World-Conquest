@@ -3171,9 +3171,9 @@ function randomiseColorsOfPathsOnLoad() {
 
 
 function generateRandomRGB() {
-  const r = Math.floor(Math.random() * 235) + 1;
-  const g = Math.floor(Math.random() * 235) + 1;
-  const b = Math.floor(Math.random() * 235) + 1;
+  const r = Math.floor(Math.random() * 150) + 50;
+  const g = Math.floor(Math.random() * 150) + 50;
+  const b = Math.floor(Math.random() * 150) + 50;
   return [r, g, b];
 }
 
