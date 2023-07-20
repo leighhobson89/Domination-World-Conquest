@@ -94,7 +94,9 @@ export let playerColour = "rgb(255,255,255)"; //default to white player
 export let flag;
 
 export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
-const continentColorArray = [
+let teamColorArray = [];
+
+const CONTINENT_COLOR_ARRAY = [
   ["Africa", [233, 234, 20]],
   ["Asia", [203, 58, 22]],
   ["Europe", [186, 218, 85]],
@@ -102,10 +104,9 @@ const continentColorArray = [
   ["South America", [193, 83, 205]],
   ["Oceania", [74, 202, 233]]
 ];
-
-let teamColorArray = [];
-const greyOutColor = 'rgb(170, 170, 170)';
-const countryGreyOutThreshold = 40000; //countries under this strength greyed out //40
+const GREY_OUT_COLOR = 'rgb(170, 170, 170)';
+const COUNTRY_GREYOUT_THRESHOLD = 40000; //countries under this strength greyed out //40
+const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -449,7 +450,7 @@ function selectCountry(country, escKeyEntry) {
           document.getElementById('popup-confirm').style.display = "block";
       }
 
-      if (country.getAttribute("fill") === greyOutColor) {
+      if (country.getAttribute("fill") === GREY_OUT_COLOR) {
           document.getElementById('popup-confirm').style.display = "none";
       }
 
@@ -2385,7 +2386,7 @@ advanceButton.addEventListener('click', function() {
                 let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
                 if (hasSiegedBefore) {
                     enableDisableSiegeButton(1);
-                } else {
+                } else if (updatedProbability >= PROBABILITY_THRESHOLD_FOR_SIEGE) {
                     enableDisableSiegeButton(0);
                 }                
             } else { //start new round
@@ -3028,7 +3029,7 @@ function uiButtons(button) {
 function colorMapAtBeginningOfGame() {
   paths.forEach(path => {
       const continent = path.getAttribute("continent");
-      const color = continentColorArray.find(item => item[0] === continent)[1];
+      const color = CONTINENT_COLOR_ARRAY.find(item => item[0] === continent)[1];
       path.setAttribute("fill", `rgb(${color[0]},${color[1]},${color[2]})`);
   });
 }
@@ -3115,7 +3116,7 @@ function restoreMapColorState(array, countrySelectionState) {
 
 export function fillPathBasedOnContinent(path) {
   const continentAttribute = path.getAttribute("continent");
-  const entry = continentColorArray.find(
+  const entry = CONTINENT_COLOR_ARRAY.find(
       entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
   );
   if (entry) {
@@ -3359,8 +3360,8 @@ function greyOutTerritoriesForUnselectableCountries() {
           }
       }
 
-      if (countryStrength > countryGreyOutThreshold) {
-          path.setAttribute("fill", greyOutColor);
+      if (countryStrength > COUNTRY_GREYOUT_THRESHOLD) {
+          path.setAttribute("fill", GREY_OUT_COLOR);
           path.setAttribute("greyedOut", "true");
       }
   });
@@ -3574,7 +3575,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackWindow(false);
                         transferAttackWindowOnScreen = false;
                         toggleBattleUI(true, false);
-                        enableDisableSiegeButton(0);
+                        if (probability < PROBABILITY_THRESHOLD_FOR_SIEGE) {
+                            enableDisableSiegeButton(1);
+                        }
+
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
