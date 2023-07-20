@@ -94,6 +94,7 @@ export let playerColour = "rgb(255,255,255)"; //default to white player
 export let flag;
 
 export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
+let listOfStartingCountryColorsArray = [];
 let teamColorArray = [];
 
 const CONTINENT_COLOR_ARRAY = [
@@ -162,7 +163,7 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
-let mapMode = 0; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
+let mapMode = 2; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
 
 //Zoom variables
 let zoomLevel = 1;
@@ -347,6 +348,7 @@ export function svgMapLoaded() {
       assignTeamAndFillColorToSVGPaths(colorArray);
   } else if (mapMode === 2) {
       randomiseColorsOfPathsOnLoad(); // totally random
+      console.log(listOfStartingCountryColorsArray);
   }
 
   console.log("loaded!");
@@ -3116,7 +3118,7 @@ function restoreMapColorState(array, countrySelectionState) {
   });
 }
 
-export function fillPathBasedOnContinent(path) {
+export function fillPathBasedOnContinent(path) { //mapmode === 0 ie continent colors
   const continentAttribute = path.getAttribute("continent");
   const entry = CONTINENT_COLOR_ARRAY.find(
       entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
@@ -3127,20 +3129,42 @@ export function fillPathBasedOnContinent(path) {
   }
 }
 
-function randomiseColorsOfPathsOnLoad() {
-  let randomRgbValue;
-
-  paths.forEach(path => {
-      randomRgbValue = generateRandomRGB();
-      path.setAttribute("fill", randomRgbValue);
-  });
+export function fillPathBasedOnStartingCountryColor(path) {
+    const startingCountry = path.getAttribute("data-name");
+    const entry = listOfStartingCountryColorsArray.find(
+        entry => entry[1].toLowerCase() === startingCountry.toLowerCase()
+    );
+    if (entry) {
+        const color = entry[2];
+        return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    }
 }
 
+function randomiseColorsOfPathsOnLoad() {
+    paths.forEach(path => {
+        const uniqueId = path.getAttribute("uniqueid");
+        const dataName = path.getAttribute("data-name");
+        const matchingElement = listOfStartingCountryColorsArray.find(i => i[1] === dataName);
+        let pathInfo;
+        let randomRgbValue;
+
+        if (matchingElement) {
+            randomRgbValue = matchingElement[2];
+        } else {
+            randomRgbValue = generateRandomRGB();
+        }
+        pathInfo = [uniqueId, dataName, randomRgbValue];
+        listOfStartingCountryColorsArray.push(pathInfo);
+        path.setAttribute("fill", `rgb(${randomRgbValue[0]}, ${randomRgbValue[1]}, ${randomRgbValue[2]})`);
+    });
+}
+
+
 function generateRandomRGB() {
-  const val1 = Math.floor(Math.random() * 235) + 1;
-  const val2 = Math.floor(Math.random() * 235) + 1;
-  const val3 = Math.floor(Math.random() * 235) + 1;
-  return `rgb(${val1}, ${val2}, ${val3})`;
+  const r = Math.floor(Math.random() * 235) + 1;
+  const g = Math.floor(Math.random() * 235) + 1;
+  const b = Math.floor(Math.random() * 235) + 1;
+  return [r, g, b];
 }
 
 export function convertHexValueToRGBOrViceVersa(value, direction) {
