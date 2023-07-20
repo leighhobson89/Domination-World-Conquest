@@ -5251,3 +5251,13 @@ export function toggleDiceCanvas(value) {
         document.getElementById("threeCanvasForDice").style.display = "none";
     }
 }
+
+export function routeSiegeUIProcesses() {
+    battleUIState = 0;
+    toggleBattleUI(true, false);
+    battleUIDisplayed = true;
+    toggleBottomLeftPaneWithTurnAdvance(false);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    toggleUIButton(false);
+    uiButtonCurrentlyOnScreen = false;
+}
