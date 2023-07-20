@@ -107,7 +107,7 @@ async function selectAPlayerCountry(driver, pathArgument) {
   await clickPlayerCountryPath(driver, pathArgument);
   await wait(500);
   await switchContext(driver, 'default');
-  await clickPopupConfirm(driver, "Confirm");
+  await clickPopupConfirm(driver, "CONFIRM");
 }
 
 async function clickUIToSetUpAttack(driver, pathArgument) {

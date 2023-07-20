@@ -74,6 +74,7 @@ import {
     addAttackingArmyToRetrievalArray
 } from './battle.js';
 import { removeCanvasIfExist } from "./dices.js";
+import { createCpuPlayerObjectAndAddToMainArray } from "./cpuPlayerGenerationAndLoading.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -345,7 +346,6 @@ export function svgMapLoaded() {
       colorMapAtBeginningOfGame();
   } else if (mapMode === 1) { //random with team assignment
       randomiseColorsOfPathsOnLoad(); // random country assignment from start
-      console.log(listOfStartingCountryColorsArray);
   }
   console.log("loaded!");
 }
@@ -620,6 +620,7 @@ document.addEventListener("DOMContentLoaded", function() {
           toggleUIButton(true);
           restoreMapColorState(currentMapColorAndStrokeArray, true);
           initialiseGame();
+          createCpuPlayerObjectAndAddToMainArray();
           addRandomFortsToAllNonPlayerTerritories();
           document.getElementById("top-table-container").style.display = "block";
           popupTitle.innerText = "Buy / Upgrade Phase";
