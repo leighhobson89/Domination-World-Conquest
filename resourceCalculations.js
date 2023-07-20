@@ -276,6 +276,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let isCoastal;
             let isLandLockedBonus;
             let mountainDefense;
+            let owner;
 
             for (const path of paths) {
                 if (path.getAttribute("uniqueid") === uniqueId) {
@@ -285,6 +286,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     isCoastal = (isCoastal === "true");
                     isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
                     mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
+                    owner = path.getAttribute("owner");
                 }
             }
 
@@ -359,7 +361,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 isCoastal: isCoastal,
                 isLandLockedBonus: isLandLockedBonus,
                 mountainDefense : mountainDefense,
-                mountainDefenseBonus : mountainDefenseBonus
+                mountainDefenseBonus : mountainDefenseBonus,
+                owner: owner
             });
         }
     }
@@ -4435,7 +4438,7 @@ export function addRandomFortsToAllNonPlayerTerritories() {
         const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);
         const wasPlayerTerritory = isPlayerTerritory ? "was" : "was not";
         
-        console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
+        // console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
     });
 }
 

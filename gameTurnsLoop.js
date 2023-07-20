@@ -39,6 +39,12 @@ export function initialiseGame() {
           path.setAttribute("owner", "Player"); //set player as the owner of the territory they select
       }
   }
+
+  for (const territory of mainArrayOfTerritoriesAndResources) {
+      if (territory.dataName === playerCountry) {
+          territory.owner = "Player";
+      }
+  }
   gameLoop();
 }
 
