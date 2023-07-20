@@ -33,11 +33,13 @@ import {
 import {
     setUpgradeOrBuyWindowOnScreenToTrue,
     saveMapColorState,
-    reduceKeywords
+    reduceKeywords,
+    routeSiegeUIProcesses
 } from './ui.js';
 import {
     historicWars,
-    siegeObject
+    siegeObject,
+    handleWarEndingsAndOptions, addRemoveWarSiegeObject
 } from './battle.js';
 
 export let allowSelectionOfCountry = false;
@@ -698,8 +700,10 @@ function calculateFoodChange(territory, isSimulation, cameFromSiege) {
 }
 
 function calculatePopulationChange(territory, cameFromSiege) {
+    let siegeObject;
     if (cameFromSiege) {
-        territory = territory.defendingTerritory; //drill into array to make this function work
+        siegeObject = territory;
+        territory = territory.defendingTerritory; //drill into territory to make this function work
     }
     
     if (!randomEventHappening) {
@@ -734,8 +738,26 @@ function calculatePopulationChange(territory, cameFromSiege) {
             if (cameFromSiege) {
                 const proportion = territory.armyForCurrentTerritory / territory.territoryPopulation;
                 populationChange = Math.floor(proportion * populationChange) * 10; //factor may have to change
+                let leaveSiegeFlag = checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject);
+                if (!leaveSiegeFlag) {
+                    starveArmyInstead(territory, populationChange, cameFromSiege);
+                } else {
+                    //leaveSiege
+                    for (let i = 0; i < paths.length; i++) { //exit siegeMode
+                        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+                            paths[i].setAttribute("underSiege", "false");
+                            break;
+                        }
+                    }
+                    addRemoveWarSiegeObject(1, siegeObject.warId, false);
+                    routeSiegeUIProcesses(); //draw correct ui in this process
+                    //remove siege image
+                    //set war resolution as victory so icon works on war ui table
+                    handleWarEndingsAndOptions(2, territory, siegeObject.attackingArmyRemaining, siegeObject.defendingArmyRemaining, true);
+                }
+            } else {
+                starveArmyInstead(territory, populationChange, cameFromSiege);
             }
-            starveArmyInstead(territory, populationChange, cameFromSiege);
             return 0;
         }
 
@@ -4439,4 +4461,24 @@ function allWorkaroundOnSiegeTable() {
             }
         }
     }
+}
+
+function checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject) {
+    const startingDefenseTotal = siegeObject.startingDef.reduce(
+        (accumulator, currentValue, index) => {
+            const multipliers = [1, vehicleArmyWorth.assault, vehicleArmyWorth.air, vehicleArmyWorth.naval];
+            return accumulator + currentValue * multipliers[index];
+        }, 0);
+
+    const remainingDefenseTotal = siegeObject.defendingArmyRemaining.reduce(
+        (accumulator, currentValue, index) => {
+            const multipliers = [1, vehicleArmyWorth.assault, vehicleArmyWorth.air, vehicleArmyWorth.naval];
+            return accumulator + currentValue * multipliers[index];
+        }, 0);
+
+    const fortsRemaining = siegeObject.defendingTerritory.fortsBuilt;
+
+    const result = fortsRemaining === 0 ? (remainingDefenseTotal <= startingDefenseTotal * 0.05) : false;
+    console.log("Would be a rout: " + result);
+    return result; //true leaves siege
 }

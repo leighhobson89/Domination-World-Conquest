@@ -408,7 +408,7 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
     return combatContinentModifier;
 }
 
-function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining) {
+export function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining, routFromSiege) {
   let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
   setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
   const retreatButton = document.getElementById("retreatButton");
@@ -420,8 +420,17 @@ function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmy
   for (let i = 0; i < paths.length; i++) {
     if (paths[i].getAttribute("uniqueid") === contestedTerritory.uniqueId) {
       contestedPath = paths[i];
+      break;
     }
   }
+    if (routFromSiege) { //assure correct data updated
+        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
+            if (mainArrayOfTerritoriesAndResources[j].uniqueId === contestedTerritory.uniqueId) {
+                contestedTerritory = mainArrayOfTerritoriesAndResources[j];
+                break;
+            }
+        }
+    }
   switch (situation) {
     case 0:
       won = true;
@@ -660,9 +669,9 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
         console.log(`Attacking ${unitType} Left: ${attackArmyRemaining[unitTypeIndex]} out of ${totalAttackingArmy[unitTypeIndex]}`);
         console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
       } else if (allZeroDefend) {
-        handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
       } else if (allZeroAttack) {
-        handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
       } else {
         //update UI text
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
@@ -701,16 +710,16 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
     console.log("Defending Naval Remaining:", defendingArmyRemaining[3]);
 
     if (defendingArmyRemaining.every(count => count === 0)) { //killed all defenders
-      handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+      handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
     } else if (attackArmyRemaining.every(count => count === 0)) { //all attacking force destroyed
-      handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+      handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
     } else {
       if (combinedForceDefend < (0.05 * unchangeableWarStartCombinedForceDefend)) { //rout enemy
-        handleWarEndingsAndOptions(2, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(2, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
       } else if (combinedForceDefend < (0.15 * unchangeableWarStartCombinedForceDefend)) { //last push
-        handleWarEndingsAndOptions(3, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(3, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
       } else if (combinedForceAttack < (0.10 * unchangeableWarStartCombinedForceAttack)) { // you were routed
-        handleWarEndingsAndOptions(4, defendingTerritory, attackArmyRemaining, defendingArmyRemaining);
+        handleWarEndingsAndOptions(4, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
       } else {   
         let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];  
         setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]);                                                                        // fight again
