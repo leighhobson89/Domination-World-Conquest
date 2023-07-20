@@ -10,7 +10,7 @@ import {
 } from './resourceCalculations.js';
 import {
     currentMapColorAndStrokeArray,
-    fillPathBasedOnContinent,
+    fillPathBasedOnContinent, fillPathBasedOnStartingCountryColor,
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
     lastClickedPath,
@@ -33,6 +33,7 @@ import {
     setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
+    mapMode
 } from './ui.js';
 import {
     callDice,
@@ -558,7 +559,11 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     contestedPath.setAttribute("data-name", playerCountry);
     deactivateTerritory(contestedPath, contestedTerritory);
   } else {
-    contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
+      if (mapMode === 0) {
+          contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
+      } else if (mapMode === 1) {
+          contestedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(contestedPath));
+      }
   }
 }
 
@@ -620,9 +625,14 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
   }
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
-    let diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
-    console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
-    //show feedback
+    // let diceScoreArray; //DICE CODE EXECUTION
+    // if (mapMode === 0) {
+    //     diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
+    // } else if (mapMode === 1) {
+    //     diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
+    // }
+    // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
+    // //show feedback
   combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;

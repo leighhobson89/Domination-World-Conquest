@@ -163,7 +163,7 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
-let mapMode = 2; //0 - standard continent coloring 1 - random coloring and team assignments 2 - totally random color
+export const mapMode = 1; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
 
 //Zoom variables
 let zoomLevel = 1;
@@ -341,16 +341,12 @@ export function svgMapLoaded() {
       }
   });
 
-  if (mapMode === 0) { // standard continent coloring
+  if (mapMode === 0) { //continent coloring
       colorMapAtBeginningOfGame();
   } else if (mapMode === 1) { //random with team assignment
-      colorArray = generateDistinctRGBs();
-      assignTeamAndFillColorToSVGPaths(colorArray);
-  } else if (mapMode === 2) {
-      randomiseColorsOfPathsOnLoad(); // totally random
+      randomiseColorsOfPathsOnLoad(); // random country assignment from start
       console.log(listOfStartingCountryColorsArray);
   }
-
   console.log("loaded!");
 }
  
@@ -409,15 +405,18 @@ function selectCountry(country, escKeyEntry) {
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     if (mapMode === 0) {
                         paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
-                    }
-                    if (mapMode === 1) {
-                        fillPathBasedOnTeam(paths[i]);
+                    } else if (mapMode === 1) {
+                        paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
                     }
                     setStrokeWidth(paths[i], "1");
                 } else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
                     for (let j = 0; j < paths.length; j++) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                            paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+                            if (mapMode === 0) {
+                                paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
+                            } else if (mapMode === 1) {
+                                paths[j].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[j]));
+                            }
                             setStrokeWidth(paths[j], "1");
                         }
                     }
@@ -426,7 +425,11 @@ function selectCountry(country, escKeyEntry) {
         }
   } else {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
-            lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
+            if (mapMode === 0) {
+                lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
+            } else if (mapMode === 1) {
+                lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
+            }
         }
   }
 
@@ -2237,7 +2240,13 @@ siegeButton.addEventListener('mouseout', function() {
 
 //click handler for retreat button
 retreatButton.addEventListener('click', function() {
-    lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
+
+    if (mapMode === 0) {
+        lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
+    } else if (mapMode === 1) {
+        lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
+    }
+
     lastClickedPath.style.stroke = "rgb(0,0,0)";
     lastClickedPath.setAttribute("stroke-width", "1");
     lastClickedPath.style.strokeDasharray = "none";
@@ -3118,7 +3127,7 @@ function restoreMapColorState(array, countrySelectionState) {
   });
 }
 
-export function fillPathBasedOnContinent(path) { //mapmode === 0 ie continent colors
+export function fillPathBasedOnContinent(path) { //mapMode === 0 ie continent colors
   const continentAttribute = path.getAttribute("continent");
   const entry = CONTINENT_COLOR_ARRAY.find(
       entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
@@ -3129,7 +3138,7 @@ export function fillPathBasedOnContinent(path) { //mapmode === 0 ie continent co
   }
 }
 
-export function fillPathBasedOnStartingCountryColor(path) {
+export function fillPathBasedOnStartingCountryColor(path) { //mapMode === 1 ie random country color start
     const startingCountry = path.getAttribute("data-name");
     const entry = listOfStartingCountryColorsArray.find(
         entry => entry[1].toLowerCase() === startingCountry.toLowerCase()
@@ -3766,9 +3775,13 @@ export function removeSiegeImageFromPath(path) {
   
     if (imageElement) { //always remove siege image after entering battle ui again and clicking assault
         imageElement.remove();
-    } 
+    }
+    if (mapMode === 0) {
+        path.setAttribute("fill", fillPathBasedOnContinent(path));
+    } else if (mapMode === 1) {
+        path.setAttribute("fill", fillPathBasedOnStartingCountryColor(path));
+    }
 
-    path.setAttribute("fill", fillPathBasedOnContinent(path));
     path.style.stroke = "rgb(0,0,0)";
     path.style.strokeDasharray = "none";
     path.setAttribute("stroke-width", "1");
