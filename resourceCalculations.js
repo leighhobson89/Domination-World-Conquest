@@ -337,7 +337,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
             let mountainDefenseBonus = mountainDefense * 10;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
-            console.log(territoryName + ": " + initialArmyDistributionArray.infantry + ", " + initialArmyDistributionArray.assault + ", " + initialArmyDistributionArray.air + ", " + initialArmyDistributionArray.naval);
+            // console.log(territoryName + ": " + initialArmyDistributionArray.infantry + ", " + initialArmyDistributionArray.assault + ", " + initialArmyDistributionArray.air + ", " + initialArmyDistributionArray.naval);
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let useableAssault = assaultForCurrentTerritory;
             let airForCurrentTerritory = initialArmyDistributionArray.air;

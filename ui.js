@@ -164,7 +164,7 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
-export const mapMode = 1; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
+export const mapMode = 0; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
 
 //Zoom variables
 let zoomLevel = 1;
