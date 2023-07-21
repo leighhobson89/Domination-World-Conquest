@@ -5,7 +5,7 @@ import {
     oilRequirements,
     playerOwnedTerritories,
     setUseableNotUseableWeaponsDueToOilDemand,
-    turnGainsArray,
+    turnGainsArrayPlayer,
     vehicleArmyWorth
 } from './resourceCalculations.js';
 import {
@@ -437,9 +437,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       won = true;
       console.log("Attacker won the war!");
       setDefendingTerritoryCopyStart(contestedTerritory);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
       //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
@@ -478,9 +478,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
       //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
       setDefendingTerritoryCopyStart(contestedTerritory);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
+      turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
       contestedTerritory.owner = "Player";
@@ -491,10 +491,10 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
       contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
-      turnGainsArray.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
-      turnGainsArray.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
-      turnGainsArray.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
-      turnGainsArray.changeNaval += Math.floor(defendingArmyRemaining[3] / 2);
+      turnGainsArrayPlayer.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
+      turnGainsArrayPlayer.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
+      turnGainsArrayPlayer.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
+      turnGainsArrayPlayer.changeNaval += Math.floor(defendingArmyRemaining[3] / 2);
       setAdvanceButtonState(2);
       setAdvanceButtonText(4, advanceButton);
       retreatButton.disabled = true;
@@ -509,9 +509,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
       //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
       setDefendingTerritoryCopyStart(contestedTerritory);
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
-      turnGainsArray.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
+      turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * 0.8) * oilRequirements.assault);
+      turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
+      turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
       playerOwnedTerritories.push(contestedPath);
       contestedPath.setAttribute("owner", "Player");
       contestedTerritory.owner = "Player";
@@ -1111,7 +1111,7 @@ export function handleEndSiegeDueArrest(siege) {
     setCurrentWarFlagString(defendingTerritory.dataName);
 
     populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siege);
-    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
 
     historicWars.push(siege);
     removeSiegeImageFromPath(defendingPath);

@@ -46,8 +46,8 @@ export function createCpuPlayerObjectAndAddToMainArray() {
             delete territory.leader;
         }
 
-        console.log("Leader of: " + territory.territoryName + ", " + territory.dataName + ":");
-        territory.owner === "Player" ? console.log("Player") : console.log(territory.leader.name);
+        // console.log("Leader of: " + territory.territoryName + ", " + territory.dataName + ":");
+        // territory.owner === "Player" ? console.log("Player") : console.log(territory.leader.name);
     });
 }
 
