@@ -3,9 +3,9 @@ let manualInteractionExceptions;
 
 function handleImportedModule(module) {
     const {
-        mainArrayOfTerritoriesAndResources
+        mainGameArray
     } = module;
-    mainArray = mainArrayOfTerritoriesAndResources;
+    mainArray = mainGameArray;
 }
 
 function importModuleWithTimeout() {

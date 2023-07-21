@@ -1,5 +1,5 @@
 import { leaderPersonalities } from "./leaderPersonalities.js";
-import { mainArrayOfTerritoriesAndResources } from "./resourceCalculations.js";
+import { mainGameArray } from "./resourceCalculations.js";
 
 const personalityTitlesMale = ["King", "Lord", "Emperor", "Warrior", "Champion", "Duke", "Baron", "Prince", "Sultan", "Pharaoh", "Count", "Sir", "Chief", "Captain", "Admiral", "Marquis", "Viscount", "Sir Knight", "Sheikh", "Rajah", "Khan", "Tsar", "Governor", "Sheriff", "Patriarch", "Chancellor", "Warlord", "Chiefdom", "Viceroy", "Sheikh"];
 const personalityTitlesFemale = ["Queen", "Lady", "Empress", "Champion", "Duchess", "Baroness", "Princess", "Sultana", "Pharaohess", "Countess", "Dame", "Chiefess", "Empress Dowager", "Captainess", "Admiralness", "Marchioness", "Viscountess", "Dame Knight", "Sheikha", "Rani", "Khanum", "Tsarina", "Governess", "Sheriffess", "Matriarch", "Chancelless", "Warlady", "Chiefdom Woman", "Vicereine", "Sheikha"];
@@ -33,7 +33,7 @@ export function createCpuPlayerObjectAndAddToMainArray() {
     const countries = {};
     const leaders = {};
 
-    mainArrayOfTerritoriesAndResources.forEach((territory) => {
+    mainGameArray.forEach((territory) => {
         const countryName = territory.dataName;
         if (territory.owner !== "Player") {
             if (!countries[countryName]) {
@@ -47,7 +47,7 @@ export function createCpuPlayerObjectAndAddToMainArray() {
         }
 
         // console.log("Leader of: " + territory.territoryName + ", " + territory.dataName + ":");
-        // territory.owner === "Player" ? console.log("Player") : console.log(territory.leader.name);
+        // territory.owner === "Player" ? console.log("Player") : console.log(territory.leader);
     });
 }
 
