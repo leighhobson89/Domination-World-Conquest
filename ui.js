@@ -2343,7 +2343,7 @@ retreatButton.addEventListener('click', function() {
         currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
     }
     populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
-    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
 });
 
 //click handler for advance button
@@ -2443,7 +2443,7 @@ advanceButton.addEventListener('click', function() {
         case 2: //accept victory
             toggleDiceCanvas(false);
             playSoundClip("click");
-            addUpAllTerritoryResourcesForCountryAndWriteToTopTable(1);
+            addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
             toggleBattleUI(false, false);
             battleUIDisplayed = false;
             toggleBattleResults(true);

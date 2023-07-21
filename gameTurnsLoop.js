@@ -63,7 +63,6 @@ function gameLoop() {
   incrementSiegeTurns();
   if (currentTurn > 1) {
       handleArmyRetrievals(getRetrievalArray());
-      console.log(getRetrievalArray());
   }
   getPlayerTerritories();
   console.log("Probability of Random Event: " + probability + "%");

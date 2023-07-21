@@ -1,4 +1,4 @@
-import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArray, oilRequirements } from './resourceCalculations.js';
+import { mainArrayOfTerritoriesAndResources, vehicleArmyWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArrayPlayer, oilRequirements } from './resourceCalculations.js';
 import { calculateProbabilityPreBattle, finalAttackArray } from './battle.js';
 import { setAttackProbabilityOnUI, territoryAboutToBeAttackedOrSieged, transferAttackButtonState } from './ui.js';
 
@@ -1022,9 +1022,9 @@ export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainAr
       );
   
       if (matchingTerritory) {
-        turnGainsArray.changeOilDemand -= (assault * oilRequirements.assault);
-        turnGainsArray.changeOilDemand -= (air * oilRequirements.air);
-        turnGainsArray.changeOilDemand -= (naval * oilRequirements.naval);
+        turnGainsArrayPlayer.changeOilDemand -= (assault * oilRequirements.assault);
+        turnGainsArrayPlayer.changeOilDemand -= (air * oilRequirements.air);
+        turnGainsArrayPlayer.changeOilDemand -= (naval * oilRequirements.naval);
         matchingTerritory.infantryForCurrentTerritory -= infantry;
         matchingTerritory.assaultForCurrentTerritory -= assault;
         matchingTerritory.airForCurrentTerritory -= air;
