@@ -1,5 +1,5 @@
 import {
-    pageLoaded, removeSiegeImageFromPath
+    pageLoaded, removeSiegeImageFromPath, setCurrentWarFlagString
 } from './ui.js';
 import {
     currentTurn,
@@ -39,7 +39,10 @@ import {
 import {
     historicWars,
     siegeObject,
-    handleWarEndingsAndOptions, addRemoveWarSiegeObject, setValuesForBattleFromSiegeObject
+    handleWarEndingsAndOptions,
+    addRemoveWarSiegeObject,
+    setValuesForBattleFromSiegeObject,
+    setBattleResolutionOnHistoricWarArrayAfterSiege
 } from './battle.js';
 
 export let allowSelectionOfCountry = false;
@@ -802,6 +805,8 @@ function calculatePopulationChange(territory, cameFromSiege) {
                     starveArmyInstead(territory, populationChange, cameFromSiege);
                 } else {
                     //leaveSiege
+                    const warId = siegeObject.warId;
+                    setCurrentWarFlagString(siegeObject.defendingTerritory.dataName);
                     addRemoveWarSiegeObject(1, siegeObject.warId, false);
                     for (let i = 0; i < paths.length; i++) { //exit siegeMode
                         if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
@@ -810,6 +815,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
                             break;
                         }
                     }
+                    setBattleResolutionOnHistoricWarArrayAfterSiege("Victory", warId);
                     routeSiegeUIProcesses(); //draw correct ui in this process
                     //set war resolution as victory so icon works on war ui table
                     handleWarEndingsAndOptions(2, territory, siegeObject.attackingArmyRemaining, siegeObject.defendingArmyRemaining, true);

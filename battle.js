@@ -1204,8 +1204,6 @@ export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proport
     return returnArray;
 }
 
-
-
 export function getRetrievalArray() {
     return retrievalArray;
 }
