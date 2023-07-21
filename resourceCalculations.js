@@ -315,11 +315,14 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let armyAdjustment = calculateGoldChange(adjustmentArray, true, true);
             let bigEnoughToGetMin = armyAdjustment >= INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ;
             armyAdjustment -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
+            console.log("Pre reduce for " + territoryName) + ":"
+            console.log (armyForCurrentTerritory, armyAdjustment);
             if (armyAdjustment < INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ && bigEnoughToGetMin) {
                 armyForCurrentTerritory = reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment);
             }
             let armyAdjustmentTest = calculateGoldChange(adjustmentArray, true, true);
             armyAdjustmentTest -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
+            console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
             let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 300);
@@ -4612,8 +4615,7 @@ function calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(totalArmyForCoun
 
 function reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment) {
     let multiple = armyCostPerTurn.infantry * 1000000;
-    console.log(armyForCurrentTerritory - (Math.abs(armyAdjustment * multiple) + (INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ * multiple)));
-    let newArmyForCurrentTerritory = armyForCurrentTerritory - (Math.abs(armyAdjustment * multiple) + (INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ * multiple));
+    let newArmyForCurrentTerritory = armyForCurrentTerritory - (Math.abs(armyAdjustment * 1000) + (INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ * 1000));
     return newArmyForCurrentTerritory;
 }
 
