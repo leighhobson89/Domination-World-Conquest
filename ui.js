@@ -18,14 +18,14 @@ import {
     demandArray,
     drawUITable,
     formatNumbersToKMB,
-    mainArrayOfTerritoriesAndResources,
+    mainGameArray,
     playerOwnedTerritories,
     populateBottomTableWhenSelectingACountry,
     totalConsMats,
     totalGoldPrice,
     totalPopulationCost,
     totalPurchaseGoldPrice,
-    vehicleArmyWorth,
+    vehicleArmyPersonnelWorth,
     writeBottomTableInformation
 } from './resourceCalculations.js';
 import {playSoundClip} from './sfx.js';
@@ -631,9 +631,9 @@ document.addEventListener("DOMContentLoaded", function() {
       } else if (countrySelectedAndGameStarted && turnPhase === 0) {
           if (siegeObject) {
             for (const key in siegeObject) {
-                for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-                    if (siegeObject[key].defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-                        console.log("Beginning of turn Useable for " + mainArrayOfTerritoriesAndResources[i].territoryName + ": Assault: " + mainArrayOfTerritoriesAndResources[i].useableAssault + " Air: " + mainArrayOfTerritoriesAndResources[i].useableAir + " Naval: " + mainArrayOfTerritoriesAndResources[i].useableNaval);
+                for (let i = 0; i < mainGameArray.length; i++) {
+                    if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
+                        console.log("Beginning of turn Useable for " + mainGameArray[i].territoryName + ": Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
                     }
                 }
             }
@@ -2252,9 +2252,9 @@ retreatButton.addEventListener('click', function() {
     lastClickedPath.setAttribute("stroke-width", "1");
     lastClickedPath.style.strokeDasharray = "none";
     let defendingTerritoryRetreatClick; 
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (mainArrayOfTerritoriesAndResources[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
-            defendingTerritoryRetreatClick = mainArrayOfTerritoriesAndResources[i];
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
+            defendingTerritoryRetreatClick = mainGameArray[i];
         }
     }
     setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
@@ -2273,7 +2273,7 @@ retreatButton.addEventListener('click', function() {
                 defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
                 defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-                defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+                defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
                 //update top table army value when leaving battle
 
             } else {
@@ -2304,7 +2304,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
             break;
@@ -2315,7 +2315,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
         } else if (defendingArmyRemaining[4] === 1) { //routing defeat
@@ -2324,7 +2324,7 @@ retreatButton.addEventListener('click', function() {
             defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
             defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
             defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
-            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyWorth.naval);
+            defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
             //update bottom table for defender
             document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
         }
@@ -2359,7 +2359,7 @@ advanceButton.addEventListener('click', function() {
             battleStart = false;
             let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
             if (!hasSiegedBefore) {
-                transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
+                transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainGameArray);
             }
             setCurrentRound(currentRound + 1);
             if (hasSiegedBefore) {
@@ -2371,7 +2371,7 @@ advanceButton.addEventListener('click', function() {
                     siegeAttackArray.push(war.attackingArmyRemaining[i]);
                 }
                 setFinalAttackArray(siegeAttackArray);
-                setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
+                setupBattle(probability, getFinalAttackArray(), mainGameArray);
             }
             advanceButtonState = 1;
             setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -3539,7 +3539,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       territoryAboutToBeAttackedOrSieged ? territoryAboutToBeAttackedOrSieged.getAttribute("data-name") : null,
                       territoryComingFrom,
                       transferAttackButtonState,
-                      mainArrayOfTerritoriesAndResources
+                      mainGameArray
                   );
 
                   button.classList.remove("move-phase-button-green-background");
@@ -3548,7 +3548,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                   button.innerHTML = "CANCEL";
                   drawAndHandleTransferAttackTable(
                       document.getElementById("transferTable"),
-                      mainArrayOfTerritoriesAndResources,
+                      mainGameArray,
                       playerOwnedTerritories,
                       territoriesAbleToAttackTarget,
                       transferAttackButtonState
@@ -3621,7 +3621,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackButton(false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
-                        setupBattle(probability, getFinalAttackArray(), mainArrayOfTerritoriesAndResources);
+                        setupBattle(probability, getFinalAttackArray(), mainGameArray);
                         setupBattleUI(getFinalAttackArray());
                         setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);
                         battleUIDisplayed = true;
@@ -3795,12 +3795,12 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
     if (buttonState === 1) {
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
-            for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[j].uniqueId && !territoriesAbleToAttackTarget[i].isDeactivated) {
-                    totalAttackAmountArray[0] += mainArrayOfTerritoriesAndResources[j].infantryForCurrentTerritory;
-                    totalAttackAmountArray[1] += mainArrayOfTerritoriesAndResources[j].useableAssault;
-                    totalAttackAmountArray[2] += mainArrayOfTerritoriesAndResources[j].useableAir;
-                    totalAttackAmountArray[3] += mainArrayOfTerritoriesAndResources[j].useableNaval;
+            for (let j = 0; j < mainGameArray.length; j++) {
+                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId && !territoriesAbleToAttackTarget[i].isDeactivated) {
+                    totalAttackAmountArray[0] += mainGameArray[j].infantryForCurrentTerritory;
+                    totalAttackAmountArray[1] += mainGameArray[j].useableAssault;
+                    totalAttackAmountArray[2] += mainGameArray[j].useableAir;
+                    totalAttackAmountArray[3] += mainGameArray[j].useableNaval;
                 }
             }
         }
@@ -4360,10 +4360,10 @@ function toggleUIButton(makeVisible) {
 
     //SET DEFENSE BONUS VALUE
     if (!hasSiegedBefore) {
-        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            if (defenderTerritory.getAttribute("uniqueid") === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-                document.getElementById("defenceBonusText").innerHTML = mainArrayOfTerritoriesAndResources[i].defenseBonus;
-                document.getElementById("mountainDefenceText").innerHTML = mainArrayOfTerritoriesAndResources[i].mountainDefenseBonus;
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if (defenderTerritory.getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
+                document.getElementById("defenceBonusText").innerHTML = mainGameArray[i].defenseBonus;
+                document.getElementById("mountainDefenceText").innerHTML = mainGameArray[i].mountainDefenseBonus;
             }
         }
     } else {
@@ -4392,12 +4392,12 @@ function toggleUIButton(makeVisible) {
     advanceButtonState = 0;
     setAdvanceButtonText(6, advanceButton);
 
-    for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-        if (attackArray[1].toString() === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            attackCountry = mainArrayOfTerritoriesAndResources[i].dataName;
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (attackArray[1].toString() === mainGameArray[i].uniqueId) {
+            attackCountry = mainGameArray[i].dataName;
         }
-        if (attackArray[0] === mainArrayOfTerritoriesAndResources[i].uniqueId) {
-            defendTerritory = mainArrayOfTerritoriesAndResources[i];
+        if (attackArray[0] === mainGameArray[i].uniqueId) {
+            defendTerritory = mainGameArray[i];
         }
     }
     originalDefendingTerritory = { ...defendTerritory };
@@ -4447,12 +4447,12 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
         }
         
         //get defending army
-        for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-            if (mainArrayOfTerritoriesAndResources[i].uniqueId === defendingUniqueId) { //any player territory to get country name
-                const infantryCount = mainArrayOfTerritoriesAndResources[i].infantryForCurrentTerritory;
-                const assaultCount = mainArrayOfTerritoriesAndResources[i].useableAssault;
-                const airCount = mainArrayOfTerritoriesAndResources[i].useableAir;
-                const navalCount = mainArrayOfTerritoriesAndResources[i].useableNaval;
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if (mainGameArray[i].uniqueId === defendingUniqueId) { //any player territory to get country name
+                const infantryCount = mainGameArray[i].infantryForCurrentTerritory;
+                const assaultCount = mainGameArray[i].useableAssault;
+                const airCount = mainGameArray[i].useableAir;
+                const navalCount = mainGameArray[i].useableNaval;
         
                 totalDefendingArmy[0] += infantryCount;
                 totalDefendingArmy[1] += assaultCount;
@@ -5151,9 +5151,9 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
     if (situation === 0) {
         defendingTerritory = siegeObject.defendingTerritory;
     } else {
-        for (let i = 0; i < mainArrayOfTerritoriesAndResources; i++) {
-            if (mainArrayOfTerritoriesAndResources[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                defendingTerritory = mainArrayOfTerritoriesAndResources[i];
+        for (let i = 0; i < mainGameArray; i++) {
+            if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                defendingTerritory = mainGameArray[i];
             }
         }
     }

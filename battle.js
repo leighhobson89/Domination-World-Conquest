@@ -1,12 +1,12 @@
 import {
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
     formatNumbersToKMB,
-    mainArrayOfTerritoriesAndResources,
+    mainGameArray,
     oilRequirements,
     playerOwnedTerritories,
     setUseableNotUseableWeaponsDueToOilDemand,
     turnGainsArrayPlayer,
-    vehicleArmyWorth
+    vehicleArmyPersonnelWorth
 } from './resourceCalculations.js';
 import {
     currentMapColorAndStrokeArray,
@@ -144,15 +144,15 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
 
     const totalAttackingStrength =
       infantryCounts * 1 +
-      assaultCounts * vehicleArmyWorth.assault +
-      airCounts * vehicleArmyWorth.air +
-      navalCounts * vehicleArmyWorth.naval;
+      assaultCounts * vehicleArmyPersonnelWorth.assault +
+      airCounts * vehicleArmyPersonnelWorth.air +
+      navalCounts * vehicleArmyPersonnelWorth.naval;
 
     let totalDefendingStrength =
       infantryForCurrentTerritory * 1 +
-      useableAssault * vehicleArmyWorth.assault +
-      useableAir * vehicleArmyWorth.air +
-      useableNaval * vehicleArmyWorth.naval;
+      useableAssault * vehicleArmyPersonnelWorth.assault +
+      useableAir * vehicleArmyPersonnelWorth.air +
+      useableNaval * vehicleArmyPersonnelWorth.naval;
 
     totalDefendingStrength = totalDefendingStrength * (Math.ceil((defenseBonus + mountainDefenseBonus) / 15));
 
@@ -231,12 +231,12 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
         // Calculate total attacking strength
         const totalAttackingStrength =
             infantryCounts.reduce((sum, count) => sum + count * 1, 0) +
-            assaultCounts.reduce((sum, count) => sum + count * vehicleArmyWorth.assault, 0) +
-            airCounts.reduce((sum, count) => sum + count * vehicleArmyWorth.air, 0) +
-            navalCounts.reduce((sum, count) => sum + count * vehicleArmyWorth.naval, 0);
+            assaultCounts.reduce((sum, count) => sum + count * vehicleArmyPersonnelWorth.assault, 0) +
+            airCounts.reduce((sum, count) => sum + count * vehicleArmyPersonnelWorth.air, 0) +
+            navalCounts.reduce((sum, count) => sum + count * vehicleArmyPersonnelWorth.naval, 0);
 
         // Calculate total defending strength
-        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyWorth.assault) + (useableAir * vehicleArmyWorth.air) + (useableNaval * vehicleArmyWorth.naval)) * (Math.ceil((defenseBonus + mountainDefenseBonus) / 15));
+        const totalDefendingStrength = (infantryForCurrentTerritory + (useableAssault * vehicleArmyPersonnelWorth.assault) + (useableAir * vehicleArmyPersonnelWorth.air) + (useableNaval * vehicleArmyPersonnelWorth.naval)) * (Math.ceil((defenseBonus + mountainDefenseBonus) / 15));
 
         const defendingTerritory = mainArrayOfTerritoriesAndResources.find(({
             uniqueId
@@ -425,9 +425,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     }
   }
     if (routFromSiege) { //assure correct data updated
-        for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-            if (mainArrayOfTerritoriesAndResources[j].uniqueId === contestedTerritory.uniqueId) {
-                contestedTerritory = mainArrayOfTerritoriesAndResources[j];
+        for (let j = 0; j < mainGameArray.length; j++) {
+            if (mainGameArray[j].uniqueId === contestedTerritory.uniqueId) {
+                contestedTerritory = mainGameArray[j];
                 break;
             }
         }
@@ -450,7 +450,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
       setAdvanceButtonState(2);
       setAdvanceButtonText(2, advanceButton);
       retreatButton.disabled = true;
@@ -490,7 +490,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
       contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
       contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
       turnGainsArrayPlayer.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
       turnGainsArrayPlayer.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
       turnGainsArrayPlayer.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
@@ -521,7 +521,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
       contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
       contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
       contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * 0.8));
-      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
       setAdvanceButtonState(2);
       setAdvanceButtonText(3, advanceButton);
       retreatButton.disabled = true;
@@ -555,7 +555,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     
   }
   contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
-  setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, contestedTerritory);
+  setUseableNotUseableWeaponsDueToOilDemand(mainGameArray, contestedTerritory);
 
   if (won) {
     setFlag(playerCountry, 2);
@@ -599,9 +599,9 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
   setCurrentMapColorAndStrokeArrayFromExternal(tempArray);
 
   //set deactivated in main array
-  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-    if (mainArrayOfTerritoriesAndResources[i].uniqueId === contestedPath.getAttribute("uniqueid")) {
-      mainArrayOfTerritoriesAndResources[i].isDeactivated = true;
+  for (let i = 0; i < mainGameArray.length; i++) {
+    if (mainGameArray[i].uniqueId === contestedPath.getAttribute("uniqueid")) {
+      mainGameArray[i].isDeactivated = true;
     }
   }
 }
@@ -617,9 +617,9 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
           paths[j].style.strokeDasharray = "none";
           paths[j].setAttribute("stroke-width", "1");
           paths[j].setAttribute("deactivated", "false");
-          for (let k = 0; k < mainArrayOfTerritoriesAndResources.length; k++) {
-            if (mainArrayOfTerritoriesAndResources[k].uniqueId === paths[j].getAttribute("uniqueid")) {
-              mainArrayOfTerritoriesAndResources[k].isDeactivated = false;
+          for (let k = 0; k < mainGameArray.length; k++) {
+            if (mainGameArray[k].uniqueId === paths[j].getAttribute("uniqueid")) {
+              mainGameArray[k].isDeactivated = false;
             }
           }
         }
@@ -707,7 +707,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
   console.log("Defending Naval Left:", defendingArmyRemaining[3], "out of", totalDefendingArmy[3]);
   console.log("Combined Attack Force: " + combinedForceAttack + " Defence Force: " + combinedForceDefend);
 
-  updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+  updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainGameArray, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
   console.log("New probability for next round is:", updatedProbability);
 
   if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && currentRound !== 0) {
@@ -741,7 +741,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
         initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
         initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
 
-        updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainArrayOfTerritoriesAndResources, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+        updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainGameArray, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
 
         skirmishesPerType = [
           Math.min(attackArmyRemaining[0], defendingArmyRemaining[0]),
@@ -768,7 +768,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
 
 function calculateCombinedForce(army) {
   const [infantry, assault, air, naval] = army;
-  return infantry + (assault * vehicleArmyWorth.assault) + (air * vehicleArmyWorth.air) + (naval * vehicleArmyWorth.naval);
+  return infantry + (assault * vehicleArmyPersonnelWorth.assault) + (air * vehicleArmyPersonnelWorth.air) + (naval * vehicleArmyPersonnelWorth.naval);
 }
 
 
@@ -844,7 +844,7 @@ function calculateCombinedForce(army) {
         productiveTerritoryPopColor: productiveTerritoryPopColor
       };
 
-      battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainArrayOfTerritoriesAndResources) : null;
+      battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainGameArray) : null;
 
       return siegeObject[defendingTerritory.territoryName].defendingTerritory;
 
@@ -1084,9 +1084,9 @@ export function handleEndSiegeDueArrest(siege) {
   if (siege.defendingArmyRemaining[4]) { //if siege marked as arrested
     //set siege data to player and defender territory
     for (let i = 0; i < paths.length; i++) {
-      for (let j = 0; j < mainArrayOfTerritoriesAndResources.length; j++) {
-        if (siege.defendingTerritory.uniqueId === mainArrayOfTerritoriesAndResources[j].uniqueId) {
-          defendingTerritory = mainArrayOfTerritoriesAndResources[j];
+      for (let j = 0; j < mainGameArray.length; j++) {
+        if (siege.defendingTerritory.uniqueId === mainGameArray[j].uniqueId) {
+          defendingTerritory = mainGameArray[j];
         }
         if (defendingTerritory) {
           if (defendingTerritory.uniqueId === paths[i].getAttribute("uniqueid")) {
@@ -1101,7 +1101,7 @@ export function handleEndSiegeDueArrest(siege) {
     defendingTerritory.assaultForCurrentTerritory = siege.defendingArmyRemaining[1 + (Math.floor(siege.attackingArmyRemaining[1] * 0.5))];
     defendingTerritory.airForCurrentTerritory = siege.defendingArmyRemaining[2] + (Math.floor(siege.attackingArmyRemaining[2] * 0.5));
     defendingTerritory.navalForCurrentTerritory = siege.defendingArmyRemaining[3] + (Math.floor(siege.attackingArmyRemaining[3] * 0.5));
-    defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+    defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
     document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
 
     siege.attackingArmyRemaining = [0,0,0,0];
@@ -1148,8 +1148,8 @@ export function setValuesForBattleFromSiegeObject(lastClickedPath, routCheck) { 
       siegeObject = lastClickedPath; //confusing but if checking for rout from siege, we pass the object directly
   }
 
-  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-    const mainElement = mainArrayOfTerritoriesAndResources[i];
+  for (let i = 0; i < mainGameArray.length; i++) {
+    const mainElement = mainGameArray[i];
     if (mainElement.uniqueId === siegeObject.defendingTerritory.uniqueId) {
       siegeObject.defendingArmyRemaining = [mainElement.infantryForCurrentTerritory, mainElement.useableAssault, mainElement.useableAir, mainElement.useableNaval];
       break;
@@ -1159,21 +1159,21 @@ export function setValuesForBattleFromSiegeObject(lastClickedPath, routCheck) { 
 
 export function setMainArrayToArmyRemaining(territory) { //when clicking siege button
   let mainElement;
-  for (let i = 0; i < mainArrayOfTerritoriesAndResources.length; i++) {
-    mainElement = mainArrayOfTerritoriesAndResources[i];
+  for (let i = 0; i < mainGameArray.length; i++) {
+    mainElement = mainGameArray[i];
     if (mainElement.uniqueId === territory.defendingTerritory.uniqueId) {
       mainElement.infantryForCurrentTerritory = territory.defendingArmyRemaining[0];
       mainElement.assaultForCurrentTerritory = territory.defendingArmyRemaining[1];
       mainElement.airForCurrentTerritory = territory.defendingArmyRemaining[2];
       mainElement.navalForCurrentTerritory = territory.defendingArmyRemaining[3];
-      mainElement.armyForCurrentTerritory = mainElement.infantryForCurrentTerritory + (mainElement.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (mainElement.airForCurrentTerritory * vehicleArmyWorth.air) + (mainElement.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      mainElement.armyForCurrentTerritory = mainElement.infantryForCurrentTerritory + (mainElement.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainElement.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainElement.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
       let siegeObject = getSiegeObjectFromPath(lastClickedPath);
       siegeObject.defendingTerritory.infantryForCurrentTerritory = mainElement.infantryForCurrentTerritory;
       siegeObject.defendingTerritory.assaultForCurrentTerritory = mainElement.assaultForCurrentTerritory;
       siegeObject.defendingTerritory.airForCurrentTerritory = mainElement.airForCurrentTerritory;
       siegeObject.defendingTerritory.navalForCurrentTerritory = mainElement.navalForCurrentTerritory;
-      siegeObject.defendingTerritory.armyForCurrentTerritory = siegeObject.defendingTerritory.infantryForCurrentTerritory + (siegeObject.defendingTerritory.assaultForCurrentTerritory * vehicleArmyWorth.assault) + (siegeObject.defendingTerritory.airForCurrentTerritory * vehicleArmyWorth.air) + (siegeObject.defendingTerritory.navalForCurrentTerritory * vehicleArmyWorth.naval);
+      siegeObject.defendingTerritory.armyForCurrentTerritory = siegeObject.defendingTerritory.infantryForCurrentTerritory + (siegeObject.defendingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (siegeObject.defendingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (siegeObject.defendingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
       break;
     }
   }

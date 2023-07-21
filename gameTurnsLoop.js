@@ -8,7 +8,7 @@ import {
   newTurnResources,
   drawUITable,
   calculateTerritoryStrengths,
-  mainArrayOfTerritoriesAndResources
+  mainGameArray
 } from './resourceCalculations.js';
 import {
   activateAllTerritoriesForNewTurn,
@@ -40,7 +40,7 @@ export function initialiseGame() {
       }
   }
 
-  for (const territory of mainArrayOfTerritoriesAndResources) {
+  for (const territory of mainGameArray) {
       if (territory.dataName === playerCountry) {
           territory.owner = "Player";
       }
@@ -72,7 +72,7 @@ function gameLoop() {
       console.log("There's been a " + randomEvent + "!")
   }
   newTurnResources();
-  calculateTerritoryStrengths(mainArrayOfTerritoriesAndResources); //might not be necessary every turn
+  calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn
   if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
       toggleUIMenu(true);
       drawUITable(document.getElementById("uiTable"), 0);
@@ -168,8 +168,8 @@ function handleArmyRetrievals(retrievalArray) {
             const armySets = retrievalArray[i][1];
             for (let j = 0; j < armySets[0].length; j++) {
                 const uniqueId = armySets[0][j][0].toString();
-                for (let k = 0; k < mainArrayOfTerritoriesAndResources.length; k++) {
-                    if (mainArrayOfTerritoriesAndResources[k].uniqueId === uniqueId) {
+                for (let k = 0; k < mainGameArray.length; k++) {
+                    if (mainGameArray[k].uniqueId === uniqueId) {
                         const totalInfantry = armySets[0][j][armySets[0][j].length - 4];
                         const totalAssault = armySets[0][j][armySets[0][j].length - 3];
                         const totalAir = armySets[0][j][armySets[0][j].length - 2];
@@ -185,10 +185,10 @@ function handleArmyRetrievals(retrievalArray) {
                         const airQuantity = Math.floor((airPercentage * totalAir) / 100);
                         const navalQuantity = Math.floor((navalPercentage * totalNaval) / 100);
 
-                        mainArrayOfTerritoriesAndResources[k].infantryForCurrentTerritory += infantryQuantity;
-                        mainArrayOfTerritoriesAndResources[k].assaultForCurrentTerritory += assaultQuantity;
-                        mainArrayOfTerritoriesAndResources[k].airForCurrentTerritory += airQuantity;
-                        mainArrayOfTerritoriesAndResources[k].navalForCurrentTerritory += navalQuantity;
+                        mainGameArray[k].infantryForCurrentTerritory += infantryQuantity;
+                        mainGameArray[k].assaultForCurrentTerritory += assaultQuantity;
+                        mainGameArray[k].airForCurrentTerritory += airQuantity;
+                        mainGameArray[k].navalForCurrentTerritory += navalQuantity;
                     }
                 }
             }
