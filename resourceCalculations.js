@@ -318,14 +318,14 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let armyAdjustment = calculateGoldChange(adjustmentArray, true, true);
             let bigEnoughToGetMin = armyAdjustment >= INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ;
             armyAdjustment -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
-            console.log("Pre reduce for " + territoryName) + ":"
-            console.log (armyForCurrentTerritory, armyAdjustment);
+            // console.log("Pre reduce for " + territoryName) + ":"
+            // console.log (armyForCurrentTerritory, armyAdjustment);
             if (armyAdjustment < INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ && bigEnoughToGetMin) {
                 armyForCurrentTerritory = reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment);
             }
             let armyAdjustmentTest = calculateGoldChange(adjustmentArray, true, true);
             armyAdjustmentTest -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
-            console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
+            // console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
             let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 300);
@@ -337,7 +337,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
             let mountainDefenseBonus = mountainDefense * 10;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
-
+            console.log(territoryName + ": " + initialArmyDistributionArray.infantry + ", " + initialArmyDistributionArray.assault + ", " + initialArmyDistributionArray.air + ", " + initialArmyDistributionArray.naval);
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let useableAssault = assaultForCurrentTerritory;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -1131,17 +1131,17 @@ function initialOilCalculation(path, area) {
     let continentModifier;
 
     if (path.continent === "Europe") {
-        continentModifier = 0.9;
+        continentModifier = 1.4;
     } else if (path.continent === "North America") {
-        continentModifier = 1.3;
+        continentModifier = 1.5;
     } else if (path.continent === "Africa") {
         continentModifier = 1.8;
     } else if (path.continent === "South America") {
         continentModifier = 1.6;
     } else if (path.continent === "Oceania") {
-        continentModifier = 0.8;
+        continentModifier = 1.2;
     } else if (path.continent === "Asia") {
-        continentModifier = 1.1;
+        continentModifier = 1.5;
     }
 
     const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
@@ -4237,42 +4237,54 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         infantry: 0,
     };
 
-    let remainingArmyValue = initialValue;
+    // Allocate 10% of the initialValue to infantry
+    const infantryAllocation = Math.floor(initialValue * 0.1);
+    initialDistribution.infantry = infantryAllocation;
+    let remainingArmyValue = initialValue - infantryAllocation;
 
-    // Allocate naval units based on available oil (limited to 25% of oilTerritory)
-    const maxNavalOil = Math.floor(oilTerritory * 0.35);
-    if (territory.getAttribute("isCoastal") === "true") { //non coastal territories cannot have naval forces
+    // Allocate naval units based on available oil (limited to 20% of oilTerritory and 30% of remainingArmyValue)
+    const maxNavalOil = Math.floor(oilTerritory * 0.2);
+    const maxNavalArmy = Math.floor(remainingArmyValue * 0.3);
+    if (territory.getAttribute("isCoastal") === "true") {
         initialDistribution.naval = Math.min(
-            Math.floor(maxNavalOil / oilRequirements.naval),
+            Math.min(
+                Math.floor(maxNavalOil / oilRequirements.naval),
+                Math.floor(maxNavalArmy / vehicleArmyPersonnelWorth.naval)
+            ),
             Math.floor(remainingArmyValue / vehicleArmyPersonnelWorth.naval)
         );
         remainingArmyValue -= initialDistribution.naval * vehicleArmyPersonnelWorth.naval;
-    } else {
-        initialDistribution.naval = 0;
-        remainingArmyValue -= initialDistribution.naval * vehicleArmyPersonnelWorth.naval;
     }
-    
-    // Allocate air units based on available oil (limited to 12.5% of oilTerritory)
+
+    // Allocate air units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
     const maxAirOil = Math.floor(oilTerritory * 0.2);
+    const maxAirArmy = Math.floor(remainingArmyValue * 0.2);
     initialDistribution.air = Math.min(
-        Math.floor(maxAirOil / oilRequirements.air),
+        Math.min(
+            Math.floor(maxAirOil / oilRequirements.air),
+            Math.floor(maxAirArmy / vehicleArmyPersonnelWorth.air)
+        ),
         Math.floor(remainingArmyValue / vehicleArmyPersonnelWorth.air)
     );
     remainingArmyValue -= initialDistribution.air * vehicleArmyPersonnelWorth.air;
 
-    // Allocate assault units based on available oil (limited to 12.5% of oilTerritory)
+    // Allocate assault units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
     const maxAssaultOil = Math.floor(oilTerritory * 0.2);
+    const maxAssaultArmy = Math.floor(remainingArmyValue * 0.2);
     initialDistribution.assault = Math.min(
-        Math.floor(maxAssaultOil / oilRequirements.assault),
+        Math.min(
+            Math.floor(maxAssaultOil / oilRequirements.assault),
+            Math.floor(maxAssaultArmy / vehicleArmyPersonnelWorth.assault)
+        ),
         Math.floor(remainingArmyValue / vehicleArmyPersonnelWorth.assault)
     );
     remainingArmyValue -= initialDistribution.assault * vehicleArmyPersonnelWorth.assault;
 
-    initialDistribution.infantry = Math.floor(remainingArmyValue);
+    // Add the remainingArmyValue to the infantry
+    initialDistribution.infantry += Math.floor(remainingArmyValue);
 
     return initialDistribution;
 }
-
 
 export function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
     let territoryOilDemand;
