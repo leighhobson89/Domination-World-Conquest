@@ -189,6 +189,7 @@ let viewBoxHeightCoastLine = originalViewBoxHeightCoastLine;
 let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
+let shiftedPath;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
   if (upgradeOrBuyParameter === 1) { //upgrade window
@@ -284,61 +285,67 @@ export function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
-      if (e.target.tagName === "rect" && currentTurnPhase === 1) {
-          restoreMapColorState(currentMapColorAndStrokeArray, false);
-          toggleTransferAttackButton(false);
-          if (svgMap.querySelector("#attackImage")) {
-            svgMap.getElementById("attackImage").remove(); 
-          }
-          transferAttackButtonDisplayed = false;
-          attackTextCurrentlyDisplayed = false;
-          //remove army image
-      }
-      if (e.target.tagName === "path") {
-          currentPath = e.target;
-          document.getElementById("popup-confirm").style.opacity = "1";
-          if (allowSelectionOfCountry) {
-              selectCountry(currentPath, false);
-          }
-          currentSelectedPath = currentPath;
-          if (countrySelectedAndGameStarted) {
-              if (currentTurnPhase === 1) { //move/deploy phase show interactable countries when clicking a country
-                  validDestinationsAndClosestPointArray = findClosestPaths(e.target);
-                  if (currentPath.hasAttribute("fill")) {
-                      hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
-                      currentlySelectedColorsArray.length = 0;
-                      validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
-                      closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
-                      let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
-                      let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-                      if (e.target.getAttribute("owner") === "Player") {
-                          validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
-                          lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
-                      } else {
-                        territoriesAbleToAttackTarget = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
-                        territoriesAbleToAttackTarget = territoriesAbleToAttackTarget.filter(territoryCandidate => {
-                            const owner = territoryCandidate.getAttribute("owner");
-                            return owner === "Player";
-                          });
-                      }
-                      handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, false, 2);
-                  }
-              } else if (currentTurnPhase === 2) {
+    if (!isDragging) {
+        if (e.target.tagName === "rect" && currentTurnPhase === 1) {
+            restoreMapColorState(currentMapColorAndStrokeArray, false);
+            toggleTransferAttackButton(false);
+            if (svgMap.querySelector("#attackImage")) {
+                svgMap.getElementById("attackImage").remove();
+            }
+            transferAttackButtonDisplayed = false;
+            attackTextCurrentlyDisplayed = false;
+            //remove army image
+        }
+        if (e.target.tagName === "path") {
+            currentPath = e.target;
+            document.getElementById("popup-confirm").style.opacity = "1";
+            if (allowSelectionOfCountry) {
+                selectCountry(currentPath, false);
+            }
+            currentSelectedPath = currentPath;
+            if (countrySelectedAndGameStarted) {
+                if (currentTurnPhase === 1) { //move/deploy phase show interactable countries when clicking a country
+                    validDestinationsAndClosestPointArray = findClosestPaths(e.target);
+                    if (currentPath.hasAttribute("fill")) {
+                        hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
+                        currentlySelectedColorsArray.length = 0;
+                        validDestinationsArray = validDestinationsAndClosestPointArray.map(dest => dest[0]);
+                        closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
+                        let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
+                        let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
+                        if (e.target.getAttribute("owner") === "Player") {
+                            validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
+                            lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
+                        } else {
+                            territoriesAbleToAttackTarget = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
+                            territoriesAbleToAttackTarget = territoriesAbleToAttackTarget.filter(territoryCandidate => {
+                                const owner = territoryCandidate.getAttribute("owner");
+                                return owner === "Player";
+                            });
+                        }
+                        handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, false, 2);
+                    }
+                } else if (currentTurnPhase === 2) {
 
-              }
-          } else { //if on country selection screen
-              document.getElementById("popup-color").style.display = "block";
-          }
-      }
+                }
+            } else { //if on country selection screen
+                document.getElementById("popup-color").style.display = "block";
+            }
+        }
+    }
   });
 
   svgMap.addEventListener("wheel", zoomMap);
 
   svgMap.addEventListener('mousedown', function (e) {
-      if (e.target.tagName === "path") {
-          let pathElement = e.target;
-          shiftPath(pathElement, 3, 3);
-          modifyFill(pathElement, true);
+      if (!isDragging) {
+          if (e.target.tagName === "path") {
+              shiftedPath = e.target;
+              shiftPath(shiftedPath, 3, 3);
+              modifyFill(shiftedPath, true);
+          } else {
+              shiftedPath = null;
+          }
       }
 
       if (e.button === 0 && zoomLevel > 1) {
@@ -362,11 +369,9 @@ export function svgMapLoaded() {
       if (e.button === 0 && isDragging) {
           isDragging = false;
       }
-
-      if (e.target.tagName === "path") {
-          let pathElement = e.target;
-          shiftPath(pathElement, -3, -3);
-          modifyFill(pathElement, false);
+      if (!isDragging) {
+          shiftPath(shiftedPath, -3, -3);
+          modifyFill(shiftedPath, false);
       }
   });
 
@@ -5409,6 +5414,9 @@ function enableDisableAssaultButton(enableDisable) {
 }
 
 function shiftPath(pathElement, amountRight, amountDown) {
+    if (shiftedPath === null) {
+        return;
+    }
     const currentPathData = pathElement.getAttribute('d');
     const pathParts = currentPathData.split(' ');
 
@@ -5430,6 +5438,9 @@ function shiftPath(pathElement, amountRight, amountDown) {
 }
 
 function modifyFill(pathElement, mousedown) {
+    if (shiftedPath === null) {
+        return;
+    }
     const fillValue = pathElement.getAttribute('fill');
     const rgbPattern = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/;
     const matches = fillValue.match(rgbPattern);
