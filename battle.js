@@ -628,14 +628,14 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
   }
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
-    // let diceScoreArray; //DICE CODE EXECUTION
-    // if (mapMode === 0) {
-    //     diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
-    // } else if (mapMode === 1) {
-    //     diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
-    // }
-    // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
-    // //show feedback
+    let diceScoreArray; //DICE CODE EXECUTION
+    if (mapMode === 0) {
+        diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
+    } else if (mapMode === 1) {
+        diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
+    }
+    console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
+    //show feedback
   combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
   combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
   let skirmishesCompleted = 0;
