@@ -334,12 +334,18 @@ export function svgMapLoaded() {
 
   svgMap.addEventListener("wheel", zoomMap);
 
-  svgMap.addEventListener('mousedown', function(event) {
-      if (event.button === 0 && zoomLevel > 1) {
+  svgMap.addEventListener('mousedown', function (e) {
+      if (e.target.tagName === "path") {
+          let pathElement = e.target;
+          shiftPath(pathElement, 3, 3);
+          modifyFill(pathElement, true);
+      }
+
+      if (e.button === 0 && zoomLevel > 1) {
           isDragging = true;
-          lastMouseX = event.clientX;
-          lastMouseY = event.clientY;
-          event.preventDefault();
+          lastMouseX = e.clientX;
+          lastMouseY = e.clientY;
+          e.preventDefault();
       }
   });
 
@@ -355,6 +361,12 @@ export function svgMapLoaded() {
   svgMap.addEventListener('mouseup', function(e) {
       if (e.button === 0 && isDragging) {
           isDragging = false;
+      }
+
+      if (e.target.tagName === "path") {
+          let pathElement = e.target;
+          shiftPath(pathElement, -3, -3);
+          modifyFill(pathElement, false);
       }
   });
 
@@ -5393,5 +5405,52 @@ function enableDisableAssaultButton(enableDisable) {
         case 1: //disable
             siegeButton.disabled = true;
             siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+    }
+}
+
+function shiftPath(pathElement, amountRight, amountDown) {
+    const currentPathData = pathElement.getAttribute('d');
+    const pathParts = currentPathData.split(' ');
+
+    let shiftedPathData = '';
+    for (let i = 0; i < pathParts.length; i++) {
+        if (pathParts[i] === 'L' || pathParts[i] === 'l') {
+            // Shift the x and y coordinates
+            const x = parseFloat(pathParts[i + 1]) + amountRight;
+            const y = parseFloat(pathParts[i + 2]) + amountDown;
+            shiftedPathData += ` ${pathParts[i]} ${x.toFixed(3)} ${y.toFixed(3)}`;
+            i += 2;
+        } else {
+            shiftedPathData += ` ${pathParts[i]}`;
+        }
+    }
+
+    // Update the d attribute of the path element
+    pathElement.setAttribute('d', shiftedPathData);
+}
+
+function modifyFill(pathElement, mousedown) {
+    const fillValue = pathElement.getAttribute('fill');
+    const rgbPattern = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/;
+    const matches = fillValue.match(rgbPattern);
+
+    if (matches) {
+        let [_, r, g, b] = matches; // Destructure the matches
+        r = parseInt(r);
+        g = parseInt(g);
+        b = parseInt(b);
+
+        if (mousedown) {
+            // Subtract 30 from each component
+            r = Math.max(r - 30, 0);
+            g = Math.max(g - 30, 0);
+            b = Math.max(b - 30, 0);
+        } else {
+            // Add 30 to each component
+            r = Math.min(r + 30, 255);
+            g = Math.min(g + 30, 255);
+            b = Math.min(b + 30, 255);
+        }
+        pathElement.setAttribute('fill', `rgb(${r},${g},${b})`);
     }
 }
