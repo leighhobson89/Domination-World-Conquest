@@ -696,6 +696,7 @@ document.addEventListener("DOMContentLoaded", function() {
         popupConfirm.innerText = "AI Moving...";
         modifyCurrentTurnPhase(turnPhase);
         turnPhase = 0;
+        demoFunctionToSplitUp();
       }
   });
 
@@ -5463,5 +5464,39 @@ function modifyFill(pathElement, mousedown) {
             b = Math.min(b + 30, 255);
         }
         pathElement.setAttribute('fill', `rgb(${r},${g},${b})`);
+    }
+}
+
+function demoFunctionToSplitUp() {
+    let shadowColor;
+    for (let i = 0; i < paths.length; i++) {
+        paths[i].setAttribute("fill", "none");
+        // paths[i].style.stroke = "yellow";
+    }
+    for (let i = 0; i < pathsCoastLines.length; i++) {
+    //     shadowColor = pathsCoastLines[i].getAttribute("shadow");
+    //     switch (shadowColor) {
+    //         case "N America":
+    //             pathsCoastLines[i].style.stroke = "blue";
+    //             break;
+    //         case "S America":
+    //             pathsCoastLines[i].style.stroke = "magenta";
+    //             break;
+    //         case "Europe":
+    //             pathsCoastLines[i].style.stroke = "rgb(0,255,0)";
+    //             break;
+    //         case "Africa":
+    //             pathsCoastLines[i].style.stroke = "yellow";
+    //             break;
+    //         case "Asia":
+    //             pathsCoastLines[i].style.stroke = "red";
+    //             break;
+    //         case "Oceania":
+    //             pathsCoastLines[i].style.stroke = "cyan";
+    //     }
+    //         pathsCoastLines[i].style.stroke = "black";
+            pathsCoastLines[i].setAttribute("fill", "none");
+    //         // pathsCoastLines[i].style.strokeWidth = "6px";
+    //         pathsCoastLines[i].style.strokeWidth = "1px";
     }
 }
