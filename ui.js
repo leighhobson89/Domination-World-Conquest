@@ -613,7 +613,18 @@ document.addEventListener("DOMContentLoaded", function() {
     flipMapMode();
   });
 
+  const strokeHighlightButton = document.createElement("img");
+  strokeHighlightButton.src = "resources/mapMode2.png"; // Set the image source URL
+  strokeHighlightButton.classList.add("mapMode");
+  strokeHighlightButton.setAttribute("id", "strokeHighlightButton");
+
+  strokeHighlightButton.addEventListener("click", function() {
+  toggleContinentColorsStroke();
+  });
+
+
   document.getElementById("mapModeContainer").appendChild(mapModeButton);
+  document.getElementById("mapModeContainer").appendChild(strokeHighlightButton);
 
   const UIToggleButton = document.createElement("img");
   UIToggleButton.src = "resources/globeNoStandButtonUI.png"; // Set the image source URL
@@ -5592,19 +5603,13 @@ function flipMapMode() {
             svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
             for (let i = 0; i < pathsCoastLines.length; i++) {
                 pathsCoastLines[i].setAttribute("fill-opacity","0.20");
-                if (pathsCoastLines[i].getAttribute("isisland") === "true") {
-                    pathsCoastLines[i].style.strokeWidth = "2px";
-                } else {
-                    pathsCoastLines[i].style.strokeWidth = "5px";
-                }
                 continentColor = pathsCoastLines[i].getAttribute("shadow");
                 pathsCoastLines[i].setAttribute("fill", `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`);
-                pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
             }
             for (let i = 0; i < paths.length; i++) {
                 paths[i].setAttribute("fill-opacity", "0.01");
                 paths[i].style.stroke = fillPathBasedOnContinent(paths[i]);
-                paths[i].setAttribute("stroke-width", "2px");
+                paths[i].setAttribute("stroke-width", "1px");
                 console.log(paths[i].getAttribute("owner"));
                 paths[i].getAttribute("owner") === "Player" ? (paths[i].setAttribute("fill", playerColour), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
             }
@@ -5621,10 +5626,31 @@ function flipMapMode() {
             svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
             for (let i = 0; i < pathsCoastLines.length; i++) {
                 pathsCoastLines[i].setAttribute("fill", "rgb(134, 133, 104)");
-                pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
                 pathsCoastLines[i].setAttribute("fill", "none");
-                pathsCoastLines[i].style.strokeWidth = "4px";
             }
             break;
+    }
+}
+
+function toggleContinentColorsStroke() {
+    let continentColor;
+    for (let i = 0; i < pathsCoastLines.length; i++) {
+        if (pathsCoastLines[i].style.stroke === "rgb(103, 124, 160)") {
+            //toggle on
+            continentColor = pathsCoastLines[i].getAttribute("shadow");
+            pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
+            if (mapMode === 1) {
+                pathsCoastLines[i].style.strokeWidth = "6px";
+            } else if (mapMode === 2) {
+                pathsCoastLines[i].style.strokeWidth = "5px";
+            }
+        } else {
+            pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
+            if (pathsCoastLines[i].getAttribute("isisland") === "true") {
+                pathsCoastLines[i].style.strokeWidth = "2px";
+            } else {
+                pathsCoastLines[i].style.strokeWidth = "5px";
+            }
+        }
     }
 }
