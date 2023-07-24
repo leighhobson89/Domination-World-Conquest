@@ -33,7 +33,7 @@ import {
     setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
-    mapMode
+    mapMode, saveMapColorState
 } from './ui.js';
 import {
     callDice,
@@ -561,6 +561,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     setFlag(playerCountry, 2);
     contestedPath.setAttribute("data-name", playerCountry);
     deactivateTerritory(contestedPath, contestedTerritory);
+    if (mapMode === 2) {
+        contestedPath.style.stroke = "white";
+    }
   } else {
       if (mapMode === 0) {
           contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
@@ -613,15 +616,23 @@ export function activateAllTerritoriesForNewTurn() { //reactivate all territorie
     } else {
       for (let j = 0; j < paths.length; j++) {
         if (paths[j].getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
-          paths[j].style.stroke = "black";
-          paths[j].style.strokeDasharray = "none";
-          paths[j].setAttribute("stroke-width", "1");
-          paths[j].setAttribute("deactivated", "false");
-          for (let k = 0; k < mainGameArray.length; k++) {
-            if (mainGameArray[k].uniqueId === paths[j].getAttribute("uniqueid")) {
-              mainGameArray[k].isDeactivated = false;
+            if (mapMode === 1) {
+                paths[j].style.stroke = "black";
+
+            } else if (mapMode === 2) {
+                paths[j].style.stroke = "white";
             }
-          }
+            paths[j].style.strokeDasharray = "none";
+            paths[j].setAttribute("stroke-width", "1");
+            paths[j].setAttribute("deactivated", "false");
+            for (let k = 0; k < mainGameArray.length; k++) {
+                if (mainGameArray[k].uniqueId === paths[j].getAttribute("uniqueid")) {
+                    mainGameArray[k].isDeactivated = false;
+                }
+            }
+            if (mapMode === 1) {
+                currentMapColorAndStrokeArray = saveMapColorState(false);
+            }
         }
       }      
     }
