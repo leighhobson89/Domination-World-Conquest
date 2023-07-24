@@ -139,6 +139,7 @@ let countrySelectedAndGameStarted = false;
 let menuState = true;
 let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
+let mapModeButtonCurrentlyOnScreen = false;
 export let transferAttackButtonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
@@ -169,7 +170,7 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
-export const mapMode = 1; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
+export let mapMode = 1; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
 
 //Zoom variables
 let zoomLevel = 1;
@@ -285,6 +286,15 @@ export function svgMapLoaded() {
   });
 
   svgMap.addEventListener("click", function(e) {
+    if (mapMode === 2) {
+        flipMapMode();
+        for (let i = 0; i < paths.length; i++) {
+            if (!selectCountryPlayerState && paths[i].getAttribute("owner") !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                setStrokeWidth(paths[i], "1");
+            }
+        }
+    }
     if (!isDragging) {
         if (e.target.tagName === "rect" && currentTurnPhase === 1) {
             restoreMapColorState(currentMapColorAndStrokeArray, false);
@@ -376,9 +386,9 @@ export function svgMapLoaded() {
   });
 
   if (mapMode === 0) { //continent coloring
-      colorMapAtBeginningOfGame();
+      colorByContinent();
   } else if (mapMode === 1) { //random with team assignment
-      randomiseColorsOfPathsOnLoad(); // random country assignment from start
+      colorBystandardColoring(); // random country assignment from start
   }
   console.log("loaded!");
 }
@@ -439,6 +449,9 @@ function selectCountry(country, escKeyEntry) {
                     if (mapMode === 0) {
                         paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
                     } else if (mapMode === 1) {
+                        paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                    } else if (mapMode === 2) {
+                        flipMapMode();
                         paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
                     }
                     setStrokeWidth(paths[i], "1");
@@ -591,6 +604,16 @@ document.addEventListener("DOMContentLoaded", function() {
   popupConfirm.classList.add("popup-option-confirm");
   popupConfirm.setAttribute("id", "popup-confirm");
 
+  const mapModeButton = document.createElement("img");
+  mapModeButton.src = "resources/mapMode1.png"; // Set the image source URL
+  mapModeButton.classList.add("mapMode");
+  mapModeButton.setAttribute("id", "mapModeButton");
+
+  mapModeButton.addEventListener("click", function() {
+    flipMapMode();
+  });
+
+  document.getElementById("mapModeContainer").appendChild(mapModeButton);
 
   const UIToggleButton = document.createElement("img");
   UIToggleButton.src = "resources/globeNoStandButtonUI.png"; // Set the image source URL
@@ -606,7 +629,6 @@ document.addEventListener("DOMContentLoaded", function() {
           summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
           summaryButton.classList.add("active");
       }
-
   });
 
   document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
@@ -617,6 +639,9 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById("player-color-picker").addEventListener('change', function() {
+      if (mapMode === 2) {
+          flipMapMode();
+      }
       playerColour = convertHexValueToRGBOrViceVersa(document.getElementById("player-color-picker").value, 0);
       restoreMapColorState(currentMapColorAndStrokeArray, false);
       document.getElementById("popup-color").style.color = playerColour;
@@ -651,6 +676,8 @@ document.addEventListener("DOMContentLoaded", function() {
           setFlag(flag, 3); //set player flag in ui info panel
           uiButtonCurrentlyOnScreen = true;
           toggleUIButton(true);
+          mapModeButtonCurrentlyOnScreen = true;
+          toggleMapModeButton(true);
           restoreMapColorState(currentMapColorAndStrokeArray, true);
           initialiseGame();
           createCpuPlayerObjectAndAddToMainArray();
@@ -660,8 +687,13 @@ document.addEventListener("DOMContentLoaded", function() {
           popupSubTitle.innerText = "";
           popupConfirm.innerText = "MILITARY";
           turnPhase++;
-          currentMapColorAndStrokeArray = saveMapColorState(false);
+          if (mapMode === 1) {
+              currentMapColorAndStrokeArray = saveMapColorState(false);
+          }
       } else if (countrySelectedAndGameStarted && turnPhase === 0) {
+          if (mapMode === 2) {
+              flipMapMode();
+          }
           if (siegeObject) {
             for (const key in siegeObject) {
                 for (let i = 0; i < mainGameArray.length; i++) {
@@ -671,13 +703,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
           }
-          currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
+          if (mapMode === 1) {
+              currentMapColorAndStrokeArray = saveMapColorState(false);
+          }
           popupTitle.innerText = "Buy / Upgrade Phase";
           popupConfirm.innerText = "MILITARY";
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase === 1) {
-          currentMapColorAndStrokeArray = saveMapColorState(false); //grab state of map colors at start of turn.
+          if (mapMode === 1) {
+              currentMapColorAndStrokeArray = saveMapColorState(false);
+          }
           popupTitle.innerText = "Military Phase";
           popupConfirm.innerText = "END TURN";
           modifyCurrentTurnPhase(turnPhase);
@@ -688,6 +724,7 @@ document.addEventListener("DOMContentLoaded", function() {
             lastClickedPath.style.stroke = "rgb(0,0,0)";
             lastClickedPath.setAttribute("stroke-width", "1");
             lastClickedPath.style.strokeDasharray = "none";
+            currentMapColorAndStrokeArray = saveMapColorState(false);
         }
         toggleTransferAttackButton(false);
         transferAttackButtonDisplayed = false;
@@ -696,7 +733,6 @@ document.addEventListener("DOMContentLoaded", function() {
         popupConfirm.innerText = "AI Moving...";
         modifyCurrentTurnPhase(turnPhase);
         turnPhase = 0;
-        demoFunctionToSplitUp();
       }
   });
 
@@ -1596,7 +1632,11 @@ summaryButton.addEventListener("mouseout", function() {
       toggleTransferAttackWindow(false);
       transferAttackWindowOnScreen = false;
       toggleUIButton(true);
+      uiButtonCurrentlyOnScreen = true;
+      toggleMapModeButton(true);
+      mapModeButtonCurrentlyOnScreen = true;
       toggleBottomLeftPaneWithTurnAdvance(true);
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
       handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackButtonState);
   });
 
@@ -2250,6 +2290,8 @@ siegeButton.addEventListener('mouseout', function() {
     battleUIDisplayed = false;
     toggleUIButton(true);
     uiButtonCurrentlyOnScreen = true;
+    toggleMapModeButton(true);
+    mapModeButtonCurrentlyOnScreen = true;
     toggleBottomLeftPaneWithTurnAdvance(true);
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
 
@@ -2269,7 +2311,9 @@ siegeButton.addEventListener('mouseout', function() {
       addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
       svgMap.getElementById("attackImage").remove();
 
-      currentMapColorAndStrokeArray = saveMapColorState(false);
+      if (mapMode === 1) {
+          currentMapColorAndStrokeArray = saveMapColorState(false);
+      }
     }
 });
 
@@ -2490,6 +2534,8 @@ advanceButton.addEventListener('click', function() {
             battleUIDisplayed = false;
             toggleUIButton(true);
             uiButtonCurrentlyOnScreen = true;
+            toggleMapModeButton(true);
+            mapModeButtonCurrentlyOnScreen = true;
             toggleBottomLeftPaneWithTurnAdvance(true);
             bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
             break;
@@ -2559,12 +2605,18 @@ confirmButtonBattleResults.addEventListener('click', function() {
     toggleBattleResults(false);
     battleResultsDisplayed = false;
     toggleUIButton(true);
+    uiButtonCurrentlyOnScreen = true;
     toggleBottomLeftPaneWithTurnAdvance(true);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+    toggleMapModeButton(true);
+    mapModeButtonCurrentlyOnScreen = true;
 
     if (svgMap.getElementById("attackImage")) {
         svgMap.getElementById("attackImage").remove();
     }
-    currentMapColorAndStrokeArray = saveMapColorState(false);     
+    if (mapMode === 1) {
+        currentMapColorAndStrokeArray = saveMapColorState(false);
+    }
 });
 
   pageLoaded = true;
@@ -3074,7 +3126,7 @@ function uiButtons(button) {
     }
 }
 
-function colorMapAtBeginningOfGame() {
+function colorByContinent() {
   paths.forEach(path => {
       const continent = path.getAttribute("continent");
       const color = CONTINENT_COLOR_ARRAY.find(item => item[0] === continent)[1];
@@ -3085,25 +3137,44 @@ function colorMapAtBeginningOfGame() {
 function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = []) {
   if (territory.hasAttribute("fill")) {
       let fillValue = territory.getAttribute("fill");
-      let rgbValues = fillValue.match(/\d+/g).map(Number);
-      let [r, g, b] = rgbValues;
-      if (mouseAction === "mouseOver" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when hovering (doesn't run on selected or interactable territories)
-          hoveredNonInteractableAndNonSelectedTerritory = true;
-          r += 20;
-          g += 20;
-          b += 20;
-          territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-      } else if (mouseAction === "mouseOut" && r <= 254 && g <= 254 && b <= 254) { //this handles color change when leaving a hover (doesn't run on selected or interactable territories)
-          hoveredNonInteractableAndNonSelectedTerritory = false;
-          r -= 20;
-          g -= 20;
-          b -= 20;
-          if (selectCountryPlayerState && territory === currentSelectedPath) {
-            territory.setAttribute("fill", playerColour);
-          } else {
-            territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+      let rgbValues;
+      let r, g, b;
+      if (mapMode === 1) { //normal map
+          rgbValues = fillValue.match(/\d+/g).map(Number);
+          [r, g, b] = rgbValues;
+      }
+      if (mouseAction === "mouseOver" && ((r <= 254 && g <= 254 && b <= 254 && mapMode === 1) || mapMode === 2)) { //this handles color change when hovering (doesn't run on selected or interactable territories)
+          if (mapMode === 1) {
+              hoveredNonInteractableAndNonSelectedTerritory = true;
+              r += 20;
+              g += 20;
+              b += 20;
+              territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+          } else if (mapMode === 2 && territory.getAttribute("owner") !== "Player") {
+              [r, g, b] = [255,255,255];
+              territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+              territory.setAttribute("fill-opacity", "0.3");
+          }
+      } else if (mouseAction === "mouseOut" && ((r <= 254 && g <= 254 && b <= 254 && mapMode === 1) || mapMode === 2)) { //this handles color change when leaving a hover (doesn't run on selected or interactable territories)
+          if (mapMode === 1) {
+              hoveredNonInteractableAndNonSelectedTerritory = false;
+              r -= 20;
+              g -= 20;
+              b -= 20;
+              if (selectCountryPlayerState && territory === currentSelectedPath) {
+                  territory.setAttribute("fill", playerColour);
+              } else {
+                  territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
+              }
+          } else if (mapMode === 2 && territory.getAttribute("owner") !== "Player") {
+              territory.setAttribute("fill-opacity", "0.01");
           }
       } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
+          if (mapMode === 2) {
+              flipMapMode();
+              //reset colours
+
+          }
           if (arrayOfSelectedCountries.length > 0) {
               for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
                   let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
@@ -3117,7 +3188,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
   }
 }
 
-export function saveMapColorState(onResourcePage) {
+export function saveMapColorState(gameInit) {
   const stateArray = [];
 
   for (let i = 0; i < paths.length; i++) {
@@ -3130,7 +3201,7 @@ export function saveMapColorState(onResourcePage) {
       }
   }
 
-  if (onResourcePage) {
+  if (gameInit) {
       currentMapColorAndStrokeArray = stateArray;
   } else {
       return stateArray;
@@ -3184,7 +3255,7 @@ export function fillPathBasedOnStartingCountryColor(path) { //mapMode === 1 ie r
     }
 }
 
-function randomiseColorsOfPathsOnLoad() {
+function colorBystandardColoring() {
     paths.forEach(path => {
         const uniqueId = path.getAttribute("uniqueid");
         const dataName = path.getAttribute("data-name");
@@ -3624,6 +3695,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
               if (!transferAttackWindowOnScreen) {
                   toggleUIButton(false);
                   toggleBottomLeftPaneWithTurnAdvance(false);
+                  toggleMapModeButton(false);
+                  mapModeButtonCurrentlyOnScreen = false;
 
                   if (transferAttackButtonState === 0 || transferAttackButtonState === 1) {
                     toggleTransferAttackWindow(true);
@@ -3695,6 +3768,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     transferAttackWindowOnScreen = false;
                     toggleUIButton(true);
                     toggleBottomLeftPaneWithTurnAdvance(true);
+                    toggleMapModeButton(true);
+                    mapModeButtonCurrentlyOnScreen = true;
                     setTimeout(function() {
                         eventHandlerExecuted = false;
                     }, 200);
@@ -3731,7 +3806,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
                         toggleUIButton(true);
                         uiButtonCurrentlyOnScreen = true;
-
+                        toggleMapModeButton(true);
+                        mapModeButtonCurrentlyOnScreen = true;
                     }
                       territoryUniqueIds.length = 0;
 
@@ -3742,7 +3818,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                       }
                       if (transferAttackButtonState === 0) {
                         toggleUIButton(true);
+                        uiButtonCurrentlyOnScreen = true;
                         toggleBottomLeftPaneWithTurnAdvance(true);
+                        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+                        toggleMapModeButton(true);
+                        mapModeButtonCurrentlyOnScreen = true;
                       }
                       setTimeout(function() {
                           eventHandlerExecuted = false;
@@ -4160,6 +4240,14 @@ function toggleUIButton(makeVisible) {
         document.getElementById("UIButtonContainer").style.display = "none";
     }
   }
+
+function toggleMapModeButton(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("mapModeContainer").style.display = "block";
+    } else {
+        document.getElementById("mapModeContainer").style.display = "none";
+    }
+}
   
   function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
     if (makeVisible) {
@@ -4177,7 +4265,11 @@ function toggleUIButton(makeVisible) {
         svg.style.pointerEvents = 'none';
         uiCurrentlyOnScreen = true;
         toggleUIButton(false);
-        document.getElementById("popup-with-confirm-container").style.display = "none";
+        uiButtonCurrentlyOnScreen = false;
+        toggleMapModeButton(false);
+        mapModeButtonCurrentlyOnScreen = false;
+        toggleBottomLeftPaneWithTurnAdvance(false);
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
         toggleTransferAttackButton(false);
     } else {
         document.getElementById("move-phase-buttons-container").style.pointerEvents = "auto";
@@ -4185,7 +4277,11 @@ function toggleUIButton(makeVisible) {
         svg.style.pointerEvents = 'auto';
         uiCurrentlyOnScreen = false;
         toggleUIButton(true);
-        document.getElementById("popup-with-confirm-container").style.display = "block";
+        uiButtonCurrentlyOnScreen = true;
+        toggleBottomLeftPaneWithTurnAdvance(true);
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+        toggleMapModeButton(true);
+        mapModeButtonCurrentlyOnScreen = true;
         if (transferAttackButtonDisplayed) {
             toggleTransferAttackButton(true);
         }
@@ -4725,7 +4821,9 @@ export function reduceKeywords(str) {
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         territoryPath.setAttribute("fill", playerColour);
-        currentMapColorAndStrokeArray = saveMapColorState(false);
+        if (mapMode === 1) {
+            currentMapColorAndStrokeArray = saveMapColorState(false);
+        }
     } else if (situation === 1) { //lost
         confirmButtonBattleResults.classList.remove("battleResultsRow4Won");
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
@@ -5141,7 +5239,11 @@ function setUnsetMenuOnEscape() {
       toggleTopTableContainer(false);
       menuState = true;
       toggleBottomLeftPaneWithTurnAdvance(false);
+      bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
       toggleUIButton(false);
+      uiButtonCurrentlyOnScreen = false;
+      toggleMapModeButton(false);
+      mapModeButtonCurrentlyOnScreen = false;
       toggleUpgradeMenu(false);
       toggleBuyMenu(false);
       toggleTransferAttackButton(false);
@@ -5152,10 +5254,12 @@ function setUnsetMenuOnEscape() {
       if (uiCurrentlyOnScreen) {
           document.getElementById("main-ui-container").style.display = "flex";
           uiButtonCurrentlyOnScreen = false;
+          mapModeButtonCurrentlyOnScreen = false;
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
       } else {
           if (countrySelectedAndGameStarted) {
               uiButtonCurrentlyOnScreen = true;
+              mapModeButtonCurrentlyOnScreen = true;
           }
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
       }
@@ -5169,9 +5273,11 @@ function setUnsetMenuOnEscape() {
           }
           uiButtonCurrentlyOnScreen = false;
           bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+          mapModeButtonCurrentlyOnScreen = false;
       } else {
           if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
               uiButtonCurrentlyOnScreen = true;
+              mapModeButtonCurrentlyOnScreen = true;
           }
           if (!uiCurrentlyOnScreen) {
               bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
@@ -5185,6 +5291,9 @@ function setUnsetMenuOnEscape() {
       }
       if (uiButtonCurrentlyOnScreen) {
           toggleUIButton(true);
+      }
+      if (mapModeButtonCurrentlyOnScreen) {
+          toggleMapModeButton(true);
       }
       if (buyWindowCurrentlyOnScreen) {
           toggleBuyMenu(true);
@@ -5230,6 +5339,8 @@ export function setUpResultsOfWarExternal(value) {
         uiButtonCurrentlyOnScreen = false;
         toggleBottomLeftPaneWithTurnAdvance(false);
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+        toggleMapModeButton(false);
+        mapModeButtonCurrentlyOnScreen = false;
     } else {
         toggleBattleResults(false);
         battleResultsDisplayed = false;
@@ -5237,6 +5348,8 @@ export function setUpResultsOfWarExternal(value) {
         uiButtonCurrentlyOnScreen = true;
         toggleBottomLeftPaneWithTurnAdvance(true);
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+        toggleMapModeButton(true);
+        mapModeButtonCurrentlyOnScreen = true;
     }
 }
 
@@ -5399,6 +5512,8 @@ export function routeSiegeUIProcesses() {
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
     toggleUIButton(false);
     uiButtonCurrentlyOnScreen = false;
+    toggleMapModeButton(false);
+    mapModeButtonCurrentlyOnScreen = false;
 }
 
 function enableDisableAssaultButton(enableDisable) {
@@ -5467,36 +5582,49 @@ function modifyFill(pathElement, mousedown) {
     }
 }
 
-function demoFunctionToSplitUp() {
-    let shadowColor;
-    for (let i = 0; i < paths.length; i++) {
-        paths[i].setAttribute("fill", "none");
-        // paths[i].style.stroke = "yellow";
-    }
-    for (let i = 0; i < pathsCoastLines.length; i++) {
-    //     shadowColor = pathsCoastLines[i].getAttribute("shadow");
-    //     switch (shadowColor) {
-    //         case "N America":
-    //             pathsCoastLines[i].style.stroke = "blue";
-    //             break;
-    //         case "S America":
-    //             pathsCoastLines[i].style.stroke = "magenta";
-    //             break;
-    //         case "Europe":
-    //             pathsCoastLines[i].style.stroke = "rgb(0,255,0)";
-    //             break;
-    //         case "Africa":
-    //             pathsCoastLines[i].style.stroke = "yellow";
-    //             break;
-    //         case "Asia":
-    //             pathsCoastLines[i].style.stroke = "red";
-    //             break;
-    //         case "Oceania":
-    //             pathsCoastLines[i].style.stroke = "cyan";
-    //     }
-    //         pathsCoastLines[i].style.stroke = "black";
-            pathsCoastLines[i].setAttribute("fill", "none");
-    //         // pathsCoastLines[i].style.strokeWidth = "6px";
-    //         pathsCoastLines[i].style.strokeWidth = "1px";
+function flipMapMode() {
+    let continentColor;
+    switch(mapMode) {
+        case 1:
+            document.getElementById("mapModeButton").src = "resources/mapMode2.png";
+            currentMapColorAndStrokeArray = saveMapColorState(false);
+            mapMode = 2;
+            svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
+            for (let i = 0; i < pathsCoastLines.length; i++) {
+                pathsCoastLines[i].setAttribute("fill-opacity","0.20");
+                if (pathsCoastLines[i].getAttribute("isisland") === "true") {
+                    pathsCoastLines[i].style.strokeWidth = "2px";
+                } else {
+                    pathsCoastLines[i].style.strokeWidth = "5px";
+                }
+                continentColor = pathsCoastLines[i].getAttribute("shadow");
+                pathsCoastLines[i].setAttribute("fill", `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`);
+                pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
+            }
+            for (let i = 0; i < paths.length; i++) {
+                paths[i].setAttribute("fill-opacity", "0.01");
+                paths[i].style.stroke = fillPathBasedOnContinent(paths[i]);
+                paths[i].setAttribute("stroke-width", "2px");
+                console.log(paths[i].getAttribute("owner"));
+                paths[i].getAttribute("owner") === "Player" ? (paths[i].setAttribute("fill", playerColour), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
+            }
+            break;
+        case 2:
+            document.getElementById("mapModeButton").src = "resources/mapMode1.png";
+            mapMode = 1;
+            for (let i = 0; i < paths.length; i++) {
+                paths[i].style.stroke = "black";
+                paths[i].setAttribute("stroke-width", "1px");
+                paths[i].setAttribute("fill-opacity", "1");
+            }
+            restoreMapColorState(currentMapColorAndStrokeArray, false);
+            svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
+            for (let i = 0; i < pathsCoastLines.length; i++) {
+                pathsCoastLines[i].setAttribute("fill", "rgb(134, 133, 104)");
+                pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
+                pathsCoastLines[i].setAttribute("fill", "none");
+                pathsCoastLines[i].style.strokeWidth = "4px";
+            }
+            break;
     }
 }

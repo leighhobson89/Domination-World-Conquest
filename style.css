@@ -172,6 +172,18 @@ td {
   z-index: 9999;
 }
 
+#mapModeContainer {
+  width: 7%;
+  height: 14%;
+  position: fixed;
+  top: 45px;
+  right: 10px;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 9999;
+}
+
 .UI-option {
   padding-top: 5px;
   padding-bottom: 5px;
@@ -185,7 +197,27 @@ td {
   height: 100%;
 }
 
+.mapMode {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  fill-opacity: 0;
+  opacity: 0.6;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: normal;
+  transition: all 0.3s ease;
+  width: 100%;
+  height: 100%;
+}
+
+
 .UI-option:hover {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 1;
+}
+
+.mapMode:hover {
   cursor: pointer;
   transition: all 0.3s ease;
   opacity: 1;
