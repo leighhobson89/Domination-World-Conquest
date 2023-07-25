@@ -614,7 +614,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   const strokeHighlightButton = document.createElement("img");
-  strokeHighlightButton.src = "resources/mapMode2.png"; // Set the image source URL
+  strokeHighlightButton.src = "resources/strokeToggle2.png"; // Set the image source URL
   strokeHighlightButton.classList.add("mapMode");
   strokeHighlightButton.setAttribute("id", "strokeHighlightButton");
 
@@ -5637,6 +5637,7 @@ function toggleContinentColorsStroke() {
     for (let i = 0; i < pathsCoastLines.length; i++) {
         if (pathsCoastLines[i].style.stroke === "rgb(103, 124, 160)") {
             //toggle on
+            document.getElementById("strokeHighlightButton").src = "resources/strokeToggle1.png";
             continentColor = pathsCoastLines[i].getAttribute("shadow");
             pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
             if (mapMode === 1) {
@@ -5644,7 +5645,8 @@ function toggleContinentColorsStroke() {
             } else if (mapMode === 2) {
                 pathsCoastLines[i].style.strokeWidth = "5px";
             }
-        } else {
+        } else { // toggle off
+            document.getElementById("strokeHighlightButton").src = "resources/strokeToggle2.png";
             pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
             if (pathsCoastLines[i].getAttribute("isisland") === "true") {
                 pathsCoastLines[i].style.strokeWidth = "2px";
