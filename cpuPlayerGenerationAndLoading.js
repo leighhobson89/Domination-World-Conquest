@@ -101,21 +101,19 @@ function getRandomGender() {
     return genders[randomIndex];
 }
 
-export function createArrayOfLeadersAndCountries() {
-    const countryIndices = {}; // Object to store the unique countries and their indices
+export function updateArrayOfLeadersAndCountries() { //when called sets the arrayOfLeadersAndCountries with [countryName, leaderObject, [<list of territory names>]
+    const countryIndices = {};
 
     for (let i = 0; i < mainGameArray.length; i++) {
         const countryName = mainGameArray[i].dataName;
 
         if (!countryIndices.hasOwnProperty(countryName) && mainGameArray[i].owner !== "Player") {
-            // If the country is not in the object, add it along with the current element to the array
             countryIndices[countryName] = arrayOfLeadersAndCountries.length;
-            arrayOfLeadersAndCountries.push([countryName, mainGameArray[i].leader.name, [mainGameArray[i].territoryName]]);
+            arrayOfLeadersAndCountries.push([countryName, mainGameArray[i].leader, [mainGameArray[i]]]);
         } else {
             if (mainGameArray[i].owner !== "Player") {
-                // If the country is already in the object, append the territory name to the existing array
                 const index = countryIndices[countryName];
-                arrayOfLeadersAndCountries[index][2].push(mainGameArray[i].territoryName);
+                arrayOfLeadersAndCountries[index][2].push(mainGameArray[i]);
             }
         }
     }
@@ -129,4 +127,8 @@ export function createArrayOfLeadersAndCountries() {
 
     arrayOfLeadersAndCountries.length = 0;
     arrayOfLeadersAndCountries.push(...uniqueArray);
+}
+
+export function getArrayOfLeadersAndCountries() {
+    return arrayOfLeadersAndCountries;
 }
