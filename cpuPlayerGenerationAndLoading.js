@@ -7,6 +7,8 @@ const nameStringsMale = ["James", "Alexander", "Arthur", "Theodore", "Gideon", "
 const nameStringsFemale = ["Emma", "Olivia", "Ava", "Sophia", "Isabella", "Mia", "Amelia", "Harper", "Evelyn", "Abigail", "Emily", "Elizabeth", "Sofia", "Ella", "Avery", "Scarlett", "Grace", "Chloe", "Victoria", "Riley", "Aria", "Lily", "Aubrey", "Zoe", "Hannah", "Layla", "Nora", "Mila", "Eleanor", "Sarah", "Eliana", "Naomi", "Claire", "Stella", "Lucy", "Anna", "Isla", "Aurora", "Maya", "Leah", "Penelope", "Audrey", "Violet", "Bella", "Savannah", "Nova", "Hazel", "Aria", "Lila", "Elena", "Ariana", "Emilia", "Everly", "Luna", "Eva", "Layla", "Gianna", "Cora", "Alice", "Jasmine", "Elise", "Valentina", "Nina", "Isabel", "Zara", "Natalia", "Melanie", "Lila", "Marley", "Angelina", "Finley", "Jade", "Elaina", "Megan", "Willow", "Amy", "Lola", "Adriana", "Kira", "Fatima", "Amara", "Sara", "Amira", "Rania", "Sasha", "Ayana", "Ezra", "Eshe", "Zahra", "Nala", "Talia", "Sana", "Zuri", "Yara", "Imara", "Amina", "Zaina", "Selena", "Kalila", "Anya", "Nadia", "Maya", "Leila", "Farida", "Zoya", "Amani", "Saida", "Samara", "Ayah"];
 const nameSuffixes = ["", "I", "II", "III", "IV", "the Great", "the Conqueror", "the Wise", "the Brave", "the Magnificent", "the Mighty", "the Supreme", "the Bold", "the Cunning", "the Fearless"];
 
+let arrayOfLeadersAndCountries = [];
+
 function getRandomNumberInRange(min, max) {
     return Math.random() * (max - min) + min;
 }
@@ -97,4 +99,34 @@ function getRandomGender() {
     const genders = ["male", "female"];
     const randomIndex = Math.floor(Math.random() * genders.length);
     return genders[randomIndex];
+}
+
+export function createArrayOfLeadersAndCountries() {
+    const countryIndices = {}; // Object to store the unique countries and their indices
+
+    for (let i = 0; i < mainGameArray.length; i++) {
+        const countryName = mainGameArray[i].dataName;
+
+        if (!countryIndices.hasOwnProperty(countryName) && mainGameArray[i].owner !== "Player") {
+            // If the country is not in the object, add it along with the current element to the array
+            countryIndices[countryName] = arrayOfLeadersAndCountries.length;
+            arrayOfLeadersAndCountries.push([countryName, mainGameArray[i].leader.name, [mainGameArray[i].territoryName]]);
+        } else {
+            if (mainGameArray[i].owner !== "Player") {
+                // If the country is already in the object, append the territory name to the existing array
+                const index = countryIndices[countryName];
+                arrayOfLeadersAndCountries[index][2].push(mainGameArray[i].territoryName);
+            }
+        }
+    }
+
+    const uniqueArray = arrayOfLeadersAndCountries.reduce((acc, curr) => {
+        if (!acc.some((item) => item[0] === curr[0])) {
+            acc.push(curr);
+        }
+        return acc;
+    }, []);
+
+    arrayOfLeadersAndCountries.length = 0;
+    arrayOfLeadersAndCountries.push(...uniqueArray);
 }

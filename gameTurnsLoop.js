@@ -81,9 +81,9 @@ function gameLoop() {
   randomEvent = "";
   console.log("Turn " + currentTurn + " has started!");
   // Handle player turn
-  handleSpendUpgradePhase().then(() => {
+  handleBuyUpgradePhase().then(() => {
       // Handle move/attack phase
-      handleMoveAttackPhase().then(() => {
+      handleMilitaryPhase().then(() => {
           // Handle AI turn
           handleAITurn().then(() => {
               // Increment turn counter
@@ -95,7 +95,7 @@ function gameLoop() {
   });
 }
 
-function handleSpendUpgradePhase() {
+function handleBuyUpgradePhase() {
   return new Promise(resolve => {
       console.log("Handling Spend Upgrade Phase");
       console.log("Current turn-phase is: " + currentTurnPhase);
@@ -108,7 +108,7 @@ function handleSpendUpgradePhase() {
   });
 }
 
-function handleMoveAttackPhase() {
+function handleMilitaryPhase() {
   return new Promise(resolve => {
       console.log("Handling Move Attack Phase");
       console.log("Current turn-phase is: " + currentTurnPhase);
@@ -122,17 +122,38 @@ function handleMoveAttackPhase() {
 }
 
 function handleAITurn() {
-  return new Promise(resolve => {
-      console.log("Handling AI Turn");
-      console.log("Current turn-phase is: " + currentTurnPhase);
-      const popupConfirmButton = document.getElementById("popup-confirm");
-      const onClickHandler = () => {
-          popupConfirmButton.removeEventListener("click", onClickHandler);
-          resolve();
-      };
-      popupConfirmButton.addEventListener("click", onClickHandler);
-  });
+    return new Promise(resolve => {
+        console.log("Handling AI Turn");
+        console.log("Current turn-phase is: " + currentTurnPhase);
+        //loop through ai players
+            //read in territories owned by ai player
+            //unblock territories that are no longer deactivated from previous wars
+            //read in resources and army per activated territory
+            //read in per turn resources for country
+            //read in territories within range
+            //read in territories within ranges army and forts
+            //assess threat from territories within range
+            //check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
+            //based on personality type, available resources, and threat, decide on goal for this turn to work towards longer term goal
+            //based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
+            //spend resources on upgrades, and army for each territory owned
+            //calculate probability of a successful battle from all owned territories against all territories that contribute to the turn goal
+            //based on personality, turn goal and new resources after update, and probability, decide if going to attack anyone
+            //calculate army needed for a successful attack
+            //check if one or combination of territories could meet that need
+            //based on personality and threats, decide how important it is to leave army to defend currently owned territory
+            //realise all attacks - move army out, run battle, and return result
+            //if successful deactivate army stationed in territory for x turns, and block upgrade of territory for same
+            //based on threat, move available army around between available owned territories
+            //assess if turn goal was realised and update long term goal if necessary
+        //end loop
+        setTimeout(() => { //replace with ai functions
+            console.log("AI DONE!"); // Placeholder message for AI turn completed
+            resolve(); // Resolve the Promise to indicate AI turn handling completion
+        }, 1000);
+    });
 }
+
 
 function handleRandomEventLikelihood() {
   const decimalProbability = probability / 100;
