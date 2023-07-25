@@ -21,7 +21,11 @@ import {
   handleEndSiegeDueArrest,
   getRetrievalArray
 } from './battle.js';
-import { getArrayOfLeadersAndCountries } from "./cpuPlayerGenerationAndLoading.js";
+import {getArrayOfLeadersAndCountries,
+    updateArrayOfLeadersAndCountries
+} from "./cpuPlayerGenerationAndLoading.js";
+import { readClosestPointsJSON
+} from "./aiCalculations.js";
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
@@ -126,58 +130,68 @@ function handleMilitaryPhase() {
   });
 }
 
-function handleAITurn() {
-    return new Promise(resolve => {
-        console.log("Handling AI Turn, with simulated 2 second delay...");
-        document.getElementById("popup-confirm").disabled = true; //stop user clicking button during ai turn
-        endPlayerTurn();
+async function handleAITurn() {
+    console.log("Handling AI Turn, with simulated 2-second delay...");
+    document.getElementById("popup-confirm").disabled = true; // Stop the user from clicking the button during the AI turn
+    endPlayerTurn();
+    updateArrayOfLeadersAndCountries();
+    let arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    let countryResourceTotals;
+    let turnGainsArrayAi;
+    let attackOptionsArray = [];
+    let closestPathDataArray;
 
-        setTimeout(() => {
-            let arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
-            let countryResourceTotals;
-            let turnGainsArrayAi;
-            for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) { //main ai loop
-                //read in current leaders territories and resource information from the mainUI
-                readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries);
+    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+        readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries[i]);
 
-                // TODO unblock territories that are no longer deactivated from previous wars
-                // implement once ai can conquer territories
+        // TODO: Unblock territories that are no longer deactivated from previous wars
+        // Implement once AI can conquer territories
 
-                // TODO read in resources and army per activated territory
-                // info already available in arrayOfLeadersAndCountries
+        // Read resources and army per activated territory
+        // Info already available in arrayOfLeadersAndCountries
 
-                // read in total resources for specific ai's country and it's per turn gains
-                countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
-                const turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
+        // Read total resources for specific AI's country and its per turn gains
+        countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
+        const turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
+        // console.log(countryResourceTotals);
+        // console.log(turnGainsArrayAi);
 
-                console.log(countryResourceTotals);
-                console.log(turnGainsArrayAi);
-
-                // TODO read in territories within range
-                // TODO read in territories within ranges army and forts
-                // TODO assess threat from territories within range
-                // TODO check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
-                // TODO based on personality type, available resources, and threat, decide on goal for this turn to work towards longer term goal
-                // TODO based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
-                // TODO spend resources on upgrades, and army for each territory owned
-                // TODO calculate probability of a successful battle from all owned territories against all territories that contribute to the turn goal
-                // TODO based on personality, turn goal and new resources after update, and probability, decide if going to attack anyone
-                // TODO calculate army needed for a successful attack
-                // TODO check if one or combination of territories could meet that need
-                // TODO based on personality and threats, decide how important it is to leave army to defend currently owned territory
-                // TODO realise all attacks - move army out, run battle, and return result
-                // TODO if successful deactivate army stationed in territory for x turns, and block upgrade of territory for same
-                // TODO based on threat, move available army around between available owned territories
-                // TODO assess if turn goal was realised and update long term goal if necessary
+        try {
+            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
+                closestPathDataArray = await readClosestPointsJSON(arrayOfLeadersAndCountries[i][2][j]);
+                console.log(closestPathDataArray);
             }
-            console.log("AI DONE!"); // Placeholder message for AI turn completed
-            initialiseNewPlayerTurn();
-            resolve(); // Resolve the Promise to indicate AI turn handling completion
-        }, 2000);
+            // TODO: Read in territories within range
+            // This reads in the hardcoded distances of all paths on the map and can be used instead of calculating every time
 
-    });
+
+            // TODO: Read in territories within range's army and forts
+            // TODO: Assess threat from territories within range
+            // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
+            // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
+            // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
+            // TODO: Spend resources on upgrades and army for each territory owned
+            // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal
+            // TODO: Based on personality, turn goal, new resources after update, and probability, decide if going to attack anyone
+            // TODO: Calculate army needed for a successful attack
+            // TODO: Check if one or combination of territories could meet that need
+            // TODO: Based on personality and threats, decide how important it is to leave army to defend currently owned territory
+            // TODO: Realise all attacks - move army out, run battle, and return result
+            // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
+            // TODO: Based on threat, move available army around between available owned territories
+            // TODO: Assess if turn goal was realised and update long-term goal if necessary
+
+            // After processing the closestPathDataArray for this territory, add your logic here.
+
+        } catch (error) {
+            console.error("Error occurred:", error);
+        }
+    }
+
+    console.log("AI DONE!"); // Placeholder message for AI turn completed
+    initialiseNewPlayerTurn();
+    console.log(attackOptionsArray);
 }
-
 
 function handleRandomEventLikelihood() {
   const decimalProbability = probability / 100;
@@ -243,10 +257,10 @@ function handleArmyRetrievals(retrievalArray) {
     }
 }
 
-function readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries) {
-    // let currentAiTerritories = arrayOfLeadersAndCountries[i][2];
-    // console.log(arrayOfLeadersAndCountries[i][1].name + "'s territories are:");
-    // for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
-    //     console.log(arrayOfLeadersAndCountries[i][2][j].territoryName);
-    // }
+function readLeaderResourcesAndTerritoriesDebugConsole(leaderAndCountry) {
+    let currentAiTerritories = leaderAndCountry[2];
+    console.log(leaderAndCountry[1].name + "'s territories are:");
+    for (let j = 0; j < leaderAndCountry[2].length; j++) {
+        console.log(leaderAndCountry[2][j].territoryName);
+    }
 }
