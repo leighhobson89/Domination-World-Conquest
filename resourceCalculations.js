@@ -615,7 +615,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
             }
         }
     }
-    console.log(turnGainsArrayAi);
+    // console.log(turnGainsArrayAi);
 }
 
 function calculateConsMatsChange(territory, isSimulation) {
@@ -1094,10 +1094,10 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
     document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea) + " (km²)";
     document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
 
-    console.log ("player:");
-    console.log(totalPlayerResources);
-    console.log ("ai:");
-    console.log(countryResourceTotals);
+    // console.log ("player:");
+    // console.log(totalPlayerResources);
+    // console.log ("ai:");
+    // console.log(countryResourceTotals);
 }
 
 export function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
@@ -4637,3 +4637,14 @@ function reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment) {
     return newArmyForCurrentTerritory;
 }
 
+export function setTurnGainsArrayAi(value) {
+    return turnGainsArrayAi = value;
+}
+
+export function getTurnGainsArrayAi() {
+    return turnGainsArrayAi;
+}
+
+export function getCountryResourceTotals() {
+    return countryResourceTotals;
+}

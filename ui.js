@@ -68,13 +68,13 @@ import {
     setValuesForBattleFromSiegeObject,
     siegeObject,
     skirmishesPerRound,
-    turnsDeactivatedArray,
+    playerTurnsDeactivatedArray,
     calculateSiegeScore,
     setNewWarOnRetrievalArray,
     addAttackingArmyToRetrievalArray
 } from './battle.js';
 import { removeCanvasIfExist } from "./dices.js";
-import { createCpuPlayerObjectAndAddToMainArray, createArrayOfLeadersAndCountries } from "./cpuPlayerGenerationAndLoading.js";
+import { createCpuPlayerObjectAndAddToMainArray } from "./cpuPlayerGenerationAndLoading.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -692,7 +692,6 @@ document.addEventListener("DOMContentLoaded", function() {
           restoreMapColorState(currentMapColorAndStrokeArray, true);
           initialiseGame();
           createCpuPlayerObjectAndAddToMainArray();
-          createArrayOfLeadersAndCountries();
           addRandomFortsToAllNonPlayerTerritories();
           document.getElementById("top-table-container").style.display = "block";
           popupTitle.innerText = "Buy / Upgrade Phase";
@@ -702,26 +701,6 @@ document.addEventListener("DOMContentLoaded", function() {
           if (mapMode === 1) {
               currentMapColorAndStrokeArray = saveMapColorState(false);
           }
-      } else if (countrySelectedAndGameStarted && turnPhase === 0) {
-          if (mapMode === 2) {
-              flipMapMode();
-          }
-          if (siegeObject) {
-            for (const key in siegeObject) {
-                for (let i = 0; i < mainGameArray.length; i++) {
-                    if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
-                        console.log("Beginning of turn Useable for " + mainGameArray[i].territoryName + ": Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
-                    }
-                }
-            }
-          }
-          if (mapMode === 1) {
-              currentMapColorAndStrokeArray = saveMapColorState(false);
-          }
-          popupTitle.innerText = "Buy / Upgrade Phase";
-          popupConfirm.innerText = "MILITARY";
-          modifyCurrentTurnPhase(turnPhase);
-          turnPhase++;
       } else if (countrySelectedAndGameStarted && turnPhase === 1) {
           if (mapMode === 1) {
               currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -730,21 +709,6 @@ document.addEventListener("DOMContentLoaded", function() {
           popupConfirm.innerText = "END TURN";
           modifyCurrentTurnPhase(turnPhase);
           turnPhase++;
-      } else if (countrySelectedAndGameStarted && turnPhase === 2) {
-        if (svgMap.querySelector("#attackImage")) {
-            svgMap.getElementById("attackImage").remove();
-            lastClickedPath.style.stroke = "rgb(0,0,0)";
-            lastClickedPath.setAttribute("stroke-width", "1");
-            lastClickedPath.style.strokeDasharray = "none";
-            currentMapColorAndStrokeArray = saveMapColorState(false);
-        }
-        toggleTransferAttackButton(false);
-        transferAttackButtonDisplayed = false;
-        restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
-        popupTitle.innerText = "AI turn";
-        popupConfirm.innerText = "AI Moving...";
-        modifyCurrentTurnPhase(turnPhase);
-        turnPhase = 0;
       }
   });
 
@@ -3602,9 +3566,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 
         //if territory is deactivated, then get how many turns are left
         let deactivatedTurnsLeft;
-        for (let i = 0; i < turnsDeactivatedArray.length; i++) {
-            if (path.getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
-                deactivatedTurnsLeft = (turnsDeactivatedArray[i][1] - turnsDeactivatedArray[i][2]) + 1;
+        for (let i = 0; i < playerTurnsDeactivatedArray.length; i++) {
+            if (path.getAttribute("uniqueid") === playerTurnsDeactivatedArray[i][0]) {
+                deactivatedTurnsLeft = (playerTurnsDeactivatedArray[i][1] - playerTurnsDeactivatedArray[i][2]) + 1;
             }
         }
           // if clicks on a player-owned territory then show button in transfer state
@@ -5656,4 +5620,44 @@ function toggleContinentColorsStroke() {
             }
         }
     }
+}
+
+export function endPlayerTurn() {
+    if (mapMode === 2) {
+        flipMapMode();
+    }
+    if (svgMap.querySelector("#attackImage")) {
+        svgMap.getElementById("attackImage").remove();
+        lastClickedPath.style.stroke = "rgb(0,0,0)";
+        lastClickedPath.setAttribute("stroke-width", "1");
+        lastClickedPath.style.strokeDasharray = "none";
+        currentMapColorAndStrokeArray = saveMapColorState(false);
+    }
+    toggleTransferAttackButton(false);
+    transferAttackButtonDisplayed = false;
+    restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
+    document.getElementById("popup-title").innerText = "AI turn";
+    document.getElementById("popup-confirm").innerText = "AI Moving...";
+    modifyCurrentTurnPhase(turnPhase);
+    turnPhase = 0;
+}
+
+export function initialiseNewPlayerTurn() {
+    document.getElementById("popup-confirm").disabled = false;
+    if (siegeObject) {
+        for (const key in siegeObject) {
+            for (let i = 0; i < mainGameArray.length; i++) {
+                if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
+                    console.log("Beginning of turn Useable for " + mainGameArray[i].territoryName + ": Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
+                }
+            }
+        }
+    }
+    if (mapMode === 1) {
+        currentMapColorAndStrokeArray = saveMapColorState(false);
+    }
+    document.getElementById("popup-title").innerText = "Buy / Upgrade Phase";
+    document.getElementById("popup-confirm").innerText = "MILITARY";
+    modifyCurrentTurnPhase(turnPhase);
+    turnPhase++;
 }

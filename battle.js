@@ -75,7 +75,7 @@ export let finalAttackArray = [];
 export let proportionsOfAttackArray = [];
 let reusableAttackingAverageDevelopmentIndex;
 let reusableCombatContinentModifier;
-export let turnsDeactivatedArray = [];
+export let playerTurnsDeactivatedArray = [];
 
 export let currentRound = 1;
 export let attackingArmyRemaining;
@@ -575,7 +575,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
 
 function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
   const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
-  turnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
+  playerTurnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
 
 
   let tempArray = currentMapColorAndStrokeArray;
@@ -609,13 +609,13 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
   }
 }
 
-export function activateAllTerritoriesForNewTurn() { //reactivate all territories at start of turn
-  for (let i = 0; i < turnsDeactivatedArray.length; i++) {
-    if (turnsDeactivatedArray[i][1] !== turnsDeactivatedArray[i][2]) {
-      turnsDeactivatedArray[i][2]++;
+export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all territories at start of turn
+  for (let i = 0; i < playerTurnsDeactivatedArray.length; i++) {
+    if (playerTurnsDeactivatedArray[i][1] !== playerTurnsDeactivatedArray[i][2]) {
+      playerTurnsDeactivatedArray[i][2]++;
     } else {
       for (let j = 0; j < paths.length; j++) {
-        if (paths[j].getAttribute("uniqueid") === turnsDeactivatedArray[i][0]) {
+        if (paths[j].getAttribute("uniqueid") === playerTurnsDeactivatedArray[i][0]) {
             if (mapMode === 1) {
                 paths[j].style.stroke = "black";
 
