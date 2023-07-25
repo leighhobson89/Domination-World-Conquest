@@ -74,7 +74,7 @@ import {
     addAttackingArmyToRetrievalArray
 } from './battle.js';
 import { removeCanvasIfExist } from "./dices.js";
-import { createCpuPlayerObjectAndAddToMainArray } from "./cpuPlayerGenerationAndLoading.js";
+import { createCpuPlayerObjectAndAddToMainArray, createArrayOfLeadersAndCountries } from "./cpuPlayerGenerationAndLoading.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -692,6 +692,7 @@ document.addEventListener("DOMContentLoaded", function() {
           restoreMapColorState(currentMapColorAndStrokeArray, true);
           initialiseGame();
           createCpuPlayerObjectAndAddToMainArray();
+          createArrayOfLeadersAndCountries();
           addRandomFortsToAllNonPlayerTerritories();
           document.getElementById("top-table-container").style.display = "block";
           popupTitle.innerText = "Buy / Upgrade Phase";
