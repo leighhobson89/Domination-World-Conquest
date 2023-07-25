@@ -324,10 +324,10 @@ export function svgMapLoaded() {
                         let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
                         let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
                         if (e.target.getAttribute("owner") === "Player") {
-                            validDestinationsArray = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
+                            validDestinationsArray = highlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
                             lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
                         } else {
-                            territoriesAbleToAttackTarget = HighlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
+                            territoriesAbleToAttackTarget = highlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
                             territoriesAbleToAttackTarget = territoriesAbleToAttackTarget.filter(territoryCandidate => {
                                 const owner = territoryCandidate.getAttribute("owner");
                                 return owner === "Player";
@@ -2666,7 +2666,7 @@ function getTextHeight(lines, fontSize) {
   return lines.length * lineHeight;
 }
 
-function findClosestPaths(targetPath) {
+export function findClosestPaths(targetPath) {
   if (!targetPath) {
       throw new Error(`Could not find path with ID ${targetPath} in SVG map.`);
   }
@@ -2833,7 +2833,7 @@ function getBboxCoordsAndPushUniqueID(path) {
   return bBoxArray;
 }
 
-function HighlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
+function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
     if (targetPath.getAttribute("deactivated") === "true"){
         return;
     }
