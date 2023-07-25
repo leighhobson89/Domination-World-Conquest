@@ -21,9 +21,6 @@
     const svg = document.getElementById("svg-map");
     console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
     console.log(svg);
-    setTimeout(function() {
-        console.log("Performed 500ms timeout to process everything before loading event handler, now loading");
-    }, 500);
     svg.addEventListener("load", () => {
         console.log("SVG detected, calling svgLoaded function...");
         svgMapLoaded();
