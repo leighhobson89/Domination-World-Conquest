@@ -2,7 +2,16 @@ import {
     playerCountry,
     uiAppearsAtStartOfTurn,
     toggleUIMenu,
-    endPlayerTurn, initialiseNewPlayerTurn
+    endPlayerTurn,
+    initialiseNewPlayerTurn,
+    toggleTransferAttackButton,
+    reduceKeywords,
+    setCurrentMapColorAndStrokeArray,
+    getCurrentMapColorAndStrokeArray,
+    saveMapColorState,
+    restoreMapColorState,
+    paths,
+    fillPathBasedOnStartingCountryColor, currentMapColorAndStrokeArray, playerColour
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -22,7 +31,8 @@ import {
   handleEndSiegeDueArrest,
   getRetrievalArray
 } from './battle.js';
-import {getArrayOfLeadersAndCountries,
+import {
+    getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import { readClosestPointsJSON
@@ -34,12 +44,12 @@ export let randomEventHappening = false;
 export let randomEvent = "";
 
 let probability = 0;
+let attackOptionsArray = [];
+let arrayOfLeadersAndCountries = [];
+let gameInitialisation;
 
-export function modifyCurrentTurnPhase(value) {
-  currentTurnPhase = value;
-}
-
-export function initialiseGame() {
+export async function initialiseGame() {
+  gameInitialisation = true;
   console.log("Welcome to new game! Your country is " + playerCountry + "!");
   const svgMap = document.getElementById('svg-map').contentDocument;
   const paths = Array.from(svgMap.querySelectorAll('path'));
@@ -55,7 +65,30 @@ export function initialiseGame() {
           territory.owner = "Player";
       }
   }
-  gameLoop();
+  arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+  setCurrentMapColorAndStrokeArray(saveMapColorState(false));
+    document.getElementById("top-table-container").style.display = "block";
+  toggleTransferAttackButton(true, true);
+  changeAllPathsToWhite();
+    await (async () => { //finds attack options for a particular territory
+        for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+            document.getElementById("move-phase-button").innerHTML = reduceKeywords(arrayOfLeadersAndCountries[i][0]).toUpperCase(); //write country being processed in UI
+            highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, arrayOfLeadersAndCountries[i][0]); //highlight territories as goes through process, to give user something to look at
+            let attackOptions = await findAttackOptions(i);
+            attackOptionsArray.push(attackOptions);
+        }
+    })();
+    for (const path of paths) {
+        if (path.getAttribute("data-name") === playerCountry) {
+            path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
+        }
+    }
+    toggleTransferAttackButton(false, true);
+    setCurrentMapColorAndStrokeArray(saveMapColorState("true"));
+    console.log(attackOptionsArray);
+    document.getElementById("popup-color").disabled = true;
+    gameInitialisation = false;
+    gameLoop();
 }
 
 function gameLoop() {
@@ -136,14 +169,15 @@ async function handleAITurn() {
     document.getElementById("popup-confirm").disabled = true; // Stop the user from clicking the button during the AI turn
     endPlayerTurn();
     updateArrayOfLeadersAndCountries();
-    let arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
     let countryResourceTotals;
     let turnGainsArrayAi;
-    let attackOptionsArray = [];
+
     let closestPathDataArray;
     let attackOptions;
     for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
-        readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries[i]);
+
+        // readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries[i]);
 
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
@@ -156,18 +190,9 @@ async function handleAITurn() {
         const turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
         // console.log(countryResourceTotals);
         // console.log(turnGainsArrayAi);
-        console.log(arrayOfLeadersAndCountries[i][0]);
-        await (async () => {
-            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
-                let attackOptions = await findAttackOptions(arrayOfLeadersAndCountries[i], j);
-                attackOptions = filterAttackOptions(attackOptions);
-                attackOptionsArray.push(attackOptions);
-            }
-        })();
 
         // TODO: Read in territories within range
         // This reads in the hardcoded distances of all paths on the map and can be used instead of calculating every time
-
 
         // TODO: Read in territories within range's army and forts
         // TODO: Assess threat from territories within range
@@ -189,8 +214,9 @@ async function handleAITurn() {
     }
 
     console.log("AI DONE!"); // Placeholder message for AI turn completed
+    console.log(attackOptionsArray);
     initialiseNewPlayerTurn();
-    console.log(JSON.stringify(attackOptionsArray));
+
 }
 
 function handleRandomEventLikelihood() {
@@ -259,27 +285,15 @@ function handleArmyRetrievals(retrievalArray) {
 
 function readLeaderResourcesAndTerritoriesDebugConsole(leaderAndCountry) {
     let currentAiTerritories = leaderAndCountry[2];
-    // console.log(leaderAndCountry[1].name + "'s territories are:");
+    console.log(leaderAndCountry[1].name + "'s territories are:");
     for (let j = 0; j < leaderAndCountry[2].length; j++) {
-        // console.log(leaderAndCountry[2][j].territoryName);
+        console.log(leaderAndCountry[2][j].territoryName);
     }
 }
 
-async function findAttackOptions(leaderAndCountry, j) {
+async function findAttackOptions(i) {
     let closestPathDataArray;
-    closestPathDataArray = await readClosestPointsJSON(leaderAndCountry[2][j]);
-
-    for (let k = 0; k < closestPathDataArray[1].length; k++) {
-        const dataArray = closestPathDataArray[1][k];
-
-        const coordinates = dataArray[1];
-        const pathObject = findSvgPath(coordinates);
-
-        const pathString = pathObject.getAttribute("territory-name");
-
-        // Set the pathString in the sub-array [0]
-        dataArray[0] = pathString;
-    }
+    closestPathDataArray = await readClosestPointsJSON(i);
     return closestPathDataArray;
 }
 
@@ -297,4 +311,26 @@ function filterAttackOptions(attackOptions) {
     }
 
     return [attackOptions[0], filteredOptions];
+}
+
+function changeAllPathsToWhite() {
+    for (let i = 0; i < paths.length; i++) {
+        paths[i].setAttribute("fill", "rgb(255, 255, 255)");
+    }
+}
+
+function highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, dataName) {
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("data-name") === dataName) {
+            paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+        }
+    }
+}
+
+export function modifyCurrentTurnPhase(value) {
+    currentTurnPhase = value;
+}
+
+export function getGameInitialisation() {
+    return gameInitialisation;
 }

@@ -19,13 +19,13 @@ function fetchJSONFile(url) {
 
 
 
-export function readClosestPointsJSON(territory) {
-    const uniqueId = territory.uniqueId;
+export function readClosestPointsJSON(uniqueId) {
     const jsonFileURL = './resources/closestPathsData.json';
     return fetchJSONFile(jsonFileURL)
         .then(data => {
-            if (data.hasOwnProperty(uniqueId)) {
-                return [uniqueId, data[uniqueId]];
+            const targetData = data.find(entry => entry[0] === uniqueId.toString());
+            if (targetData) {
+                return [uniqueId, targetData[1]];
             } else {
                 console.error("Error: Territory ID not found in JSON data.");
                 return null;
@@ -36,3 +36,4 @@ export function readClosestPointsJSON(territory) {
             return null;
         });
 }
+
