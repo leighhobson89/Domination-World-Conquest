@@ -321,15 +321,14 @@ td {
 
 /*MOVE PHASE BOTTOM BUTTONS*/
 .move-phase-buttons-container {
-  width: 100%;
+  width: 0;
   height: calc(6% + 2px);
   position: fixed;
   bottom: calc(10% - 3px);
-  left: 20%;
+  left: 35%;
   border-radius: 10px;
   display: flex;
   z-index: 1;
-  margin-left: 270px;
 }
 
 .attack-destination-container {
@@ -351,6 +350,7 @@ td {
 }
 
 .move-phase-button {
+  width: 100%;
   display: none;
   font-family: Arial, Helvetica, sans-serif;
   justify-content: center;
@@ -360,8 +360,6 @@ td {
   color: white;
   font-size: 1.5rem;
   font-weight: normal;
-  text-align: center;
-  flex-basis: 18%;
 }
 
 .move-phase-button-green-background {

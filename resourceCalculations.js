@@ -1117,7 +1117,7 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
         document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
     } else { //turn update resources for selected territory
         colourTableText(document.getElementById("bottom-table"), territory);
-        document.getElementById("bottom-table").rows[0].cells[1].innerHTML = reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + territory.continent + ")";
+        document.getElementById("bottom-table").rows[0].cells[1].innerHTML = reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + reduceKeywords(territory.continent) + ")";
         document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
         document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
         document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
