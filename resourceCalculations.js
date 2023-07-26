@@ -1,5 +1,7 @@
 import {
-    pageLoaded, removeSiegeImageFromPath, setCurrentWarFlagString
+    pageLoaded,
+    removeSiegeImageFromPath,
+    setCurrentWarFlagString
 } from './ui.js';
 import {
     currentTurn,
@@ -154,7 +156,7 @@ export function getPlayerTerritories() {
 export function populateBottomTableWhenSelectingACountry(countryPath) {
     // Update the table with the response data
     document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-    setFlag(countryPath.getAttribute("data-name"), 2); //set flag for territory clicked on (bottom table)     
+    setFlag(countryPath.getAttribute("data-name"), 2); //set flag for territory clicked on (bottom table)
 
     for (let i = 0; i < mainGameArray.length; i++) {
         if (mainGameArray[i].uniqueId === countryPath.getAttribute("uniqueid")) {
@@ -391,8 +393,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 isDeactivated: isDeactivated,
                 isCoastal: isCoastal,
                 isLandLockedBonus: isLandLockedBonus,
-                mountainDefense : mountainDefense,
-                mountainDefenseBonus : mountainDefenseBonus,
+                mountainDefense: mountainDefense,
+                mountainDefenseBonus: mountainDefenseBonus,
                 owner: owner
             });
         }
@@ -406,7 +408,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
     //     const territory = mainGameArray[i];
     //     console.log(territory.defenseBonus + ", " + territory.territoryName);
     // }
-    
+
 
     return mainGameArray;
 }
@@ -510,7 +512,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
     for (const path of paths) {
         for (let i = 0; i < mainGameArray.length; i++) {
             const defendingTerritoryId = mainGameArray[i].uniqueId;
-            
+
             // Update values only if territory is not defending against a siege war
             if (!Object.values(siegeObject).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)) {
                 for (let i = 0; i < historicWars.length; i++) {
@@ -531,7 +533,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     changeConsMats = calculateConsMatsChange(mainGameArray[i], false);
                     changePop = calculatePopulationChange(mainGameArray[i], false);
                     changeProdPopTemp = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
-        
+
                     mainGameArray[i].goldForCurrentTerritory += changeGold;
                     mainGameArray[i].oilForCurrentTerritory += changeOil;
                     mainGameArray[i].foodForCurrentTerritory += changeFood;
@@ -539,12 +541,12 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     mainGameArray[i].consMatsForCurrentTerritory += changeConsMats;
                     mainGameArray[i].territoryPopulation += changePop;
                     mainGameArray[i].productiveTerritoryPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
-        
+
                     changeProdPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
                     changeProdPop = changeProdPop - changeProdPopTemp;
 
                     const countryName = path.getAttribute("owner");
-        
+
                     if (countryName === "Player") {
                         turnGainsArrayPlayer.changeGold += changeGold;
                         turnGainsArrayPlayer.changeOil += changeOil;
@@ -586,17 +588,17 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 let siegeTerritory;
                 for (const key in siegeObject) {
                     if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
-                      siegeTerritory = siegeObject[key];
-                      break;
+                        siegeTerritory = siegeObject[key];
+                        break;
                     }
-                  }
+                }
                 //changeGold = calculateGoldChange(siegeTerritory, false);
                 //changeOil = calculateOilChange(siegeTerritory, false);
                 changeFood = calculateFoodChange(siegeTerritory, false, true);
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true);
                 changeProdPopTemp = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
-    
+
                 //mainGameArray[i].goldForCurrentTerritory += changeGold;
                 //mainGameArray[i].oilForCurrentTerritory += changeOil;
                 mainGameArray[i].foodForCurrentTerritory += changeFood;
@@ -768,7 +770,7 @@ function calculatePopulationChange(territory, cameFromSiege) {
         siegeObject = territory;
         territory = territory.defendingTerritory; //drill into territory to make this function work
     }
-    
+
     if (!randomEventHappening) {
         let randomHitArmy = false;
         const currentPopulation = territory.territoryPopulation + territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
@@ -852,7 +854,7 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
             }
         } else {
             difference -= territory.useableAssault * vehicleArmyPersonnelWorth.assault;
-                territory.useableAssault = 0;
+            territory.useableAssault = 0;
         }
 
         if (difference > 0 && difference < territory.useableAir * vehicleArmyPersonnelWorth.air) {
@@ -866,7 +868,7 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
             }
         } else {
             difference -= territory.useableAir * vehicleArmyPersonnelWorth.air;
-                territory.useableAir = 0;
+            territory.useableAir = 0;
         }
 
         if (difference > 0 && difference < territory.useableNaval * vehicleArmyPersonnelWorth.naval) {
@@ -878,12 +880,12 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
             }
         } else {
             difference -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
-                territory.useableNaval = 0;
+            territory.useableNaval = 0;
         }
     }
     if (cameFromSiege) {
         for (let i = 0; i < mainGameArray.length; i++) {
-            if ( mainGameArray[i].uniqueId === territory.uniqueId) {
+            if (mainGameArray[i].uniqueId === territory.uniqueId) {
                 mainGameArray[i].armyForCurrentTerritory = territory.armyForCurrentTerritory;
                 mainGameArray[i].infantryForCurrentTerritory = territory.infantryForCurrentTerritory;
                 mainGameArray[i].useableAssault = territory.useableAssault;
@@ -900,7 +902,7 @@ export function formatNumbersToKMB(number) {
         return 0;
     }
 
-    if (number === "-" ) {
+    if (number === "-") {
         return 0;
     }
 
@@ -1384,13 +1386,13 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 countrySummaryHeaderColumn.style.width = "5%";
             }
             if (summaryTerritoryArmySiegesTable === 3 && (j === 2)) {
-                countrySummaryHeaderColumn.style.width = "12%"; 
+                countrySummaryHeaderColumn.style.width = "12%";
             }
             if (summaryTerritoryArmySiegesTable === 3 && (j === 4 || j === 9)) {
-                countrySummaryHeaderColumn.style.width = "10%"; 
+                countrySummaryHeaderColumn.style.width = "10%";
             }
-            if (summaryTerritoryArmySiegesTable === 3 && (j === 5 || j === 6 || j === 7 || j === 10 || j === 11 || j === 12 )) {
-                countrySummaryHeaderColumn.style.width = "8%"; 
+            if (summaryTerritoryArmySiegesTable === 3 && (j === 5 || j === 6 || j === 7 || j === 10 || j === 11 || j === 12)) {
+                countrySummaryHeaderColumn.style.width = "8%";
             }
             countrySummaryHeaderColumn.classList.add("centerIcons");
         }
@@ -1575,7 +1577,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     }
 
     // Create rows
-    if ( summaryTerritoryArmySiegesTable !== 3) {
+    if (summaryTerritoryArmySiegesTable !== 3) {
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             const territorySummaryRow = document.createElement("div");
             territorySummaryRow.classList.add("ui-table-row-hoverable");
@@ -1702,11 +1704,11 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 } else {
                                     upgradeButtonImageElement.src = "resources/upgradeButtonGreyedOut.png";
                                 }
-    
+
                                 // Create upgrade button image element
                                 upgradeButtonImageElement.alt = "Upgrade Territory";
                                 upgradeButtonImageElement.classList.add("sizeUpgradeButton");
-    
+
                                 // Add event listeners for click and mouseup events
                                 upgradeButtonDiv.addEventListener("mousedown", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
@@ -1714,7 +1716,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                         upgradeButtonImageElement.src = "resources/upgradeButtonIconPressed.png";
                                     }
                                 });
-    
+
                                 upgradeButtonDiv.addEventListener("mouseup", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                         populateUpgradeTable(territoryData);
@@ -1724,7 +1726,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                         setUpgradeOrBuyWindowOnScreenToTrue(1);
                                     }
                                 });
-    
+
                                 upgradeButtonDiv.appendChild(upgradeButtonImageElement);
                                 column.appendChild(upgradeButtonDiv);
                                 break;
@@ -1733,7 +1735,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     territorySummaryRow.addEventListener("mouseover", (e) => {
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
                         const territoryData = mainGameArray.find((t) => t.uniqueId === uniqueId);
-    
+
                         tooltipUITerritoryRow(territorySummaryRow, territoryData, e);
                     });
                     territorySummaryRow.addEventListener("mouseout", () => {
@@ -1788,11 +1790,11 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 } else {
                                     buyButtonImageElement.src = "resources/buyButtonGreyedOut.png";
                                 }
-    
+
                                 // Create upgrade button image element
                                 buyButtonImageElement.alt = "Buy Military";
                                 buyButtonImageElement.classList.add("sizeBuyButton");
-    
+
                                 // Add event listeners for click and mouseup events
                                 buyButtonDiv.addEventListener("mousedown", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
@@ -1800,7 +1802,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                         buyButtonImageElement.src = "resources/buyButtonIconPressed.png";
                                     }
                                 });
-    
+
                                 buyButtonDiv.addEventListener("mouseup", () => {
                                     if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
                                         populateBuyTable(territoryData);
@@ -1810,7 +1812,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                         setUpgradeOrBuyWindowOnScreenToTrue(2);
                                     }
                                 });
-    
+
                                 buyButtonDiv.appendChild(buyButtonImageElement);
                                 column.appendChild(buyButtonDiv);
                                 break;
@@ -1819,7 +1821,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     territorySummaryRow.addEventListener("mouseover", (e) => {
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
                         const territoryData = mainGameArray.find((t) => t.uniqueId === uniqueId);
-    
+
                         tooltipUIArmyRow(territorySummaryRow, territoryData, e);
                     });
                     territorySummaryRow.addEventListener("mouseout", () => {
@@ -1828,9 +1830,9 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     });
                     territorySummaryRow.appendChild(column);
                 }
-            } 
+            }
             table.appendChild(territorySummaryRow);
-        }  
+        }
     } else if (summaryTerritoryArmySiegesTable === 3) {
         const siegeArray = Object.values(siegeObject).map(siege => ({
             warId: siege.warId,
@@ -1843,28 +1845,28 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             strokeColor: siege.strokeColor,
             startingAtt: siege.startingAtt,
             startingDef: siege.startingDef
-          }));
+        }));
 
         // Sort the warArray by warId
         siegeArray.sort((a, b) => a.warId - b.warId);
 
         if (siegeArray.length === 0) {
-        const noSiegesRow = document.createElement("div");
-        noSiegesRow.classList.add("ui-table-row-siege");
-        noSiegesRow.innerHTML = "Currently no Sieges";
-        table.appendChild(noSiegesRow);
+            const noSiegesRow = document.createElement("div");
+            noSiegesRow.classList.add("ui-table-row-siege");
+            noSiegesRow.innerHTML = "Currently no Sieges";
+            table.appendChild(noSiegesRow);
         } else {
             for (let i = 0; i < siegeArray.length; i++) { //ongoing sieges
                 const warSiegeRow = document.createElement("div");
                 warSiegeRow.classList.add("ui-table-row-siege");
-    
+
                 for (let j = 0; j < 13; j++) {
                     const column = document.createElement("div");
                     column.classList.add("ui-table-column-siege-war");
                     if (j === 0) {
                         column.style.width = "5%";
                         column.style.justifyContent = "center";
-    
+
                         const image = document.createElement("img");
                         image.classList.add("sizingIcons");
                         image.src = "./resources/siege.png";
@@ -1895,14 +1897,14 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         column.classList.add("centerIcons");
                         const warData = siegeArray[i];
                         let img;
-                        let flagString;                        
+                        let flagString;
                         switch (j) {
                             case 1:
                                 if (warData.turnsInSiege) {
                                     column.textContent = "Yes: " + warData.turnsInSiege;
                                 } else {
                                     column.textContent = "No";
-                                }                            
+                                }
                                 break;
                             case 2:
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
@@ -1978,11 +1980,11 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     if (j === 0) {
                         column.style.width = "5%";
                         column.style.justifyContent = "center";
-                        
+
                         const outcomeOfWar = historicWars[i].resolution;
                         const image = document.createElement("img");
                         image.classList.add("sizingIcons");
-                        
+
                         if (outcomeOfWar === "Victory") {
                             image.src = "./resources/victory.png";
                         } else if (outcomeOfWar === "Defeat") {
@@ -2026,7 +2028,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                     column.textContent = "Yes: " + warData.turnsInSiege;
                                 } else {
                                     column.textContent = "No";
-                                }                            
+                                }
                                 break;
                             case 2:
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
@@ -2040,7 +2042,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.appendChild(img);
                                 break;
                             case 4:
-                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);                             
+                                column.textContent = formatNumbersToKMB(warData.attackingArmyRemaining[0]) + " / " + formatNumbersToKMB(warData.startingAtt[0]);
                                 if (column.textContent === "0/All") {
                                     column.textContent = "All/All";
                                 }
@@ -2090,7 +2092,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 table.appendChild(warSiegeRow);
             }
         }
-    }     
+    }
 
     uiTableContainer.appendChild(table);
     if (summaryTerritoryArmySiegesTable === 3) {
@@ -4394,7 +4396,7 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
 
         descendingGoldArray.sort((a, b) => b[0] - a[0]);
         /*         console.log(descendingGoldArray);
-          
+
                 console.log("Here is the shortfall:") */
         let remainingGold = goldCost - territory.goldForCurrentTerritory;
         /*         console.log(remainingGold); */
@@ -4558,10 +4560,10 @@ export function addRandomFortsToAllNonPlayerTerritories() {
             element.fortsBuilt = Math.floor(Math.random() * 4);
             element.defenseBonus = Math.ceil((element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus);
         }
-        
+
         const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);
         const wasPlayerTerritory = isPlayerTerritory ? "was" : "was not";
-        
+
         // console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
     });
 }
@@ -4583,7 +4585,7 @@ function allWorkaroundOnSiegeTable() {
             if (j >= 5 && j <= 8 && child.innerHTML.includes("All")) {
                 // Change any "0" values to "All / All"
                 if (child.innerHTML.includes("0")) {
-                  child.innerHTML = "All / All";
+                    child.innerHTML = "All / All";
                 }
             }
         }
@@ -4652,7 +4654,11 @@ export function getCountryResourceTotals() {
 
 export function findSvgPath(coordinates) {
     for (const path of paths) {
-        for (const { x, y } of coordinates) {
+        for (const {
+            x,
+            y
+        }
+            of coordinates) {
             const point = svgTag.createSVGPoint();
             point.x = x;
             point.y = y;

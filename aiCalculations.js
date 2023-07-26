@@ -36,4 +36,3 @@ export function readClosestPointsJSON(uniqueId) {
             return null;
         });
 }
-

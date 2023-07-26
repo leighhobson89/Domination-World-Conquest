@@ -1,5 +1,9 @@
-import { convertHexValueToRGBOrViceVersa } from './ui.js';
-import { playerColour } from "./ui.js";
+import {
+    convertHexValueToRGBOrViceVersa
+} from './ui.js';
+import {
+    playerColour
+} from "./ui.js";
 
 let canvasElement = document.querySelector('#canvas');
 let scoreResultArray = [];
@@ -26,7 +30,7 @@ export function callDice(enemyColor) {
     createCanvas();
 
     diceAnimationFinished = false;
-    scoreResultArray = [0,0];
+    scoreResultArray = [0, 0];
     return new Promise((resolve) => {
         initPhysics();
         initScene();
@@ -126,7 +130,11 @@ function createWall() {
 
     // First Wall (Light Blue)
     const wallColor1 = new THREE.Color(0xadd8e6); // Light blue color
-    const wallMaterial1 = new THREE.MeshBasicMaterial({ color: wallColor1, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+    const wallMaterial1 = new THREE.MeshBasicMaterial({
+        color: wallColor1,
+        opacity: 0,
+        transparent: true
+    }); // Set transparent: false to make it non-transparent
 
     const wallMesh1 = new THREE.Mesh(wallGeometry, wallMaterial1);
     wallMesh1.position.set(4, -6.0, 7); // Position the first wall at the specified coordinates
@@ -145,7 +153,11 @@ function createWall() {
 
     // Second Wall (Green)
     const wallColor2 = new THREE.Color(0x00ff00); // Green color
-    const wallMaterial2 = new THREE.MeshBasicMaterial({ color: wallColor2, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+    const wallMaterial2 = new THREE.MeshBasicMaterial({
+        color: wallColor2,
+        opacity: 0,
+        transparent: true
+    }); // Set transparent: false to make it non-transparent
 
     const wallMesh2 = new THREE.Mesh(wallGeometry, wallMaterial2);
     wallMesh2.position.set(2, -6.0, -3); // Position the second wall at the specified coordinates (z-index + 10)
@@ -163,7 +175,11 @@ function createWall() {
 
     //3rd wall yellow
     const wallColor3 = new THREE.Color(0xffff00); // Yellow color
-    const wallMaterial3 = new THREE.MeshBasicMaterial({ color: wallColor3, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+    const wallMaterial3 = new THREE.MeshBasicMaterial({
+        color: wallColor3,
+        opacity: 0,
+        transparent: true
+    }); // Set transparent: false to make it non-transparent
 
     const wallMesh3 = new THREE.Mesh(wallGeometry, wallMaterial3);
     wallMesh3.position.set(12, -6.0, 5); // Position the third wall at the specified coordinates (same as the first wall)
@@ -181,7 +197,11 @@ function createWall() {
 
     // Fourth Wall (Red)
     const wallColor4 = new THREE.Color(0xff0000); // Red color
-    const wallMaterial4 = new THREE.MeshBasicMaterial({ color: wallColor4, opacity: 0, transparent: true }); // Set transparent: false to make it non-transparent
+    const wallMaterial4 = new THREE.MeshBasicMaterial({
+        color: wallColor4,
+        opacity: 0,
+        transparent: true
+    }); // Set transparent: false to make it non-transparent
 
     const wallMesh4 = new THREE.Mesh(wallGeometry, wallMaterial4);
     wallMesh4.position.set(-6, -6.0, 5); // Position the fourth wall at the specified coordinates (same as the other walls)
@@ -243,7 +263,10 @@ function createDice() {
     });
     physicsWorld.addBody(body);
 
-    return {mesh, body};
+    return {
+        mesh,
+        body
+    };
 }
 
 function createBoxGeometry() {

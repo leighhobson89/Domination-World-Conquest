@@ -1,6 +1,21 @@
-import { mainGameArray, vehicleArmyPersonnelWorth, formatNumbersToKMB, colourTableText, setUseableNotUseableWeaponsDueToOilDemand, turnGainsArrayPlayer, oilRequirements } from './resourceCalculations.js';
-import { calculateProbabilityPreBattle, finalAttackArray } from './battle.js';
-import { setAttackProbabilityOnUI, territoryAboutToBeAttackedOrSieged, transferAttackButtonState } from './ui.js';
+import {
+    mainGameArray,
+    vehicleArmyPersonnelWorth,
+    formatNumbersToKMB,
+    colourTableText,
+    setUseableNotUseableWeaponsDueToOilDemand,
+    turnGainsArrayPlayer,
+    oilRequirements
+} from './resourceCalculations.js';
+import {
+    calculateProbabilityPreBattle,
+    finalAttackArray
+} from './battle.js';
+import {
+    setAttackProbabilityOnUI,
+    territoryAboutToBeAttackedOrSieged,
+    transferAttackButtonState
+} from './ui.js';
 
 let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
@@ -63,7 +78,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     });
 
     if (transferOrAttack === 0) { // transfer
-        let disabledFlagsTransfer = [true,true,true,true];
+        let disabledFlagsTransfer = [true, true, true, true];
         // Create rows
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
@@ -433,14 +448,14 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                                 navalDisabled = playerOwnedTerritories[i].getAttribute("isCoastal") === "false";
                             }
                         }
-                    
+
                         if (mainArrayValueArray[index] === 0) {
                             plusButton.src = "resources/plusButtonGrey.png";
                             multipleTextBox.style.color = "grey";
                             quantityTextBox.style.color = "grey";
                             minusButton.src = "resources/minusButtonGrey.png";
                             multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
-                        
+
                             disabledFlagsTransfer[index] = true;
                         } else if (navalDisabled) { //if territory is coastal
                             if (index === 3) { //if last column i.e. naval
@@ -460,38 +475,38 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         });
 
     } else if (transferOrAttack === 1) { // attack
-        //remove deactivated territories from territoriesAbleToAttackArray 
+        //remove deactivated territories from territoriesAbleToAttackArray
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             if (territoriesAbleToAttackTarget[i].getAttribute("deactivated") === "true") {
-              territoriesAbleToAttackTarget.splice(i, 1);
-              i--;
+                territoriesAbleToAttackTarget.splice(i, 1);
+                i--;
             }
-          }
+        }
         // Create rows
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
             territoryUniqueIds.push(territoriesAbleToAttackTarget[i].getAttribute("uniqueid"));
-    
+
             const multipleValuesArray = [100000000, 100000000, 100000000, 100000000]; // Initialize with default values for each row
-    
+
             const territoryAttackFromRow = document.createElement("div");
             territoryAttackFromRow.classList.add("transfer-table-row");
-    
+
             // Create columns
             for (let j = 0; j < 2; j++) {
                 const territoryAttackFromColumn = document.createElement("div");
                 territoryAttackFromColumn.classList.add("transfer-table-outer-column");
-    
+
                 if (j === 0) {
                     territoryAttackFromColumn.style.width = "50%";
                     const territoryAttackFromName = territoriesAbleToAttackTarget[i].getAttribute("territory-name");
                     territoryAttackFromColumn.textContent = territoryAttackFromName;
                 } else {
                     const armyColumns = []; // Store army columns for each territory
-    
+
                     for (let k = 0; k < 4; k++) {
                         const armyTypeColumn = document.createElement("div");
                         armyTypeColumn.classList.add("army-type-column");
-    
+
                         // Create inner columns
                         for (let m = 0; m < 5; m++) {
                             const innerColumn = document.createElement("div");
@@ -600,7 +615,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             if (disabledFlagsAttack[rowIndex * 4 + armyColumnIndex]) {
                                 return;
-                              }
+                            }
 
                             let newValue;
                             if (multipleValue === 1) {
@@ -681,7 +696,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             if (disabledFlagsAttack[rowIndex * 4 + armyColumnIndex]) {
                                 return;
-                              }
+                            }
 
                             let newValue = currentValue;
                             let newMultipleValue = multipleValue;
@@ -787,70 +802,70 @@ function getInnerColumnId(m) {
 // Helper function to get the current main array value based on armyColumnIndex
 function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck, buttonState) {
     if (allRowCheck) {
-      const values = [];
-      const selectedRow = document.querySelector(".selectedRow");
-      const armyColumns = selectedRow.querySelectorAll(".army-type-column");
-  
-      armyColumns.forEach((armyColumn) => {
-        let value;
-        const childNumber = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
-  
-        switch (childNumber) {
-          case 0:
-            value = mainArrayElement.infantryForCurrentTerritory;
-            break;
-          case 1:
-            value = mainArrayElement.assaultForCurrentTerritory;
-            break;
-          case 2:
-            value = mainArrayElement.airForCurrentTerritory;
-            break;
-          case 3:
-            value = mainArrayElement.navalForCurrentTerritory;
-            break;
-          default:
-            value = 0;
-        }
-        values.push(value);
-      });
-  
-      return values;
+        const values = [];
+        const selectedRow = document.querySelector(".selectedRow");
+        const armyColumns = selectedRow.querySelectorAll(".army-type-column");
+
+        armyColumns.forEach((armyColumn) => {
+            let value;
+            const childNumber = Array.from(armyColumn.parentNode.children).indexOf(armyColumn);
+
+            switch (childNumber) {
+                case 0:
+                    value = mainArrayElement.infantryForCurrentTerritory;
+                    break;
+                case 1:
+                    value = mainArrayElement.assaultForCurrentTerritory;
+                    break;
+                case 2:
+                    value = mainArrayElement.airForCurrentTerritory;
+                    break;
+                case 3:
+                    value = mainArrayElement.navalForCurrentTerritory;
+                    break;
+                default:
+                    value = 0;
+            }
+            values.push(value);
+        });
+
+        return values;
     } else if (buttonState === 1) {
         const values = [];
-      
+
         for (let i = 0; i < territoryUniqueIds.length; i++) {
-          const matchingElement = mainGameArray.find(element => element.uniqueId === territoryUniqueIds[i]);
-      
-          if (matchingElement) {
-            values.push([
-              matchingElement.uniqueId,
-              matchingElement.infantryForCurrentTerritory,
-              matchingElement.useableAssault,
-              matchingElement.useableAir,
-              matchingElement.useableNaval,
-            ]);
-          }
+            const matchingElement = mainGameArray.find(element => element.uniqueId === territoryUniqueIds[i]);
+
+            if (matchingElement) {
+                values.push([
+                    matchingElement.uniqueId,
+                    matchingElement.infantryForCurrentTerritory,
+                    matchingElement.useableAssault,
+                    matchingElement.useableAir,
+                    matchingElement.useableNaval,
+                ]);
+            }
         }
-      
+
         if (values.length > 0) {
-          return values;
+            return values;
         }
-      } else {
+    } else {
         switch (armyColumnIndex) {
-          case 0:
-            return mainArrayElement.infantryForCurrentTerritory;
-          case 1:
-            return mainArrayElement.assaultForCurrentTerritory;
-          case 2:
-            return mainArrayElement.airForCurrentTerritory;
-          case 3:
-            return mainArrayElement.navalForCurrentTerritory;
-          default:
-            return 0;
+            case 0:
+                return mainArrayElement.infantryForCurrentTerritory;
+            case 1:
+                return mainArrayElement.assaultForCurrentTerritory;
+            case 2:
+                return mainArrayElement.airForCurrentTerritory;
+            case 3:
+                return mainArrayElement.navalForCurrentTerritory;
+            default:
+                return 0;
         }
-      }
-    }      
-  
+    }
+}
+
 
 function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElement, quantityTextBox, armyColumnIndex) {
     const multipleTextBox = armyTypeColumn.querySelector("#multipleTextBox");
@@ -862,21 +877,21 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
         rowElement = armyTypeColumn.closest('.transfer-table-row');
     }
     const rowIndex = Array.from(rowElement.parentNode.children).indexOf(rowElement);
-  
+
     if (newMultipleValue === 1) {
-      multipleTextBox.value = "x1";
+        multipleTextBox.value = "x1";
     } else if (newMultipleValue === 10) {
-      multipleTextBox.value = "x10";
+        multipleTextBox.value = "x10";
     } else if (newMultipleValue === 100) {
-      multipleTextBox.value = "x100";
+        multipleTextBox.value = "x100";
     } else if (newMultipleValue === 1000) {
-      multipleTextBox.value = "x1k";
+        multipleTextBox.value = "x1k";
     } else if (newMultipleValue === 10000) {
-      multipleTextBox.value = "x10k";
+        multipleTextBox.value = "x10k";
     }
 
     let arrayOfMainArrayValues;
-  
+
     // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
     if (transferAttackButtonState === 0) {
         arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
@@ -885,24 +900,24 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
     }
 
     const newValue = currentValue + newMultipleValue;
-  
+
     if (transferAttackButtonState === 0) {
         if (newValue <= arrayOfMainArrayValues) {
             quantityTextBox.value = newValue.toString();
-          } else {
+        } else {
             const difference = arrayOfMainArrayValues - currentValue;
             quantityTextBox.value = (currentValue + difference).toString();
-          }
+        }
     } else if (transferAttackButtonState === 1) {
         if (newValue <= arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1]) {
             quantityTextBox.value = newValue.toString();
-          } else {
+        } else {
             const difference = arrayOfMainArrayValues[rowIndex][armyColumnIndex + 1] - currentValue;
             quantityTextBox.value = (currentValue + difference).toString();
-          }
+        }
     }
 }
-  
+
 function updateTransferArray(mainArrayElement, quantityTextBoxes) {
     const mainArrayUniqueId = mainArrayElement;
     const clickedPathUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
@@ -913,50 +928,50 @@ function updateTransferArray(mainArrayElement, quantityTextBoxes) {
 
 function updateAttackArray(mainArrayElements, quantityTextBoxes) {
     const attackQuantitiesArray = [];
-  
-    for (let i = 0; i < mainArrayElements.length; i++) {
-      const mainArrayUniqueId = mainArrayElements[i];
-      const startIdx = i * 4;
-      const quantityValues = quantityTextBoxes.slice(startIdx, startIdx + 4).map((textBox) => parseInt(textBox.value) || 0);
 
-      const rowArray = [mainArrayUniqueId, ...quantityValues];
-      attackQuantitiesArray.push(rowArray);
+    for (let i = 0; i < mainArrayElements.length; i++) {
+        const mainArrayUniqueId = mainArrayElements[i];
+        const startIdx = i * 4;
+        const quantityValues = quantityTextBoxes.slice(startIdx, startIdx + 4).map((textBox) => parseInt(textBox.value) || 0);
+
+        const rowArray = [mainArrayUniqueId, ...quantityValues];
+        attackQuantitiesArray.push(rowArray);
     }
-  
+
     const attackedTerritoryUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
-  
+
     preAttackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
-  }
-  
+}
+
 function checkAndSetButtonAsConfirmOrCancel(quantity) {
     const button = document.getElementById("move-phase-button");
-  
+
     if (quantity === 0) {
 
-      button.innerHTML = "CANCEL";
-      
-      button.classList.remove("move-phase-button-red-background");
-      button.classList.remove("move-phase-button-grey-background");
-      button.classList.remove("move-phase-button-green-background");
-      button.classList.add("move-phase-button-blue-background");
+        button.innerHTML = "CANCEL";
 
-      button.style.color = "white";
-      button.style.fontWeight = "normal";
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.remove("move-phase-button-grey-background");
+        button.classList.remove("move-phase-button-green-background");
+        button.classList.add("move-phase-button-blue-background");
+
+        button.style.color = "white";
+        button.style.fontWeight = "normal";
 
     } else if (quantity >= 1) {
 
-      button.innerHTML = "CONFIRM";
+        button.innerHTML = "CONFIRM";
 
-      button.classList.remove("move-phase-button-red-background");
-      button.classList.remove("move-phase-button-grey-background");
-      button.classList.remove("move-phase-button-blue-background");
-      button.classList.add("move-phase-button-green-background");
+        button.classList.remove("move-phase-button-red-background");
+        button.classList.remove("move-phase-button-grey-background");
+        button.classList.remove("move-phase-button-blue-background");
+        button.classList.add("move-phase-button-green-background");
 
-      button.style.color = "yellow";
-      button.style.fontWeight = "normal";
+        button.style.color = "yellow";
+        button.style.fontWeight = "normal";
 
     }
-  }
+}
 
 export function transferArmyToNewTerritory(transferArray) { //will move new army, available immediately
     console.log("To: " + transferArray[0] + " From: " + transferArray[1] + " Infantry: " + transferArray[2] + ", Assault: " + transferArray[3] + ", Air: " + transferArray[4] + ", Naval: " + transferArray[5]);
@@ -966,103 +981,103 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
 
     for (let i = 0; i < mainGameArray.length; i++) {
         if (parseInt(mainGameArray[i].uniqueId) === transferArray[0]) { //To
-          for (let j = 0; j < mainGameArray.length; j++) {
-            if (parseInt(mainGameArray[j].uniqueId) === transferArray[1]) { //From
-              mainGameArray[i].infantryForCurrentTerritory += transferArray[2];
-              newArmyValueTo += transferArray[2];
-              mainGameArray[i].assaultForCurrentTerritory += transferArray[3];
-              newArmyValueTo += transferArray[3] * vehicleArmyPersonnelWorth.assault;
-              mainGameArray[i].airForCurrentTerritory += transferArray[4];
-              newArmyValueTo += transferArray[4] * vehicleArmyPersonnelWorth.air;
-              mainGameArray[i].navalForCurrentTerritory += transferArray[5];
-              newArmyValueTo += transferArray[5] * vehicleArmyPersonnelWorth.naval;
-      
-              originalArmyValue = mainGameArray[j].armyForCurrentTerritory;
-              mainGameArray[j].infantryForCurrentTerritory -= transferArray[2];
-              newArmyValueFrom -= transferArray[2];
-              mainGameArray[j].assaultForCurrentTerritory -= transferArray[3];
-              newArmyValueFrom -= transferArray[3] * vehicleArmyPersonnelWorth.assault;
-              mainGameArray[j].airForCurrentTerritory -= transferArray[4];
-              newArmyValueFrom -= transferArray[4] * vehicleArmyPersonnelWorth.air;
-              mainGameArray[j].navalForCurrentTerritory -= transferArray[5];
-              newArmyValueFrom -= transferArray[5] * vehicleArmyPersonnelWorth.naval;
-      
-              mainGameArray[i].armyForCurrentTerritory += newArmyValueTo;
-              mainGameArray[j].armyForCurrentTerritory += newArmyValueFrom;
-      
-              mainGameArray[i].territoryPopulation += newArmyValueTo;
-              mainGameArray[j].territoryPopulation += newArmyValueFrom;
-      
-              if (mainGameArray[j].armyForCurrentTerritory < 0) {
-                mainGameArray[j].armyForCurrentTerritory = 0;
-                mainGameArray[j].territoryPopulation -= originalArmyValue;
-                mainGameArray[j].oilDemand = 0;
-              }
-      
-              colourTableText(document.getElementById("bottom-table"), mainGameArray[j]);
-              document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(mainGameArray[j].armyForCurrentTerritory);
-              document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((mainGameArray[j].territoryPopulation) / 100) * 45) * mainGameArray[j].devIndex) - mainGameArray[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainGameArray[j].territoryPopulation) + ")";
-              break;
+            for (let j = 0; j < mainGameArray.length; j++) {
+                if (parseInt(mainGameArray[j].uniqueId) === transferArray[1]) { //From
+                    mainGameArray[i].infantryForCurrentTerritory += transferArray[2];
+                    newArmyValueTo += transferArray[2];
+                    mainGameArray[i].assaultForCurrentTerritory += transferArray[3];
+                    newArmyValueTo += transferArray[3] * vehicleArmyPersonnelWorth.assault;
+                    mainGameArray[i].airForCurrentTerritory += transferArray[4];
+                    newArmyValueTo += transferArray[4] * vehicleArmyPersonnelWorth.air;
+                    mainGameArray[i].navalForCurrentTerritory += transferArray[5];
+                    newArmyValueTo += transferArray[5] * vehicleArmyPersonnelWorth.naval;
+
+                    originalArmyValue = mainGameArray[j].armyForCurrentTerritory;
+                    mainGameArray[j].infantryForCurrentTerritory -= transferArray[2];
+                    newArmyValueFrom -= transferArray[2];
+                    mainGameArray[j].assaultForCurrentTerritory -= transferArray[3];
+                    newArmyValueFrom -= transferArray[3] * vehicleArmyPersonnelWorth.assault;
+                    mainGameArray[j].airForCurrentTerritory -= transferArray[4];
+                    newArmyValueFrom -= transferArray[4] * vehicleArmyPersonnelWorth.air;
+                    mainGameArray[j].navalForCurrentTerritory -= transferArray[5];
+                    newArmyValueFrom -= transferArray[5] * vehicleArmyPersonnelWorth.naval;
+
+                    mainGameArray[i].armyForCurrentTerritory += newArmyValueTo;
+                    mainGameArray[j].armyForCurrentTerritory += newArmyValueFrom;
+
+                    mainGameArray[i].territoryPopulation += newArmyValueTo;
+                    mainGameArray[j].territoryPopulation += newArmyValueFrom;
+
+                    if (mainGameArray[j].armyForCurrentTerritory < 0) {
+                        mainGameArray[j].armyForCurrentTerritory = 0;
+                        mainGameArray[j].territoryPopulation -= originalArmyValue;
+                        mainGameArray[j].oilDemand = 0;
+                    }
+
+                    colourTableText(document.getElementById("bottom-table"), mainGameArray[j]);
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(mainGameArray[j].armyForCurrentTerritory);
+                    document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((mainGameArray[j].territoryPopulation) / 100) * 45) * mainGameArray[j].devIndex) - mainGameArray[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainGameArray[j].territoryPopulation) + ")";
+                    break;
+                }
             }
-          }
         }
-      }      
+    }
 }
 
 export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainArrayOfTerritoriesAndResources) {
     for (let i = 1; i < attackArray.length; i += 5) {
-      const uniqueId = attackArray[i].toString();
-      const infantry = attackArray[i + 1];
-      const assault = attackArray[i + 2];
-      const air = attackArray[i + 3];
-      const naval = attackArray[i + 4];
-  
-      const matchingTerritory = mainArrayOfTerritoriesAndResources.find(
-        territory => territory.uniqueId === uniqueId
-      );
-  
-      if (matchingTerritory) {
-        turnGainsArrayPlayer.changeOilDemand -= (assault * oilRequirements.assault);
-        turnGainsArrayPlayer.changeOilDemand -= (air * oilRequirements.air);
-        turnGainsArrayPlayer.changeOilDemand -= (naval * oilRequirements.naval);
-        matchingTerritory.infantryForCurrentTerritory -= infantry;
-        matchingTerritory.assaultForCurrentTerritory -= assault;
-        matchingTerritory.airForCurrentTerritory -= air;
-        matchingTerritory.navalForCurrentTerritory -= naval;
-        matchingTerritory.armyForCurrentTerritory -= (matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval));
-      }
-      matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
-      setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
+        const uniqueId = attackArray[i].toString();
+        const infantry = attackArray[i + 1];
+        const assault = attackArray[i + 2];
+        const air = attackArray[i + 3];
+        const naval = attackArray[i + 4];
+
+        const matchingTerritory = mainArrayOfTerritoriesAndResources.find(
+            territory => territory.uniqueId === uniqueId
+        );
+
+        if (matchingTerritory) {
+            turnGainsArrayPlayer.changeOilDemand -= (assault * oilRequirements.assault);
+            turnGainsArrayPlayer.changeOilDemand -= (air * oilRequirements.air);
+            turnGainsArrayPlayer.changeOilDemand -= (naval * oilRequirements.naval);
+            matchingTerritory.infantryForCurrentTerritory -= infantry;
+            matchingTerritory.assaultForCurrentTerritory -= assault;
+            matchingTerritory.airForCurrentTerritory -= air;
+            matchingTerritory.navalForCurrentTerritory -= naval;
+            matchingTerritory.armyForCurrentTerritory -= (matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval));
+        }
+        matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
+        setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
     }
-  }  
+}
 
 function disableAttackScreenOptions(table, territoryUniqueIds) {
     const rows = Array.from(table.querySelectorAll('.transfer-table-row'));
-  
+
     rows.forEach((row) => {
-      const rowIndex = rows.indexOf(row);
-      const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
-  
-      armyColumns.forEach((armyColumn, columnIndex) => {
-        const matchingTerritory = mainGameArray.find(territory =>
-          territory.uniqueId === territoryUniqueIds[rowIndex]
-        );
-      
-        if (matchingTerritory) {
-          if (matchingTerritory.infantryForCurrentTerritory === 0 && columnIndex % 4 === 0) {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          } else if (matchingTerritory.useableAssault === 0 && columnIndex % 4 === 1) {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          } else if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          } else disabledFlagsAttack[rowIndex * 4 + columnIndex] = matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3;
-          if (territoryAboutToBeAttackedOrSieged.getAttribute("isCoastal") === "false" && columnIndex % 4 === 3) {
-            disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
-          }
-        }
-      });      
+        const rowIndex = rows.indexOf(row);
+        const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
+
+        armyColumns.forEach((armyColumn, columnIndex) => {
+            const matchingTerritory = mainGameArray.find(territory =>
+                territory.uniqueId === territoryUniqueIds[rowIndex]
+            );
+
+            if (matchingTerritory) {
+                if (matchingTerritory.infantryForCurrentTerritory === 0 && columnIndex % 4 === 0) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else if (matchingTerritory.useableAssault === 0 && columnIndex % 4 === 1) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else if (matchingTerritory.useableAir === 0 && columnIndex % 4 === 2) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                } else disabledFlagsAttack[rowIndex * 4 + columnIndex] = matchingTerritory.useableNaval === 0 && columnIndex % 4 === 3;
+                if (territoryAboutToBeAttackedOrSieged.getAttribute("isCoastal") === "false" && columnIndex % 4 === 3) {
+                    disabledFlagsAttack[rowIndex * 4 + columnIndex] = true;
+                }
+            }
+        });
     });
-  
+
     // Loop through the disabledFlags array to find if there are any true elements
     for (let index = 0; index < disabledFlagsAttack.length; index++) {
         const isDisabled = disabledFlagsAttack[index];
@@ -1106,21 +1121,21 @@ function checkAndSetButtonAsAttackOrCancel(attackArray) {
     let button = document.getElementById("move-phase-button");
 
     for (let i = 2; i < attackArray.length; i++) {
-      if (i % 5 === 1) {
-        continue;
-      }
-      if (attackArray[i] > 0) {
-        button.classList.remove("move-phase-button-blue-background");
-        button.classList.add("move-phase-button-red-background");
-        button.innerHTML = "INVADE!";
-        button.style.color = "rgb(235,235,0)";
-        break;
-      } else {
-        button.classList.remove("move-phase-button-red-background");
-        button.classList.add("move-phase-button-blue-background");
-        button.innerHTML = "CANCEL";
-        button.style.color = "white";
-      }
+        if (i % 5 === 1) {
+            continue;
+        }
+        if (attackArray[i] > 0) {
+            button.classList.remove("move-phase-button-blue-background");
+            button.classList.add("move-phase-button-red-background");
+            button.innerHTML = "INVADE!";
+            button.style.color = "rgb(235,235,0)";
+            break;
+        } else {
+            button.classList.remove("move-phase-button-red-background");
+            button.classList.add("move-phase-button-blue-background");
+            button.innerHTML = "CANCEL";
+            button.style.color = "white";
+        }
 
-    }}
-    
+    }
+}
