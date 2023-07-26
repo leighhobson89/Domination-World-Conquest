@@ -25,7 +25,7 @@ export function readClosestPointsJSON(territory) {
     return fetchJSONFile(jsonFileURL)
         .then(data => {
             if (data.hasOwnProperty(uniqueId)) {
-                return data[uniqueId];
+                return [uniqueId, data[uniqueId]];
             } else {
                 console.error("Error: Territory ID not found in JSON data.");
                 return null;

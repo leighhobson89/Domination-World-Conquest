@@ -18,7 +18,8 @@ import {
     enableNewGameButton
 } from './ui.js';
 import {
-    paths
+    paths,
+    svgTag,
 } from './ui.js';
 import {
     playSoundClip
@@ -4647,4 +4648,18 @@ export function getTurnGainsArrayAi() {
 
 export function getCountryResourceTotals() {
     return countryResourceTotals;
+}
+
+export function findSvgPath(coordinates) {
+    for (const path of paths) {
+        for (const { x, y } of coordinates) {
+            const point = svgTag.createSVGPoint();
+            point.x = x;
+            point.y = y;
+            if (path.isPointInFill(point) || path.isPointInStroke(point)) {
+                return path;
+            }
+        }
+    }
+    return null;
 }
