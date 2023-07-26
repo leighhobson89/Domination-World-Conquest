@@ -11,7 +11,9 @@ import {
     saveMapColorState,
     restoreMapColorState,
     paths,
-    fillPathBasedOnStartingCountryColor, currentMapColorAndStrokeArray, playerColour
+    fillPathBasedOnStartingCountryColor,
+    currentMapColorAndStrokeArray,
+    playerColour
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -25,17 +27,18 @@ import {
     findSvgPath
 } from './resourceCalculations.js';
 import {
-  activateAllPlayerTerritoriesForNewTurn,
-  incrementSiegeTurns,
-  calculateSiegePerTurn,
-  handleEndSiegeDueArrest,
-  getRetrievalArray
+    activateAllPlayerTerritoriesForNewTurn,
+    incrementSiegeTurns,
+    calculateSiegePerTurn,
+    handleEndSiegeDueArrest,
+    getRetrievalArray
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
-import { readClosestPointsJSON
+import {
+    readClosestPointsJSON
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -49,27 +52,27 @@ let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
 
 export async function initialiseGame() {
-  gameInitialisation = true;
-  console.log("Welcome to new game! Your country is " + playerCountry + "!");
-  const svgMap = document.getElementById('svg-map').contentDocument;
-  const paths = Array.from(svgMap.querySelectorAll('path'));
+    gameInitialisation = true;
+    console.log("Welcome to new game! Your country is " + playerCountry + "!");
+    const svgMap = document.getElementById('svg-map').contentDocument;
+    const paths = Array.from(svgMap.querySelectorAll('path'));
 
-  for (const path of paths) {
-      if (path.getAttribute("data-name") === playerCountry) {
-          path.setAttribute("owner", "Player"); //set player as the owner of the territory they select
-      }
-  }
+    for (const path of paths) {
+        if (path.getAttribute("data-name") === playerCountry) {
+            path.setAttribute("owner", "Player"); //set player as the owner of the territory they select
+        }
+    }
 
-  for (const territory of mainGameArray) {
-      if (territory.dataName === playerCountry) {
-          territory.owner = "Player";
-      }
-  }
-  arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
-  setCurrentMapColorAndStrokeArray(saveMapColorState(false));
+    for (const territory of mainGameArray) {
+        if (territory.dataName === playerCountry) {
+            territory.owner = "Player";
+        }
+    }
+    arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    setCurrentMapColorAndStrokeArray(saveMapColorState(false));
     document.getElementById("top-table-container").style.display = "block";
-  toggleTransferAttackButton(true, true);
-  changeAllPathsToWhite();
+    toggleTransferAttackButton(true, true);
+    changeAllPathsToWhite();
     await (async () => { //finds attack options for a particular territory
         for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
             document.getElementById("move-phase-button").innerHTML = reduceKeywords(arrayOfLeadersAndCountries[i][0]).toUpperCase(); //write country being processed in UI
@@ -92,76 +95,76 @@ export async function initialiseGame() {
 }
 
 function gameLoop() {
-  activateAllPlayerTerritoriesForNewTurn();
-  let continueSiege = true;
-  let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
-  if (continueSiegeArray) {
-    continueSiegeArray.forEach(element => {
-      if (element !== true) {
-        continueSiege = false;
-        handleEndSiegeDueArrest(element);
-      }
+    activateAllPlayerTerritoriesForNewTurn();
+    let continueSiege = true;
+    let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
+    if (continueSiegeArray) {
+        continueSiegeArray.forEach(element => {
+            if (element !== true) {
+                continueSiege = false;
+                handleEndSiegeDueArrest(element);
+            }
+        });
+    }
+    incrementSiegeTurns();
+    if (currentTurn > 1) {
+        handleArmyRetrievals(getRetrievalArray());
+    }
+    getPlayerTerritories();
+    console.log("Probability of Random Event: " + probability + "%");
+    randomEventHappening = handleRandomEventLikelihood();
+    if (randomEventHappening) {
+        randomEvent = selectRandomEvent();
+        console.log("There's been a " + randomEvent + "!")
+    }
+    newTurnResources();
+    calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn
+    if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
+        toggleUIMenu(true);
+        drawUITable(document.getElementById("uiTable"), 0);
+    }
+    randomEventHappening = false;
+    randomEvent = "";
+    console.log("Turn " + currentTurn + " has started!");
+    // Handle player turn
+    handleBuyUpgradePhase().then(() => {
+        // Handle move/attack phase
+        handleMilitaryPhase().then(() => {
+            // Handle AI turn
+            handleAITurn().then(() => {
+                // Increment turn counter
+                currentTurn++;
+                // Repeat game loop
+                gameLoop();
+            });
+        });
     });
-  }
-  incrementSiegeTurns();
-  if (currentTurn > 1) {
-      handleArmyRetrievals(getRetrievalArray());
-  }
-  getPlayerTerritories();
-  console.log("Probability of Random Event: " + probability + "%");
-  randomEventHappening = handleRandomEventLikelihood();
-  if (randomEventHappening) {
-      randomEvent = selectRandomEvent();
-      console.log("There's been a " + randomEvent + "!")
-  }
-  newTurnResources();
-  calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn
-  if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
-      toggleUIMenu(true);
-      drawUITable(document.getElementById("uiTable"), 0);
-  }
-  randomEventHappening = false;
-  randomEvent = "";
-  console.log("Turn " + currentTurn + " has started!");
-  // Handle player turn
-  handleBuyUpgradePhase().then(() => {
-      // Handle move/attack phase
-      handleMilitaryPhase().then(() => {
-          // Handle AI turn
-          handleAITurn().then(() => {
-              // Increment turn counter
-              currentTurn++;
-              // Repeat game loop
-              gameLoop();
-          });
-      });
-  });
 }
 
 function handleBuyUpgradePhase() {
-  return new Promise(resolve => {
-      console.log("Handling Spend Upgrade Phase");
-      console.log("Current turn-phase is: " + currentTurnPhase);
-      const popupConfirmButton = document.getElementById("popup-confirm");
-      const onClickHandler = () => {
-          popupConfirmButton.removeEventListener("click", onClickHandler);
-          resolve();
-      };
-      popupConfirmButton.addEventListener("click", onClickHandler);
-  });
+    return new Promise(resolve => {
+        console.log("Handling Spend Upgrade Phase");
+        console.log("Current turn-phase is: " + currentTurnPhase);
+        const popupConfirmButton = document.getElementById("popup-confirm");
+        const onClickHandler = () => {
+            popupConfirmButton.removeEventListener("click", onClickHandler);
+            resolve();
+        };
+        popupConfirmButton.addEventListener("click", onClickHandler);
+    });
 }
 
 function handleMilitaryPhase() {
-  return new Promise(resolve => {
-      console.log("Handling Move Attack Phase");
-      console.log("Current turn-phase is: " + currentTurnPhase);
-      const popupConfirmButton = document.getElementById("popup-confirm");
-      const onClickHandler = () => {
-          popupConfirmButton.removeEventListener("click", onClickHandler);
-          resolve();
-      };
-      popupConfirmButton.addEventListener("click", onClickHandler);
-  });
+    return new Promise(resolve => {
+        console.log("Handling Move Attack Phase");
+        console.log("Current turn-phase is: " + currentTurnPhase);
+        const popupConfirmButton = document.getElementById("popup-confirm");
+        const onClickHandler = () => {
+            popupConfirmButton.removeEventListener("click", onClickHandler);
+            resolve();
+        };
+        popupConfirmButton.addEventListener("click", onClickHandler);
+    });
 }
 
 async function handleAITurn() {
@@ -220,31 +223,31 @@ async function handleAITurn() {
 }
 
 function handleRandomEventLikelihood() {
-  const decimalProbability = probability / 100;
-  const randomNumberSum = Array.from({
-      length: 5
-  }, () => Math.random()).reduce((a, b) => a + b, 0);
-  const averageRandomNumber = randomNumberSum / 5;
-  if (averageRandomNumber <= decimalProbability) {
-      probability = 0;
-      return true;
-  } else {
-      probability = probability + 1;
-      return false;
-  }
+    const decimalProbability = probability / 100;
+    const randomNumberSum = Array.from({
+        length: 5
+    }, () => Math.random()).reduce((a, b) => a + b, 0);
+    const averageRandomNumber = randomNumberSum / 5;
+    if (averageRandomNumber <= decimalProbability) {
+        probability = 0;
+        return true;
+    } else {
+        probability = probability + 1;
+        return false;
+    }
 }
 
 
 function selectRandomEvent() {
-  const events = [
-      "Food Disaster",
-      "Oil Well Fire",
-      "Warehouse Fire",
-      "Mutiny"
-  ];
-  const randomIndex = Math.floor(Math.random() * events.length);
-  return events[randomIndex];
-  /* return events[0]; */
+    const events = [
+        "Food Disaster",
+        "Oil Well Fire",
+        "Warehouse Fire",
+        "Mutiny"
+    ];
+    const randomIndex = Math.floor(Math.random() * events.length);
+    return events[randomIndex];
+    /* return events[0]; */
 }
 
 function handleArmyRetrievals(retrievalArray) {

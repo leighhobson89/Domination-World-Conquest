@@ -14,17 +14,17 @@
     <script type="module" src="gameTurnsLoop.js"></script>
     <script type="module" src="battle.js"></script>
     <script type="module">
-    import {
-        svgMapLoaded
-    } from "./ui.js";
-    console.log("Starting script to load page... about to set svg element after finding it by document.getElementByID(\"svg-map\")");
-    const svg = document.getElementById("svg-map");
-    console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
-    console.log(svg);
-    svg.addEventListener("load", () => {
-        console.log("SVG detected, calling svgLoaded function...");
-        svgMapLoaded();
-    });
+        import {
+            svgMapLoaded
+        } from "./ui.js";
+        console.log("Starting script to load page... about to set svg element after finding it by document.getElementByID(\"svg-map\")");
+        const svg = document.getElementById("svg-map");
+        console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
+        console.log(svg);
+        svg.addEventListener("load", () => {
+            console.log("SVG detected, calling svgLoaded function...");
+            svgMapLoaded();
+        });
     </script>
     <script type="module" src="ui.js"></script>
     <script type="module" src="music.js"></script>
@@ -34,51 +34,52 @@
 </head>
 
 <body>
-    <object id="svg-coast-lines" data="resources/SVG_coastLines.svg" type="image/svg+xml"></object>
-    <object id="svg-map" data="resources/svgMaster.svg" type="image/svg+xml"></object>
-    <div id="main-ui-container"></div>
-    <div id="upgrade-container"></div>
-    <div id="buy-container"></div>
-    <label for="player-color-picker">Select Your Color</label><input type="color" id="player-color-picker" name="player-color-picker" value="#000000">
-    <div id="menu-container" class="blur-background"></div>
-    <div id="popup-with-confirm-container"></div>
-    <div id="attack-destination-containers"></div>
-    <div id="move-phase-buttons-container"></div>
-    <div id="transfer-attack-window-container"></div>
-    <div id="battleContainer"></div>
-    <div id="threeCanvasForDice">
-        <canvas id="canvas">
-        </canvas>
-    </div>
-    <div id="battleResultsContainer"></div>
-    <div id="tooltip"></div>
-    <div class="top-table-container" id="top-table-container">
-    </div>
-    <div id="UIButtonContainer"></div>
-    <div id="mapModeContainer"></div>
-    <div class="bottom-table-container" id="bottom-table-container">
-        <table id="bottom-table">
-            <tr class="top-row">
-                <td class="iconCell" id="flag-bottom"></td>
-                <td class="widerCell" colspan="12">Select a Country</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Mountain Defense" src="resources/mountainDefenceIcon.png"></td>
-                <td class="resourceFields">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Gold" src="resources/gold.png"></td>
-                <td class="resourceFields">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Oil" src="resources/oil.png"></td>
-                <td class="resourceFields">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Food" src="resources/food.png"></td>
-                <td class="resourceFields">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Construction Materials" src="resources/consMats.png"></td>
-                <td class="resourceFields">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Population" src="resources/prodPopulation.png"></td>
-                <td class="population">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Land Area" src="resources/landArea.png"></td>
-                <td class="area">-</td>
-                <td class="iconCell"><img class="sizingIcons" alt="Military" src="resources/army.png"></td>
-                <td class="resourceFields">-</td>
-            </tr>
-        </table>
-    </div>
+<object id="svg-coast-lines" data="resources/SVG_coastLines.svg" type="image/svg+xml"></object>
+<object id="svg-map" data="resources/svgMaster.svg" type="image/svg+xml"></object>
+<div id="main-ui-container"></div>
+<div id="upgrade-container"></div>
+<div id="buy-container"></div>
+<label for="player-color-picker">Select Your Color</label><input type="color" id="player-color-picker" name="player-color-picker" value="#000000">
+<div id="menu-container" class="blur-background"></div>
+<div id="popup-with-confirm-container"></div>
+<div id="attack-destination-containers"></div>
+<div id="move-phase-buttons-container"></div>
+<div id="transfer-attack-window-container"></div>
+<div id="battleContainer"></div>
+<div id="threeCanvasForDice">
+    <canvas id="canvas">
+    </canvas>
+</div>
+<div id="battleResultsContainer"></div>
+<div id="tooltip"></div>
+<div class="top-table-container" id="top-table-container">
+</div>
+<div id="UIButtonContainer"></div>
+<div id="mapModeContainer"></div>
+<div class="bottom-table-container" id="bottom-table-container">
+    <table id="bottom-table">
+        <tr class="top-row">
+            <td class="iconCell" id="flag-bottom"></td>
+            <td class="widerCell" colspan="12">Select a Country</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Mountain Defense" src="resources/mountainDefenceIcon.png"></td>
+            <td class="resourceFields">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Gold" src="resources/gold.png"></td>
+            <td class="resourceFields">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Oil" src="resources/oil.png"></td>
+            <td class="resourceFields">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Food" src="resources/food.png"></td>
+            <td class="resourceFields">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Construction Materials" src="resources/consMats.png"></td>
+            <td class="resourceFields">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Population" src="resources/prodPopulation.png"></td>
+            <td class="population">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Land Area" src="resources/landArea.png"></td>
+            <td class="area">-</td>
+            <td class="iconCell"><img class="sizingIcons" alt="Military" src="resources/army.png"></td>
+            <td class="resourceFields">-</td>
+        </tr>
+    </table>
+</div>
 </body>
+
 </html>
