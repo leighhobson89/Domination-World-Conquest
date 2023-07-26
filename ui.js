@@ -74,7 +74,10 @@ import {
     addAttackingArmyToRetrievalArray
 } from './battle.js';
 import { removeCanvasIfExist } from "./dices.js";
-import { createCpuPlayerObjectAndAddToMainArray } from "./cpuPlayerGenerationAndLoading.js";
+import {
+    createCpuPlayerObjectAndAddToMainArray,
+    updateArrayOfLeadersAndCountries
+} from "./cpuPlayerGenerationAndLoading.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -111,7 +114,7 @@ const CONTINENT_COLOR_ARRAY = [
   ["South America", [193, 83, 205]],
   ["Oceania", [74, 202, 233]]
 ];
-const GREY_OUT_COLOR = 'rgb(170, 170, 170)';
+const GREY_OUT_COLOR = 'rgb(170,170,170)';
 const COUNTRY_GREYOUT_THRESHOLD = 40000; //countries under this strength greyed out //40
 const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
 
@@ -298,7 +301,7 @@ export function svgMapLoaded() {
     if (!isDragging) {
         if (e.target.tagName === "rect" && currentTurnPhase === 1) {
             restoreMapColorState(currentMapColorAndStrokeArray, false);
-            toggleTransferAttackButton(false);
+            toggleTransferAttackButton(false, false);
             if (svgMap.querySelector("#attackImage")) {
                 svgMap.getElementById("attackImage").remove();
             }
@@ -673,9 +676,10 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // add event listener to popup confirm button
-  popupConfirm.addEventListener("click", function() {
+  popupConfirm.addEventListener("click", async function () {
       playSoundClip("click");
       if (selectCountryPlayerState) {
+          document.getElementById("popup-color").style.display = "none";
           setAllGreyedOutAttributesToFalseOnGameStart();
           selectCountryPlayerState = false;
           countrySelectedAndGameStarted = true;
@@ -685,15 +689,21 @@ document.addEventListener("DOMContentLoaded", function() {
           flag = playerCountry;
           setFlag(flag, 1); //set player flag in top table
           setFlag(flag, 3); //set player flag in ui info panel
+          restoreMapColorState(currentMapColorAndStrokeArray, true);
+          popupTitle.innerText = "LOADING...";
+          popupSubTitle.innerText = "";
+          popupConfirm.innerText = "INITIAL SETUP";
+          updateArrayOfLeadersAndCountries();
+          await initialiseGame();
+          topTableTotalResourcesString.innerHTML = "Total Player Resources:";
+          document.getElementById("popup-color").style.display = "block";
+          document.getElementById("popup-with-confirm-container").style.display = "block";
           uiButtonCurrentlyOnScreen = true;
           toggleUIButton(true);
           mapModeButtonCurrentlyOnScreen = true;
           toggleMapModeButton(true);
-          restoreMapColorState(currentMapColorAndStrokeArray, true);
-          initialiseGame();
           createCpuPlayerObjectAndAddToMainArray();
           addRandomFortsToAllNonPlayerTerritories();
-          document.getElementById("top-table-container").style.display = "block";
           popupTitle.innerText = "Buy / Upgrade Phase";
           popupSubTitle.innerText = "";
           popupConfirm.innerText = "MILITARY";
@@ -740,7 +750,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   const topTableTotalResourcesString = document.createElement("td");
-  topTableTotalResourcesString.innerHTML = "Total Player Resources:";
+  topTableTotalResourcesString.innerHTML = "Please wait, initialising game...";
 
   const topTableGold = document.createElement("td");
   topTableGold.classList.add("iconCell");
@@ -3184,7 +3194,7 @@ export function saveMapColorState(gameInit) {
   }
 }
 
-function restoreMapColorState(array, countrySelectionState) {
+export function restoreMapColorState(array, countrySelectionState) {
   if (validDestinationsArray !== undefined) {
       validDestinationsArray.length = 0;
   }
@@ -3716,7 +3726,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         enableDisableAssaultButton(0);
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
-                        toggleTransferAttackButton(false);
+                        toggleTransferAttackButton(false, false);
                         transferAttackButtonDisplayed = false;
 
                         setupSiegeUI(territoryAboutToBeAttackedOrSieged);
@@ -3764,7 +3774,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             enableDisableSiegeButton(0);
                         }
 
-                        toggleTransferAttackButton(false);
+                        toggleTransferAttackButton(false, false);
                         transferAttackButtonDisplayed = false;
                         attackTextCurrentlyDisplayed = false;
                         setupBattle(probability, getFinalAttackArray(), mainGameArray);
@@ -4246,7 +4256,7 @@ function toggleMapModeButton(makeVisible) {
         mapModeButtonCurrentlyOnScreen = false;
         toggleBottomLeftPaneWithTurnAdvance(false);
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-        toggleTransferAttackButton(false);
+        toggleTransferAttackButton(false, false);
     } else {
         document.getElementById("move-phase-buttons-container").style.pointerEvents = "auto";
         document.getElementById("main-ui-container").style.display = "none";
@@ -4259,7 +4269,7 @@ function toggleMapModeButton(makeVisible) {
         toggleMapModeButton(true);
         mapModeButtonCurrentlyOnScreen = true;
         if (transferAttackButtonDisplayed) {
-            toggleTransferAttackButton(true);
+            toggleTransferAttackButton(true, false);
         }
     }
   }
@@ -4353,9 +4363,28 @@ function toggleMapModeButton(makeVisible) {
     }
   }
   
-  export function toggleTransferAttackButton(turnOnButton) {
+  export function toggleTransferAttackButton(turnOnButton, aiTurn) {
     let transferAttackButton = document.getElementById("move-phase-button");
     let attackText = document.getElementById("attack-destination-container");
+    if (aiTurn) {
+        if (turnOnButton) {
+            attackText.style.display = "none";
+            transferAttackButtonDisplayed = true;
+            attackTextCurrentlyDisplayed = false;
+            transferAttackButton.classList.remove("move-phase-button-green-background");
+            transferAttackButton.classList.remove("move-phase-button-brown-background");
+            transferAttackButton.classList.remove("move-phase-button-blue-background");
+            transferAttackButton.classList.remove("move-phase-button-grey-background");
+            transferAttackButton.classList.add("move-phase-button-red-background");
+            transferAttackButton.style.color = "yellow";
+            transferAttackButton.style.flexBasis = "40%";
+            transferAttackButton.disabled = true;
+        } else {
+            transferAttackButton.style.flexBasis = "18%";
+            transferAttackButtonDisplayed = false;
+            transferAttackButton.disabled = false;
+        }
+    }
     if (turnOnButton) {
         transferAttackButton.style.display = "flex";
         if (attackTextCurrentlyDisplayed) {
@@ -5207,6 +5236,7 @@ function setRow4(siegeOrAttack) { //move to bottom when done
 }
 
 function setUnsetMenuOnEscape() {
+    if (!initialiseGame()) {
   if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
       document.getElementById("menu-container").style.display = "block";
       document.getElementById("main-ui-container").style.display = "none";
@@ -5222,81 +5252,84 @@ function setUnsetMenuOnEscape() {
       mapModeButtonCurrentlyOnScreen = false;
       toggleUpgradeMenu(false);
       toggleBuyMenu(false);
-      toggleTransferAttackButton(false);
+      toggleTransferAttackButton(false, false);
       toggleTransferAttackWindow(false);
       toggleBattleUI(false, false);
       toggleBattleResults(false);
+  }
   } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
-      if (uiCurrentlyOnScreen) {
-          document.getElementById("main-ui-container").style.display = "flex";
-          uiButtonCurrentlyOnScreen = false;
-          mapModeButtonCurrentlyOnScreen = false;
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-      } else {
-          if (countrySelectedAndGameStarted) {
-              uiButtonCurrentlyOnScreen = true;
-              mapModeButtonCurrentlyOnScreen = true;
-          }
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-      }
-      if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
-          if (transferAttackWindowOnScreen) {
-            toggleTransferAttackWindow(true);
-          } else if (battleUIDisplayed) {
-            toggleBattleUI(true, false);
-          } else if (battleResultsDisplayed) {
-            toggleBattleResults(true);
-          }
-          uiButtonCurrentlyOnScreen = false;
-          bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-          mapModeButtonCurrentlyOnScreen = false;
-      } else {
-          if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
-              uiButtonCurrentlyOnScreen = true;
-              mapModeButtonCurrentlyOnScreen = true;
-          }
-          if (!uiCurrentlyOnScreen) {
+      if (!initialiseGame()) {
+          if (uiCurrentlyOnScreen) {
+              document.getElementById("main-ui-container").style.display = "flex";
+              uiButtonCurrentlyOnScreen = false;
+              mapModeButtonCurrentlyOnScreen = false;
+              bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+          } else {
+              if (countrySelectedAndGameStarted) {
+                  uiButtonCurrentlyOnScreen = true;
+                  mapModeButtonCurrentlyOnScreen = true;
+              }
               bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
           }
-      }
-      if (upgradeWindowCurrentlyOnScreen) {
-          toggleUpgradeMenu(true);
-      }
-      if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
-          toggleBottomLeftPaneWithTurnAdvance(true);
-      }
-      if (uiButtonCurrentlyOnScreen) {
-          toggleUIButton(true);
-      }
-      if (mapModeButtonCurrentlyOnScreen) {
-          toggleMapModeButton(true);
-      }
-      if (buyWindowCurrentlyOnScreen) {
-          toggleBuyMenu(true);
-      }
-      if (countrySelectedAndGameStarted) {
-          toggleTopTableContainer(true);
-      }
-      if (transferAttackButtonDisplayed) {
-          toggleTransferAttackButton(true);
-      }
-      toggleBottomTableContainer(true);
-      document.getElementById("menu-container").style.display = "none";
-
-      if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
-          selectCountry(lastClickedPath, true);
-          if (territoryAboutToBeAttackedOrSieged) {
-            if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and reads it, so it is on top of the svg path
-                svgMap.getElementById("attackImage").remove();
-                addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
-            }
+          if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
+              if (transferAttackWindowOnScreen) {
+                  toggleTransferAttackWindow(true);
+              } else if (battleUIDisplayed) {
+                  toggleBattleUI(true, false);
+              } else if (battleResultsDisplayed) {
+                  toggleBattleResults(true);
+              }
+              uiButtonCurrentlyOnScreen = false;
+              bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+              mapModeButtonCurrentlyOnScreen = false;
+          } else {
+              if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
+                  uiButtonCurrentlyOnScreen = true;
+                  mapModeButtonCurrentlyOnScreen = true;
+              }
+              if (!uiCurrentlyOnScreen) {
+                  bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+              }
           }
+          if (upgradeWindowCurrentlyOnScreen) {
+              toggleUpgradeMenu(true);
+          }
+          if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
+              toggleBottomLeftPaneWithTurnAdvance(true);
+          }
+          if (uiButtonCurrentlyOnScreen) {
+              toggleUIButton(true);
+          }
+          if (mapModeButtonCurrentlyOnScreen) {
+              toggleMapModeButton(true);
+          }
+          if (buyWindowCurrentlyOnScreen) {
+              toggleBuyMenu(true);
+          }
+          if (countrySelectedAndGameStarted) {
+              toggleTopTableContainer(true);
+          }
+          if (transferAttackButtonDisplayed) {
+              toggleTransferAttackButton(true, false);
+          }
+          toggleBottomTableContainer(true);
+          document.getElementById("menu-container").style.display = "none";
+
+          if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
+              selectCountry(lastClickedPath, true);
+              if (territoryAboutToBeAttackedOrSieged) {
+                  if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and reads it, so it is on top of the svg path
+                      svgMap.getElementById("attackImage").remove();
+                      addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
+                  }
+              }
+          }
+
+          //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
+
+          menuState = false;
       }
-
-      //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
-
-      menuState = false;
-  }
+      }
 }
 
 export function getOriginalDefendingTerritory() {
@@ -5633,7 +5666,7 @@ export function endPlayerTurn() {
         lastClickedPath.style.strokeDasharray = "none";
         currentMapColorAndStrokeArray = saveMapColorState(false);
     }
-    toggleTransferAttackButton(false);
+    toggleTransferAttackButton(false, false);
     transferAttackButtonDisplayed = false;
     restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
     document.getElementById("popup-title").innerText = "AI turn";
@@ -5660,4 +5693,12 @@ export function initialiseNewPlayerTurn() {
     document.getElementById("popup-confirm").innerText = "MILITARY";
     modifyCurrentTurnPhase(turnPhase);
     turnPhase++;
+}
+
+export function setCurrentMapColorAndStrokeArray(value) {
+    return currentMapColorAndStrokeArray = value;
+}
+
+export function getCurrentMapColorAndStrokeArray() {
+    return currentMapColorAndStrokeArray;
 }
