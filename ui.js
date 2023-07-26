@@ -180,7 +180,7 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 //This determines how the map will be colored for different game modes
-export let mapMode = 1; //0 - standard continent coloring 1 - totally random color at start for countries, but with hoverable leeway
+export let mapMode = 1; // 1 - normal 2 - physical
 
 //Zoom variables
 let zoomLevel = 1;
@@ -397,11 +397,8 @@ export function svgMapLoaded() {
         }
     });
 
-    if (mapMode === 0) { //continent coloring
-        colorByContinent();
-    } else if (mapMode === 1) { //random with team assignment
-        colorBystandardColoring(); // random country assignment from start
-    }
+    colorByStandardColoring();
+
     console.log("loaded!");
 }
 
@@ -458,9 +455,7 @@ function selectCountry(country, escKeyEntry) {
                 } else if (paths[i].getAttribute("underSiege") === "true") {
                     paths[i].setAttribute('fill', playerColour);
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                    if (mapMode === 0) {
-                        paths[i].setAttribute("fill", fillPathBasedOnContinent(paths[i]));
-                    } else if (mapMode === 1) {
+                    if (mapMode === 1) {
                         paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
                     } else if (mapMode === 2) {
                         flipMapMode();
@@ -470,11 +465,7 @@ function selectCountry(country, escKeyEntry) {
                 } else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
                     for (let j = 0; j < paths.length; j++) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                            if (mapMode === 0) {
-                                paths[j].setAttribute("fill", fillPathBasedOnContinent(paths[j]));
-                            } else if (mapMode === 1) {
-                                paths[j].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[j]));
-                            }
+                            paths[j].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[j]));
                             setStrokeWidth(paths[j], "1");
                         }
                     }
@@ -483,11 +474,7 @@ function selectCountry(country, escKeyEntry) {
         }
     } else {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
-            if (mapMode === 0) {
-                lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
-            } else if (mapMode === 1) {
-                lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
-            }
+            lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
         }
     }
 
@@ -2314,16 +2301,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
-
-        if (mapMode === 0) {
-            lastClickedPath.setAttribute("fill", fillPathBasedOnContinent(lastClickedPath));
-        } else if (mapMode === 1) {
-            lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
-        }
-
-        lastClickedPath.style.stroke = "rgb(0,0,0)";
-        lastClickedPath.setAttribute("stroke-width", "1");
-        lastClickedPath.style.strokeDasharray = "none";
+    lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
+    lastClickedPath.style.stroke = "rgb(0,0,0)";
+    lastClickedPath.setAttribute("stroke-width", "1");
+    lastClickedPath.style.strokeDasharray = "none";
         let defendingTerritoryRetreatClick;
         for (let i = 0; i < mainGameArray.length; i++) {
             if (mainGameArray[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
@@ -3242,7 +3223,7 @@ export function fillPathBasedOnContinent(path) { //mapMode === 0 ie continent co
     }
 }
 
-export function fillPathBasedOnStartingCountryColor(path) { //mapMode === 1 ie random country color start
+export function fillPathBasedOnStartingCountryColor(path) {
     const startingCountry = path.getAttribute("data-name");
     const entry = listOfStartingCountryColorsArray.find(
         entry => entry[1].toLowerCase() === startingCountry.toLowerCase()
@@ -3253,7 +3234,7 @@ export function fillPathBasedOnStartingCountryColor(path) { //mapMode === 1 ie r
     }
 }
 
-function colorBystandardColoring() {
+function colorByStandardColoring() {
     paths.forEach(path => {
         const uniqueId = path.getAttribute("uniqueid");
         const dataName = path.getAttribute("data-name");

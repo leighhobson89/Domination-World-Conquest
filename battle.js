@@ -574,11 +574,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             contestedPath.style.stroke = "white";
         }
     } else {
-        if (mapMode === 0) {
-            contestedPath.setAttribute("fill", fillPathBasedOnContinent(contestedPath));
-        } else if (mapMode === 1) {
-            contestedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(contestedPath));
-        }
+        contestedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(contestedPath));
     }
 }
 
@@ -627,7 +623,6 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
                 if (paths[j].getAttribute("uniqueid") === playerTurnsDeactivatedArray[i][0]) {
                     if (mapMode === 1) {
                         paths[j].style.stroke = "black";
-
                     } else if (mapMode === 2) {
                         paths[j].style.stroke = "white";
                     }
@@ -649,11 +644,7 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
     // let diceScoreArray; //DICE CODE EXECUTION
-    // if (mapMode === 0) {
-    //     diceScoreArray = await callDice(fillPathBasedOnContinent(lastClickedPath));
-    // } else if (mapMode === 1) {
-    //     diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
-    // }
+    // diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
     // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
     // //show feedback
     combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
