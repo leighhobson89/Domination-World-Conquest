@@ -298,6 +298,18 @@ export function svgMapLoaded() {
     });
 
     svgMap.addEventListener("click", function(e) {
+        const offsetX = 1;
+        const offsetY = 1;
+        const newX = event.clientX + offsetX;
+        const newY = event.clientY + offsetY;
+
+        const newEvent = new MouseEvent('click', {
+            clientX: newX,
+            clientY: newY,
+        });
+
+        event.target.dispatchEvent(newEvent);
+
         if (mapMode === 2) {
             flipMapMode();
             for (let i = 0; i < paths.length; i++) {
@@ -363,7 +375,7 @@ export function svgMapLoaded() {
         if (!isDragging) {
             if (e.target.tagName === "path") {
                 shiftedPath = e.target;
-                shiftPath(shiftedPath, 3, 3);
+                shiftPath(shiftedPath, 2, 2);
                 modifyFill(shiftedPath, true);
             } else {
                 shiftedPath = null;
@@ -392,7 +404,7 @@ export function svgMapLoaded() {
             isDragging = false;
         }
         if (!isDragging) {
-            shiftPath(shiftedPath, -3, -3);
+            shiftPath(shiftedPath, -2, -2);
             modifyFill(shiftedPath, false);
         }
     });
@@ -4359,6 +4371,17 @@ function toggleTopTableContainer(turnOnTable) {
 export function toggleTransferAttackButton(turnOnButton, aiTurn) {
     let transferAttackButton = document.getElementById("move-phase-button");
     let attackText = document.getElementById("attack-destination-container");
+    let transferAttackContainer = document.getElementsByClassName("move-phase-buttons-container");
+    let popupWithConfirmContainer = document.getElementsByClassName("popup-with-confirm-container");
+    if (turnOnButton) {
+        transferAttackButton.style.display = "flex";
+        if (attackTextCurrentlyDisplayed) {
+            attackText.style.display = "flex";
+        }
+    } else if (!turnOnButton) {
+        transferAttackButton.style.display = "none";
+        attackText.style.display = "none";
+    }
     if (aiTurn) {
         if (turnOnButton) {
             attackText.style.display = "none";
@@ -4370,22 +4393,26 @@ export function toggleTransferAttackButton(turnOnButton, aiTurn) {
             transferAttackButton.classList.remove("move-phase-button-grey-background");
             transferAttackButton.classList.add("move-phase-button-red-background");
             transferAttackButton.style.color = "yellow";
-            transferAttackButton.style.flexBasis = "40%";
             transferAttackButton.disabled = true;
+            for (const popup of popupWithConfirmContainer) {
+                popup.style.bottom = "6%";
+            }
+            for (const container of transferAttackContainer) {
+                container.style.left = "39%";
+                container.style.width = "35%";
+            }
         } else {
-            transferAttackButton.style.flexBasis = "18%";
+            transferAttackButton.style.color = "white";
             transferAttackButtonDisplayed = false;
             transferAttackButton.disabled = false;
+            for (const popup of popupWithConfirmContainer) {
+                popup.style.bottom = "8%";
+            }
+            for (const container of transferAttackContainer) {
+                container.style.left = "42%";
+                container.style.width = "16%";
+            }
         }
-    }
-    if (turnOnButton) {
-        transferAttackButton.style.display = "flex";
-        if (attackTextCurrentlyDisplayed) {
-            attackText.style.display = "flex";
-        }
-    } else if (!turnOnButton) {
-        transferAttackButton.style.display = "none";
-        attackText.style.display = "none";
     }
 }
 
@@ -4714,6 +4741,10 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
 
 export function reduceKeywords(str) {
     const keywords = {
+        'south': 'S.',
+        'north': 'N.',
+        'saint': 'St.',
+        'vincent': 'V.',
         'and': '&',
         'republic': 'Rp.',
         'democratic': 'Dem.',

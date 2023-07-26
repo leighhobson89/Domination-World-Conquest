@@ -2613,7 +2613,7 @@ export const dataTableCountriesInitialState = [{
 	},
 	{
 		"id": 205,
-		"country": "Saint Vincent And The Grenadines",
+		"country": "Saint Vincent And Grenadines",
 		"startingPop": 104332,
 		"area": 389,
 		"startingArmy": 3,

@@ -204,7 +204,7 @@ id,territory_name,country,startingPop,area,startingArmy,continent,res_gold,res_o
 202,NULL,Tokelau,1373,12,2,Oceania,7000,700,700,70,7,0.701,0.000114445
 203,NULL,"Vatican City",800,1,1,Europe,10000,1000,1000,100,10,0.812,0.0000464
 204,NULL,Kosovo,1780000,10887,1300,Europe,10000,1000,1000,100,10,0.771,0.013203605
-205,NULL,"Saint Vincent And The Grenadines",104332,389,3,"South America",6000,600,600,60,6,0.751,0.000930311
+205,NULL,"Saint Vincent And Grenadines",104332,389,3,"South America",6000,600,600,60,6,0.751,0.000930311
 206,NULL,"French Guiana",301999,83534,1233,"South America",6000,600,600,60,6,0.712,0.007799655
 207,NULL,"Republic Of The Congo",5546307,342000,774,Africa,5000,500,500,50,5,0.571,0.030585425
 208,NULL,"Democratic Republic Of The Congo",111859928,2345409,7647,Africa,5000,500,500,50,5,0.479,0.149177056
