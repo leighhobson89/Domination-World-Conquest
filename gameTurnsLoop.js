@@ -74,13 +74,15 @@ export async function initialiseGame() {
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
     await (async () => { //finds attack options for a particular territory
-        for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
-            document.getElementById("move-phase-button").innerHTML = reduceKeywords(arrayOfLeadersAndCountries[i][0]).toUpperCase();
-            highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, arrayOfLeadersAndCountries[i][0]);
-            let attackOptions = await findAttackOptions(i); //comment to skip load time but AI wont work
+        let path;
+        for (let i = 0; i < mainGameArray.length; i++) {
+            document.getElementById("move-phase-button").innerHTML = reduceKeywords(mainGameArray[i].territoryName).toUpperCase();
+            highlightCountryBeingProcessedAndRemoveLastOneProcessed(mainGameArray[i].territoryName);
+            let attackOptions = await findAttackOptions(i);
             attackOptionsArray.push(attackOptions);
         }
     })();
+    console.log(attackOptionsArray);
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
             path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
@@ -88,7 +90,6 @@ export async function initialiseGame() {
     }
     toggleTransferAttackButton(false, true);
     setCurrentMapColorAndStrokeArray(saveMapColorState("true"));
-    console.log(attackOptionsArray);
     document.getElementById("popup-color").disabled = true;
     gameInitialisation = false;
     gameLoop();
@@ -329,10 +330,11 @@ function changeAllPathsToWhite() {
     }
 }
 
-function highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, dataName) {
+function highlightCountryBeingProcessedAndRemoveLastOneProcessed(territoryName) {
     for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("data-name") === dataName) {
+        if (paths[i].getAttribute("territory-name") === territoryName) {
             paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+            break;
         }
     }
 }
