@@ -82,7 +82,7 @@ export async function initialiseGame() {
             attackOptionsArray.push(attackOptions);
         }
     })();
-    console.log(attackOptionsArray);
+    console.log(attackOptionsArray); //
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
             path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
