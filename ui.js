@@ -728,6 +728,14 @@ document.addEventListener("DOMContentLoaded", function() {
             modifyCurrentTurnPhase(turnPhase);
             turnPhase++;
         }
+        else if (countrySelectedAndGameStarted && turnPhase === 2) {
+            for (let i = 0; i < paths.length; i++) {
+                if (paths[i].getAttribute("owner") !== "Player") {
+                    paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                }
+            }
+            currentMapColorAndStrokeArray = saveMapColorState(false);
+        }
     });
 
     // add the menu options to the menu container

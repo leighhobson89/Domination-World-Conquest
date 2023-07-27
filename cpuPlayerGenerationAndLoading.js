@@ -107,7 +107,7 @@ function getRandomGender() {
 
 export function updateArrayOfLeadersAndCountries() { //when called sets the arrayOfLeadersAndCountries with [countryName, leaderObject, [<list of territory names>]
     const countryIndices = {};
-
+    arrayOfLeadersAndCountries.length = 0;
     for (let i = 0; i < mainGameArray.length; i++) {
         const countryName = mainGameArray[i].dataName;
 

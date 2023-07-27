@@ -42,7 +42,7 @@ import {
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
-export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Deploy -- 2 - Move/Attack -- 3 -- AI
+export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
 export let randomEventHappening = false;
 export let randomEvent = "";
 
@@ -59,7 +59,7 @@ export async function initialiseGame() {
 
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
-            path.setAttribute("owner", "Player"); //set player as the owner of the territory they select
+            path.setAttribute("owner", "Player");
         }
     }
 
@@ -75,9 +75,9 @@ export async function initialiseGame() {
     changeAllPathsToWhite();
     await (async () => { //finds attack options for a particular territory
         for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
-            document.getElementById("move-phase-button").innerHTML = reduceKeywords(arrayOfLeadersAndCountries[i][0]).toUpperCase(); //write country being processed in UI
-            highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, arrayOfLeadersAndCountries[i][0]); //highlight territories as goes through process, to give user something to look at
-            let attackOptions = await findAttackOptions(i);
+            document.getElementById("move-phase-button").innerHTML = reduceKeywords(arrayOfLeadersAndCountries[i][0]).toUpperCase();
+            highlightCountryBeingProcessedAndRemoveLastOneProcessed(i, arrayOfLeadersAndCountries[i][0]);
+            let attackOptions = await findAttackOptions(i); //comment to skip load time but AI wont work
             attackOptionsArray.push(attackOptions);
         }
     })();
@@ -196,6 +196,14 @@ async function handleAITurn() {
 
         // TODO: Read in territories within range
         // This reads in the hardcoded distances of all paths on the map and can be used instead of calculating every time
+            let territoriesInRange = [];
+            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
+                // console.log(arrayOfLeadersAndCountries[i][1].name + ": " + arrayOfLeadersAndCountries[i][2][j].territoryName);
+                //territories in range.push() //read each territory we have by its unique id and get that data from the attackOptionsArray
+                territoriesInRange.push(arrayOfLeadersAndCountries[i][2][j].territoryName + " is in range of: " + attackOptionsArray[arrayOfLeadersAndCountries[i][2][j].uniqueId]);
+                console.log(territoriesInRange);
+            }
+
 
         // TODO: Read in territories within range's army and forts
         // TODO: Assess threat from territories within range
@@ -215,9 +223,8 @@ async function handleAITurn() {
 
         // After processing the closestPathDataArray for this territory, add your logic here.
     }
-
-    console.log("AI DONE!"); // Placeholder message for AI turn completed
     console.log(attackOptionsArray);
+    console.log("AI DONE!"); // Placeholder message for AI turn completed
     initialiseNewPlayerTurn();
 
 }
