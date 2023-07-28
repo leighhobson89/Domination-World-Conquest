@@ -87,8 +87,6 @@ export async function initialiseGame() {
             attackOptionsArray.push(allInteractableTerritoriesForUniqueId);
         }
     })();
-
-    console.log(attackOptionsArray); //
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
             path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
@@ -204,11 +202,20 @@ async function handleAITurn() {
         // TODO: Read in territories within range
         // This reads in the hardcoded distances of all paths on the map and can be used instead of calculating every time
             let territoriesInRange = [];
-            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
+            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //array of all ai players[whichAi][mainArrayObjectArrayForTerritoriesOwned]
                 // console.log(arrayOfLeadersAndCountries[i][1].name + ": " + arrayOfLeadersAndCountries[i][2][j].territoryName);
                 //territories in range.push() //read each territory we have by its unique id and get that data from the attackOptionsArray
-                territoriesInRange.push(arrayOfLeadersAndCountries[i][2][j].territoryName + " is in range of: " + attackOptionsArray[arrayOfLeadersAndCountries[i][2][j].uniqueId]);
-                console.log(territoriesInRange);
+                let territory = arrayOfLeadersAndCountries[i][2][j].uniqueId; //unique id string of territory being queried
+                territoriesInRange.push([[territory, arrayOfLeadersAndCountries[i][2][j].territoryName], attackOptionsArray[parseInt(territory)][1]]); //should return every territory in json for that unique id
+
+                if (j === arrayOfLeadersAndCountries[i][2].length - 1) { //console out only once after countup
+                    console.log(arrayOfLeadersAndCountries[i][2][j].leader.name + " of " + arrayOfLeadersAndCountries[i][2][j].dataName + "'s territories are as follows and what they are in range of:");
+                    for (const territoryKey in territoriesInRange) {
+                        console.log(territoriesInRange[territoryKey]);
+                    }
+                }
+
+                //United Kingdom is in range of [object: Ireland], [object: Iceland], [
             }
 
 
@@ -230,7 +237,6 @@ async function handleAITurn() {
 
         // After processing the closestPathDataArray for this territory, add your logic here.
     }
-    console.log(attackOptionsArray);
     console.log("AI DONE!"); // Placeholder message for AI turn completed
     initialiseNewPlayerTurn();
 
@@ -343,8 +349,6 @@ function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUnique
 
     const territory = allInteractableTerritoriesForUniqueId[1][0][0];
     for (let i = 0; i < paths.length; i++) {
-        console.log(paths[i].getAttribute("territory-name"));
-        console.log(territory);
         if (paths[i].getAttribute("territory-name") === territory) {
             pathObj = paths[i];
             break;
