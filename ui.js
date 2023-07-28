@@ -291,9 +291,10 @@ export function svgMapLoaded() {
         clickActionsDone = false;
     });
 
-    svgMap.addEventListener("keydown", function() {
-        if (!initialiseGame()) {
-            setUnsetMenuOnEscape();
+    svgMap.addEventListener("keydown", function(e) {
+        let isInitialising = getGameInitialisation();
+        if (!isInitialising) {
+            setUnsetMenuOnEscape(e);
         }
     });
 
@@ -2618,10 +2619,10 @@ document.addEventListener("DOMContentLoaded", function() {
     pageLoaded = true;
 });
 
-document.addEventListener("keydown", function() {
+document.addEventListener("keydown", function(e) {
     let isInitialising = getGameInitialisation();
     if (!isInitialising) {
-        setUnsetMenuOnEscape();
+        setUnsetMenuOnEscape(e);
     }
 });
 
@@ -5274,8 +5275,8 @@ function setRow4(siegeOrAttack) { //move to bottom when done
     }
 }
 
-function setUnsetMenuOnEscape() {
-    if (event.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
+function setUnsetMenuOnEscape(e) {
+    if (e.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
         document.getElementById("menu-container").style.display = "block";
         document.getElementById("main-ui-container").style.display = "none";
         document.getElementById("upgrade-container").style.display = "none";
@@ -5295,7 +5296,7 @@ function setUnsetMenuOnEscape() {
         toggleBattleUI(false, false);
         toggleBattleResults(false);
 
-    } else if (event.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
+    } else if (e.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
         if (uiCurrentlyOnScreen) {
             document.getElementById("main-ui-container").style.display = "flex";
             uiButtonCurrentlyOnScreen = false;

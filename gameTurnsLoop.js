@@ -10,7 +10,7 @@ import {
     saveMapColorState,
     paths,
     fillPathBasedOnStartingCountryColor,
-    playerColour,
+    playerColour, svg,
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -51,6 +51,7 @@ let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
 
 export async function initialiseGame() {
+    svg.style.pointerEvents = 'none';
     gameInitialisation = true;
     console.log("Welcome to new game! Your country is " + playerCountry + "!");
     const svgMap = document.getElementById('svg-map').contentDocument;
@@ -91,6 +92,7 @@ export async function initialiseGame() {
     setCurrentMapColorAndStrokeArray(saveMapColorState("true"));
     document.getElementById("popup-color").disabled = true;
     gameInitialisation = false;
+    svg.style.pointerEvents = 'auto';
     gameLoop();
 }
 
