@@ -7,13 +7,10 @@ import {
     toggleTransferAttackButton,
     reduceKeywords,
     setCurrentMapColorAndStrokeArray,
-    getCurrentMapColorAndStrokeArray,
     saveMapColorState,
-    restoreMapColorState,
     paths,
     fillPathBasedOnStartingCountryColor,
-    currentMapColorAndStrokeArray,
-    playerColour, currentSelectedPath
+    playerColour,
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -24,7 +21,6 @@ import {
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
     getTurnGainsArrayAi,
-    findSvgPath
 } from './resourceCalculations.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
@@ -76,14 +72,13 @@ export async function initialiseGame() {
     document.getElementById("top-table-container").style.display = "block";
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
-    await (async () => { //finds attack options for a particular territory
+    await (async () => { //finds attack options for a particular territory and causes the loading to happen
         for (let i = 0; i < mainGameArray.length; i++) {
             document.getElementById("move-phase-button").innerHTML = reduceKeywords(mainGameArray[i].territoryName).toUpperCase();
             highlightCountryBeingProcessedAndRemoveLastOneProcessed(mainGameArray[i].territoryName);
             let allInteractableTerritoriesForUniqueId = await findAllInteractableTerritoriesOnGameLoad(i);
-            //add manual exceptions and denials to allInteractableTerritoriesForUniqueId
             allInteractableTerritoriesForUniqueId = addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId);
-            allInteractableTerritoriesForUniqueId[1].shift(); //remove first element as will always be territory with uniqueid of attackOptionsArray element index, dont need it
+            allInteractableTerritoriesForUniqueId[1].shift(); //remove first element as will always be territory with uniqueid of attackOptionsArray element index, don't need it
             attackOptionsArray.push(allInteractableTerritoriesForUniqueId);
         }
     })();
@@ -180,13 +175,10 @@ async function handleAITurn() {
     arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
     let countryResourceTotals;
     let turnGainsArrayAi;
+    let currentAiCountry;
 
-    let closestPathDataArray;
-    let attackOptions;
     for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
-
-        // readLeaderResourcesAndTerritoriesDebugConsole(arrayOfLeadersAndCountries[i]);
-
+        currentAiCountry = arrayOfLeadersAndCountries[i][0];
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
@@ -195,29 +187,52 @@ async function handleAITurn() {
 
         // Read total resources for specific AI's country and its per turn gains
         countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
-        const turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
+        turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
         // console.log(countryResourceTotals);
         // console.log(turnGainsArrayAi);
 
-        // TODO: Read in territories within range
-        // This reads in the hardcoded distances of all paths on the map and can be used instead of calculating every time
-            let territoriesInRange = [];
-            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //array of all ai players[whichAi][mainArrayObjectArrayForTerritoriesOwned]
-                // console.log(arrayOfLeadersAndCountries[i][1].name + ": " + arrayOfLeadersAndCountries[i][2][j].territoryName);
-                //territories in range.push() //read each territory we have by its unique id and get that data from the attackOptionsArray
-                let territory = arrayOfLeadersAndCountries[i][2][j].uniqueId; //unique id string of territory being queried
-                territoriesInRange.push([[territory, arrayOfLeadersAndCountries[i][2][j].territoryName], attackOptionsArray[parseInt(territory)][1]]); //should return every territory in json for that unique id
+        // Read in territories within range
+        let fullTerritoriesInRange = [];
+        for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //array of all AI players[whichAi][mainArrayObjectArrayForTerritoriesOwned]
+            // console.log(arrayOfLeadersAndCountries[i][1].name + ": " + arrayOfLeadersAndCountries[i][2][j].territoryName);
+            //territories in range.push() //read each territory we have by its unique id and get that data from the attackOptionsArray
+            let territory = arrayOfLeadersAndCountries[i][2][j].uniqueId; //unique id string of territory being queried
+            fullTerritoriesInRange.push([[territory, arrayOfLeadersAndCountries[i][2][j].territoryName], attackOptionsArray[parseInt(territory)][1]]); //should return every territory in json for that unique id
+            console.log(fullTerritoriesInRange[j][0][1]);
+            if (j === arrayOfLeadersAndCountries[i][2].length - 1) { //console out only once after count up
+                console.log(arrayOfLeadersAndCountries[i][2][j].leader.name + " of " + arrayOfLeadersAndCountries[i][2][j].dataName + "'s territories are as follows and what they are in range of:");
+                for (const territoryKey in fullTerritoriesInRange) {
+                    console.log(fullTerritoriesInRange[territoryKey]);
+                }
+            }
+        }
 
-                if (j === arrayOfLeadersAndCountries[i][2].length - 1) { //console out only once after countup
-                    console.log(arrayOfLeadersAndCountries[i][2][j].leader.name + " of " + arrayOfLeadersAndCountries[i][2][j].dataName + "'s territories are as follows and what they are in range of:");
-                    for (const territoryKey in territoriesInRange) {
-                        console.log(territoriesInRange[territoryKey]);
+        console.log("fullTerritoriesInRange:");
+        console.log(fullTerritoriesInRange);
+
+        const attackableTerritoriesInRange = [];
+        for (let j = 0; j < fullTerritoriesInRange.length; j++) {
+            let isOwned = false; // Flag to track if any match is found
+
+            for (let k = 0; k < fullTerritoriesInRange[j][1].length; k++) {
+                const territoryNameToCheck = fullTerritoriesInRange[j][1][k][0];
+                for (let l = 0; l < arrayOfLeadersAndCountries[i][2].length; l++) {
+                    const ownedTerritoryName = arrayOfLeadersAndCountries[i][2][l].territoryName;
+                    if (territoryNameToCheck === ownedTerritoryName) {
+                        isOwned = true;
+                        break; // No need to continue checking, one match is enough
                     }
                 }
-
-                //United Kingdom is in range of [object: Ireland], [object: Iceland], [
+                if (isOwned) {
+                    break;
+                }
             }
-
+            if (!isOwned) {
+                attackableTerritoriesInRange.push(fullTerritoriesInRange[j][1]);
+            }
+            console.log("and the attackable territories are:");
+            console.log(attackableTerritoriesInRange);
+        }
 
         // TODO: Read in territories within range's army and forts
         // TODO: Assess threat from territories within range
@@ -302,14 +317,6 @@ function handleArmyRetrievals(retrievalArray) {
             retrievalArray.splice(i, 1); // Remove the element at index i from retrievalArray
             i--; // Decrement i to account for the removed element
         }
-    }
-}
-
-function readLeaderResourcesAndTerritoriesDebugConsole(leaderAndCountry) {
-    let currentAiTerritories = leaderAndCountry[2];
-    console.log(leaderAndCountry[1].name + "'s territories are:");
-    for (let j = 0; j < leaderAndCountry[2].length; j++) {
-        console.log(leaderAndCountry[2][j].territoryName);
     }
 }
 
