@@ -17,8 +17,6 @@ function fetchJSONFile(url) {
         .then(data => parseJSON(data));
 }
 
-
-
 export function readClosestPointsJSON(uniqueId) {
     const jsonFileURL = './resources/closestPathsData.json';
     return fetchJSONFile(jsonFileURL)
