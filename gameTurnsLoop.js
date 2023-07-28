@@ -13,7 +13,7 @@ import {
     paths,
     fillPathBasedOnStartingCountryColor,
     currentMapColorAndStrokeArray,
-    playerColour
+    playerColour, currentSelectedPath
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -40,6 +40,9 @@ import {
 import {
     readClosestPointsJSON
 } from "./aiCalculations.js";
+import {
+    findMatchingCountries
+} from './manualExceptionsForInteractions.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
@@ -74,14 +77,17 @@ export async function initialiseGame() {
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
     await (async () => { //finds attack options for a particular territory
-        let path;
         for (let i = 0; i < mainGameArray.length; i++) {
             document.getElementById("move-phase-button").innerHTML = reduceKeywords(mainGameArray[i].territoryName).toUpperCase();
             highlightCountryBeingProcessedAndRemoveLastOneProcessed(mainGameArray[i].territoryName);
-            let attackOptions = await findAttackOptions(i);
-            attackOptionsArray.push(attackOptions);
+            let allInteractableTerritoriesForUniqueId = await findAllInteractableTerritoriesOnGameLoad(i);
+            //add manual exceptions and denials to allInteractableTerritoriesForUniqueId
+            allInteractableTerritoriesForUniqueId = addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId);
+            allInteractableTerritoriesForUniqueId[1].shift(); //remove first element as will always be territory with uniqueid of attackOptionsArray element index, dont need it
+            attackOptionsArray.push(allInteractableTerritoriesForUniqueId);
         }
     })();
+
     console.log(attackOptionsArray); //
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
@@ -245,7 +251,6 @@ function handleRandomEventLikelihood() {
     }
 }
 
-
 function selectRandomEvent() {
     const events = [
         "Food Disaster",
@@ -302,26 +307,10 @@ function readLeaderResourcesAndTerritoriesDebugConsole(leaderAndCountry) {
     }
 }
 
-async function findAttackOptions(i) {
+async function findAllInteractableTerritoriesOnGameLoad(i) {
     let closestPathDataArray;
     closestPathDataArray = await readClosestPointsJSON(i);
     return closestPathDataArray;
-}
-
-function filterAttackOptions(attackOptions) {
-    const uniqueStringAMap = new Map();
-    const filteredOptions = [];
-
-    for (const option of attackOptions[1]) {
-        const stringA = option[0];
-
-        if (!uniqueStringAMap.has(stringA)) {
-            uniqueStringAMap.set(stringA, true);
-            filteredOptions.push(option);
-        }
-    }
-
-    return [attackOptions[0], filteredOptions];
 }
 
 function changeAllPathsToWhite() {
@@ -345,4 +334,41 @@ export function modifyCurrentTurnPhase(value) {
 
 export function getGameInitialisation() {
     return gameInitialisation;
+}
+
+function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId) {
+    let pathObj;
+    let matchingTerritories;
+    let matchingDenials;
+
+    const territory = allInteractableTerritoriesForUniqueId[1][0][0];
+    for (let i = 0; i < paths.length; i++) {
+        console.log(paths[i].getAttribute("territory-name"));
+        console.log(territory);
+        if (paths[i].getAttribute("territory-name") === territory) {
+            pathObj = paths[i];
+            break;
+        }
+    }
+    matchingTerritories = findMatchingCountries(pathObj, 1);
+    matchingDenials = findMatchingCountries(pathObj, 0);
+
+    const territoriesToAdd = matchingTerritories
+        .filter((matchingTerritory) => {
+            const territoryName = matchingTerritory.getAttribute("territory-name");
+            return !allInteractableTerritoriesForUniqueId[1].some((arr) => arr.includes(territoryName));
+        })
+        .map((matchingTerritory) => matchingTerritory.getAttribute("territory-name"));
+
+    for (const territory of territoriesToAdd) {
+        allInteractableTerritoriesForUniqueId[1].push([territory]);
+    }
+
+    const matchingDenialsNames = matchingDenials.map((denial) => denial.getAttribute("territory-name"));
+    allInteractableTerritoriesForUniqueId[1] = allInteractableTerritoriesForUniqueId[1].filter((arr) => {
+        const territoryName = arr[0];
+        return !matchingDenialsNames.includes(territoryName);
+    });
+
+    return allInteractableTerritoriesForUniqueId;
 }
