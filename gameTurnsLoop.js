@@ -209,12 +209,9 @@ async function handleAITurn() {
             }
         }
 
-        console.log("fullTerritoriesInRange:");
-        console.log(fullTerritoriesInRange);
-
-        const attackableTerritoriesInRange = [];
+        let attackableTerritoriesInRange = [];
         for (let j = 0; j < fullTerritoriesInRange.length; j++) {
-            let isOwned = false; // Flag to track if any match is found
+            let isOwned = false;
 
             for (let k = 0; k < fullTerritoriesInRange[j][1].length; k++) {
                 const territoryNameToCheck = fullTerritoriesInRange[j][1][k][0];
@@ -222,19 +219,20 @@ async function handleAITurn() {
                     const ownedTerritoryName = arrayOfLeadersAndCountries[i][2][l].territoryName;
                     if (territoryNameToCheck === ownedTerritoryName) {
                         isOwned = true;
-                        break; // No need to continue checking, one match is enough
+                        break;
                     }
                 }
-                if (isOwned) {
-                    break;
+                if (!isOwned) {
+                    attackableTerritoriesInRange.push(fullTerritoriesInRange[j][1][k]);
                 }
+                isOwned = false;
             }
-            if (!isOwned) {
-                attackableTerritoriesInRange.push(fullTerritoriesInRange[j][1]);
-            }
-            console.log("and the attackable territories are:");
-            console.log(attackableTerritoriesInRange);
         }
+
+        attackableTerritoriesInRange = removeDuplicateAndFormatAttackableTerritoriesArray(attackableTerritoriesInRange);
+
+        console.log("and the attackable territories are:");
+        console.log(attackableTerritoriesInRange);
 
         // TODO: Read in territories within range's army and forts
         // TODO: Assess threat from territories within range
@@ -384,4 +382,20 @@ function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUnique
     });
 
     return allInteractableTerritoriesForUniqueId;
+}
+
+function removeDuplicateAndFormatAttackableTerritoriesArray(arr) {
+    const uniqueElements = {};
+    let result = [];
+
+    for (const [name, coordinates, distance] of arr) {
+        if (!uniqueElements[name]) {
+            uniqueElements[name] = true;
+            result.push([name, coordinates, distance]);
+        }
+    }
+
+    result = result.map(item => item[0]);
+
+    return result;
 }
