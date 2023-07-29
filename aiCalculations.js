@@ -150,15 +150,19 @@ export function determineIfStillHasTurnInThisTurn(enemyTerritory, arrayOfLeaders
     return false;
 }
 
-export function retrieveArmyPowerOfTerritoryInRange(enemyTerritory) {
-    let enemyTerritoryPotentialArmyTotalValue, enemyAssault, enemyAir, enemyNaval, useableEnemyAssault, useableEnemyAir, useableEnemyNaval;
-    enemyAssault = enemyTerritory.assaultForCurrentTerritory;
-    enemyAir = enemyTerritory.airForCurrentTerritory;
-    enemyNaval = enemyTerritory.navalForCurrentTerritory;
-    useableEnemyAssault = enemyTerritory.useableAssault;
-    useableEnemyAir = enemyTerritory.useableAir;
-    useableEnemyNaval = enemyTerritory.useableNaval;
-    enemyTerritoryPotentialArmyTotalValue = enemyTerritory.armyForCurrentTerritory - ((enemyAssault - useableEnemyAssault) * vehicleArmyPersonnelWorth.assault) - ((enemyAir - useableEnemyAir) * vehicleArmyPersonnelWorth.air) - ((enemyNaval - useableEnemyNaval) * vehicleArmyPersonnelWorth.naval);
-    return enemyTerritoryPotentialArmyTotalValue;
+export function retrieveArmyPowerOfTerritory(territory, defense) {
+    let armyScore, assault, air, naval, useableAssault, useableAir, useableNaval;
+    assault = territory.assaultForCurrentTerritory;
+    air = territory.airForCurrentTerritory;
+    naval = territory.navalForCurrentTerritory;
+    useableAssault = territory.useableAssault;
+    useableAir = territory.useableAir;
+    useableNaval = territory.useableNaval;
+    if (!defense) {
+        armyScore = territory.armyForCurrentTerritory - ((assault - useableAssault) * vehicleArmyPersonnelWorth.assault) - ((air - useableAir) * vehicleArmyPersonnelWorth.air) - ((naval - useableNaval) * vehicleArmyPersonnelWorth.naval);
+    } else {
+        armyScore = (territory.armyForCurrentTerritory - ((assault - useableAssault) * vehicleArmyPersonnelWorth.assault) - ((air - useableAir) * vehicleArmyPersonnelWorth.air) - ((naval - useableNaval) * vehicleArmyPersonnelWorth.naval) * (Math.ceil((territory.defenseBonus + territory.mountainDefenseBonus) / 15)));
+    }
+     return armyScore;
 }
 
