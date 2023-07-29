@@ -5708,18 +5708,24 @@ export function endPlayerTurn() {
     if (mapMode === 2) {
         flipMapMode();
     }
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("underSiege") === "false" && paths[i].getAttribute("deactivated") === "false") {
+            paths[i].style.stroke = "rgb(0,0,0)";
+            paths[i].setAttribute("stroke-width", "1");
+            paths[i].style.strokeDasharray = "none";
+        } else {
+            paths[i].setAttribute("fill", playerColour);
+        }
+    }
     if (svgMap.querySelector("#attackImage")) {
         svgMap.getElementById("attackImage").remove();
-        lastClickedPath.style.stroke = "rgb(0,0,0)";
-        lastClickedPath.setAttribute("stroke-width", "1");
-        lastClickedPath.style.strokeDasharray = "none";
-        currentMapColorAndStrokeArray = saveMapColorState(false);
     }
+    currentMapColorAndStrokeArray = saveMapColorState(false);
     toggleTransferAttackButton(false, false);
     transferAttackButtonDisplayed = false;
-    restoreMapColorState(currentMapColorAndStrokeArray, false); //Add to this feature once attack implemented and territories can change color
+    restoreMapColorState(currentMapColorAndStrokeArray, false);
     document.getElementById("popup-title").innerText = "AI turn";
-    document.getElementById("popup-confirm").innerText = "AI Moving...";
+    document.getElementById("popup-confirm").innerText = "AI MOVING...";
     modifyCurrentTurnPhase(turnPhase);
     turnPhase = 0;
 }

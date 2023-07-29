@@ -199,10 +199,9 @@ async function handleAITurn() {
         let attackableTerritoriesInRange = [];
         fullTerritoriesInRange = buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i);
         attackableTerritoriesInRange = buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i);
-        console.log(fullTerritoriesInRange);
+        // Read in territories within range's army and forts
+        attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
         console.log(attackableTerritoriesInRange);
-
-        // TODO: Read in territories within range's army and forts
         // TODO: Assess threat from territories within range
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
@@ -313,4 +312,21 @@ export function modifyCurrentTurnPhase(value) {
 
 export function getGameInitialisation() {
     return gameInitialisation;
+}
+
+function convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray) {
+    for (let i = 0; i < paths.length; i++) {
+        for (let j = 0; j < mainGameArray.length; j++) {
+            if (paths[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId) {
+                for (let k = 0; k < attackableTerritoriesInRange.length; k++) {
+                    if (attackableTerritoriesInRange[k] === paths[i].getAttribute("territory-name")) {
+                        attackableTerritoriesInRange[k] = mainGameArray[j];
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return attackableTerritoriesInRange;
 }
