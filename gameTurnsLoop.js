@@ -10,7 +10,8 @@ import {
     saveMapColorState,
     paths,
     fillPathBasedOnStartingCountryColor,
-    playerColour, svg,
+    playerColour,
+    svg
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -20,7 +21,7 @@ import {
     mainGameArray,
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
-    getTurnGainsArrayAi,
+    getTurnGainsArrayAi
 } from './resourceCalculations.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
@@ -34,11 +35,11 @@ import {
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import {
+    addManualExceptionsAndRemoveDenials,
+    buildAttackableTerritoriesInRangeArray,
+    buildFullTerritoriesInRangeArray,
     readClosestPointsJSON
 } from "./aiCalculations.js";
-import {
-    findMatchingCountries
-} from './manualExceptionsForInteractions.js';
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
@@ -190,47 +191,13 @@ async function handleAITurn() {
         // Read total resources for specific AI's country and its per turn gains
         countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
         turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
-        // console.log(countryResourceTotals);
-        // console.log(turnGainsArrayAi);
 
         // Read in territories within range
         let fullTerritoriesInRange = [];
-        for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //array of all AI players[whichAi][mainArrayObjectArrayForTerritoriesOwned]
-            // console.log(arrayOfLeadersAndCountries[i][1].name + ": " + arrayOfLeadersAndCountries[i][2][j].territoryName);
-            //territories in range.push() //read each territory we have by its unique id and get that data from the attackOptionsArray
-            let territory = arrayOfLeadersAndCountries[i][2][j].uniqueId; //unique id string of territory being queried
-            fullTerritoriesInRange.push([[territory, arrayOfLeadersAndCountries[i][2][j].territoryName], attackOptionsArray[parseInt(territory)][1]]); //should return every territory in json for that unique id
-            console.log(fullTerritoriesInRange[j][0][1]);
-            if (j === arrayOfLeadersAndCountries[i][2].length - 1) { //console out only once after count up
-                console.log(arrayOfLeadersAndCountries[i][2][j].leader.name + " of " + arrayOfLeadersAndCountries[i][2][j].dataName + "'s territories are as follows and what they are in range of:");
-                for (const territoryKey in fullTerritoriesInRange) {
-                    console.log(fullTerritoriesInRange[territoryKey]);
-                }
-            }
-        }
-
         let attackableTerritoriesInRange = [];
-        for (let j = 0; j < fullTerritoriesInRange.length; j++) {
-            let isOwned = false;
-
-            for (let k = 0; k < fullTerritoriesInRange[j][1].length; k++) {
-                const territoryNameToCheck = fullTerritoriesInRange[j][1][k][0];
-                for (let l = 0; l < arrayOfLeadersAndCountries[i][2].length; l++) {
-                    const ownedTerritoryName = arrayOfLeadersAndCountries[i][2][l].territoryName;
-                    if (territoryNameToCheck === ownedTerritoryName) {
-                        isOwned = true;
-                        break;
-                    }
-                }
-                if (!isOwned) {
-                    attackableTerritoriesInRange.push(fullTerritoriesInRange[j][1][k]);
-                }
-                isOwned = false;
-            }
-        }
-
-        attackableTerritoriesInRange = formatAttackableTerritoriesArray(attackableTerritoriesInRange);
-        console.log("and the attackable territories are:");
+        fullTerritoriesInRange = buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i);
+        attackableTerritoriesInRange = buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i);
+        console.log(fullTerritoriesInRange);
         console.log(attackableTerritoriesInRange);
 
         // TODO: Read in territories within range's army and forts
@@ -248,8 +215,6 @@ async function handleAITurn() {
         // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
         // TODO: Based on threat, move available army around between available owned territories
         // TODO: Assess if turn goal was realised and update long-term goal if necessary
-
-        // After processing the closestPathDataArray for this territory, add your logic here.
     }
     console.log("AI DONE!"); // Placeholder message for AI turn completed
     initialiseNewPlayerTurn();
@@ -346,55 +311,4 @@ export function modifyCurrentTurnPhase(value) {
 
 export function getGameInitialisation() {
     return gameInitialisation;
-}
-
-function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId) {
-    let pathObj;
-    let matchingTerritories;
-    let matchingDenials;
-
-    const territory = allInteractableTerritoriesForUniqueId[1][0][0];
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("territory-name") === territory) {
-            pathObj = paths[i];
-            break;
-        }
-    }
-    matchingTerritories = findMatchingCountries(pathObj, 1);
-    matchingDenials = findMatchingCountries(pathObj, 0);
-
-    const territoriesToAdd = matchingTerritories
-        .filter((matchingTerritory) => {
-            const territoryName = matchingTerritory.getAttribute("territory-name");
-            return !allInteractableTerritoriesForUniqueId[1].some((arr) => arr.includes(territoryName));
-        })
-        .map((matchingTerritory) => matchingTerritory.getAttribute("territory-name"));
-
-    for (const territory of territoriesToAdd) {
-        allInteractableTerritoriesForUniqueId[1].push([territory]);
-    }
-
-    const matchingDenialsNames = matchingDenials.map((denial) => denial.getAttribute("territory-name"));
-    allInteractableTerritoriesForUniqueId[1] = allInteractableTerritoriesForUniqueId[1].filter((arr) => {
-        const territoryName = arr[0];
-        return !matchingDenialsNames.includes(territoryName);
-    });
-
-    return allInteractableTerritoriesForUniqueId;
-}
-
-function formatAttackableTerritoriesArray(arr) {
-    const uniqueElements = {};
-    let result = [];
-
-    for (const [name, coordinates, distance] of arr) {
-        if (!uniqueElements[name]) {
-            uniqueElements[name] = true;
-            result.push([name, coordinates, distance]);
-        }
-    }
-
-    result = result.map(item => item[0]);
-
-    return result;
 }
