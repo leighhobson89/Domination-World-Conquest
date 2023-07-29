@@ -21,10 +21,18 @@
         const svg = document.getElementById("svg-map");
         console.log("set svg variable successfully, now adding load event listener for svg file, and outputting svg, and will then call svgMapLoaded function...");
         console.log(svg);
-        svg.addEventListener("load", () => {
-            console.log("SVG detected, calling svgLoaded function...");
-            svgMapLoaded();
+        const observer = new MutationObserver((mutationsList, observer) => { //help async
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    console.log("SVG detected, calling svgLoaded function...");
+                    svgMapLoaded();
+                    observer.disconnect(); // Disconnect the observer once the SVG is loaded and the function is executed.
+                }
+            }
         });
+
+        // Start observing the document and its descendants for changes.
+        observer.observe(document, { childList: true, subtree: true });
     </script>
     <script type="module" src="aiCalculations.js"></script>
     <script type="module" src="ui.js"></script>
