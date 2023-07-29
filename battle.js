@@ -154,7 +154,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
             navalCounts * vehicleArmyPersonnelWorth.naval;
 
         let totalDefendingStrength =
-            infantryForCurrentTerritory * 1 +
+            infantryForCurrentTerritory +
             useableAssault * vehicleArmyPersonnelWorth.assault +
             useableAir * vehicleArmyPersonnelWorth.air +
             useableNaval * vehicleArmyPersonnelWorth.naval;

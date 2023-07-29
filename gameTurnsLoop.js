@@ -40,8 +40,10 @@ import {
     addManualExceptionsAndRemoveDenials,
     buildAttackableTerritoriesInRangeArray,
     buildFullTerritoriesInRangeArray,
-    convertAttackableArrayStringsToMainArrayObjects, determineIfStillHasTurnInThisTurn,
-    readClosestPointsJSON
+    convertAttackableArrayStringsToMainArrayObjects,
+    determineIfStillHasTurnInThisTurn,
+    readClosestPointsJSON,
+    retrieveArmyPowerOfTerritoryInRange
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -206,15 +208,20 @@ async function handleAITurn() {
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
         // TODO: Assess threat from territories within range
         // add up army in opposing territory, compare to defending territory army taking account of defense bonuses and if current territory is landlocked
+        let arrayOfTerritoriesInRangeThreats = [];
         //for each territory in attackableTerritoriesInRange
-        //work out if they will have a turn after this ai but before end of turn, ie if they have gone yet
         for (const territory of attackableTerritoriesInRange) {
-            let threatScore = 0;
             let turnStillToCome = false;
+            let armyPowerOfEnemyTerritory;
+            let arrayOfTerritoryThreats = [];
+            //work out if they will have a turn after this ai but before end of turn, ie if they have gone yet
             turnStillToCome = determineIfStillHasTurnInThisTurn(territory, arrayOfLeadersAndCountries, i);
-            console.log("it is " + turnStillToCome + " that " + territory.dataName + " has a turn still to come this turn after " + arrayOfLeadersAndCountries[i][0]);
-        }
+            armyPowerOfEnemyTerritory = retrieveArmyPowerOfTerritoryInRange(territory);
+            arrayOfTerritoryThreats.push(territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory);
 
+            console.log(arrayOfTerritoryThreats);
+        }
+        console.log("arrayOfTerritoriesInRangeThreats:" + arrayOfTerritoriesInRangeThreats);
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
