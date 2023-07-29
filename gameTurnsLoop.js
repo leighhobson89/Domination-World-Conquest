@@ -229,8 +229,7 @@ async function handleAITurn() {
             }
         }
 
-        attackableTerritoriesInRange = removeDuplicateAndFormatAttackableTerritoriesArray(attackableTerritoriesInRange);
-
+        attackableTerritoriesInRange = formatAttackableTerritoriesArray(attackableTerritoriesInRange);
         console.log("and the attackable territories are:");
         console.log(attackableTerritoriesInRange);
 
@@ -384,7 +383,7 @@ function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUnique
     return allInteractableTerritoriesForUniqueId;
 }
 
-function removeDuplicateAndFormatAttackableTerritoriesArray(arr) {
+function formatAttackableTerritoriesArray(arr) {
     const uniqueElements = {};
     let result = [];
 
