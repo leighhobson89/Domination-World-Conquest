@@ -122,3 +122,34 @@ export function buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountrie
     attackableTerritoriesInRange = formatAttackableTerritoriesArray(attackableTerritoriesInRange);
     return attackableTerritoriesInRange;
 }
+
+export function convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray) {
+    for (let i = 0; i < paths.length; i++) {
+        for (let j = 0; j < mainGameArray.length; j++) {
+            if (paths[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId) {
+                for (let k = 0; k < attackableTerritoriesInRange.length; k++) {
+                    if (attackableTerritoriesInRange[k] === paths[i].getAttribute("territory-name")) {
+                        attackableTerritoriesInRange[k] = mainGameArray[j];
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return attackableTerritoriesInRange;
+}
+
+export function determineIfStillHasTurnInThisTurn(enemyTerritory, arrayOfLeadersAndCountries, aiPlayerIndex) {
+    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+        const territoryArray = arrayOfLeadersAndCountries[i][2];
+        for (let j = 0; j < territoryArray.length; j++) {
+            if (territoryArray[j].uniqueId === enemyTerritory.uniqueId) {
+                return i > aiPlayerIndex;
+            }
+        }
+    }
+    console.log("Didn't find a match in determineIfStillHasTurnInThisTurn() function call");
+    return false;
+}
+

@@ -5657,7 +5657,6 @@ function flipMapMode() {
                 paths[i].setAttribute("fill-opacity", "0.01");
                 paths[i].style.stroke = fillPathBasedOnContinent(paths[i]);
                 paths[i].setAttribute("stroke-width", "1px");
-                console.log(paths[i].getAttribute("owner"));
                 paths[i].getAttribute("owner") === "Player" ? (paths[i].setAttribute("fill", playerColour), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
             }
             break;
