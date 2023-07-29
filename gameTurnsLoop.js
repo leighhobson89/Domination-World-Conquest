@@ -216,7 +216,7 @@ async function handleAITurn() {
                 arrayOfAiPlayerDefenseScoresForTerritories.push([arrayOfLeadersAndCountries[i][2][j].territoryName, retrieveArmyPowerOfTerritory(arrayOfLeadersAndCountries[i][2][j], true), arrayOfLeadersAndCountries[i][2][j].isCoastal]);
             }
         }
-        console.log("defence territories army scores including defense bonuses:");
+        console.log("defence territories army scores including defense bonuses, and if they are coastal:");
         console.log(arrayOfAiPlayerDefenseScoresForTerritories);
         //for each territory in attackableTerritoriesInRange
         for (const territory of attackableTerritoriesInRange) {
