@@ -3380,8 +3380,8 @@ function zoomMap(event) {
     }
 
     if (doingTheZoom) {
-        const mouseX = event.clientX - svgTag.getBoundingClientRect().left;
-        const mouseY = event.clientY - svgTag.getBoundingClientRect().top;
+        const mouseX = event.clientX - svgTag.getBoundingClientRect().left + 350;
+        const mouseY = event.clientY - svgTag.getBoundingClientRect().top + 180;
 
         let newWidthMain, newHeightMain, newWidthCoastLine, newHeightCoastLine;
         if (zoomLevel === 1) {
@@ -5739,3 +5739,29 @@ export function setCurrentMapColorAndStrokeArray(value) {
 export function getCurrentMapColorAndStrokeArray() {
     return currentMapColorAndStrokeArray;
 }
+
+function createSparkle() {
+    const container = document.querySelector(".sparkles-container");
+    const sparkle = document.createElement("div");
+    sparkle.classList.add("sparkle");
+    sparkle.style.top = `${Math.random() * 100}%`;
+    sparkle.style.left = `${Math.random() * 100}%`;
+    container.appendChild(sparkle);
+
+    // Remove the sparkle after 3 seconds
+    setTimeout(() => {
+        container.removeChild(sparkle);
+    }, 3000);
+}
+
+function addSparklesRegularly() {
+    // Adjust the frequency to control how often new sparkles appear (e.g., every 1.5 seconds)
+    setTimeout(() => {
+        createSparkle();
+        // Call the function again to add another sparkle after a random interval
+        addSparklesRegularly();
+    }, Math.random() * 100); // Random interval up to 3 seconds
+}
+
+// Start the process of adding sparkles
+addSparklesRegularly();
