@@ -1,9 +1,6 @@
-import {
-    paths
-} from "./ui.js";
-import {
-    findMatchingCountries
-} from "./manualExceptionsForInteractions.js";
+import {paths} from "./ui.js";
+import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
+import {vehicleArmyPersonnelWorth} from "./resourceCalculations.js";
 
 function parseJSON(jsonData) {
     try {
@@ -151,5 +148,17 @@ export function determineIfStillHasTurnInThisTurn(enemyTerritory, arrayOfLeaders
     }
     console.log("Didn't find a match in determineIfStillHasTurnInThisTurn() function call");
     return false;
+}
+
+export function retrieveArmyPowerOfTerritoryInRange(enemyTerritory) {
+    let enemyTerritoryPotentialArmyTotalValue, enemyAssault, enemyAir, enemyNaval, useableEnemyAssault, useableEnemyAir, useableEnemyNaval;
+    enemyAssault = enemyTerritory.assaultForCurrentTerritory;
+    enemyAir = enemyTerritory.airForCurrentTerritory;
+    enemyNaval = enemyTerritory.navalForCurrentTerritory;
+    useableEnemyAssault = enemyTerritory.useableAssault;
+    useableEnemyAir = enemyTerritory.useableAir;
+    useableEnemyNaval = enemyTerritory.useableNaval;
+    enemyTerritoryPotentialArmyTotalValue = enemyTerritory.armyForCurrentTerritory - ((enemyAssault - useableEnemyAssault) * vehicleArmyPersonnelWorth.assault) - ((enemyAir - useableEnemyAir) * vehicleArmyPersonnelWorth.air) - ((enemyNaval - useableEnemyNaval) * vehicleArmyPersonnelWorth.naval);
+    return enemyTerritoryPotentialArmyTotalValue;
 }
 
