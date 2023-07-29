@@ -11,7 +11,7 @@ import {
     paths,
     fillPathBasedOnStartingCountryColor,
     playerColour,
-    svg
+    svg, setZoomLevel, zoomMap
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -52,6 +52,8 @@ let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
 
 export async function initialiseGame() {
+    setZoomLevel(1);
+    zoomMap("init");
     svg.style.pointerEvents = 'none';
     gameInitialisation = true;
     console.log("Welcome to new game! Your country is " + playerCountry + "!");

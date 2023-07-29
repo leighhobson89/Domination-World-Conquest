@@ -3326,7 +3326,7 @@ function generateDistinctRGBs() {
     return result.map(color => `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
 }
 
-function zoomMap(event) {
+export function zoomMap(event) {
     if (isAnimating) return;
 
     isAnimating = true;
@@ -3334,22 +3334,39 @@ function zoomMap(event) {
     animationStartViewBoxMain = svgTag.getAttribute("viewBox");
     animationStartViewBoxCoastLine = svgCoastLinesTag.getAttribute("viewBox");
 
-    const delta = Math.sign(event.deltaY);
+    if (event !== "init") {
+        const delta = Math.sign(event.deltaY);
 
-    if (delta < 0 && zoomLevel < maxZoomLevel) {
-        zoomLevel++;
-    } else if (delta > 0 && zoomLevel > 1) {
-        zoomLevel--;
+        if (delta < 0 && zoomLevel < maxZoomLevel) {
+            zoomLevel++;
+        } else if (delta > 0 && zoomLevel > 1) {
+            zoomLevel--;
+        } else {
+            isAnimating = false;
+            return;
+        }
     } else {
         isAnimating = false;
-        return;
     }
 
-    const mouseX = event.clientX - svgTag.getBoundingClientRect().left + 280;
-    const mouseY = event.clientY - svgTag.getBoundingClientRect().top + 150;
+    let mouseX;
+    let mouseY;
+
+    if (event !== "init") {
+        mouseX = event.clientX - svgTag.getBoundingClientRect().left + 280;
+        mouseY = event.clientY - svgTag.getBoundingClientRect().top + 150;
+    } else {
+        mouseX = svgTag.getBoundingClientRect().right / 2;
+        mouseY = svgTag.getBoundingClientRect().bottom / 2;
+    }
 
     let newWidthMain, newHeightMain, newWidthCoastLine, newHeightCoastLine;
-    if (zoomLevel === 1) {
+    if (event === "init") {
+        newWidthMain = originalViewBoxWidthMain;
+        newHeightMain = originalViewBoxHeightMain;
+        newWidthCoastLine = originalViewBoxWidthCoastLine;
+        newHeightCoastLine = originalViewBoxHeightCoastLine;
+    } else if (zoomLevel === 1) {
         newWidthMain = originalViewBoxWidthMain;
         newHeightMain = originalViewBoxHeightMain;
         newWidthCoastLine = originalViewBoxWidthCoastLine;
@@ -5760,3 +5777,7 @@ function addSparklesRegularly() {
 
 // Start the process of adding sparkles
 addSparklesRegularly();
+
+export function setZoomLevel(value) {
+    return zoomLevel = value;
+}
