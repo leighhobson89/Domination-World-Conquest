@@ -2524,13 +2524,15 @@ td {
 
 .sparkle {
   position: absolute;
-  width: 2px;
-  height: 2px;
-  background-color: #ffffff;
-  border-radius: 50%;
+  width: 0;
+  height: 0;
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(45deg);
   animation: sparkleAnim 3s infinite;
-  pointer-events: none;
 }
+
 
 @keyframes sparkleAnim {
   0% {
