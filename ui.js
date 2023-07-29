@@ -184,7 +184,7 @@ export let mapMode = 1; // 1 - normal 2 - physical
 
 //Zoom variables
 let zoomLevel = 1;
-const maxZoomLevel = 4;
+const maxZoomLevel = 6;
 let originalViewBoxXMain = 312;
 let originalViewBoxYMain = -207;
 let originalViewBoxXCoastLine = 1072;
@@ -201,6 +201,10 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 let isDragging = false;
 let shiftedPath;
+let isAnimating = false;
+let animationStartTime;
+let animationStartViewBoxMain;
+let animationStartViewBoxCoastLine;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
     if (upgradeOrBuyParameter === 1) { //upgrade window
@@ -3322,53 +3326,14 @@ function generateDistinctRGBs() {
     return result.map(color => `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
 }
 
-function assignTeamAndFillColorToSVGPaths(colorArray) {
-    // Calculate the number of paths per group
-    const numPaths = paths.length;
-    const numGroups = colorArray.length;
-    const pathsPerGroup = Math.floor(numPaths / numGroups);
-    const remainder = numPaths % numGroups;
-
-    // Assign a random number to each path element
-    const assignedNumbers = Array.from({
-        length: numPaths
-    }, (_, i) => i);
-    for (let i = assignedNumbers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [assignedNumbers[i], assignedNumbers[j]] = [assignedNumbers[j], assignedNumbers[i]];
-    }
-
-    // Assign "fill" and "Team" attributes to each path element based on assigned number
-    let groupIndex = 0;
-    let groupCount = 0;
-    for (let i = 0; i < numPaths; i++) {
-        const assignedNumber = assignedNumbers[i];
-        if (assignedNumber >= groupCount) {
-            groupIndex++;
-            groupCount += groupIndex <= remainder ? pathsPerGroup + 1 : pathsPerGroup;
-        }
-        const colorIndex = assignedNumber % numGroups;
-        const colorString = colorArray[colorIndex];
-        paths[i].setAttribute("fill", colorString);
-        paths[i].setAttribute("team", colorIndex);
-
-        // add color index and color string to teamColorArray if color index is not already present
-        let isPresent = false;
-        for (let j = 0; j < teamColorArray.length; j++) {
-            if (teamColorArray[j][0] === colorIndex) {
-                isPresent = true;
-                break;
-            }
-        }
-        if (!isPresent) {
-            teamColorArray.push([colorIndex, colorString]);
-        }
-        teamColorArray.sort((a, b) => a[0] - b[0]);
-    }
-}
-
 function zoomMap(event) {
-    let doingTheZoom = true;
+    if (isAnimating) return;
+
+    isAnimating = true;
+    animationStartTime = performance.now();
+    animationStartViewBoxMain = svgTag.getAttribute("viewBox");
+    animationStartViewBoxCoastLine = svgCoastLinesTag.getAttribute("viewBox");
+
     const delta = Math.sign(event.deltaY);
 
     if (delta < 0 && zoomLevel < maxZoomLevel) {
@@ -3376,74 +3341,104 @@ function zoomMap(event) {
     } else if (delta > 0 && zoomLevel > 1) {
         zoomLevel--;
     } else {
-        doingTheZoom = false;
+        isAnimating = false;
+        return;
     }
 
-    if (doingTheZoom) {
-        const mouseX = event.clientX - svgTag.getBoundingClientRect().left + 350;
-        const mouseY = event.clientY - svgTag.getBoundingClientRect().top + 180;
+    const mouseX = event.clientX - svgTag.getBoundingClientRect().left + 280;
+    const mouseY = event.clientY - svgTag.getBoundingClientRect().top + 150;
 
-        let newWidthMain, newHeightMain, newWidthCoastLine, newHeightCoastLine;
-        if (zoomLevel === 1) {
-            newWidthMain = originalViewBoxWidthMain;
-            newHeightMain = originalViewBoxHeightMain;
-            newWidthCoastLine = originalViewBoxWidthCoastLine;
-            newHeightCoastLine = originalViewBoxHeightCoastLine;
-        } else if (zoomLevel === 2) {
-            newWidthMain = originalViewBoxWidthMain * 0.75;
-            newHeightMain = originalViewBoxHeightMain * 0.75;
-            newWidthCoastLine = originalViewBoxWidthCoastLine * 0.75;
-            newHeightCoastLine = originalViewBoxHeightCoastLine * 0.75;
-        } else if (zoomLevel === 3) {
-            newWidthMain = originalViewBoxWidthMain * 0.5;
-            newHeightMain = originalViewBoxHeightMain * 0.5;
-            newWidthCoastLine = originalViewBoxWidthCoastLine * 0.5;
-            newHeightCoastLine = originalViewBoxHeightCoastLine * 0.5;
-        } else if (zoomLevel === 4) {
-            newWidthMain = originalViewBoxWidthMain * 0.3;
-            newHeightMain = originalViewBoxHeightMain * 0.3;
-            newWidthCoastLine = originalViewBoxWidthCoastLine * 0.3;
-            newHeightCoastLine = originalViewBoxHeightCoastLine * 0.3;
-        }
-
-        const maxLeftMain = originalViewBoxXMain + originalViewBoxWidthMain - newWidthMain;
-        const minLeftMain = originalViewBoxXMain;
-        let newLeftMain = originalViewBoxXMain + ((mouseX / viewBoxWidthMain) * originalViewBoxWidthMain) - (newWidthMain / 2);
-        newLeftMain = Math.max(minLeftMain, Math.min(maxLeftMain, newLeftMain));
-
-        const maxLeftCoastLine = originalViewBoxXCoastLine + originalViewBoxWidthCoastLine - newWidthCoastLine;
-        const minLeftCoastLine = originalViewBoxXCoastLine;
-        let newLeftCoastLine = originalViewBoxXCoastLine + ((mouseX / viewBoxWidthCoastLine) * originalViewBoxWidthCoastLine) - (newWidthCoastLine / 2);
-        newLeftCoastLine = Math.max(minLeftCoastLine, Math.min(maxLeftCoastLine, newLeftCoastLine));
-
-        const maxTopMain = originalViewBoxYMain + originalViewBoxHeightMain - newHeightMain;
-        const minTopMain = originalViewBoxYMain;
-
-        const maxTopCoastLine = originalViewBoxYCoastLine + originalViewBoxHeightCoastLine - newHeightCoastLine;
-        const minTopCoastLine = originalViewBoxYCoastLine;
-
-        let newTopMain = originalViewBoxYMain + ((mouseY / viewBoxHeightMain) * originalViewBoxHeightMain) - (newHeightMain / 2);
-        newTopMain = Math.max(minTopMain, Math.min(maxTopMain, newTopMain));
-
-        let newTopCoastLine = originalViewBoxYCoastLine + ((mouseY / viewBoxHeightCoastLine) * originalViewBoxHeightCoastLine) - (newHeightCoastLine / 2);
-        newTopCoastLine = Math.max(minTopCoastLine, Math.min(maxTopCoastLine, newTopCoastLine));
-
-        const newViewBoxMain = `${newLeftMain} ${newTopMain} ${newWidthMain} ${newHeightMain}`;
-        const newViewBoxCoastLine = `${newLeftCoastLine} ${newTopCoastLine} ${newWidthCoastLine} ${newHeightCoastLine}`;
-
-        // Set the new viewBox attribute on your SVG element
-        svgTag.setAttribute("viewBox", newViewBoxMain);
-        svgCoastLinesTag.setAttribute("viewBox", newViewBoxCoastLine);
-
-        // Set the initial viewBox when fully zoomed out
-        if (zoomLevel === 1) {
-            svgTag.setAttribute("viewBox", `${originalViewBoxXMain} ${originalViewBoxYMain} ${originalViewBoxWidthMain} ${originalViewBoxHeightMain}`);
-            svgCoastLinesTag.setAttribute("viewBox", `${originalViewBoxXCoastLine} ${originalViewBoxYCoastLine} ${originalViewBoxWidthCoastLine} ${originalViewBoxHeightCoastLine}`);
-        }
-        lastMouseX = mouseX;
-        lastMouseY = mouseY;
+    let newWidthMain, newHeightMain, newWidthCoastLine, newHeightCoastLine;
+    if (zoomLevel === 1) {
+        newWidthMain = originalViewBoxWidthMain;
+        newHeightMain = originalViewBoxHeightMain;
+        newWidthCoastLine = originalViewBoxWidthCoastLine;
+        newHeightCoastLine = originalViewBoxHeightCoastLine;
+    } else if (zoomLevel === 2) {
+        newWidthMain = originalViewBoxWidthMain * 0.80;
+        newHeightMain = originalViewBoxHeightMain * 0.80;
+        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.80;
+        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.80;
+    } else if (zoomLevel === 3) {
+        newWidthMain = originalViewBoxWidthMain * 0.60;
+        newHeightMain = originalViewBoxHeightMain * 0.60;
+        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.60;
+        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.60;
+    } else if (zoomLevel === 4) {
+        newWidthMain = originalViewBoxWidthMain * 0.40;
+        newHeightMain = originalViewBoxHeightMain * 0.40;
+        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.40;
+        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.40;
+    }else if (zoomLevel === 5) {
+        newWidthMain = originalViewBoxWidthMain * 0.30;
+        newHeightMain = originalViewBoxHeightMain * 0.30;
+        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.30;
+        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.30;
+    }else if (zoomLevel === 6) {
+        newWidthMain = originalViewBoxWidthMain * 0.20;
+        newHeightMain = originalViewBoxHeightMain * 0.20;
+        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.20;
+        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.20;
     }
+    console.log(zoomLevel);
+
+    const maxLeftMain = originalViewBoxXMain + originalViewBoxWidthMain - newWidthMain;
+    const minLeftMain = originalViewBoxXMain;
+    let newLeftMain = originalViewBoxXMain + ((mouseX / viewBoxWidthMain) * originalViewBoxWidthMain) - (newWidthMain / 2);
+    newLeftMain = Math.max(minLeftMain, Math.min(maxLeftMain, newLeftMain));
+
+    const maxLeftCoastLine = originalViewBoxXCoastLine + originalViewBoxWidthCoastLine - newWidthCoastLine;
+    const minLeftCoastLine = originalViewBoxXCoastLine;
+    let newLeftCoastLine = originalViewBoxXCoastLine + ((mouseX / viewBoxWidthCoastLine) * originalViewBoxWidthCoastLine) - (newWidthCoastLine / 2);
+    newLeftCoastLine = Math.max(minLeftCoastLine, Math.min(maxLeftCoastLine, newLeftCoastLine));
+
+    const maxTopMain = originalViewBoxYMain + originalViewBoxHeightMain - newHeightMain;
+    const minTopMain = originalViewBoxYMain;
+    const maxTopCoastLine = originalViewBoxYCoastLine + originalViewBoxHeightCoastLine - newHeightCoastLine;
+    const minTopCoastLine = originalViewBoxYCoastLine;
+
+    let newTopMain = originalViewBoxYMain + ((mouseY / viewBoxHeightMain) * originalViewBoxHeightMain) - (newHeightMain / 2);
+    newTopMain = Math.max(minTopMain, Math.min(maxTopMain, newTopMain));
+
+    let newTopCoastLine = originalViewBoxYCoastLine + ((mouseY / viewBoxHeightCoastLine) * originalViewBoxHeightCoastLine) - (newHeightCoastLine / 2);
+    newTopCoastLine = Math.max(minTopCoastLine, Math.min(maxTopCoastLine, newTopCoastLine));
+
+    const newViewBoxMain = `${newLeftMain} ${newTopMain} ${newWidthMain} ${newHeightMain}`;
+    const newViewBoxCoastLine = `${newLeftCoastLine} ${newTopCoastLine} ${newWidthCoastLine} ${newHeightCoastLine}`;
+
+    function updateViewBox(timestamp) {
+        const timeElapsed = timestamp - animationStartTime;
+        const progress = Math.min(1, timeElapsed / animationDuration);
+
+        const [startLeftMain, startTopMain, startWidthMain, startHeightMain] = animationStartViewBoxMain.split(" ").map(parseFloat);
+        const [startLeftCoastLine, startTopCoastLine, startWidthCoastLine, startHeightCoastLine] = animationStartViewBoxCoastLine.split(" ").map(parseFloat);
+
+        const updatedLeftMain = startLeftMain + (newLeftMain - startLeftMain) * progress;
+        const updatedTopMain = startTopMain + (newTopMain - startTopMain) * progress;
+        const updatedWidthMain = startWidthMain + (newWidthMain - startWidthMain) * progress;
+        const updatedHeightMain = startHeightMain + (newHeightMain - startHeightMain) * progress;
+
+        const updatedLeftCoastLine = startLeftCoastLine + (newLeftCoastLine - startLeftCoastLine) * progress;
+        const updatedTopCoastLine = startTopCoastLine + (newTopCoastLine - startTopCoastLine) * progress;
+        const updatedWidthCoastLine = startWidthCoastLine + (newWidthCoastLine - startWidthCoastLine) * progress;
+        const updatedHeightCoastLine = startHeightCoastLine + (newHeightCoastLine - startHeightCoastLine) * progress;
+
+        svgTag.setAttribute("viewBox", `${updatedLeftMain} ${updatedTopMain} ${updatedWidthMain} ${updatedHeightMain}`);
+        svgCoastLinesTag.setAttribute("viewBox", `${updatedLeftCoastLine} ${updatedTopCoastLine} ${updatedWidthCoastLine} ${updatedHeightCoastLine}`);
+
+        if (timeElapsed < animationDuration) {
+            requestAnimationFrame(updateViewBox);
+        } else {
+            isAnimating = false;
+            svgTag.setAttribute("viewBox", newViewBoxMain);
+            svgCoastLinesTag.setAttribute("viewBox", newViewBoxCoastLine);
+        }
+    }
+
+    const animationDuration = 500; // You can adjust this value as needed
+    requestAnimationFrame(updateViewBox);
 }
+
 
 function panMap(event) {
     if (zoomLevel > 1 && event.buttons === 1) {
