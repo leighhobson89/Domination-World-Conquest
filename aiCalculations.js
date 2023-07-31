@@ -1,6 +1,6 @@
 import {paths} from "./ui.js";
 import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
-import {vehicleArmyPersonnelWorth} from "./resourceCalculations.js";
+import {mainGameArray, vehicleArmyPersonnelWorth} from "./resourceCalculations.js";
 
 function parseJSON(jsonData) {
     try {
@@ -178,18 +178,26 @@ export function getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, 
 export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i) {
     let arr = [];
     for (const territory of attackableTerritoriesInRange) {
+        let friendlyTerritoryObject;
         let turnStillToCome = false;
         let armyPowerOfEnemyTerritory;
         let arrayOfTerritoryThreats = [];
         turnStillToCome = determineIfStillHasTurnInThisTurn(territory, arrayOfLeadersAndCountries, i);
         armyPowerOfEnemyTerritory = retrieveArmyPowerOfTerritory(territory, false);
         let arrayOfEnemyToFriendlyInteractibility = [];
+        let friendlyTerritory;
         for (let j = 0; j < fullTerritoriesInRange.length; j++) {
-            const friendlyTerritory = fullTerritoriesInRange[j][0][1];
+            friendlyTerritory = fullTerritoriesInRange[j][0][1];
             if (fullTerritoriesInRange[j][1].some(enemyTerritory => enemyTerritory[0] === territory.territoryName)) {
                 arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, true, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
             } else {
                 arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
+            }
+            for (let k = 0; k < mainGameArray.length; k++) {
+                if (friendlyTerritory[0] === mainGameArray[k].territoryName) {
+                    friendlyTerritoryObject = mainGameArray[k];
+                    break;
+                }
             }
         }
         let threatScores = [];
@@ -204,8 +212,24 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
                 if (!friendlyTerritory[2]) { //if not coastal
                     armyPowerOfEnemyTerritory -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
                 }
+
                 threatScore += armyPowerOfEnemyTerritory - friendlyTerritory[1]; // baseline threat score based on difference in army
-                threatScore += turnStillToCome ? 10 : 0;
+
+                //traits
+                //reconquista - DONE
+                if (friendlyTerritoryObject && friendlyTerritoryObject.originalOwner === territory.dataName) {
+                    let reconquistaValue = Math.abs(threatScore) * territory.leader.traits.reconquista;
+                    threatScore += reconquistaValue;
+                }
+                //territory_expansion - DONE
+                let territoryExpansionValue = Math.abs(threatScore) * territory.leader.traits.territory_expansion;
+                threatScore += territoryExpansionValue;
+
+                //dominance
+                //needs taking into account when we have goals implemented if enemy territory leader has a goal to destroy ai player
+
+                //add a minor amount if player precedes enemy territory - can be used to influence ai if any reason why this is significant is realised
+                threatScore += turnStillToCome ? 1 : 0;
             } else {
                 threatScore = -9999999999; //can't attack, no threat
             }

@@ -292,6 +292,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let isLandLockedBonus;
             let mountainDefense;
             let owner;
+            let originalOwner;
 
             for (const path of paths) {
                 if (path.getAttribute("uniqueid") === uniqueId) {
@@ -302,6 +303,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
                     mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
                     owner = path.getAttribute("owner");
+                    originalOwner = path.getAttribute("originalOwner");
                 }
             }
 
@@ -395,7 +397,8 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 isLandLockedBonus: isLandLockedBonus,
                 mountainDefense: mountainDefense,
                 mountainDefenseBonus: mountainDefenseBonus,
-                owner: owner
+                owner: owner,
+                originalOwner: originalOwner
             });
         }
     }
