@@ -44,39 +44,51 @@ export function createCpuPlayerObjectAndAddToMainArray() {
         if (territory.owner !== "Player") {
             if (!countries[countryName]) {
                 countries[countryName] = getRandomLeaderForCountry();
-                leaders[countryName] = createLeaderObject(countries[countryName]);
+                leaders[countryName] = createLeaderObject(countries[countryName], false);
             }
-
-            territory.leader = leaders[countryName];
         } else {
-            delete territory.leader;
+            leaders[countryName] = createLeaderObject(countries[countryName], true);
         }
-
-        // console.log("Leader of: " + territory.territoryName + ", " + territory.dataName + ":");
-        // territory.owner === "Player" ? console.log("Player") : console.log(territory.leader);
+        territory.leader = leaders[countryName];
     });
 }
 
-function createLeaderObject(leaderId) {
-    const leaderTraits = {
-        dominance: getRandomTraitValueForLeader("dominance", leaderId),
-        economy: getRandomTraitValueForLeader("economy", leaderId),
-        territory_expansion: getRandomTraitValueForLeader(
-            "territory_expansion",
-            leaderId
-        ),
-        style_of_war: getRandomTraitValueForLeader("style_of_war", leaderId),
-        reconquista: getRandomTraitValueForLeader("reconquista", leaderId),
-    };
+function createLeaderObject(leaderId, player) {
+    if (!player) {
+        const leaderTraits = {
+            dominance: getRandomTraitValueForLeader("dominance", leaderId),
+            economy: getRandomTraitValueForLeader("economy", leaderId),
+            territory_expansion: getRandomTraitValueForLeader(
+                "territory_expansion",
+                leaderId
+            ),
+            style_of_war: getRandomTraitValueForLeader("style_of_war", leaderId),
+            reconquista: getRandomTraitValueForLeader("reconquista", leaderId),
+        };
 
-    const randomGender = getRandomGender();
-    const randomName = generateUniqueName(randomGender);
+        const randomGender = getRandomGender();
+        const randomName = generateUniqueName(randomGender);
 
-    return {
-        name: randomName,
-        leaderType: leaderId,
-        traits: leaderTraits,
-    };
+        return {
+            name: randomName,
+            leaderType: leaderId,
+            traits: leaderTraits
+        };
+    } else {
+        const leaderTraits = { //player
+            dominance: 0.5,
+            economy: 0.5,
+            territory_expansion: 0.5,
+            style_of_war: 0.5,
+            reconquista: 0.5
+        };
+
+        return {
+            name: "Player",
+            leaderType: "human",
+            traits: leaderTraits
+        };
+    }
 }
 
 function getRandomElementFromArray(array) {

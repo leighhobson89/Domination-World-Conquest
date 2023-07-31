@@ -146,7 +146,7 @@ export function determineIfStillHasTurnInThisTurn(enemyTerritory, arrayOfLeaders
             }
         }
     }
-    console.log("Didn't find a match in determineIfStillHasTurnInThisTurn() function call");
+    console.log("Didn't find a match in determineIfStillHasTurnInThisTurn() function call, probably missing because player is the country that has the enemyTerritory.uniqueId so returning false is fine");
     return false;
 }
 
