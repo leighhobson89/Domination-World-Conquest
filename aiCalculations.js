@@ -348,3 +348,7 @@ function addProbabilitiesOfBattle(sortedThreatArrayInfo) {
     }
 return sortedThreatArrayInfo;
 }
+
+export function refineTurnGoalsAndSelectActions(unrefinedGoals) {
+
+}
