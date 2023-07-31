@@ -41,7 +41,7 @@ import {
     buildAttackableTerritoriesInRangeArray,
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
-    calculateTurnGoal,
+    calculateTurnGoals,
     convertAttackableArrayStringsToMainArrayObjects,
     getFriendlyTerritoriesDefenseScores,
     readClosestPointsJSON,
@@ -219,7 +219,7 @@ async function handleAITurn() {
         // implement when long term goal is decided
 
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
-        const turnGoal = calculateTurnGoal(arrayOfTerritoriesInRangeThreats);
+        const turnGoal = calculateTurnGoals(arrayOfTerritoriesInRangeThreats);
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
