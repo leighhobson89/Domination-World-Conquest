@@ -3397,7 +3397,7 @@ export function zoomMap(event) {
         newWidthCoastLine = originalViewBoxWidthCoastLine * 0.20;
         newHeightCoastLine = originalViewBoxHeightCoastLine * 0.20;
     }
-    console.log(zoomLevel);
+    // console.log(zoomLevel);
 
     const maxLeftMain = originalViewBoxXMain + originalViewBoxWidthMain - newWidthMain;
     const minLeftMain = originalViewBoxXMain;

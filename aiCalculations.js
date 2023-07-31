@@ -235,8 +235,43 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
             }
             threatScores.push([friendlyTerritory[0], threatScore]);
         }
-        arrayOfTerritoryThreats.push([territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory, territory.isCoastal, threatScores]);
+        arrayOfTerritoryThreats.push(territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory, territory.isCoastal, threatScores);
         arr.push(arrayOfTerritoryThreats);
+    }
+    return arr;
+}
+
+export function calculateTurnGoal(arrayOfTerritoriesInRangeThreats) {
+    let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
+    sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
+    console.log(sortedThreatArrayInfo);
+    console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
+}
+
+function organizeThreats(arrayOfTerritoriesInRangeThreats) {
+    let arr = [];
+    let enemyTerritory;
+    let friendlyTerritory;
+    //loop through arrayOfTerritoriesInRangeThreats - [i][4][j][1] is location of threat value from enemy enemyTerritory to friendly enemyTerritory being checked
+    //make new array of threats sorted from smallest to largest - [enemyTerritoryObject, leaderOfEnemyTerritory, friendlyTerritoryAffected, threatValue]
+    for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
+        for (let j = 0; j < arrayOfTerritoriesInRangeThreats[i][4].length; j++) {
+            let count = 0;
+            for (let k = 0; k < mainGameArray.length; k++) { //get territory objects
+                if (arrayOfTerritoriesInRangeThreats[i][0] === mainGameArray[k].territoryName) {
+                    enemyTerritory = mainGameArray[k];
+                    count++;
+                }
+                if (arrayOfTerritoriesInRangeThreats[i][4][j][0] === mainGameArray[k].territoryName) {
+                    friendlyTerritory = mainGameArray[k];
+                    count++;
+                }
+                if (count > 1) {
+                    break;
+                }
+            }
+            arr.push([enemyTerritory, enemyTerritory.leader, friendlyTerritory, arrayOfTerritoriesInRangeThreats[i][4][j][1]]);
+        }
     }
     return arr;
 }
