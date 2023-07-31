@@ -193,6 +193,7 @@ async function handleAITurn() {
         let attackableTerritoriesInRange = [];
         let arrayOfTerritoriesInRangeThreats = []; //[territoryName, [friendlyTerritory1, threatScore]]
         let arrayOfAiPlayerDefenseScoresForTerritories = [];
+        let unrefinedTurnGoals = [];
 
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
@@ -219,7 +220,8 @@ async function handleAITurn() {
         // implement when long term goal is decided
 
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
-        const turnGoal = calculateTurnGoals(arrayOfTerritoriesInRangeThreats);
+        unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
+        console.log(unrefinedTurnGoals);
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned

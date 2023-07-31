@@ -1,5 +1,6 @@
 import {
-    paths
+    paths,
+    PROBABILITY_THRESHOLD_FOR_SIEGE
 } from "./ui.js";
 import {
     findMatchingCountries
@@ -11,6 +12,9 @@ import {
 import {
     calculateProbabilityPreBattle
 } from "./battle.js";
+import {
+    probability
+} from "./transferAndAttack.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 
@@ -238,9 +242,9 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
                 threatScore += territoryExpansionValue;
 
                 //dominance
-                //needs taking into account when we have goals implemented if enemy territory leader has a goal to destroy ai player
+                //needs taking into account when we have goals implemented if enemy territory leader has a goal to destroy AI player
 
-                //add a minor amount if player precedes enemy territory - can be used to influence ai if any reason why this is significant is realised
+                //add a minor amount if player precedes enemy territory - can be used to influence AI if any reason why this is significant is realised
                 threatScore += turnStillToCome ? 1 : 0;
             } else {
                 threatScore = THREAT_DISREGARD_CONSTANT; //can't attack, no threat
@@ -253,24 +257,25 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
     return arr;
 }
 
-export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
+export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, unrefinedTurnGoals) {
     let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
     let possibleGoals = [];
     sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
     const leaderTraits = sortedThreatArrayInfo[0][2].leader.traits;
-    console.log(sortedThreatArrayInfo);
     console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
+    console.log("Leader of " + sortedThreatArrayInfo[0][2].territoryName + " has the following traits:");
+    console.log("Type: " + sortedThreatArrayInfo[0][2].leader.leaderType + " traits:");
+    console.log(leaderTraits);
     sortedThreatArrayInfo = removeNonThreats(sortedThreatArrayInfo);
     sortedThreatArrayInfo = addProbabilitiesOfBattle(sortedThreatArrayInfo);
-    // possibleGoals = getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
+    possibleGoals = getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
+    return possibleGoals;
 }
 
 function organizeThreats(arrayOfTerritoriesInRangeThreats) {
     let arr = [];
     let enemyTerritory;
     let friendlyTerritory;
-    //loop through arrayOfTerritoriesInRangeThreats - [i][4][j][1] is location of threat value from enemy enemyTerritory to friendly enemyTerritory being checked
-    //make new array of threats sorted from smallest to largest - [enemyTerritoryObject, leaderOfEnemyTerritory, friendlyTerritoryAffected, threatValue]
     for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
         for (let j = 0; j < arrayOfTerritoriesInRangeThreats[i][4].length; j++) {
             let count = 0;
@@ -303,17 +308,26 @@ function removeNonThreats(sortedThreatArrayInfo) {
 }
 
 function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits) {
-    for (let i = 0; i < sortedThreatArrayInfo.length; i++) {
-        //for each threat
-        //calculate probability of a battle win - add probability to sorted threat array
-        //if threat score is above 0
-            //based on style_of_war trait if sufficiently high to consider a siege, and probability is above minimum 15% and threat above 0, then add siege as a possible goal
-            //add improve defense of territory as a goal (just high level for now)
-        //if threat score is below 0
-            //based on style_of_war trait if sufficiently high to consider a siege, and probability is above minimum 15% and threat above 0, then add siege as a possible goal
-            //if the style of war trait is not sufficiently high to consider a siege, consider a war based on probability calculated and if the probability is above the required value (which will be less the higher the territory_expansion trait is) then add a war as a possible goal
-        //if economy trait is sufficiently high, add upgrades of oil wells, farms, forests as a goal
+    let possibleGoalsArray = [];
+    for (const threat of sortedThreatArrayInfo) {
+        const threatScore = threat[3];
+        const styleOfWar = leaderTraits.style_of_war;
+        const territoryExpansion = leaderTraits.territory_expansion;
+        const considerSiege = Math.random() >= styleOfWar;
+        let considerWar = Math.random() <= territoryExpansion;
+        if (considerWar) {
+            considerWar = territoryExpansion <= (threat.probabilityOfWin / 100);
+        }
+        if (threatScore >= 0) {
+            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
+            possibleGoalsArray.push(["Bolster", threat[0].territoryName, threat[2].territoryName, threat[2].fortsBuilt, threat[2].armyForCurrentTerritory, threat[2].isCoastal, threatScore, threat.probabilityOfWin]);
+        } else {
+            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
+           territoryExpansion <= (threat.probabilityOfWin / 100) && considerWar ? possibleGoalsArray.push(["Attack", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null ;
+        }
+        possibleGoalsArray.push(["Economy", threat[2].territoryName, threat[2].farmsBuilt, threat[2].forestsBuilt, threat[2].oilWellsBuilt, threatScore, threat.probabilityOfWin]);
     }
+    return possibleGoalsArray;
 }
 
 function addProbabilitiesOfBattle(sortedThreatArrayInfo) {

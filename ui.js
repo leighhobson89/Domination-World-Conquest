@@ -123,7 +123,7 @@ const CONTINENT_COLOR_ARRAY = [
 ];
 const GREY_OUT_COLOR = 'rgb(170,170,170)';
 const COUNTRY_GREYOUT_THRESHOLD = 40000; //countries under this strength greyed out //40
-const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
+export const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
