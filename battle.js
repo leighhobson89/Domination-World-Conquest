@@ -382,8 +382,8 @@ function calculateAreaBonus(defendingTerritory, maxAreaThreshold) {
     let areaWeightDefender = Math.min(1, maxAreaThreshold / defendingTerritoryArea);
     areaWeightDefender = 1 + (areaWeightDefender - 1) * 0.5;
 
-    console.log("Defending Territory Area: " + defendingTerritoryArea);
-    console.log("Area Weight (Defender): " + areaWeightDefender);
+    // console.log("Defending Territory Area: " + defendingTerritoryArea);
+    // console.log("Area Weight (Defender): " + areaWeightDefender);
 
     return areaWeightDefender;
 }
