@@ -39,11 +39,12 @@ import {
 import {
     addManualExceptionsAndRemoveDenials,
     buildAttackableTerritoriesInRangeArray,
-    buildFullTerritoriesInRangeArray, calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
+    buildFullTerritoriesInRangeArray,
+    calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
+    calculateTurnGoal,
     convertAttackableArrayStringsToMainArrayObjects,
-    determineIfStillHasTurnInThisTurn, getFriendlyTerritoriesDefenseScores,
+    getFriendlyTerritoriesDefenseScores,
     readClosestPointsJSON,
-    retrieveArmyPowerOfTerritory
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -195,6 +196,7 @@ async function handleAITurn() {
 
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
+
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
@@ -205,15 +207,20 @@ async function handleAITurn() {
         countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
         turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
 
+        //read in all information on surrounding territories and assess threat of each
         fullTerritoriesInRange = buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i);
         attackableTerritoriesInRange = buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i);
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
-        // add up army in opposing territory, compare to defending territory army taking account of defense bonuses and if current territory is landlocked
         arrayOfAiPlayerDefenseScoresForTerritories = getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i);
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
-        console.log("On " + currentAiCountry + "'s turn, the threats array is " + arrayOfTerritoriesInRangeThreats);
+        // console.log("On " + currentAiCountry + "'s turn, the threats array is " + arrayOfTerritoriesInRangeThreats);
+
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
+        // implement when long term goal is decided
+
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
+        const turnGoal = calculateTurnGoal(arrayOfTerritoriesInRangeThreats);
+
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
         // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal

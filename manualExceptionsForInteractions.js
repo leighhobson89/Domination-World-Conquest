@@ -200,6 +200,16 @@ importModuleWithTimeout()
                     [id['South Korea'], 1]
                 ]
             ],
+            [id['Laos'],
+                [
+                    [id['Hainan Island'], 0]
+                ]
+            ],
+            [id['Hainan Island'],
+                [
+                    [id['Laos'], 0]
+                ]
+            ],
             [id['Djibouti'],
                 [
                     [id['Yemen'], 1]
