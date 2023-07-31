@@ -165,4 +165,55 @@ export function retrieveArmyPowerOfTerritory(territory, defense) {
     }
      return armyScore;
 }
+export function getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i) {
+    let arr = [];
+    for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //add defense array with army power modified for defense bonus and indicate if coastal
+        if (arrayOfLeadersAndCountries[i][2][j].dataName === currentAiCountry){
+            arr.push([arrayOfLeadersAndCountries[i][2][j].territoryName, retrieveArmyPowerOfTerritory(arrayOfLeadersAndCountries[i][2][j], true), arrayOfLeadersAndCountries[i][2][j].isCoastal]);
+        }
+    }
+    return arr;
+}
+
+export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i) {
+    let arr = [];
+    for (const territory of attackableTerritoriesInRange) {
+        let turnStillToCome = false;
+        let armyPowerOfEnemyTerritory;
+        let arrayOfTerritoryThreats = [];
+        turnStillToCome = determineIfStillHasTurnInThisTurn(territory, arrayOfLeadersAndCountries, i);
+        armyPowerOfEnemyTerritory = retrieveArmyPowerOfTerritory(territory, false);
+        let arrayOfEnemyToFriendlyInteractibility = [];
+        for (let j = 0; j < fullTerritoriesInRange.length; j++) {
+            const friendlyTerritory = fullTerritoriesInRange[j][0][1];
+            if (fullTerritoriesInRange[j][1].some(enemyTerritory => enemyTerritory[0] === territory.territoryName)) {
+                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, true, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
+            } else {
+                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
+            }
+        }
+        let threatScores = [];
+        for (const friendlyTerritory of arrayOfAiPlayerDefenseScoresForTerritories) {
+            let threatScore = 0;
+
+            const enemyCanAttack = arrayOfEnemyToFriendlyInteractibility.some(
+                ([friendly, canAttack]) => friendly === friendlyTerritory[0] && canAttack
+            );
+
+            if (enemyCanAttack) {
+                if (!friendlyTerritory[2]) { //if not coastal
+                    armyPowerOfEnemyTerritory -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
+                }
+                threatScore += armyPowerOfEnemyTerritory - friendlyTerritory[1]; // baseline threat score based on difference in army
+                threatScore += turnStillToCome ? 10 : 0;
+            } else {
+                threatScore = -9999999999; //can't attack, no threat
+            }
+            threatScores.push([friendlyTerritory[0], threatScore]);
+        }
+        arrayOfTerritoryThreats.push([territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory, territory.isCoastal, threatScores]);
+        arr.push(arrayOfTerritoryThreats);
+    }
+    return arr;
+}
 

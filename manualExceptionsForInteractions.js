@@ -301,6 +301,16 @@ importModuleWithTimeout()
                     [id['Morocco'], 1]
                 ]
             ],
+            [id['Andorra'],
+                [
+                    [id['Balearic Islands'], 0]
+                ]
+            ],
+            [id['Balearic Islands'],
+                [
+                    [id['Andorra'], 0]
+                ]
+            ],
             [id['Norway'],
                 [
                     [id['United Kingdom'], 1]
