@@ -44,7 +44,7 @@ import {
     calculateTurnGoals,
     convertAttackableArrayStringsToMainArrayObjects,
     getFriendlyTerritoriesDefenseScores,
-    readClosestPointsJSON,
+    readClosestPointsJSON, refineTurnGoalsAndSelectActions,
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -221,7 +221,7 @@ async function handleAITurn() {
 
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
-        console.log(unrefinedTurnGoals);
+        refineTurnGoalsAndSelectActions(unrefinedTurnGoals);
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
