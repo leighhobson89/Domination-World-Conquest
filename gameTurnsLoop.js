@@ -216,16 +216,19 @@ async function handleAITurn() {
                 arrayOfAiPlayerDefenseScoresForTerritories.push([arrayOfLeadersAndCountries[i][2][j].territoryName, retrieveArmyPowerOfTerritory(arrayOfLeadersAndCountries[i][2][j], true), arrayOfLeadersAndCountries[i][2][j].isCoastal]);
             }
         }
-        console.log("defence territories army scores including defense bonuses, and if they are coastal:");
+        console.log("defense territories army scores including defense bonuses, and if they are coastal:");
         console.log(arrayOfAiPlayerDefenseScoresForTerritories);
         //for each territory in attackableTerritoriesInRange
         for (const territory of attackableTerritoriesInRange) {
             let turnStillToCome = false;
             let armyPowerOfEnemyTerritory;
             let arrayOfTerritoryThreats = [];
-            //work out if they will have a turn after this ai but before end of turn, ie if they have gone yet
+            //work out if they will have a turn after this AI but before end of turn, ie if they have gone yet
             turnStillToCome = determineIfStillHasTurnInThisTurn(territory, arrayOfLeadersAndCountries, i);
+            //work out enemy power per territory in range
             armyPowerOfEnemyTerritory = retrieveArmyPowerOfTerritory(territory, false);
+            //work out
+
             arrayOfTerritoryThreats.push(territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory);
             console.log("enemy territories army scores:");
             console.log(arrayOfTerritoryThreats);

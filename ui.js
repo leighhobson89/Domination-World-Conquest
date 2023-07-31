@@ -1857,17 +1857,17 @@ document.addEventListener("DOMContentLoaded", function() {
     foodIcon.setAttribute("id", "foodIcon");
     foodIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/foodCap.png'>";
 
-    const defenceIcon = document.createElement("div");
-    defenceIcon.classList.add("battleRow4Icon");
-    defenceIcon.style.display = "flex";
-    defenceIcon.setAttribute("id", "defenceIcon");
-    defenceIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+    const defenseIcon = document.createElement("div");
+    defenseIcon.classList.add("battleRow4Icon");
+    defenseIcon.style.display = "flex";
+    defenseIcon.setAttribute("id", "defenseIcon");
+    defenseIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
 
-    const mountainDefenceIcon = document.createElement("div");
-    mountainDefenceIcon.classList.add("battleRow4Icon");
-    mountainDefenceIcon.style.display = "flex";
-    mountainDefenceIcon.setAttribute("id", "mountainDefenceIcon");
-    mountainDefenceIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/mountainDefenceIcon.png'>";
+    const mountainDefenseIcon = document.createElement("div");
+    mountainDefenseIcon.classList.add("battleRow4Icon");
+    mountainDefenseIcon.style.display = "flex";
+    mountainDefenseIcon.setAttribute("id", "mountainDefenseIcon");
+    mountainDefenseIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/mountainDefenseIcon.png'>";
 
     const prodPopText = document.createElement("div");
     prodPopText.classList.add("battleRow4IconText");
@@ -1877,14 +1877,14 @@ document.addEventListener("DOMContentLoaded", function() {
     foodText.classList.add("battleRow4IconText");
     foodText.setAttribute("id", "foodText");
 
-    const defenceBonusText = document.createElement("div");
-    defenceBonusText.classList.add("battleRow4IconText");
-    defenceBonusText.setAttribute("id", "defenceBonusText");
+    const defenseBonusText = document.createElement("div");
+    defenseBonusText.classList.add("battleRow4IconText");
+    defenseBonusText.setAttribute("id", "defenseBonusText");
 
-    const mountainDefenceText = document.createElement("div");
-    mountainDefenceText.classList.add("battleRow4IconText");
-    mountainDefenceText.classList.add("mountainDefenceText");
-    mountainDefenceText.setAttribute("id", "mountainDefenceText");
+    const mountainDefenseText = document.createElement("div");
+    mountainDefenseText.classList.add("battleRow4IconText");
+    mountainDefenseText.classList.add("mountainDefenseText");
+    mountainDefenseText.setAttribute("id", "mountainDefenseText");
 
     const battleUIRow5 = document.createElement("div");
     battleUIRow5.classList.add("battleUIRow");
@@ -1940,10 +1940,10 @@ document.addEventListener("DOMContentLoaded", function() {
     battleUIRow4Col2B.appendChild(prodPopText);
     battleUIRow4Col2C.appendChild(foodIcon);
     battleUIRow4Col2D.appendChild(foodText);
-    battleUIRow4Col2E.appendChild(defenceIcon);
-    battleUIRow4Col2F.appendChild(defenceBonusText);
-    battleUIRow4Col2G.appendChild(mountainDefenceIcon);
-    battleUIRow4Col2H.appendChild(mountainDefenceText);
+    battleUIRow4Col2E.appendChild(defenseIcon);
+    battleUIRow4Col2F.appendChild(defenseBonusText);
+    battleUIRow4Col2G.appendChild(mountainDefenseIcon);
+    battleUIRow4Col2H.appendChild(mountainDefenseText);
 
     battleUIRow4Col1.appendChild(battleUIRow4Col1IconProbabilityTurnsSiege);
     battleUIRow4Col1.appendChild(battleUIRow4Col1TextProbabilityTurnsSiege);
@@ -4478,8 +4478,8 @@ function setupSiegeUI(territory) {
     setArmyTextValues(siegeObjectElement, 2, siegeObjectElement.defendingTerritory.uniqueId);
 
     //SET DEFENSE BONUS VALUE
-    document.getElementById("mountainDefenceText").innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
-    document.getElementById("defenceBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
+    document.getElementById("mountainDefenseText").innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
+    document.getElementById("defenseBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
     //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
     document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop);
     document.getElementById("foodText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity);
@@ -4600,15 +4600,15 @@ function setupBattleUI(attackArray) {
     if (!hasSiegedBefore) {
         for (let i = 0; i < mainGameArray.length; i++) {
             if (defenderTerritory.getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
-                document.getElementById("defenceBonusText").innerHTML = mainGameArray[i].defenseBonus;
-                document.getElementById("mountainDefenceText").innerHTML = mainGameArray[i].mountainDefenseBonus;
+                document.getElementById("defenseBonusText").innerHTML = mainGameArray[i].defenseBonus;
+                document.getElementById("mountainDefenseText").innerHTML = mainGameArray[i].mountainDefenseBonus;
             }
         }
     } else {
         for (const key in siegeObject) {
             if (siegeObject[key] === defenderTerritory.getAttribute("territory-name")) {
-                document.getElementById("defenceBonusText").innerHTML = siegeObject[key].defenderTerritory.defenseBonus;
-                document.getElementById("mountainDefenceText").innerHTML = siegeObject[key].defenderTerritory.mountainDefenseBonus;
+                document.getElementById("defenseBonusText").innerHTML = siegeObject[key].defenderTerritory.defenseBonus;
+                document.getElementById("mountainDefenseText").innerHTML = siegeObject[key].defenderTerritory.mountainDefenseBonus;
                 break;
             }
         }
@@ -5452,16 +5452,16 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
         // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
         if (defenseBonusPercentage <= 25) {
-            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
+            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
             defendingTerritory.defenseBonusColor = colorRed;
         } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
-            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
+            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
             defendingTerritory.defenseBonusColor = colorOrange;
         } else if (defenseBonusPercentage > 50 && defenseBonusPercentage <= 75) {
-            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
+            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
             defendingTerritory.defenseBonusColor = colorYellow;
         } else {
-            document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
             defendingTerritory.defenseBonusColor = colorGreen;
         }
 
@@ -5488,7 +5488,7 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
         applyColorsToArmyQuantityText(0, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
 
-        document.getElementById("defenceBonusText").style.color = defendingTerritory.defenseBonusColor;
+        document.getElementById("defenseBonusText").style.color = defendingTerritory.defenseBonusColor;
         document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
         document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
     } else if (situation === 1) { //click assault
@@ -5497,19 +5497,19 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
     } else if (situation === 2) { //click invade
         remainingPercentages = "";
         applyColorsToArmyQuantityText(1, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
-        document.getElementById("defenceBonusText").style.color = colorGreen;
-        document.getElementById("defenceIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+        document.getElementById("defenseBonusText").style.color = colorGreen;
+        document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
     }
 
-    let mountainDefenceText = document.getElementById("mountainDefenceText");
-    if (parseInt(mountainDefenceText.innerHTML) >= 50) {
-        mountainDefenceText.style.color = colorRed;
-    } else if (parseInt(mountainDefenceText.innerHTML) >= 30) {
-        mountainDefenceText.style.color = colorOrange;
-    } else if (parseInt(mountainDefenceText.innerHTML) >= 20) {
-        mountainDefenceText.style.color = colorYellow;
+    let mountainDefenseText = document.getElementById("mountainDefenseText");
+    if (parseInt(mountainDefenseText.innerHTML) >= 50) {
+        mountainDefenseText.style.color = colorRed;
+    } else if (parseInt(mountainDefenseText.innerHTML) >= 30) {
+        mountainDefenseText.style.color = colorOrange;
+    } else if (parseInt(mountainDefenseText.innerHTML) >= 20) {
+        mountainDefenseText.style.color = colorYellow;
     } else {
-        mountainDefenceText.style.color = colorGreen;
+        mountainDefenseText.style.color = colorGreen;
     }
 }
 

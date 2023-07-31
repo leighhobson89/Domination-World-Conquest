@@ -10,7 +10,6 @@ import {
 } from './resourceCalculations.js';
 import {
     currentMapColorAndStrokeArray,
-    fillPathBasedOnContinent,
     fillPathBasedOnStartingCountryColor,
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
@@ -484,7 +483,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
         case 2:
             won = true;
             rout = true;
-            console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defence remainder and territory");
+            console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defense remainder and territory");
             //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
             setDefendingTerritoryCopyStart(contestedTerritory);
             turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
@@ -716,7 +715,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
     console.log("Defending Assault Left:", defendingArmyRemaining[1], "out of", totalDefendingArmy[1]);
     console.log("Defending Air Left:", defendingArmyRemaining[2], "out of", totalDefendingArmy[2]);
     console.log("Defending Naval Left:", defendingArmyRemaining[3], "out of", totalDefendingArmy[3]);
-    console.log("Combined Attack Force: " + combinedForceAttack + " Defence Force: " + combinedForceDefend);
+    console.log("Combined Attack Force: " + combinedForceAttack + " Defense Force: " + combinedForceDefend);
 
     updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainGameArray, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
     console.log("New probability for next round is:", updatedProbability);
@@ -761,7 +760,6 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
                     Math.min(attackArmyRemaining[3], defendingArmyRemaining[3])
                 ];
                 totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
-                skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
                 const retreatButton = document.getElementById("retreatButton");
                 const advanceButton = document.getElementById("advanceButton");
@@ -1027,7 +1025,7 @@ function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerrito
 
 function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) {
     const difference = totalSiegeScore - (defenseBonusAttackedTerritory + mountainDefenseBonusAttackedTerritory);
-    let arrested = false;
+    let arrested;
 
     // Define the sliding scale probabilities
     const slidingScale = [{
@@ -1087,22 +1085,21 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
 }
 
 function calculateCollateralDamage(difference) {
-    let collateralDamage;
     if (difference >= 0 && difference < 20) {
-        return collateralDamage = Math.floor(Math.random() * 6) + 1;
+        return Math.floor(Math.random() * 6) + 1;
     } else if (difference >= 20 && difference < 50) {
-        return collateralDamage = Math.floor(Math.random() * 12) + 1;
+        return Math.floor(Math.random() * 12) + 1;
     } else if (difference >= 50 && difference < 100) {
-        return collateralDamage = Math.floor(Math.random() * 18) + 1;
+        return Math.floor(Math.random() * 18) + 1;
     } else if (difference >= 100) {
-        return collateralDamage = Math.floor(Math.random() * 25) + 1;
+        return Math.floor(Math.random() * 25) + 1;
     } else {
         let arrested = Math.random();
         if (arrested > 0.6) {
             console.log("arrested for being too pathetic to siege!");
-            return collateralDamage = 0; //end siege due to arrest
+            return 0; //end siege due to arrest
         } else {
-            return collateralDamage = 1;
+            return 1;
         }
     }
 }
@@ -1213,7 +1210,7 @@ export function setMainArrayToArmyRemaining(territory) { //when clicking siege b
 export function calculateSiegeScore(siegeObjectElement) {
     return Math.floor((siegeObjectElement.attackingArmyRemaining[0] * armyTypeSiegeValues.infantry) + (siegeObjectElement.attackingArmyRemaining[1] * armyTypeSiegeValues.assault) + (siegeObjectElement.attackingArmyRemaining[2] * armyTypeSiegeValues.air) + (siegeObjectElement.attackingArmyRemaining[3] * armyTypeSiegeValues.naval));
 }
-export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsArray, mainArray) {
+export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsArray) {
     let returnArray = [];
 
     for (let i = 0; i < proportionsArray.length; i += 5) {
