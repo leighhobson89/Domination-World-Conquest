@@ -2956,7 +2956,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Increase Defence Bonus",
+            effect: "Increase Defense Bonus",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForFort && (territory.fortsBuilt < maxForts)) {
@@ -2964,7 +2964,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Increase Defence Bonus",
+            effect: "Increase Defense Bonus",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
@@ -2972,7 +2972,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Increase Defence Bonus",
+            effect: "Increase Defense Bonus",
             condition: 'Not enough Cons. Mats.'
         });
     } else {
@@ -2980,7 +2980,7 @@ function calculateAvailableUpgrades(territory) {
             type: 'Fort',
             goldCost: fortGoldCost,
             consMatsCost: fortConsMatsCost,
-            effect: "Increase Defence Bonus",
+            effect: "Increase Defense Bonus",
             condition: 'Max Forts Reached'
         });
     }
