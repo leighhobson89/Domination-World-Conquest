@@ -510,14 +510,14 @@ function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
 }
 
 export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits) {
-    console.log (leaderTraits);
-    console.log("Before:");
-    console.log(refinedTurnGoals);
+    // console.log (leaderTraits);
+    // console.log("Before:");
+    // console.log(refinedTurnGoals);
     refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits);
     refinedTurnGoals = resortAfterPrioritisation(refinedTurnGoals);
     refinedTurnGoals = removeDoubleAttackSiege(refinedTurnGoals);
-    console.log("After:");
-    console.log(refinedTurnGoals);
+    // console.log("After:");
+    // console.log(refinedTurnGoals);
     return refinedTurnGoals;
 }
 
@@ -537,7 +537,7 @@ function calculatePriorityScore(row, leaderTraits) {
 
     let fortification = leaderTraits.fortification;
     let territoryExpansion = leaderTraits.territory_expansion;
-    let economy = Math.random() * fortification; //randomise economy placement in priorites but always less important than bolstering
+    let economy = Math.random() * fortification;
 
     if (action === "Bolster") {
         priorityScore = rowQuantitiesReduced * fortification;
@@ -573,7 +573,6 @@ function resortAfterPrioritisation(array) {
     const economySection = [];
     const bolsterSection = [];
 
-    // Separate the sections based on [row][1]
     for (let i = 0; i < array.length; i++) {
         const sectionType = array[i][1];
         if (sectionType === "Siege" || sectionType === "Attack") {
@@ -585,13 +584,10 @@ function resortAfterPrioritisation(array) {
         }
     }
 
-    // Sort Siege and Attack sections by [row][4] smallest to largest
     siegeAttackSection.sort((a, b) => a[4] - b[4]);
 
-    // Sort Bolster section by [row][6]
     bolsterSection.sort((a, b) => b[6] - a[6]);
 
-    // Concatenate the sorted sections
     return [...siegeAttackSection, ...economySection, ...bolsterSection];
 }
 
@@ -610,12 +606,30 @@ function removeDoubleAttackSiege(arr) {
                 continue;
             } else {
                 seenLocations.add(locationCountryKey);
-                seenCountries.add(country); // Add the country to avoid duplicates in different locations
+                seenCountries.add(country);
             }
         }
-
         filteredArr.push(arr[i]);
     }
-
     return filteredArr;
+}
+
+export function doAiActions(refinedTurnGoals, leader) {
+    console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
+    for (const goal of refinedTurnGoals) {
+        switch (goal[1]) {
+            case "Economy":
+                console.log("working on Economy of " + goal[2] + "...");
+                break;
+            case "Bolster":
+                console.log("bolstering Defences of " + goal[2] + "...");
+                break;
+            case "Siege":
+                console.log("going to start a siege attack on " + goal[2] + "...");
+                break;
+            case "Attack":
+                console.log("going to ATTACK " + goal[2] + "...");
+                break;
+        }
+    }
 }
