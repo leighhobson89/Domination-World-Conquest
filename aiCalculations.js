@@ -514,6 +514,8 @@ export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentA
     console.log("Before:");
     console.log(refinedTurnGoals);
     refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits);
+    refinedTurnGoals = resortAfterPrioritisation(refinedTurnGoals);
+    refinedTurnGoals = removeDoubleAttackSiege(refinedTurnGoals);
     console.log("After:");
     console.log(refinedTurnGoals);
     return refinedTurnGoals;
@@ -564,4 +566,56 @@ function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry
         }
     }
     return refinedTurnsGoals;
+}
+
+function resortAfterPrioritisation(array) {
+    const siegeAttackSection = [];
+    const economySection = [];
+    const bolsterSection = [];
+
+    // Separate the sections based on [row][1]
+    for (let i = 0; i < array.length; i++) {
+        const sectionType = array[i][1];
+        if (sectionType === "Siege" || sectionType === "Attack") {
+            siegeAttackSection.push(array[i]);
+        } else if (sectionType === "Economy") {
+            economySection.push(array[i]);
+        } else if (sectionType === "Bolster") {
+            bolsterSection.push(array[i]);
+        }
+    }
+
+    // Sort Siege and Attack sections by [row][4] smallest to largest
+    siegeAttackSection.sort((a, b) => a[4] - b[4]);
+
+    // Sort Bolster section by [row][6]
+    bolsterSection.sort((a, b) => b[6] - a[6]);
+
+    // Concatenate the sorted sections
+    return [...siegeAttackSection, ...economySection, ...bolsterSection];
+}
+
+function removeDoubleAttackSiege(arr) {
+    const seenLocations = new Set();
+    const seenCountries = new Set();
+    const filteredArr = [];
+
+    for (let i = 0; i < arr.length; i++) {
+        const [_, type, location, country] = arr[i];
+
+        if (type === 'Attack' || type === 'Siege') {
+            const locationCountryKey = `${location}_${country}`;
+
+            if (seenLocations.has(locationCountryKey)) {
+                continue;
+            } else {
+                seenLocations.add(locationCountryKey);
+                seenCountries.add(country); // Add the country to avoid duplicates in different locations
+            }
+        }
+
+        filteredArr.push(arr[i]);
+    }
+
+    return filteredArr;
 }
