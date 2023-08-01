@@ -249,10 +249,10 @@ export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
     let possibleGoals = [];
     sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
     const leaderTraits = sortedThreatArrayInfo[0][2].leader.traits;
-    console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
-    console.log("Leader of " + sortedThreatArrayInfo[0][2].territoryName + " has the following traits:");
-    console.log("Type: " + sortedThreatArrayInfo[0][2].leader.leaderType + " traits:");
-    console.log(leaderTraits);
+    // console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
+    // console.log("Leader of " + sortedThreatArrayInfo[0][2].territoryName + " has the following traits:");
+    // console.log("Type: " + sortedThreatArrayInfo[0][2].leader.leaderType + " traits:");
+    // console.log(leaderTraits);
     sortedThreatArrayInfo = removeNonThreats(sortedThreatArrayInfo);
     sortedThreatArrayInfo = addProbabilitiesOfBattle(sortedThreatArrayInfo);
     possibleGoals = getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
