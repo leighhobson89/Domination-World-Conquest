@@ -56,7 +56,7 @@ export function createCpuPlayerObjectAndAddToMainArray() {
 function createLeaderObject(leaderId, player) {
     if (!player) {
         const leaderTraits = {
-            dominance: getRandomTraitValueForLeader("dominance", leaderId),
+            fortification: getRandomTraitValueForLeader("fortification", leaderId),
             economy: getRandomTraitValueForLeader("economy", leaderId),
             territory_expansion: getRandomTraitValueForLeader(
                 "territory_expansion",
@@ -76,7 +76,7 @@ function createLeaderObject(leaderId, player) {
         };
     } else {
         const leaderTraits = { //player
-            dominance: 0.5,
+            fortification: 0.5,
             economy: 0.5,
             territory_expansion: 0.5,
             style_of_war: 0.5,
