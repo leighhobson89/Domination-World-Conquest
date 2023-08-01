@@ -34,7 +34,7 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
     mapMode,
-    saveMapColorState
+    saveMapColorState,
 } from './ui.js';
 import {
     callDice,
@@ -634,7 +634,7 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
                         }
                     }
                     if (mapMode === 1) {
-                        currentMapColorAndStrokeArray = saveMapColorState(false);
+                        setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
                     }
                 }
             }
