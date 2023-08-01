@@ -1,7 +1,7 @@
 //personalities:
 //some prebuilt personalities that can be manually added to countries
 //traits:
-// dominance - lower numbers will not care who they attack, higher numbers will always try to conquer all territories of specific countries
+// fortification - lower numbers will not put focus on defending, higher numbers will.
 // territory_expansion - lower numbers will not be too bothered about growing their empire and higher numbers will attempt to conquer many territories
 // economy - lower numbers will not care too much but higher numbers will focus on building the economy of each territory they own
 // style_of_war - lower numbers will favour sieges whereas higher numbers will favour pushing on even where probability is not so clear-cut of a win
@@ -9,7 +9,7 @@
 export const leaderPersonalities = {
 	"personalities": [{
 		"id": "aggressive",
-		"dominance": {
+		"fortification": {
 			"min": 0.0,
 			"max": 1.0
 		},
@@ -32,7 +32,7 @@ export const leaderPersonalities = {
 	},
 		{
 			"id": "balanced",
-			"dominance": {
+			"fortification": {
 				"min": 0.0,
 				"max": 1.0
 			},
@@ -55,7 +55,7 @@ export const leaderPersonalities = {
 		},
 		{
 			"id": "pacifist",
-			"dominance": {
+			"fortification": {
 				"min": 0.0,
 				"max": 1.0
 			},

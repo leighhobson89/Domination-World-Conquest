@@ -43,7 +43,7 @@ import {
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
     calculateTurnGoals,
     convertAttackableArrayStringsToMainArrayObjects,
-    getFriendlyTerritoriesDefenseScores,
+    getFriendlyTerritoriesDefenseScores, prioritiseTurnGoalsBasedOnPersonality,
     readClosestPointsJSON, refineTurnGoals,
 } from "./aiCalculations.js";
 
@@ -195,6 +195,7 @@ async function handleAITurn() {
         let arrayOfAiPlayerDefenseScoresForTerritories = [];
         let unrefinedTurnGoals = [];
         let refinedTurnGoals = [];
+        let leaderTraits = arrayOfLeadersAndCountries[i][2][0].leader.traits;
 
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
@@ -215,16 +216,14 @@ async function handleAITurn() {
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
         arrayOfAiPlayerDefenseScoresForTerritories = getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i);
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
-        // console.log("On " + currentAiCountry + "'s turn, the threats array is " + arrayOfTerritoriesInRangeThreats);
-
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
         // implement when long term goal is decided
 
         // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
-        refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals);
-        console.log(refinedTurnGoals);
-
+        refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
+        refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
+        // console.log(refinedTurnGoals);
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
         // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal

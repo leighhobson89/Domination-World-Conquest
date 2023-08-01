@@ -228,7 +228,7 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
                 let territoryExpansionValue = Math.abs(threatScore) * territory.leader.traits.territory_expansion;
                 threatScore += territoryExpansionValue;
 
-                //dominance
+                //fortification
                 //needs taking into account when we have goals implemented if enemy territory leader has a goal to destroy AI player
 
                 //add a minor amount if player precedes enemy territory - can be used to influence AI if any reason why this is significant is realised
@@ -336,10 +336,11 @@ function addProbabilitiesOfBattle(sortedThreatArrayInfo) {
 return sortedThreatArrayInfo;
 }
 
-export function refineTurnGoals(unrefinedGoals) {
+export function refineTurnGoals(unrefinedGoals, currentAiCountry, leaderTraits) {
     let refinedGoals = countAndUnshiftSimilarRows(unrefinedGoals);
     refinedGoals = sumTogetherSimilarThreatValues(refinedGoals);
     refinedGoals = finalRefinementOfArrayReduceDown(refinedGoals);
+    refinedGoals = upPriorityForReconquistaTerritories(refinedGoals, currentAiCountry, leaderTraits);
     return refinedGoals;
 }
 
@@ -505,6 +506,62 @@ function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
             filteredRefinedGoalsArray.push(row);
         }
     }
-
     return filteredRefinedGoalsArray;
+}
+
+export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits) {
+    console.log (leaderTraits);
+    console.log("Before:");
+    console.log(refinedTurnGoals);
+    refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits);
+    console.log("After:");
+    console.log(refinedTurnGoals);
+    return refinedTurnGoals;
+}
+
+function prioritizeActions(array, leaderTraits) {
+    return array.sort((a, b) => {
+        const priorityA = calculatePriorityScore(a, leaderTraits);
+        const priorityB = calculatePriorityScore(b, leaderTraits);
+        return priorityB - priorityA; // Sort in descending order
+    });
+}
+
+function calculatePriorityScore(row, leaderTraits) {
+    let priorityScore = 0;
+
+    const rowQuantitiesReduced = row[0];
+    const action = row[1];
+
+    let fortification = leaderTraits.fortification;
+    let territoryExpansion = leaderTraits.territory_expansion;
+    let economy = Math.random() * fortification; //randomise economy placement in priorites but always less important than bolstering
+
+    if (action === "Bolster") {
+        priorityScore = rowQuantitiesReduced * fortification;
+    } else if (action ==="Siege") {
+        priorityScore = rowQuantitiesReduced * territoryExpansion;
+    } else if (action === "Attack") {
+        priorityScore = rowQuantitiesReduced * territoryExpansion;
+    } else if (action === "Economy") {
+        priorityScore = economy;
+    }
+
+    return priorityScore;
+}
+
+function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry, leaderTraits) {
+    for (let i = 0; i < refinedTurnsGoals.length; i++) {
+        if (refinedTurnsGoals[i][1] === "Siege" || refinedTurnsGoals[i][1] === "Attack") {
+            for (let j = 0; j < mainGameArray; j++) {
+                if (mainGameArray[j].territoryName === refinedTurnsGoals[i][2]) {
+                    if (mainGameArray[j].originalOwner === currentAiCountry) {
+                        refinedTurnsGoals[i][0] = (refinedTurnsGoals[i][0] * leaderTraits.reconquista) + refinedTurnsGoals[i][0];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return refinedTurnsGoals;
 }
