@@ -2145,7 +2145,7 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     switch (purchaseType) {
         case "Infantry":
             type = "Infantry";
-            nextPurchaseCostGold = 0;
+            nextPurchaseCostGold = 10;
             nextProdPopCost = 1000;
             purchase = availablePurchases[0];
             simulatedTotal = parseInt(buyValueColumn.value);
@@ -2686,7 +2686,7 @@ function calculateAvailablePurchases(territory) {
 
     const isCoastal = territory.isCoastal;
 
-    const infantryGoldCost = 0;
+    const infantryGoldCost = 10;
     const assaultGoldCost = 50;
     const airGoldCost = 100;
     const navalGoldCost = 200;
@@ -3520,8 +3520,8 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
 
     switch (purchaseType) {
         case "Infantry":
-            purchaseGoldCost = 0;
-            purchaseGoldBaseCost = 0;
+            purchaseGoldCost = 10 * currentValueQuantityTemp;
+            purchaseGoldBaseCost = 10;
             prodPopCost = 1000 * currentValueQuantityTemp;
             prodPopBaseCost = 1000;
             break;
