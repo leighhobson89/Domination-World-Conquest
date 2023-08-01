@@ -42,7 +42,7 @@ import {
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
     calculateTurnGoals,
-    convertAttackableArrayStringsToMainArrayObjects,
+    convertAttackableArrayStringsToMainArrayObjects, doAiActions,
     getFriendlyTerritoriesDefenseScores, prioritiseTurnGoalsBasedOnPersonality,
     readClosestPointsJSON, refineTurnGoals,
 } from "./aiCalculations.js";
@@ -195,7 +195,9 @@ async function handleAITurn() {
         let arrayOfAiPlayerDefenseScoresForTerritories = [];
         let unrefinedTurnGoals = [];
         let refinedTurnGoals = [];
-        let leaderTraits = arrayOfLeadersAndCountries[i][2][0].leader.traits;
+
+        const leader = arrayOfLeadersAndCountries[i][2][0].leader;
+        const leaderTraits = arrayOfLeadersAndCountries[i][2][0].leader.traits;
 
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
@@ -223,7 +225,9 @@ async function handleAITurn() {
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
-        // console.log(refinedTurnGoals);
+        // at this point the ai has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
+        doAiActions(refinedTurnGoals, leader);
+
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
         // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal
