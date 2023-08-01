@@ -1,20 +1,7 @@
-import {
-    paths,
-    PROBABILITY_THRESHOLD_FOR_SIEGE
-} from "./ui.js";
-import {
-    findMatchingCountries
-} from "./manualExceptionsForInteractions.js";
-import {
-    mainGameArray,
-    vehicleArmyPersonnelWorth
-} from "./resourceCalculations.js";
-import {
-    calculateProbabilityPreBattle
-} from "./battle.js";
-import {
-    probability
-} from "./transferAndAttack.js";
+import {paths, PROBABILITY_THRESHOLD_FOR_SIEGE} from "./ui.js";
+import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
+import {mainGameArray, vehicleArmyPersonnelWorth} from "./resourceCalculations.js";
+import {calculateProbabilityPreBattle} from "./battle.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 
@@ -257,7 +244,7 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
     return arr;
 }
 
-export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, unrefinedTurnGoals) {
+export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
     let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
     let possibleGoals = [];
     sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
@@ -325,7 +312,7 @@ function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits) {
             threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
            territoryExpansion <= (threat.probabilityOfWin / 100) && considerWar ? possibleGoalsArray.push(["Attack", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null ;
         }
-        possibleGoalsArray.push(["Economy", threat[2].territoryName, threat[2].farmsBuilt, threat[2].forestsBuilt, threat[2].oilWellsBuilt, threatScore, threat.probabilityOfWin]);
+        possibleGoalsArray.push(["Economy", threat[2].territoryName, threat[2].farmsBuilt, threat[2].forestsBuilt, threat[2].oilWellsBuilt]);
     }
     return possibleGoalsArray;
 }
@@ -344,11 +331,180 @@ function addProbabilitiesOfBattle(sortedThreatArrayInfo) {
         }
         probability = calculateProbabilityPreBattle(preAttackArray, mainGameArray, false);
         threat.probabilityOfWin = probability;
-        console.log("Probability of " + threat[2].territoryName + " vs " + threat[0].territoryName + " is:" + threat.probabilityOfWin);
+        // console.log("Probability of " + threat[2].territoryName + " vs " + threat[0].territoryName + " is:" + threat.probabilityOfWin);
     }
 return sortedThreatArrayInfo;
 }
 
-export function refineTurnGoalsAndSelectActions(unrefinedGoals) {
+export function refineTurnGoals(unrefinedGoals) {
+    let refinedGoals = countAndUnshiftSimilarRows(unrefinedGoals);
+    refinedGoals = sumTogetherSimilarThreatValues(refinedGoals);
+    refinedGoals = finalRefinementOfArrayReduceDown(refinedGoals);
+    return refinedGoals;
+}
 
+function countAndUnshiftSimilarRows(arr) {
+    const countMapEconomy = new Map();
+    const countMapBolster = new Map();
+    const countMapSiege = new Map();
+    const countMapAttack = new Map();
+
+    for (const row of arr[0]) {
+        if (row[0] === "Economy") {
+            const key = JSON.stringify([row[0], row[1]]);
+            countMapEconomy.set(key, (countMapEconomy.get(key) || 0) + 1);
+        } else if (row[0] === "Bolster") {
+            const key = JSON.stringify([row[0], row[2]]);
+            countMapBolster.set(key, (countMapBolster.get(key) || 0) + 1);
+        } else if (row[0] === "Siege") {
+            const key = JSON.stringify([row[0], row[1]]);
+            countMapSiege.set(key, (countMapSiege.get(key) || 0) + 1);
+        } else if (row[0] === "Attack") {
+            const key = JSON.stringify([row[0], row[1]]);
+            countMapAttack.set(key, (countMapAttack.get(key) || 0) + 1);
+        }
+    }
+
+    for (const row of arr[0]) {
+        if (row[0] === "Economy") {
+            const key = JSON.stringify([row[0], row[1]]);
+            const count = countMapEconomy.get(key);
+            row.unshift(count);
+        } else if (row[0] === "Bolster") {
+            const key = JSON.stringify([row[0], row[2]]);
+            const count = countMapBolster.get(key);
+            row.unshift(count);
+        } else if (row[0] === "Siege") {
+            const key = JSON.stringify([row[0], row[1]]);
+            const count = countMapSiege.get(key);
+            row.unshift(count);
+        } else if (row[0] === "Attack") {
+            const key = JSON.stringify([row[0], row[1]]);
+            const count = countMapAttack.get(key);
+            row.unshift(count);
+        }
+    }
+    return arr;
+}
+
+function sumTogetherSimilarThreatValues(refinedGoalsArray) {
+    const economyGroups = {};
+    const bolsterGroups = {};
+    const siegeGroups = {};
+    const attackGroups = {};
+
+    for (const row of refinedGoalsArray[0]) {
+        const key = row[1] === "Economy" || row[1] === "Siege" || row[1] === "Attack" ? `${row[1]}_${row[2]}` : `${row[1]}_${row[3]}`;
+
+        if (row[1] === "Economy") {
+            if (!economyGroups[key]) economyGroups[key] = [];
+            economyGroups[key].push(row);
+        } else if (row[1] === "Bolster") {
+            if (!bolsterGroups[key]) bolsterGroups[key] = [];
+            bolsterGroups[key].push(row);
+        } else if (row[1] === "Siege") {
+            if (!siegeGroups[key]) siegeGroups[key] = [];
+            siegeGroups[key].push(row);
+        } else if (row[1] === "Attack") {
+            if (!attackGroups[key]) attackGroups[key] = [];
+            attackGroups[key].push(row);
+        }
+    }
+
+    const processedEconomyGroups = [];
+    for (const groupKey in economyGroups) {
+        const group = economyGroups[groupKey];
+        const sum = group.reduce((acc, row) => acc + row[3], 0);
+        const modifiedGroup = group.map((row) => {
+            const newRow = [...row];
+            newRow[3] = sum;
+            return newRow;
+        });
+        processedEconomyGroups.push(...modifiedGroup);
+    }
+
+    const processedBolsterGroups = [];
+    for (const groupKey in bolsterGroups) {
+        const group = bolsterGroups[groupKey];
+        const sum = group.reduce((acc, row) => acc + row[7], 0);
+        const modifiedGroup = group.map((row) => {
+            const newRow = [...row];
+            newRow[7] = sum;
+            return newRow;
+        });
+        processedBolsterGroups.push(...modifiedGroup);
+    }
+
+    const processedSiegeGroups = [];
+    for (const groupKey in siegeGroups) {
+        const group = siegeGroups[groupKey];
+        const sum = group.reduce((acc, row) => acc + row[4], 0);
+        const modifiedGroup = group.map((row) => {
+            const newRow = [...row];
+            newRow[4] = sum;
+            return newRow;
+        });
+        processedSiegeGroups.push(...modifiedGroup);
+    }
+
+    const processedAttackGroups = [];
+    for (const groupKey in attackGroups) {
+        const group = attackGroups[groupKey];
+        const sum = group.reduce((acc, row) => acc + row[4], 0);
+        const modifiedGroup = group.map((row) => {
+            const newRow = [...row];
+            newRow[4] = sum;
+            return newRow;
+        });
+        processedAttackGroups.push(...modifiedGroup);
+    }
+
+    return [...processedEconomyGroups, ...processedBolsterGroups, ...processedSiegeGroups, ...processedAttackGroups];
+}
+
+function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
+    const filteredRefinedGoalsArray = [];
+
+    const seenEconomy = new Set();
+    const seenBolster = new Set();
+    const seenSiege = new Set();
+    const seenAttack = new Set();
+
+    for (const row of refinedGoalsArray) {
+        const type = row[1];
+        const key = row[0];
+
+        if (type === "Economy") {
+            if (!seenEconomy.has(key)) {
+                filteredRefinedGoalsArray.push(row);
+                seenEconomy.add(key);
+            }
+        } else if (type === "Bolster") {
+            const subKey = row[3];
+            const compoundKey = `${key}_${subKey}`;
+            if (!seenBolster.has(compoundKey)) {
+                // Remove the [2] element for "Bolster" rows before pushing
+                filteredRefinedGoalsArray.push([row[0], row[1], row[3], row[4], row[5], row[6], row[7], row[8]]);
+                seenBolster.add(compoundKey);
+            }
+        } else if (type === "Siege") {
+            const subKey = row[2];
+            const compoundKey = `${key}_${subKey}`;
+            if (!seenSiege.has(compoundKey)) {
+                filteredRefinedGoalsArray.push(row);
+                seenSiege.add(compoundKey);
+            }
+        } else if (type === "Attack") {
+            const subKey = row[2];
+            const compoundKey = `${key}_${subKey}`;
+            if (!seenAttack.has(compoundKey)) {
+                filteredRefinedGoalsArray.push(row);
+                seenAttack.add(compoundKey);
+            }
+        } else {
+            filteredRefinedGoalsArray.push(row);
+        }
+    }
+
+    return filteredRefinedGoalsArray;
 }
