@@ -614,7 +614,7 @@ function removeDoubleAttackSiege(arr) {
     return filteredArr;
 }
 
-export function doAiActions(refinedTurnGoals, leader) {
+export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
     let economyBenefitArray = [];
     let bolsterBenefitArray = [];
     let siegeLaunchedFromArray = [];
@@ -625,6 +625,7 @@ export function doAiActions(refinedTurnGoals, leader) {
     console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
 
     for (const goal of refinedTurnGoals) {
+        const goalIndex = refinedTurnGoals.indexOf(goal);
         let mainArrayFriendlyTerritoryCopy = "no match";
         let mainArrayEnemyTerritoryCopy = "no match";
 
@@ -656,6 +657,23 @@ export function doAiActions(refinedTurnGoals, leader) {
             if (!economyBenefitArray.includes(goal[2])) {
                 economyBenefitArray.push(goal[2]);
                 console.log("working on Economy of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
+                let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
+                let consMatsInTerritory = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
+                const goldPerTurn = turnGainsArrayAi.changeGold;
+                const consMatsPerTurn = turnGainsArrayAi.changeConsMats;
+                let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                const consMatsNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("consMats", refinedTurnGoals, goalIndex);
+                const farms = mainArrayFriendlyTerritoryCopy.farmsBuilt;
+                const forests = mainArrayFriendlyTerritoryCopy.forestsBuilt;
+                const oilWells = mainArrayFriendlyTerritoryCopy.oilWellsBuilt;
+                let goldToSpend = determineResourcesAvailableForThisGoal("gold", goldInTerritory, mainArrayFriendlyTerritoryCopy, goldNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
+                refinedTurnGoals = goldToSpend[0];
+                goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                goldToSpend = goldToSpend[1];
+                let consMatsToSpend = determineResourcesAvailableForThisGoal("consMats", consMatsInTerritory, mainArrayFriendlyTerritoryCopy, consMatsNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
+                consMatsToSpend = consMatsToSpend[1];
+                const buildList = analyzeAllocatedResourcesAndPrioritizeUpgrades(refinedTurnGoals, goldInTerritory, consMatsInTerritory, goldPerTurn, consMatsPerTurn, goldNeedsSpendingAfterThisGoal, consMatsNeedsSpendingAfterThisGoal, farms, forests, oilWells, goldToSpend, consMatsToSpend);
+                // doBuild(mainArrayFriendlyTerritoryCopy, buildList);
             }
             break;
             case "Bolster":
@@ -703,4 +721,101 @@ export function doAiActions(refinedTurnGoals, leader) {
             }
         }
     }
+    return refinedTurnGoals;
+}
+
+function determineIfOtherGoalNeedsResourceThisTurn(resource, refinedTurnGoals, goalIndex) {
+    let count = 0
+
+    for (let i = 0; i < refinedTurnGoals.length; i++) {
+        if (i > goalIndex) { //only interested in goals not done yet for this turn
+            switch(resource) {
+                case "gold": //increment countGold for each goal after this requiring gold
+                if (refinedTurnGoals[i][1] === "Economy" || refinedTurnGoals[i][1] === "Bolster") {
+                    count++;
+                }
+                break;
+                case "consMats": //increment countConsMats for each goal after this requiring consMats
+                if (refinedTurnGoals[i][1] === "Economy") {
+                    count++;
+                }
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurrentlyInTerritory, mainArrayFriendlyTerritoryCopy, numberOfGoalsNeedingResourceAfterThisOne, refinedTurnGoals, goalIndex) {
+    let resourcesAvailable;
+    let count = 0;
+    if (numberOfGoalsNeedingResourceAfterThisOne !== 0) {
+        for (let i = 0; i < refinedTurnGoals.length; i++) {
+            if (i > goalIndex) {
+                if (resource === "gold") {
+                    if (refinedTurnGoals[i][1] === "Bolster") {
+                        let refinedTurnGoalsCopy = [...refinedTurnGoals];
+                        let meanInfantryValueLacking = [];
+                        for (let j = 0; j < refinedTurnGoalsCopy.length; j++) {
+                            if (refinedTurnGoalsCopy[j][1] === "Bolster") {
+                                meanInfantryValueLacking.push(refinedTurnGoalsCopy[j], Math.floor(refinedTurnGoalsCopy[j][6] / refinedTurnGoalsCopy[j][0]) - refinedTurnGoalsCopy[j][4]);
+                            }
+                        }
+
+                        // Loop through the meanInfantryValueLacking array to find elements with negative [i][1] values as don't need bolstering so remove those jobs from bolster goals for turn
+                        for (let j = 1; j < meanInfantryValueLacking.length; j+=2) {
+                            if (meanInfantryValueLacking[j] < 0) {
+                                const matchingElement = refinedTurnGoals.find(item => item[1] === meanInfantryValueLacking[j-1][1] && item[2] === meanInfantryValueLacking[j-1][2]);
+                                refinedTurnGoals = refinedTurnGoals.filter(item => item !== matchingElement);
+                                meanInfantryValueLacking.splice(j - 1, 2);
+                                j-=2; //watch for out of bounds exceptions  and make some condition to make this 1 if it was previously 1
+                            }
+                        }
+
+                        let sumOfValues = 0;
+                        for (let j = 1; j < meanInfantryValueLacking.length; j += 2) {
+                            sumOfValues += meanInfantryValueLacking[j];
+                        }
+
+                        // Calculate the proportion percentage and console out each value
+                        let proportionPercentage;
+                        let proportionsPercentageArray = [];
+                        if (sumOfValues !== 0) {
+                            for (let j = 1; j < meanInfantryValueLacking.length; j+=2) {
+                                const value = meanInfantryValueLacking[j];
+                                proportionPercentage = value / sumOfValues * 100;
+                                proportionsPercentageArray.push([meanInfantryValueLacking[j-1], proportionPercentage]);
+                            }
+                        } else {
+                            proportionsPercentageArray.length = 0;
+                            count++; //only do this if the only bolster to do in future was a negative value and we removed it so can assume no Bolster and can just divide the money into the rest of the counts
+                        }
+
+                        //match one of the proportions up with the current refinedTurnGoals element and send the value back
+                        for (let j = 0; j < proportionsPercentageArray.length; j++) {
+                            if (proportionsPercentageArray[j][0][1] === refinedTurnGoals[i][1] && proportionsPercentageArray[j][0][2] === refinedTurnGoals[i][2]) {
+                                count = Math.floor((refinedTurnGoals[i][0] / 100) * proportionsPercentageArray[j][1]);
+                                count === 0 ? count = 1 : null;
+                            }
+                        }
+
+                    } else if (refinedTurnGoals[i][1] === "Economy") {
+                        count++;
+                    }
+                } else if (resource === "consMats") {
+                    count++;
+                }
+            }
+        }
+        resourcesAvailable = Math.floor(amountOfResourceCurrentlyInTerritory / count);
+    } else {
+        resourcesAvailable = Math.floor(amountOfResourceCurrentlyInTerritory);
+    }
+    return [refinedTurnGoals, resourcesAvailable];
+}
+
+function analyzeAllocatedResourcesAndPrioritizeUpgrades(refinedTurnGoals, goldInTerritory, consMatsInTerritory, goldPerTurn, consMatsPerTurn, goldNeedsSpendingAfterThisGoal, consMatsNeedsSpendingAfterThisGoal, farms, forests, oilWells, goldToSpend, consMatsToSpend) {
+    let buildList = [];
+    console.log(refinedTurnGoals);
+    return buildList;
 }

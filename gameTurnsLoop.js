@@ -23,7 +23,7 @@ import {
     mainGameArray,
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
-    getTurnGainsArrayAi, vehicleArmyPersonnelWorth
+    getTurnGainsArrayAi
 } from './resourceCalculations.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
@@ -227,7 +227,7 @@ async function handleAITurn() {
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
         // at this point the ai has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
 
-        doAiActions(refinedTurnGoals, leader);
+        refinedTurnGoals = doAiActions(refinedTurnGoals, leader, turnGainsArrayAi); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculating
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
         // TODO: Spend resources on upgrades and army for each territory owned
