@@ -637,14 +637,12 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                 break;
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
                 mainArrayFriendlyTerritoryCopy = { ...mainGameArray[i] };
-                console.log("copied friendly " + mainArrayFriendlyTerritoryCopy.territoryName);
                 count++;
                 if (count === 2) {
                     break;
                 }
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
                 mainArrayEnemyTerritoryCopy = { ...mainGameArray[i] };
-                console.log("copied enemy " + mainArrayEnemyTerritoryCopy.territoryName);
                 count++;
                 if (count === 2) {
                     break;
@@ -702,18 +700,15 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
             let count = 0;
             if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
                 mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
-                console.log("updated " + mainGameArray[i].territoryName);
                 break;
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
                 mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
-                console.log("updated friendly " + mainGameArray[i].territoryName);
                 count++;
                 if (count === 2) {
                     break;
                 }
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
                 mainGameArray[i] = mainArrayEnemyTerritoryCopy;
-                console.log("updated enemy " + mainGameArray[i].territoryName);
                 count++;
                 if (count === 2) {
                     break;
