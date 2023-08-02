@@ -615,21 +615,69 @@ function removeDoubleAttackSiege(arr) {
 }
 
 export function doAiActions(refinedTurnGoals, leader) {
+    let economyBenefitArray = [];
+    let bolsterBenefitArray = [];
+    let siegeLaunchedFromArray = [];
+    let siegeLaunchedToArray = [];
+    let attackLaunchedFromArray = [];
+    let attackLaunchedToArray = [];
+
     console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
+
     for (const goal of refinedTurnGoals) {
+        let mainArrayTerritoryCopy = null;
+
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
+                mainArrayTerritoryCopy = { ...mainGameArray[i] };
+                console.log("copied " + mainArrayTerritoryCopy.territoryName);
+                break;
+            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
+                mainArrayTerritoryCopy = { ...mainGameArray[i] };
+                console.log("copied " + mainArrayTerritoryCopy.territoryName);
+                break;
+            }
+        }
+
         switch (goal[1]) {
             case "Economy":
-                console.log("working on Economy of " + goal[2] + "...");
-                break;
+            if (!economyBenefitArray.includes(goal[2])) {
+                economyBenefitArray.push(goal[2]);
+                console.log("working on Economy of " + mainArrayTerritoryCopy.territoryName + "...");
+            }
+            break;
             case "Bolster":
-                console.log("bolstering Defences of " + goal[2] + "...");
-                break;
+            if (!bolsterBenefitArray.includes(goal[2])) {
+                bolsterBenefitArray.push(goal[2]);
+                console.log("bolstering Defences of " + mainArrayTerritoryCopy.territoryName + "...");
+            }
+            break;
             case "Siege":
-                console.log("going to start a siege attack on " + goal[2] + "...");
-                break;
+            if (!siegeLaunchedFromArray.includes(goal[2])) {
+                siegeLaunchedFromArray.push(goal[3]);
+                siegeLaunchedToArray.push(goal[2]);
+                console.log("going to start a siege attack on " + siegeLaunchedToArray[siegeLaunchedToArray.length - 1] + " from " + mainArrayTerritoryCopy.territoryName + "...");
+            }
+            break;
             case "Attack":
-                console.log("going to ATTACK " + goal[2] + "...");
+            if (!attackLaunchedFromArray.includes(goal[2])) {
+                attackLaunchedFromArray.push(goal[3]);
+                attackLaunchedToArray.push(goal[2]);
+                console.log("going to ATTACK " + attackLaunchedToArray[attackLaunchedToArray.length - 1] + " from " + mainArrayTerritoryCopy.territoryName + "...");
+            }
+            break;
+        }
+
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
+                mainGameArray[i] = mainArrayTerritoryCopy;
+                console.log("updated " + mainGameArray[i].territoryName);
                 break;
+            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
+                mainGameArray[i] = mainArrayTerritoryCopy;
+                console.log("updated " + mainGameArray[i].territoryName);
+                break;
+            }
         }
     }
 }
