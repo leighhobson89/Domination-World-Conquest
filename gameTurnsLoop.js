@@ -226,6 +226,7 @@ async function handleAITurn() {
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
         // at this point the ai has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
+
         doAiActions(refinedTurnGoals, leader);
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
