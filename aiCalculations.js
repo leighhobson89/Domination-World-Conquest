@@ -625,17 +625,29 @@ export function doAiActions(refinedTurnGoals, leader) {
     console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
 
     for (const goal of refinedTurnGoals) {
-        let mainArrayTerritoryCopy = null;
+        let mainArrayFriendlyTerritoryCopy = "no match";
+        let mainArrayEnemyTerritoryCopy = "no match";
 
         for (let i = 0; i < mainGameArray.length; i++) {
+            let count = 0;
             if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainArrayTerritoryCopy = { ...mainGameArray[i] };
-                console.log("copied " + mainArrayTerritoryCopy.territoryName);
+                mainArrayFriendlyTerritoryCopy = { ...mainGameArray[i] };
+                console.log("copied " + mainArrayFriendlyTerritoryCopy.territoryName);
                 break;
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
-                mainArrayTerritoryCopy = { ...mainGameArray[i] };
-                console.log("copied " + mainArrayTerritoryCopy.territoryName);
-                break;
+                mainArrayFriendlyTerritoryCopy = { ...mainGameArray[i] };
+                console.log("copied friendly " + mainArrayFriendlyTerritoryCopy.territoryName);
+                count++;
+                if (count === 2) {
+                    break;
+                }
+            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
+                mainArrayEnemyTerritoryCopy = { ...mainGameArray[i] };
+                console.log("copied enemy " + mainArrayEnemyTerritoryCopy.territoryName);
+                count++;
+                if (count === 2) {
+                    break;
+                }
             }
         }
 
@@ -643,40 +655,51 @@ export function doAiActions(refinedTurnGoals, leader) {
             case "Economy":
             if (!economyBenefitArray.includes(goal[2])) {
                 economyBenefitArray.push(goal[2]);
-                console.log("working on Economy of " + mainArrayTerritoryCopy.territoryName + "...");
+                console.log("working on Economy of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
             }
             break;
             case "Bolster":
             if (!bolsterBenefitArray.includes(goal[2])) {
                 bolsterBenefitArray.push(goal[2]);
-                console.log("bolstering Defences of " + mainArrayTerritoryCopy.territoryName + "...");
+                console.log("bolstering Defences of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
             }
             break;
             case "Siege":
             if (!siegeLaunchedFromArray.includes(goal[2])) {
                 siegeLaunchedFromArray.push(goal[3]);
                 siegeLaunchedToArray.push(goal[2]);
-                console.log("going to start a siege attack on " + siegeLaunchedToArray[siegeLaunchedToArray.length - 1] + " from " + mainArrayTerritoryCopy.territoryName + "...");
+                console.log("going to start a siege attack on " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
             }
             break;
             case "Attack":
             if (!attackLaunchedFromArray.includes(goal[2])) {
                 attackLaunchedFromArray.push(goal[3]);
                 attackLaunchedToArray.push(goal[2]);
-                console.log("going to ATTACK " + attackLaunchedToArray[attackLaunchedToArray.length - 1] + " from " + mainArrayTerritoryCopy.territoryName + "...");
+                console.log("going to ATTACK " +mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
             }
             break;
         }
 
         for (let i = 0; i < mainGameArray.length; i++) {
+            let count = 0;
             if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainGameArray[i] = mainArrayTerritoryCopy;
+                mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
                 console.log("updated " + mainGameArray[i].territoryName);
                 break;
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
-                mainGameArray[i] = mainArrayTerritoryCopy;
-                console.log("updated " + mainGameArray[i].territoryName);
-                break;
+                mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
+                console.log("updated friendly " + mainGameArray[i].territoryName);
+                count++;
+                if (count === 2) {
+                    break;
+                }
+            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
+                mainGameArray[i] = mainArrayEnemyTerritoryCopy;
+                console.log("updated enemy " + mainGameArray[i].territoryName);
+                count++;
+                if (count === 2) {
+                    break;
+                }
             }
         }
     }
