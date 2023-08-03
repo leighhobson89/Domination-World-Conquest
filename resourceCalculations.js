@@ -120,6 +120,25 @@ export const vehicleArmyPersonnelWorth = {
     assault: 1000
 }
 
+export const territoryUpgradeBaseCostsGold = {
+    farm: 200,
+    forest: 200,
+    oilWell: 1000,
+    fort: 500,
+}
+
+export const territoryUpgradeBaseCostsConsMats = {
+    farm: 500,
+    forest: 500,
+    oilWell: 200,
+    fort: 2000,
+}
+
+export const maxFarms = 5;
+export const maxForests = 5;
+export const maxOilWells = 5;
+export const maxForts = 5;
+
 export let totalPlayerResources = [];
 export let countryResourceTotals = {};
 let continentModifier;
@@ -640,13 +659,13 @@ function calculateConsMatsChange(territory, isSimulation) {
     }
 
     //if consMats is below consMats capacity then grow at 25% per turn
-    if (!randomEventHappening && territory.consMatsCapacity > (territory.consMatsForCurrentTerritory)) {
+    if (!randomEventHappening && territory.consMatsCapacity > territory.consMatsForCurrentTerritory) {
         const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
         consMatsChange = (Math.ceil(consMatsDifference * 0.25));
     }
 
     //if consMats is above consMats capacity then lose it at 10% per turn until it balances
-    if (!randomEventHappening && territory.consMatsCapacity < (territory.consMatsForCurrentTerritory)) {
+    if (!randomEventHappening && territory.consMatsCapacity < territory.consMatsForCurrentTerritory) {
         const consMatsDifference = (territory.consMatsForCurrentTerritory) - territory.consMatsCapacity;
         consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
     }
@@ -2822,18 +2841,18 @@ function calculateAvailablePurchases(territory) {
     return availablePurchases;
 }
 
-function calculateAvailableUpgrades(territory) {
+export function calculateAvailableUpgrades(territory) {
     const availableUpgrades = [];
 
     // Calculate the cost of upgrades
-    const farmGoldCost = Math.max(simulatedCostsAll[0], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const farmConsMatsCost = Math.max(simulatedCostsAll[1], 500 * 1.1 * (parseFloat(territory.devIndex) / 4));
-    const forestGoldCost = Math.max(simulatedCostsAll[2], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const forestConsMatsCost = Math.max(simulatedCostsAll[3], 500 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const oilWellGoldCost = Math.max(simulatedCostsAll[4], 1000 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], 200 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const fortGoldCost = Math.max(simulatedCostsAll[6], 500 * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const fortConsMatsCost = Math.max(simulatedCostsAll[7], 2000 * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const farmGoldCost = Math.max(simulatedCostsAll[0], territoryUpgradeBaseCostsGold.farm * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const farmConsMatsCost = Math.max(simulatedCostsAll[1], territoryUpgradeBaseCostsConsMats.farm * 1.1 * (parseFloat(territory.devIndex) / 4));
+    const forestGoldCost = Math.max(simulatedCostsAll[2], territoryUpgradeBaseCostsGold.forest * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const forestConsMatsCost = Math.max(simulatedCostsAll[3], territoryUpgradeBaseCostsConsMats.forest * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const oilWellGoldCost = Math.max(simulatedCostsAll[4], territoryUpgradeBaseCostsGold.oilWell * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], territoryUpgradeBaseCostsConsMats.oilWell * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const fortGoldCost = Math.max(simulatedCostsAll[6], territoryUpgradeBaseCostsGold.fort * 1.05 * (parseFloat(territory.devIndex) / 4));
+    const fortConsMatsCost = Math.max(simulatedCostsAll[7], territoryUpgradeBaseCostsConsMats.fort * 1.05 * (parseFloat(territory.devIndex) / 4));
 
     // Check if the territory has enough gold and consMats for each upgrade
     const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
@@ -2845,11 +2864,6 @@ function calculateAvailableUpgrades(territory) {
     const hasEnoughConsMatsForForest = territory.consMatsForCurrentTerritory >= forestConsMatsCost;
     const hasEnoughConsMatsForOilWell = territory.consMatsForCurrentTerritory >= oilWellConsMatsCost;
     const hasEnoughConsMatsForFort = territory.consMatsForCurrentTerritory >= fortConsMatsCost;
-
-    const maxFarms = 5;
-    const maxForests = 5;
-    const maxOilWells = 5;
-    const maxForts = 5;
 
     // Create the upgrade row objects based on the availability and gold/consMats conditions
     if (hasEnoughGoldForFarm && hasEnoughConsMatsForFarm && (territory.farmsBuilt < maxFarms)) {
@@ -3601,32 +3615,32 @@ function incrementDecrementUpgrades(textField, increment, upgradeType, territory
     switch (upgradeType) {
         case "Farm":
             currentValueQuantityTemp += farmsBuilt;
-            goldBaseCost = 200;
-            consMatsBaseCost = 500;
+            goldBaseCost = territoryUpgradeBaseCostsGold.farm;
+            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.farm;
             farmsBuilt += increment;
             goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * (territory.devIndex / 4));
             break;
         case "Forest":
             currentValueQuantityTemp += forestsBuilt;
-            goldBaseCost = 200;
-            consMatsBaseCost = 500;
+            goldBaseCost = territoryUpgradeBaseCostsGold.forest;
+            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.forest;
             forestsBuilt += increment;
             goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             break;
         case "Oil Well":
             currentValueQuantityTemp += oilWellsBuilt;
-            goldBaseCost = 1000;
-            consMatsBaseCost = 200;
+            goldBaseCost = territoryUpgradeBaseCostsGold.oilWell;
+            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.oilWell;
             oilWellsBuilt += increment;
             goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             break;
         case "Fort":
             currentValueQuantityTemp += fortsBuilt;
-            goldBaseCost = 500;
-            consMatsBaseCost = 2000;
+            goldBaseCost = territoryUpgradeBaseCostsGold.fort;
+            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.fort;
             fortsBuilt += increment;
             goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
             consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
