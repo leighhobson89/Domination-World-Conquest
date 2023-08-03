@@ -1,4 +1,6 @@
 import {
+    getSiegeObjectFromObject,
+    getSiegeObjectFromPath,
     paths,
     PROBABILITY_THRESHOLD_FOR_SIEGE
 } from "./ui.js";
@@ -16,7 +18,7 @@ import {
     territoryUpgradeBaseCostsConsMats
 } from "./resourceCalculations.js";
 import {
-    calculateProbabilityPreBattle
+    calculateProbabilityPreBattle, siegeObject
 } from "./battle.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
@@ -682,8 +684,6 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                     console.log("working on Economy of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
                     let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
                     let consMatsInTerritory = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
-                    const goldPerTurn = turnGainsArrayAi.changeGold;
-                    const consMatsPerTurn = turnGainsArrayAi.changeConsMats;
                     let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                     const consMatsNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("consMats", refinedTurnGoals, goalIndex);
                     let goldToSpend = determineResourcesAvailableForThisGoal("gold", goldInTerritory, mainArrayFriendlyTerritoryCopy, goldNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
@@ -692,7 +692,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                     goldToSpend = goldToSpend[1];
                     let consMatsToSpend = determineResourcesAvailableForThisGoal("consMats", consMatsInTerritory, mainArrayFriendlyTerritoryCopy, consMatsNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
                     consMatsToSpend = consMatsToSpend[1];
-                    const buildList = analyzeAllocatedResourcesAndPrioritizeUpgrades(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
+                    analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
                 }
                 break;
             case "Bolster":
@@ -830,7 +830,14 @@ function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurren
     return [refinedTurnGoals, resourcesAvailable];
 }
 
-function analyzeAllocatedResourcesAndPrioritizeUpgrades(territory, goldToSpend, consMatsToSpend) {
+function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, goldToSpend, consMatsToSpend) {
+    let siege = getSiegeObjectFromObject(territory);
+    if (siege) {
+        console.log("Cannot upgrade at all if under siege!");
+        console.log("But currently has:  Farm: " + territory.farmsBuilt + " Forest: " + territory.forestsBuilt + " Oil Wells: " + territory.oilWellsBuilt + " Forts:" + territory.fortsBuilt);
+        console.log("Siege version says: Farm: " + siege.defendingTerritory.farmsBuilt + " Forest: " + siege.defendingTerritory.forestsBuilt + " Oil Wells: " + siege.defendingTerritory.oilWellsBuilt + " Forts:" + siege.defendingTerritory.fortsBuilt)
+        return "Sieged";
+    }
     let buildList = [];
     let availableUpgrades = calculateAvailableUpgrades(territory);
     let farm = availableUpgrades[0];
@@ -859,7 +866,9 @@ function analyzeAllocatedResourcesAndPrioritizeUpgrades(territory, goldToSpend, 
         oilWell: {}
     };
 
-    while (buildAgain && (farm.goldCost <= goldToSpend && farm.consMatsCost < consMatsToSpend) || (forest.goldCost <= goldToSpend && forest.consMatsCost < consMatsToSpend) || (oilWell.goldCost <= goldToSpend && oilWell.consMatsCost < consMatsToSpend)) {
+    let forestWorkAround = false; // sometimes the cost of a forest upgrade in consMats is too much for the country when it has max consmats, so this helps it out to allow it to reach max forests and reach its potential
+
+    while (!forestWorkAround && buildAgain && (farm.goldCost <= goldToSpend && farm.consMatsCost < consMatsToSpend) || (forest.goldCost <= goldToSpend && forest.consMatsCost < consMatsToSpend) || (oilWell.goldCost <= goldToSpend && oilWell.consMatsCost < consMatsToSpend)) {
         let farm = availableUpgrades[0];
         let forest = availableUpgrades[1];
         let oilWell = availableUpgrades[2];
@@ -907,6 +916,11 @@ function analyzeAllocatedResourcesAndPrioritizeUpgrades(territory, goldToSpend, 
                 selectedUpgrade = farm;
             } else if (largestDesire[0] === "forest") {
                 selectedUpgrade = forest;
+                if (territory.consMatsCapacity <= territory.consMatsForCurrentTerritory && consMatsToSpend < availableUpgrades[0].consMatsCost) {
+                    consMatsToSpend = territory.consMatsForCurrentTerritory; //work around to help blockage of consmats for ais
+                    forestWorkAround = true;
+                    console.log("boosted consMats spending to get a forest!  This one will be the " + (territory.forestsBuilt + 1) + "th!");
+                }
             } else if (largestDesire[0] === "oilWell") {
                 selectedUpgrade = oilWell;
             }

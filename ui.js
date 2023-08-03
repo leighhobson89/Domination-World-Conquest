@@ -1,11 +1,9 @@
-import {
-    findMatchingCountries
-} from './manualExceptionsForInteractions.js';
+import {findMatchingCountries} from './manualExceptionsForInteractions.js';
 import {
     currentTurn,
     currentTurnPhase,
-    initialiseGame,
     getGameInitialisation,
+    initialiseGame,
     modifyCurrentTurnPhase
 } from './gameTurnsLoop.js';
 import {
@@ -31,9 +29,7 @@ import {
     vehicleArmyPersonnelWorth,
     writeBottomTableInformation
 } from './resourceCalculations.js';
-import {
-    playSoundClip
-} from './sfx.js';
+import {playSoundClip} from './sfx.js';
 import {
     drawAndHandleTransferAttackTable,
     probability,
@@ -43,8 +39,10 @@ import {
     transferQuantitiesArray
 } from './transferAndAttack.js';
 import {
+    addAttackingArmyToRetrievalArray,
     addRemoveWarSiegeObject,
     addWarToHistoricWarArray,
+    calculateSiegeScore,
     currentWarId,
     defendingArmyRemaining,
     defendingTerritory,
@@ -58,6 +56,7 @@ import {
     getUpdatedProbability,
     historicWars,
     nextWarId,
+    playerTurnsDeactivatedArray,
     processRound,
     proportionsOfAttackArray,
     setBattleResolutionOnHistoricWarArrayAfterSiege,
@@ -66,21 +65,16 @@ import {
     setFinalAttackArray,
     setMainArrayToArmyRemaining,
     setMassiveAssaultStatus,
+    setNewWarOnRetrievalArray,
     setNextWarId,
     setResolution,
     setRoutStatus,
     setupBattle,
     setValuesForBattleFromSiegeObject,
     siegeObject,
-    skirmishesPerRound,
-    playerTurnsDeactivatedArray,
-    calculateSiegeScore,
-    setNewWarOnRetrievalArray,
-    addAttackingArmyToRetrievalArray
+    skirmishesPerRound
 } from './battle.js';
-import {
-    removeCanvasIfExist
-} from "./dices.js";
+import {removeCanvasIfExist} from "./dices.js";
 import {
     createCpuPlayerObjectAndAddToMainArray,
     updateArrayOfLeadersAndCountries
@@ -2347,7 +2341,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (!battleStart) {
                     setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 1);
                     proportionsOfAttackArray.length = 0;
-
                     defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
                     defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
                     defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
@@ -2356,6 +2349,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     //update top table army value when leaving battle
 
                 } else {
+                    if (retreatButton.innerHTML === "Pull Out") {
+                        setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 1);
+                    }
                     addWarToHistoricWarArray("Retreat", 0, true);
                 }
 
@@ -3547,12 +3543,6 @@ function panMap(event) {
     }
 }
 
-function fillPathBasedOnTeam(path) {
-    const team = parseInt(path.getAttribute("team"));
-    const color = teamColorArray.find((c) => c[0] === team)[1];
-    path.setAttribute("fill", color);
-}
-
 function setStrokeWidth(path, stroke) {
     path.setAttribute("stroke-width", stroke)
 }
@@ -4606,9 +4596,9 @@ function setupBattleUI(attackArray) {
         }
     } else {
         for (const key in siegeObject) {
-            if (siegeObject[key] === defenderTerritory.getAttribute("territory-name")) {
-                document.getElementById("defenseBonusText").innerHTML = siegeObject[key].defenderTerritory.defenseBonus;
-                document.getElementById("mountainDefenseText").innerHTML = siegeObject[key].defenderTerritory.mountainDefenseBonus;
+            if (siegeObject[key].defendingTerritory.territoryName === defenderTerritory.getAttribute("territory-name")) {
+                document.getElementById("defenseBonusText").innerHTML = siegeObject[key].defendingTerritory.defenseBonus;
+                document.getElementById("mountainDefenseText").innerHTML = siegeObject[key].defendingTerritory.mountainDefenseBonus;
                 break;
             }
         }
@@ -4621,7 +4611,7 @@ function setupBattleUI(attackArray) {
     //INITIALISE BUTTONS
     retreatButton.style.display = "flex";
     advanceButton.style.display = "flex";
-    siegeBottomBarButton.style.display = "none";
+    document.getElementById("siegeBottomBarButton").style.display = "none";
 
     retreatButton.style.width = "50%";
     advanceButton.style.width = "50%";
@@ -4783,9 +4773,7 @@ export function reduceKeywords(str) {
     });
 
     // Join the reduced words back into a string
-    const reducedString = reducedWords.join(' ');
-
-    return reducedString;
+    return reducedWords.join(' ');
 }
 
 export function setRetreatButtonText(situation, button) {
@@ -5183,6 +5171,8 @@ export function getSiegeObjectFromPath(territory) {
 export function getSiegeObjectFromObject(territory) {
     if (territory.territoryName in siegeObject) {
         return siegeObject[territory.territoryName];
+    } else {
+        return false;
     }
 }
 
@@ -5730,6 +5720,7 @@ export function endPlayerTurn() {
 }
 
 export function initialiseNewPlayerTurn() {
+    populateBottomTableWhenSelectingACountry(getLastClickedPath());
     document.getElementById("popup-confirm").disabled = false;
     if (siegeObject) {
         for (const key in siegeObject) {

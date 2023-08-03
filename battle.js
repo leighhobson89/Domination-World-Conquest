@@ -861,6 +861,14 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
         let isDuplicate = false;
         for (const key in siegeObject) {
             if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
+                for (let i = 0; i < mainGameArray.length; i++) { //copy back updated number of buildings after siege
+                    if (mainGameArray[i].territoryName === siegeObject[key].defendingTerritory.territoryName) {
+                        mainGameArray[i].farmsBuilt = siegeObject[key].defendingTerritory.farmsBuilt;
+                        mainGameArray[i].forestsBuilt = siegeObject[key].defendingTerritory.forestsBuilt;
+                        mainGameArray[i].oilWellsBuilt = siegeObject[key].defendingTerritory.oilWellsBuilt;
+                        mainGameArray[i].fortsBuilt = siegeObject[key].defendingTerritory.fortsBuilt;
+                    }
+                }
                 isDuplicate = historicWars.some(obj => obj.warId === warId);
                 if (!isDuplicate) {
                     historicWars.push(siegeObject[key]);
@@ -1027,6 +1035,42 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
     const difference = totalSiegeScore - (defenseBonusAttackedTerritory + mountainDefenseBonusAttackedTerritory);
     let arrested;
 
+    // Resource destruction counters
+    const resources = [
+        {
+            name: "forts",
+            destroyedCounter: 0,
+            messages: {
+                multiple: "forts destroyed!",
+                single: "a fort destroyed!"
+            }
+        },
+        {
+            name: "farms",
+            destroyedCounter: 0,
+            messages: {
+                multiple: "farms destroyed!",
+                single: "a farm destroyed!"
+            }
+        },
+        {
+            name: "forests",
+            destroyedCounter: 0,
+            messages: {
+                multiple: "forests destroyed!",
+                single: "a forest destroyed!"
+            }
+        },
+        {
+            name: "oil wells",
+            destroyedCounter: 0,
+            messages: {
+                multiple: "oil wells destroyed!",
+                single: "an oil well destroyed!"
+            }
+        }
+    ];
+
     // Define the sliding scale probabilities
     const slidingScale = [{
         scoreDifference: 0,
@@ -1054,32 +1098,52 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
         },
     ];
 
-    let fortsDestroyed = 0;
     let collateralDamage;
 
     // Find the appropriate destroy probability based on the difference
     const destroyProbability = slidingScale.reduce((acc, scale) => (difference >= scale.scoreDifference ? scale.destroyProbability : acc), 0);
 
     // Generate a random number and compare it with the destroy probability
+
     console.log("difference: " + difference);
     if (Math.random() < destroyProbability) {
         // Determine the number of forts to destroy based on the sliding scale
         if (difference >= 200) {
-            console.log("2 forts destroyed!");
-            fortsDestroyed = 2;
+            collateralDamage = calculateCollateralDamage(difference);
+            // First 70:30 chance
+            if (Math.random() > 0.3) {
+                const resourceIndex = Math.floor(Math.random() * resources.length);
+                const resource = resources[resourceIndex];
+                resource.destroyedCounter += 1;
+                console.log(`1 ${resource.name} destroyed!`);
+            }
+
+            // Second 50:50 chance
+            if (Math.random() > 0.5) {
+                const resourceIndex = Math.floor(Math.random() * resources.length);
+                const resource = resources[resourceIndex];
+                resource.destroyedCounter += 1;
+                console.log(`1 ${resource.name} destroyed!`);
+            }
         } else if (difference >= 50) {
-            console.log("a fort destroyed!");
-            fortsDestroyed = 1;
+            collateralDamage = calculateCollateralDamage(difference);
+
+            // Single 50:50 chance
+            if (Math.random() > 0.5) {
+                const resourceIndex = Math.floor(Math.random() * resources.length);
+                const resource = resources[resourceIndex];
+                resource.destroyedCounter += 1;
+                console.log(`1 ${resource.name} destroyed!`);
+            }
         }
-        collateralDamage = calculateCollateralDamage(difference);
     } else {
         console.log("collateral damage only!");
         collateralDamage = calculateCollateralDamage(difference);
     }
     const foodCapacityDestroyed = Math.floor(siegeObject.defendingTerritory.foodCapacity * collateralDamage / 100);
     collateralDamage === 0 ? arrested = true : arrested = false;
-    const damage = [fortsDestroyed, foodCapacityDestroyed, arrested];
-    console.log("Damage Done: " + fortsDestroyed + " forts destroyed and " + foodCapacityDestroyed + " reduced from food capacity, representing a " + collateralDamage + "% fall");
+    const damage = [resources, foodCapacityDestroyed, arrested];
+    console.log(foodCapacityDestroyed + " reduced from food capacity, representing a " + collateralDamage + "% fall");
 
     return damage;
 }
@@ -1154,11 +1218,27 @@ export function handleEndSiegeDueArrest(siege) {
 }
 
 function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
-    if (siege.defendingTerritory.fortsBuilt >= damage[0]) { //remove forts
-        siege.defendingTerritory.fortsBuilt -= damage[0];
+    if (siege.defendingTerritory.fortsBuilt >= damage[0][0].destroyedCounter) { //remove forts
+        siege.defendingTerritory.fortsBuilt -= damage[0][0].destroyedCounter;
     } else {
         siege.defendingTerritory.fortsBuilt = 0;
     }
+    if (siege.defendingTerritory.farmsBuilt >= damage[0][1].destroyedCounter) { //remove farms
+        siege.defendingTerritory.farmsBuilt -= damage[0][1].destroyedCounter;
+    } else {
+        siege.defendingTerritory.farmsBuilt = 0;
+    }
+    if (siege.defendingTerritory.forestsBuilt >= damage[0][2].destroyedCounter) { //remove forests
+        siege.defendingTerritory.forestsBuilt -= damage[0][2].destroyedCounter;
+    } else {
+        siege.defendingTerritory.forestsBuilt = 0;
+    }
+    if (siege.defendingTerritory.oilWellsBuilt >= damage[0][3].destroyedCounter) { //remove forts
+        siege.defendingTerritory.oilWellsBuilt -= damage[0][3].destroyedCounter;
+    } else {
+        siege.defendingTerritory.oilWellsBuilt = 0;
+    }
+    console.log("remaining farm: " + siege.defendingTerritory.farmsBuilt + " forest: " + siege.defendingTerritory.forestsBuilt + " oilwell: " + siege.defendingTerritory.oilWellsBuilt + " fort: " + siege.defendingTerritory.fortsBuilt);
     //recalculate defense bonus
     siege.defendingTerritory.defenseBonus = Math.ceil((siege.defendingTerritory.fortsBuilt * (siege.defendingTerritory.fortsBuilt + 1) * 10) * siege.defendingTerritory.devIndex + siege.defendingTerritory.isLandLockedBonus);
 
