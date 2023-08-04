@@ -698,6 +698,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                         goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
                         console.log("gold left over for army / economy (if still to build): " + goldToSpend);
+                        bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
                     }
                 }
                 break;
@@ -1073,4 +1074,23 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
 
     territory.fortsBuilt += fortBuildCount;
     return goldToSpend;
+}
+
+function bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend) {
+        // add army costs to a constant for whole project
+        // if can afford at least 10 infantry
+            // spend 10% on infantry
+            // read in oil cap / demand
+            // work out oil demand spare
+            // while there is enough gold && while there is enough prod pop
+            // if coastal, build up to 25% of oil demand as naval
+            // if coastal, build up to 25% of oil demand as air, 25% assault
+            // if not coastal, build up to 35% of oil demand as air, 35% assault
+            // end loop
+            // check remaining gold
+            // buy infantry with rest
+        //else
+            //buy all infantry
+
+    //LEAVE COMMENT - Be aware of goldCostPerTurn of army if ai stops generating gold or goes negative
 }
