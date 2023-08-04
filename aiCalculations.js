@@ -672,42 +672,30 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                 }
                 break;
             case "Bolster":
-                let switchFactor = false; //this allows pacifist and balanced leaders a chance to reorder economy and bolster goals
-                if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "aggressive") {
-                    switchFactor = false;
-                } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "balanced") {
-                    switchFactor = Math.random() > 0.5;
-                } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "pacifist") {
-                    switchFactor = Math.random() > 0.25;
-                }
-                if (switchFactor) {
-                    const economyGoalIndex = refinedTurnGoals.findIndex((g, index) => index > goalIndex && g[1] === "Economy");
-                    if (economyGoalIndex !== -1) {
-                        const economyGoal = refinedTurnGoals[economyGoalIndex];
-                        refinedTurnGoals[economyGoalIndex] = goal;
-                        refinedTurnGoals[goalIndex] = economyGoal;
-                        goalIndex--; // Decrement the index to re-visit the newly swapped "Bolster" goal
-                        continue;
+                let switched = false; //this allows pacifist and balanced leaders a chance to reorder economy and bolster goals
+                switched = calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy, refinedTurnGoals, goalIndex, goal);
+                if (switched) {
+                    goalIndex--;
+                    continue;
+                } else {
+                    if (!bolsterBenefitArray.includes(goal[2])) {
+                        bolsterBenefitArray.push(goal[2]);
+                        console.log("bolstering Defences of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
+                        let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
+                        console.log("BOLSTER gold in territory:" + goldInTerritory);
+                        let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                        let goldToSpend = determineResourcesAvailableForThisGoal("gold", goldInTerritory, mainArrayFriendlyTerritoryCopy, goldNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
+                        let prodPopToSpend = mainArrayFriendlyTerritoryCopy.productiveTerritoryPop;
+                        refinedTurnGoals = goldToSpend[0];
+                        goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                        goldToSpend = goldToSpend[1];
+                        console.log("Gold to spend on this BOLSTER = " + goldToSpend);
+                        //DEBUG
+                        arrayOfGoldToSpendOnBolster.push(goldToSpend);
+                        //
+                        console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
+                        couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                     }
-                }
-
-                if (!bolsterBenefitArray.includes(goal[2])) {
-                    bolsterBenefitArray.push(goal[2]);
-                    console.log("bolstering Defences of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
-                    console.log("BOLSTER gold in territory:" + goldInTerritory);
-                    let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
-                    let goldToSpend = determineResourcesAvailableForThisGoal("gold", goldInTerritory, mainArrayFriendlyTerritoryCopy, goldNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
-                    let prodPopToSpend = mainArrayFriendlyTerritoryCopy.productiveTerritoryPop;
-                    refinedTurnGoals = goldToSpend[0];
-                    goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
-                    goldToSpend = goldToSpend[1];
-                    console.log("Gold to spend on this BOLSTER = " + goldToSpend);
-                    //DEBUG
-                    arrayOfGoldToSpendOnBolster.push(goldToSpend);
-                    //
-                    console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
-                    couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                 }
                 break;
             case "Siege":
@@ -1019,3 +1007,25 @@ export function setDebugArraysToZero() {
     arrayOfGoldToSpendOnBolster.length = 0;
 }
 //
+
+function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy, refinedTurnGoals, goalIndex, goal) {
+    let updated = false;
+    let switchFactor = false;
+    if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "aggressive") {
+        switchFactor = false;
+    } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "balanced") {
+        switchFactor = Math.random() > 0.5;
+    } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "pacifist") {
+        switchFactor = Math.random() > 0.25;
+    }
+    if (switchFactor) {
+        const economyGoalIndex = refinedTurnGoals.findIndex((g, index) => index > goalIndex && g[1] === "Economy");
+        if (economyGoalIndex !== -1) {
+            const economyGoal = refinedTurnGoals[economyGoalIndex];
+            refinedTurnGoals[economyGoalIndex] = goal;
+            refinedTurnGoals[goalIndex] = economyGoal;
+            updated = true;
+        }
+    }
+    return updated;
+}
