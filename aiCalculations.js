@@ -4,7 +4,7 @@ import {
     calculateAvailableUpgrades,
     mainGameArray,
     maxFarms,
-    maxForests,
+    maxForests, maxForts,
     maxOilWells,
     territoryUpgradeBaseCostsConsMats,
     territoryUpgradeBaseCostsGold,
@@ -689,12 +689,15 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                         refinedTurnGoals = goldToSpend[0];
                         goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                         goldToSpend = goldToSpend[1];
-                        console.log("Gold to spend on this BOLSTER = " + goldToSpend);
+                        let consMatsToSpend = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
+                            console.log("Gold to spend on this BOLSTER = " + goldToSpend);
                         //DEBUG
                         arrayOfGoldToSpendOnBolster.push(goldToSpend);
                         //
                         console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
+                        goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
+                        console.log("gold left over for army / economy (if still to build): " + goldToSpend);
                     }
                 }
                 break;
@@ -859,7 +862,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
     availableUpgrades[2].goldCost = Math.ceil((oilWellGoldBaseCost * (territory.oilWellsBuilt + 1) * ((territory.oilWellsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
     availableUpgrades[2].consMatsCost = Math.ceil((oilWellConsMatsBaseCost * (territory.oilWellsBuilt + 1)  * ((territory.oilWellsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
 
-    let buildAgain = (Math.random() * 10 + 1) >= 5;
+    let buildAgain = Math.random() > 0.5;
 
     let points = {
         farm: {},
@@ -1028,4 +1031,46 @@ function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy
         }
     }
     return updated;
+}
+
+function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
+    let siege = getSiegeObjectFromObject(territory);
+    if (siege) {
+        console.log("Cannot upgrade at all if under siege!");
+        console.log("But currently has:  Fort: " + territory.fortsBuilt);
+        console.log("Siege version says: Fort: " + siege.defendingTerritory.fortsBuilt);
+        return "Sieged";
+    }
+    let availableUpgrades = calculateAvailableUpgrades(territory);
+    let fort = availableUpgrades[3];
+
+    let fortBaseCostGold = territoryUpgradeBaseCostsGold.fort;
+    let fortBaseCostConsMats = territoryUpgradeBaseCostsConsMats.fort;
+
+    fort.goldCost = Math.ceil((fortBaseCostGold * (territory.fortsBuilt + 1) * ((territory.fortsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
+    fort.consMatsCost = Math.ceil((fortBaseCostConsMats * (territory.fortsBuilt + 1)  * ((territory.fortsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
+
+    let fortDesire = Math.random() > 0.5;
+
+    let fortBuildCount = 0;
+    while ((territory.fortsBuilt < maxForts) && (fort.goldCost < goldToSpend) && (fort.consMatsCost < consMatsToSpend) && fortDesire) {
+        fortBuildCount++;
+        goldToSpend -= fort.goldCost;
+        territory.goldForCurrentTerritory -= fort.goldCost;
+        territory.consMatsForCurrentTerritory -= fort.consMatsCost;
+        fortDesire = Math.random() > 0.5;
+    }
+    if (fortBuildCount > 0) {
+        console.log("Built " + fortBuildCount + " forts on this territory this turn!");
+    } else if (fortDesire && territory.fortsBuilt < maxForts) {
+        console.log("Wanted to build fort but couldn't due to resources!");
+        goldToSpend /= 2; //save half of money for next time or economy
+    } else if (fortDesire) {
+        console.log("Wanted to build fort but couldn't as already have max!");
+    } else {
+        console.log("Didn't want to build a fort!");
+    }
+
+    territory.fortsBuilt += fortBuildCount;
+    return goldToSpend;
 }

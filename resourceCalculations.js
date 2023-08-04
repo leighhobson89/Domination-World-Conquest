@@ -123,15 +123,15 @@ export const vehicleArmyPersonnelWorth = {
 export const territoryUpgradeBaseCostsGold = {
     farm: 200,
     forest: 200,
-    oilWell: 1000,
-    fort: 500,
+    oilWell: 1100,
+    fort: 1000,
 }
 
 export const territoryUpgradeBaseCostsConsMats = {
     farm: 500,
     forest: 500,
     oilWell: 200,
-    fort: 2000,
+    fort: 600,
 }
 
 export const maxFarms = 5;
@@ -352,7 +352,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             // console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
-            let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 300);
+            let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 500);
             let consMatsCapacity = consMatsForCurrentTerritory;
             let farmsBuilt = 0;
             let oilWellsBuilt = 0;
