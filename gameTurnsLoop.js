@@ -42,9 +42,14 @@ import {
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
     calculateTurnGoals,
-    convertAttackableArrayStringsToMainArrayObjects, doAiActions,
-    getFriendlyTerritoriesDefenseScores, prioritiseTurnGoalsBasedOnPersonality,
-    readClosestPointsJSON, refineTurnGoals,
+    convertAttackableArrayStringsToMainArrayObjects,
+    doAiActions,
+    getArrayOfGoldToSpendOnBolster,
+    getArrayOfGoldToSpendOnEconomy,
+    getFriendlyTerritoriesDefenseScores,
+    prioritiseTurnGoalsBasedOnPersonality,
+    readClosestPointsJSON,
+    refineTurnGoals, setDebugArraysToZero,
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -226,10 +231,9 @@ async function handleAITurn() {
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
         // at this point the ai has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
-
         refinedTurnGoals = doAiActions(refinedTurnGoals, leader, turnGainsArrayAi); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculating
 
-        // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army) and economy to achieve turn goal
+        // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army)
         // TODO: Spend resources on upgrades and army for each territory owned
         // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal
         // TODO: Based on personality, turn goal, new resources after update, and probability, decide if going to attack anyone
@@ -241,6 +245,11 @@ async function handleAITurn() {
         // TODO: Based on threat, move available army around between available owned territories
         // TODO: Assess if turn goal was realised and update long-term goal if necessary
     }
+    //DEBUG
+    logGoldStats(getArrayOfGoldToSpendOnEconomy(), "Economy");
+    logGoldStats(getArrayOfGoldToSpendOnBolster(), "Bolster");
+    setDebugArraysToZero();
+    //
     console.log("AI DONE!"); // Placeholder message for AI turn completed
     initialiseNewPlayerTurn();
 
@@ -337,3 +346,47 @@ export function modifyCurrentTurnPhase(value) {
 export function getGameInitialisation() {
     return gameInitialisation;
 }
+
+//DEBUG
+function logGoldStats(arr, name) {
+    // Sort the array in ascending order to find the five smallest values
+    const sortedAscending = arr.slice().sort((a, b) => a - b);
+    const smallest = sortedAscending.slice(0, 10); //change last number for more/less output
+
+    // Sort the array in descending order to find the five largest values
+    const sortedDescending = arr.slice().sort((a, b) => b - a);
+    const largest = sortedDescending.slice(0, 10); //change last number for more/less output
+
+    // Calculate the average of all values in the array
+    const sum = arr.reduce((total, value) => total + value, 0);
+    const average = sum / arr.length;
+
+    // Calculate the median
+    const middleIndex = Math.floor(arr.length / 2);
+    const median = arr.length % 2 === 0 ? (arr[middleIndex - 1] + arr[middleIndex]) / 2 : arr[middleIndex];
+
+    // Calculate the mode
+    const frequencyMap = {};
+    arr.forEach((value) => {
+        frequencyMap[value] = (frequencyMap[value] || 0) + 1;
+    });
+    let mode;
+    let maxFrequency = 0;
+    for (const key in frequencyMap) {
+        if (frequencyMap[key] > maxFrequency) {
+            mode = key;
+            maxFrequency = frequencyMap[key];
+        }
+    }
+
+    // Log the information
+    console.log(
+        name +
+        "ECONOMY GOLD: Min 10 values: " + smallest.join(", ") +
+        " Max 10 values: " + largest.join(", ") +
+        " AVERAGE: " + average +
+        " MEDIAN: " + median +
+        " MODE: " + mode
+    );
+}
+//

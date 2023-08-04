@@ -1,28 +1,24 @@
-import {
-    getSiegeObjectFromObject,
-    getSiegeObjectFromPath,
-    paths,
-    PROBABILITY_THRESHOLD_FOR_SIEGE
-} from "./ui.js";
-import {
-    findMatchingCountries
-} from "./manualExceptionsForInteractions.js";
+import {getSiegeObjectFromObject, paths, PROBABILITY_THRESHOLD_FOR_SIEGE} from "./ui.js";
+import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
 import {
     calculateAvailableUpgrades,
     mainGameArray,
-    vehicleArmyPersonnelWorth,
     maxFarms,
     maxForests,
     maxOilWells,
+    territoryUpgradeBaseCostsConsMats,
     territoryUpgradeBaseCostsGold,
-    territoryUpgradeBaseCostsConsMats
+    vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
-import {
-    calculateProbabilityPreBattle, siegeObject
-} from "./battle.js";
+import {calculateProbabilityPreBattle} from "./battle.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
+
+//DEBUG
+let arrayOfGoldToSpendOnEconomy = [];
+let arrayOfGoldToSpendOnBolster = [];
+//
 
 function parseJSON(jsonData) {
     try {
@@ -267,7 +263,6 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
 
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
     let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
-    let possibleGoals = [];
     sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
     const leaderTraits = sortedThreatArrayInfo[0][2].leader.traits;
     // console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
@@ -276,8 +271,7 @@ export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
     // console.log(leaderTraits);
     sortedThreatArrayInfo = removeNonThreats(sortedThreatArrayInfo);
     sortedThreatArrayInfo = addProbabilitiesOfBattle(sortedThreatArrayInfo);
-    possibleGoals = getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
-    return possibleGoals;
+    return getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
 }
 
 function organizeThreats(arrayOfTerritoriesInRangeThreats) {
@@ -535,7 +529,6 @@ export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentA
     // console.log("Before:");
     // console.log(refinedTurnGoals);
     refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits);
-    refinedTurnGoals = resortAfterPrioritisation(refinedTurnGoals);
     refinedTurnGoals = removeDoubleAttackSiege(refinedTurnGoals);
     // console.log("After:");
     // console.log(refinedTurnGoals);
@@ -589,29 +582,6 @@ function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry
     return refinedTurnsGoals;
 }
 
-function resortAfterPrioritisation(array) {
-    const siegeAttackSection = [];
-    const economySection = [];
-    const bolsterSection = [];
-
-    for (let i = 0; i < array.length; i++) {
-        const sectionType = array[i][1];
-        if (sectionType === "Siege" || sectionType === "Attack") {
-            siegeAttackSection.push(array[i]);
-        } else if (sectionType === "Economy") {
-            economySection.push(array[i]);
-        } else if (sectionType === "Bolster") {
-            bolsterSection.push(array[i]);
-        }
-    }
-
-    siegeAttackSection.sort((a, b) => a[4] - b[4]);
-
-    bolsterSection.sort((a, b) => b[6] - a[6]);
-
-    return [...siegeAttackSection, ...economySection, ...bolsterSection];
-}
-
 function removeDoubleAttackSiege(arr) {
     const seenLocations = new Set();
     const seenCountries = new Set();
@@ -645,18 +615,18 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
 
     console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
 
-    for (const goal of refinedTurnGoals) {
-        const goalIndex = refinedTurnGoals.indexOf(goal);
+    for (let goalIndex = 0; goalIndex < refinedTurnGoals.length; goalIndex++) {
+        const goal = refinedTurnGoals[goalIndex];
+        let couldNotAffordEconomy = false;
         let mainArrayFriendlyTerritoryCopy = "no match";
         let mainArrayEnemyTerritoryCopy = "no match";
 
-        for (let i = 0; i < mainGameArray.length; i++) {
+        for (let i = 0; i < mainGameArray.length; i++) {  //find territory depending on action
             let count = 0;
             if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
                 mainArrayFriendlyTerritoryCopy = {
                     ...mainGameArray[i]
                 };
-                console.log("copied " + mainArrayFriendlyTerritoryCopy.territoryName);
                 break;
             } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
                 mainArrayFriendlyTerritoryCopy = {
@@ -683,6 +653,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                     economyBenefitArray.push(goal[2]);
                     console.log("working on Economy of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
                     let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
+                    console.log("ECONOMY gold in territory:" + goldInTerritory);
                     let consMatsInTerritory = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
                     let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                     const consMatsNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("consMats", refinedTurnGoals, goalIndex);
@@ -690,15 +661,53 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                     refinedTurnGoals = goldToSpend[0];
                     goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                     goldToSpend = goldToSpend[1];
+                    //DEBUG
+                    arrayOfGoldToSpendOnEconomy.push(goldToSpend);
+                    //
                     let consMatsToSpend = determineResourcesAvailableForThisGoal("consMats", consMatsInTerritory, mainArrayFriendlyTerritoryCopy, consMatsNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
                     consMatsToSpend = consMatsToSpend[1];
-                    analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
+                    console.log("Gold to spend on this ECONOMY = " + goldToSpend);
+                    console.log("ConsMats to spend on this ECONOMY = " + consMatsToSpend);
+                    couldNotAffordEconomy = analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
                 }
                 break;
             case "Bolster":
+                let switchFactor = false; //this allows pacifist and balanced leaders a chance to reorder economy and bolster goals
+                if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "aggressive") {
+                    switchFactor = false;
+                } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "balanced") {
+                    switchFactor = Math.random() > 0.5;
+                } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "pacifist") {
+                    switchFactor = Math.random() > 0.25;
+                }
+                if (switchFactor) {
+                    const economyGoalIndex = refinedTurnGoals.findIndex((g, index) => index > goalIndex && g[1] === "Economy");
+                    if (economyGoalIndex !== -1) {
+                        const economyGoal = refinedTurnGoals[economyGoalIndex];
+                        refinedTurnGoals[economyGoalIndex] = goal;
+                        refinedTurnGoals[goalIndex] = economyGoal;
+                        goalIndex--; // Decrement the index to re-visit the newly swapped "Bolster" goal
+                        continue;
+                    }
+                }
+
                 if (!bolsterBenefitArray.includes(goal[2])) {
                     bolsterBenefitArray.push(goal[2]);
                     console.log("bolstering Defences of " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
+                    let goldInTerritory = mainArrayFriendlyTerritoryCopy.goldForCurrentTerritory;
+                    console.log("BOLSTER gold in territory:" + goldInTerritory);
+                    let goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                    let goldToSpend = determineResourcesAvailableForThisGoal("gold", goldInTerritory, mainArrayFriendlyTerritoryCopy, goldNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
+                    let prodPopToSpend = mainArrayFriendlyTerritoryCopy.productiveTerritoryPop;
+                    refinedTurnGoals = goldToSpend[0];
+                    goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
+                    goldToSpend = goldToSpend[1];
+                    console.log("Gold to spend on this BOLSTER = " + goldToSpend);
+                    //DEBUG
+                    arrayOfGoldToSpendOnBolster.push(goldToSpend);
+                    //
+                    console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
+                    couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                 }
                 break;
             case "Siege":
@@ -804,7 +813,8 @@ function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurren
                             }
                         } else {
                             proportionsPercentageArray.length = 0;
-                            count++; //only do this if the only bolster to do in future was a negative value and we removed it so can assume no Bolster and can just divide the money into the rest of the counts
+                            console.log("any bolsters for this territory will receive just what is left over after economy as they are a negative mean threat level");
+                            count++; //only do this if the only bolster to do in future was a negative value, and we removed it so can assume no Bolster and can just divide the money into the rest of the counts
                         }
 
                         //match one of the proportions up with the current refinedTurnGoals element and send the value back
@@ -838,6 +848,9 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         console.log("Siege version says: Farm: " + siege.defendingTerritory.farmsBuilt + " Forest: " + siege.defendingTerritory.forestsBuilt + " Oil Wells: " + siege.defendingTerritory.oilWellsBuilt + " Forts:" + siege.defendingTerritory.fortsBuilt)
         return "Sieged";
     }
+
+    let couldNotAffordEconomy = false;
+
     let buildList = [];
     let availableUpgrades = calculateAvailableUpgrades(territory);
     let farm = availableUpgrades[0];
@@ -868,6 +881,11 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
 
     let forestWorkAround = false; // sometimes the cost of a forest upgrade in consMats is too much for the country when it has max consmats, so this helps it out to allow it to reach max forests and reach its potential
 
+    if (farm.goldCost > goldToSpend && forest.goldCost > goldToSpend && oilWell.goldCost > goldToSpend) {
+        couldNotAffordEconomy = true;
+    }
+    console.log("GOLD cost: Farm: " + farm.goldCost + " Forest: " + forest.goldCost + " OilWell: " + oilWell.goldCost);
+    console.log("CONSMATS cost: Farm: " + farm.consMatsCost + " Forest: " + forest.consMatsCost + " OilWell: " + oilWell.consMatsCost);
     while (!forestWorkAround && buildAgain && (farm.goldCost <= goldToSpend && farm.consMatsCost < consMatsToSpend) || (forest.goldCost <= goldToSpend && forest.consMatsCost < consMatsToSpend) || (oilWell.goldCost <= goldToSpend && oilWell.consMatsCost < consMatsToSpend)) {
         let farm = availableUpgrades[0];
         let forest = availableUpgrades[1];
@@ -907,9 +925,18 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         points.oilWell.value = 0;
 
         let objectProperty = largestDesire[0] + "sBuilt";
-        console.log("Farmpoints: " + points.farm.value + " ForestPoints: " + points.forest.value + " OilWellPoints: " + points.oilWell.value);
+        console.log("Farm Points: " + points.farm.value + " Forest Points: " + points.forest.value + " OilWell Points: " + points.oilWell.value);
 
-        if (largestDesire[1] !== -Infinity && territory[objectProperty] < maxFarms) { //this will need reworking if max<Building> ar not all the same i.e. 5
+        let maxType;
+        if (largestDesire[0] === "farm") {
+            maxType = maxFarms;
+        } else if (largestDesire[0] === "forest") {
+            maxType = maxForests;
+        } else if (largestDesire[0] === "oilWell") {
+            maxType = maxOilWells;
+        }
+
+        if (largestDesire[1] !== -Infinity && territory[objectProperty] < maxType) {
             console.log("Opting to build: " + largestDesire[0])
             let selectedUpgrade;
             if (largestDesire[0] === "farm") {
@@ -917,7 +944,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             } else if (largestDesire[0] === "forest") {
                 selectedUpgrade = forest;
                 if (territory.consMatsCapacity <= territory.consMatsForCurrentTerritory && consMatsToSpend < availableUpgrades[0].consMatsCost) {
-                    consMatsToSpend = territory.consMatsForCurrentTerritory; //work around to help blockage of consmats for ais
+                    consMatsToSpend = territory.consMatsForCurrentTerritory; //work around to help blockage of consmats for AIs
                     forestWorkAround = true;
                     console.log("boosted consMats spending to get a forest!  This one will be the " + (territory.forestsBuilt + 1) + "th!");
                 }
@@ -968,12 +995,27 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             break;
         }
     }
-    buildList.length > 0 ? console.log("Upgrading Complete for " + territory.territoryName) : console.log("Couldn't afford anything, saving gold and/or cons mats");
+    buildList.length > 0 ? console.log("Upgrading Complete for " + territory.territoryName) : console.log("Couldn't complete any upgrades, lacked one or other resource");
     console.log("Built: ");
     for (const buildListKey in buildList) {
         let name = buildList[buildListKey][0];
         console.log(name);
     }
     console.log("Now have Farms: " + territory.farmsBuilt + " Forests: " + territory.forestsBuilt + " OilWells " + territory.oilWellsBuilt);
-    return buildList;
+    return couldNotAffordEconomy;
 }
+
+//DEBUG
+export function getArrayOfGoldToSpendOnEconomy() {
+    return arrayOfGoldToSpendOnEconomy;
+}
+
+export function getArrayOfGoldToSpendOnBolster() {
+    return arrayOfGoldToSpendOnBolster;
+}
+
+export function setDebugArraysToZero() {
+    arrayOfGoldToSpendOnEconomy.length = 0;
+    arrayOfGoldToSpendOnBolster.length = 0;
+}
+//
