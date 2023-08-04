@@ -699,7 +699,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                         goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
                         console.log("gold left over for army / economy (if still to build): " + goldToSpend);
-                        //bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
+                        bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
                     }
                 }
                 break;
@@ -1072,6 +1072,7 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
     } else {
         console.log("Didn't want to build a fort!");
     }
+    console.log("Territory has " + territory.fortsBuilt + " forts now");
 
     territory.fortsBuilt += fortBuildCount;
     return goldToSpend;
@@ -1081,7 +1082,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     const roundedGoldToSpend = Math.floor(goldToSpend / 10) * 10;
     goldToSpend = roundedGoldToSpend;
     let initialInfantryGold;
-    let initialInfantryProdPop;
+    let initialInfantryProdPop = 0;
     let finalInfantryProdPop;
 
     let navalBoughtCounter = 0;
@@ -1170,11 +1171,12 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
         goldToSpend = roundedGoldToSpend;
         while (goldToSpend > 0 && prodPopToSpend > 0) {
             if (goldToSpend > armyGoldPrices.infantry && prodPopToSpend > armyProdPopPrices.infantry) {
-                territory.infantryForCurrentTerritory += INFANTRY_IN_A_TROOP;
+                territory.infantryForCurrentTerritory += armyProdPopPrices.infantry;
                 territory.goldForCurrentTerritory -= armyGoldPrices.infantry;
                 territory.productiveTerritoryPop -= armyProdPopPrices.infantry;
                 goldToSpend -= armyGoldPrices.infantry;
                 prodPopToSpend -= armyProdPopPrices.infantry;
+                initialInfantryProdPop += armyProdPopPrices.infantry;
             } else {
                 break;
             }

@@ -565,7 +565,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
 
                 if (path.getAttribute("uniqueid") === defendingTerritoryId) {
                     changeGold = calculateGoldChange(mainGameArray[i], false, false);
-                    changeGold -= calculateArmyMaintenanceCostPerTurn(mainGameArray[i]);
+                    // changeGold -= calculateArmyMaintenanceCostPerTurn(mainGameArray[i]);
                     changeOil = calculateOilChange(mainGameArray[i], false);
                     changeFood = calculateFoodChange(mainGameArray[i], false, false);
                     changeConsMats = calculateConsMatsChange(mainGameArray[i], false);
