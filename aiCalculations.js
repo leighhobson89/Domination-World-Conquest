@@ -1,7 +1,8 @@
 import {getSiegeObjectFromObject, paths, PROBABILITY_THRESHOLD_FOR_SIEGE} from "./ui.js";
 import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
 import {
-    calculateAvailableUpgrades,
+    armyGoldPrices,
+    calculateAvailableUpgrades, INFANTRY_IN_A_TROOP,
     mainGameArray,
     maxFarms,
     maxForests, maxForts,
@@ -1076,21 +1077,31 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
     return goldToSpend;
 }
 
-function bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend) {
-        // add army costs to a constant for whole project
-        // if can afford at least 10 infantry
-            // spend 10% on infantry
-            // read in oil cap / demand
-            // work out oil demand spare
-            // while there is enough gold && while there is enough prod pop
-            // if coastal, build up to 25% of oil demand as naval
-            // if coastal, build up to 25% of oil demand as air, 25% assault
-            // if not coastal, build up to 35% of oil demand as air, 35% assault
-            // end loop
-            // check remaining gold
-            // buy infantry with rest
-        //else
-            //buy all infantry
+function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
+    const roundedGoldToSpend = Math.floor(goldToSpend / 10) * 10;
+    let initialInfantryGold;
+    let initialInfantryProdPop;
+
+    if (goldToSpend >= armyGoldPrices.infantry * 10) { // if can afford at least 10 infantry
+        initialInfantryGold = (roundedGoldToSpend / 100) * 10;
+        // read in oil cap / demand
+        // work out oil demand spare
+        // while there is enough gold && while there is enough prod pop
+        // if coastal, build up to 25% of oil demand as naval
+        // if coastal, build up to 25% of oil demand as air, 25% assault
+        // if not coastal, build up to 35% of oil demand as air, 35% assault
+        // end loop
+        // check remaining gold
+        // buy infantry with rest
+    } else { //only buy infantry
+        initialInfantryGold = roundedGoldToSpend;
+    }
+    initialInfantryProdPop = (initialInfantryGold / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
+
+    territory.infantryForCurrentTerritory += initialInfantryProdPop;
+    territory.goldForCurrentTerritory -= initialInfantryGold;
+    territory.productiveTerritoryPop -= initialInfantryProdPop;
+    territory.armyForCurrentTerritory += initialInfantryProdPop;
 
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if ai stops generating gold or goes negative
 }

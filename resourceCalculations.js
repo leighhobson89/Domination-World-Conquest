@@ -100,6 +100,8 @@ export let turnGainsArrayPlayer = {
 
 export let turnGainsArrayAi = {};
 
+export const INFANTRY_IN_A_TROOP = 1000;
+
 export const armyGoldPrices = {
     infantry: 10,
     assault: 50,
@@ -108,7 +110,7 @@ export const armyGoldPrices = {
 }
 
 export const armyProdPopPrices = {
-    infantry: 1000,
+    infantry: INFANTRY_IN_A_TROOP,
     assault: 100,
     air: 300,
     naval: 1000
