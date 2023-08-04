@@ -1,12 +1,12 @@
 import {getSiegeObjectFromObject, paths, PROBABILITY_THRESHOLD_FOR_SIEGE} from "./ui.js";
 import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
 import {
-    armyGoldPrices,
+    armyGoldPrices, armyProdPopPrices,
     calculateAvailableUpgrades, INFANTRY_IN_A_TROOP,
     mainGameArray,
     maxFarms,
     maxForests, maxForts,
-    maxOilWells,
+    maxOilWells, oilRequirements,
     territoryUpgradeBaseCostsConsMats,
     territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
@@ -699,7 +699,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                         goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
                         console.log("gold left over for army / economy (if still to build): " + goldToSpend);
-                        bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
+                        //bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
                     }
                 }
                 break;
@@ -1079,29 +1079,113 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
 
 function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     const roundedGoldToSpend = Math.floor(goldToSpend / 10) * 10;
+    goldToSpend = roundedGoldToSpend;
     let initialInfantryGold;
     let initialInfantryProdPop;
+    let finalInfantryProdPop;
+
+    let navalBoughtCounter = 0;
+    let airBoughtCounter = 0;
+    let assaultBoughtCounter = 0;
 
     if (goldToSpend >= armyGoldPrices.infantry * 10) { // if can afford at least 10 infantry
-        initialInfantryGold = (roundedGoldToSpend / 100) * 10;
-        // read in oil cap / demand
-        // work out oil demand spare
-        // while there is enough gold && while there is enough prod pop
-        // if coastal, build up to 25% of oil demand as naval
-        // if coastal, build up to 25% of oil demand as air, 25% assault
-        // if not coastal, build up to 35% of oil demand as air, 35% assault
-        // end loop
-        // check remaining gold
-        // buy infantry with rest
+        initialInfantryGold = (goldToSpend / 100) * 10;
+        initialInfantryProdPop = (initialInfantryGold / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
+        initialInfantryProdPop = Math.min(initialInfantryProdPop, Math.floor(prodPopToSpend));
+        initialInfantryProdPop === Math.floor(prodPopToSpend) ? initialInfantryGold = Math.floor(prodPopToSpend) / 100 : null;
+
+        territory.infantryForCurrentTerritory += initialInfantryProdPop;
+        territory.goldForCurrentTerritory -= initialInfantryGold;
+        territory.productiveTerritoryPop -= initialInfantryProdPop;
+        goldToSpend -= initialInfantryGold;
+        prodPopToSpend -= initialInfantryProdPop;
+
+        const originalGoldToSpendAfterInitialInfantry = goldToSpend;
+
+        const territoryOilCap = territory.oilCapacity;
+        let territoryOilDemand = territory.oilDemand;
+        let territorySpareOil = territoryOilCap - territoryOilDemand;
+
+        let iteratorCount = Math.floor(Math.random() * 3) + 1;
+
+        while ((territorySpareOil > 0) && (goldToSpend > (originalGoldToSpendAfterInitialInfantry / 100) * 10) && (prodPopToSpend > 0)) {
+            if (iteratorCount === 1) {
+                if (territory.isCoastal && territorySpareOil >= oilRequirements.naval && goldToSpend >= armyGoldPrices.naval && prodPopToSpend >= armyProdPopPrices.naval) {
+                    navalBoughtCounter++;
+                    goldToSpend -= armyGoldPrices.naval;
+                    prodPopToSpend -= armyProdPopPrices.naval;
+                    territory.goldForCurrentTerritory -= armyGoldPrices.naval;
+                    territory.productiveTerritoryPop -= armyProdPopPrices.naval;
+                    territorySpareOil -= oilRequirements.naval;
+                    territory.navalForCurrentTerritory++;
+                    territory.useableNaval++;
+                } else {
+                    iteratorCount++;
+                    continue;
+                }
+            } else if (iteratorCount === 2) {
+                if (territorySpareOil >= oilRequirements.air && goldToSpend >= armyGoldPrices.air && prodPopToSpend >= armyProdPopPrices.air) {
+                    airBoughtCounter++;
+                    goldToSpend -= armyGoldPrices.air;
+                    prodPopToSpend -= armyProdPopPrices.air;
+                    territory.goldForCurrentTerritory -= armyGoldPrices.air;
+                    territory.productiveTerritoryPop -= armyProdPopPrices.air;
+                    territorySpareOil -= oilRequirements.air;
+                    territory.airForCurrentTerritory++;
+                    territory.useableAir++;
+                } else {
+                    iteratorCount++;
+                    continue;
+                }
+            } else if (iteratorCount === 3) {
+                if (territorySpareOil >= oilRequirements.assault && goldToSpend >= armyGoldPrices.assault && prodPopToSpend >= armyProdPopPrices.assault) {
+                    assaultBoughtCounter++;
+                    goldToSpend -= armyGoldPrices.assault;
+                    prodPopToSpend -= armyProdPopPrices.assault;
+                    territory.goldForCurrentTerritory -= armyGoldPrices.assault;
+                    territory.productiveTerritoryPop -= armyProdPopPrices.assault;
+                    territorySpareOil -= oilRequirements.assault;
+                    territory.assaultForCurrentTerritory++;
+                    territory.useableAssault++;
+                } else {
+                    break;
+                }
+            }
+            iteratorCount = (iteratorCount % 3) + 1;
+        }
+
+        territory.oilDemand = territory.oilCapacity - territorySpareOil;
+
+        let finalInfantryQuantity = goldToSpend / armyGoldPrices.infantry
+        finalInfantryProdPop = (goldToSpend / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
+        if (prodPopToSpend >= finalInfantryProdPop) {
+            territory.goldForCurrentTerritory -= finalInfantryQuantity;
+            territory.productiveTerritoryPop -= finalInfantryProdPop;
+            territory.infantryForCurrentTerritory += finalInfantryProdPop;
+        } else {
+            finalInfantryProdPop = 0;
+        }
     } else { //only buy infantry
-        initialInfantryGold = roundedGoldToSpend;
+        finalInfantryProdPop = 0;
+        goldToSpend = roundedGoldToSpend;
+        while (goldToSpend > 0 && prodPopToSpend > 0) {
+            if (goldToSpend > armyGoldPrices.infantry && prodPopToSpend > armyProdPopPrices.infantry) {
+                territory.infantryForCurrentTerritory += INFANTRY_IN_A_TROOP;
+                territory.goldForCurrentTerritory -= armyGoldPrices.infantry;
+                territory.productiveTerritoryPop -= armyProdPopPrices.infantry;
+                goldToSpend -= armyGoldPrices.infantry;
+                prodPopToSpend -= armyProdPopPrices.infantry;
+            } else {
+                break;
+            }
+        }
     }
-    initialInfantryProdPop = (initialInfantryGold / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
 
-    territory.infantryForCurrentTerritory += initialInfantryProdPop;
-    territory.goldForCurrentTerritory -= initialInfantryGold;
-    territory.productiveTerritoryPop -= initialInfantryProdPop;
-    territory.armyForCurrentTerritory += initialInfantryProdPop;
-
+    territory.armyForCurrentTerritory += (initialInfantryProdPop + finalInfantryProdPop + (navalBoughtCounter * vehicleArmyPersonnelWorth.naval) + (airBoughtCounter * vehicleArmyPersonnelWorth.air) + (assaultBoughtCounter * vehicleArmyPersonnelWorth.assault));
+    console.log("Bolstered " + territory.territoryName + " with:");
+    console.log((initialInfantryProdPop + finalInfantryProdPop) + " Infantry,");
+    console.log(assaultBoughtCounter + " Assault,");
+    console.log(airBoughtCounter + " Air, and,");
+    console.log(navalBoughtCounter + " Naval,");
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if ai stops generating gold or goes negative
 }

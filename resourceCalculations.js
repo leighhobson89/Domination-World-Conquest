@@ -111,9 +111,9 @@ export const armyGoldPrices = {
 
 export const armyProdPopPrices = {
     infantry: INFANTRY_IN_A_TROOP,
-    assault: 100,
-    air: 300,
-    naval: 1000
+    assault: 1000,
+    air: 5000,
+    naval: 20000
 }
 
 export const oilRequirements = {
