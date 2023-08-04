@@ -100,6 +100,20 @@ export let turnGainsArrayPlayer = {
 
 export let turnGainsArrayAi = {};
 
+export const armyGoldPrices = {
+    infantry: 10,
+    assault: 50,
+    air: 100,
+    naval: 200
+}
+
+export const armyProdPopPrices = {
+    infantry: 1000,
+    assault: 100,
+    air: 300,
+    naval: 1000
+}
+
 export const oilRequirements = {
     naval: 1000,
     air: 300,
@@ -144,7 +158,7 @@ export let countryResourceTotals = {};
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
 let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
-let simulatedCostsAllMilitary = [0, 10, 50, 100, 100, 300, 200, 1000];
+let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infantry, armyGoldPrices.assault, armyProdPopPrices.assault, armyGoldPrices.air, armyProdPopPrices.air, armyGoldPrices.naval, armyProdPopPrices.naval];
 
 /* const turnLabel = document.getElementById('turn-label'); */
 const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
@@ -2164,8 +2178,8 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     switch (purchaseType) {
         case "Infantry":
             type = "Infantry";
-            nextPurchaseCostGold = 10;
-            nextProdPopCost = 1000;
+            nextPurchaseCostGold = armyGoldPrices.infantry;
+            nextProdPopCost = armyProdPopPrices.infantry;
             purchase = availablePurchases[0];
             simulatedTotal = parseInt(buyValueColumn.value);
             amountAlreadyBuilt = territoryData.infantryForCurrentTerritory;
@@ -2173,8 +2187,8 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
             break;
         case "Assault":
             type = "Assault";
-            nextPurchaseCostGold = 50;
-            nextProdPopCost = 100;
+            nextPurchaseCostGold = armyGoldPrices.assault;
+            nextProdPopCost = armyProdPopPrices.assault;
             purchase = availablePurchases[1];
             simulatedTotal = parseInt(buyValueColumn.value);
             amountAlreadyBuilt = territoryData.assaultForCurrentTerritory;
@@ -2182,8 +2196,8 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
             break;
         case "Air":
             type = "Air";
-            nextPurchaseCostGold = 100;
-            nextProdPopCost = 300;
+            nextPurchaseCostGold = armyGoldPrices.air;
+            nextProdPopCost = armyProdPopPrices.air;
             purchase = availablePurchases[2];
             simulatedTotal = parseInt(buyValueColumn.value);
             amountAlreadyBuilt = territoryData.airForCurrentTerritory;
@@ -2191,8 +2205,8 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
             break;
         case "Naval":
             type = "Naval";
-            nextPurchaseCostGold = 200;
-            nextProdPopCost = 1000;
+            nextPurchaseCostGold = armyGoldPrices.naval;
+            nextProdPopCost = armyProdPopPrices.naval;
             purchase = availablePurchases[3];
             simulatedTotal = parseInt(buyValueColumn.value);
             amountAlreadyBuilt = territoryData.navalForCurrentTerritory;
@@ -2705,48 +2719,38 @@ function calculateAvailablePurchases(territory) {
 
     const isCoastal = territory.isCoastal;
 
-    const infantryGoldCost = 10;
-    const assaultGoldCost = 50;
-    const airGoldCost = 100;
-    const navalGoldCost = 200;
+    const hasEnoughGoldForInfantry = totalPlayerResources[0].totalGold >= armyGoldPrices.infantry;
+    const hasEnoughGoldForAssault = totalPlayerResources[0].totalGold >= armyGoldPrices.assault;
+    const hasEnoughGoldForAir = totalPlayerResources[0].totalGold >= armyGoldPrices.air;
+    const hasEnoughGoldForNaval = totalPlayerResources[0].totalGold >= armyGoldPrices.naval;
 
-    const infantryPopCost = 1000;
-    const assaultPopCost = 100;
-    const airPopCost = 300;
-    const navalPopCost = 1000;
-
-    const hasEnoughGoldForInfantry = totalPlayerResources[0].totalGold >= infantryGoldCost;
-    const hasEnoughGoldForAssault = totalPlayerResources[0].totalGold >= assaultGoldCost;
-    const hasEnoughGoldForAir = totalPlayerResources[0].totalGold >= airGoldCost;
-    const hasEnoughGoldForNaval = totalPlayerResources[0].totalGold >= navalGoldCost;
-
-    const hasEnoughProdPopForInfantry = totalPlayerResources[0].totalProdPop >= infantryPopCost;
-    const hasEnoughProdPopForAssault = totalPlayerResources[0].totalProdPop >= assaultPopCost;
-    const hasEnoughProdPopForAir = totalPlayerResources[0].totalProdPop >= airPopCost;
-    const hasEnoughProdPopForNaval = totalPlayerResources[0].totalProdPop >= navalPopCost;
+    const hasEnoughProdPopForInfantry = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.infantry;
+    const hasEnoughProdPopForAssault = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.assault;
+    const hasEnoughProdPopForAir = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.air;
+    const hasEnoughProdPopForNaval = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.naval;
 
     // Create the upgrade row objects based on the availability and gold/consMats conditions
     if (hasEnoughGoldForInfantry && hasEnoughProdPopForInfantry) {
         availablePurchases.push({
             type: 'Infantry',
-            purchaseGoldCost: infantryGoldCost,
-            purchasePopCost: infantryPopCost,
+            purchaseGoldCost: armyGoldPrices.infantry,
+            purchasePopCost: armyProdPopPrices.infantry,
             effect: "+1000 Infantry",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForInfantry) {
         availablePurchases.push({
             type: 'Infantry',
-            purchaseGoldCost: infantryGoldCost,
-            purchasePopCost: infantryPopCost,
+            purchaseGoldCost: armyGoldPrices.infantry,
+            purchasePopCost: armyProdPopPrices.infantry,
             effect: "+1000 Infantry",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughProdPopForInfantry) {
         availablePurchases.push({
             type: 'Infantry',
-            purchaseGoldCost: infantryGoldCost,
-            purchasePopCost: infantryPopCost,
+            purchaseGoldCost: armyGoldPrices.infantry,
+            purchasePopCost: armyProdPopPrices.infantry,
             effect: "+1000 Infantry",
             condition: 'Not enough Productive Population'
         });
@@ -2755,24 +2759,24 @@ function calculateAvailablePurchases(territory) {
     if (hasEnoughGoldForAssault && hasEnoughProdPopForAssault) {
         availablePurchases.push({
             type: 'Assault',
-            purchaseGoldCost: assaultGoldCost,
-            purchasePopCost: assaultPopCost,
+            purchaseGoldCost: armyGoldPrices.assault,
+            purchasePopCost: armyProdPopPrices.assault,
             effect: "+1 Assault",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForAssault) {
         availablePurchases.push({
             type: 'Assault',
-            purchaseGoldCost: assaultGoldCost,
-            purchasePopCost: assaultPopCost,
+            purchaseGoldCost: armyGoldPrices.assault,
+            purchasePopCost: armyProdPopPrices.assault,
             effect: "+1 Assault",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughProdPopForAssault) {
         availablePurchases.push({
             type: 'Assault',
-            purchaseGoldCost: assaultGoldCost,
-            purchasePopCost: assaultPopCost,
+            purchaseGoldCost: armyGoldPrices.assault,
+            purchasePopCost: armyProdPopPrices.assault,
             effect: "+1 Assault",
             condition: 'Not enough Productive Population'
         });
@@ -2781,24 +2785,24 @@ function calculateAvailablePurchases(territory) {
     if (hasEnoughGoldForAir && hasEnoughProdPopForAir) {
         availablePurchases.push({
             type: 'Air',
-            purchaseGoldCost: airGoldCost,
-            purchasePopCost: airPopCost,
+            purchaseGoldCost: armyGoldPrices.air,
+            purchasePopCost: armyProdPopPrices.air,
             effect: "+1 Air",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForAir) {
         availablePurchases.push({
             type: 'Air',
-            purchaseGoldCost: airGoldCost,
-            purchasePopCost: airPopCost,
+            purchaseGoldCost: armyGoldPrices.air,
+            purchasePopCost: armyProdPopPrices.air,
             effect: "+1 Air",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughProdPopForAir) {
         availablePurchases.push({
             type: 'Air',
-            purchaseGoldCost: airGoldCost,
-            purchasePopCost: airPopCost,
+            purchaseGoldCost: armyGoldPrices.air,
+            purchasePopCost: armyProdPopPrices.air,
             effect: "+1 Air",
             condition: 'Not enough Productive Population'
         });
@@ -2807,32 +2811,32 @@ function calculateAvailablePurchases(territory) {
     if (!isCoastal) {
         availablePurchases.push({
             type: 'Naval',
-            purchaseGoldCost: navalGoldCost,
-            purchasePopCost: navalPopCost,
+            purchaseGoldCost: armyGoldPrices.naval,
+            purchasePopCost: armyProdPopPrices.naval,
             effect: "+1 Naval",
             condition: 'Not a Coastal Territory'
         });
     } else if (hasEnoughGoldForNaval && hasEnoughProdPopForNaval) {
         availablePurchases.push({
             type: 'Naval',
-            purchaseGoldCost: navalGoldCost,
-            purchasePopCost: navalPopCost,
+            purchaseGoldCost: armyGoldPrices.naval,
+            purchasePopCost: armyProdPopPrices.naval,
             effect: "+1 Naval",
             condition: 'Can Build'
         });
     } else if (!hasEnoughGoldForNaval) {
         availablePurchases.push({
             type: 'Naval',
-            purchaseGoldCost: navalGoldCost,
-            purchasePopCost: navalPopCost,
+            purchaseGoldCost: armyGoldPrices.naval,
+            purchasePopCost: armyProdPopPrices.naval,
             effect: "+1 Naval",
             condition: 'Not enough gold'
         });
     } else if (!hasEnoughProdPopForNaval) {
         availablePurchases.push({
             type: 'Naval',
-            purchaseGoldCost: navalGoldCost,
-            purchasePopCost: navalPopCost,
+            purchaseGoldCost: armyGoldPrices.naval,
+            purchasePopCost: armyProdPopPrices.naval,
             effect: "+1 Naval",
             condition: 'Not enough Productive Population'
         });
@@ -4348,13 +4352,13 @@ export function setUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) 
 
             if (currentType === "naval" && useableNaval > 0) {
                 useableNaval--;
-                difference -= 1000;
+                difference -= oilRequirements.naval;
             } else if (currentType === "air" && useableAir > 0) {
                 useableAir--;
-                difference -= 300;
+                difference -= oilRequirements.air;
             } else if (currentType === "assault" && useableAssault > 0) {
                 useableAssault--;
-                difference -= 100;
+                difference -= oilRequirements.assault;
             }
 
             index = (index + 1) % 3;
