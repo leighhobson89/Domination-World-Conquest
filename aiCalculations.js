@@ -606,7 +606,7 @@ function removeDoubleAttackSiege(arr) {
     return filteredArr;
 }
 
-export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
+export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
     let economyBenefitArray = [];
     let bolsterBenefitArray = [];
     let siegeLaunchedFromArray = [];
@@ -711,14 +711,16 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                 }
                 break;
             case "Attack":
-                if (!attackLaunchedFromArray.includes(goal[2])) {
+                if (!attackLaunchedFromArray.includes(goal[2])) { //only one attack from any territory per turn
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    /*
-                    can assume it has already calculated odds of a win
-                    */
-
+                    const amountBeingSentToBattle = calculateArmyQuantityBeingSentOrIfCancellingAttack(refinedTurnGoals, leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    if (amountBeingSentToBattle !== "Cancel") {
+                        const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle);
+                        // const battleResult = doAttack(armyArray, leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle);
+                        // updateAfterBattle(battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                    }
                 }
                 break;
         }
@@ -1194,4 +1196,84 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     console.log(airBoughtCounter + " Air, and,");
     console.log(navalBoughtCounter + " Naval,");
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if ai stops generating gold or goes negative
+}
+
+function calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
+    const leaderType = leader.leaderType;
+
+    let defenseScore;
+    let threatArray = [];
+
+    for (let i = 0; i < arrayOfAiPlayerDefenseScoresForTerritories.length; i++) {
+        if (arrayOfAiPlayerDefenseScoresForTerritories[i][0] === mainArrayFriendlyTerritoryCopy.territoryName) {
+            defenseScore = arrayOfAiPlayerDefenseScoresForTerritories[i][1];
+        }
+    }
+
+    for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
+        threatArray.push(arrayOfTerritoriesInRangeThreats[i][2] - defenseScore);
+    }
+
+    let amountCanSend = threatArray.reduce((sum, threat) => sum + threat, 0) / threatArray.length;
+    let actuallyBeingSent;
+    const twentyFivePercentOfAverage = Math.abs(amountCanSend) * 0.25;
+
+    console.log(threatArray);
+    console.log(amountCanSend);
+
+    if (leaderType === "aggressive") {
+        if (amountCanSend < 0) {
+            amountCanSend -= twentyFivePercentOfAverage;
+        } else {
+            amountCanSend += twentyFivePercentOfAverage;
+        }
+    } else if (leaderType === "pacifist") {
+        if (amountCanSend < 0) {
+            amountCanSend += twentyFivePercentOfAverage;
+        } else {
+            amountCanSend -= twentyFivePercentOfAverage;
+        }
+    }
+
+    //reconquista
+    if (mainArrayEnemyTerritoryCopy.originalOwner === mainArrayFriendlyTerritoryCopy.dataName) {
+        amountCanSend -= amountCanSend * (leader.traits.reconquista * 100) / 100;
+    }
+
+    if (amountCanSend > 0) {
+        console.log("Attack Cancelled as surrounding threats would leave territory too vulnerable");
+        return "Cancel";
+    } else {
+        console.log("Amount would like to send is: " + Math.abs(amountCanSend));
+        Math.abs(amountCanSend) < mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory ? actuallyBeingSent = amountCanSend : actuallyBeingSent = mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory;
+    }
+    // //DEBUG
+    // console.log("Actually Being sent: " + Math.abs(actuallyBeingSent));
+    // console.log("From: " + mainArrayFriendlyTerritoryCopy.territoryName + " to: " + mainArrayEnemyTerritoryCopy.territoryName);
+    // console.log("Whole army size: " + mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory);
+    // console.log("Remaining defenders will be: " + (mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory - Math.abs(actuallyBeingSent)));
+    // console.log("threat array:");
+    // let originalThreatArrayNotIncludingDefenseScore = [];
+    // for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
+    //     originalThreatArrayNotIncludingDefenseScore.push(arrayOfTerritoriesInRangeThreats[i][2]);
+    // }
+    // console.log(originalThreatArrayNotIncludingDefenseScore);
+    // // mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory -= Math.abs(actuallyBeingSent);
+    // // END OF DEBUG
+
+    const attackArray = [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId), Math.abs(Math.floor(actuallyBeingSent)), 0, 0, 0];
+    const newProb = calculateProbabilityPreBattle(attackArray, mainGameArray, false);
+    console.log("Probability of that battle would be: " + newProb);
+
+    if ((leaderType === "aggressive" && newProb < 35) || (leaderType === "balanced" && newProb < 50) || (leaderType === "pacifist" && newProb < 60)) {
+        console.log("Probability too low, bunking out!");
+        return "Cancel";
+    } else {
+        console.log("Going To Battle!");
+        return actuallyBeingSent;
+    }
+}
+
+function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle) {
+
 }
