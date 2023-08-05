@@ -476,7 +476,7 @@ function sumTogetherSimilarThreatValues(refinedGoalsArray) {
         processedAttackGroups.push(...modifiedGroup);
     }
 
-    return [...processedEconomyGroups, ...processedBolsterGroups, ...processedSiegeGroups, ...processedAttackGroups];
+    return [...processedEconomyGroups, ...processedBolsterGroups, ...processedSiegeGroups.reverse(), ...processedAttackGroups.reverse()];
 }
 
 function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
@@ -715,6 +715,10 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi) {
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
+                    /*
+                    can assume it has already calculated odds of a win
+                    */
+
                 }
                 break;
         }
