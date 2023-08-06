@@ -10,7 +10,6 @@ import {
 } from './resourceCalculations.js';
 import {
     currentMapColorAndStrokeArray,
-    fillPathBasedOnStartingCountryColor,
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
     lastClickedPath,
@@ -34,7 +33,7 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
     mapMode,
-    saveMapColorState,
+    saveMapColorState, setOwnerOnPath, setColorOnMap,
 } from './ui.js';
 import {
     callDice,
@@ -564,7 +563,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             contestedPath.style.stroke = "white";
         }
     } else {
-        contestedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(contestedPath));
+        setOwnerOnPath(contestedTerritory);
     }
 }
 
@@ -646,9 +645,14 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
     }
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
-    // let diceScoreArray; //DICE CODE EXECUTION
-    // diceScoreArray = await callDice(fillPathBasedOnStartingCountryColor(lastClickedPath));
-    // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
+    let diceScoreArray; //DICE CODE EXECUTION
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+            diceScoreArray = await callDice(setColorOnMap(mainGameArray[i]));
+            break;
+        }
+    }
+    console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
     // //show feedback
     combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
     combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);

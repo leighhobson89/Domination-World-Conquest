@@ -311,10 +311,14 @@ export function svgMapLoaded() {
 
         if (mapMode === 2) {
             flipMapMode();
-            for (let i = 0; i < paths.length; i++) {
-                if (!selectCountryPlayerState && paths[i].getAttribute("owner") !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                    paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
-                    setStrokeWidth(paths[i], "1");
+            for (let i = 0; i < mainGameArray.length; i++) {
+                if (!selectCountryPlayerState && mainGameArray[i].owner !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                    setColorOnMap(mainGameArray[i]);
+                    for (let j = 0; j < paths.length; j++) {
+                        if (paths[j].getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
+                            setStrokeWidth(paths[j], "1");
+                        }
+                    }
                 }
             }
         }
@@ -467,16 +471,31 @@ function selectCountry(country, escKeyEntry) {
                     paths[i].setAttribute('fill', playerColour);
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     if (mapMode === 1) {
-                        paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                        for (let j = 0; j < mainGameArray.length; j++) {
+                            if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                setColorOnMap(mainGameArray[j]);
+                                break;
+                            }
+                        }
                     } else if (mapMode === 2) {
                         flipMapMode();
-                        paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                        for (let j = 0; j < mainGameArray.length; j++) {
+                            if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                setColorOnMap(mainGameArray[j]);
+                                break;
+                            }
+                        }
                     }
                     setStrokeWidth(paths[i], "1");
                 } else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
                     for (let j = 0; j < paths.length; j++) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                            paths[j].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[j]));
+                            for (let k = 0; k < mainGameArray.length; k++) {
+                                if (mainGameArray[k].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                    setColorOnMap(mainGameArray[k]);
+                                    break;
+                                }
+                            }
                             setStrokeWidth(paths[j], "1");
                         }
                     }
@@ -485,7 +504,12 @@ function selectCountry(country, escKeyEntry) {
         }
     } else {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
-            lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
+            for (let i = 0; i < mainGameArray.length; i++) {
+                if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                    setColorOnMap(mainGameArray[i]);
+                    break;
+                }
+            }
         }
     }
 
@@ -731,7 +755,12 @@ document.addEventListener("DOMContentLoaded", function() {
         else if (countrySelectedAndGameStarted && turnPhase === 2) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("owner") !== "Player") {
-                    paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+                    for (let j = 0; j < mainGameArray.length; j++) {
+                        if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                            setColorOnMap(mainGameArray[j]);
+                            break;
+                        }
+                    }
                 }
             }
             currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -2321,7 +2350,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
-    lastClickedPath.setAttribute("fill", fillPathBasedOnStartingCountryColor(lastClickedPath));
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                setColorOnMap(mainGameArray[i]);
+                break;
+            }
+        }
     lastClickedPath.style.stroke = "rgb(0,0,0)";
     lastClickedPath.setAttribute("stroke-width", "1");
     lastClickedPath.style.strokeDasharray = "none";
@@ -3234,28 +3268,6 @@ export function restoreMapColorState(array, countrySelectionState) {
     });
 }
 
-export function fillPathBasedOnContinent(path) { //mapMode === 0 ie continent colors
-    const continentAttribute = path.getAttribute("continent");
-    const entry = CONTINENT_COLOR_ARRAY.find(
-        entry => entry[0].toLowerCase() === continentAttribute.toLowerCase()
-    );
-    if (entry) {
-        const color = entry[1];
-        return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-    }
-}
-
-export function fillPathBasedOnStartingCountryColor(path) {
-    const startingCountry = path.getAttribute("data-name");
-    const entry = listOfStartingCountryColorsArray.find(
-        entry => entry[1].toLowerCase() === startingCountry.toLowerCase()
-    );
-    if (entry) {
-        const color = entry[2];
-        return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-    }
-}
-
 function colorByStandardColoring() {
     paths.forEach(path => {
         const uniqueId = path.getAttribute("uniqueid");
@@ -3956,9 +3968,19 @@ export function removeSiegeImageFromPath(path) {
         imageElement.remove();
     }
     if (mapMode === 0) {
-        path.setAttribute("fill", fillPathBasedOnContinent(path));
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if (mainGameArray[i].uniqueId === path.getAttribute("uniqueid")) {
+                setColorOnMap(mainGameArray[i]);
+                break;
+            }
+        }
     } else if (mapMode === 1) {
-        path.setAttribute("fill", fillPathBasedOnStartingCountryColor(path));
+        for (let i = 0; i < mainGameArray.length; i++) {
+            if (mainGameArray[i].uniqueId === path.getAttribute("uniqueid")) {
+                setColorOnMap(mainGameArray[i]);
+                break;
+            }
+        }
     }
 
     path.style.stroke = "rgb(0,0,0)";
@@ -5646,7 +5668,12 @@ function flipMapMode() {
             }
             for (let i = 0; i < paths.length; i++) {
                 paths[i].setAttribute("fill-opacity", "0.01");
-                paths[i].style.stroke = fillPathBasedOnContinent(paths[i]);
+                for (let j = 0; j < mainGameArray.length; j++) {
+                    if (mainGameArray[j].unique === paths[i].getAttribute("uniqueid")) {
+                        setStrokeOnMap(mainGameArray[j]);
+                        break;
+                    }
+                }
                 paths[i].setAttribute("stroke-width", "1px");
                 paths[i].getAttribute("owner") === "Player" ? (paths[i].setAttribute("fill", playerColour), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
             }
@@ -5793,6 +5820,15 @@ export function setColorOnMap(territory) {
     for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
             paths[i].setAttribute("fill", territory.countryColor);
+        }
+    }
+    return territory.countryColor;
+}
+
+export function setStrokeOnMap(territory) {
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+            paths[i].style.stroke = territory.countryColor;
         }
     }
 }

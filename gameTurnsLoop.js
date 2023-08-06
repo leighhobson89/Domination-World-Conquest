@@ -9,11 +9,10 @@ import {
     setCurrentMapColorAndStrokeArray,
     saveMapColorState,
     paths,
-    fillPathBasedOnStartingCountryColor,
     playerColour,
     svg,
     setZoomLevel,
-    zoomMap
+    zoomMap, setColorOnMap
 } from './ui.js';
 import {
     getPlayerTerritories,
@@ -332,9 +331,9 @@ function changeAllPathsToWhite() {
 }
 
 function highlightCountryBeingProcessedAndRemoveLastOneProcessed(territoryName) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("territory-name") === territoryName) {
-            paths[i].setAttribute("fill", fillPathBasedOnStartingCountryColor(paths[i]));
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].territoryName === territoryName) {
+            setColorOnMap(mainGameArray[i]);
             break;
         }
     }
