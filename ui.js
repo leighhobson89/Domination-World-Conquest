@@ -317,8 +317,10 @@ export function svgMapLoaded() {
                     for (let j = 0; j < paths.length; j++) {
                         if (paths[j].getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
                             setStrokeWidth(paths[j], "1");
+                            break;
                         }
                     }
+                    break;
                 }
             }
         }
@@ -491,7 +493,7 @@ function selectCountry(country, escKeyEntry) {
                     for (let j = 0; j < paths.length; j++) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
                             for (let k = 0; k < mainGameArray.length; k++) {
-                                if (mainGameArray[k].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                if (mainGameArray[k].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
                                     setColorOnMap(mainGameArray[k]);
                                     break;
                                 }
@@ -5820,6 +5822,7 @@ export function setColorOnMap(territory) {
     for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
             paths[i].setAttribute("fill", territory.countryColor);
+            break;
         }
     }
     return territory.countryColor;

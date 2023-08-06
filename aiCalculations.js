@@ -1453,6 +1453,7 @@ function updateMainArrayAfterBattle(armyArray, remainingArmyArray, battleResult,
     for (let i = 0; i < mainGameArray.length; i++) {
         if (mainGameArray[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
             updateTerritory(mainGameArray[i], remainingArmyArray, mainArrayFriendlyTerritoryCopy);
+            break;
         }
     }
 }

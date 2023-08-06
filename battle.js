@@ -1341,6 +1341,7 @@ export function deactivateTerritoryAi(territory) {
     for (let i = 0; i < mainGameArray.length; i++) {
         if (mainGameArray[i].uniqueId === territory.uniqueId) {
             mainGameArray[i].isDeactivated = true;
+            break;
         }
     }
 }
