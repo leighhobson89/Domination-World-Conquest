@@ -551,16 +551,6 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             siegeButton.disabled = true;
             siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
             break;
-        case 5:
-            //situation where user sets a siege
-            break;
-        case 6:
-            //situation where user transfers from vehicles to infantry
-            break;
-        case 7:
-            //situation where user transfers from infantry to vehicles
-            break;
-
     }
     contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
     setUseableNotUseableWeaponsDueToOilDemand(mainGameArray, contestedTerritory);
@@ -775,7 +765,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
     }
 }
 
-function calculateCombinedForce(army) {
+export function calculateCombinedForce(army) {
     const [infantry, assault, air, naval] = army;
     return infantry + (assault * vehicleArmyPersonnelWorth.assault) + (air * vehicleArmyPersonnelWorth.air) + (naval * vehicleArmyPersonnelWorth.naval);
 }

@@ -11,7 +11,7 @@ import {
     territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
-import {calculateProbabilityPreBattle} from "./battle.js";
+import {calculateCombinedForce, calculateProbabilityPreBattle} from "./battle.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -715,11 +715,11 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToBattle = calculateArmyQuantityBeingSentOrIfCancellingAttack(refinedTurnGoals, leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
-                    if (amountBeingSentToBattle !== "Cancel") {
-                        const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle);
-                        // const battleResult = doAttack(armyArray, leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle);
-                        // updateAfterBattle(battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    if (amountBeingSentToBattleAndProbability !== "Cancel") {
+                        const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
+                        const battleResult = doAttack(armyArray, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
+                        updateAfterBattle(armyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                     }
                 }
                 break;
@@ -1270,10 +1270,131 @@ function calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFri
         return "Cancel";
     } else {
         console.log("Going To Battle!");
-        return actuallyBeingSent;
+        return [Math.abs(Math.floor(actuallyBeingSent)), newProb];
     }
 }
 
 function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle) {
+    const infantry = mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory;
+    let assault = mainArrayFriendlyTerritoryCopy.useableAssault * vehicleArmyPersonnelWorth.assault;
+    let air = mainArrayFriendlyTerritoryCopy.useableAir * vehicleArmyPersonnelWorth.air;
+    let naval = mainArrayFriendlyTerritoryCopy.useableNaval * vehicleArmyPersonnelWorth.naval;
 
+    let navalAddCount = 0;
+    let airAddCount = 0;
+    let assaultAddCount = 0;
+    let infantryCount = 0;
+
+    while ((amountBeingSentToBattle > ((amountBeingSentToBattle / 100) * 30)) && (naval > 0 || air > 0 || assault > 0)) {
+        if (mainArrayEnemyTerritoryCopy.isCoastal) {
+            if (naval >= vehicleArmyPersonnelWorth.naval) {
+                amountBeingSentToBattle -= vehicleArmyPersonnelWorth.naval;
+                naval -= vehicleArmyPersonnelWorth.naval;
+                navalAddCount++;
+            }
+        } else {
+            naval = 0;
+        }
+        if (air >= vehicleArmyPersonnelWorth.air) {
+            amountBeingSentToBattle -= vehicleArmyPersonnelWorth.air;
+            air -= vehicleArmyPersonnelWorth.air;
+            airAddCount++;
+        }
+        if (assault >= vehicleArmyPersonnelWorth.assault) {
+            amountBeingSentToBattle -= vehicleArmyPersonnelWorth.assault;
+            assault -= vehicleArmyPersonnelWorth.assault;
+            assaultAddCount++;
+        }
+    }
+    if (infantry >= amountBeingSentToBattle) {
+        infantryCount = amountBeingSentToBattle;
+        amountBeingSentToBattle = 0;
+    } else {
+        infantryCount = infantry;
+    }
+
+    if (amountBeingSentToBattle === 0) {
+        console.log("Enemy is Coastal: " + mainArrayEnemyTerritoryCopy.isCoastal);
+        console.log("Infantry: " + infantryCount + " Assault: " + assaultAddCount + " Air: " + airAddCount + " Naval: " + navalAddCount);
+        return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
+    } else {
+        console.log ("Not all units allocated, extend function to handle leftovers.");
+        console.log("Enemy is Coastal: " + mainArrayEnemyTerritoryCopy.isCoastal);
+        console.log("Infantry: " + infantryCount + " Assault: " + assaultAddCount + " Air: " + airAddCount + " Naval: " + navalAddCount);
+        return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
+    }
+}
+
+function doAttack(armyArray, mainArrayEnemyTerritoryCopy, probability) { //simple battle mechanic as large number to process
+    let armyRemainingAttack = calculateCombinedForce(armyArray);
+    let armyRemainingDefend = calculateCombinedForce([mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval]);
+
+    while (armyRemainingAttack > 0 && armyRemainingDefend > 0) {
+        let skirmishValue;
+        let skirmishOutcome;
+
+        if (armyRemainingAttack > 1000 && armyRemainingDefend > 1000) { //speed up processing of battle
+            skirmishValue = 1000;
+        } else if (armyRemainingAttack > 100 && armyRemainingDefend > 100) {
+            skirmishValue = 100;
+        } else if (armyRemainingAttack > 10 && armyRemainingDefend > 10) {
+            skirmishValue = 10;
+        } else {
+            skirmishValue = 1;
+        }
+
+        skirmishOutcome = Math.random() <= (probability / 100); //true is a win for the attacker
+
+        if (skirmishOutcome) {
+            armyRemainingDefend -= skirmishValue;
+        } else {
+            armyRemainingAttack -= skirmishValue;
+        }
+    }
+
+    return [armyRemainingAttack, armyRemainingDefend];
+}
+
+function updateAfterBattle(armyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
+    //recombine remaining attack and defend armies to their unit types
+    const totalStartingAttackArmy = calculateCombinedForce(armyArray);
+    let percentageLeftOver;
+    let totalAllocated = 0;
+
+    let assaultAddCount = 0;
+    let airAddCount = 0;
+    let navalAddCount = 0;
+
+    if (battleResult[0] > 0) { //if attacker won
+        percentageLeftOver = (totalStartingAttackArmy / 100) * battleResult[0];
+        while (totalAllocated < battleResult[0]) {
+            let option = Math.floor(Math.random() * 3) + 1;
+            switch(option) {
+                case 1:
+                    //assault
+                    break;
+                case 2:
+                    //air
+                    break;
+                case 3:
+                    //naval
+                    break;
+            }
+        }
+    } else if (battleResult[1] > 0) {
+        percentageLeftOver = (totalStartingAttackArmy / 100) * battleResult[1];
+    }
+
+
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
+
+        }
+    }
+
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
+
+        }
+    }
 }
