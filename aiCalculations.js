@@ -719,7 +719,8 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
                         const battleResult = doAttack(armyArray, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
-                        updateAfterBattle(armyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                        const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
+                        updateMainArrayAfterBattle(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                     }
                 }
                 break;
@@ -1355,46 +1356,61 @@ function doAttack(armyArray, mainArrayEnemyTerritoryCopy, probability) { //simpl
     return [armyRemainingAttack, armyRemainingDefend];
 }
 
-function updateAfterBattle(armyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
-    //recombine remaining attack and defend armies to their unit types
+function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy) {
     const totalStartingAttackArmy = calculateCombinedForce(armyArray);
     let percentageLeftOver;
+    let attackerOrDefender;
     let totalAllocated = 0;
 
     let assaultAddCount = 0;
     let airAddCount = 0;
     let navalAddCount = 0;
 
+    let remainderArray = [];
+    let defenderArmyArray = [mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval];
+
     if (battleResult[0] > 0) { //if attacker won
         percentageLeftOver = (totalStartingAttackArmy / 100) * battleResult[0];
-        while (totalAllocated < battleResult[0]) {
+        attackerOrDefender = 0;
+    } else if (battleResult[1] > 0) { //if defender won
+        percentageLeftOver = (totalStartingAttackArmy / 100) * battleResult[1];
+        armyArray = defenderArmyArray;
+        attackerOrDefender = 1;
+    }
+        for (let element in armyArray) {
+            Math.floor(element *= percentageLeftOver);
+        }
+        while (armyArray[1] > 0 && armyArray[2] > 0 && armyArray[3] > 0) {
             let option = Math.floor(Math.random() * 3) + 1;
             switch(option) {
                 case 1:
-                    //assault
+                    if (assaultAddCount < armyArray[1]) {
+                        assaultAddCount++
+                        totalAllocated += vehicleArmyPersonnelWorth.assault;
+                        armyArray[1]--;
+                    }
                     break;
                 case 2:
-                    //air
+                    if (airAddCount < armyArray[2]) {
+                        airAddCount++
+                        totalAllocated += vehicleArmyPersonnelWorth.air;
+                        armyArray[2]--;
+                    }
                     break;
                 case 3:
-                    //naval
+                    if (navalAddCount < armyArray[3]) {
+                        navalAddCount++
+                        totalAllocated += vehicleArmyPersonnelWorth.naval;
+                        armyArray[3]--;
+                    }
                     break;
             }
+            let infantryCount = (armyArray[0] + armyArray[1] + armyArray[2] + armyArray[3]) - totalAllocated;
+            remainderArray.push(infantryCount, assaultAddCount, airAddCount, navalAddCount, attackerOrDefender);
         }
-    } else if (battleResult[1] > 0) {
-        percentageLeftOver = (totalStartingAttackArmy / 100) * battleResult[1];
-    }
+    return remainderArray;
+}
 
+function updateMainArrayAfterBattle(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
-
-        }
-    }
-
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
-
-        }
-    }
 }
