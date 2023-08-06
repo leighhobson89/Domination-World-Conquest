@@ -700,6 +700,7 @@ document.addEventListener("DOMContentLoaded", function() {
             popupTitle.innerText = "LOADING...";
             popupSubTitle.innerText = "";
             popupConfirm.innerText = "INITIAL SETUP";
+            pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
             await initialiseGame();
             topTableTotalResourcesString.innerHTML = "Total Player Resources:";
@@ -5776,4 +5777,30 @@ addSparklesRegularly();
 
 export function setZoomLevel(value) {
     return zoomLevel = value;
+}
+
+function pushColorsToMainArray() {
+    for (let i = 0; i < paths.length; i++) {
+        for (let j = 0; j < mainGameArray.length; j++) {
+            if (paths[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId) {
+                mainGameArray[j].countryColor = paths[i].getAttribute("fill");
+            }
+        }
+    }
+}
+
+export function setColorOnMap(territory) {
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+            paths[i].setAttribute("fill", territory.countryColor);
+        }
+    }
+}
+
+export function setOwnerOnPath(territory) {
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+            paths[i].setAttribute("owner", territory.owner);
+        }
+    }
 }

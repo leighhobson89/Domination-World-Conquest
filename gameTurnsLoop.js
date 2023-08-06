@@ -30,7 +30,7 @@ import {
     incrementSiegeTurns,
     calculateSiegePerTurn,
     handleEndSiegeDueArrest,
-    getRetrievalArray
+    getRetrievalArray, activateAiTerritoriesForNewTurn
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
@@ -112,6 +112,7 @@ export async function initialiseGame() {
 
 function gameLoop() {
     activateAllPlayerTerritoriesForNewTurn();
+    activateAiTerritoriesForNewTurn();
     let continueSiege = true;
     let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
     if (continueSiegeArray) {

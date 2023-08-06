@@ -77,6 +77,7 @@ export let proportionsOfAttackArray = [];
 let reusableAttackingAverageDevelopmentIndex;
 let reusableCombatContinentModifier;
 export let playerTurnsDeactivatedArray = [];
+export let aiTurnsDeactivatedArray = [];
 
 export let currentRound = 1;
 export let attackingArmyRemaining;
@@ -603,6 +604,19 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     }
 }
 
+export function activateAiTerritoriesForNewTurn() {
+    for (let i = 0; i < aiTurnsDeactivatedArray.length; i++) {
+        if (aiTurnsDeactivatedArray[i][1] !== aiTurnsDeactivatedArray[i][2]) {
+            aiTurnsDeactivatedArray[i][2]++;
+        } else {
+            for (let j = 0; j < mainGameArray.length; j++) {
+                if (mainGameArray[j].uniqueId === aiTurnsDeactivatedArray[0]) {
+                    mainGameArray[j].isDeactivated = false;
+                }
+            }
+        }
+    }
+}
 export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all territories at start of turn
     for (let i = 0; i < playerTurnsDeactivatedArray.length; i++) {
         if (playerTurnsDeactivatedArray[i][1] !== playerTurnsDeactivatedArray[i][2]) {
@@ -1314,4 +1328,15 @@ export function setNewWarOnRetrievalArray(warId, array, turn, type) {
         retrievalArray.push([warId, array, turn, type]); // Add subsequent elements
     }
     return retrievalArray;
+}
+
+export function deactivateTerritoryAi(territory) {
+    const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
+    aiTurnsDeactivatedArray.push([territory.uniqueId, turnsToDeactivate, 0]);
+
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].uniqueId === territory.uniqueId) {
+            mainGameArray[i].isDeactivated = true;
+        }
+    }
 }
