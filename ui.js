@@ -853,7 +853,7 @@ document.addEventListener("DOMContentLoaded", function() {
     topTableFood.addEventListener("mouseover", () => {
         let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Food:</span></div>
-    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
+    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity, 0)}</div>
   `;
         tooltip.innerHTML = tooltipContent;
         tooltip.style.display = "block";
@@ -873,7 +873,7 @@ document.addEventListener("DOMContentLoaded", function() {
     topTableFoodValue.addEventListener("mouseover", () => {
         let tooltipContent = `
     <div><span style="color: rgb(235,235,0)">Food:</span></div>
-    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity)}</div>
+    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity, 0)}</div>
   `;
         tooltip.innerHTML = tooltipContent;
         tooltip.style.display = "block";
@@ -2402,7 +2402,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 }
                 //update bottom table for defender
-                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
                 break;
             case 1: //scatter during round of 5, 30% penalty
                 defeatType = "scatter";
@@ -2418,7 +2418,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
-                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
                 break;
             case 2: //defeat
                 if (defendingArmyRemaining[4] === 0) { //all out defeat
@@ -2429,7 +2429,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                     defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
                     //update bottom table for defender
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0);
                 } else if (defendingArmyRemaining[4] === 1) { //routing defeat
                     defeatType = "defeat";
                     defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
@@ -2438,7 +2438,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
                     defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
                     //update bottom table for defender
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory);
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
                 }
                 break;
         }
@@ -4034,19 +4034,19 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn1");
         imageSrc = "resources/infantry.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory)}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory, 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn2");
         imageSrc = "resources/assault.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory)}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory, 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn3");
         imageSrc = "resources/air.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory)}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory, 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn4");
         imageSrc = "resources/naval.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory)}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory, 0)}</span>`;
 
     } else if (buttonState === 1) {
         document.getElementById("percentageAttack").style.display = "flex";
@@ -4058,19 +4058,19 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn1");
         imageSrc = "resources/infantry.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[0])}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[0], 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn2");
         imageSrc = "resources/assault.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[1])}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[1], 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn3");
         imageSrc = "resources/air.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[2])}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[2], 0)}</span>`;
 
         imageElement = document.getElementById("contentTransferHeaderImageColumn4");
         imageSrc = "resources/naval.png";
-        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3])}</span>`;
+        imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3], 0)}</span>`;
 
         const headerRow = document.getElementById("contentTransferHeaderRow");
 
@@ -4496,8 +4496,8 @@ function setupSiegeUI(territory) {
     document.getElementById("mountainDefenseText").innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
     document.getElementById("defenseBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
     //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
-    document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop);
-    document.getElementById("foodText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity);
+    document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop, 0);
+    document.getElementById("foodText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity, 0);
 
 
     //SET SIEGE TURNS TEXT
@@ -4757,19 +4757,19 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
         startingNaval = attackArray.startingDef[3];
     }
 
-    document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0]);
-    document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1]);
-    document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2]);
-    document.getElementById("armyRowRow2Quantity4").innerHTML = formatNumbersToKMB(totalAttackingArmy[3]);
-    document.getElementById("armyRowRow2Quantity5").innerHTML = formatNumbersToKMB(totalDefendingArmy[0]);
+    document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0], 0);
+    document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1], 0);
+    document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2], 0);
+    document.getElementById("armyRowRow2Quantity4").innerHTML = formatNumbersToKMB(totalAttackingArmy[3], 0);
+    document.getElementById("armyRowRow2Quantity5").innerHTML = formatNumbersToKMB(totalDefendingArmy[0], 0);
     if (situation === 2) {
-        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]) + " / " + startingAssault;
-        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]) + " / " + startingAir;
-        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]) + " / " + startingNaval;
+        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0) + " / " + startingAssault;
+        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0) + " / " + startingAir;
+        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0) + " / " + startingNaval;
     } else {
-        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1]);
-        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2]);
-        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3]);
+        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0);
+        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0);
+        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0);
     }
 
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
@@ -5065,7 +5065,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         const element = document.getElementById(`battleResultsRow2Row2Quantity${i+1}`);
         let formattedValue;
         if (attackingLosses[i] !== "-") {
-            formattedValue = formatNumbersToKMB(attackingLosses[i]);
+            formattedValue = formatNumbersToKMB(attackingLosses[i], 0);
         } else {
             formattedValue = "-";
         }
@@ -5088,7 +5088,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         const element = document.getElementById(`battleResultsRow2Row2Quantity${i+5}`);
         let formattedValue;
         if (defendingLosses[i] !== "-" && defendingLosses[i] !== "None") {
-            formattedValue = formatNumbersToKMB(defendingLosses[i]);
+            formattedValue = formatNumbersToKMB(defendingLosses[i], 0);
         } else if (defendingLosses[i] === "None") {
             formattedValue = "None";
         } else {
@@ -5116,7 +5116,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         }
         let formattedValue;
         if (attackingSurvived[i] !== "-" && attackingSurvived[i] !== "All") {
-            formattedValue = formatNumbersToKMB(attackingSurvived[i]);
+            formattedValue = formatNumbersToKMB(attackingSurvived[i], 0);
         } else if (attackingSurvived[i] === "All") {
             formattedValue = "All";
         } else {
@@ -5143,7 +5143,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         let formattedValue;
 
         if (rout && totalDefendingArmy[i] > 0) {
-            formattedValue = formatNumbersToKMB(capturedArray[i]);
+            formattedValue = formatNumbersToKMB(capturedArray[i], 0);
         } else {
             capturedArray[i] = "-";
             formattedValue = "-";

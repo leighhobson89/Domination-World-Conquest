@@ -56,6 +56,9 @@ export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
 export let randomEventHappening = false;
 export let randomEvent = "";
 
+export let summaryWarsArray = [];
+export let summaryWarsLostArray = [];
+
 let probability = 0;
 let attackOptionsArray = [];
 let arrayOfLeadersAndCountries = [];
@@ -230,7 +233,7 @@ async function handleAITurn() {
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
-        // at this point the ai has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
+        // at this point the AI has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
         refinedTurnGoals = doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculating
 
         // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army)
@@ -250,6 +253,20 @@ async function handleAITurn() {
     logGoldStats(getArrayOfGoldToSpendOnBolster(), "Bolster");
     setDebugArraysToZero();
     //
+    for (let i = 0; i < summaryWarsArray.length; i++) {
+        console.log(`%c${summaryWarsArray[i]}`, "color: rgb(0,255,0);");
+        if (i < summaryWarsArray.length - 1) {
+            console.log("%c------------------", "color: rgb(0,255,0);"); // Line separator
+        }
+    }
+    for (let i = 0; i < summaryWarsLostArray.length; i++) {
+        console.log(`%c${summaryWarsLostArray[i]}`, "color: red;");
+        if (i < summaryWarsLostArray.length - 1) {
+            console.log("%c------------------", "color: red;"); // Line separator
+        }
+    }
+    summaryWarsArray.length = 0;
+    summaryWarsLostArray.length = 0;
     console.log("AI DONE!"); // Placeholder message for AI turn completed
     initialiseNewPlayerTurn();
 

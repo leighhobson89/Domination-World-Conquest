@@ -645,14 +645,14 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
     }
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
-    let diceScoreArray; //DICE CODE EXECUTION
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-            diceScoreArray = await callDice(setColorOnMap(mainGameArray[i]));
-            break;
-        }
-    }
-    console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
+    // let diceScoreArray; //DICE CODE EXECUTION
+    // for (let i = 0; i < mainGameArray.length; i++) {
+    //     if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+    //         diceScoreArray = await callDice(setColorOnMap(mainGameArray[i]));
+    //         break;
+    //     }
+    // }
+    // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
     // //show feedback
     combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
     combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
@@ -1201,7 +1201,7 @@ export function handleEndSiegeDueArrest(siege) {
         defendingTerritory.airForCurrentTerritory = siege.defendingArmyRemaining[2] + (Math.floor(siege.attackingArmyRemaining[2] * 0.5));
         defendingTerritory.navalForCurrentTerritory = siege.defendingArmyRemaining[3] + (Math.floor(siege.attackingArmyRemaining[3] * 0.5));
         defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory);
+        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0);
 
         siege.attackingArmyRemaining = [0, 0, 0, 0];
         siege.resolution = "Arrested";

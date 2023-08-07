@@ -19,10 +19,17 @@ import {
     territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
-import {calculateCombinedForce, calculateProbabilityPreBattle, deactivateTerritoryAi} from "./battle.js";
+import {
+    calculateCombinedForce,
+    calculateProbabilityPreBattle,
+    deactivateTerritoryAi
+} from "./battle.js";
 import {
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
+import {
+    summaryWarsArray, summaryWarsLostArray
+} from "./gameTurnsLoop.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -732,7 +739,9 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
                         const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
                         const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
                         if (remainingArmyArray[4] === 0) { //attacker won
-                            mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                            mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
+                        } else {
+                            summaryWarsLostArray.push(mainArrayEnemyTerritoryCopy.territoryName + " resisted attack from " + mainArrayFriendlyTerritoryCopy.dataName);
                         }
                     }
                 }
@@ -1279,7 +1288,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFri
     const newProb = calculateProbabilityPreBattle(attackArray, mainGameArray, false);
     console.log("Probability of that battle would be: " + newProb);
 
-    if ((leaderType === "aggressive" && newProb < 35) || (leaderType === "balanced" && newProb < 50) || (leaderType === "pacifist" && newProb < 60)) {
+    if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
         console.log("Probability too low, bunking out!");
         return "Cancel";
     } else {
@@ -1478,5 +1487,6 @@ function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerrito
     deactivateTerritoryAi(territory);
     setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
     updateArrayOfLeadersAndCountries();
+    summaryWarsArray.push(territory.territoryName + " conquered by " + mainArrayFriendlyTerritoryCopy.dataName);
     return territory;
 }
