@@ -1086,21 +1086,41 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
             const territoryData = mainGameArray.find(t => t.uniqueId === path.getAttribute("uniqueid"));
             const dataName = territoryData.dataName;
             if (territoryData) {
-                countryResourceTotals[dataName].totalGold += territoryData.goldForCurrentTerritory;
-                countryResourceTotals[dataName].totalOil += territoryData.oilForCurrentTerritory;
-                countryResourceTotals[dataName].totalFood += territoryData.foodForCurrentTerritory;
-                countryResourceTotals[dataName].totalConsMats += territoryData.consMatsForCurrentTerritory;
-                countryResourceTotals[dataName].totalPop += territoryData.territoryPopulation;
-                countryResourceTotals[dataName].totalProdPop += territoryData.productiveTerritoryPop;
-                countryResourceTotals[dataName].totalArea += territoryData.area;
-                countryResourceTotals[dataName].totalArmy += territoryData.armyForCurrentTerritory;
-                countryResourceTotals[dataName].totalInfantry += territoryData.infantryForCurrentTerritory;
-                countryResourceTotals[dataName].totalAssault += territoryData.assaultForCurrentTerritory;
-                countryResourceTotals[dataName].totalAir += territoryData.airForCurrentTerritory;
-                countryResourceTotals[dataName].totalNaval += territoryData.navalForCurrentTerritory;
-                countryResourceTotals[dataName].totalUseableAssault += territoryData.useableAssault;
-                countryResourceTotals[dataName].totalUseableAir += territoryData.useableAir;
-                countryResourceTotals[dataName].totalUseableNaval += territoryData.useableNaval;
+                if (countryResourceTotals[dataName]) {
+                    countryResourceTotals[dataName].totalGold += territoryData.goldForCurrentTerritory;
+                    countryResourceTotals[dataName].totalOil += territoryData.oilForCurrentTerritory;
+                    countryResourceTotals[dataName].totalFood += territoryData.foodForCurrentTerritory;
+                    countryResourceTotals[dataName].totalConsMats += territoryData.consMatsForCurrentTerritory;
+                    countryResourceTotals[dataName].totalPop += territoryData.territoryPopulation;
+                    countryResourceTotals[dataName].totalProdPop += territoryData.productiveTerritoryPop;
+                    countryResourceTotals[dataName].totalArea += territoryData.area;
+                    countryResourceTotals[dataName].totalArmy += territoryData.armyForCurrentTerritory;
+                    countryResourceTotals[dataName].totalInfantry += territoryData.infantryForCurrentTerritory;
+                    countryResourceTotals[dataName].totalAssault += territoryData.assaultForCurrentTerritory;
+                    countryResourceTotals[dataName].totalAir += territoryData.airForCurrentTerritory;
+                    countryResourceTotals[dataName].totalNaval += territoryData.navalForCurrentTerritory;
+                    countryResourceTotals[dataName].totalUseableAssault += territoryData.useableAssault;
+                    countryResourceTotals[dataName].totalUseableAir += territoryData.useableAir;
+                    countryResourceTotals[dataName].totalUseableNaval += territoryData.useableNaval;
+                } else {
+                    countryResourceTotals[dataName] = {
+                        totalGold: 0,
+                        totalOil: 0,
+                        totalFood: 0,
+                        totalConsMats: 0,
+                        totalPop: 0,
+                        totalProdPop: 0,
+                        totalArea: 0,
+                        totalArmy: 0,
+                        totalInfantry: 0,
+                        totalAssault: 0,
+                        totalAir: 0,
+                        totalNaval: 0,
+                        totalUseableAssault: 0,
+                        totalUseableAir: 0,
+                        totalUseableNaval: 0,
+                    };
+                }
             }
         }
     }

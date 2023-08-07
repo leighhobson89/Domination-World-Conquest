@@ -3,21 +3,26 @@ import {
     getSiegeObjectFromObject,
     paths,
     PROBABILITY_THRESHOLD_FOR_SIEGE, saveMapColorState,
-    setColorOnMap, setCurrentMapColorAndStrokeArrayFromExternal, setOwnerOnPath
+    setColorOnMap, setCountryNameOnPath, setCurrentMapColorAndStrokeArrayFromExternal, setOwnerOnPath
 } from "./ui.js";
-import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
+import {
+    findMatchingCountries
+} from "./manualExceptionsForInteractions.js";
 import {
     armyGoldPrices, armyProdPopPrices,
     calculateAvailableUpgrades, INFANTRY_IN_A_TROOP,
     mainGameArray,
     maxFarms,
     maxForests, maxForts,
-    maxOilWells, oilRequirements,
+    maxOilWells, oilRequirements, playerOwnedTerritories,
     territoryUpgradeBaseCostsConsMats,
     territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
 import {calculateCombinedForce, calculateProbabilityPreBattle, deactivateTerritoryAi} from "./battle.js";
+import {
+    updateArrayOfLeadersAndCountries
+} from "./cpuPlayerGenerationAndLoading.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -727,7 +732,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
                         const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
                         const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
                         if (remainingArmyArray[4] === 0) { //attacker won
-                            updateMainArrayAfterBattle(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                            mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                         }
                     }
                 }
@@ -1449,24 +1454,29 @@ function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEne
     return remainderArray;
 }
 
-function updateMainArrayAfterBattle(armyArray, remainingArmyArray, battleResult, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
-            updateTerritory(mainGameArray[i], remainingArmyArray, mainArrayFriendlyTerritoryCopy);
-            break;
-        }
-    }
-}
-
 function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerritoryCopy) {
     territory.infantryForCurrentTerritory = remainingArmyArray[0];
     territory.assaultForCurrentTerritory = remainingArmyArray[1];
     territory.airForCurrentTerritory = remainingArmyArray[2];
     territory.navalForCurrentTerritory = remainingArmyArray[3];
-    territory.owner = mainArrayFriendlyTerritoryCopy.territoryName;
+    if (territory.owner === "Player") {
+        for (let i = 0; i < playerOwnedTerritories.length; i++) {
+            if (playerOwnedTerritories[i].getAttribute("uniqueid") === territory.uniqueId) {
+                playerOwnedTerritories.splice(i, 1);
+                break;
+            }
+        }
+        console.log(playerOwnedTerritories)
+    }
+    territory.owner = mainArrayFriendlyTerritoryCopy.owner;
     territory.countryColor = mainArrayFriendlyTerritoryCopy.countryColor;
+    territory.dataName = mainArrayFriendlyTerritoryCopy.dataName;
+    territory.leader = mainArrayFriendlyTerritoryCopy.leader;
     setColorOnMap(territory);
     setOwnerOnPath(territory);
+    setCountryNameOnPath(territory);
     deactivateTerritoryAi(territory);
     setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
+    updateArrayOfLeadersAndCountries();
+    return territory;
 }

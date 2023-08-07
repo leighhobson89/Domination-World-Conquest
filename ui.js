@@ -5843,3 +5843,11 @@ export function setOwnerOnPath(territory) {
         }
     }
 }
+
+export function setCountryNameOnPath(territory) {
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+            paths[i].setAttribute("data-name", territory.owner);
+        }
+    }
+}
