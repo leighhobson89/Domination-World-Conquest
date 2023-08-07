@@ -1102,24 +1102,6 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
                     countryResourceTotals[dataName].totalUseableAssault += territoryData.useableAssault;
                     countryResourceTotals[dataName].totalUseableAir += territoryData.useableAir;
                     countryResourceTotals[dataName].totalUseableNaval += territoryData.useableNaval;
-                } else {
-                    countryResourceTotals[dataName] = {
-                        totalGold: 0,
-                        totalOil: 0,
-                        totalFood: 0,
-                        totalConsMats: 0,
-                        totalPop: 0,
-                        totalProdPop: 0,
-                        totalArea: 0,
-                        totalArmy: 0,
-                        totalInfantry: 0,
-                        totalAssault: 0,
-                        totalAir: 0,
-                        totalNaval: 0,
-                        totalUseableAssault: 0,
-                        totalUseableAir: 0,
-                        totalUseableNaval: 0,
-                    };
                 }
             }
         }
