@@ -892,14 +892,11 @@ td {
   transform: translate(-50%, -50%);
   width: 50%;
   height: 500px;
-  background-color: rgba(81, 121, 153, 0.9);
   border: 3px solid rgb(111, 151, 183);
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  flex-direction: column;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
-  font-size: 0.9rem;
   box-sizing: border-box;
 }
 
@@ -1045,13 +1042,11 @@ td {
 
 .upgrade-row img {
   width: 69px;
-  height: 100%;
-  opacity: 0.7;
 }
 
 .upgrade-column:first-child {
   padding: 0;
-  width: 70px;
+  width: 65px;
 }
 
 .upgrade-column:nth-child(2) {
@@ -1192,18 +1187,15 @@ td {
   display: none;
   position: fixed;
   top: 51%;
-  left: 40%;
+  left: 50%;
   transform: translate(-50%, -50%);
-  width: 50%;
+  width: 70%;
   height: 500px;
-  background-color: rgba(81, 121, 153, 0.9);
   border: 3px solid rgb(111, 151, 183);
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  flex-direction: column;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
-  font-size: 0.9rem;
   box-sizing: border-box;
 }
 
@@ -1271,21 +1263,21 @@ td {
 
 .key-bar-buy-column2 {
   width: 30%;
-  padding: 10px;
+  padding-right: 44px;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-buy-column3 {
   width: 4%;
-  padding: 10px;
+  padding-right: 17px;
   align-items: center;
   text-align: center;
 }
 
 .key-bar-buy-column4 {
   width: 12%;
-  padding: 10px;
+  padding-right: 74px;
   align-items: center;
   text-align: center;
   justify-content: center;
@@ -1349,9 +1341,11 @@ td {
 
 .buy-row img {
   width: 69px;
-  height: 100%;
-  opacity: 0.7;
 }
+
+.buy-column {
+  text-align: center;
+ }
 
 .buy-column:first-child {
   padding: 0;
@@ -1360,12 +1354,10 @@ td {
 
 .buy-column:nth-child(2) {
   width: 12%;
-  text-align: center;
 }
 
 .buy-column:nth-child(3) {
   width: 30%;
-  text-align: center;
 }
 
 .buy-column:nth-child(4) {
@@ -1379,7 +1371,7 @@ td {
 .buy-column:nth-child(6) {
   display: flex;
   justify-content: space-between;
-  width: 60px;
+  width: 185px;
 }
 
 .buy-column {
@@ -1389,7 +1381,17 @@ td {
 .buyColumn5-wrapper {
   display: flex;
   align-items: center;
-  width: 25px;
+  width: 65px;
+}
+
+.buyColumn5Multiplier {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.buyColumn5Multiplier .buy-column {
+  margin-left: 5px;
 }
 
 .buyColumn5A {
@@ -1398,34 +1400,28 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  margin-right: -10px;
 }
 
 .buyColumn5B {
-  padding: 0;
-  align-items: center;
-  display: flex;
-  width: 15px;
 }
 
 .buyColumn5B input[type="text"] {
-  width: 15px;
+  width: 27px;
   height: 20px;
   border: none;
   border-radius: 4px;
   color: white;
-  background-color: rgba(54, 93, 125, 0.8);
+  background-color: rgba(54, 93, 125, 0);
   margin-left: 2px;
-  margin-right: 2px;
+  margin-right: -7px;
   pointer-events: none;
   text-align: center;
 }
 
 .buyColumn5C {
-  padding: 0;
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  width: 20px;
+  margin-left: 9px;
 }
 
 .bottom-bar-buy-window {
@@ -1474,6 +1470,11 @@ td {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.prices-buy-info-column:last-child {
+  border-right: 2px solid rgb(111, 151, 183);
+  padding-right: 10px;
 }
 
 .prices-buy-info-col0-padding {

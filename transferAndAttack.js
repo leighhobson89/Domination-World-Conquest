@@ -1015,8 +1015,8 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
                     }
 
                     colourTableText(document.getElementById("bottom-table"), mainGameArray[j]);
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(mainGameArray[j].armyForCurrentTerritory);
-                    document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((mainGameArray[j].territoryPopulation) / 100) * 45) * mainGameArray[j].devIndex) - mainGameArray[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainGameArray[j].territoryPopulation) + ")";
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(mainGameArray[j].armyForCurrentTerritory, 0);
+                    document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((mainGameArray[j].territoryPopulation, 0) / 100) * 45) * mainGameArray[j].devIndex) - mainGameArray[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainGameArray[j].territoryPopulation, 0) + ")";
                     break;
                 }
             }
