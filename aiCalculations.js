@@ -1,20 +1,27 @@
 import {
-    currentMapColorAndStrokeArray,
     getSiegeObjectFromObject,
     paths,
-    PROBABILITY_THRESHOLD_FOR_SIEGE, saveMapColorState,
-    setColorOnMap, setCountryNameOnPath, setCurrentMapColorAndStrokeArrayFromExternal, setOwnerOnPath
+    PROBABILITY_THRESHOLD_FOR_SIEGE,
+    saveMapColorState,
+    setColorOnMap,
+    setCountryNameOnPath,
+    setCurrentMapColorAndStrokeArrayFromExternal,
+    setOwnerOnPath,
+    populateAiDialogueBox
 } from "./ui.js";
+import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
 import {
-    findMatchingCountries
-} from "./manualExceptionsForInteractions.js";
-import {
-    armyGoldPrices, armyProdPopPrices,
-    calculateAvailableUpgrades, INFANTRY_IN_A_TROOP,
+    armyGoldPrices,
+    armyProdPopPrices,
+    calculateAvailableUpgrades,
+    INFANTRY_IN_A_TROOP,
     mainGameArray,
     maxFarms,
-    maxForests, maxForts,
-    maxOilWells, oilRequirements, playerOwnedTerritories,
+    maxForests,
+    maxForts,
+    maxOilWells,
+    oilRequirements,
+    playerOwnedTerritories,
     territoryUpgradeBaseCostsConsMats,
     territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
@@ -22,14 +29,11 @@ import {
 import {
     calculateCombinedForce,
     calculateProbabilityPreBattle,
-    deactivateTerritoryAi
+    deactivateTerritoryAi,
+    playerSiegeWarsList
 } from "./battle.js";
-import {
-    updateArrayOfLeadersAndCountries
-} from "./cpuPlayerGenerationAndLoading.js";
-import {
-    summaryWarsArray, summaryWarsLostArray
-} from "./gameTurnsLoop.js";
+import {getArrayOfLeadersAndCountries, updateArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading.js";
+import {summaryWarsArray, summaryWarsLostArray} from "./gameTurnsLoop.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -624,7 +628,7 @@ function removeDoubleAttackSiege(arr) {
     return filteredArr;
 }
 
-export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
+export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
     let economyBenefitArray = [];
     let bolsterBenefitArray = [];
     let siegeLaunchedFromArray = [];
@@ -640,7 +644,7 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
         let mainArrayFriendlyTerritoryCopy = "no match";
         let mainArrayEnemyTerritoryCopy = "no match";
 
-        for (let i = 0; i < mainGameArray.length; i++) {  //find territory depending on action
+        for (let i = 0; i < mainGameArray.length; i++) { //find territory depending on action
             let count = 0;
             if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
                 mainArrayFriendlyTerritoryCopy = {
@@ -736,6 +740,18 @@ export function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfT
                     const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
+                        //check if under siege by another ai or player
+                        //ai
+                        //if under siege by another ai then break and dont do attack
+                        //player
+                        let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) ? true : false;
+                        if (territoryAlreadyUnderSiege) {
+                            let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                            let response = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
+                            //if they accept, add gold to player, subtract from ai
+                            //continue with attack
+                            //if they refuse, then break and dont do attack.
+                        }
                         const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
                         const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
                         if (remainingArmyArray[4] === 0) { //attacker won
@@ -1489,4 +1505,38 @@ function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerrito
     updateArrayOfLeadersAndCountries();
     summaryWarsArray.push(territory.territoryName + " conquered by " + mainArrayFriendlyTerritoryCopy.dataName);
     return territory;
+}
+
+function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
+    let totalGold = 0;
+    let totalArea = 0;
+    let leaderTerritoryExpansionTrait;
+    let arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+        if (arrayOfLeadersAndCountries[i][0] === mainArrayFriendlyTerritoryCopy.dataName) {
+            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
+                totalArea += arrayOfLeadersAndCountries[i][2][j].area;
+                totalGold += arrayOfLeadersAndCountries[i][2][j].goldForCurrentTerritory;
+                leaderTerritoryExpansionTrait = arrayOfLeadersAndCountries[i][1].traits.territory_expansion;
+            }
+            break;
+        }
+    }
+    let territoryAreaPercentage = (mainArrayEnemyTerritoryCopy.area / totalArea) * 100;
+    let totalBaseGold = (totalGold / territoryAreaPercentage) * leaderTerritoryExpansionTrait;
+
+    if (mainArrayEnemyTerritoryCopy.originalOwner === mainArrayFriendlyTerritoryCopy.owner) totalBaseGold *= 2;
+
+    let goldToOffer = totalBaseGold;
+    if (totalBaseGold > totalGold) goldToOffer = totalGold;
+
+    return Math.floor(goldToOffer);
+}
+
+async function openUIAndOfferGoldToPlayer(goldToOffer, attacker) {
+    let response;
+    await populateAiDialogueBox("goldForSiege", attacker);
+    //toggleAiDialogWindow(true);
+    // //document.getElementById("").innerHTML = ""; //etc
+    return response;
 }

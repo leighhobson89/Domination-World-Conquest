@@ -71,7 +71,7 @@ import {
     setRoutStatus,
     setupBattle,
     setValuesForBattleFromSiegeObject,
-    siegeObject,
+    playerSiegeWarsList,
     skirmishesPerRound
 } from './battle.js';
 import {removeCanvasIfExist} from "./dices.js";
@@ -144,6 +144,7 @@ let menuState = true;
 let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
 let mapModeButtonCurrentlyOnScreen = false;
+let aiDialogueContainerCurrentlyOnScreen = false;
 export let transferAttackButtonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
@@ -494,7 +495,7 @@ function selectCountry(country, escKeyEntry) {
                         if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
                             for (let k = 0; k < mainGameArray.length; k++) {
                                 if (mainGameArray[k].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                                    setColorOnMap(mainGameArray[k]);
+                                    setColorOnMap(mainGameArray[k], true);
                                     break;
                                 }
                             }
@@ -726,6 +727,9 @@ document.addEventListener("DOMContentLoaded", function() {
             popupTitle.innerText = "LOADING...";
             popupSubTitle.innerText = "";
             popupConfirm.innerText = "INITIAL SETUP";
+            toggleAiDialogue(true); //DEBUG
+            aiDialogueContainerCurrentlyOnScreen = true; //DEBUG
+            await populateAiDialogueBox("goldForSiege", playerCountry); //DEBUG
             pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
             await initialiseGame();
@@ -977,6 +981,45 @@ document.addEventListener("DOMContentLoaded", function() {
     topTableRow.appendChild(topTableArmyValue);
 
     document.getElementById("top-table-container").appendChild(topTableTable);
+
+    //AI DIALOGUE
+    const aiDialogueContainer = document.createElement("div");
+    aiDialogueContainer.classList.add("blur-background");
+
+    const aiTitleRow = document.createElement("div");
+    aiTitleRow.classList.add("aiTitleRow");
+    aiTitleRow.setAttribute("id", "aiTitleRow");
+
+    const aiDialogueTitleFlagCol1 = document.createElement("div");
+    aiDialogueTitleFlagCol1.classList.add("aiDialogueTitleFlagCol1");
+    aiDialogueTitleFlagCol1.setAttribute("id", "aiDialogueTitleFlagCol1");
+
+    const aiDialogueTitleText = document.createElement("div");
+    aiDialogueTitleText.classList.add("aiDialogueTitleText");
+    aiDialogueTitleText.setAttribute("id", "aiDialogueTitleText");
+    aiDialogueTitleText.innerHTML = "Russia Requests PullOut";
+
+    const aiDialogueTitleFlagCol2 = document.createElement("div");
+    aiDialogueTitleFlagCol2.classList.add("aiDialogueTitleFlagCol2");
+    aiDialogueTitleFlagCol2.setAttribute("id", "aiDialogueTitleFlagCol2");
+
+    const aiDialogueBody = document.createElement("div");
+    aiDialogueBody.classList.add("aiDialogueBody");
+    aiDialogueBody.setAttribute("id", "aiDialogueBody");
+
+    const aiButtonRow = document.createElement("div");
+    aiButtonRow.classList.add("aiButtonRow");
+    aiButtonRow.setAttribute("id", "aiButtonRow");
+
+    aiTitleRow.appendChild(aiDialogueTitleFlagCol1);
+    aiTitleRow.appendChild(aiDialogueTitleText);
+    aiTitleRow.appendChild(aiDialogueTitleFlagCol2);
+
+    aiDialogueContainer.appendChild(aiTitleRow);
+    aiDialogueContainer.appendChild(aiDialogueBody);
+    aiDialogueContainer.appendChild(aiButtonRow);
+
+    document.getElementById("ai-dialogue-container").appendChild(aiDialogueContainer);
 
     //MAIN UI
     const mainUIContainer = document.createElement("div");
@@ -2310,9 +2353,9 @@ document.addEventListener("DOMContentLoaded", function() {
         let currentWarAlreadyInSiegeMode = false;
         let currentWarId = getCurrentWarId();
 
-        // Search the siegeObject for the warId
-        for (let territoryName in siegeObject) {
-            if (siegeObject.hasOwnProperty(territoryName) && siegeObject[territoryName].warId === currentWarId) {
+        // Search the playerSiegeWarsList for the warId
+        for (let territoryName in playerSiegeWarsList) {
+            if (playerSiegeWarsList.hasOwnProperty(territoryName) && playerSiegeWarsList[territoryName].warId === currentWarId) {
                 currentWarAlreadyInSiegeMode = true;
                 break;
             }
@@ -2595,7 +2638,7 @@ document.addEventListener("DOMContentLoaded", function() {
         enableDisableSiegeButton(1); //disable siege button at start
         let siegeAttackArray = [];
         siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
-        siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of siegeObject
+        siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of playerSiegeWarsList
         for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
             siegeAttackArray.push(war.attackingArmyRemaining[i]);
         }
@@ -3093,7 +3136,7 @@ export function setFlag(flag, place) {
 
     const img = document.createElement('img');
 
-    if (place !== 4 && place !== 5 && place !== 6 && place !== 7) {
+    if (place !== 4 && place !== 5 && place !== 6 && place !== 7 && place !== 8 && place !== 9) {
         img.classList.add("flag");
     }
 
@@ -3119,6 +3162,14 @@ export function setFlag(flag, place) {
         img.style.width = "100%";
     } else if (place === 7) { //Battle Results UI defender
         flagElement = document.getElementById("battleResultsRow1FlagCol2");
+        img.style.width = "100%";
+        img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
+    } else if (place === 8) { //Battle Results UI defender
+        flagElement = document.getElementById("aiDialogueTitleFlagCol1");
+        img.style.width = "100%";
+        img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
+    } else if (place === 9) { //Battle Results UI defender
+        flagElement = document.getElementById("aiDialogueTitleFlagCol2");
         img.style.width = "100%";
         img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
     } else if (place === 0) {
@@ -3659,7 +3710,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             setTerritoryForAttack(path);
         } else if (path.getAttribute("underSiege") === "true") {
             // if clicks on an enemy territory that is within reach but under siege then set it up for that
-            button.innerHTML = "VIEW SIEGE (" + siegeObject[path.getAttribute("territory-name")].turnsInSiege + ")";
+            button.innerHTML = "VIEW SIEGE (" + playerSiegeWarsList[path.getAttribute("territory-name")].turnsInSiege + ")";
             button.classList.remove("move-phase-button-green-background");
             button.classList.remove("move-phase-button-grey-background");
             button.classList.remove("move-phase-button-red-background");
@@ -3904,7 +3955,7 @@ function setTerritoryForAttack(territoryToAttack) {
     document.getElementById("attack-destination-container").style.display = "flex";
     attackTextCurrentlyDisplayed = true;
     if (territoryToAttack.getAttribute("underSiege") === "true") {
-        territoryToAttack.style.stroke = siegeObject[territoryToAttack.getAttribute("territory-name")].strokeColor;
+        territoryToAttack.style.stroke = playerSiegeWarsList[territoryToAttack.getAttribute("territory-name")].strokeColor;
         territoryToAttack.setAttribute("stroke-width", "5px");
         territoryToAttack.style.strokeDasharray = "10, 5";
     } else {
@@ -3939,11 +3990,11 @@ function addImageToPath(pathElement, imagePath, siege) {
     imageElement.setAttribute("z-index", "9999");
 
     if (siege) {
-        for (const key in siegeObject) {
-            if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === currentWarId) {
+        for (const key in playerSiegeWarsList) {
+            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === currentWarId) {
                 for (let i = 0; i < paths.length; i++) {
-                    if (paths[i].getAttribute("territory-name") === siegeObject[key].defendingTerritory.territoryName) {
-                        const territoryName = siegeObject[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+                    if (paths[i].getAttribute("territory-name") === playerSiegeWarsList[key].defendingTerritory.territoryName) {
+                        const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
                         pathElement.parentNode.appendChild(imageElement);
                         imageElement.setAttribute("id", `siegeImage_${territoryName}`);
                         break;
@@ -4276,6 +4327,13 @@ function toggleMapModeButton(makeVisible) {
     }
 }
 
+function toggleAiDialogue(makeVisible) {
+    if (makeVisible) {
+        document.getElementById("ai-dialogue-container").style.display = "flex";
+    } else {
+        document.getElementById("ai-dialogue-container").style.display = "none";
+    }
+}
 function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
     if (makeVisible) {
         document.getElementById("popup-with-confirm-container").style.display = "block";
@@ -4620,10 +4678,10 @@ function setupBattleUI(attackArray) {
             }
         }
     } else {
-        for (const key in siegeObject) {
-            if (siegeObject[key].defendingTerritory.territoryName === defenderTerritory.getAttribute("territory-name")) {
-                document.getElementById("defenseBonusText").innerHTML = siegeObject[key].defendingTerritory.defenseBonus;
-                document.getElementById("mountainDefenseText").innerHTML = siegeObject[key].defendingTerritory.mountainDefenseBonus;
+        for (const key in playerSiegeWarsList) {
+            if (playerSiegeWarsList[key].defendingTerritory.territoryName === defenderTerritory.getAttribute("territory-name")) {
+                document.getElementById("defenseBonusText").innerHTML = playerSiegeWarsList[key].defendingTerritory.defenseBonus;
+                document.getElementById("mountainDefenseText").innerHTML = playerSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
                 break;
             }
         }
@@ -5188,14 +5246,14 @@ export function enableDisableSiegeButton(enableOrDisable) {
 }
 
 export function getSiegeObjectFromPath(territory) {
-    if (territory.getAttribute("territory-name") in siegeObject) {
-        return siegeObject[territory.getAttribute("territory-name")];
+    if (territory.getAttribute("territory-name") in playerSiegeWarsList) {
+        return playerSiegeWarsList[territory.getAttribute("territory-name")];
     }
 }
 
 export function getSiegeObjectFromObject(territory) {
-    if (territory.territoryName in siegeObject) {
-        return siegeObject[territory.territoryName];
+    if (territory.territoryName in playerSiegeWarsList) {
+        return playerSiegeWarsList[territory.territoryName];
     } else {
         return false;
     }
@@ -5322,6 +5380,7 @@ function setUnsetMenuOnEscape(e) {
         toggleTransferAttackWindow(false);
         toggleBattleUI(false, false);
         toggleBattleResults(false);
+        toggleAiDialogue(false);
 
     } else if (e.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
         if (uiCurrentlyOnScreen) {
@@ -5376,6 +5435,9 @@ function setUnsetMenuOnEscape(e) {
         }
         if (transferAttackButtonDisplayed) {
             toggleTransferAttackButton(true, false);
+        }
+        if (aiDialogueContainerCurrentlyOnScreen) {
+            toggleAiDialogue(true);
         }
         toggleBottomTableContainer(true);
         document.getElementById("menu-container").style.display = "none";
@@ -5752,10 +5814,10 @@ export function endPlayerTurn() {
 export function initialiseNewPlayerTurn() {
     populateBottomTableWhenSelectingACountry(getLastClickedPath());
     document.getElementById("popup-confirm").disabled = false;
-    if (siegeObject) {
-        for (const key in siegeObject) {
+    if (playerSiegeWarsList) {
+        for (const key in playerSiegeWarsList) {
             for (let i = 0; i < mainGameArray.length; i++) {
-                if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
+                if (playerSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
                     console.log("Beginning of turn Useable for " + mainGameArray[i].territoryName + ": Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
                 }
             }
@@ -5818,11 +5880,25 @@ function pushColorsToMainArray() {
     }
 }
 
-export function setColorOnMap(territory) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-            paths[i].setAttribute("fill", territory.countryColor);
-            break;
+export function setColorOnMap(territory, selectCountryState) {
+    if (selectCountryState) {
+        for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("data-name") === territory.dataName) {
+                for (let j = 0; j < listOfStartingCountryColorsArray.length; j++) {
+                    if (listOfStartingCountryColorsArray[j][0] === paths[i].getAttribute("uniqueid")) {
+                        console.log("rgb(" + listOfStartingCountryColorsArray[j][2][0].toString() + "," + listOfStartingCountryColorsArray[j][2][1].toString() + "," + listOfStartingCountryColorsArray[j][2][2].toString() + ");");
+                        paths[i].setAttribute("fill", "rgb(" + listOfStartingCountryColorsArray[j][2][0].toString() + "," + listOfStartingCountryColorsArray[j][2][1].toString() + "," + listOfStartingCountryColorsArray[j][2][2].toString() + ")");
+                        break;
+                    }
+                }
+            }
+        }
+    } else {
+        for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
+                paths[i].setAttribute("fill", territory.countryColor);
+                break;
+            }
         }
     }
     return territory.countryColor;
@@ -5850,4 +5926,18 @@ export function setCountryNameOnPath(territory) {
             paths[i].setAttribute("data-name", territory.owner);
         }
     }
+}
+
+export async function populateAiDialogueBox(situation, attacker) {
+    //DEBUG
+    attacker = playerCountry;
+    //
+    setFlag(attacker, 8);
+    setFlag(playerCountry, 9);
+    switch (situation) {
+        case "goldForSiege":
+
+            break;
+    }
+
 }
