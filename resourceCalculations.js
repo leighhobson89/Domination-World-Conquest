@@ -1036,7 +1036,7 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
 
     for (const path of paths) {
         const territoryOwner = path.getAttribute("owner");
-
+        console.log(territoryOwner);
         // Skip territories with no owner
         if (!territoryOwner) {
             continue;
@@ -3576,6 +3576,15 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
     }
 
     if (!simOnly) {
+        let topTableGold = document.querySelector("#top-table .resourceFields:nth-child(4)").innerHTML;
+        let topTableProdPop = document.querySelector("#top-table .population").innerHTML;
+        topTableProdPop = stripProdPopFromTopTable(topTableProdPop);
+        let rowChildIndex = findBuyRowPosition(buyTextField);
+        let totalGoldSpentSoFar = (document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyGoldPrices.infantry) + (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyGoldPrices.assault) + (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyGoldPrices.air) + (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyGoldPrices.naval);
+        let totalProdPopSpentSoFar = (document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyProdPopPrices.infantry) + (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyProdPopPrices.assault) + (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyProdPopPrices.air) + (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyProdPopPrices.naval);
+
+        currentValueQuantity = adjustValueIfOverMax(topTableGold, topTableProdPop, rowChildIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar);
+
         buyTextField.value = currentValueQuantity;
     }
 
@@ -4754,4 +4763,91 @@ export function findSvgPath(coordinates) {
         }
     }
     return null;
+}
+
+function stripProdPopFromTopTable(topTablePop) {
+    const matches = topTablePop.match(/^([\d.]+)([Mk]?) \(/);
+
+    if (!matches) {
+        throw new Error("Invalid input format");
+    }
+
+    const number = parseFloat(matches[1]);
+    const unit = matches[2];
+
+    let result;
+    if (unit === "M") {
+        result = number * 1000000;
+    } else if (unit === "k") {
+        result = number * 1000;
+    } else {
+        result = number;
+    }
+
+    return result;
+}
+
+function findBuyRowPosition(inputElement) {
+    let generationsUp = 0;
+    let currentElement = inputElement;
+
+    while (currentElement && !currentElement.classList.contains('buy-row')) {
+        currentElement = currentElement.parentElement;
+        generationsUp++;
+    }
+
+    if (currentElement) {
+        // Calculate the nth-child position
+        const nthChildPosition = Array.from(currentElement.parentElement.children).indexOf(currentElement) + 1;
+        return nthChildPosition;
+    }
+
+    return null; // Input element is not within a .buy-row
+}
+
+const inputElement = document.querySelector('#buy-table input');
+const position = findBuyRowPosition(inputElement);
+
+if (position !== null) {
+    console.log(`The input element is from nth-child(${position}) of .buy-row`);
+} else {
+    console.log('The input element is not within a .buy-row');
+}
+
+function adjustValueIfOverMax(topTableGold, topTableProdPop, rowIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar) {
+    switch (rowIndex) {
+        case 1:
+            if (currentValueQuantity * armyGoldPrices.infantry > (parseInt(topTableGold) - totalGoldSpentSoFar)) {
+                currentValueQuantity = Math.floor((parseInt(topTableGold) - totalGoldSpentSoFar) / armyGoldPrices.infantry);
+            }
+            if (currentValueQuantity * armyProdPopPrices.infantry > (topTableProdPop - totalProdPopSpentSoFar)) {
+                currentValueQuantity = Math.floor((topTableProdPop - totalProdPopSpentSoFar) / armyProdPopPrices.infantry);
+            }
+            break;
+        case 2:
+            if (currentValueQuantity * armyGoldPrices.assault > (parseInt(topTableGold) - totalGoldSpentSoFar)) {
+                currentValueQuantity = Math.floor((parseInt(topTableGold) - totalGoldSpentSoFar) / armyGoldPrices.assault);
+            }
+            if (currentValueQuantity * armyProdPopPrices.assault > (topTableProdPop - totalProdPopSpentSoFar)) {
+                currentValueQuantity = Math.floor((topTableProdPop - totalProdPopSpentSoFar) / armyProdPopPrices.assault);
+            }
+            break;
+        case 3:
+            if (currentValueQuantity * armyGoldPrices.air > (parseInt(topTableGold) - totalGoldSpentSoFar)) {
+                currentValueQuantity = Math.floor((parseInt(topTableGold) - totalGoldSpentSoFar) / armyGoldPrices.air);
+            }
+            if (currentValueQuantity * armyProdPopPrices.air > (topTableProdPop - totalProdPopSpentSoFar)) {
+                currentValueQuantity = Math.floor((topTableProdPop - totalProdPopSpentSoFar) / armyProdPopPrices.air);
+            }
+            break;
+        case 4:
+            if (currentValueQuantity * armyGoldPrices.naval > (parseInt(topTableGold) - totalGoldSpentSoFar)) {
+                currentValueQuantity = Math.floor((parseInt(topTableGold) - totalGoldSpentSoFar) / armyGoldPrices.naval);
+            }
+            if (currentValueQuantity * armyProdPopPrices.naval > (topTableProdPop - totalProdPopSpentSoFar)) {
+                currentValueQuantity = Math.floor((topTableProdPop - totalProdPopSpentSoFar) / armyProdPopPrices.naval);
+            }
+            break;
+    }
+    return currentValueQuantity;
 }
