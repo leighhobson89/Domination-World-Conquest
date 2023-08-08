@@ -1,4 +1,6 @@
-import {findMatchingCountries} from './manualExceptionsForInteractions.js';
+import {
+    findMatchingCountries
+} from './manualExceptionsForInteractions.js';
 import {
     currentTurn,
     currentTurnPhase,
@@ -56,6 +58,7 @@ import {
     getUpdatedProbability,
     historicWars,
     nextWarId,
+    playerSiegeWarsList,
     playerTurnsDeactivatedArray,
     processRound,
     proportionsOfAttackArray,
@@ -71,7 +74,6 @@ import {
     setRoutStatus,
     setupBattle,
     setValuesForBattleFromSiegeObject,
-    playerSiegeWarsList,
     skirmishesPerRound
 } from './battle.js';
 import {removeCanvasIfExist} from "./dices.js";
@@ -79,6 +81,7 @@ import {
     createCpuPlayerObjectAndAddToMainArray,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
+import {openUIAndOfferGoldToPlayer} from "./aiCalculations.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -145,6 +148,7 @@ let selectCountryPlayerState = false;
 let uiButtonCurrentlyOnScreen = false;
 let mapModeButtonCurrentlyOnScreen = false;
 let aiDialogueContainerCurrentlyOnScreen = false;
+
 export let transferAttackButtonState;
 export let upgradeWindowCurrentlyOnScreen = false;
 export let buyWindowCurrentlyOnScreen = false;
@@ -727,9 +731,6 @@ document.addEventListener("DOMContentLoaded", function() {
             popupTitle.innerText = "LOADING...";
             popupSubTitle.innerText = "";
             popupConfirm.innerText = "INITIAL SETUP";
-            toggleAiDialogue(true); //DEBUG
-            aiDialogueContainerCurrentlyOnScreen = true; //DEBUG
-            await populateAiDialogueBox("goldForSiege", playerCountry); //DEBUG
             pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
             await initialiseGame();
@@ -982,7 +983,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     document.getElementById("top-table-container").appendChild(topTableTable);
 
-    //AI DIALOGUE
+    //------------------------------------------AI DIALOGUE-----------------------------------------------//
+
     const aiDialogueContainer = document.createElement("div");
     aiDialogueContainer.classList.add("blur-background");
 
@@ -997,7 +999,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const aiDialogueTitleText = document.createElement("div");
     aiDialogueTitleText.classList.add("aiDialogueTitleText");
     aiDialogueTitleText.setAttribute("id", "aiDialogueTitleText");
-    aiDialogueTitleText.innerHTML = "Russia Requests PullOut";
 
     const aiDialogueTitleFlagCol2 = document.createElement("div");
     aiDialogueTitleFlagCol2.classList.add("aiDialogueTitleFlagCol2");
@@ -1007,19 +1008,54 @@ document.addEventListener("DOMContentLoaded", function() {
     aiDialogueBody.classList.add("aiDialogueBody");
     aiDialogueBody.setAttribute("id", "aiDialogueBody");
 
+    const aiDialogueBodySubHeading = document.createElement("div");
+    aiDialogueBodySubHeading.classList.add("aiDialogueBodySubHeading");
+    aiDialogueBodySubHeading.setAttribute("id", "aiDialogueBodySubHeading");
+
+    const aiDialogueBodyBottomContent = document.createElement("div");
+    aiDialogueBodyBottomContent.classList.add("aiDialogueBodyBottomContent");
+    aiDialogueBodyBottomContent.setAttribute("id", "aiDialogueBodyBottomContent");
+
+    const aiDialogueBodyBottomContentLeft = document.createElement("div");
+    aiDialogueBodyBottomContentLeft.classList.add("aiDialogueBodyBottomContentLeft");
+    aiDialogueBodyBottomContentLeft.setAttribute("id", "aiDialogueBodyBottomContentLeft");
+
+    const aiDialogueBodyBottomContentRight = document.createElement("div");
+    aiDialogueBodyBottomContentRight.classList.add("aiDialogueBodyBottomContentRight");
+    aiDialogueBodyBottomContentRight.setAttribute("id", "aiDialogueBodyBottomContentRight");
+
     const aiButtonRow = document.createElement("div");
     aiButtonRow.classList.add("aiButtonRow");
     aiButtonRow.setAttribute("id", "aiButtonRow");
 
+    const aiButtonLeft = document.createElement("div");
+    aiButtonLeft.classList.add("aiButtonLeft");
+    aiButtonLeft.setAttribute("id", "aiButtonLeft");
+
+    const aiButtonRight = document.createElement("div");
+    aiButtonRight.classList.add("aiButtonRight");
+    aiButtonRight.setAttribute("id", "aiButtonRight");
+
     aiTitleRow.appendChild(aiDialogueTitleFlagCol1);
     aiTitleRow.appendChild(aiDialogueTitleText);
     aiTitleRow.appendChild(aiDialogueTitleFlagCol2);
+
+    aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentLeft);
+    aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentRight);
+
+    aiDialogueBody.appendChild(aiDialogueBodySubHeading);
+    aiDialogueBody.appendChild(aiDialogueBodyBottomContent);
+
+    aiButtonRow.appendChild(aiButtonLeft);
+    aiButtonRow.appendChild(aiButtonRight);
 
     aiDialogueContainer.appendChild(aiTitleRow);
     aiDialogueContainer.appendChild(aiDialogueBody);
     aiDialogueContainer.appendChild(aiButtonRow);
 
     document.getElementById("ai-dialogue-container").appendChild(aiDialogueContainer);
+
+    //------------------------------------------------------------------------------------------------//
 
     //MAIN UI
     const mainUIContainer = document.createElement("div");
@@ -3167,11 +3203,9 @@ export function setFlag(flag, place) {
     } else if (place === 8) { //Battle Results UI defender
         flagElement = document.getElementById("aiDialogueTitleFlagCol1");
         img.style.width = "100%";
-        img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
     } else if (place === 9) { //Battle Results UI defender
         flagElement = document.getElementById("aiDialogueTitleFlagCol2");
         img.style.width = "100%";
-        img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
     } else if (place === 0) {
         return img.src;
     }
@@ -4327,7 +4361,7 @@ function toggleMapModeButton(makeVisible) {
     }
 }
 
-function toggleAiDialogue(makeVisible) {
+export function toggleAiDialogue(makeVisible) {
     if (makeVisible) {
         document.getElementById("ai-dialogue-container").style.display = "flex";
     } else {
@@ -5928,16 +5962,25 @@ export function setCountryNameOnPath(territory) {
     }
 }
 
-export async function populateAiDialogueBox(situation, attacker) {
-    //DEBUG
-    attacker = playerCountry;
-    //
-    setFlag(attacker, 8);
+export async function populateAiDialogueBox(situation, attacker, defender, parameter) {
+    setFlag(attacker.dataName, 8);
     setFlag(playerCountry, 9);
     switch (situation) {
         case "goldForSiege":
+            document.getElementById("aiDialogueTitleText").innerHTML = reduceKeywords(attacker.dataName) + " Requests Pullout";
+            document.getElementById("aiDialogueBodySubHeading").innerHTML = attacker.dataName + " requests you to kindly retreat from the siege on " + defender.territoryName + ", and in return they will grant you:"
 
+            const imageElement = document.createElement("img");
+            imageElement.classList.add("largeAiDialogImage");
+            imageElement.src = "./resources/gold.png";
+            document.getElementById("aiDialogueBodyBottomContentLeft").appendChild(imageElement);
+            document.getElementById("aiDialogueBodyBottomContentRight").innerHTML = formatNumbersToKMB(parameter);
+            document.getElementById("aiButtonLeft").innerHTML = "Refuse";
+            document.getElementById("aiButtonRight").innerHTML = "Accept";
             break;
     }
+}
 
+export function setAiDialogueContainerCurrentlyOnScreen(value) {
+    aiDialogueContainerCurrentlyOnScreen = value;
 }

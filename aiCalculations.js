@@ -7,9 +7,13 @@ import {
     setCountryNameOnPath,
     setCurrentMapColorAndStrokeArrayFromExternal,
     setOwnerOnPath,
-    populateAiDialogueBox
+    populateAiDialogueBox,
+    setAiDialogueContainerCurrentlyOnScreen,
+    toggleAiDialogue
 } from "./ui.js";
-import {findMatchingCountries} from "./manualExceptionsForInteractions.js";
+import {
+    findMatchingCountries
+} from "./manualExceptionsForInteractions.js";
 import {
     armyGoldPrices,
     armyProdPopPrices,
@@ -740,14 +744,14 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
-                        //check if under siege by another ai or player
                         //ai
                         //if under siege by another ai then break and dont do attack
-                        //player
-                        let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) ? true : false;
+                        let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
                         if (territoryAlreadyUnderSiege) {
                             let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
-                            let response = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
+                            toggleAiDialogue(true);
+                            setAiDialogueContainerCurrentlyOnScreen(true);
+                            let response = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
                             //if they accept, add gold to player, subtract from ai
                             //continue with attack
                             //if they refuse, then break and dont do attack.
@@ -1533,10 +1537,9 @@ function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, 
     return Math.floor(goldToOffer);
 }
 
-async function openUIAndOfferGoldToPlayer(goldToOffer, attacker) {
+export async function openUIAndOfferGoldToPlayer(goldToOffer, attacker, defender) {
     let response;
-    await populateAiDialogueBox("goldForSiege", attacker);
-    //toggleAiDialogWindow(true);
-    // //document.getElementById("").innerHTML = ""; //etc
+    await populateAiDialogueBox("goldForSiege", attacker, defender, goldToOffer);
+    //event listeners populate response
     return response;
 }
