@@ -41,7 +41,7 @@ import {
 } from './ui.js';
 import {
     historicWars,
-    siegeObject,
+    playerSiegeWarsList,
     handleWarEndingsAndOptions,
     addRemoveWarSiegeObject,
     setValuesForBattleFromSiegeObject,
@@ -552,7 +552,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
             const defendingTerritoryId = mainGameArray[i].uniqueId;
 
             // Update values only if territory is not defending against a siege war
-            if (!Object.values(siegeObject).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)) {
+            if (!Object.values(playerSiegeWarsList).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)) {
                 for (let i = 0; i < historicWars.length; i++) {
                     if (historicWars[i].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[i].resetStatsAfterWar) {
                         if (historicWars[i].turnsInSiege !== null) {
@@ -624,9 +624,9 @@ function calculateTerritoryResourceIncomesEachTurn() {
             } else if (changeDuringSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
                 changeDuringSiege = false;
                 let siegeTerritory;
-                for (const key in siegeObject) {
-                    if (siegeObject[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
-                        siegeTerritory = siegeObject[key];
+                for (const key in playerSiegeWarsList) {
+                    if (playerSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
+                        siegeTerritory = playerSiegeWarsList[key];
                         break;
                     }
                 }
@@ -1873,7 +1873,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             table.appendChild(territorySummaryRow);
         }
     } else if (summaryTerritoryArmySiegesTable === 3) {
-        const siegeArray = Object.values(siegeObject).map(siege => ({
+        const siegeArray = Object.values(playerSiegeWarsList).map(siege => ({
             warId: siege.warId,
             proportionsAttackers: siege.proportionsAttackers,
             defendingTerritory: siege.defendingTerritory,

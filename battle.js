@@ -100,7 +100,7 @@ export let defendingTerritoryId;
 export let defenseBonus;
 export let retrievalArray = [];
 
-export let siegeObject = {};
+export let playerSiegeWarsList = {};
 export let historicWars = [];
 export let currentWarId;
 export let nextWarId = 0;
@@ -842,7 +842,7 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (addOrRemove === 0) { // add war to siege object
-        siegeObject[defendingTerritoryCopy.territoryName] = {
+        playerSiegeWarsList[defendingTerritoryCopy.territoryName] = {
             warId: warId,
             proportionsAttackers: proportionsAttackers,
             defendingTerritory: defendingTerritoryCopy,
@@ -863,25 +863,25 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
 
         battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainGameArray) : null;
 
-        return siegeObject[defendingTerritory.territoryName].defendingTerritory;
+        return playerSiegeWarsList[defendingTerritory.territoryName].defendingTerritory;
 
     } else if (addOrRemove === 1) {
         let isDuplicate = false;
-        for (const key in siegeObject) {
-            if (siegeObject.hasOwnProperty(key) && siegeObject[key].warId === warId) {
+        for (const key in playerSiegeWarsList) {
+            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === warId) {
                 for (let i = 0; i < mainGameArray.length; i++) { //copy back updated number of buildings after siege
-                    if (mainGameArray[i].territoryName === siegeObject[key].defendingTerritory.territoryName) {
-                        mainGameArray[i].farmsBuilt = siegeObject[key].defendingTerritory.farmsBuilt;
-                        mainGameArray[i].forestsBuilt = siegeObject[key].defendingTerritory.forestsBuilt;
-                        mainGameArray[i].oilWellsBuilt = siegeObject[key].defendingTerritory.oilWellsBuilt;
-                        mainGameArray[i].fortsBuilt = siegeObject[key].defendingTerritory.fortsBuilt;
+                    if (mainGameArray[i].territoryName === playerSiegeWarsList[key].defendingTerritory.territoryName) {
+                        mainGameArray[i].farmsBuilt = playerSiegeWarsList[key].defendingTerritory.farmsBuilt;
+                        mainGameArray[i].forestsBuilt = playerSiegeWarsList[key].defendingTerritory.forestsBuilt;
+                        mainGameArray[i].oilWellsBuilt = playerSiegeWarsList[key].defendingTerritory.oilWellsBuilt;
+                        mainGameArray[i].fortsBuilt = playerSiegeWarsList[key].defendingTerritory.fortsBuilt;
                     }
                 }
                 isDuplicate = historicWars.some(obj => obj.warId === warId);
                 if (!isDuplicate) {
-                    historicWars.push(siegeObject[key]);
+                    historicWars.push(playerSiegeWarsList[key]);
                 }
-                delete siegeObject[key];
+                delete playerSiegeWarsList[key];
                 break;
             }
         }
@@ -946,9 +946,9 @@ function getStrokeColorOfDefendingTerritory(defendingTerritory) {
 }
 
 export function incrementSiegeTurns() {
-    for (const territory in siegeObject) {
-        if (siegeObject.hasOwnProperty(territory)) {
-            siegeObject[territory].turnsInSiege += 1;
+    for (const territory in playerSiegeWarsList) {
+        if (playerSiegeWarsList.hasOwnProperty(territory)) {
+            playerSiegeWarsList[territory].turnsInSiege += 1;
         }
     }
 }
@@ -986,21 +986,21 @@ export function getAttackingArmyRemaining() {
 
 export function calculateSiegePerTurn() {
     let continueSiegeArray = [];
-    if (siegeObject && Object.keys(siegeObject).length > 0) {
+    if (playerSiegeWarsList && Object.keys(playerSiegeWarsList).length > 0) {
 
         //calculate chance of a siege "hit"
-        for (const key in siegeObject) {
+        for (const key in playerSiegeWarsList) {
             let hitThisTurn;
             let hitCount = 0;
             let totalSiegeScore;
             let numberOfForts;
             let defenseBonusAttackedTerritory;
-            let mountainDefenseBonusAttackedTerritory = siegeObject[key].defendingTerritory.mountainDefenseBonus;
+            let mountainDefenseBonusAttackedTerritory = playerSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
 
             for (let i = 0; i < hitIterations; i++) {
-                totalSiegeScore = calculateSiegeScore(siegeObject[key]);
-                defenseBonusAttackedTerritory = siegeObject[key].defendingTerritory.defenseBonus;
-                numberOfForts = siegeObject[key].defendingTerritory.fortsBuilt;
+                totalSiegeScore = calculateSiegeScore(playerSiegeWarsList[key]);
+                defenseBonusAttackedTerritory = playerSiegeWarsList[key].defendingTerritory.defenseBonus;
+                numberOfForts = playerSiegeWarsList[key].defendingTerritory.fortsBuilt;
                 const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory);
 
                 let hit = Math.random() < hitChance;
@@ -1012,16 +1012,16 @@ export function calculateSiegePerTurn() {
 
             let damage = [];
 
-            hitThisTurn ? damage = calculateDamageDone(siegeObject[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
+            hitThisTurn ? damage = calculateDamageDone(playerSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
 
             if (!damage) { //if no hit
                 return;
             } else if (damage[2]) { //if arrested
-                siegeObject[key].defendingArmyRemaining.push(1); //add routing defeat to array
-                continueSiegeArray.push(siegeObject[key]);
+                playerSiegeWarsList[key].defendingArmyRemaining.push(1); //add routing defeat to array
+                continueSiegeArray.push(playerSiegeWarsList[key]);
             } else {
                 //do the damage
-                changeDefendingTerritoryStatsBasedOnSiege(siegeObject[key], damage);
+                changeDefendingTerritoryStatsBasedOnSiege(playerSiegeWarsList[key], damage);
                 continueSiegeArray.push(true); //siege can continue
             }
         }
@@ -1216,9 +1216,9 @@ export function handleEndSiegeDueArrest(siege) {
         removeSiegeImageFromPath(defendingPath);
         defendingPath.setAttribute("underSiege", "false");
 
-        for (const key in siegeObject) {
+        for (const key in playerSiegeWarsList) {
             if (key === siege.defendingTerritory.territoryName) {
-                delete siegeObject[key];
+                delete playerSiegeWarsList[key];
                 break;
             }
         }
