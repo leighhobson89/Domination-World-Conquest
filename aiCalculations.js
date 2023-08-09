@@ -15,7 +15,11 @@ import {
     convertAiDialogueButtonRow,
     removeSiegeImageFromPath,
     findClosestPaths,
-    setAiDialogueBodyBottomContentState, populateArmyDataFields
+    setAiDialogueBodyBottomContentState,
+    populateArmyDataFields,
+    addImageToPath,
+    mapMode,
+    currentMapColorAndStrokeArray
 } from "./ui.js";
 import {
     findMatchingCountries
@@ -39,12 +43,21 @@ import {
 } from "./resourceCalculations.js";
 import {
     addRemoveWarSiegeObject,
+    aiSiegeWarsList,
     calculateCombinedForce,
     calculateProbabilityPreBattle,
     deactivateTerritoryAi,
-    playerSiegeWarsList
+    playerSiegeWarsList,
+    getCurrentAiWarId,
+    getNextAiWarId,
+    setCurrentAiWarId,
+    setNextAiWarId,
+    addRemoveWarSiegeObjectAi
 } from "./battle.js";
-import {getArrayOfLeadersAndCountries, updateArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading.js";
+import {
+    getArrayOfLeadersAndCountries,
+    updateArrayOfLeadersAndCountries
+} from "./cpuPlayerGenerationAndLoading.js";
 import {
     summaryWarsArray,
     summaryWarsLostArray
@@ -757,6 +770,10 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
                     if (amountBeingSentToSiegeAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[0]);
+                        let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                        if (proceed) {
+                            setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[1], leader);
+                        }
                     }
                 }
                 break;
@@ -1286,7 +1303,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
     }
 
     if (amountCanSend > 0) {
-        console.log("Attack Cancelled as surrounding threats would leave territory too vulnerable");
+        console.log("Interaction cancelled as surrounding threats would leave territory too vulnerable");
         return "Cancel";
     } else {
         console.log("Amount would like to send is: " + Math.abs(amountCanSend));
@@ -1308,13 +1325,13 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
 
     const attackArray = [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId), Math.abs(Math.floor(actuallyBeingSent)), 0, 0, 0];
     const newProb = calculateProbabilityPreBattle(attackArray, mainGameArray, false);
-    console.log("Probability of that battle would be: " + newProb);
+    console.log("Probability of that interaction would be: " + newProb);
 
     if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
         console.log("Probability too low, bunking out!");
         return "Cancel";
     } else {
-        console.log("Going To Battle!");
+        console.log("Proceeding!");
         return [Math.abs(Math.floor(actuallyBeingSent)), newProb];
     }
 }
@@ -1726,4 +1743,67 @@ async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(main
         }
     }
     return true;
+}
+
+function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, leader) {
+    let probabilityModifier;
+        switch(leader.leaderType) {
+            case "aggressive":
+                probabilityModifier = -5;
+                break;
+            case "balanced":
+                probabilityModifier = 10;
+            break;
+            case "pacifist":
+                probabilityModifier = 15;
+                break;
+        }
+
+    if (probability >= (PROBABILITY_THRESHOLD_FOR_SIEGE + probabilityModifier)) { //if siege is allowed at all depending on leader type
+        setCurrentAiWarId(getNextAiWarId);
+        let currentAiWarId = getCurrentAiWarId();
+        setNextAiWarId(currentAiWarId + 1);
+
+        for (let i = 0; i < mainGameArray.length; i++) { //remove army from attacking territory
+            if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
+                mainGameArray[i].infantryForCurrentTerritory -= armyArray[0];
+                mainGameArray[i].assaultForCurrentTerritory -= armyArray[1];
+                mainGameArray[i].airForCurrentTerritory -= armyArray[2];
+                mainGameArray[i].navalForCurrentTerritory -= armyArray[3];
+                mainGameArray[i].useableAssault -= armyArray[1];
+                mainGameArray[i].useableAir -= armyArray[2];
+                mainGameArray[i].useableNaval -= armyArray[3];
+
+                mainGameArray[i].armyForCurrentTerritory = mainGameArray[i].infantryForCurrentTerritory + (mainGameArray[i].assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainGameArray[i].airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainGameArray[i].navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                console.log(mainArrayFriendlyTerritoryCopy.territoryName + " had its army adjusted ready for siege");
+                break;
+            }
+        }
+        //add war to siege array for ai
+        let currentWarAlreadyInSiegeMode = false;
+
+        // Search the playerSiegeWarsList for the warId
+        for (let territoryName in aiSiegeWarsList) {
+            if (aiSiegeWarsList.hasOwnProperty(territoryName) || playerSiegeWarsList.hasOwnProperty(territoryName)) {
+                currentWarAlreadyInSiegeMode = true;
+                break;
+            }
+        }
+        //set sieged territory to siege mode
+        for (let i = 0; i < paths; i++) {
+            if (paths[i].getAttribute("uniqueid") === mainArrayEnemyTerritoryCopy.uniqueId) {
+                paths[i].setAttribute("underSiege", "true");
+                console.log(paths[i].getAttribute("territory-name") + " has had its underSiege attribute set, it is now: " + paths[i].getAttribute("underSiege"));
+                addImageToPath(paths[i], "siegeai.png", 2);
+                console.log("Should now be an image over the territory of " + paths[i].getAttribute("territory-name"));
+                break;
+            }
+        }
+        if (!currentWarAlreadyInSiegeMode) {
+            addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
+            if (mapMode === 1) {
+                setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
+            }
+        }
+    }
 }

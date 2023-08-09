@@ -102,8 +102,12 @@ export let defenseBonus;
 export let retrievalArray = [];
 
 export let playerSiegeWarsList = {};
+export let aiSiegeWarsList = {};
 export let historicWars = [];
+export let historicAiWars = [];
 export let currentWarId;
+export let currentAiWarId;
+export let nextAiWarId = 0;
 export let nextWarId = 0;
 let resolution;
 
@@ -822,6 +826,22 @@ export function getCurrentWarId() {
     return currentWarId;
 }
 
+export function getCurrentAiWarId() {
+    return currentAiWarId;
+}
+
+export function getNextAiWarId() {
+    return nextAiWarId;
+}
+
+export function setNextAiWarId(value) {
+    nextAiWarId = value;
+}
+
+export function setCurrentAiWarId(value) {
+    currentAiWarId = value;
+}
+
 export function setCurrentWarId(value) {
     return currentWarId = value;
 }
@@ -889,6 +909,54 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
         }
     }
     console.log(historicWars);
+}
+
+export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defendingTerritory, attackingTerritory) {
+    let startingDefenseBonus = defendingTerritory.defenseBonus;
+    let startingFoodCapacity = defendingTerritory.foodCapacity;
+    let startingProdPop = defendingTerritory.productiveTerritoryPop;
+    let startingTerritoryPop = defendingTerritory.territoryPopulation;
+    let startingAtt = [attackingTerritory.infantryForCurrentTerritory, attackingTerritory.useableAssault, attackingTerritory.useableAir, attackingTerritory.useableNaval];
+    let startingDef = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
+
+    if (addOrRemove === 0) { // add war to siege object
+        aiSiegeWarsList[defendingTerritory.territoryName] = {
+            warId: warId,
+            defendingTerritory: defendingTerritory,
+            defendingArmyRemaining: startingDef,
+            attackingArmyRemaining: startingAtt,
+            turnsInSiege: 0,
+            startingAtt: startingAtt,
+            startingDef: startingDef,
+            startingDefenseBonus: startingDefenseBonus,
+            startingFoodCapacity: startingFoodCapacity,
+            startingProdPop: startingProdPop,
+            startingTerritoryPop: startingTerritoryPop
+        };
+        console.log("Siege now added to aiSiegeWarsList, array is as follows:");
+        console.log(aiSiegeWarsList);
+    } else if (addOrRemove === 1) {
+        let isDuplicate = false;
+        for (const key in aiSiegeWarsList) {
+            if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === warId) {
+                for (let i = 0; i < mainGameArray.length; i++) { //copy back updated number of buildings after siege
+                    if (mainGameArray[i].territoryName === aiSiegeWarsList[key].defendingTerritory.territoryName) {
+                        mainGameArray[i].farmsBuilt = aiSiegeWarsList[key].defendingTerritory.farmsBuilt;
+                        mainGameArray[i].forestsBuilt = aiSiegeWarsList[key].defendingTerritory.forestsBuilt;
+                        mainGameArray[i].oilWellsBuilt = aiSiegeWarsList[key].defendingTerritory.oilWellsBuilt;
+                        mainGameArray[i].fortsBuilt = aiSiegeWarsList[key].defendingTerritory.fortsBuilt;
+                        break;
+                    }
+                }
+                isDuplicate = historicAiWars.some(obj => obj.warId === warId);
+                if (!isDuplicate) {
+                    historicAiWars.push(aiSiegeWarsList[key]);
+                }
+                delete aiSiegeWarsList[key];
+                break;
+            }
+        }
+    }
 }
 
 export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStart) {

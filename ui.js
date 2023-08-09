@@ -43,7 +43,7 @@ import {
 import {
     addAttackingArmyToRetrievalArray,
     addRemoveWarSiegeObject,
-    addWarToHistoricWarArray,
+    addWarToHistoricWarArray, aiSiegeWarsList,
     calculateSiegeScore,
     currentWarId,
     defendingArmyRemaining,
@@ -2502,7 +2502,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Search the playerSiegeWarsList for the warId
         for (let territoryName in playerSiegeWarsList) {
-            if (playerSiegeWarsList.hasOwnProperty(territoryName) && playerSiegeWarsList[territoryName].warId === currentWarId) {
+            if (playerSiegeWarsList.hasOwnProperty(territoryName) || aiSiegeWarsList.hasOwnProperty(territoryName)) {
                 currentWarAlreadyInSiegeMode = true;
                 break;
             }
@@ -2531,7 +2531,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             //set graphics for territory under siege (include defense bonus)
-            addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", true);
+            addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", 1);
             svgMap.getElementById("attackImage").remove();
 
             if (mapMode === 1) {
@@ -4076,11 +4076,11 @@ function setTerritoryForAttack(territoryToAttack) {
         territoryToAttack.setAttribute("fill", playerColour);
         territoryToAttack.setAttribute("stroke-width", "5px");
         territoryToAttack.style.strokeDasharray = "10, 5";
-        addImageToPath(territoryToAttack, "battle.png", false);
+        addImageToPath(territoryToAttack, "battle.png", 0);
     }
 }
 
-function addImageToPath(pathElement, imagePath, siege) {
+export function addImageToPath(pathElement, imagePath, siege) {
     const pathBounds = pathElement.getBBox();
 
     const centerX = pathBounds.x + pathBounds.width / 2;
@@ -4102,12 +4102,26 @@ function addImageToPath(pathElement, imagePath, siege) {
     imageElement.setAttribute("height", imageHeight.toString());
     imageElement.setAttribute("z-index", "9999");
 
-    if (siege) {
+    if (siege === 1) {
         for (const key in playerSiegeWarsList) {
             if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === currentWarId) {
                 for (let i = 0; i < paths.length; i++) {
                     if (paths[i].getAttribute("territory-name") === playerSiegeWarsList[key].defendingTerritory.territoryName) {
                         const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+                        pathElement.parentNode.appendChild(imageElement);
+                        imageElement.setAttribute("id", `siegeImage_${territoryName}`);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    } else if (siege === 2) {
+        for (const key in aiSiegeWarsList) {
+            if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === currentAiWarId) {
+                for (let i = 0; i < paths.length; i++) {
+                    if (paths[i].getAttribute("territory-name") === aiSiegeWarsList[key].defendingTerritory.territoryName) {
+                        const territoryName = aiSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
                         pathElement.parentNode.appendChild(imageElement);
                         imageElement.setAttribute("id", `siegeImage_${territoryName}`);
                         break;
@@ -5557,7 +5571,7 @@ function setUnsetMenuOnEscape(e) {
             if (territoryAboutToBeAttackedOrSieged) {
                 if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and reads it, so it is on top of the svg path
                     svgMap.getElementById("attackImage").remove();
-                    addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", false);
+                    addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", 0);
                 }
             }
         }
