@@ -15,6 +15,7 @@ import {
     findMatchingCountries
 } from "./manualExceptionsForInteractions.js";
 import {
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
     armyGoldPrices,
     armyProdPopPrices,
     calculateAvailableUpgrades,
@@ -758,6 +759,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                             if (playerDecision === 1) { //add player gold and remove player siege and continue attack
                                 removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
                                 addGoldToPlayer(goldToOffer);
+                                addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
                                 //remove siege
                             } else { //cancel attack
                                 break;
@@ -1650,7 +1652,7 @@ function removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy) {
 
 function addGoldToPlayer(goldToOffer) {
     let arrayOfPlayerTerritoriesFromMainArray = [];
-    for (let i = 0; i < mainGameArray; i++) {
+    for (let i = 0; i < mainGameArray.length; i++) {
         if (mainGameArray[i].owner === "Player") {
             arrayOfPlayerTerritoriesFromMainArray.push(mainGameArray[i]);
         }
@@ -1660,5 +1662,11 @@ function addGoldToPlayer(goldToOffer) {
 
     for (const territory of arrayOfPlayerTerritoriesFromMainArray)   {
         territory.goldForCurrentTerritory += goldPerTerritory;
+    }
+
+    for (let i = 0; i < mainGameArray.length; i++) {
+        if (mainGameArray[i].owner === "Player") {
+            console.log(mainGameArray[i].territoryName + mainGameArray[i].goldForCurrentTerritory);
+        }
     }
 }
