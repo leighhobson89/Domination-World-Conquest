@@ -521,6 +521,11 @@ td {
   width: 23px;
 }
 
+.largeAiDialogueImage {
+  height: 80px;
+  width: 92px;
+}
+
 .whiteSpace {
   white-space: pre;
 }
@@ -628,28 +633,80 @@ td {
   line-height: 1.5;
   justify-content: center;
   margin-left: 25%;
+  flex-direction: row;
 }
 
 .aiDialogueBodyBottomContentLeft {
   display: flex;
   width: 50%;
   height: 100%;
+  flex-direction: column;
+}
+
+.aiDialogueBodyBottomContentLeftRow {
+  display: none;
+  width: 100%;
+  height: 25%;
 }
 
 .largeAiDialogImage {
   padding-top: 10px;
   padding-bottom: 10px;
+  width: 115px;
+  height: 115px;
 }
 
 .aiDialogueBodyBottomContentRight {
   display: flex;
   width: 50%;
   height: 100%;
+  flex-direction: column;
+}
+
+.aiDialogueBodyBottomContentLarge {
+  display: flex;
+  width: 100%;
+  height: 100%;
   color: yellow;
   font-size: 82px;
   font-weight: bolder;
   text-align: left;
   align-items: center;
+}
+
+.aiDialogueBodyBottomContentRightRow {
+  display: none;
+  width: 100%;
+  height: 25%;
+}
+
+.aiDialogueBoxBottomSummaryRow {
+  display: none;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  margin-left: 40px;
+  padding-top: 80px;
+}
+
+.aiDialogueBoxBottomSummaryRowColImg {
+  display: flex;
+  height: 100%;
+  width: 10%;
+}
+
+.aiDialogueBoxBottomSummaryRowColTxt {
+  display: flex;
+  height: 100%;
+  width: 15%;
+  align-items: center;
+  padding-left: 50px;
+}
+
+.imgForAiDialogueBoxBottomSummaryRowColImg {
+  display: flex;
+  height: 100%;
+  width: 90%;
 }
 
 .aiButtonRow {

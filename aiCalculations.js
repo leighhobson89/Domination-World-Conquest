@@ -9,7 +9,11 @@ import {
     setOwnerOnPath,
     populateAiDialogueBox,
     setAiDialogueContainerCurrentlyOnScreen,
-    toggleAiDialogue, convertAiDialogueButtonRow
+    toggleAiDialogue,
+    convertAiDialogueButtonRow,
+    removeSiegeImageFromPath,
+    findClosestPaths,
+    setAiDialogueBodyBottomContentState, populateArmyDataFields
 } from "./ui.js";
 import {
     findMatchingCountries
@@ -32,13 +36,15 @@ import {
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
 import {
+    addAttackingArmyToRetrievalArray,
+    addRemoveWarSiegeObject,
     calculateCombinedForce,
     calculateProbabilityPreBattle,
-    deactivateTerritoryAi,
-    playerSiegeWarsList
+    deactivateTerritoryAi, defendingArmyRemaining,
+    playerSiegeWarsList, proportionsOfAttackArray, setNewWarOnRetrievalArray
 } from "./battle.js";
 import {getArrayOfLeadersAndCountries, updateArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading.js";
-import {summaryWarsArray, summaryWarsLostArray} from "./gameTurnsLoop.js";
+import {currentTurn, summaryWarsArray, summaryWarsLostArray} from "./gameTurnsLoop.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -678,6 +684,12 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
             }
         }
 
+        let siege = getSiegeObjectFromObject(mainArrayFriendlyTerritoryCopy);
+        if (siege) {
+            console.log(mainArrayFriendlyTerritoryCopy.territoryName + " is under siege, cannot perform any goals this turn for this territory!");
+            return "Sieged";
+        }
+
         switch (goal[1]) {
             case "Economy":
                 if (!economyBenefitArray.includes(goal[2])) {
@@ -760,7 +772,6 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                                 removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
                                 addGoldToPlayer(goldToOffer);
                                 addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
-                                //remove siege
                             } else { //cancel attack
                                 break;
                             }
@@ -892,14 +903,6 @@ function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurren
 }
 
 function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, goldToSpend, consMatsToSpend) {
-    let siege = getSiegeObjectFromObject(territory);
-    if (siege) {
-        console.log("Cannot upgrade at all if under siege!");
-        console.log("But currently has:  Farm: " + territory.farmsBuilt + " Forest: " + territory.forestsBuilt + " Oil Wells: " + territory.oilWellsBuilt + " Forts:" + territory.fortsBuilt);
-        console.log("Siege version says: Farm: " + siege.defendingTerritory.farmsBuilt + " Forest: " + siege.defendingTerritory.forestsBuilt + " Oil Wells: " + siege.defendingTerritory.oilWellsBuilt + " Forts:" + siege.defendingTerritory.fortsBuilt)
-        return "Sieged";
-    }
-
     let couldNotAffordEconomy = false;
 
     let buildList = [];
@@ -1094,13 +1097,6 @@ function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy
 }
 
 function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
-    let siege = getSiegeObjectFromObject(territory);
-    if (siege) {
-        console.log("Cannot upgrade at all if under siege!");
-        console.log("But currently has:  Fort: " + territory.fortsBuilt);
-        console.log("Siege version says: Fort: " + siege.defendingTerritory.fortsBuilt);
-        return "Sieged";
-    }
     let availableUpgrades = calculateAvailableUpgrades(territory);
     let fort = availableUpgrades[3];
 
@@ -1549,7 +1545,8 @@ function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, 
 export async function openUIAndOfferGoldToPlayer(goldToOffer, attacker, defender) {
     await populateAiDialogueBox("goldForSiege", attacker, defender, goldToOffer);
     let selection = await playerResponseToAiDialog();
-    let response = await populateAiResponse("goldForSiege", selection, defender);
+    let returnArmyData = await removeSiegeAndReturnPlayerArmy(defender); //remove siege and return player army
+    let response = await populateAiResponse("goldForSiege", selection, defender, returnArmyData);
 
     if (response === 9) {
         toggleAiDialogue(false);
@@ -1581,13 +1578,15 @@ async function playerResponseToAiDialog() {
 
     return response;
 }
-async function populateAiResponse(situation, response, parameter) {
+async function populateAiResponse(situation, response, parameter, returnArmyData) {
     switch(situation) {
         case "goldForSiege":
             if (response === 0) {
                 document.getElementById("aiDialogueBodySubHeading").innerHTML = "We will not be so lenient next time! Ok proceed with your siege, but it might be you being sieged soon!";
             } else if (response === 1) {
-                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!";
+                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!<br/>Shipping out to " + returnArmyData[4] + "!";
+                setAiDialogueBodyBottomContentState(1);
+                populateArmyDataFields(returnArmyData);
             }
             convertAiDialogueButtonRow(0);
             document.getElementById("aiButtonAllRow").innerHTML = "Proceed";
@@ -1669,4 +1668,43 @@ function addGoldToPlayer(goldToOffer) {
             console.log(mainGameArray[i].territoryName + mainGameArray[i].goldForCurrentTerritory);
         }
     }
+}
+
+function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
+    let siegeObject = getSiegeObjectFromObject(siegedTerritory);
+
+    let returnArmyArray = [siegeObject.attackingArmyRemaining[0],siegeObject.attackingArmyRemaining[1],siegeObject.attackingArmyRemaining[2],siegeObject.attackingArmyRemaining[3]];
+    let possibleReturnTerritories = [];
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === siegedTerritory.uniqueId) {
+            possibleReturnTerritories = findClosestPaths(paths[i]);
+        }
+    }
+    for (let i = 0; i < possibleReturnTerritories.length; i++) {
+        if (possibleReturnTerritories[i][0].getAttribute("owner") === "Player") {
+            for (let j = 0; j < mainGameArray.length; j++) {
+                if (mainGameArray[j].uniqueId === possibleReturnTerritories[i][0].getAttribute("uniqueid")) {
+                    returnArmyArray.push(mainGameArray[j].territoryName);
+                    let returnTerritory = mainGameArray[j];
+                    returnTerritory.infantryForCurrentTerritory += returnArmyArray[0];
+                    returnTerritory.assaultForCurrentTerritory += returnArmyArray[1];
+                    returnTerritory.airForCurrentTerritory += returnArmyArray[2];
+                    returnTerritory.navalForCurrentTerritory += returnArmyArray[3];
+                    returnTerritory.armyForCurrentTerritory = returnTerritory.infantryForCurrentTerritory + (returnTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (returnTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (returnTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    addRemoveWarSiegeObject(1, siegeObject.warId, false);
+    for (let i = 0; i < paths.length; i++) {
+        if (paths[i].getAttribute("uniqueid") === siegedTerritory.uniqueId) {
+            paths[i].setAttribute("underSiege", "false");
+            removeSiegeImageFromPath(paths[i]);
+            break;
+        }
+    }
+    return returnArmyArray;
 }

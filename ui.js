@@ -1022,9 +1022,85 @@ document.addEventListener("DOMContentLoaded", function() {
     aiDialogueBodyBottomContentLeft.classList.add("aiDialogueBodyBottomContentLeft");
     aiDialogueBodyBottomContentLeft.setAttribute("id", "aiDialogueBodyBottomContentLeft");
 
+    const aiDialogueBodyBottomContentLeftLarge = document.createElement("div");
+    aiDialogueBodyBottomContentLeftLarge.classList.add("aiDialogueBodyBottomContentLarge");
+    aiDialogueBodyBottomContentLeftLarge.setAttribute("id", "aiDialogueBodyBottomContentLeftLarge");
+
+    const aiDialogueBodyBottomContentLeftRow1 = document.createElement("div");
+    aiDialogueBodyBottomContentLeftRow1.classList.add("aiDialogueBodyBottomContentLeftRow");
+    aiDialogueBodyBottomContentLeftRow1.setAttribute("id", "aiDialogueBodyBottomContentLeftRow1");
+
+    const aiDialogueBodyBottomContentLeftRow2 = document.createElement("div");
+    aiDialogueBodyBottomContentLeftRow2.classList.add("aiDialogueBodyBottomContentLeftRow");
+    aiDialogueBodyBottomContentLeftRow2.setAttribute("id", "aiDialogueBodyBottomContentLeftRow2");
+
+    const aiDialogueBodyBottomContentLeftRow3 = document.createElement("div");
+    aiDialogueBodyBottomContentLeftRow3.classList.add("aiDialogueBodyBottomContentLeftRow");
+    aiDialogueBodyBottomContentLeftRow3.setAttribute("id", "aiDialogueBodyBottomContentLeftRow3");
+
+    const aiDialogueBodyBottomContentLeftRow4 = document.createElement("div");
+    aiDialogueBodyBottomContentLeftRow4.classList.add("aiDialogueBodyBottomContentLeftRow");
+    aiDialogueBodyBottomContentLeftRow4.setAttribute("id", "aiDialogueBodyBottomContentLeftRow4");
+
     const aiDialogueBodyBottomContentRight = document.createElement("div");
     aiDialogueBodyBottomContentRight.classList.add("aiDialogueBodyBottomContentRight");
     aiDialogueBodyBottomContentRight.setAttribute("id", "aiDialogueBodyBottomContentRight");
+
+    const aiDialogueBodyBottomContentRightLarge = document.createElement("div");
+    aiDialogueBodyBottomContentRightLarge.classList.add("aiDialogueBodyBottomContentLarge");
+    aiDialogueBodyBottomContentRightLarge.setAttribute("id", "aiDialogueBodyBottomContentRightLarge");
+
+    const aiDialogueBodyBottomContentRightRow1 = document.createElement("div");
+    aiDialogueBodyBottomContentRightRow1.classList.add("aiDialogueBodyBottomContentRightRow");
+    aiDialogueBodyBottomContentRightRow1.setAttribute("id", "aiDialogueBodyBottomContentRightRow1");
+
+    const aiDialogueBodyBottomContentRightRow2 = document.createElement("div");
+    aiDialogueBodyBottomContentRightRow2.classList.add("aiDialogueBodyBottomContentRightRow");
+    aiDialogueBodyBottomContentRightRow2.setAttribute("id", "aiDialogueBodyBottomContentRightRow2");
+
+    const aiDialogueBodyBottomContentRightRow3 = document.createElement("div");
+    aiDialogueBodyBottomContentRightRow3.classList.add("aiDialogueBodyBottomContentRightRow");
+    aiDialogueBodyBottomContentRightRow3.setAttribute("id", "aiDialogueBodyBottomContentRightRow3");
+
+    const aiDialogueBodyBottomContentRightRow4 = document.createElement("div");
+    aiDialogueBodyBottomContentRightRow4.classList.add("aiDialogueBodyBottomContentRightRow");
+    aiDialogueBodyBottomContentRightRow4.setAttribute("id", "aiDialogueBodyBottomContentRightRow4");
+
+    const aiDialogueBoxBottomSummaryRow = document.createElement("div");
+    aiDialogueBoxBottomSummaryRow.classList.add("aiDialogueBoxBottomSummaryRow");
+    aiDialogueBoxBottomSummaryRow.setAttribute("id", "aiDialogueBoxBottomSummaryRow");
+
+    const aiDialogueBoxBottomSummaryRowCol1 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol1.classList.add("aiDialogueBoxBottomSummaryRowColImg");
+    aiDialogueBoxBottomSummaryRowCol1.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol1");
+
+    const aiDialogueBoxBottomSummaryRowCol2 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol2.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
+    aiDialogueBoxBottomSummaryRowCol2.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol2");
+
+    const aiDialogueBoxBottomSummaryRowCol3 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol3.classList.add("aiDialogueBoxBottomSummaryRowColImg");
+    aiDialogueBoxBottomSummaryRowCol3.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol3");
+
+    const aiDialogueBoxBottomSummaryRowCol4 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol4.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
+    aiDialogueBoxBottomSummaryRowCol4.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol4");
+
+    const aiDialogueBoxBottomSummaryRowCol5 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol5.classList.add("aiDialogueBoxBottomSummaryRowColImg");
+    aiDialogueBoxBottomSummaryRowCol5.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol5");
+
+    const aiDialogueBoxBottomSummaryRowCol6 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol6.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
+    aiDialogueBoxBottomSummaryRowCol6.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol6");
+
+    const aiDialogueBoxBottomSummaryRowCol7 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol7.classList.add("aiDialogueBoxBottomSummaryRowColImg");
+    aiDialogueBoxBottomSummaryRowCol7.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol7");
+
+    const aiDialogueBoxBottomSummaryRowCol8 = document.createElement("div");
+    aiDialogueBoxBottomSummaryRowCol8.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
+    aiDialogueBoxBottomSummaryRowCol8.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol8");
 
     const aiButtonRow = document.createElement("div");
     aiButtonRow.classList.add("aiButtonRow");
@@ -1046,11 +1122,33 @@ document.addEventListener("DOMContentLoaded", function() {
     aiTitleRow.appendChild(aiDialogueTitleText);
     aiTitleRow.appendChild(aiDialogueTitleFlagCol2);
 
+    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftLarge);
+    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow1);
+    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow2);
+    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow3);
+    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow4);
+
+    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightLarge);
+    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow1);
+    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow2);
+    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow3);
+    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow4);
+
     aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentLeft);
     aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentRight);
 
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol1);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol2);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol3);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol4);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol5);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol6);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol7);
+    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol8);
+
     aiDialogueBody.appendChild(aiDialogueBodySubHeading);
     aiDialogueBody.appendChild(aiDialogueBodyBottomContent);
+    aiDialogueBody.appendChild(aiDialogueBoxBottomSummaryRow);
 
     aiButtonRow.appendChild(aiButtonLeft);
     aiButtonRow.appendChild(aiButtonRight);
@@ -5984,16 +6082,19 @@ export function setCountryNameOnPath(territory) {
 export async function populateAiDialogueBox(situation, attacker, defender, parameter) {
     setFlag(attacker.dataName, 8);
     setFlag(playerCountry, 9);
+    setAiDialogueBodyBottomContentState(0);
+    convertAiDialogueButtonRow(1);
     switch (situation) {
         case "goldForSiege":
             document.getElementById("aiDialogueTitleText").innerHTML = reduceKeywords(attacker.dataName) + " Requests Pullout";
             document.getElementById("aiDialogueBodySubHeading").innerHTML = attacker.dataName + " requests you to kindly retreat from the siege on " + defender.territoryName + ", and in return they will grant you:"
 
+            document.getElementById("aiDialogueBodyBottomContentLeftLarge").innerHTML = ""; //clear old image
             const imageElement = document.createElement("img");
             imageElement.classList.add("largeAiDialogImage");
             imageElement.src = "./resources/gold.png";
-            document.getElementById("aiDialogueBodyBottomContentLeft").appendChild(imageElement);
-            document.getElementById("aiDialogueBodyBottomContentRight").innerHTML = formatNumbersToKMB(parameter);
+            document.getElementById("aiDialogueBodyBottomContentLeftLarge").appendChild(imageElement);
+            document.getElementById("aiDialogueBodyBottomContentRightLarge").innerHTML = formatNumbersToKMB(parameter);
             document.getElementById("aiButtonLeft").innerHTML = "Refuse";
             document.getElementById("aiButtonRight").innerHTML = "Accept";
             break;
@@ -6017,4 +6118,59 @@ export function convertAiDialogueButtonRow(direction) {
             document.getElementById("aiButtonAllRow").style.display = "none";
             break;
     }
+}
+
+export function setAiDialogueBodyBottomContentState(state) {
+    switch(state) {
+        case 0:
+            document.getElementById("aiDialogueBoxBottomSummaryRow").style.display = "none";
+            document.getElementById("aiDialogueBodyBottomContent").style.display = "flex";
+            break;
+        case 1:
+            document.getElementById("aiDialogueBoxBottomSummaryRow").style.display = "flex";
+            document.getElementById("aiDialogueBodyBottomContent").style.display = "none";
+           break;
+    }
+}
+
+export function populateArmyDataFields(returnArmyData) {
+
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol1").innerHTML = "";
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol3").innerHTML = "";
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol5").innerHTML = "";
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol7").innerHTML = "";
+
+    //SET IMAGES
+    const imageElementInf = document.createElement("img");
+    const imageElementAss = document.createElement("img");
+    const imageElementAir = document.createElement("img");
+    const imageElementNav = document.createElement("img");
+
+    const imageSources = [
+        "resources/infantry.png",
+        "resources/assault.png",
+        "resources/air.png",
+        "resources/naval.png"
+    ];
+
+    imageElementInf.src = imageSources[0];
+    imageElementAss.src = imageSources[1];
+    imageElementAir.src = imageSources[2];
+    imageElementNav.src = imageSources[3];
+
+    imageElementInf.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
+    imageElementAss.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
+    imageElementAir.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
+    imageElementNav.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
+
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol1").appendChild(imageElementInf);
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol3").appendChild(imageElementAss);
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol5").appendChild(imageElementAir);
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol7").appendChild(imageElementNav);
+
+    //SET ARMY DATA
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol2").innerHTML = formatNumbersToKMB(returnArmyData[0]);
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol4").innerHTML = returnArmyData[1];
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol6").innerHTML = returnArmyData[2];
+    document.getElementById("aiDialogueBoxBottomSummaryRowCol8").innerHTML = returnArmyData[3];
 }
