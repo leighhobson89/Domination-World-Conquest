@@ -754,6 +754,10 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     siegeLaunchedFromArray.push(goal[3]);
                     siegeLaunchedToArray.push(goal[2]);
                     console.log("going to start a siege attack on " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
+                    const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    if (amountBeingSentToSiegeAndProbability !== "Cancel") {
+                        const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[0]);
+                    }
                 }
                 break;
             case "Attack":
@@ -761,31 +765,20 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
-                        //AI
-                        //if under siege by another AI then break and don't do attack
-                        let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
-                        if (territoryAlreadyUnderSiege) {
-                            let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
-                            toggleAiDialogue(true);
-                            setAiDialogueContainerCurrentlyOnScreen(true);
-                            let playerDecision = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
-                            if (playerDecision === 1) { //add player gold and remove player siege and continue attack
-                                removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
-                                addGoldToPlayer(goldToOffer);
-                                addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
-                            } else { //cancel attack
-                                break;
+                        let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+                        if (proceed) {
+                            const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
+                            const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
+                            if (remainingArmyArray[4] === 0) { //attacker won
+                                mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
+                            } else {
+                                summaryWarsLostArray.push(mainArrayEnemyTerritoryCopy.territoryName + " resisted attack from " + mainArrayFriendlyTerritoryCopy.dataName);
                             }
-                        }
-                        const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
-                        const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
-                        if (remainingArmyArray[4] === 0) { //attacker won
-                            mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
                         } else {
-                            summaryWarsLostArray.push(mainArrayEnemyTerritoryCopy.territoryName + " resisted attack from " + mainArrayFriendlyTerritoryCopy.dataName);
+                            break;
                         }
                     }
                 }
@@ -1250,7 +1243,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if AI stops generating gold or goes negative
 }
 
-function calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
+function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
     const leaderType = leader.leaderType;
 
     let defenseScore;
@@ -1548,8 +1541,13 @@ function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, 
 
 export async function openUIAndOfferGoldToPlayer(goldToOffer, attacker, defender) {
     await populateAiDialogueBox("goldForSiege", attacker, defender, goldToOffer);
+    let returnArmyData = [];
     let selection = await playerResponseToAiDialog();
-    let returnArmyData = removeSiegeAndReturnPlayerArmy(defender); //remove siege and return player army
+    if (selection === 1) {
+        returnArmyData = removeSiegeAndReturnPlayerArmy(defender); //remove siege and return player army
+    } else {
+        returnArmyData = null;
+    }
     let response = await populateAiResponse("goldForSiege", selection, defender, returnArmyData);
 
     if (response === 9) {
@@ -1587,7 +1585,7 @@ async function populateAiResponse(situation, response, parameter, returnArmyData
         case "goldForSiege":
             if (response === 0) {
                 document.getElementById("aiDialogueBodySubHeading").innerHTML = "We will not be so lenient next time! Ok proceed with your siege, but it might be you being sieged soon!";
-            } else if (response === 1) {
+            } else if (response === 1 && returnArmyData !== null) {
                 document.getElementById("aiDialogueBodySubHeading").innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!<br/>Shipping out to " + returnArmyData[4] + "!";
                 setAiDialogueBodyBottomContentState(1);
                 populateArmyDataFields(returnArmyData);
@@ -1708,4 +1706,24 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
         }
     }
     return returnArmyArray;
+}
+
+async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
+    //AI
+    //if under siege by another AI then break and don't do attack
+    let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
+    if (territoryAlreadyUnderSiege) {
+        let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
+        toggleAiDialogue(true);
+        setAiDialogueContainerCurrentlyOnScreen(true);
+        let playerDecision = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
+        if (playerDecision === 1) { //add player gold and remove player siege and continue attack
+            removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
+            addGoldToPlayer(goldToOffer);
+            addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
+        } else { //cancel attack
+            return false;
+        }
+    }
+    return true;
 }

@@ -683,10 +683,9 @@ td {
 .aiDialogueBoxBottomSummaryRow {
   display: none;
   width: 100%;
-  height: 100%;
   justify-content: center;
   margin-left: 40px;
-  padding-top: 80px;
+  padding-top: 30px;
 }
 
 .aiDialogueBoxBottomSummaryRowColImg {
