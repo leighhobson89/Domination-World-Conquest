@@ -9,7 +9,7 @@ import {
     setOwnerOnPath,
     populateAiDialogueBox,
     setAiDialogueContainerCurrentlyOnScreen,
-    toggleAiDialogue
+    toggleAiDialogue, convertAiDialogueButtonRow
 } from "./ui.js";
 import {
     findMatchingCountries
@@ -41,6 +41,9 @@ import {summaryWarsArray, summaryWarsLostArray} from "./gameTurnsLoop.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
+
+let aiDialogueResponse = false;
+let aiDialogueSelection = 0;
 
 //DEBUG
 let arrayOfGoldToSpendOnEconomy = [];
@@ -751,10 +754,14 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                             let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                             toggleAiDialogue(true);
                             setAiDialogueContainerCurrentlyOnScreen(true);
-                            let response = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
-                            //if they accept, add gold to player, subtract from ai
-                            //continue with attack
-                            //if they refuse, then break and dont do attack.
+                            let playerDecision = await openUIAndOfferGoldToPlayer(goldToOffer, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy)//open ui to offer player option to relinquish their siege for x gold
+                            if (playerDecision === 1) { //add player gold and remove player siege and continue attack
+                                removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
+                                addGoldToPlayer(goldToOffer);
+                                //remove siege
+                            } else { //cancel attack
+                                break;
+                            }
                         }
                         const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
                         const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
@@ -1538,8 +1545,120 @@ function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, 
 }
 
 export async function openUIAndOfferGoldToPlayer(goldToOffer, attacker, defender) {
-    let response;
     await populateAiDialogueBox("goldForSiege", attacker, defender, goldToOffer);
-    //event listeners populate response
+    let selection = await playerResponseToAiDialog();
+    let response = await populateAiResponse("goldForSiege", selection, defender);
+
+    if (response === 9) {
+        toggleAiDialogue(false);
+        setAiDialogueContainerCurrentlyOnScreen(false);
+    } else {
+        console.log("Error in response " + response);
+    }
+    return selection;
+}
+
+export function setAiResponseFlag(selection) {
+    aiDialogueSelection = selection;
+    aiDialogueResponse = true;
+}
+
+async function playerResponseToAiDialog() {
+    let response;
+    await new Promise((resolve) => {
+        const poller = setInterval(() => {
+            if (aiDialogueResponse) {
+                response = aiDialogueSelection;
+                clearInterval(poller);
+                resolve();
+            }
+        }, 75);
+    });
+    aiDialogueSelection = 0;
+    aiDialogueResponse = false;
+
     return response;
+}
+async function populateAiResponse(situation, response, parameter) {
+    switch(situation) {
+        case "goldForSiege":
+            if (response === 0) {
+                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We will not be so lenient next time! Ok proceed with your siege, but it might be you being sieged soon!";
+            } else if (response === 1) {
+                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!";
+            }
+            convertAiDialogueButtonRow(0);
+            document.getElementById("aiButtonAllRow").innerHTML = "Proceed";
+            break;
+    }
+
+    await new Promise((resolve) => {
+        const poller = setInterval(() => {
+            if (aiDialogueResponse) {
+                response = aiDialogueSelection;
+                clearInterval(poller);
+                resolve();
+            }
+        }, 75);
+    });
+    aiDialogueSelection = 0;
+    aiDialogueResponse = false;
+
+    return response;
+}
+
+function removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy) {
+    let goldInAiTerritories = [];
+    let arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+
+    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+        if (arrayOfLeadersAndCountries[i][0] === mainArrayFriendlyTerritoryCopy.dataName) {
+            for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) {
+                goldInAiTerritories.push([
+                    arrayOfLeadersAndCountries[i][2][j].uniqueId,
+                    arrayOfLeadersAndCountries[i][2][j].goldForCurrentTerritory
+                ]);
+            }
+            break;
+        }
+    }
+
+    const totalGoldInTerritories = goldInAiTerritories.reduce((total, territory) => total + territory[1], 0);
+    const goldDistribution = goldInAiTerritories.map(territory => (territory[1] / totalGoldInTerritories) * goldToOffer);
+
+    // console.log("Gold Distribution:", goldDistribution);
+
+    for (let i = 0; i < goldInAiTerritories.length; i++) {
+        const uniqueId = goldInAiTerritories[i][0];
+        const distribution = goldDistribution[i];
+
+        for (let j = 0; j < arrayOfLeadersAndCountries.length; j++) {
+            const territories = arrayOfLeadersAndCountries[j][2];
+
+            for (let k = 0; k < territories.length; k++) {
+                if (territories[k].uniqueId === uniqueId) {
+                    const previousGold = territories[k].goldForCurrentTerritory;
+                    territories[k].goldForCurrentTerritory -= distribution;
+                    // console.log(`Subtracted ${distribution} gold from territory with uniqueId ${uniqueId}`);
+                    // console.log(`Before: ${previousGold}, After: ${territories[k].goldForCurrentTerritory}`);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+function addGoldToPlayer(goldToOffer) {
+    let arrayOfPlayerTerritoriesFromMainArray = [];
+    for (let i = 0; i < mainGameArray; i++) {
+        if (mainGameArray[i].owner === "Player") {
+            arrayOfPlayerTerritoriesFromMainArray.push(mainGameArray[i]);
+        }
+    }
+    const numberOfTerritories = arrayOfPlayerTerritoriesFromMainArray.length;
+    const goldPerTerritory = goldToOffer / numberOfTerritories;
+
+    for (const territory of arrayOfPlayerTerritoriesFromMainArray)   {
+        territory.goldForCurrentTerritory += goldPerTerritory;
+    }
 }

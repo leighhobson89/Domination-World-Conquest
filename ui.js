@@ -81,7 +81,9 @@ import {
     createCpuPlayerObjectAndAddToMainArray,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
-import {openUIAndOfferGoldToPlayer} from "./aiCalculations.js";
+import {
+    setAiResponseFlag
+} from "./aiCalculations.js";
 
 let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
@@ -1036,6 +1038,10 @@ document.addEventListener("DOMContentLoaded", function() {
     aiButtonRight.classList.add("aiButtonRight");
     aiButtonRight.setAttribute("id", "aiButtonRight");
 
+    const aiButtonAllRow = document.createElement("div");
+    aiButtonAllRow.classList.add("aiButtonAllRow");
+    aiButtonAllRow.setAttribute("id", "aiButtonAllRow");
+
     aiTitleRow.appendChild(aiDialogueTitleFlagCol1);
     aiTitleRow.appendChild(aiDialogueTitleText);
     aiTitleRow.appendChild(aiDialogueTitleFlagCol2);
@@ -1048,12 +1054,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
     aiButtonRow.appendChild(aiButtonLeft);
     aiButtonRow.appendChild(aiButtonRight);
+    aiButtonRow.appendChild(aiButtonAllRow);
 
     aiDialogueContainer.appendChild(aiTitleRow);
     aiDialogueContainer.appendChild(aiDialogueBody);
     aiDialogueContainer.appendChild(aiButtonRow);
 
     document.getElementById("ai-dialogue-container").appendChild(aiDialogueContainer);
+
+    aiButtonLeft.addEventListener("click", function() {
+        setAiResponseFlag(0);
+    });
+
+    aiButtonRight.addEventListener("click", function() {
+        setAiResponseFlag(1);
+    });
+
+    aiButtonAllRow.addEventListener("click", function() {
+        setAiResponseFlag(9);
+    });
 
     //------------------------------------------------------------------------------------------------//
 
@@ -5983,4 +6002,19 @@ export async function populateAiDialogueBox(situation, attacker, defender, param
 
 export function setAiDialogueContainerCurrentlyOnScreen(value) {
     aiDialogueContainerCurrentlyOnScreen = value;
+}
+
+export function convertAiDialogueButtonRow(direction) {
+    switch(direction) {
+        case 0:
+            document.getElementById("aiButtonLeft").style.display = "none";
+            document.getElementById("aiButtonRight").style.display = "none";
+            document.getElementById("aiButtonAllRow").style.display = "flex";
+            break;
+        case 1:
+            document.getElementById("aiButtonLeft").style.display = "flex";
+            document.getElementById("aiButtonRight").style.display = "flex";
+            document.getElementById("aiButtonAllRow").style.display = "none";
+            break;
+    }
 }
