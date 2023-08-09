@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const path = require('path');
+
 
 // Serve default favicon
 app.get('/favicon.ico', (req, res) => {

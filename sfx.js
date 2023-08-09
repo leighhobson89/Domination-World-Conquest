@@ -11,5 +11,5 @@ export function playSoundClip(clip) {
       audio = new Audio("resources/sfx/dice2.wav");
       break;
   }
-  audio.play().then(r => null);
+  audio.play().then(() => null);
 }

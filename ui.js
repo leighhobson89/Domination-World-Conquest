@@ -100,7 +100,6 @@ export let svgCoastLinesTag = [];
 export let paths = [];
 export let pathsCoastLines = [];
 export let defs = [];
-export let defsCoastlines = [];
 export let patterns = [];
 
 //variables that receive information for resources of country's after database reading and calculations, before game starts
@@ -110,7 +109,6 @@ export let flag;
 
 export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
 let listOfStartingCountryColorsArray = [];
-let teamColorArray = [];
 
 const CONTINENT_COLOR_ARRAY = [
     ["Africa", [233, 234, 20]],
@@ -306,15 +304,15 @@ export function svgMapLoaded() {
     svgMap.addEventListener("click", function(e) {
         const offsetX = 1;
         const offsetY = 1;
-        const newX = event.clientX + offsetX;
-        const newY = event.clientY + offsetY;
+        const newX = e.clientX + offsetX;
+        const newY = e.clientY + offsetY;
 
         const newEvent = new MouseEvent('click', {
             clientX: newX,
             clientY: newY,
         });
 
-        event.target.dispatchEvent(newEvent);
+        e.target.dispatchEvent(newEvent);
 
         if (mapMode === 2) {
             flipMapMode();
@@ -1191,7 +1189,6 @@ document.addEventListener("DOMContentLoaded", function() {
         summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
         playSoundClip("click");
         summaryButton.classList.add("tab-button");
-        uiButtons(summaryButton);
         drawUITable(uiTable, 0);
     });
 
@@ -1214,7 +1211,6 @@ document.addEventListener("DOMContentLoaded", function() {
         summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
         territoryButton.classList.add("tab-button");
-        uiButtons(territoryButton);
         drawUITable(uiTable, 1);
     });
 
@@ -1226,7 +1222,6 @@ document.addEventListener("DOMContentLoaded", function() {
     armyButton.addEventListener("click", function() {
         summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
-        uiButtons(armyButton);
         drawUITable(uiTable, 2);
     });
 
@@ -1239,7 +1234,6 @@ document.addEventListener("DOMContentLoaded", function() {
         summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
         warsSiegesButton.classList.add("tab-button");
-        uiButtons(warsSiegesButton);
         drawUITable(uiTable, 3);
     });
 
@@ -3341,38 +3335,6 @@ export function setFlag(flag, place) {
     return img.src;
 }
 
-function uiButtons(button) {
-    if (button === summaryButton) {
-        summaryButton.classList.add("active");
-        territoryButton.classList.remove("active");
-        armyButton.classList.remove("active");
-        warsSiegesButton.classList.remove("active");
-    } else if (button === territoryButton) {
-        summaryButton.classList.remove("active");
-        territoryButton.classList.add("active");
-        armyButton.classList.remove("active");
-        warsSiegesButton.classList.remove("active");
-    } else if (button === armyButton) {
-        summaryButton.classList.remove("active");
-        territoryButton.classList.remove("active");
-        armyButton.classList.add("active");
-        warsSiegesButton.classList.remove("active");
-    } else if (button === warsSiegesButton) {
-        summaryButton.classList.remove("active");
-        territoryButton.classList.remove("active");
-        armyButton.classList.remove("active");
-        warsSiegesButton.classList.add("active");
-    }
-}
-
-function colorByContinent() {
-    paths.forEach(path => {
-        const continent = path.getAttribute("continent");
-        const color = CONTINENT_COLOR_ARRAY.find(item => item[0] === continent)[1];
-        path.setAttribute("fill", `rgb(${color[0]},${color[1]},${color[2]})`);
-    });
-}
-
 function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = []) {
     if (territory.hasAttribute("fill")) {
         let fillValue = territory.getAttribute("fill");
@@ -5457,16 +5419,13 @@ function setSiegeTurnsText(siegeObject) {
 
 
 
-function setRow4(siegeOrAttack) { //move to bottom when done
+function setRow4(siegeOrAttack) {
     //get appropriate columns
     const row4RightColumnA = document.getElementById("battleUIRow4Col2A");
     const row4RightColumnB = document.getElementById("battleUIRow4Col2B");
     const row4RightColumnC = document.getElementById("battleUIRow4Col2C");
     const row4RightColumnD = document.getElementById("battleUIRow4Col2D");
     const row4RightColumnE = document.getElementById("battleUIRow4Col2E");
-    const row4RightColumnF = document.getElementById("battleUIRow4Col2F");
-    const row4RightColumnG = document.getElementById("battleUIRow4Col2G");
-    const row4RightColumnH = document.getElementById("battleUIRow4Col2H");
 
     const prodPopIcon = document.getElementById("prodPopIcon");
     const foodIcon = document.getElementById("foodIcon");
@@ -5985,10 +5944,6 @@ export function initialiseNewPlayerTurn() {
 
 export function setCurrentMapColorAndStrokeArray(value) {
     return currentMapColorAndStrokeArray = value;
-}
-
-export function getCurrentMapColorAndStrokeArray() {
-    return currentMapColorAndStrokeArray;
 }
 
 function createSparkle() {

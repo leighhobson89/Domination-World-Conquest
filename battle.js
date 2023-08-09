@@ -33,7 +33,8 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
     mapMode,
-    saveMapColorState, setOwnerOnPath, setColorOnMap,
+    saveMapColorState,
+    setOwnerOnPath,
 } from './ui.js';
 import {
     callDice,
@@ -993,9 +994,9 @@ export function calculateSiegePerTurn() {
         for (const key in playerSiegeWarsList) {
             let hitThisTurn;
             let hitCount = 0;
-            let totalSiegeScore;
+            let totalSiegeScore = 0;
             let numberOfForts;
-            let defenseBonusAttackedTerritory;
+            let defenseBonusAttackedTerritory = 0;
             let mountainDefenseBonusAttackedTerritory = playerSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
 
             for (let i = 0; i < hitIterations; i++) {

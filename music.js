@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 firstTime = true;
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");
                 isPlaying = true;
-                audio.play().then(r => console.log("Music playing from music button"));
+                audio.play().then(() => console.log("Music playing from music button"));
             }
 
             if (!firstTime) {
@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     document.getElementById("toggle-music-btn").classList.add("isPlaying");
                     // if the music is now playing, set the current time and play the audio
                     audio.currentTime = currentTime;
-                    audio.play().then(r => console.log("Resuming music"));
+                    audio.play().then(() => console.log("Resuming music"));
                 } else {
                     document.getElementById("toggle-music-btn").classList.remove("isPlaying");
                     document.getElementById("toggle-music-btn").classList.add("isNotPlaying");
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (isPlaying === undefined) {
                 document.getElementById("toggle-music-btn").classList.add("isPlaying");
                 isPlaying = true;
-                audio.play().then(r => console.log("Music playing from New Game button"));
+                audio.play().then(() => console.log("Music playing from New Game button"));
             }
         });
     }
@@ -59,6 +59,6 @@ document.addEventListener("DOMContentLoaded", function() {
     audio.addEventListener("ended", function() {
         // Set the current time to 0 and play the audio to loop it
         audio.currentTime = 0;
-        audio.play().then(r => null);
+        audio.play().then(() => null);
     });
 });
