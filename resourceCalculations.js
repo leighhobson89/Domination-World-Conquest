@@ -3580,7 +3580,19 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
         let topTableProdPop = document.querySelector("#top-table .population").innerHTML;
         topTableProdPop = stripProdPopFromTopTable(topTableProdPop);
         let rowChildIndex = findBuyRowPosition(buyTextField);
-        let totalGoldSpentSoFar = (document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyGoldPrices.infantry) + (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyGoldPrices.assault) + (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyGoldPrices.air) + (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyGoldPrices.naval);
+        const unitType = rowChildIndex === 1
+            ? 'infantry'
+            : rowChildIndex === 2
+                ? 'assault'
+                : rowChildIndex === 3
+                    ? 'air'
+                    : 'naval';
+        let totalGoldSpentSoFar =
+            ((document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyGoldPrices.infantry) +
+            (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyGoldPrices.assault) +
+            (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyGoldPrices.air) +
+            (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyGoldPrices.naval)) -
+            (document.querySelector(`#buy-table .buy-row:nth-child(${rowChildIndex}) .buyColumn5B input`).value * armyGoldPrices[unitType]);
         let totalProdPopSpentSoFar = (document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyProdPopPrices.infantry) + (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyProdPopPrices.assault) + (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyProdPopPrices.air) + (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyProdPopPrices.naval);
 
         currentValueQuantity = adjustValueIfOverMax(topTableGold, topTableProdPop, rowChildIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar);
