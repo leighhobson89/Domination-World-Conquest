@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 import {
     getSiegeObjectFromObject,
     paths,
@@ -36,15 +38,17 @@ import {
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
 import {
-    addAttackingArmyToRetrievalArray,
     addRemoveWarSiegeObject,
     calculateCombinedForce,
     calculateProbabilityPreBattle,
-    deactivateTerritoryAi, defendingArmyRemaining,
-    playerSiegeWarsList, proportionsOfAttackArray, setNewWarOnRetrievalArray
+    deactivateTerritoryAi,
+    playerSiegeWarsList
 } from "./battle.js";
 import {getArrayOfLeadersAndCountries, updateArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading.js";
-import {currentTurn, summaryWarsArray, summaryWarsLostArray} from "./gameTurnsLoop.js";
+import {
+    summaryWarsArray,
+    summaryWarsLostArray
+} from "./gameTurnsLoop.js";
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -760,8 +764,8 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
-                        //ai
-                        //if under siege by another ai then break and dont do attack
+                        //AI
+                        //if under siege by another AI then break and don't do attack
                         let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
                         if (territoryAlreadyUnderSiege) {
                             let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
@@ -1143,7 +1147,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     let airBoughtCounter = 0;
     let assaultBoughtCounter = 0;
 
-    if (goldToSpend >= armyGoldPrices.infantry * 10) { // if can afford at least 10 infantry
+    if (goldToSpend >= armyGoldPrices.infantry * 10) { // if AI can afford at least 10 infantry
         initialInfantryGold = (goldToSpend / 100) * 10;
         initialInfantryProdPop = (initialInfantryGold / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
         initialInfantryProdPop = Math.min(initialInfantryProdPop, Math.floor(prodPopToSpend));
@@ -1243,7 +1247,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     console.log(assaultBoughtCounter + " Assault,");
     console.log(airBoughtCounter + " Air, and,");
     console.log(navalBoughtCounter + " Naval,");
-    //LEAVE COMMENT - Be aware of goldCostPerTurn of army if ai stops generating gold or goes negative
+    //LEAVE COMMENT - Be aware of goldCostPerTurn of army if AI stops generating gold or goes negative
 }
 
 function calculateArmyQuantityBeingSentOrIfCancellingAttack(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
@@ -1331,7 +1335,7 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
     let navalAddCount = 0;
     let airAddCount = 0;
     let assaultAddCount = 0;
-    let infantryCount = 0;
+    let infantryCount;
 
     while ((amountBeingSentToBattle > ((amountBeingSentToBattle / 100) * 30)) && (naval > 0 || air > 0 || assault > 0)) {
         if (mainArrayEnemyTerritoryCopy.isCoastal) {
@@ -1545,7 +1549,7 @@ function calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, 
 export async function openUIAndOfferGoldToPlayer(goldToOffer, attacker, defender) {
     await populateAiDialogueBox("goldForSiege", attacker, defender, goldToOffer);
     let selection = await playerResponseToAiDialog();
-    let returnArmyData = await removeSiegeAndReturnPlayerArmy(defender); //remove siege and return player army
+    let returnArmyData = removeSiegeAndReturnPlayerArmy(defender); //remove siege and return player army
     let response = await populateAiResponse("goldForSiege", selection, defender, returnArmyData);
 
     if (response === 9) {
@@ -1638,10 +1642,7 @@ function removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy) {
 
             for (let k = 0; k < territories.length; k++) {
                 if (territories[k].uniqueId === uniqueId) {
-                    const previousGold = territories[k].goldForCurrentTerritory;
                     territories[k].goldForCurrentTerritory -= distribution;
-                    // console.log(`Subtracted ${distribution} gold from territory with uniqueId ${uniqueId}`);
-                    // console.log(`Before: ${previousGold}, After: ${territories[k].goldForCurrentTerritory}`);
                     break;
                 }
             }
