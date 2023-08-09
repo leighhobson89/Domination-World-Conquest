@@ -875,6 +875,7 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
                         mainGameArray[i].forestsBuilt = playerSiegeWarsList[key].defendingTerritory.forestsBuilt;
                         mainGameArray[i].oilWellsBuilt = playerSiegeWarsList[key].defendingTerritory.oilWellsBuilt;
                         mainGameArray[i].fortsBuilt = playerSiegeWarsList[key].defendingTerritory.fortsBuilt;
+                        break;
                     }
                 }
                 isDuplicate = historicWars.some(obj => obj.warId === warId);
