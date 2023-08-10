@@ -1,7 +1,19 @@
 import {
     pageLoaded,
     removeSiegeImageFromPath,
-    setCurrentWarFlagString
+    setCurrentWarFlagString,
+    paths,
+    svgTag,
+    currentSelectedPath,
+    enableNewGameButton,
+    setFlag,
+    toggleUpgradeMenu,
+    toggleBuyMenu,
+    playerCountry,
+    setUpgradeOrBuyWindowOnScreenToTrue,
+    saveMapColorState,
+    reduceKeywords,
+    routeSiegeUIProcesses
 } from './ui.js';
 import {
     currentTurn,
@@ -13,39 +25,18 @@ import {
     dataTableCountriesInitialState
 } from './initialData.js';
 import {
-    setFlag
-} from './ui.js';
-import {
-    currentSelectedPath,
-    enableNewGameButton
-} from './ui.js';
-import {
-    paths,
-    svgTag,
-} from './ui.js';
-import {
     playSoundClip
 } from './sfx.js';
 import {
-    toggleUpgradeMenu,
-    toggleBuyMenu
-} from './ui.js';
-import {
-    playerCountry
-} from './ui.js';
-import {
-    setUpgradeOrBuyWindowOnScreenToTrue,
-    saveMapColorState,
-    reduceKeywords,
-    routeSiegeUIProcesses
-} from './ui.js';
-import {
     historicWars,
     playerSiegeWarsList,
+    aiSiegeWarsList,
     handleWarEndingsAndOptions,
     addRemoveWarSiegeObject,
     setValuesForBattleFromSiegeObject,
-    setBattleResolutionOnHistoricWarArrayAfterSiege, historicAiWars, addRemoveWarSiegeObjectAi
+    setBattleResolutionOnHistoricWarArrayAfterSiege,
+    historicAiWars,
+    addRemoveWarSiegeObjectAi
 } from './battle.js';
 
 export let allowSelectionOfCountry = false;
@@ -155,8 +146,8 @@ const dummyAttackerObject = { //for a use case where need to split types of sieg
     useableAssault: 0,
     useableAir: 0,
     useableNaval: 0,
-    territoryName: dummy,
-    dataName: dummy
+    territoryName: "dummy",
+    dataName: "dummy"
 }
 
 export const maxFarms = 5;
@@ -555,7 +546,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    let changeDuringPlayerInitiatedSiege = true;
+    let changeDuringAnySiege = true;
     let ai;
     for (const path of paths) {
         for (let i = 0; i < mainGameArray.length; i++) {
@@ -645,21 +636,26 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         turnGainsArrayAi[countryName].changeProdPop += changeProdPop;
                     }
                 }
-            } else if (changeDuringPlayerInitiatedSiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
-                changeDuringPlayerInitiatedSiege = false;
+            } else if (changeDuringAnySiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
+                changeDuringAnySiege = false;
                 let siegeTerritory;
+                let foundInPlayerSiege = false;
                 for (const key in playerSiegeWarsList) {
                     if (playerSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
                         siegeTerritory = playerSiegeWarsList[key];
+                        foundInPlayerSiege = true;
                         break;
-                    } else if (aiSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
+                    }
+                }
+                for (const key in aiSiegeWarsList) {
+                    if (aiSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId && !foundInPlayerSiege) {
                         siegeTerritory = aiSiegeWarsList[key];
                         break;
                     }
                 }
                 //changeGold = calculateGoldChange(siegeTerritory, false);
                 //changeOil = calculateOilChange(siegeTerritory, false);
-                changeFood = calculateFoodChange(siegeTerritory, false, true);
+                changeFood = calculateFoodChange(siegeTerritory, false, true, ai);
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true, ai);
 
@@ -797,7 +793,7 @@ function calculateOilChange(territory, isSimulation) {
     return oilChange;
 }
 
-function calculateFoodChange(territory, isSimulation, cameFromSiege) {
+function calculateFoodChange(territory, isSimulation, cameFromSiege, ai) {
     if (cameFromSiege) {
         territory = territory.defendingTerritory; //drill into array to make this function work
     }

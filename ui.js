@@ -1,4 +1,6 @@
-import {findMatchingCountries} from './manualExceptionsForInteractions.js';
+import {
+    findMatchingCountries
+} from './manualExceptionsForInteractions.js';
 import {
     currentTurn,
     currentTurnPhase,
@@ -29,7 +31,9 @@ import {
     vehicleArmyPersonnelWorth,
     writeBottomTableInformation
 } from './resourceCalculations.js';
-import {playSoundClip} from './sfx.js';
+import {
+    playSoundClip
+} from './sfx.js';
 import {
     drawAndHandleTransferAttackTable,
     probability,
@@ -77,7 +81,9 @@ import {
     setValuesForBattleFromSiegeObject,
     skirmishesPerRound
 } from './battle.js';
-import {removeCanvasIfExist} from "./dices.js";
+import {
+    removeCanvasIfExist
+} from "./dices.js";
 import {
     createCpuPlayerObjectAndAddToMainArray,
     updateArrayOfLeadersAndCountries
