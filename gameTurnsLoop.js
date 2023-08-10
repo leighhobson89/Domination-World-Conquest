@@ -27,9 +27,9 @@ import {
 import {
     activateAllPlayerTerritoriesForNewTurn,
     incrementSiegeTurns,
-    calculateSiegePerTurn,
+    calculatePlayerInitiatedSiegePerTurn,
     handleEndSiegeDueArrest,
-    getRetrievalArray, activateAiTerritoriesForNewTurn
+    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
@@ -116,16 +116,27 @@ function gameLoop() {
     activateAllPlayerTerritoriesForNewTurn();
     activateAiTerritoriesForNewTurn();
     let continueSiege = true;
-    let continueSiegeArray = calculateSiegePerTurn(); //large function to work out siege effects per turn
-    if (continueSiegeArray) {
-        continueSiegeArray.forEach(element => {
+    let continueSiegeArrayPlayer = calculatePlayerInitiatedSiegePerTurn(); //large function to work out siege effects per turn
+    if (continueSiegeArrayPlayer) {
+        continueSiegeArrayPlayer.forEach(element => {
             if (element !== true) {
                 continueSiege = false;
-                handleEndSiegeDueArrest(element);
+                handleEndSiegeDueArrest(false, element);
             }
         });
     }
-    incrementSiegeTurns();
+    let continueSiegeArrayAi = calculateAiInitiatedSiegePerTurn();
+    if (continueSiegeArrayAi) {
+        continueSiegeArrayAi.forEach(element => {
+            if (element !== true) {
+                continueSiege = false;
+                handleEndSiegeDueArrest(true, element);
+                console.log("Ai Siege Of " + element.defendingTerritory.territoryName + " finished due to arrest of " + element.attackingTerritory.dataName + "'s attacking troops!");
+            }
+        });
+    }
+    incrementSiegeTurns(true);
+    incrementSiegeTurns(false);
     if (currentTurn > 1) {
         handleArmyRetrievals(getRetrievalArray());
     }
@@ -137,7 +148,7 @@ function gameLoop() {
         console.log("There's been a " + randomEvent + "!")
     }
     newTurnResources();
-    calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn
+    calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn // related with greying out
     if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
         toggleUIMenu(true);
         drawUITable(document.getElementById("uiTable"), 0);

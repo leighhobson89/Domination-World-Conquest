@@ -4140,30 +4140,26 @@ export function addImageToPath(pathElement, imagePath, siege) {
             }
         }
     } else {
+        imageElement.setAttribute("width", imageWidth.toString());
+        imageElement.setAttribute("height", imageHeight.toString());
         imageElement.setAttribute("id", "attackImage");
         pathElement.parentNode.appendChild(imageElement);
     }
 }
 
-export function removeSiegeImageFromPath(path) {
-    const siegeObjectElement = getHistoricWarObject(path);
+export function removeSiegeImageFromPath(ai, path) {
+    const siegeObjectElement = getHistoricWarObject(ai, path);
     let imageElement;
 
     const formattedTerritoryName = siegeObjectElement.defendingTerritory.territoryName.replace(/\s+/g, "_");
     imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
 
 
-    if (imageElement) { //always remove siege image after entering battle ui again and clicking assault
+    if (imageElement) {
         imageElement.remove();
     }
-    if (mapMode === 0) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === path.getAttribute("uniqueid")) {
-                setColorOnMap(mainGameArray[i]);
-                break;
-            }
-        }
-    } else if (mapMode === 1) {
+
+    if (mapMode === 1) {
         for (let i = 0; i < mainGameArray.length; i++) {
             if (mainGameArray[i].uniqueId === path.getAttribute("uniqueid")) {
                 setColorOnMap(mainGameArray[i]);
@@ -4172,9 +4168,11 @@ export function removeSiegeImageFromPath(path) {
         }
     }
 
-    path.style.stroke = "rgb(0,0,0)";
-    path.style.strokeDasharray = "none";
-    path.setAttribute("stroke-width", "1");
+    if (!ai) {
+        path.style.stroke = "rgb(0,0,0)";
+        path.style.strokeDasharray = "none";
+        path.setAttribute("stroke-width", "1");
+    }
 }
 
 function setTransferAttackWindowTitleText(territory, country, territoryComingFrom, buttonState, mainArray) {
@@ -5387,9 +5385,14 @@ export function getSiegeObjectFromPath(territory) {
     }
 }
 
-export function getHistoricWarObject(territory) {
+export function getHistoricWarObject(ai, territory) {
     const territoryName = territory.getAttribute("territory-name");
-    const siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+    let siege;
+    if (ai) {
+        siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+    } else {
+        siege = historicAiWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+    }
 
     if (siege) {
         return siege;

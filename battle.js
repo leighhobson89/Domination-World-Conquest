@@ -1016,10 +1016,18 @@ function getStrokeColorOfDefendingTerritory(defendingTerritory) {
     }
 }
 
-export function incrementSiegeTurns() {
-    for (const territory in playerSiegeWarsList) {
-        if (playerSiegeWarsList.hasOwnProperty(territory)) {
-            playerSiegeWarsList[territory].turnsInSiege += 1;
+export function incrementSiegeTurns(ai) {
+    if (ai) {
+        for (const territory in aiSiegeWarsList) {
+            if (aiSiegeWarsList.hasOwnProperty(territory)) {
+                aiSiegeWarsList[territory].turnsInSiege += 1;
+            }
+        }
+    } else {
+        for (const territory in playerSiegeWarsList) {
+            if (playerSiegeWarsList.hasOwnProperty(territory)) {
+                playerSiegeWarsList[territory].turnsInSiege += 1;
+            }
         }
     }
 }
@@ -1055,7 +1063,7 @@ export function getAttackingArmyRemaining() {
     return attackingArmyRemaining;
 }
 
-export function calculateSiegePerTurn() {
+export function calculatePlayerInitiatedSiegePerTurn() {
     let continueSiegeArray = [];
     if (playerSiegeWarsList && Object.keys(playerSiegeWarsList).length > 0) {
 
@@ -1078,12 +1086,12 @@ export function calculateSiegePerTurn() {
                 hit ? hitCount++ : null;
             }
             hitCount > hitIterations / 2 ? (hitThisTurn = true, console.log("Hit this turn for the " + key + " war, " + hitCount + " hits from " + hitIterations)) : (hitThisTurn = false, console.log("No hit this turn for the " + key + " war, " + hitCount + " hits from " + hitIterations));
-            console.log(key + " war: " + hitThisTurn);
+            // console.log(key + " war: " + hitThisTurn);
             hitCount = 0;
 
             let damage = [];
 
-            hitThisTurn ? damage = calculateDamageDone(playerSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
+            hitThisTurn ? damage = calculateDamageDone(false, playerSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
 
             if (!damage) { //if no hit
                 return;
@@ -1093,6 +1101,51 @@ export function calculateSiegePerTurn() {
             } else {
                 //do the damage
                 changeDefendingTerritoryStatsBasedOnSiege(playerSiegeWarsList[key], damage);
+                continueSiegeArray.push(true); //siege can continue
+            }
+        }
+    }
+    return continueSiegeArray;
+}
+
+export function calculateAiInitiatedSiegePerTurn() {
+    let continueSiegeArray = [];
+    if (aiSiegeWarsList && Object.keys(aiSiegeWarsList).length > 0) {
+
+        //calculate chance of a siege "hit"
+        for (const key in aiSiegeWarsList) {
+            let hitThisTurn;
+            let hitCount = 0;
+            let totalSiegeScore = 0;
+            let numberOfForts;
+            let defenseBonusAttackedTerritory = 0;
+            let mountainDefenseBonusAttackedTerritory = aiSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
+
+            for (let i = 0; i < hitIterations; i++) {
+                totalSiegeScore = calculateSiegeScore(aiSiegeWarsList[key]);
+                defenseBonusAttackedTerritory = aiSiegeWarsList[key].defendingTerritory.defenseBonus;
+                numberOfForts = aiSiegeWarsList[key].defendingTerritory.fortsBuilt;
+                const hitChance = calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory);
+
+                let hit = Math.random() < hitChance;
+                hit ? hitCount++ : null;
+            }
+            hitCount > hitIterations / 2 ? (hitThisTurn = true, console.log("Hit this turn for the " + key + " AI war, " + hitCount + " hits from " + hitIterations)) : (hitThisTurn = false, console.log("No hit this turn for the " + key + " AI war, " + hitCount + " hits from " + hitIterations));
+            console.log(key + " war: " + hitThisTurn);
+            hitCount = 0;
+
+            let damage = [];
+
+            hitThisTurn ? damage = calculateDamageDone(true, aiSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
+
+            if (!damage) { //if no hit
+                return;
+            } else if (damage[2]) { //if arrested
+                aiSiegeWarsList[key].defendingArmyRemaining.push(1); //add routing defeat to array
+                continueSiegeArray.push(aiSiegeWarsList[key]);
+            } else {
+                //do the damage
+                changeDefendingTerritoryStatsBasedOnSiege(aiSiegeWarsList[key], damage);
                 continueSiegeArray.push(true); //siege can continue
             }
         }
@@ -1110,7 +1163,7 @@ function calculateChanceOfASiegeHit(totalSiegeScore, defenseBonusAttackedTerrito
     return hitProbability;
 }
 
-function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) {
+function calculateDamageDone(ai, siegeObject, totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) {
     const difference = totalSiegeScore - (defenseBonusAttackedTerritory + mountainDefenseBonusAttackedTerritory);
     let arrested;
 
@@ -1184,7 +1237,7 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
 
     // Generate a random number and compare it with the destroy probability
 
-    console.log("difference: " + difference);
+    // console.log("difference: " + difference);
     if (Math.random() < destroyProbability) {
         // Determine the number of forts to destroy based on the sliding scale
         if (difference >= 200) {
@@ -1194,7 +1247,7 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
                 const resourceIndex = Math.floor(Math.random() * resources.length);
                 const resource = resources[resourceIndex];
                 resource.destroyedCounter += 1;
-                console.log(`1 ${resource.name} destroyed!`);
+                // console.log(`1 ${resource.name} destroyed!`);
             }
 
             // Second 50:50 chance
@@ -1202,7 +1255,7 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
                 const resourceIndex = Math.floor(Math.random() * resources.length);
                 const resource = resources[resourceIndex];
                 resource.destroyedCounter += 1;
-                console.log(`1 ${resource.name} destroyed!`);
+                // console.log(`1 ${resource.name} destroyed!`);
             }
         } else if (difference >= 50) {
             collateralDamage = calculateCollateralDamage(difference);
@@ -1212,17 +1265,17 @@ function calculateDamageDone(siegeObject, totalSiegeScore, defenseBonusAttackedT
                 const resourceIndex = Math.floor(Math.random() * resources.length);
                 const resource = resources[resourceIndex];
                 resource.destroyedCounter += 1;
-                console.log(`1 ${resource.name} destroyed!`);
+                // console.log(`1 ${resource.name} destroyed!`);
             }
         }
     } else {
-        console.log("collateral damage only!");
+        // console.log("collateral damage only!");
         collateralDamage = calculateCollateralDamage(difference);
     }
     const foodCapacityDestroyed = Math.floor(siegeObject.defendingTerritory.foodCapacity * collateralDamage / 100);
     collateralDamage === 0 ? arrested = true : arrested = false;
     const damage = [resources, foodCapacityDestroyed, arrested];
-    console.log(foodCapacityDestroyed + " reduced from food capacity, representing a " + collateralDamage + "% fall");
+    // console.log(foodCapacityDestroyed + " reduced from food capacity, representing a " + collateralDamage + "% fall");
 
     return damage;
 }
@@ -1239,7 +1292,7 @@ function calculateCollateralDamage(difference) {
     } else {
         let arrested = Math.random();
         if (arrested > 0.6) {
-            console.log("arrested for being too pathetic to siege!");
+            // console.log("arrested for being too pathetic to siege!");
             return 0; //end siege due to arrest
         } else {
             return 1;
@@ -1247,12 +1300,12 @@ function calculateCollateralDamage(difference) {
     }
 }
 
-export function handleEndSiegeDueArrest(siege) {
+export function handleEndSiegeDueArrest(ai, siege) {
     let defendingTerritory;
     let defendingPath;
 
     if (siege.defendingArmyRemaining[4]) { //if siege marked as arrested
-        //set siege data to player and defender territory
+        //set siege data to attacker and defender territory
         for (let i = 0; i < paths.length; i++) {
             for (let j = 0; j < mainGameArray.length; j++) {
                 if (siege.defendingTerritory.uniqueId === mainGameArray[j].uniqueId) {
@@ -1280,19 +1333,30 @@ export function handleEndSiegeDueArrest(siege) {
         setUpResultsOfWarExternal(true);
         setCurrentWarFlagString(defendingTerritory.dataName);
 
-        populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siege);
-        addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
+        if (!ai) {
+            populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siege);
+            addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
+            historicWars.push(siege);
 
-        historicWars.push(siege);
-        removeSiegeImageFromPath(defendingPath);
-        defendingPath.setAttribute("underSiege", "false");
+            for (const key in playerSiegeWarsList) {
+                if (key === siege.defendingTerritory.territoryName) {
+                    delete playerSiegeWarsList[key];
+                    break;
+                }
+            }
+        } else {
+            historicAiWars.push(siege);
 
-        for (const key in playerSiegeWarsList) {
-            if (key === siege.defendingTerritory.territoryName) {
-                delete playerSiegeWarsList[key];
-                break;
+            for (const key in aiSiegeWarsList) {
+                if (key === siege.defendingTerritory.territoryName) {
+                    delete aiSiegeWarsList[key];
+                    break;
+                }
             }
         }
+
+        removeSiegeImageFromPath(ai, defendingPath);
+        defendingPath.setAttribute("underSiege", "false");
     }
 }
 
@@ -1385,7 +1449,7 @@ export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proport
         }
     }
 
-    console.log(returnArray);
+    // console.log(returnArray);
 
     return returnArray;
 }
