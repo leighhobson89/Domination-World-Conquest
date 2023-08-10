@@ -48,7 +48,7 @@ import {
     currentWarId,
     defendingArmyRemaining,
     defendingTerritory,
-    getAttackingArmyRemaining,
+    getAttackingArmyRemaining, getCurrentAiWarId,
     getCurrentRound,
     getCurrentWarId,
     getFinalAttackArray,
@@ -232,31 +232,35 @@ export function svgMapLoaded() {
 
     svgMap.addEventListener("mouseover", function(e) {
         // Get the element that was hovered over
-        const path = e.target;
+        const element = e.target;
 
-        if (path.tagName === "image") {
-            setTimeout(function() {
-                path.style.cursor = "default";
-            }, 50);
-        }
-
-        currentPath = path; // Set the current path element
+        currentPath = element; // Set the current element
 
         // Call the hoverColorChange function
-        if (path.getAttribute("greyedOut") === "false") {
-            hoverOverTerritory(path, "mouseOver");
+        if (element.getAttribute("greyedOut") === "false") {
+            hoverOverTerritory(element, "mouseOver");
         }
 
         // Get the name of the country from the "data-name" attribute
-        const countryName = path.getAttribute("owner");
+        const countryName = element.getAttribute("owner");
 
-        // Add an event listener for mousemove on the path element
-        path.addEventListener("mousemove", function(e) {
+        // Add an event listener for mousemove on the element
+        element.addEventListener("mousemove", function(e) {
             const x = e.clientX;
             const y = e.clientY;
 
-            // Set the content of the tooltip
-            tooltip.innerHTML = countryName;
+            if (element.tagName === "image") {
+                //hover over image
+                const imageId = element.getAttribute("id");
+                if (imageId.includes("siegeImage_")) { //siegeImage
+                    const territoryName = extractTerritoryName(imageId);
+                    let attackerData = findAttackerForSiege(territoryName);
+                    tooltip.innerHTML = territoryName + " is currently under siege by " + attackerData[1] + attackerData[0];
+                }
+            } else {
+                // Set the content of the tooltip
+                tooltip.innerHTML = countryName;
+            }
 
             // Check if the mouse pointer is less than 300px from the bottom of the screen
             if (window.innerHeight - y < 100) {
@@ -273,13 +277,13 @@ export function svgMapLoaded() {
             tooltip.style.display = "block";
         });
 
-        // Add an event listener for mouseout on the path element
-        path.addEventListener("mouseout", function() {
-            // Hide the tooltip when the mouse leaves the path
+        // Add an event listener for mouseout on the element
+        element.addEventListener("mouseout", function() {
+            // Hide the tooltip when the mouse leaves the element
             tooltip.style.display = "none";
         });
 
-        path.style.cursor = "pointer";
+        element.style.cursor = "pointer";
     });
 
     // Add a mouseout event listener to the SVG element
@@ -2502,7 +2506,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Search the playerSiegeWarsList for the warId
         for (let territoryName in playerSiegeWarsList) {
-            if (playerSiegeWarsList.hasOwnProperty(territoryName) || aiSiegeWarsList.hasOwnProperty(territoryName)) {
+            if (aiSiegeWarsList.hasOwnProperty(territoryName)) {
                 currentWarAlreadyInSiegeMode = true;
                 break;
             }
@@ -4092,17 +4096,17 @@ export function addImageToPath(pathElement, imagePath, siege) {
     const imageElement = document.createElementNS("http://www.w3.org/2000/svg", "image");
     imageElement.setAttributeNS("http://www.w3.org/1999/xlink", "href", imagePath);
 
-    const imageWidth = Math.min(maxImageWidth, maxImageHeight);
-    const imageHeight = Math.min(maxImageWidth, maxImageHeight);
+    let imageWidth = Math.min(maxImageWidth, maxImageHeight);
+    let imageHeight = Math.min(maxImageWidth, maxImageHeight);
     const imageX = centerX - imageWidth / 2;
     const imageY = centerY - imageHeight / 2;
     imageElement.setAttribute("x", imageX.toString());
     imageElement.setAttribute("y", imageY.toString());
-    imageElement.setAttribute("width", imageWidth.toString());
-    imageElement.setAttribute("height", imageHeight.toString());
     imageElement.setAttribute("z-index", "9999");
 
     if (siege === 1) {
+        imageElement.setAttribute("width", imageWidth.toString());
+        imageElement.setAttribute("height", imageHeight.toString());
         for (const key in playerSiegeWarsList) {
             if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === currentWarId) {
                 for (let i = 0; i < paths.length; i++) {
@@ -4117,11 +4121,15 @@ export function addImageToPath(pathElement, imagePath, siege) {
             }
         }
     } else if (siege === 2) {
+        imageElement.setAttribute("width", (imageWidth * 0.6).toString());
+        imageElement.setAttribute("height", (imageHeight * 0.6).toString());
         for (const key in aiSiegeWarsList) {
+            let currentAiWarId = getCurrentAiWarId();
             if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === currentAiWarId) {
                 for (let i = 0; i < paths.length; i++) {
                     if (paths[i].getAttribute("territory-name") === aiSiegeWarsList[key].defendingTerritory.territoryName) {
                         const territoryName = aiSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+                        imageElement.setAttribute("style", "opacity: 0.4");
                         pathElement.parentNode.appendChild(imageElement);
                         imageElement.setAttribute("id", `siegeImage_${territoryName}`);
                         break;
@@ -6142,4 +6150,30 @@ export function populateArmyDataFields(returnArmyData) {
     document.getElementById("aiDialogueBoxBottomSummaryRowCol4").innerHTML = returnArmyData[1];
     document.getElementById("aiDialogueBoxBottomSummaryRowCol6").innerHTML = returnArmyData[2];
     document.getElementById("aiDialogueBoxBottomSummaryRowCol8").innerHTML = returnArmyData[3];
+}
+
+function extractTerritoryName(imageId) {
+    const underscoreIndex = imageId.indexOf('_'); // Find the first underscore
+    if (underscoreIndex !== -1) {
+        const territoryPart = imageId.substring(underscoreIndex + 1); // Extract the part after underscore
+        const territoryWords = territoryPart.split('_'); // Split by underscores
+        const capitalizedWords = territoryWords.map(word => word.charAt(0).toUpperCase() + word.slice(1)); // Capitalize each word
+        const territoryName = capitalizedWords.join(' '); // Join the words with spaces
+        return territoryName;
+    } else {
+        return ""; // Return empty string if underscore is not found
+    }
+}
+
+function findAttackerForSiege(territoryName) {
+    let attackerCountry;
+    let attackerTerritory;
+    if (aiSiegeWarsList.hasOwnProperty(territoryName)) {
+        attackerCountry = aiSiegeWarsList[territoryName].attackingCountry;
+        attackerTerritory = aiSiegeWarsList[territoryName].attackingTerritory + ", ";
+    } else if (playerSiegeWarsList.hasOwnProperty(territoryName)) {
+        attackerCountry = "";
+        attackerTerritory = "Player"
+    }
+    return [attackerCountry, attackerTerritory];
 }

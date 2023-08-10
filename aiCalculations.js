@@ -1760,7 +1760,7 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         }
 
     if (probability >= (PROBABILITY_THRESHOLD_FOR_SIEGE + probabilityModifier)) { //if siege is allowed at all depending on leader type
-        setCurrentAiWarId(getNextAiWarId);
+        setCurrentAiWarId(getNextAiWarId());
         let currentAiWarId = getCurrentAiWarId();
         setNextAiWarId(currentAiWarId + 1);
 
@@ -1773,8 +1773,17 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
                 mainGameArray[i].useableAssault -= armyArray[1];
                 mainGameArray[i].useableAir -= armyArray[2];
                 mainGameArray[i].useableNaval -= armyArray[3];
-
                 mainGameArray[i].armyForCurrentTerritory = mainGameArray[i].infantryForCurrentTerritory + (mainGameArray[i].assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainGameArray[i].airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainGameArray[i].navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+
+                mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory -= armyArray[0];
+                mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory -= armyArray[1];
+                mainArrayFriendlyTerritoryCopy.airForCurrentTerritory -= armyArray[2];
+                mainArrayFriendlyTerritoryCopy.navalForCurrentTerritory -= armyArray[3];
+                mainArrayFriendlyTerritoryCopy.useableAssault -= armyArray[1];
+                mainArrayFriendlyTerritoryCopy.useableAir -= armyArray[2];
+                mainArrayFriendlyTerritoryCopy.useableNaval -= armyArray[3];
+                mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory = mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory + (mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainArrayFriendlyTerritoryCopy.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainArrayFriendlyTerritoryCopy.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+
                 console.log(mainArrayFriendlyTerritoryCopy.territoryName + " had its army adjusted ready for siege");
                 break;
             }
@@ -1783,26 +1792,21 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         let currentWarAlreadyInSiegeMode = false;
 
         // Search the playerSiegeWarsList for the warId
-        for (let territoryName in aiSiegeWarsList) {
-            if (aiSiegeWarsList.hasOwnProperty(territoryName) || playerSiegeWarsList.hasOwnProperty(territoryName)) {
-                currentWarAlreadyInSiegeMode = true;
-                break;
-            }
+        if (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) || aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) {
+            currentWarAlreadyInSiegeMode = true;
         }
         //set sieged territory to siege mode
-        for (let i = 0; i < paths; i++) {
-            if (paths[i].getAttribute("uniqueid") === mainArrayEnemyTerritoryCopy.uniqueId) {
+        for (let i = 0; i < paths.length; i++) {
+            if (paths[i].getAttribute("uniqueid") === mainArrayEnemyTerritoryCopy.uniqueId && !currentWarAlreadyInSiegeMode) {
                 paths[i].setAttribute("underSiege", "true");
                 console.log(paths[i].getAttribute("territory-name") + " has had its underSiege attribute set, it is now: " + paths[i].getAttribute("underSiege"));
+                addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
                 addImageToPath(paths[i], "siegeai.png", 2);
                 console.log("Should now be an image over the territory of " + paths[i].getAttribute("territory-name"));
+                if (mapMode === 1) {
+                    setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
+                }
                 break;
-            }
-        }
-        if (!currentWarAlreadyInSiegeMode) {
-            addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
-            if (mapMode === 1) {
-                setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
             }
         }
     }
