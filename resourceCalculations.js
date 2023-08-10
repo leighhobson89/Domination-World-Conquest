@@ -1067,7 +1067,6 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
 
     for (const path of paths) {
         const territoryOwner = path.getAttribute("owner");
-        console.log(territoryOwner);
         // Skip territories with no owner
         if (!territoryOwner) {
             continue;
