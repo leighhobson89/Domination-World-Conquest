@@ -1359,6 +1359,10 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
                 amountBeingSentToBattle -= vehicleArmyPersonnelWorth.naval;
                 naval -= vehicleArmyPersonnelWorth.naval;
                 navalAddCount++;
+            } else {
+                if (air < vehicleArmyPersonnelWorth.air && assault < vehicleArmyPersonnelWorth.assault) {
+                    break;
+                }
             }
         } else {
             naval = 0;
@@ -1367,13 +1371,21 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
             amountBeingSentToBattle -= vehicleArmyPersonnelWorth.air;
             air -= vehicleArmyPersonnelWorth.air;
             airAddCount++;
+        } else {
+            if (assault < vehicleArmyPersonnelWorth.assault && naval < vehicleArmyPersonnelWorth.naval) {
+                break;
+            }
         }
         if (assault >= vehicleArmyPersonnelWorth.assault && amountBeingSentToBattle >= vehicleArmyPersonnelWorth.assault) {
             amountBeingSentToBattle -= vehicleArmyPersonnelWorth.assault;
             assault -= vehicleArmyPersonnelWorth.assault;
             assaultAddCount++;
+        } else {
+            if (air < vehicleArmyPersonnelWorth.air && naval < vehicleArmyPersonnelWorth.naval) {
+                break;
+            }
         }
-        if (amountBeingSentToBattle < vehicleArmyPersonnelWorth.assault) {
+        if ((amountBeingSentToBattle < vehicleArmyPersonnelWorth.assault) || (naval === 0 && air === 0 && assault === 0 && amountBeingSentToBattle > ((originalAmountBeingSentToBattle / 100) * 30))) {
             break;
         }
     }
