@@ -36,7 +36,6 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
 } from './ui.js';
-import {getArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading";
 
 let transferArmyOutOfTerritoryOnStartingInvasionFn;
 
