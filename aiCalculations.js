@@ -1,7 +1,6 @@
 // noinspection DuplicatedCode
 
 import {
-    getSiegeObjectFromObject,
     paths,
     PROBABILITY_THRESHOLD_FOR_SIEGE,
     saveMapColorState,
@@ -19,7 +18,6 @@ import {
     populateArmyDataFields,
     addImageToPath,
     mapMode,
-    currentMapColorAndStrokeArray
 } from "./ui.js";
 import {
     findMatchingCountries
@@ -52,7 +50,9 @@ import {
     getNextAiWarId,
     setCurrentAiWarId,
     setNextAiWarId,
-    addRemoveWarSiegeObjectAi
+    addRemoveWarSiegeObjectAi,
+    getSiegeObjectFromPlayerSiegeList,
+    getSiegeObjectFromAiSiegeList
 } from "./battle.js";
 import {
     getArrayOfLeadersAndCountries,
@@ -701,7 +701,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
             }
         }
 
-        let siege = getSiegeObjectFromObject(mainArrayFriendlyTerritoryCopy);
+        let siege = getSiegeObjectFromAiSiegeList(mainArrayFriendlyTerritoryCopy);
         if (siege) {
             console.log(mainArrayFriendlyTerritoryCopy.territoryName + " is under siege, cannot perform any goals this turn for this territory!");
             return "Sieged";
@@ -1302,12 +1302,17 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
         amountCanSend -= amountCanSend * (leader.traits.reconquista * 100) / 100;
     }
 
-    if (amountCanSend > 0) {
+    if (amountCanSend >= 0) {
         console.log("Interaction cancelled as surrounding threats would leave territory too vulnerable");
         return "Cancel";
     } else {
         console.log("Amount would like to send is: " + Math.abs(amountCanSend));
-        Math.abs(amountCanSend) < mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory ? actuallyBeingSent = amountCanSend : actuallyBeingSent = mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory;
+        if (Math.abs(amountCanSend) < mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory) {
+            actuallyBeingSent = amountCanSend;
+        } else {
+            console.log("Want to send more than I have, so cancelling to be safe.");
+            return "Cancel";
+        }
     }
     // //DEBUG
     // console.log("Actually Being sent: " + Math.abs(actuallyBeingSent));
@@ -1337,6 +1342,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
 }
 
 function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle) {
+    const originalAmountBeingSentToBattle = amountBeingSentToBattle;
     const infantry = mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory;
     let assault = mainArrayFriendlyTerritoryCopy.useableAssault * vehicleArmyPersonnelWorth.assault;
     let air = mainArrayFriendlyTerritoryCopy.useableAir * vehicleArmyPersonnelWorth.air;
@@ -1347,9 +1353,9 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
     let assaultAddCount = 0;
     let infantryCount;
 
-    while ((amountBeingSentToBattle > ((amountBeingSentToBattle / 100) * 30)) && (naval > 0 || air > 0 || assault > 0)) {
+    while ((amountBeingSentToBattle > ((originalAmountBeingSentToBattle / 100) * 30)) && (naval > 0 || air > 0 || assault > 0)) {
         if (mainArrayEnemyTerritoryCopy.isCoastal) {
-            if (naval >= vehicleArmyPersonnelWorth.naval) {
+            if (naval >= vehicleArmyPersonnelWorth.naval && amountBeingSentToBattle >= vehicleArmyPersonnelWorth.naval) {
                 amountBeingSentToBattle -= vehicleArmyPersonnelWorth.naval;
                 naval -= vehicleArmyPersonnelWorth.naval;
                 navalAddCount++;
@@ -1357,34 +1363,29 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
         } else {
             naval = 0;
         }
-        if (air >= vehicleArmyPersonnelWorth.air) {
+        if (air >= vehicleArmyPersonnelWorth.air && amountBeingSentToBattle >= vehicleArmyPersonnelWorth.air) {
             amountBeingSentToBattle -= vehicleArmyPersonnelWorth.air;
             air -= vehicleArmyPersonnelWorth.air;
             airAddCount++;
         }
-        if (assault >= vehicleArmyPersonnelWorth.assault) {
+        if (assault >= vehicleArmyPersonnelWorth.assault && amountBeingSentToBattle >= vehicleArmyPersonnelWorth.assault) {
             amountBeingSentToBattle -= vehicleArmyPersonnelWorth.assault;
             assault -= vehicleArmyPersonnelWorth.assault;
             assaultAddCount++;
         }
+        if (amountBeingSentToBattle < vehicleArmyPersonnelWorth.assault) {
+            break;
+        }
     }
     if (infantry >= amountBeingSentToBattle) {
         infantryCount = amountBeingSentToBattle;
-        amountBeingSentToBattle = 0;
     } else {
         infantryCount = infantry;
     }
 
-    if (amountBeingSentToBattle === 0) {
-        console.log("Enemy is Coastal: " + mainArrayEnemyTerritoryCopy.isCoastal);
-        console.log("Infantry: " + infantryCount + " Assault: " + assaultAddCount + " Air: " + airAddCount + " Naval: " + navalAddCount);
-        return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
-    } else {
-        console.log ("Not all units allocated, extend function to handle leftovers.");
-        console.log("Enemy is Coastal: " + mainArrayEnemyTerritoryCopy.isCoastal);
-        console.log("Infantry: " + infantryCount + " Assault: " + assaultAddCount + " Air: " + airAddCount + " Naval: " + navalAddCount);
-        return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
-    }
+    console.log("Enemy is Coastal: " + mainArrayEnemyTerritoryCopy.isCoastal);
+    console.log("Infantry: " + infantryCount + " Assault: " + assaultAddCount + " Air: " + airAddCount + " Naval: " + navalAddCount);
+    return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
 }
 
 function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability) { //simple battle mechanic as large number to process
@@ -1687,7 +1688,7 @@ function addGoldToPlayer(goldToOffer) {
 }
 
 function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
-    let siegeObject = getSiegeObjectFromObject(siegedTerritory);
+    let siegeObject = getSiegeObjectFromPlayerSiegeList(siegedTerritory);
 
     let returnArmyArray = [siegeObject.attackingArmyRemaining[0],siegeObject.attackingArmyRemaining[1],siegeObject.attackingArmyRemaining[2],siegeObject.attackingArmyRemaining[3]];
     let possibleReturnTerritories = [];
@@ -1728,8 +1729,9 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
 async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
     //AI
     //if under siege by another AI then break and don't do attack
-    let territoryAlreadyUnderSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
-    if (territoryAlreadyUnderSiege) {
+    let territoryAlreadyUnderPlayerSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
+    let territoryAlreadyUnderAiSiege = aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
+    if (territoryAlreadyUnderPlayerSiege) {
         let goldToOffer = calculateGoldToOfferPlayerToBreakSiege(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
         toggleAiDialogue(true);
         setAiDialogueContainerCurrentlyOnScreen(true);
@@ -1742,7 +1744,7 @@ async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(main
             return false;
         }
     }
-    return true;
+    return !territoryAlreadyUnderAiSiege; //skip if under siege by another AI
 }
 
 function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, leader) {
