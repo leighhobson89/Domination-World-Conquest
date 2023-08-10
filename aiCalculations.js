@@ -1335,8 +1335,8 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
     if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
         console.log("Probability too low, bunking out!");
         return "Cancel";
-    } else if (siege && ((aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) || (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)))) { //if target under siege and is siege type interaction
-        console.log("Can't siege because territory already under siege!");
+    } else if ((aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) || (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName))) { //if target under siege and is siege type interaction
+        console.log("Can't siege or attack because territory already under siege!");
         return "Cancel";
     } else {
         console.log("Proceeding!");
@@ -1742,8 +1742,6 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
 }
 
 async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy) {
-    //AI
-    //if under siege by another AI then break and don't do attack
     let territoryAlreadyUnderPlayerSiege = playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
     let territoryAlreadyUnderAiSiege = aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName);
     if (territoryAlreadyUnderPlayerSiege) {
