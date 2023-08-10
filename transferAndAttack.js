@@ -3,7 +3,7 @@ import {
     vehicleArmyPersonnelWorth,
     formatNumbersToKMB,
     colourTableText,
-    setUseableNotUseableWeaponsDueToOilDemand,
+    setPlayerUseableNotUseableWeaponsDueToOilDemand,
     turnGainsArrayPlayer,
     oilRequirements
 } from './resourceCalculations.js';
@@ -1047,7 +1047,7 @@ export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainAr
             matchingTerritory.armyForCurrentTerritory -= (matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval));
         }
         matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
-        setUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
+        setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
     }
 }
 

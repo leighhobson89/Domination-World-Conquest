@@ -4,7 +4,7 @@ import {
     mainGameArray,
     oilRequirements,
     playerOwnedTerritories,
-    setUseableNotUseableWeaponsDueToOilDemand,
+    setPlayerUseableNotUseableWeaponsDueToOilDemand, turnGainsArrayAi,
     turnGainsArrayPlayer,
     vehicleArmyPersonnelWorth
 } from './resourceCalculations.js';
@@ -36,6 +36,7 @@ import {
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
 } from './ui.js';
+import {getArrayOfLeadersAndCountries} from "./cpuPlayerGenerationAndLoading";
 
 let transferArmyOutOfTerritoryOnStartingInvasionFn;
 
@@ -419,12 +420,18 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
     return combatContinentModifier;
 }
 
-export function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining, routFromSiege) {
-    let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-    setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
-    const retreatButton = document.getElementById("retreatButton");
-    const advanceButton = document.getElementById("advanceButton");
-    const siegeButton = document.getElementById("siegeButton");
+export function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining, routFromSiege, ai, siegeObject) {
+    let retreatButton;
+    let advanceButton;
+    let siegeButton;
+
+    if (!ai) {
+        let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
+        setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
+        retreatButton = document.getElementById("retreatButton");
+        advanceButton = document.getElementById("advanceButton");
+        siegeButton = document.getElementById("siegeButton");
+    }
 
     let contestedPath;
     let won = false;
@@ -485,33 +492,56 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
         case 2:
             won = true;
             rout = true;
-            console.log("you routed the enemy, they are out of there, victory is yours! - capture half of defense remainder and territory");
-            //Set territory to owner player, replace army values with remaining attackers + half of defenders remaining in main array, change colors, deactivate territory until next turn
-            setDefendingTerritoryCopyStart(contestedTerritory);
-            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
-            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
-            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
-            playerOwnedTerritories.push(contestedPath);
-            contestedPath.setAttribute("owner", "Player");
-            contestedTerritory.owner = "Player";
-            contestedPath.setAttribute("data-name", playerCountry);
-            contestedTerritory.dataName = playerCountry;
-            contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
-            contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
-            contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
-            contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
-            contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-            turnGainsArrayPlayer.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
-            turnGainsArrayPlayer.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
-            turnGainsArrayPlayer.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
-            turnGainsArrayPlayer.changeNaval += Math.floor(defendingArmyRemaining[3] / 2);
-            setAdvanceButtonState(2);
-            setAdvanceButtonText(4, advanceButton);
-            retreatButton.disabled = true;
-            retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
-            advanceButton.disabled = false;
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            console.log("Enemy routed, they are out of there, territory conquered! - capture half of defense remainder and territory");
+            if (!ai) {
+                setDefendingTerritoryCopyStart(contestedTerritory);
+                turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
+                turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
+                turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
+                playerOwnedTerritories.push(contestedPath);
+                contestedPath.setAttribute("owner", "Player");
+                contestedTerritory.owner = "Player";
+                contestedPath.setAttribute("data-name", playerCountry);
+                contestedTerritory.dataName = playerCountry;
+                turnGainsArrayPlayer.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
+                turnGainsArrayPlayer.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
+                turnGainsArrayPlayer.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
+                turnGainsArrayPlayer.changeNaval += Math.floor(defendingArmyRemaining[3] / 2);
+                contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0] + (Math.floor(defendingArmyRemaining[0] / 2));
+                contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1] + (Math.floor(defendingArmyRemaining[1] / 2));
+                contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] / 2));
+                contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] / 2));
+                contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                setAdvanceButtonState(2);
+                setAdvanceButtonText(4, advanceButton);
+                retreatButton.disabled = true;
+                retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
+                advanceButton.disabled = false;
+                siegeButton.disabled = true;
+                siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            } else if (ai) {
+                for (country of turnGainsArrayAi) {
+                    if (country === siegeObject.dataName) {
+                        country.changeOilDemand += (siegeObject.attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
+                        country.changeOilDemand += (siegeObject.attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
+                        country.changeOilDemand += (siegeObject.attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
+                        country.changeInfantry += Math.floor(siegeObject.defendingArmyRemaining[0] / 2);
+                        country.changeAssault += Math.floor(siegeObject.defendingArmyRemaining[1] / 2);
+                        country.changeAir += Math.floor(siegeObject.defendingArmyRemaining[2] / 2);
+                        country.changeNaval += Math.floor(siegeObject.defendingArmyRemaining[3] / 2);
+                        break;
+                    }
+                }
+                contestedTerritory.infantryForCurrentTerritory = siegeObject.attackingArmyRemaining[0];
+                contestedTerritory.assaultForCurrentTerritory = siegeObject.attackingArmyRemaining[1];
+                contestedTerritory.airForCurrentTerritory = siegeObject.attackingArmyRemaining[2];
+                contestedTerritory.navalForCurrentTerritory = siegeObject.attackingArmyRemaining[3];
+                contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                contestedPath.setAttribute("owner", siegeObject.dataName);
+                contestedTerritory.owner = siegeObject.dataName;
+                contestedPath.setAttribute("data-name", siegeObject.dataName);
+                contestedTerritory.dataName = siegeObject.dataName;
+            }
             break;
         case 3:
             won = true;
@@ -555,15 +585,18 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             break;
     }
     contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
-    setUseableNotUseableWeaponsDueToOilDemand(mainGameArray, contestedTerritory);
+    setPlayerUseableNotUseableWeaponsDueToOilDemand(mainGameArray, contestedTerritory);
 
-    if (won) {
+    if (won && !ai) {
         setFlag(playerCountry, 2);
         contestedPath.setAttribute("data-name", playerCountry);
-        deactivateTerritory(contestedPath, contestedTerritory);
+        deactivateTerritory(contestedPath);
         if (mapMode === 2) {
             contestedPath.style.stroke = "white";
         }
+    } else if (won && ai) {
+        contestedPath.setAttribute("data-name", siegeObject.dataName);
+        deactivateTerritoryAi(contestedPath);
     } else {
         setOwnerOnPath(contestedTerritory);
     }
@@ -572,7 +605,6 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
 function deactivateTerritory(contestedPath) { //cant use a territory if just conquered it til this function decides
     const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
     playerTurnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
-
 
     let tempArray = currentMapColorAndStrokeArray;
     for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
@@ -702,9 +734,9 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
                 console.log(`Attacking ${unitType} Left: ${attackArmyRemaining[unitTypeIndex]} out of ${totalAttackingArmy[unitTypeIndex]}`);
                 console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[unitTypeIndex]} out of ${totalDefendingArmy[unitTypeIndex]}`);
             } else if (allZeroDefend) {
-                handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+                handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
             } else if (allZeroAttack) {
-                handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+                handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
             } else {
                 //update UI text
                 let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
@@ -743,16 +775,16 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
         console.log("Defending Naval Remaining:", defendingArmyRemaining[3]);
 
         if (defendingArmyRemaining.every(count => count === 0)) { //killed all defenders
-            handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+            handleWarEndingsAndOptions(0, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
         } else if (attackArmyRemaining.every(count => count === 0)) { //all attacking force destroyed
-            handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+            handleWarEndingsAndOptions(1, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
         } else {
             if (combinedForceDefend < (0.05 * unchangeableWarStartCombinedForceDefend)) { //rout enemy
-                handleWarEndingsAndOptions(2, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+                handleWarEndingsAndOptions(2, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
             } else if (combinedForceDefend < (0.15 * unchangeableWarStartCombinedForceDefend)) { //last push
-                handleWarEndingsAndOptions(3, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+                handleWarEndingsAndOptions(3, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
             } else if (combinedForceAttack < (0.10 * unchangeableWarStartCombinedForceAttack)) { // you were routed
-                handleWarEndingsAndOptions(4, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false);
+                handleWarEndingsAndOptions(4, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
             } else {
                 let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
                 setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]); // fight again
@@ -1032,14 +1064,27 @@ export function incrementSiegeTurns(ai) {
     }
 }
 
-export function setBattleResolutionOnHistoricWarArrayAfterSiege(warResolution, id) {
-    for (const siege of historicWars) {
-        const {
-            warId
-        } = siege;
-        if (warId === id) {
-            siege.resolution = warResolution;
+export function setBattleResolutionOnHistoricWarArrayAfterSiege(warResolution, id, ai) {
+    if (ai) {
+        for (const siege of historicWars) {
+            const {
+                warId
+            } = siege;
+            if (warId === id) {
+                siege.resolution = warResolution;
+            }
         }
+    } else if (!ai) {
+        for (const siege of historicAiWars) {
+            const {
+                warId
+            } = siege;
+            if (warId === id) {
+                siege.resolution = warResolution;
+            }
+        }
+    } else {
+        return "Error - Siege not found in either array in setBattleResolutionOnHistoricWarArrayAfterSiege()";
     }
 }
 
@@ -1390,12 +1435,12 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
     }
 }
 
-export function setValuesForBattleFromSiegeObject(lastClickedPath, routCheck) { //when clicking view siege
-    let siegeObject;
-    if (!routCheck) {
-        siegeObject = getSiegeObjectFromPath(lastClickedPath);
+export function setValuesForBattleFromSiegeObject(path, routCheck) { //when clicking view siege
+            let siegeObject;
+            if (!routCheck) {
+                siegeObject = getSiegeObjectFromPath(path);
     } else {
-        siegeObject = lastClickedPath; //confusing but if checking for rout from siege, we pass the object directly
+        siegeObject = path; //confusing but if checking for rout from siege, we pass the object directly
     }
 
     for (let i = 0; i < mainGameArray.length; i++) {
