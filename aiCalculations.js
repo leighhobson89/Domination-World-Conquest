@@ -704,7 +704,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
         let siege = getSiegeObjectFromAiSiegeList(mainArrayFriendlyTerritoryCopy);
         if (siege) {
             console.log(mainArrayFriendlyTerritoryCopy.territoryName + " is under siege, cannot perform any goals this turn for this territory!");
-            return "Sieged";
+            continue;
         }
 
         switch (goal[1]) {
@@ -750,7 +750,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                         goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                         goldToSpend = goldToSpend[1];
                         let consMatsToSpend = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
-                            console.log("Gold to spend on this BOLSTER = " + goldToSpend);
+                        console.log("Gold to spend on this BOLSTER = " + goldToSpend);
                         //DEBUG
                         arrayOfGoldToSpendOnBolster.push(goldToSpend);
                         //
@@ -767,7 +767,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     siegeLaunchedFromArray.push(goal[3]);
                     siegeLaunchedToArray.push(goal[2]);
                     console.log("going to start a siege attack on " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, true);
                     if (amountBeingSentToSiegeAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[0]);
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
@@ -782,7 +782,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories);
+                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, false);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
@@ -1260,7 +1260,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if AI stops generating gold or goes negative
 }
 
-function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
+function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, siege) {
     const leaderType = leader.leaderType;
 
     let defenseScore;
@@ -1334,6 +1334,9 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
 
     if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
         console.log("Probability too low, bunking out!");
+        return "Cancel";
+    } else if (siege && ((aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) || (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)))) { //if target under siege and is siege type interaction
+        console.log("Can't siege because territory already under siege!");
         return "Cancel";
     } else {
         console.log("Proceeding!");
