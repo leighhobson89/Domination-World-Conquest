@@ -13,12 +13,14 @@ import {
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
     lastClickedPath,
+    mapMode,
     paths,
     playerColour,
     playerCountry,
     populateWarResultPopup,
     removeSiegeImageFromPath,
     retreatButtonState,
+    saveMapColorState,
     setAdvanceButtonState,
     setAdvanceButtonText,
     setArmyTextValues,
@@ -28,17 +30,12 @@ import {
     setDefendingTerritoryCopyStart,
     setFirstSetOfRounds,
     setFlag,
+    setOwnerOnPath,
     setRetreatButtonState,
     setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal,
-    mapMode,
-    saveMapColorState,
-    setOwnerOnPath,
 } from './ui.js';
-import {
-    callDice,
-} from './dices.js';
 
 let transferArmyOutOfTerritoryOnStartingInvasionFn;
 
@@ -1417,5 +1414,21 @@ export function deactivateTerritoryAi(territory) {
             mainGameArray[i].isDeactivated = true;
             break;
         }
+    }
+}
+
+export function getSiegeObjectFromPlayerSiegeList(territory) {
+    if (territory.territoryName in playerSiegeWarsList) {
+        return playerSiegeWarsList[territory.territoryName];
+    } else {
+        return false;
+    }
+}
+
+export function getSiegeObjectFromAiSiegeList(territory) {
+    if (territory.territoryName in aiSiegeWarsList) {
+        return aiSiegeWarsList[territory.territoryName];
+    } else {
+        return false;
     }
 }

@@ -1,6 +1,4 @@
-import {
-    findMatchingCountries
-} from './manualExceptionsForInteractions.js';
+import {findMatchingCountries} from './manualExceptionsForInteractions.js';
 import {
     currentTurn,
     currentTurnPhase,
@@ -43,18 +41,21 @@ import {
 import {
     addAttackingArmyToRetrievalArray,
     addRemoveWarSiegeObject,
-    addWarToHistoricWarArray, aiSiegeWarsList,
+    addWarToHistoricWarArray,
+    aiSiegeWarsList,
     calculateSiegeScore,
     currentWarId,
     defendingArmyRemaining,
     defendingTerritory,
-    getAttackingArmyRemaining, getCurrentAiWarId,
+    getAttackingArmyRemaining,
+    getCurrentAiWarId,
     getCurrentRound,
     getCurrentWarId,
     getFinalAttackArray,
     getMassiveAssaultStatus,
     getResolution,
     getRoutStatus,
+    getSiegeObjectFromPlayerSiegeList,
     getUpdatedProbability,
     historicWars,
     nextWarId,
@@ -2524,7 +2525,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (!currentWarAlreadyInSiegeMode) {
             let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId, battleStart); // add to siege
-            let mainArrayElementForSiege = setMainArrayToArmyRemaining(getSiegeObjectFromObject(territoryToAddToSiege));
+            let mainArrayElementForSiege = setMainArrayToArmyRemaining(getSiegeObjectFromPlayerSiegeList(territoryToAddToSiege));
             writeBottomTableInformation(mainArrayElementForSiege, true, null);
 
             for (let i = 0; i < paths.length; i++) {
@@ -5383,14 +5384,6 @@ export function enableDisableSiegeButton(enableOrDisable) {
 export function getSiegeObjectFromPath(territory) {
     if (territory.getAttribute("territory-name") in playerSiegeWarsList) {
         return playerSiegeWarsList[territory.getAttribute("territory-name")];
-    }
-}
-
-export function getSiegeObjectFromObject(territory) {
-    if (territory.territoryName in playerSiegeWarsList) {
-        return playerSiegeWarsList[territory.territoryName];
-    } else {
-        return false;
     }
 }
 

@@ -213,14 +213,8 @@ async function handleAITurn() {
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
-        // Read resources and army per activated territory
-        // Info already available in arrayOfLeadersAndCountries
-
-        // Read total resources for specific AI's country and its per turn gains
         countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
         turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
-
-        //read in all information on surrounding territories and assess threat of each
         fullTerritoriesInRange = buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i);
         attackableTerritoriesInRange = buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i);
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
@@ -228,22 +222,10 @@ async function handleAITurn() {
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
         // implement when long term goal is decided
-
-        // TODO: Based on personality type, available resources, and threat, decide on goal for this turn to work towards longer-term goal
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
-        // at this point the AI has a prioritised list of actions to attempt to achieve on its current turn but will need to include long term goals later and filter these priorities based on that
         refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
-        console.log(currentAiCountry + " offered player gold and they answered");
-        // TODO: Based on threat and personality type, decide ratios for spending on defense (forts and army)
-        // TODO: Spend resources on upgrades and army for each territory owned
-        // TODO: Calculate the probability of a successful battle from all owned territories against all territories that contribute to the turn goal
-        // TODO: Based on personality, turn goal, new resources after update, and probability, decide if going to attack anyone
-        // TODO: Calculate army needed for a successful attack
-        // TODO: Check if one or combination of territories could meet that need
-        // TODO: Based on personality and threats, decide how important it is to leave army to defend currently owned territory
-        // TODO: Realise all attacks - move army out, run battle, and return result
         // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
         // TODO: Based on threat, move available army around between available owned territories
         // TODO: Assess if turn goal was realised and update long-term goal if necessary
