@@ -5382,6 +5382,10 @@ export function enableDisableSiegeButton(enableOrDisable) {
 export function getSiegeObjectFromPath(territory) {
     if (territory.getAttribute("territory-name") in playerSiegeWarsList) {
         return playerSiegeWarsList[territory.getAttribute("territory-name")];
+    } else if (territory.getAttribute("territory-name") in aiSiegeWarsList) {
+        return aiSiegeWarsList[territory.getAttribute("territory-name")];
+    } else {
+        return "Error - Siege not found in either array in getSiegeObjectFromPath()";
     }
 }
 
@@ -5390,12 +5394,14 @@ export function getHistoricWarObject(ai, territory) {
     let siege;
     if (ai) {
         siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
-    } else {
+    } else if (!ai) {
         siege = historicAiWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
     }
 
     if (siege) {
         return siege;
+    } else {
+        return "Error - Siege not found in either array in getHistoricWarObject()";
     }
 }
 
