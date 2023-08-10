@@ -911,18 +911,22 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     console.log(historicWars);
 }
 
-export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defendingTerritory, attackingTerritory) {
-    let startingDefenseBonus = defendingTerritory.defenseBonus;
-    let startingFoodCapacity = defendingTerritory.foodCapacity;
-    let startingProdPop = defendingTerritory.productiveTerritoryPop;
-    let startingTerritoryPop = defendingTerritory.territoryPopulation;
-    let startingAtt = [attackingTerritory.infantryForCurrentTerritory, attackingTerritory.useableAssault, attackingTerritory.useableAir, attackingTerritory.useableNaval];
-    let startingDef = [defendingTerritory.infantryForCurrentTerritory, defendingTerritory.useableAssault, defendingTerritory.useableAir, defendingTerritory.useableNaval];
+export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker) {
+    let startingDefenseBonus = defender.defenseBonus;
+    let startingFoodCapacity = defender.foodCapacity;
+    let startingProdPop = defender.productiveTerritoryPop;
+    let startingTerritoryPop = defender.territoryPopulation;
+    let startingAtt = [attacker.infantryForCurrentTerritory, attacker.useableAssault, attacker.useableAir, attacker.useableNaval];
+    let startingDef = [defender.infantryForCurrentTerritory, defender.useableAssault, defender.useableAir, defender.useableNaval];
+    let attackingCountry = attacker.dataName;
+    let attackingTerritory = attacker.territoryName;
 
     if (addOrRemove === 0) { // add war to siege object
-        aiSiegeWarsList[defendingTerritory.territoryName] = {
+        aiSiegeWarsList[defender.territoryName] = {
             warId: warId,
-            defendingTerritory: defendingTerritory,
+            attackingCountry: attackingCountry,
+            attackingTerritory: attackingTerritory,
+            defendingTerritory: defender,
             defendingArmyRemaining: startingDef,
             attackingArmyRemaining: startingAtt,
             turnsInSiege: 0,
