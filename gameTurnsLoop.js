@@ -26,10 +26,12 @@ import {
 } from './resourceCalculations.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
+    aiSiegeWarsList,
     incrementSiegeTurns,
     calculatePlayerInitiatedSiegePerTurn,
     handleEndSiegeDueArrest,
-    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn
+    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn,
+    playerSiegeWarsList
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
@@ -49,6 +51,8 @@ import {
     prioritiseTurnGoalsBasedOnPersonality,
     readClosestPointsJSON,
     refineTurnGoals, setDebugArraysToZero,
+    resetAiRngContext,
+    setAiRngContext,
 } from "./aiCalculations.js";
 
 export let currentTurn = 1;
@@ -63,6 +67,95 @@ let probability = 0;
 let attackOptionsArray = [];
 let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
+
+function normalizeSiegeState() {
+    const svgMap = document.getElementById('svg-map').contentDocument;
+
+    const formattedTerritoryNameFromPath = (path) => {
+        const territoryName = path.getAttribute('territory-name');
+        return territoryName ? territoryName.replace(/\s+/g, '_') : null;
+    };
+
+    const pathsByTerritoryName = new Map();
+    for (const path of paths) {
+        const territoryName = path.getAttribute('territory-name');
+        if (territoryName) {
+            pathsByTerritoryName.set(territoryName, path);
+        }
+    }
+
+    for (const territoryName of Object.keys(playerSiegeWarsList)) {
+        if (!pathsByTerritoryName.has(territoryName)) {
+            delete playerSiegeWarsList[territoryName];
+        }
+    }
+
+    for (const territoryName of Object.keys(aiSiegeWarsList)) {
+        if (!pathsByTerritoryName.has(territoryName)) {
+            delete aiSiegeWarsList[territoryName];
+        }
+    }
+
+    for (const path of paths) {
+        const territoryName = path.getAttribute('territory-name');
+        if (!territoryName) {
+            continue;
+        }
+
+        const inPlayerSiege = Object.prototype.hasOwnProperty.call(playerSiegeWarsList, territoryName);
+        const inAiSiege = Object.prototype.hasOwnProperty.call(aiSiegeWarsList, territoryName);
+        const shouldBeUnderSiege = inPlayerSiege || inAiSiege;
+
+        path.setAttribute('underSiege', shouldBeUnderSiege ? 'true' : 'false');
+
+        const formattedTerritoryName = formattedTerritoryNameFromPath(path);
+        if (!formattedTerritoryName) {
+            continue;
+        }
+
+        const existingSiegeImage = svgMap.getElementById('siegeImage_' + formattedTerritoryName);
+
+        if (!shouldBeUnderSiege) {
+            if (existingSiegeImage) {
+                existingSiegeImage.remove();
+            }
+            continue;
+        }
+
+        if (!existingSiegeImage) {
+            try {
+                const pathBounds = path.getBBox();
+                const centerX = pathBounds.x + pathBounds.width / 2;
+                const centerY = pathBounds.y + pathBounds.height / 2;
+                const maxImageWidth = pathBounds.width * 0.7;
+                const maxImageHeight = pathBounds.height * 0.7;
+
+                const imageElement = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                imageElement.setAttributeNS('http://www.w3.org/1999/xlink', 'href', inAiSiege ? 'siegeai.png' : 'siege.png');
+
+                let imageWidth = Math.min(maxImageWidth, maxImageHeight);
+                let imageHeight = Math.min(maxImageWidth, maxImageHeight);
+                if (inAiSiege) {
+                    imageWidth *= 0.6;
+                    imageHeight *= 0.6;
+                    imageElement.setAttribute('style', 'opacity: 0.4');
+                }
+
+                const imageX = centerX - imageWidth / 2;
+                const imageY = centerY - imageHeight / 2;
+                imageElement.setAttribute('x', imageX.toString());
+                imageElement.setAttribute('y', imageY.toString());
+                imageElement.setAttribute('z-index', '9999');
+                imageElement.setAttribute('width', imageWidth.toString());
+                imageElement.setAttribute('height', imageHeight.toString());
+                imageElement.setAttribute('id', 'siegeImage_' + formattedTerritoryName);
+
+                path.parentNode.appendChild(imageElement);
+            } catch {
+            }
+        }
+    }
+}
 
 export async function initialiseGame() {
     setZoomLevel(1);
@@ -115,6 +208,7 @@ export async function initialiseGame() {
 function gameLoop() {
     activateAllPlayerTerritoriesForNewTurn();
     activateAiTerritoriesForNewTurn();
+
     let continueSiege = true;
     let continueSiegeArrayPlayer = calculatePlayerInitiatedSiegePerTurn(); //large function to work out siege effects per turn
     if (continueSiegeArrayPlayer) {
@@ -137,9 +231,11 @@ function gameLoop() {
     }
     incrementSiegeTurns(true);
     incrementSiegeTurns(false);
+    normalizeSiegeState();
     if (currentTurn > 1) {
         handleArmyRetrievals(getRetrievalArray());
     }
+
     getPlayerTerritories();
     console.log("Probability of Random Event: " + probability + "%");
     randomEventHappening = handleRandomEventLikelihood();
@@ -221,6 +317,8 @@ async function handleAITurn() {
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
 
+        setAiRngContext(currentTurn, currentAiCountry);
+
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
@@ -237,6 +335,8 @@ async function handleAITurn() {
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
+
+        resetAiRngContext();
         // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
         // TODO: Based on threat, move available army around between available owned territories
         // TODO: Assess if turn goal was realised and update long-term goal if necessary

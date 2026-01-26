@@ -4847,15 +4847,6 @@ function findBuyRowPosition(inputElement) {
     return null; // Input element is not within a .buy-row
 }
 
-const inputElement = document.querySelector('#buy-table input');
-const position = findBuyRowPosition(inputElement);
-
-if (position !== null) {
-    console.log(`The input element is from nth-child(${position}) of .buy-row`);
-} else {
-    console.log('The input element is not within a .buy-row');
-}
-
 function adjustValueIfOverMax(topTableGold, topTableProdPop, rowIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar) {
     switch (rowIndex) {
         case 1:

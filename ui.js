@@ -62,6 +62,7 @@ import {
     getSiegeObjectFromPlayerSiegeList,
     getUpdatedProbability,
     historicWars,
+    historicAiWars,
     nextWarId,
     playerSiegeWarsList,
     playerTurnsDeactivatedArray,
@@ -484,8 +485,6 @@ function selectCountry(country, escKeyEntry) {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previously been clicked, handle deselecting previous
             for (let i = 0; i < paths.length; i++) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
-                    paths[i].setAttribute('fill', playerColour);
-                } else if (paths[i].getAttribute("underSiege") === "true") {
                     paths[i].setAttribute('fill', playerColour);
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     if (mapMode === 1) {
@@ -3834,7 +3833,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             setTerritoryForAttack(path);
         } else if (path.getAttribute("underSiege") === "true") {
             // if clicks on an enemy territory that is within reach but under siege then set it up for that
-            button.innerHTML = "VIEW SIEGE (" + playerSiegeWarsList[path.getAttribute("territory-name")].turnsInSiege + ")";
+            const territoryName = path.getAttribute("territory-name");
+            const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
+            button.innerHTML = "VIEW SIEGE (" + (siege ? siege.turnsInSiege : "?") + ")";
             button.classList.remove("move-phase-button-green-background");
             button.classList.remove("move-phase-button-grey-background");
             button.classList.remove("move-phase-button-red-background");
@@ -3844,7 +3845,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             transferAttackButtonDisplayed = true;
             button.disabled = false;
             transferAttackButtonState = 2; //lift siege
-            setTerritoryForAttack(path);
+            setTerritoryForSiege(path);
         }
     } else {
         if (xButtonFromWhere === 0) { //transfer
@@ -4079,7 +4080,11 @@ function setTerritoryForAttack(territoryToAttack) {
     document.getElementById("attack-destination-container").style.display = "flex";
     attackTextCurrentlyDisplayed = true;
     if (territoryToAttack.getAttribute("underSiege") === "true") {
-        territoryToAttack.style.stroke = playerSiegeWarsList[territoryToAttack.getAttribute("territory-name")].strokeColor;
+        const territoryName = territoryToAttack.getAttribute("territory-name");
+        const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
+        if (siege && siege.strokeColor) {
+            territoryToAttack.style.stroke = siege.strokeColor;
+        }
         territoryToAttack.setAttribute("stroke-width", "5px");
         territoryToAttack.style.strokeDasharray = "10, 5";
     } else {
@@ -4089,6 +4094,24 @@ function setTerritoryForAttack(territoryToAttack) {
         territoryToAttack.style.strokeDasharray = "10, 5";
         addImageToPath(territoryToAttack, "battle.png", 0);
     }
+}
+
+function setTerritoryForSiege(territoryToSiege) {
+    territoryAboutToBeAttackedOrSieged = territoryToSiege;
+    document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
+    document.getElementById("leftBattleImage").src = setFlag(territoryToSiege.getAttribute("data-name"), 0);
+    document.getElementById("rightBattleImage").src = setFlag(territoryToSiege.getAttribute("data-name"), 0);
+    document.getElementById("attack-destination-container").style.display = "flex";
+    attackTextCurrentlyDisplayed = true;
+
+    const territoryName = territoryToSiege.getAttribute("territory-name");
+    const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
+
+    if (siege && siege.strokeColor) {
+        territoryToSiege.style.stroke = siege.strokeColor;
+    }
+    territoryToSiege.setAttribute("stroke-width", "5px");
+    territoryToSiege.style.strokeDasharray = "10, 5";
 }
 
 export function addImageToPath(pathElement, imagePath, siege) {
@@ -4178,6 +4201,14 @@ export function removeSiegeImageFromPath(ai, path) {
         path.style.stroke = "rgb(0,0,0)";
         path.style.strokeDasharray = "none";
         path.setAttribute("stroke-width", "1");
+    }
+}
+
+export function removeSiegeImageByTerritoryName(territoryName) {
+    const formattedTerritoryName = territoryName.replace(/\s+/g, "_");
+    const imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
+    if (imageElement) {
+        imageElement.remove();
     }
 }
 
@@ -5399,9 +5430,9 @@ export function getHistoricWarObject(ai, territory) {
     const territoryName = territory.getAttribute("territory-name");
     let siege;
     if (ai) {
-        siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
-    } else if (!ai) {
         siege = historicAiWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
+    } else {
+        siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
     }
 
     if (siege) {

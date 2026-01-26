@@ -4,6 +4,9 @@ module.exports = {
     entry: {
         bufferutils: './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js'
     },
+    externals: {
+        three: 'THREE',
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bufferutils-bundle.js',

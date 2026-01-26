@@ -69,6 +69,35 @@ const MAX_AI_UPGRADES_PER_TURN = 5;
 let aiDialogueResponse = false;
 let aiDialogueSelection = 0;
 
+let aiRng = Math.random;
+
+function xfnv1a(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+function mulberry32(seed) {
+    return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+export function setAiRngContext(turn, countryName) {
+    const seed = xfnv1a(`${turn}|${countryName}`);
+    aiRng = mulberry32(seed);
+}
+
+export function resetAiRngContext() {
+    aiRng = Math.random;
+}
+
 //DEBUG
 let arrayOfGoldToSpendOnEconomy = [];
 let arrayOfGoldToSpendOnBolster = [];
@@ -239,6 +268,7 @@ export function retrieveArmyPowerOfTerritory(territory, defense) {
     }
     return armyScore;
 }
+
 export function getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i) {
     let arr = [];
     for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //add defense array with army power modified for defense bonus and indicate if coastal
@@ -369,8 +399,8 @@ function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits) {
         const threatScore = threat[3];
         const styleOfWar = leaderTraits.style_of_war;
         const territoryExpansion = leaderTraits.territory_expansion;
-        const considerSiege = Math.random() >= styleOfWar;
-        let considerWar = Math.random() <= territoryExpansion;
+        const considerSiege = aiRng() >= styleOfWar;
+        let considerWar = aiRng() <= territoryExpansion;
         if (considerWar) {
             considerWar = territoryExpansion <= (threat.probabilityOfWin / 100);
         }
@@ -605,7 +635,7 @@ function calculatePriorityScore(row, leaderTraits) {
 
     let fortification = leaderTraits.fortification;
     let territoryExpansion = leaderTraits.territory_expansion;
-    let economy = Math.random() * fortification;
+    let economy = aiRng() * fortification;
 
     if (action === "Bolster") {
         priorityScore = rowQuantitiesReduced * fortification;
@@ -623,7 +653,7 @@ function calculatePriorityScore(row, leaderTraits) {
 function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry, leaderTraits) {
     for (let i = 0; i < refinedTurnsGoals.length; i++) {
         if (refinedTurnsGoals[i][1] === "Siege" || refinedTurnsGoals[i][1] === "Attack") {
-            for (let j = 0; j < mainGameArray; j++) {
+            for (let j = 0; j < mainGameArray.length; j++) {
                 if (mainGameArray[j].territoryName === refinedTurnsGoals[i][2]) {
                     if (mainGameArray[j].originalOwner === currentAiCountry) {
                         refinedTurnsGoals[i][0] = (refinedTurnsGoals[i][0] * leaderTraits.reconquista) + refinedTurnsGoals[i][0];
@@ -763,7 +793,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                 }
                 break;
             case "Siege":
-                if (!siegeLaunchedFromArray.includes(goal[2])) {
+                if (!siegeLaunchedFromArray.includes(goal[3])) {
                     siegeLaunchedFromArray.push(goal[3]);
                     siegeLaunchedToArray.push(goal[2]);
                     console.log("going to start a siege attack on " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
@@ -778,7 +808,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                 }
                 break;
             case "Attack":
-                if (!attackLaunchedFromArray.includes(goal[2])) { //only one attack from any territory per turn
+                if (!attackLaunchedFromArray.includes(goal[3])) { //only one attack from any territory per turn
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
@@ -939,7 +969,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
     availableUpgrades[2].goldCost = Math.ceil((oilWellGoldBaseCost * (territory.oilWellsBuilt + 1) * ((territory.oilWellsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
     availableUpgrades[2].consMatsCost = Math.ceil((oilWellConsMatsBaseCost * (territory.oilWellsBuilt + 1)  * ((territory.oilWellsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
 
-    let buildAgain = Math.random() > 0.5;
+    let buildAgain = aiRng() > 0.5;
 
     let points = {
         farm: {},
@@ -960,7 +990,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         let oilWell = availableUpgrades[2];
 
         if (territory.farmsBuilt < maxFarms && farm.goldCost <= goldToSpend && farm.consMatsCost <= consMatsToSpend) {
-            points.farm.value = Math.random() * 10 + 1;
+            points.farm.value = aiRng() * 10 + 1;
             if (territory.foodConsumption > territory.foodCapacity) {
                 points.farm.value += 10;
             } else if (territory.foodConsumption <= territory.foodCapacity) {
@@ -968,7 +998,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             }
         }
         if (territory.forestsBuilt < maxForests && forest.goldCost <= goldToSpend && forest.consMatsCost <= consMatsToSpend) {
-            points.forest.value = Math.random() * 10 + 1;
+            points.forest.value = aiRng() * 10 + 1;
             if (territory.consMatsCapacity < territory.consMatsForCurrentTerritory) {
                 points.forest.value += 10
             } else if (territory.consMatsCapacity >= territory.consMatsForCurrentTerritory) {
@@ -976,7 +1006,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             }
         }
         if (territory.oilWellsBuilt < maxOilWells && oilWell.goldCost <= goldToSpend && oilWell.consMatsCost <= consMatsToSpend) {
-            points.oilWell.value = Math.random() * 10 + 1;
+            points.oilWell.value = aiRng() * 10 + 1;
             if (territory.oilDemand > territory.oilCapacity) {
                 points.oilWell.value += 10;
             } else if (territory.oilDemand <= territory.oilCapacity) {
@@ -1053,11 +1083,11 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 availableUpgrades[2].consMatsCost = newConsMatsCost;
             }
 
-            buildAgain = (Math.random() * 10 + 1) >= 5;
+            buildAgain = (aiRng() * 10 + 1) >= 5;
             if (buildList && buildList.length >= MAX_AI_UPGRADES_PER_TURN) {
                 break;
             } else {
-                buildAgain = (Math.random() * 10 + 1) >= 5;
+                buildAgain = (aiRng() * 10 + 1) >= 5;
             }
         } else {
             break;
@@ -1086,7 +1116,6 @@ export function setDebugArraysToZero() {
     arrayOfGoldToSpendOnEconomy.length = 0;
     arrayOfGoldToSpendOnBolster.length = 0;
 }
-//
 
 function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy, refinedTurnGoals, goalIndex, goal) {
     let updated = false;
@@ -1094,10 +1123,11 @@ function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy
     if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "aggressive") {
         switchFactor = false;
     } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "balanced") {
-        switchFactor = Math.random() > 0.5;
+        switchFactor = aiRng() > 0.5;
     } else if (mainArrayFriendlyTerritoryCopy.leader.leaderType === "pacifist") {
-        switchFactor = Math.random() > 0.25;
+        switchFactor = aiRng() > 0.25;
     }
+
     if (switchFactor) {
         const economyGoalIndex = refinedTurnGoals.findIndex((g, index) => index > goalIndex && g[1] === "Economy");
         if (economyGoalIndex !== -1) {
@@ -1120,7 +1150,7 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
     fort.goldCost = Math.ceil((fortBaseCostGold * (territory.fortsBuilt + 1) * ((territory.fortsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
     fort.consMatsCost = Math.ceil((fortBaseCostConsMats * (territory.fortsBuilt + 1)  * ((territory.fortsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
 
-    let fortDesire = Math.random() > 0.5;
+    let fortDesire = aiRng() > 0.5;
 
     let fortBuildCount = 0;
     while ((territory.fortsBuilt < maxForts) && (fort.goldCost < goldToSpend) && (fort.consMatsCost < consMatsToSpend) && fortDesire) {
@@ -1128,7 +1158,7 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
         goldToSpend -= fort.goldCost;
         territory.goldForCurrentTerritory -= fort.goldCost;
         territory.consMatsForCurrentTerritory -= fort.consMatsCost;
-        fortDesire = Math.random() > 0.5;
+        fortDesire = aiRng() > 0.5;
     }
     if (fortBuildCount > 0) {
         console.log("Built " + fortBuildCount + " forts on this territory this turn!");
@@ -1136,8 +1166,6 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
         console.log("Wanted to build fort but couldn't due to resources!");
         goldToSpend /= 2; //save half of money for next time or economy
     } else if (fortDesire) {
-        console.log("Wanted to build fort but couldn't as already have max!");
-    } else {
         console.log("Didn't want to build a fort!");
     }
     console.log("Territory has " + territory.fortsBuilt + " forts now");
@@ -1175,7 +1203,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
         let territoryOilDemand = territory.oilDemand;
         let territorySpareOil = territoryOilCap - territoryOilDemand;
 
-        let iteratorCount = Math.floor(Math.random() * 3) + 1;
+        let iteratorCount = Math.floor(aiRng() * 3) + 1;
 
         while ((territorySpareOil > 0) && (goldToSpend > (originalGoldToSpendAfterInitialInfantry / 100) * 10) && (prodPopToSpend > 0)) {
             if (iteratorCount === 1) {
@@ -1407,7 +1435,7 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
     let armyRemainingAttack = calculateCombinedForce(armyArray);
     let armyRemainingDefend = calculateCombinedForce([mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval]);
 
-    for (let i = 0; i < mainGameArray.length; i++) {
+    for (let i = 0; i < mainGameArray.length; i++) { //remove army from attacking territory
         if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
             mainGameArray[i].infantryForCurrentTerritory -= armyArray[0];
             mainGameArray[i].assaultForCurrentTerritory -= armyArray[1];
@@ -1419,7 +1447,6 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             break;
         }
     }
-
 
     while (armyRemainingAttack > 0 && armyRemainingDefend > 0) {
         let skirmishValue;
@@ -1435,7 +1462,7 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             skirmishValue = 1;
         }
 
-        skirmishOutcome = Math.random() <= (probability / 100); //true is a win for the attacker
+        skirmishOutcome = aiRng() <= (probability / 100); //true is a win for the attacker
 
         if (skirmishOutcome) {
             armyRemainingDefend -= skirmishValue;
@@ -1469,37 +1496,38 @@ function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEne
         armyArray = defenderArmyArray;
         attackOrDefend = 1;
     }
-        for (let element in armyArray) {
-            armyArray[element] *= (percentageLeftOver / 100);
-            armyArray[element] = Math.round(armyArray[element]);
+
+    for (let element in armyArray) {
+        armyArray[element] *= (percentageLeftOver / 100);
+        armyArray[element] = Math.round(armyArray[element]);
+    }
+    const armyArrayStart = [...armyArray];
+    while (armyArray[1] > 0 || armyArray[2] > 0 || armyArray[3] > 0) {
+        let option = Math.floor(aiRng() * 3) + 1;
+        switch(option) {
+            case 1:
+                if (assaultAddCount < armyArrayStart[1]) {
+                    assaultAddCount++
+                    totalAllocated += vehicleArmyPersonnelWorth.assault;
+                    armyArray[1]--;
+                }
+                break;
+            case 2:
+                if (airAddCount < armyArrayStart[2]) {
+                    airAddCount++
+                    totalAllocated += vehicleArmyPersonnelWorth.air;
+                    armyArray[2]--;
+                }
+                break;
+            case 3:
+                if (navalAddCount < armyArrayStart[3]) {
+                    navalAddCount++
+                    totalAllocated += vehicleArmyPersonnelWorth.naval;
+                    armyArray[3]--;
+                }
+                break;
         }
-        const armyArrayStart = [...armyArray];
-        while (armyArray[1] > 0 || armyArray[2] > 0 || armyArray[3] > 0) {
-            let option = Math.floor(Math.random() * 3) + 1;
-            switch(option) {
-                case 1:
-                    if (assaultAddCount < armyArrayStart[1]) {
-                        assaultAddCount++
-                        totalAllocated += vehicleArmyPersonnelWorth.assault;
-                        armyArray[1]--;
-                    }
-                    break;
-                case 2:
-                    if (airAddCount < armyArrayStart[2]) {
-                        airAddCount++
-                        totalAllocated += vehicleArmyPersonnelWorth.air;
-                        armyArray[2]--;
-                    }
-                    break;
-                case 3:
-                    if (navalAddCount < armyArrayStart[3]) {
-                        navalAddCount++
-                        totalAllocated += vehicleArmyPersonnelWorth.naval;
-                        armyArray[3]--;
-                    }
-                    break;
-            }
-        }
+    }
 
     let infantryCount = (armyArray[0] + armyArray[1] + armyArray[2] + armyArray[3]) - totalAllocated;
     remainderArray.push(infantryCount, assaultAddCount, airAddCount, navalAddCount, attackOrDefend);
@@ -1734,7 +1762,7 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
     for (let i = 0; i < paths.length; i++) {
         if (paths[i].getAttribute("uniqueid") === siegedTerritory.uniqueId) {
             paths[i].setAttribute("underSiege", "false");
-            removeSiegeImageFromPath(paths[i]);
+            removeSiegeImageFromPath(false, paths[i]);
             break;
         }
     }
@@ -1752,6 +1780,7 @@ async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(main
         if (playerDecision === 1) { //add player gold and remove player siege and continue attack
             removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy);
             addGoldToPlayer(goldToOffer);
+            removeSiegeAndReturnPlayerArmy(mainArrayEnemyTerritoryCopy);
             addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
         } else { //cancel attack
             return false;
@@ -1775,6 +1804,9 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         }
 
     if (probability >= (PROBABILITY_THRESHOLD_FOR_SIEGE + probabilityModifier)) { //if siege is allowed at all depending on leader type
+        if (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) || aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) {
+            return;
+        }
         setCurrentAiWarId(getNextAiWarId());
         let currentAiWarId = getCurrentAiWarId();
         setNextAiWarId(currentAiWarId + 1);
@@ -1783,7 +1815,6 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
                 mainGameArray[i].infantryForCurrentTerritory -= armyArray[0];
                 mainGameArray[i].assaultForCurrentTerritory -= armyArray[1];
-                mainGameArray[i].airForCurrentTerritory -= armyArray[2];
                 mainGameArray[i].navalForCurrentTerritory -= armyArray[3];
                 mainGameArray[i].useableAssault -= armyArray[1];
                 mainGameArray[i].useableAir -= armyArray[2];
