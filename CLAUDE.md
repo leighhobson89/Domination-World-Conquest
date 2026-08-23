@@ -48,6 +48,15 @@ npm test               # Vitest -- no tests yet, lands in refactor Phase 5
 
 ## Gotchas specific to this codebase
 
+- **History was rewritten on 2026-08-23** (refactor Phase 0.7). Every SHA before `184ccbc`
+  changed. Any clone or branch taken before that date has an unrelated history and cannot be
+  merged — re-clone instead. The pre-rewrite history is preserved in
+  `../_backup-OnlineRiskGame-<timestamp>/pre-rewrite-all-refs.bundle`.
+- **Cloning on Windows needs `core.longpaths`.** `resources/vecteezy_flat-world-map-…_2065080/`
+  produces 123-character paths, which breaches `MAX_PATH` when cloned into a deep directory —
+  the clone succeeds but the checkout fails. `git config --system core.longpaths true`, or
+  clone somewhere shallow.
+
 - **`dist/` is not the build output.** It holds committed webpack UMD bundles that
   `index.html` loads as classic scripts to set `CANNON`, `THREE` and `BufferGeometryUtils` as
   globals. Vite writes to `build/`. Never point a bundler at `dist/`.

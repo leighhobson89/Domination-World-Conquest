@@ -131,7 +131,7 @@ Each phase is a branch, ends green, and ends playable.
 | 0.4 | Add `.editorconfig`, ESLint (flat config) + Prettier. Rules that matter immediately: `no-undef`, `no-unused-vars`, `no-shadow`, `no-fallthrough`, `eqeqeq`. `no-shadow` alone catches audit §5.2 I and M. | ✅ |
 | 0.5 | Introduce **Vite** as dev server + bundler. `npm run dev` / `npm run build` / `npm run preview`. | ✅ |
 | 0.6 | Declare the real devDependencies in `package.json`. Remove `express` from runtime deps once Vite serves. | ✅ |
-| 0.7 | **Optional, do once, do it deliberately:** rewrite git history with `git filter-repo` to drop the 65 MB zip and the 19 MB JSON blob from all commits, then force-push. Takes the pack from 300 MB to ~15 MB. Coordinate — this rewrites every SHA. | ⏸️ deferred — needs an explicit decision |
+| 0.7 | Rewrite git history with `git filter-repo` to drop dead large blobs from all commits, then force-push. | ✅ — authorised by the developer; see §0.7 below |
 
 **Exit criteria:** `npm run dev` serves the game unchanged; `npm run lint` runs (failures allowed, recorded as a baseline count). — **met.**
 
@@ -185,6 +185,73 @@ only through named window access.
 Prettier is configured but every legacy root source is in `.prettierignore` on purpose:
 reformatting 18,000 lines in one commit would rewrite every line's blame immediately before a
 refactor that depends on blame and bisect. Files come off that list as they move into `src/`.
+
+#### §0.7 — the history rewrite
+
+Executed with `git filter-repo` 2.47.0 and force-pushed to
+`origin/master`. **Every commit SHA changed.** `master` went `1231c46` → `184ccbc`.
+
+**The plan's premise was wrong, and measuring corrected it.** The plan said to drop "the 65 MB
+zip and the 19 MB JSON blob". Measuring the pack showed:
+
+- The real cost was **eighteen release ZIP snapshots** committed across the project's life
+  (`DominationWC0.0.2.zip` through `DominationWC_0.2.5.zip`) — roughly **267 MB of the
+  300 MB pack**.
+- `resources/closestPathsData.json` was **not** a significant contributor. The 19 MB figure is
+  its *uncompressed* size; it packs to 6.4 MB + 2.4 MB across two versions. It is also **live
+  at HEAD** — purging it would have broken the game immediately. It was deliberately kept.
+  If its history is worth removing, that is a cheap second rewrite *after* Phase 1.3 replaces
+  it with the compacted version.
+
+**What was purged** (20 paths, confirmed against a `--dry-run` path diff before executing):
+
+| Paths | Reason |
+|---|---|
+| 18 × `DominationWC*.zip` | Release build artefacts, none at HEAD |
+| `resources/testMap3.svg` (5.8 MB) | Superseded by `svgMaster.svg`, not at HEAD |
+| `resources/Blue_Marble_2002.png` (2.8 MB) | Not at HEAD |
+
+**Result: 300.25 MB → 83.55 MB pack (−72%).** A fresh clone from GitHub is 85 MB.
+
+**Six commits were pruned** because their entire content was a purged path and they became
+empty: five touched only `resources/testMap3.svg` (`Africa/SAmericaAdded`,
+`WorldMapCompleted`, `moreCountriesAddedToSGVMAP`, `svg`, `dfdfd`) and one added only a zip
+(`fix to stroke and fill if ending turn while attack pattern is there`). Each was verified
+against the backup to contain nothing else. **No code change was lost** — that was checked
+explicitly, because a first pass using substring matching appeared to implicate a real commit
+and turned out to be a false alarm.
+
+**Verification performed, in order:**
+
+1. `git bundle create --all` → a 194 MB bundle of the complete pre-rewrite history,
+   `git bundle verify`'d as "records a complete history" (589 commits, all refs).
+2. `stash@{0}` ("On master: temp", touching `index.html`, `style.css`, `ui.js`) exported to a
+   patch — the rewrite invalidates stash SHAs.
+3. `--dry-run` first; the filtered vs original path sets diffed to confirm exactly 20
+   removals and no live file among them.
+4. **HEAD tree hash before and after: `f51418db…` — bit-for-bit identical.** The working tree
+   content provably did not change.
+5. `git fsck` clean; `npm run build`, `format:check`, `test` and the lint baseline unchanged.
+6. Browser smoke test (359 paths, 205 coastline paths, menu rendered, `New Game` enabled, all
+   UMD globals set, **zero console errors**) — before the push, after the push, and again from
+   a **fresh clone of the pushed remote**.
+
+The backup lives in `../_backup-OnlineRiskGame-<timestamp>/` with a `RESTORE.md`. It is the
+only copy of the purged blobs now that the remote has been rewritten — **do not delete it
+casually**.
+
+**Two things surfaced that were not part of this step:**
+
+- **A fresh clone fails its checkout on Windows unless the destination path is short.**
+  `resources/vecteezy_flat-world-map-isolated-on-white-background-vector-illustration_2065080/`
+  produces paths up to 123 characters, which breaches `MAX_PATH` when cloned into an already
+  deep directory. Pre-existing, unrelated to the rewrite. Fix with
+  `git config --system core.longpaths true`, or rename that folder. It is 3rd-party stock-art
+  source (`.eps`, `.ai`, a licence PDF) and is **referenced nowhere in the code**.
+- **`resources/*.psd` and the vecteezy folder are ~20 MB of design source** still in history
+  and at HEAD. They are legitimate assets, not junk, so they were left alone. If the repo
+  needs to be smaller still, they are the next candidates — but that is an asset-management
+  decision (Git LFS, or an out-of-repo design folder), not a code one.
 
 ---
 
