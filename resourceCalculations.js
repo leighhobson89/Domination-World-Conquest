@@ -1,5 +1,5 @@
 import {
-    pageLoaded,
+    whenPageLoaded,
     removeSiegeImageFromPath,
     setCurrentWarFlagString,
     paths,
@@ -27,6 +27,15 @@ import {
 import {
     playSoundClip
 } from './sfx.js';
+import {
+    buildTerritoryIndex,
+    getTerritoryByUniqueId,
+    isTerritoryIndexBuilt
+} from './src/state/indexes.js';
+import {
+    loadPrecomputedPathAreas,
+    precomputedAreasFor
+} from './src/data/pathAreas.js';
 import {
     historicWars,
     playerSiegeWarsList,
@@ -163,11 +172,24 @@ let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
 let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infantry, armyGoldPrices.assault, armyProdPopPrices.assault, armyGoldPrices.air, armyProdPopPrices.air, armyGoldPrices.naval, armyProdPopPrices.naval];
 
 /* const turnLabel = document.getElementById('turn-label'); */
+// Memoised path-area computation. Declared here, above the bootstrap block below,
+// because that block calls calculatePathAreasWhenPageLoaded() at module-evaluation
+// time -- a `let` declared further down the file is in the temporal dead zone at
+// that point and throws.
+//
+// This is called from two places (the bootstrap Promise.all and
+// createArrayOfInitialData), and each call used to start its own 800ms poller AND
+// re-run the 80-samples-per-path sweep over all 359 paths -- so the ~230ms area
+// computation happened twice and up to 1.6s was spent idling.
+let pathAreasPromise = null;
+let pathAreaComputations = 0;
+
 const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
-if (!pageLoaded) {
+{
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
             mainGameArray = randomiseInitialGold(mainGameArray);
+            buildTerritoryIndex(mainGameArray); //O(1) uniqueId/name -> territory lookups
             countryStrengthsArray = calculateTerritoryStrengths(mainGameArray);
             enableNewGameButton();
             saveMapColorState(true);
@@ -202,19 +224,56 @@ export function populateBottomTableWhenSelectingACountry(countryPath) {
 }
 
 function calculatePathAreasWhenPageLoaded() {
-    return new Promise((resolve, reject) => {
-        let intervalId = setInterval(function() {
-            if (pageLoaded === true) {
-
-                let pathAreas = calculatePathAreas();
+    if (!pathAreasPromise) {
+        pathAreasPromise = whenPageLoaded()
+            .then(() => loadPrecomputedPathAreas())
+            .then(() => {
+                // Prefer the precomputed geometry, but only if it still describes
+                // the SVG the page actually loaded. precomputedAreasFor() returns
+                // null on any mismatch and we fall back to sampling, so an edited
+                // map is slow rather than wrong. See src/data/pathAreas.js.
+                const cached = precomputedAreasFor(paths, svgByteLength());
+                const pathAreas = cached ?? calculatePathAreas();
+                if (!cached) {
+                    pathAreaComputations++;
+                }
                 allowSelectionOfCountry = true;
+                return pathAreas;
+            });
+    }
+    return pathAreasPromise;
+}
 
-                clearInterval(intervalId);
+/** Test seam for the ?e2e=1 harness: how many times the area sweep actually ran. */
+export function getPathAreaComputations() {
+    return pathAreaComputations;
+}
 
-                resolve(pathAreas);
-            }
-        }, 800);
-    });
+// Byte length of the SVG document the browser actually fetched, used to detect a
+// map that has been edited since the areas were precomputed. Read from resource
+// timing so it costs nothing; returns -1 if unavailable, which fails the guard
+// closed and falls back to recomputing.
+// O(1) territory lookup, falling back to a scan until the index exists.
+//
+// The find()-inside-a-loop pattern this replaces ran ~129,000 comparisons per call
+// in addUpAllTerritoryResourcesForCountryAndWriteToTopTable alone, once per turn.
+// See docs/01-codebase-audit.md section 4.2.
+function territoryByUniqueId(uniqueId) {
+    if (isTerritoryIndexBuilt()) {
+        return getTerritoryByUniqueId(uniqueId);
+    }
+    return mainGameArray.find(territory => territory.uniqueId === uniqueId) ?? null;
+}
+
+function svgByteLength() {
+    try {
+        const entry = performance
+            .getEntriesByType("resource")
+            .find(resource => resource.name.includes("svgMaster") && resource.name.endsWith(".svg"));
+        return entry && entry.decodedBodySize ? entry.decodedBodySize : -1;
+    } catch {
+        return -1;
+    }
 }
 
 function calculatePathAreas() {
@@ -1074,7 +1133,7 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
 
         // If it's the player territory, calculate the player resource totals
         if (territoryOwner === "Player") {
-            const territoryData = mainGameArray.find(t => t.uniqueId === path.getAttribute("uniqueid"));
+            const territoryData = territoryByUniqueId(path.getAttribute("uniqueid"));
             if (territoryData) {
                 totalGold += territoryData.goldForCurrentTerritory;
                 totalOil += territoryData.oilForCurrentTerritory;
@@ -1112,9 +1171,15 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
             };
 
             // Calculate the resource totals for the current territory and add to the country's total
-            const territoryData = mainGameArray.find(t => t.uniqueId === path.getAttribute("uniqueid"));
+            const territoryData = territoryByUniqueId(path.getAttribute("uniqueid"));
+            //the `if (territoryData)` guard below was written one line too late: this
+            //dereference happened first, so a path with no territory threw instead of
+            //being skipped. Kept as a guard clause so the intent is unambiguous.
+            if (!territoryData) {
+                continue;
+            }
             const dataName = territoryData.dataName;
-            if (territoryData) {
+            {
                 if (countryResourceTotals[dataName]) {
                     countryResourceTotals[dataName].totalGold += territoryData.goldForCurrentTerritory;
                     countryResourceTotals[dataName].totalOil += territoryData.oilForCurrentTerritory;
@@ -1664,7 +1729,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         let displayText;
                         territorySummaryColumn.classList.add("centerIcons");
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainGameArray.find(t => t.uniqueId === uniqueId);
+                        const territoryData = territoryByUniqueId(uniqueId);
                         switch (j) {
                             case 1:
                                 territorySummaryColumn.textContent = formatNumbersToKMB(territoryData.territoryPopulation, 0);
@@ -1740,7 +1805,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     } else {
                         column.classList.add("centerIcons");
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainGameArray.find(t => t.uniqueId === uniqueId);
+                        const territoryData = territoryByUniqueId(uniqueId);
                         switch (j) {
                             case 1:
                                 column.textContent = formatNumbersToKMB(territoryData.productiveTerritoryPop).toString();
@@ -1803,7 +1868,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     }
                     territorySummaryRow.addEventListener("mouseover", (e) => {
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainGameArray.find((t) => t.uniqueId === uniqueId);
+                        const territoryData = territoryByUniqueId(uniqueId);
 
                         tooltipUITerritoryRow(territorySummaryRow, territoryData, e);
                     });
@@ -1826,7 +1891,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     } else {
                         column.classList.add("centerIcons");
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainGameArray.find(t => t.uniqueId === uniqueId);
+                        const territoryData = territoryByUniqueId(uniqueId);
                         switch (j) {
                             case 1:
                                 column.textContent = formatNumbersToKMB(territoryData.armyForCurrentTerritory).toString();
@@ -1889,7 +1954,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                     }
                     territorySummaryRow.addEventListener("mouseover", (e) => {
                         const uniqueId = playerOwnedTerritories[i].getAttribute("uniqueid");
-                        const territoryData = mainGameArray.find((t) => t.uniqueId === uniqueId);
+                        const territoryData = territoryByUniqueId(uniqueId);
 
                         tooltipUIArmyRow(territorySummaryRow, territoryData, e);
                     });

@@ -25,9 +25,9 @@ npm run dev          # http://localhost:3000
 Click **New Game**, wait for the loading pass to finish, pick a country that is not greyed
 out, choose a colour, and confirm.
 
-> The first load is slow — game initialisation currently re-parses a 19 MB adjacency file
-> once per territory. This is the first thing the refactor fixes
-> ([plan Phase 1.1](./docs/03-refactor-plan.md)).
+Cold start is roughly **0.6 s** to a clickable **New Game** and another **0.2–0.5 s** to a
+playable turn 1. (Before refactor Phase 1 the second half took minutes: initialisation
+re-fetched and re-parsed a 19 MB adjacency file once per territory.)
 
 ## Commands
 
@@ -40,7 +40,15 @@ out, choose a colour, and confirm.
 | `npm run lint:fix` | ESLint with `--fix` |
 | `npm run format` | Prettier over everything not in `.prettierignore` |
 | `npm run format:check` | Prettier in check mode |
-| `npm test` | Unit tests (Vitest) — no tests exist yet, lands in refactor Phase 5 |
+| `npm test` | Unit tests, then the e2e suite |
+| `npm run test:unit` | Vitest only (69 tests, ~1 s) |
+| `npm run test:e2e` | Playwright suite, 4 workers headless |
+| `npm run test:e2e:categories` | List the coverage areas under `tests/e2e/` |
+| `npm run test:e2e:category -- adjacency` | Run one area |
+| `npm run test:e2e:headed` | One visible browser |
+| `npm run test:e2e:slow` | One visible browser, 500 ms between actions |
+| `npm run test:e2e:perf` | The timing-budget specs, pinned to a single worker |
+| `npm run build:data` | Regenerate `resources/adjacency.json` and `resources/pathAreas.json` |
 | `npm run build:vendor` | Rebuild the committed `dist/` UMD bundles (three, cannon-es, BufferGeometryUtils). Rarely needed — the output is committed |
 
 ## Layout
@@ -59,7 +67,10 @@ Source files currently live at the repository root. The target structure is in
 | `gameTurnsLoop.js` | Bootstrap and the turn loop |
 | `initialData.js` | 208 country records (population, area, army, HDI, resources) |
 | `dices.js` | 3D dice — built, currently disabled |
-| `resources/` | SVG maps, flags, icons, audio, adjacency data. Served verbatim |
+| `src/data/`, `src/state/`, `src/platform/` | New code, written to the target architecture: adjacency, the manual island rules, precomputed areas, O(1) lookup indexes, the `?e2e=1` test hooks |
+| `tools/` | Data generators: `build-adjacency.mjs`, `precompute-areas.mjs` (both support `--check`) |
+| `tests/unit/`, `tests/e2e/` | Vitest and Playwright suites |
+| `resources/` | SVG maps, flags, icons, audio, and the generated `adjacency.json` / `pathAreas.json`. Served verbatim |
 | `dist/` | Committed webpack UMD bundles. **Not** the Vite output |
 | `build/` | Vite output (gitignored) |
 | `docs/` | Audit, design document, refactor plan, test plan |
@@ -81,13 +92,28 @@ code that no bundler rewrites.
 | [Refactor Plan](./docs/03-refactor-plan.md) | Target architecture and an eight-phase sequence |
 | [E2E Test Plan](./docs/04-e2e-test-plan.md) | 17 functional areas, ~105 specs, the Playwright harness |
 
+## Generated data
+
+Two files under `resources/` are generated and committed. Regenerate both with
+`npm run build:data`, or check they are current with
+`npm run build:adjacency:check` / `npm run build:areas:check`.
+
+| File | Size | From | Guard |
+|---|---:|---|---|
+| `adjacency.json` | 77 KB | `closestPathsData.json` (19 MB) | The build fails if a neighbour names a territory absent from the SVG |
+| `pathAreas.json` | 30 KB | `svgMaster.svg` geometry | The runtime rejects it and recomputes if the SVG's byte size, path count or ids no longer match |
+
+**`resources/svgMaster.svg` is the authoritative source of territory names** — it is what the
+running game reads. `tests/uniqueIdLookup.json` is a convenience map that has drifted from it
+before; both tools now derive names from the SVG.
+
 ## Lint baseline
 
 Phase 0 introduced ESLint against an unlinted codebase. The current baseline is recorded so
 that progress is measurable and regressions are visible:
 
 ```
-226 errors, 405 warnings
+225 errors, 401 warnings
 ```
 
 Dominated by `no-shadow` (78), `no-undef` (69) and `prefer-const` (375). Several of these

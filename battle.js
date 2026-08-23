@@ -37,36 +37,15 @@ import {
     setUpResultsOfWarExternal,
 } from './ui.js';
 
-let transferArmyOutOfTerritoryOnStartingInvasionFn;
-
-function handleImportedModule(module) {
-    const {
-        transferArmyOutOfTerritoryOnStartingInvasion
-    } = module;
-    transferArmyOutOfTerritoryOnStartingInvasionFn = transferArmyOutOfTerritoryOnStartingInvasion;
-}
-
-function importModuleWithTimeout() {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            import('./transferAndAttack.js')
-                .then(module => {
-                    resolve(module);
-                })
-                .catch(error => {
-                    reject(error);
-                });
-        }, 1000);
-    });
-}
-
-importModuleWithTimeout()
-    .then(module => {
-        handleImportedModule(module);
-    })
-    .catch(error => {
-        console.log(error);
-    });
+// NOTE: this module and the one below sit in an import cycle. The previous code
+// worked around it with `setTimeout(..., 1000)` before a dynamic import(), which
+// is a race: on a slow load the binding was still undefined when first used.
+// A plain static import is correct here because the imported symbol is a hoisted
+// function declaration, so it is initialised before any module body runs.
+// See docs/03-refactor-plan.md Phase 1.7.
+import {
+    transferArmyOutOfTerritoryOnStartingInvasion
+} from './transferAndAttack.js';
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
@@ -910,7 +889,7 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
             productiveTerritoryPopColor: productiveTerritoryPopColor
         };
 
-        battleStart ? transferArmyOutOfTerritoryOnStartingInvasionFn(getFinalAttackArray(), mainGameArray) : null;
+        battleStart ? transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainGameArray) : null;
 
         return playerSiegeWarsList[defendingTerritory.territoryName].defendingTerritory;
 

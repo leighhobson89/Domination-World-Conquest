@@ -11,13 +11,19 @@ import {
     calculateProbabilityPreBattle,
     finalAttackArray
 } from './battle.js';
+// NOTE: this module and ui.js sit in an import cycle. getLastClickedPath used to
+// be pulled in via `setTimeout(..., 1000)` before a dynamic import(), which is a
+// race: on a slow load the binding was still undefined when first used. A plain
+// static import is correct because getLastClickedPath is a hoisted function
+// declaration, so it is initialised before any module body runs.
+// See docs/03-refactor-plan.md Phase 1.7.
 import {
+    getLastClickedPath,
     setAttackProbabilityOnUI,
     territoryAboutToBeAttackedOrSieged,
     transferAttackButtonState
 } from './ui.js';
 
-let getLastClickedPathFn;
 let selectedTerritoryUniqueId; // transfer only
 export let territoryUniqueIds = []; //attack only
 export let probability;
@@ -28,35 +34,6 @@ const tooltip = document.getElementById("tooltip");
 
 export let transferQuantitiesArray = [];
 
-function handleImportedModule(module) {
-    const {
-        getLastClickedPath
-    } = module;
-    getLastClickedPathFn = getLastClickedPath;
-}
-
-function importModuleWithTimeout() {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            import('./ui.js')
-                .then(module => {
-                    resolve(module);
-                })
-                .catch(error => {
-                    reject(error);
-                });
-        }, 1000);
-    });
-}
-
-importModuleWithTimeout()
-    .then(module => {
-        handleImportedModule(module);
-    })
-    .catch(error => {
-        console.log(error);
-    });
-
 // Declare multipleValuesArray outside the drawTransferAttackTable function
 export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTerritories, territoriesAbleToAttackTarget, transferOrAttack) {
     let navalDisabled = false;
@@ -66,7 +43,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     let mainArrayElement;
 
     for (let i = 0; i < mainArray.length; i++) {
-        if (mainArray[i].uniqueId === getLastClickedPathFn().getAttribute("uniqueid")) {
+        if (mainArray[i].uniqueId === getLastClickedPath().getAttribute("uniqueid")) {
             mainArrayElement = mainArray[i];
         }
     }
@@ -81,7 +58,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
         let disabledFlagsTransfer = [true, true, true, true];
         // Create rows
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
-            if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPathFn().getAttribute("uniqueid")) {
+            if (playerOwnedTerritories[i].getAttribute("uniqueid") === getLastClickedPath().getAttribute("uniqueid")) {
                 continue;
             }
 
@@ -920,7 +897,7 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
 
 function updateTransferArray(mainArrayElement, quantityTextBoxes) {
     const mainArrayUniqueId = mainArrayElement;
-    const clickedPathUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
+    const clickedPathUniqueId = getLastClickedPath().getAttribute("uniqueid");
     const quantityValues = quantityTextBoxes.map((textBox) => textBox.value);
 
     transferQuantitiesArray = [mainArrayUniqueId, clickedPathUniqueId, ...quantityValues].map(value => parseInt(value));
@@ -938,7 +915,7 @@ function updateAttackArray(mainArrayElements, quantityTextBoxes) {
         attackQuantitiesArray.push(rowArray);
     }
 
-    const attackedTerritoryUniqueId = getLastClickedPathFn().getAttribute("uniqueid");
+    const attackedTerritoryUniqueId = getLastClickedPath().getAttribute("uniqueid");
 
     preAttackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
 }

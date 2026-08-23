@@ -255,7 +255,7 @@ casually**.
 
 ---
 
-### Phase 1 — Unblock loading and testing (1–2 days) 🔴 **highest value**
+### Phase 1 — Unblock loading and testing (1–2 days) — ✅ **COMPLETE**
 
 **Goal:** cold start in under 3 seconds, and make the game automatable.
 
@@ -269,7 +269,86 @@ casually**.
 | 1.6 | **Add a test harness hook.** Behind `?e2e=1`, expose `window.__game = { state, commands, ready }` and a `window.__seedRandom(seed)` that installs a seeded `Math.random` before any module runs. | Prerequisite for [04](./04-e2e-test-plan.md) |
 | 1.7 | Kill the three `setTimeout(…, 1000)` dynamic-import hacks by moving the shared state they reach for into `data/` (which imports nothing). `manualAdjacencyExceptions` becomes a plain exported table keyed by **territory name**, resolved to ids lazily. | §3.1 — removes a real race |
 
-**Exit criteria:** cold start < 3 s; no `setTimeout`-gated imports remain; `window.__game` available under `?e2e=1`.
+**Exit criteria:** cold start < 3 s; no `setTimeout`-gated imports remain; `window.__game` available under `?e2e=1`. — **all met.**
+
+#### What actually happened
+
+Worked test-first: a failing test for each change, then the change.
+
+**Measured result**
+
+| | Before | After |
+|---|---:|---:|
+| Page load → **New Game** clickable | 1341 ms | **599 ms** |
+| **New Game** → turn 1 playable | minutes | **~200–550 ms** |
+| Adjacency data fetched | 359 × 19 MB (~6.8 GB parsed) | 1 × 77 KB |
+| Territory-area sweep | twice per load (~460 ms) | **zero** — precomputed |
+| `setTimeout`-gated imports | 3 | 0 |
+
+`resources/adjacency.json` is 77 KB (99.6 % smaller than the 19 MB source, far past the
+"under 2 MB" the plan guessed). `resources/pathAreas.json` is 30 KB.
+
+**Corrections to the plan as written**
+
+- **1.2's "keep the loading progress display" was dropped.** The display existed because the
+  loop was slow; the whole pass now takes single-digit milliseconds. The per-territory
+  colouring that the loop did as a *side effect* was kept as an explicit second pass —
+  removing it silently would have left the map blank, which is what the
+  `colours the map rather than leaving it white` spec now guards.
+- **1.3 assumed the bloat was float coordinates that needed rounding.** It is not: **no
+  consumer reads the coordinates or the distance at all** — every call site touches only
+  element `[0]`, the territory name. The compact file therefore carries names only.
+- **1.4 mattered less than the poller next to it.** Precomputing areas saved ~230 ms per
+  load, but `calculatePathAreasWhenPageLoaded()` was called from two places and each call
+  opened its own `setInterval(..., 800)`, so **up to 1.6 s was spent purely idling** and the
+  ~230 ms sweep ran twice. Memoising it and replacing the poll with a real readiness promise
+  was the larger win. Both are done.
+- **1.5's index maps are in place and every `mainGameArray.find(t => t.uniqueId === …)` call
+  site now goes through them**, including the one nested inside a loop over all 359 paths
+  (~129,000 comparisons per turn). The remaining linear scans use other shapes and come out
+  progressively, as the plan intends.
+
+**Defects found and fixed while doing it**
+
+| Defect | Detail |
+|---|---|
+| Readiness fired before the map existed | `pageLoaded = true` is set at **DOMContentLoaded**, but `paths` is only populated later by `svgMapLoaded()` on **window load**. The 800 ms poll had been accidentally covering the gap. Removing the poll exposed it: `calculatePathAreas()` ran against an empty `paths`, `mainGameArray` came out short, and every later territory lookup returned `undefined`. `whenPageLoaded()` now waits for **both** halves. |
+| Guard written one line too late | `addUpAllTerritoryResourcesForCountryAndWriteToTopTable` did `const dataName = territoryData.dataName;` *immediately before* its own `if (territoryData)` check, so a path with no territory threw instead of being skipped. Now a guard clause. |
+| Duplicate key in the exceptions table | `"New Caledonia 1"` appeared twice in a `new Map([...])`. The second entry silently overwrote the first, losing its King Island and Fraser Island links. Merged. |
+| Temporal dead zone | The memoisation state was declared below the module-level bootstrap block that calls it, so the first call threw `Cannot access 'pathAreasPromise' before initialization`. Hoisted. |
+
+**A correction I made and the tests caught**
+
+`tests/uniqueIdLookup.json` says `"Grand Bahama"` and `"Andros Island"`, but `svgMaster.svg`
+says `"Grand Bahama (Bahamas)"` and `"Andros Island (Bahamas)"` — those two entries have
+drifted, and they are the only two of 359 that disagree. Building the compact adjacency
+against the lookup file quietly failed to strip self for exactly those territories, and made
+the (correct) manual adjacency rules for them look like typos. I "fixed" the non-typo, the
+new e2e specs failed, and the real fault was found. Both tools now read names from the SVG,
+which is what the running game reads, and `tests/uniqueIdLookup.json` has been regenerated
+from it. The unit suite asserts that every name in both data files exists in the SVG.
+
+**Known gap deliberately left open**
+
+Seeding `Math.random` globally **cannot** make this game deterministic:
+`addSparklesRegularly()` in `ui.js` re-arms a timer every 0–100 ms and burns three
+`Math.random()` calls per tick on the same global stream the economy and combat draw from, so
+two runs with the same seed diverge. `the same seed produces the same world` is marked
+`test.fixme` with that explanation. The fix belongs with **Phase 5**, which introduces an
+injected RNG for game logic and leaves cosmetics on the global `Math.random`.
+**Until that lands, no test may assert an exact combat or economy outcome across runs.**
+
+**Harness note (see [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3.5)**
+
+The brief asked for up to 8 headless workers. Measured here, **8 is not stable for this
+suite**: the run drops from 27/28 to 15/28, with pages failing to finish building the
+territory model before assertions run. 4 and 6 are clean; the default is **4**, overridable
+with `DWC_WORKERS=8`. Wall-clock budget assertions are skipped unless the run is
+single-worker (`npm run test:e2e:perf`), because under four parallel browsers the same page
+takes ~2000 ms instead of ~550 ms — contention, not regression.
+
+**Tests added:** 69 unit (Vitest), 30 e2e (Playwright) across `bootstrap` and `adjacency`.
+28 pass, 1 skipped by design (single-worker perf), 1 `fixme` (RNG determinism).
 
 ---
 

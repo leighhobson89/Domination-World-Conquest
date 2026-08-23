@@ -337,6 +337,59 @@ It breaks silently the moment either element is renamed, an `id` collides, or th
 into a scope that declares a local of the same name — which is exactly what Phase 6 does.
 ESLint's `no-undef` flags all 60 sites, so the migration has a checklist.
 
+**T. Bootstrap readiness fires before the map exists** — [ui.js](../ui.js), [resourceCalculations.js](../resourceCalculations.js) *(fixed in Phase 1.4)*
+
+`pageLoaded = true` was set at the end of the `DOMContentLoaded` handler, but `paths` is only
+populated by `svgMapLoaded()`, which runs on **window load** — strictly later. The 800 ms
+polling interval in `calculatePathAreasWhenPageLoaded()` had been accidentally covering the
+gap: by the time a tick fired, the map had usually loaded. Removing the poll made the latent
+ordering bug immediate — `calculatePathAreas()` ran against an empty `paths`, `mainGameArray`
+came out short, and every later territory lookup returned `undefined`.
+
+A performance workaround was load-bearing for correctness. Readiness now waits on both halves
+explicitly.
+
+**U. Path areas computed twice, behind two independent pollers** — *(fixed in Phase 1.4)*
+
+`calculatePathAreasWhenPageLoaded()` was called from both the module-level bootstrap and from
+`createArrayOfInitialData()`. Neither memoised, so each call started its own
+`setInterval(..., 800)` **and** re-ran the 80-samples-per-path sweep over all 359 paths. That
+is ~460 ms of duplicated computation behind up to 1.6 s of pure idling — the single largest
+component of startup, larger than the sweep the plan had targeted.
+
+**V. Null guard written one line after the dereference** — [resourceCalculations.js](../resourceCalculations.js) *(fixed in Phase 1.4)*
+
+```js
+const territoryData = mainGameArray.find(t => t.uniqueId === path.getAttribute("uniqueid"));
+const dataName = territoryData.dataName;   // throws
+if (territoryData) {                       // ...the guard is here
+```
+
+**W. Duplicate key in the manual adjacency table** — *(fixed in Phase 1.7)*
+
+`"New Caledonia 1"` appeared twice as a key in a `new Map([...])`. The second entry silently
+replaced the first, losing that territory's King Island and Fraser Island links.
+
+**X. `tests/uniqueIdLookup.json` has drifted from the SVG** — *(fixed in Phase 1.3)*
+
+Two of its 359 entries disagree with `svgMaster.svg`: it says `"Grand Bahama"` and
+`"Andros Island"` where the map says `"Grand Bahama (Bahamas)"` and
+`"Andros Island (Bahamas)"`. Anything built against the lookup file rather than the SVG
+mis-handles exactly those two territories, and makes the (correct) hand-written adjacency
+rules for them look like typos. **The SVG is authoritative** — it is what the game reads. The
+lookup file has been regenerated from it, and both build tools now derive names from the SVG.
+
+**Y. Global `Math.random` makes the game untestable for determinism** — [ui.js](../ui.js#L6027)
+
+`addSparklesRegularly()` re-arms a `setTimeout` every 0–100 ms and consumes **three**
+`Math.random()` calls per tick (interval, top, left) from the same global stream that initial
+gold, starting forts, leader generation, combat skirmishes and siege rolls draw from. How many
+cosmetic draws land between two game-logic draws depends on wall-clock timing, so **seeding
+`Math.random` cannot make two runs agree**.
+
+This blocks every test that would assert an exact combat or economy outcome. The fix is an
+injected RNG for game logic, separate from cosmetics — Phase 5.
+
 ### 5.4 Low — hygiene
 
 - Mixed tabs/spaces; inconsistent brace style; commented-out blocks left in place.

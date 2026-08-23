@@ -20,9 +20,6 @@ import {
     mapMode,
 } from "./ui.js";
 import {
-    findMatchingCountries
-} from "./manualExceptionsForInteractions.js";
-import {
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
     armyGoldPrices,
     armyProdPopPrices,
@@ -103,73 +100,12 @@ let arrayOfGoldToSpendOnEconomy = [];
 let arrayOfGoldToSpendOnBolster = [];
 //
 
-function parseJSON(jsonData) {
-    try {
-        return JSON.parse(jsonData);
-    } catch (error) {
-        console.error("Error parsing JSON:", error);
-        return null;
-    }
-}
-
-function fetchJSONFile(url) {
-    return fetch(url)
-        .then(response => response.text())
-        .then(data => parseJSON(data));
-}
-
-export function readClosestPointsJSON(uniqueId) {
-    const jsonFileURL = './resources/closestPathsData.json';
-    return fetchJSONFile(jsonFileURL)
-        .then(data => {
-            const targetData = data.find(entry => entry[0] === uniqueId.toString());
-            if (targetData) {
-                return [uniqueId, targetData[1]];
-            } else {
-                console.error("Error: Territory ID not found in JSON data.");
-                return null;
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching and parsing JSON file:", error);
-            return null;
-        });
-}
-
-export function addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId) {
-    let pathObj;
-    let matchingTerritories;
-    let matchingDenials;
-
-    const territory = allInteractableTerritoriesForUniqueId[1][0][0];
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("territory-name") === territory) {
-            pathObj = paths[i];
-            break;
-        }
-    }
-    matchingTerritories = findMatchingCountries(pathObj, 1);
-    matchingDenials = findMatchingCountries(pathObj, 0);
-
-    const territoriesToAdd = matchingTerritories
-        .filter((matchingTerritory) => {
-            const territoryName = matchingTerritory.getAttribute("territory-name");
-            return !allInteractableTerritoriesForUniqueId[1].some((arr) => arr.includes(territoryName));
-        })
-        .map((matchingTerritory) => matchingTerritory.getAttribute("territory-name"));
-
-    for (const territory of territoriesToAdd) {
-        allInteractableTerritoriesForUniqueId[1].push([territory]);
-    }
-
-    const matchingDenialsNames = matchingDenials.map((denial) => denial.getAttribute("territory-name"));
-    allInteractableTerritoriesForUniqueId[1] = allInteractableTerritoriesForUniqueId[1].filter((arr) => {
-        const territoryName = arr[0];
-        return !matchingDenialsNames.includes(territoryName);
-    });
-
-    return allInteractableTerritoriesForUniqueId;
-}
+// readClosestPointsJSON(), fetchJSONFile(), parseJSON() and
+// addManualExceptionsAndRemoveDenials() lived here. They re-fetched and re-parsed
+// the 19 MB closestPathsData.json once per territory during initialisation -- 359
+// fetches, ~6.8 GB of JSON.parse, before the first turn could start. Replaced by
+// src/data/adjacency.js, which loads a 77 KB file once and answers synchronously.
+// See docs/01-codebase-audit.md section 4.1.
 
 function formatAttackableTerritoriesArray(arr) {
     const uniqueElements = {};

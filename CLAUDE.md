@@ -27,23 +27,31 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 226 errors, 405 warnings)
+npm run lint           # ESLint (baseline: 225 errors, 401 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm test               # Vitest -- no tests yet, lands in refactor Phase 5
+npm run test:unit      # Vitest, 69 tests, ~1s
+npm run test:e2e       # Playwright, 4 workers headless
+npm run test:e2e:slow  # one visible browser, 500ms between actions
+npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
 ```
 
 ## House rules
 
-1. **Follow the refactor plan's phase order.** Each phase must end with the game playable and
-   committed. No big-bang rewrites.
-2. **Keep bug fixes separate from moves and renames.** A commit either changes behaviour or
-   moves code, never both — the refactor depends on being able to bisect.
-3. **Do not run `prettier --write` over the legacy root sources.** They are in
+1. **Follow the refactor plan's phase order.** Each phase must end with the game playable.
+   No big-bang rewrites.
+2. **Leigh handles all git commits and pushes.** Do the work, leave it in the working tree,
+   and say what would go in the commit. Staging to help review is fine; committing is not.
+3. **Keep bug fixes separate from moves and renames** when describing a change set, so a
+   regression stays bisectable.
+4. **Work test-first.** Write the failing test, watch it fail, then fix. Known-broken
+   behaviour is `test.fixme` with a comment explaining why and what unblocks it — never
+   deleted, and never asserted as correct.
+5. **Do not run `prettier --write` over the legacy root sources.** They are in
    `.prettierignore` deliberately; reformatting 18,000 lines destroys blame right when it is
    needed most. Files come off that list as they move into `src/`.
-4. **Do not "fix" a lint warning in passing.** The baseline is recorded. Fix them as part of
+6. **Do not "fix" a lint warning in passing.** The baseline is recorded. Fix them as part of
    the phase that owns that file.
-5. **Verify in a browser, not just by reading.** This codebase has behaviour that only shows
+7. **Verify in a browser, not just by reading.** This codebase has behaviour that only shows
    up at runtime (see the implicit-global gotcha below). `npm run dev` and click through.
 
 ## Gotchas specific to this codebase
@@ -69,9 +77,10 @@ npm test               # Vitest -- no tests yet, lands in refactor Phase 5
   `window.uiTable` because elements with those `id`s exist. It works, ESLint flags it as
   `no-undef`, and it breaks the moment the element is renamed or the code moves into a scope
   with a local of the same name.
-- **Circular imports are worked around with `setTimeout(..., 1000)`** in `battle.js`,
-  `transferAndAttack.js` and `manualExceptionsForInteractions.js`. That is a race, not a
-  solution. Refactor Phase 1.7 removes it; until then, do not add more module coupling.
+- **The module graph is still circular**, but the three `setTimeout(..., 1000)` races that
+  used to paper over it are gone (Phase 1.7). Static imports work because the symbols involved
+  are hoisted function declarations. Do not add more module coupling, and never reintroduce a
+  timer to "wait for" an import.
 - **Territory state lives in three places at once** — `mainGameArray`, SVG path attributes,
   and siege/war object copies. Any change to one usually needs the other two. Phase 4 fixes
   this; until then, check all three.
@@ -79,7 +88,24 @@ npm test               # Vitest -- no tests yet, lands in refactor Phase 5
   positionally.
 - **`dataName` is the *current* owner and changes on conquest**; `territoryName` is the stable
   identity; `originalOwner` is historical. Mixing them up is a recurring source of bugs.
-- **First load is slow** (a 19 MB JSON parsed once per territory). Expected until Phase 1.1.
+- **`resources/svgMaster.svg` is the authoritative source of territory names.**
+  `tests/uniqueIdLookup.json` is a convenience map and has drifted before: it says
+  `"Grand Bahama"` / `"Andros Island"` where the SVG says `"Grand Bahama (Bahamas)"` /
+  `"Andros Island (Bahamas)"`. Those parentheses are real, not typos. Derive names from the
+  SVG in any tool or test.
+- **`resources/adjacency.json` and `resources/pathAreas.json` are generated** by `tools/`.
+  Edit the generator, never the JSON. `npm run build:data` regenerates both; the `:check`
+  variants verify they are current.
+- **Seeding `Math.random` does not make the game deterministic.** `addSparklesRegularly()` in
+  `ui.js` burns three draws per timer tick on the same global stream as combat and the
+  economy. Until Phase 5 splits game RNG from cosmetic RNG, **no test may assert an exact
+  combat or economy outcome across runs**.
+- **Bootstrap has two halves that finish out of order.** The `DOMContentLoaded` handler builds
+  the UI and sets `pageLoaded`; `svgMapLoaded()` runs later on window `load` and is what
+  populates `paths`. Anything needing territory geometry must await `whenPageLoaded()`, which
+  waits for both.
+- **The map is an `<object>`, not an `<iframe>`.** `page.frameLocator("#svg-map")` does not
+  work in Playwright; use `page.frame({ name: "svg-map" })`.
 
 ## Conventions
 

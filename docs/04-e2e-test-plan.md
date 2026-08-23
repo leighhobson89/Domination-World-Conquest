@@ -32,7 +32,7 @@ These are not optional. Without them the suite is either impossible or permanent
 Cold start currently re-parses a 19 MB JSON once per territory. Every spec begins with a game
 start; at present that is minutes per test. **No e2e work should begin before this is fixed.**
 
-### 2.2 A deterministic RNG hook (Refactor Phase 1.6) 🔴 blocking
+### 2.2 A deterministic RNG hook (Refactor Phase 1.6) ✅ delivered — but see the limit below
 
 The game calls `Math.random()` in battle resolution, siege hit rolls, random events, leader
 generation, starting forts, initial gold and post-conquest lockout length. Without control,
@@ -58,6 +58,20 @@ export function installSeededRandom(seed) {
 
 The game already ships `xfnv1a` + `mulberry32` in
 [aiCalculations.js:74](../aiCalculations.js#L74) — reuse them rather than duplicating.
+
+> **Seeding `Math.random` is necessary but NOT sufficient.** Measured during Phase 1:
+> `addSparklesRegularly()` in [ui.js](../ui.js#L6027) re-arms a timer every 0–100 ms and burns
+> **three** `Math.random()` calls per tick on the same global stream the economy and combat
+> draw from. How many cosmetic draws land between two game-logic draws depends on wall-clock
+> timing, so two runs with the same seed diverge. See audit §5.3 Y.
+>
+> **Consequence for this plan:** until Phase 5 introduces an injected RNG for game logic
+> (`src/ai/rng.js` and the rules layer), **no spec may assert an exact combat or economy
+> outcome across runs.** The affected specs in §5.10 `battle/` and §5.11 `siege/` should
+> assert invariants (totals only decrease, ownership transfers, the right screen appears)
+> rather than exact survivor counts. `the same seed produces the same world` in
+> `bootstrap/e2e-hook.spec.js` is marked `test.fixme` and is the canary: when it passes,
+> exact-outcome assertions become available.
 
 ### 2.3 A test-only state accessor (Refactor Phase 1.6) 🔴 blocking
 
@@ -231,14 +245,26 @@ node scripts/run-tests.cjs --headed --slow tests/e2e/attack/multi-territory.spec
 DWC_WORKERS=4 npm run test:e2e                # back off if the box struggles
 ```
 
-### 3.5 A note on 8 workers
+### 3.5 A note on workers — measured
 
-The brief specifies up to 8. `theCave` deliberately caps at 4 because 8 destabilised that
-suite on this machine (browser targets crashing, workers exiting with heap-corruption codes).
-This game is heavier per-page than `theCave` — a large SVG, a multi-MB adjacency map and a
-200-country AI turn. **Ship the default at 8 as specified, but if failures appear that do not
-reproduce at `DWC_WORKERS=1`, suspect worker pressure before suspecting the assertion**, and
-lower the default with a comment explaining why.
+The brief specifies up to 8. **Measured on this machine, 8 is not stable for this suite** and
+the default is therefore **4**, exactly as `theCave` settled on:
+
+| Workers | Result |
+|---:|---|
+| 1 | 27/28 pass |
+| 4 | 27/28 pass (~30 s) |
+| 6 | 24/28 pass |
+| 8 | 15/28 pass |
+
+The failures at 8 are pages not finishing the territory-model build before assertions run, not
+assertion faults — every one of them passes at `DWC_WORKERS=1`. Raise it deliberately if the
+hardware changes: `DWC_WORKERS=8 npm run test:e2e`.
+
+**Wall-clock budgets are asserted only on a single-worker run.** Under four parallel browsers
+the same page takes ~2000 ms instead of ~550 ms; that is contention, not regression. The
+`bootstrap` category is pinned to one worker by the runner, and `npm run test:e2e:perf` is the
+way to check timings.
 
 ### 3.6 Fixtures
 

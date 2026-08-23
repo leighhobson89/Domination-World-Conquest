@@ -1,6 +1,11 @@
 import {
-    findMatchingCountries
-} from './manualExceptionsForInteractions.js';
+    getManualAdditions,
+    getManualDenials
+} from './src/data/manualAdjacencyExceptions.js';
+import {
+    buildPathIndex,
+    getPathByName
+} from './src/state/indexes.js';
 import {
     currentTurn,
     currentTurnPhase,
@@ -97,6 +102,46 @@ let currentlySelectedColorsArray = [];
 let turnPhase = currentTurnPhase;
 
 export let pageLoaded = false;
+
+// Resolves once BOTH bootstrap halves have finished:
+//
+//   1. the DOMContentLoaded handler below, which builds the entire UI and sets
+//      `pageLoaded = true`, and
+//   2. svgMapLoaded(), which runs on window "load" and is what actually populates
+//      `paths` from the SVG document.
+//
+// Both matter, and they do not finish in a fixed order: DOMContentLoaded fires
+// before window load, so `pageLoaded` alone is true while `paths` is still empty.
+//
+// resourceCalculations.js used to discover readiness by polling `pageLoaded` on an
+// 800ms setInterval, from two places. That wasted up to 1.6s of pure idling, and
+// the delay was also masking the ordering problem above: by the time a tick fired,
+// svgMapLoaded() had usually run. Removing the poll without waiting for the map too
+// meant calculatePathAreas() ran against an empty `paths`, leaving mainGameArray
+// short and every later territory lookup returning undefined.
+// See docs/03-refactor-plan.md Phase 1.4.
+let resolveBootstrapReady;
+const bootstrapReadyPromise = new Promise(resolve => {
+    resolveBootstrapReady = resolve;
+});
+let uiBuilt = false;
+let mapReady = false;
+
+function markBootstrapStage(stage) {
+    if (stage === "ui") {
+        uiBuilt = true;
+    } else {
+        mapReady = true;
+    }
+    if (uiBuilt && mapReady) {
+        resolveBootstrapReady();
+    }
+}
+
+/** Resolves when the UI is built and the SVG map paths are available. */
+export function whenPageLoaded() {
+    return bootstrapReadyPromise;
+}
 let eventHandlerExecuted = false;
 
 export let svg = [];
@@ -232,6 +277,7 @@ export function svgMapLoaded() {
     svgCoastLinesTag = svgCoastLinesMap.querySelector('svg');
     paths = Array.from(svgMap.querySelectorAll('path'));
     pathsCoastLines = Array.from(svgCoastLinesMap.querySelectorAll('path'));
+    buildPathIndex(paths); //O(1) uniqueId/name -> path lookups, replaces linear scans
     //-----------------------------------------------------------------//
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
@@ -432,6 +478,8 @@ export function svgMapLoaded() {
     });
 
     colorByStandardColoring();
+
+    markBootstrapStage("map"); //`paths` is now populated; see whenPageLoaded()
 
     console.log("loaded!");
 }
@@ -2854,6 +2902,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     pageLoaded = true;
+    markBootstrapStage("ui");
 });
 
 document.addEventListener("keydown", function(e) {
@@ -3094,6 +3143,17 @@ function getBboxCoordsAndPushUniqueID(path) {
     return bBoxArray;
 }
 
+// Replaces findMatchingCountries() from the old manualExceptionsForInteractions.js.
+// The exception table is now keyed by territory name and available synchronously
+// at import time, so there is no longer a race between it and the territory model.
+function manualExceptionPaths(targetPath, direction) {
+    const territoryName = targetPath.getAttribute("territory-name");
+    const names = direction === "add"
+        ? getManualAdditions(territoryName)
+        : getManualDenials(territoryName);
+    return names.map(name => getPathByName(name)).filter(path => path !== null);
+}
+
 function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
     if (targetPath.getAttribute("deactivated") === "true") {
         return;
@@ -3115,8 +3175,8 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
 
     let count = 0;
 
-    manualExceptionsArray = findMatchingCountries(targetPath, 1); //set up manual exceptions for this targetPath
-    manualDenialArray = findMatchingCountries(targetPath, 0); //set up denial countries
+    manualExceptionsArray = manualExceptionPaths(targetPath, "add"); //set up manual exceptions for this targetPath
+    manualDenialArray = manualExceptionPaths(targetPath, "deny"); //set up denial countries
 
     destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray); //remove denied countries (manual exception)
 

@@ -5,7 +5,6 @@ import {
     endPlayerTurn,
     initialiseNewPlayerTurn,
     toggleTransferAttackButton,
-    reduceKeywords,
     setCurrentMapColorAndStrokeArray,
     saveMapColorState,
     paths,
@@ -16,7 +15,9 @@ import {
 } from './ui.js';
 import {
     getPlayerTerritories,
+    getPathAreaComputations,
     newTurnResources,
+    totalPlayerResources,
     drawUITable,
     calculateTerritoryStrengths,
     mainGameArray,
@@ -31,14 +32,14 @@ import {
     calculatePlayerInitiatedSiegePerTurn,
     handleEndSiegeDueArrest,
     getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn,
-    playerSiegeWarsList
+    playerSiegeWarsList,
+    historicWars
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import {
-    addManualExceptionsAndRemoveDenials,
     buildAttackableTerritoriesInRangeArray,
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
@@ -49,11 +50,61 @@ import {
     getArrayOfGoldToSpendOnEconomy,
     getFriendlyTerritoriesDefenseScores,
     prioritiseTurnGoalsBasedOnPersonality,
-    readClosestPointsJSON,
     refineTurnGoals, setDebugArraysToZero,
     resetAiRngContext,
     setAiRngContext,
 } from "./aiCalculations.js";
+import {
+    loadAdjacency,
+    getInteractableFrom,
+    adjacencyIds
+} from "./src/data/adjacency.js";
+import {
+    getTerritoryByName,
+    getTerritoryByUniqueId
+} from "./src/state/indexes.js";
+import {
+    manualAdjacencyExceptions
+} from "./src/data/manualAdjacencyExceptions.js";
+import {
+    installTestHooks,
+    installAdjacencyTestHooks,
+    signalReady
+} from "./src/platform/testHooks.js";
+
+// Read-only accessors for the ?e2e=1 harness. Lazy closures, so this runs safely
+// at module-evaluation time even though the model is not built yet.
+installTestHooks({
+    turn: () => currentTurn,
+    phase: () => currentTurnPhase,
+    territory: (nameOrId) =>
+        getTerritoryByName(String(nameOrId)) ?? getTerritoryByUniqueId(nameOrId),
+    territoriesOwnedBy: (owner) => mainGameArray.filter(territory => territory.owner === owner),
+    totals: () => {
+        const totals = totalPlayerResources[0];
+        return totals ? {
+            gold: totals.totalGold,
+            oil: totals.totalOil,
+            food: totals.totalFood,
+            consMats: totals.totalConsMats,
+            pop: totals.totalPop,
+            prodPop: totals.totalProdPop,
+            area: totals.totalArea,
+            army: totals.totalArmy
+        } : null;
+    },
+    sieges: () => ({
+        player: Object.keys(playerSiegeWarsList),
+        ai: Object.keys(aiSiegeWarsList)
+    }),
+    pathAreaComputations: () => getPathAreaComputations(),
+    wars: () => historicWars.map(war => ({
+        warId: war.warId,
+        defendingTerritory: war.defendingTerritory?.territoryName ?? null,
+        resolution: war.battleResolution ?? null,
+        turnsInSiege: war.turnsInSiege ?? null
+    }))
+});
 
 export let currentTurn = 1;
 export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
@@ -182,16 +233,30 @@ export async function initialiseGame() {
     document.getElementById("top-table-container").style.display = "block";
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
-    await (async () => { //finds attack options for a particular territory and causes the loading to happen
-        for (let i = 0; i < mainGameArray.length; i++) {
-            document.getElementById("move-phase-button").innerHTML = reduceKeywords(mainGameArray[i].territoryName).toUpperCase();
-            highlightCountryBeingProcessedAndRemoveLastOneProcessed(mainGameArray[i].territoryName);
-            let allInteractableTerritoriesForUniqueId = await findAllInteractableTerritoriesOnGameLoad(i);
-            allInteractableTerritoriesForUniqueId = addManualExceptionsAndRemoveDenials(allInteractableTerritoriesForUniqueId);
-            allInteractableTerritoriesForUniqueId[1].shift(); //remove first element as will always be territory with uniqueid of attackOptionsArray element index, don't need it
-            attackOptionsArray.push(allInteractableTerritoriesForUniqueId);
-        }
-    })();
+    document.getElementById("move-phase-button").innerHTML = "LOADING...";
+
+    // Attack options for every territory. This used to be an awaited loop that
+    // re-fetched and re-parsed the 19 MB closestPathsData.json once per territory
+    // -- 359 fetches and roughly 6.8 GB of JSON.parse before turn 1 could start.
+    // It is now one 77 KB load and a synchronous pass. See docs/01-codebase-audit.md
+    // section 4.1 and docs/03-refactor-plan.md Phase 1.1-1.2.
+    await loadAdjacency();
+    for (const territory of mainGameArray) {
+        // Indexed BY uniqueId, not by push order. The old code pushed in
+        // mainGameArray order and then read attackOptionsArray[uniqueId], which
+        // only worked because the two happened to coincide.
+        attackOptionsArray[Number(territory.uniqueId)] = [
+            territory.uniqueId,
+            getInteractableFrom(territory.uniqueId, territory.territoryName).map(name => [name])
+        ];
+    }
+
+    // Colouring used to be a side effect of the loop above, one territory at a
+    // time, which is what produced the visible "loading" sweep across the map.
+    for (const territory of mainGameArray) {
+        setColorOnMap(territory);
+    }
+
     for (const path of paths) {
         if (path.getAttribute("data-name") === playerCountry) {
             path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
@@ -202,6 +267,25 @@ export async function initialiseGame() {
     document.getElementById("popup-color").disabled = true;
     gameInitialisation = false;
     svg.style.pointerEvents = 'auto';
+
+    installAdjacencyTestHooks({
+        interactableFrom: (territoryName) => {
+            const territory = getTerritoryByName(territoryName);
+            return territory
+                ? getInteractableFrom(territory.uniqueId, territory.territoryName)
+                : null;
+        },
+        adjacencyExceptions: () => manualAdjacencyExceptions,
+        strandedTerritories: () =>
+            adjacencyIds()
+                .map(id => getTerritoryByUniqueId(id))
+                .filter(territory =>
+                    territory &&
+                    getInteractableFrom(territory.uniqueId, territory.territoryName).length === 0)
+                .map(territory => territory.territoryName)
+    });
+    signalReady();
+
     gameLoop();
 }
 
@@ -428,11 +512,6 @@ function handleArmyRetrievals(retrievalArray) {
     }
 }
 
-async function findAllInteractableTerritoriesOnGameLoad(i) {
-    let closestPathDataArray;
-    closestPathDataArray = await readClosestPointsJSON(i);
-    return closestPathDataArray;
-}
 
 function changeAllPathsToWhite() {
     for (let i = 0; i < paths.length; i++) {
@@ -440,14 +519,6 @@ function changeAllPathsToWhite() {
     }
 }
 
-function highlightCountryBeingProcessedAndRemoveLastOneProcessed(territoryName) {
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].territoryName === territoryName) {
-            setColorOnMap(mainGameArray[i]);
-            break;
-        }
-    }
-}
 
 export function modifyCurrentTurnPhase(value) {
     currentTurnPhase = value;
