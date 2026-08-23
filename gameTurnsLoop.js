@@ -77,8 +77,22 @@ import {
 installTestHooks({
     turn: () => currentTurn,
     phase: () => currentTurnPhase,
-    territory: (nameOrId) =>
-        getTerritoryByName(String(nameOrId)) ?? getTerritoryByUniqueId(nameOrId),
+    // Deliberately a linear scan of the LIVE array rather than the O(1) index.
+    // doAiActions() replaces whole elements (`mainGameArray[i] = copy`), which
+    // orphans whatever the index is still pointing at -- see
+    // docs/01-codebase-audit.md section 5.1 AB. Reading through the index made the
+    // harness report a territory frozen at the moment the AI last touched it,
+    // which is worse than useless in a characterisation suite. 359 comparisons in
+    // a test-only accessor cost nothing; the game's own hot paths keep the index
+    // until Phase 4 removes the need for both.
+    territory: (nameOrId) => {
+        const key = String(nameOrId);
+        return (
+            mainGameArray.find(territory => territory.territoryName === key) ??
+            mainGameArray.find(territory => String(territory.uniqueId) === key) ??
+            null
+        );
+    },
     territoriesOwnedBy: (owner) => mainGameArray.filter(territory => territory.owner === owner),
     totals: () => {
         const totals = totalPlayerResources[0];

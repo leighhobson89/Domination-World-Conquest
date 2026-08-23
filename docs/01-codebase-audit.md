@@ -237,6 +237,117 @@ Assignment happens *inside* the per-territory loop, so each AI country's turn ga
 
 Missing `const`/`let` (implicit global, and a `ReferenceError` under a module's implicit strict mode) *and* `turnGainsArrayAi` is a plain object, not iterable. This line throws whenever an AI rout resolves through `handleWarEndingsAndOptions(2, …, ai=true, …)`.
 
+**AA. The AI turn crashes on a shortened goal list and freezes the game permanently** — [aiCalculations.js:864](../aiCalculations.js#L864) *(found in Phase 2.2, by `turn-loop/long-run.spec.js`)*
+
+`determineResourcesAvailableForThisGoal` iterates `refinedTurnGoals` by index, and **reassigns
+the array it is iterating** from inside that loop:
+
+```js
+for (let i = 0; i < refinedTurnGoals.length; i++) {           // i bound by the OLD length
+    ...
+    refinedTurnGoals = refinedTurnGoals.filter(item => item !== matchingElement);   // shorter now
+    ...
+    if (proportionsPercentageArray[j][0][1] === refinedTurnGoals[i][1] && …)        // undefined
+```
+
+The filter drops every Bolster goal whose mean infantry deficit is negative. Once it removes
+an element at or before `i`, the last index of the original array no longer exists, and
+`refinedTurnGoals[i][1]` throws
+`TypeError: Cannot read properties of undefined (reading '1')`.
+
+**The consequence is worse than the exception.** `doAiActions` is awaited by `handleAITurn`,
+which is awaited by the `handleBuyUpgradePhase().then(…)` chain in `gameLoop`. Nothing catches
+it, so the rejection propagates out of the chain, `currentTurn++` never runs, `gameLoop()`
+never recurses, and **the game stops dead** — the phase button stays on `AI MOVING...`
+(disabled) forever and the only way out is a page reload.
+
+Reproduced deterministically on a clean start as Germany with no player action: the crash
+lands somewhere between turn 4 and turn 7 depending on the RNG stream. It is not rare — it is
+the reason a long unattended game appears to hang.
+
+The fix is to iterate a snapshot and rebuild the goal list once at the end, rather than
+mutating mid-loop. Worth doing alongside §5.1 C, which is the same "loop state and loop
+subject disagree" mistake in the same file.
+
+Covered by `tests/e2e/turn-loop/long-run.spec.js`, currently `test.fixme`.
+
+**AC. Every military purchase charges the player twice** — [resourceCalculations.js:4634](../resourceCalculations.js#L4634) *(found in Phase 2.3, by `buy-military/purchase.spec.js`)*
+
+`addPlayerPurchases` deducts the cost from the territory:
+
+```js
+mainGameArray[i].goldForCurrentTerritory -= totalGoldCost;
+mainGameArray[i].productiveTerritoryPop -= totalProdPopCost;
+```
+
+and then calls the two "borrow from my other territories if this one is short" helpers:
+
+```js
+checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
+checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
+```
+
+Each of those helpers ends with an **unconditional** deduction of its own, outside the
+`if (short)` branch that is the reason the function exists:
+
+```js
+territory.goldForCurrentTerritory = Math.max(0, territory.goldForCurrentTerritory - goldCost);
+```
+
+`territory` is the same object as `mainGameArray[i]`, so the cost comes off twice. Measured:
+2 assault units quote 100 gold and 2,000 productive population in the buy window, and cost
+**200 gold and 4,000 productive population**. The units delivered are correct — only the price
+is wrong, and the window's own quote is the honest one.
+
+`addPlayerUpgrades` does **not** call these helpers, so building costs are charged correctly.
+That asymmetry is why the bug survived: the same window pattern behaves differently in the two
+cases.
+
+The fix is to move each trailing deduction inside its `if`, or (better) to have the helpers
+only transfer and let the single caller do the one deduction. `Math.max(0, …)` also silently
+swallows the overdraft, which is why the player never sees a negative balance and never
+notices.
+
+**AB. The AI replaces whole `mainGameArray` elements, orphaning the territory index** — [aiCalculations.js:774](../aiCalculations.js#L774) *(found in Phase 2.2, while writing the per-turn income specs)*
+
+The AI write-back does not mutate a territory, it **substitutes** it:
+
+```js
+mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
+```
+
+`buildTerritoryIndex(mainGameArray)` runs once at bootstrap and stores **object references**.
+The moment an element is replaced, the index still points at the object that used to be in
+that slot. From then on `getTerritoryByUniqueId()` / `getTerritoryByName()` return a territory
+frozen at the instant the AI last touched it, while every `for (… mainGameArray …)` loop —
+including the whole per-turn income pass — reads and writes the new object.
+
+Measured on a clean start as Germany: turn 2's income is applied and is visible through the
+index; after turn 2's AI phase the index goes stale, and turn 3's income is applied to the
+live array but invisible to every index reader. The game's own
+`territoryByUniqueId()` in `resourceCalculations.js` reads through that index, so this is not
+a test-only problem — it is two divergent views of the same territory inside the running game.
+
+**The player can see it.** `addUpAllTerritoryResourcesForCountryAndWriteToTopTable` totals the
+player's resources by looking each territory up through the index, so from the first AI turn
+onward the headline figures in the top table can disagree with the sum of the territories the
+game is actually simulating. `turn-loop/long-run.spec.js` asserts the two agree, passes before
+the first AI turn, and is `test.fixme` after it.
+
+This compounds §5.1 B and C: the `count` bug means the substitution frequently lands on the
+**wrong** slot, so the index and the array can end up describing different territories
+entirely.
+
+Two things follow:
+
+1. The `?e2e=1` accessor now scans `mainGameArray` directly instead of using the index, so the
+   harness always reports the live model. Done in Phase 2.2 — a test-only accessor, not a
+   change to game behaviour.
+2. The real fix is **Phase 4**: with `GameState.territories` as a `Map` and mutations going
+   through one writer, substituting an object becomes impossible. Until then, treat any index
+   read after an AI turn as suspect, and fix §5.1 B/C first so the substitution at least hits
+   the right slot.
+
 ### 5.2 High — logic errors
 
 **I. Loop-variable shadowing in the per-turn income loop** — [resourceCalculations.js:565](../resourceCalculations.js#L565)
@@ -308,6 +419,29 @@ changeGold = calculateGoldChange(mainGameArray[i], false, false);
 `calculateArmyMaintenanceCostPerTurn` is fully implemented and is used during initial army
 sizing, but never during play. Standing armies are free, which removes the principal economic
 brake on militarisation and makes permanent sieges nearly costless.
+
+**Z. The country-selection strength gate can never fire** — [ui.js:175](../ui.js#L175) vs [resourceCalculations.js:4706](../resourceCalculations.js#L4706) *(found in Phase 2.2, by the spec written for it)*
+
+`greyOutTerritoriesForUnselectableCountries()` greys a country when its strength exceeds
+`COUNTRY_GREYOUT_THRESHOLD = 40000`. But `calculateTerritoryStrengths()` returns
+**min-max normalised** values:
+
+```js
+const normalizedValue = (strengthValue - minStrength) / (maxStrength - minStrength) * 10000;
+```
+
+so the strongest country in the world scores exactly `10000` and every other country scores
+less. `strength > 40000` is therefore never true, **no country is ever greyed out**, and the
+player can start as the United States or China. The trailing `//40` in the threshold's own
+comment suggests the constant predates the normalisation and was never re-scaled.
+
+Consequences: `greyedOut` is `"false"` on all 359 paths for the whole selection screen; the
+`setAllGreyedOutAttributesToFalseOnGameStart()` sweep is a no-op; and the branch of
+`selectCountry()` that withdraws the confirm button for a grey fill is dead code.
+
+The fix is a decision, not just an edit — pick the intended percentile (the comment implies
+the top few countries) and express the threshold in the same units the normaliser produces.
+Covered by `tests/e2e/country-selection/greyed-out.spec.js`, currently `test.fixme`.
 
 ### 5.3 Medium — fragility and correctness risk
 

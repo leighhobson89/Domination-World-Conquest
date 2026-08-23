@@ -595,17 +595,49 @@ Total conquest triggers victory; losing the last territory triggers defeat; the 
 
 ## 6. Delivery sequence
 
-| Step | Work | Output |
-|---|---|---|
-| E0 | Refactor 1.1–1.2 (fast init), 1.6 (`?e2e=1`, seeded RNG) | Prerequisites met |
-| E1 | Harness: `playwright.config.js`, `scripts/run-tests.cjs`, fixtures, `GameDriver`, page objects for menu / map / phase bar / bottom table | `npm run test:e2e` runs, 0 specs |
-| E2 | `bootstrap/`, `country-selection/` | ~14 specs |
-| E3 | `turn-loop/`, `map-interaction/` | ~11 specs · **P0 complete** |
-| E4 | `resources-economy/`, `buy-military/`, `upgrade-territory/` | ~17 specs |
-| E5 | `transfer/`, `attack/`, `battle/` | ~22 specs · **P1 complete — refactor Phase 3 can start** |
-| E6 | Scenario loader (Refactor 3.7) + `siege/`, `ai-turn/`, `conquest-lifecycle/` | ~22 specs |
-| E7 | `info-panels/`, `random-events/` | ~12 specs · **P2 complete** |
-| E8 | `persistence/`, `victory-conditions/` alongside Refactor Phase 7 | ~8 specs |
+| Step | Work | Output | Status |
+|---|---|---|---|
+| E0 | Refactor 1.1–1.2 (fast init), 1.6 (`?e2e=1`, seeded RNG) | Prerequisites met | ✅ |
+| E1 | Harness: `playwright.config.js`, `scripts/run-tests.cjs`, fixtures, `GameDriver`, page objects for menu / map / phase bar / bottom table | `npm run test:e2e` runs, 0 specs | ✅ |
+| E2 | `bootstrap/`, `country-selection/` | ~14 specs | ✅ |
+| E3 | `turn-loop/`, `map-interaction/` | ~11 specs · **P0 complete** | ✅ |
+| E4 | `resources-economy/`, `buy-military/`, `upgrade-territory/` | ~17 specs | ✅ |
+| E5 | `transfer/`, `attack/`, `battle/` | ~22 specs · **P1 complete — refactor Phase 3 can start** | ✅ |
+| E6 | Scenario loader (Refactor 3.7) + `siege/`, `ai-turn/`, `conquest-lifecycle/` | ~22 specs | |
+| E7 | `info-panels/`, `random-events/` | ~12 specs · **P2 complete** | |
+| E8 | `persistence/`, `victory-conditions/` alongside Refactor Phase 7 | ~8 specs | |
+
+### What E1–E5 actually produced
+
+**215 tests in 36 spec files across 11 areas** — 190 passing, 0 failing, 24 `test.fixme`,
+plus the one wall-clock budget spec that skips outside a single-worker run — and 82 Vitest
+unit tests. Full headless suite at four workers: **2 m 30 s**. Each folder's `README.md`
+carries its own spec table and its own out-of-scope note; the phase write-up is in
+[03-refactor-plan.md](./03-refactor-plan.md#phase-2--land-the-safety-net-23-days--complete).
+
+**Two numbers in this document are wrong**, and the specs follow the code instead:
+
+- **§5.1** quotes a `devIndex` range of 0.4–0.95. The shipped data is **0.326** (Somalia) to
+  **0.962** (Switzerland); `bootstrap/initial-model.spec.js` derives the bound from
+  `initialData.js`.
+- **§5.7** describes upgrade cost as `base × modifier × (devIndex / 4)` and says a
+  high-`devIndex` territory pays *less*. The shipped formula is **quadratic in the running
+  total** — `ceil(base × n × (n × mult) × devIndex/4)`, where `n` is already-built plus
+  selected — and the whole thing is *proportional* to `devIndex`, so a developed territory
+  pays **more**. The second farm costs four times the first. Both are settled properly at
+  refactor Phase 5.1, when the numbers move into `config/balance.js`.
+
+**Six specs listed here were deferred to E6**, because their setup is not reachable by
+clicking and hoping the live map produces the right condition is a seed lottery rather than a
+test: `starvation`, `resource-borrowing`, `deactivated-source`, `siege-offer`, and the battle
+terminal conditions (`attacker-wins`, `defender-wins`, `rout`, `massive-assault`,
+`fight-again`, `results-screen`). They all want the scenario loader in §3.7.
+
+**Multi-turn coverage is blocked**, not missing. Audit §5.1 AA — found by
+`turn-loop/long-run.spec.js` — freezes the game permanently from the second or third AI
+phase, so every spec needing more than one full turn is `test.fixme` against it. That
+includes the ten-turn `long-run` spec §5.3 calls the single highest-value spec in the suite.
+Refactor Phase 3.1a is the unblock, and the `fixme`s are the checklist.
 
 **Roughly 105 specs across 17 areas.** Target wall clock for the full headless suite at 8
 workers: **under 6 minutes**. If it exceeds that, the cause is almost always game

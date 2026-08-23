@@ -29,8 +29,10 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 225 errors, 401 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 69 tests, ~1s
-npm run test:e2e       # Playwright, 4 workers headless
+npm run test:unit      # Vitest, 82 tests, ~1s
+npm run test:e2e       # Playwright, 215 tests, 4 workers headless, ~2.5 min
+npm run test:e2e:categories   # list the functional areas and their spec counts
+npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
 npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
 ```
@@ -106,6 +108,18 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   waits for both.
 - **The map is an `<object>`, not an `<iframe>`.** `page.frameLocator("#svg-map")` does not
   work in Playwright; use `page.frame({ name: "svg-map" })`.
+- **The AI turn crashes and freezes the game**, from the second or third turn onward
+  (audit §5.1 AA). The phase button sticks on `AI MOVING...` forever and only a reload
+  recovers. Anything that needs more than one full turn is blocked until Phase 3.1a — the
+  `test.fixme`s across `tests/e2e/turn-loop/` are the checklist.
+- **`xButton` is a duplicated id** — the info panel's close button and the upgrade window's
+  both use it, so a bare `#xButton` selector is ambiguous the moment both exist.
+- **`#tooltip` follows the pointer and has no `pointer-events: none`**, so it sits on top of
+  whatever you are about to click and eats the click. It is also the only thing that clears
+  `clickActionsDone`, the latch that gates the bottom table updating. The page objects park
+  the pointer before interacting; production code should not have to.
+- **The transfer table's row click handler is on the row's NAME column**, not on the row.
+  The attack mode of the same renderer has no row selection at all.
 
 ## Conventions
 

@@ -1,4 +1,5 @@
 import { test as base, expect } from "@playwright/test";
+import { GameDriver } from "./game.js";
 
 /** Deterministic PRNG, injected before any page script runs. */
 function installSeededRandomSource(seed) {
@@ -16,80 +17,6 @@ function installSeededRandomSource(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
     window.__seed = String(seed);
-}
-
-/**
- * Drives the game at the level a player does, so specs never encode the click
- * sequence for starting a game. Extended in refactor Phase 2.
- */
-export class GameDriver {
-    constructor(page) {
-        this.page = page;
-    }
-
-    /** Load the page and wait until the territory model is built. */
-    async open({ seed } = {}) {
-        const query = seed === undefined ? "?e2e=1" : `?e2e=1&seed=${encodeURIComponent(seed)}`;
-        await this.page.goto(`/${query}`, { waitUntil: "load" });
-        await this.page.waitForFunction(() => {
-            const button = document.getElementById("new-game-btn");
-            return button && !button.disabled;
-        });
-    }
-
-    /** Click New Game and land on the country-selection screen. */
-    async newGame() {
-        await this.page.click("#new-game-btn");
-        await this.page.waitForSelector("#popup-confirm", { state: "visible" });
-    }
-
-    /**
-     * The map is an <object>, not an <iframe>, so page.frameLocator("#svg-map")
-     * does not work. Chromium still exposes it as a frame named after the element
-     * id, which is how we reach the territory paths.
-     */
-    mapFrame() {
-        const frame = this.page.frame({ name: "svg-map" });
-        if (!frame) {
-            throw new Error("The svg-map frame is not available yet; is the map loaded?");
-        }
-        return frame;
-    }
-
-    /** Pick a country on the map by its territory name. */
-    async selectTerritory(territoryName) {
-        await this.mapFrame().locator(`path[territory-name="${territoryName}"]`).click();
-    }
-
-    /**
-     * Full "start a game as this country" flow, ending in the Buy/Upgrade phase of
-     * turn 1. Returns how long initialisation took, in milliseconds.
-     */
-    async start({ country = "Germany", seed } = {}) {
-        await this.open({ seed });
-        await this.newGame();
-        await this.selectTerritory(country);
-        await this.page.waitForFunction(
-            () => document.getElementById("popup-confirm")?.style.display === "block"
-        );
-
-        const startedAt = Date.now();
-        await this.page.click("#popup-confirm");
-        await this.page.waitForFunction(() => window.__game && window.__game.isReady(), null, {
-            timeout: 120_000,
-        });
-        return Date.now() - startedAt;
-    }
-
-    /**
-     * Read a snapshot of game state through the ?e2e=1 hook. The optional second
-     * argument is forwarded into the page, exactly like page.evaluate.
-     */
-    async state(expression, arg) {
-        return arg === undefined
-            ? this.page.evaluate(expression)
-            : this.page.evaluate(expression, arg);
-    }
 }
 
 export const test = base.extend({
@@ -120,6 +47,19 @@ export const test = base.extend({
     game: async ({ page }, use) => {
         await use(new GameDriver(page));
     },
+
+    /**
+     * A game already started as Germany, sitting in Buy/Upgrade of turn 1.
+     *
+     * Germany is the default because it is a single-territory country with a
+     * mid-range devIndex and several reachable neighbours -- the smallest world
+     * that still exercises transfer, attack and economy. Specs that need several
+     * owned territories start their own game as a multi-territory country.
+     */
+    startedGame: async ({ game }, use) => {
+        await game.start({ country: "Germany" });
+        await use(game);
+    },
 });
 
-export { expect };
+export { expect, GameDriver };

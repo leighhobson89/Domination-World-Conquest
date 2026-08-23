@@ -352,7 +352,7 @@ takes ~2000 ms instead of ~550 ms — contention, not regression.
 
 ---
 
-### Phase 2 — Land the safety net (2–3 days)
+### Phase 2 — Land the safety net (2–3 days) — ✅ **COMPLETE**
 
 **Goal:** characterisation coverage before anything is moved.
 
@@ -364,7 +364,94 @@ takes ~2000 ms instead of ~550 ms — contention, not regression.
 | 2.4 | Wire `npm test` → unit + e2e, and add a CI workflow that runs headless × 8 workers. |
 | 2.5 | Snapshot current numeric behaviour where it is *wrong but known* — mark those assertions `test.fixme` with a link to the audit item, so Phase 3 flips them green rather than inventing expectations. |
 
-**Exit criteria:** P0 + P1 green (or explicitly `fixme`) on a clean checkout, repeatably, in under 5 minutes.
+**Exit criteria:** P0 + P1 green (or explicitly `fixme`) on a clean checkout, repeatably, in under 5 minutes. — **met.**
+
+#### What actually happened
+
+**Delivered**
+
+- **2.1** The harness landed in Phase 1 and was completed here: `tests/support/selectors.js`
+  (the whole selector inventory in one file, so a Phase 6 rename is a one-file change),
+  `tests/support/territories.js` (name ⇄ uniqueId, derived from the SVG), eleven page objects
+  under `tests/support/pages/`, and `GameDriver` moved out of `fixtures.js` into
+  `tests/support/game.js` and extended with `endBuyPhase` / `endTurn` / `playTurns` /
+  `openBuy` / `openUpgrade` / `firstEnemyReachableFrom`.
+- **2.2 / 2.3** Eleven functional areas, each with a `README.md` stating what it covers and
+  what is deliberately out of scope: `bootstrap`, `country-selection`, `turn-loop`,
+  `map-interaction`, `adjacency`, `resources-economy`, `buy-military`, `upgrade-territory`,
+  `transfer`, `attack`, `battle`.
+- **2.4** `npm test` runs unit then e2e; `.github/workflows/tests.yml` runs the same two
+  commands, checks the generated data files are current before either, uploads
+  `test-reports/runs/` and pastes the run summary into the job page.
+- **2.5** Every known-wrong behaviour is `test.fixme` with its audit item named in the spec,
+  and — where it is worth stating out loud — a companion spec that characterises what the
+  game does *today* so the suite is not silent about it. Those companions are written to
+  **fail when the defect is fixed**, which is the signal to delete them and un-`fixme` the
+  real one.
+
+**Six defects the suite found, none of which were in the audit**
+
+Writing the specs was worth more than running them. Full write-ups are in
+[01-codebase-audit.md](./01-codebase-audit.md); in order of severity:
+
+| Ref | Defect | Found by |
+|---|---|---|
+| §5.1 **AA** | The AI turn throws on a shortened goal list and the unhandled rejection **stops `gameLoop()` permanently** — the game freezes on `AI MOVING...` from the second or third turn | `turn-loop/long-run.spec.js` |
+| §5.1 **AB** | `doAiActions` **substitutes whole elements** into `mainGameArray`, orphaning the Phase 1.5 territory index; the top table then sums territories the game has already replaced | the per-turn income specs |
+| §5.1 **AC** | **Every military purchase is charged twice** — the cost is deducted, then both `checkForMinusAndTransfer…` helpers deduct it again outside the `if (short)` branch they exist for | `buy-military/purchase.spec.js` |
+| §5.2 **Z** | The country-selection **strength gate can never fire**: strengths are normalised into 0–10000 and the threshold is 40000, so no country is ever greyed out | `country-selection/greyed-out.spec.js` |
+| — | **INVADE! never debits the source territory**; the battle runs on copies and the source is only reconciled when the war resolves | `attack/attack-window.spec.js` |
+| — | The **attack marker survives a cancel** by either route, the marker half of the §5.3 map-state desync | `attack/attack-window.spec.js` |
+
+§5.1 AA is the reason **3.1a** was inserted at the top of Phase 3: until the loop survives,
+nothing multi-turn can be tested at all.
+
+**Corrections to the plan as written**
+
+- **§5.1 AA makes multi-turn coverage impossible today.** The crash lands as early as the
+  second AI phase and the seed does not determine it (the sparkle timer, §5.3 Y). Rather than
+  ship specs that flake, **every spec needing more than one full turn is `test.fixme`** with
+  the audit reference — including the ten-turn `long-run` spec the e2e plan calls "the single
+  highest-value spec in the suite". Single-turn coverage is green and does still guard the
+  loop. Phase 3.1a unblocks the rest, and the `fixme`s are the checklist.
+- **The `?e2e=1` accessor now scans `mainGameArray` directly instead of using the O(1)
+  index.** Because of §5.1 AB the index reports a territory frozen at the moment the AI last
+  touched it, which is worse than useless in a characterisation suite. 359 comparisons in a
+  test-only accessor cost nothing. This is the only change to shipped code in Phase 2, and it
+  changes no game behaviour.
+- **Two numbers in [04-e2e-test-plan.md](./04-e2e-test-plan.md) are wrong** and the specs
+  follow the code instead: `devIndex` is 0.326–0.962 (§5.1's "0.4–0.95"), and upgrade cost is
+  **quadratic** in the running total, so a high-`devIndex` territory pays *more*, not less
+  (§5.7). Both are settled properly at Phase 5.1 when the numbers move into
+  `config/balance.js`.
+- **Six plan specs were deferred, not skipped**, and each folder's README says why. They all
+  need the **scenario loader** (e2e plan §3.7, a Phase 4 deliverable) because their setup is
+  not reachable by clicking: `starvation`, `resource-borrowing`, `deactivated-source`,
+  `siege-offer`, and the battle terminal conditions (`attacker-wins`, `defender-wins`,
+  `rout`, `massive-assault`, `fight-again`, `results-screen`). Hoping the live map produces a
+  rout is a seed lottery, not a test.
+- **Panning is out of scope** in `map-interaction`: Playwright's synthetic mouse does not
+  reproduce the browser's drag threshold reliably enough for the assertion to mean anything.
+  Revisit when `ui/map/camera.js` exists (6.7) and the pan offset can be read from state.
+
+**Three things the harness had to learn about this UI**
+
+Recorded here because each one will bite again during Phase 6:
+
+- **`xButton` is a duplicated id** — the info panel's close button and the upgrade window's
+  both carry it, so a bare `#xButton` is a strict-mode violation the moment both exist. The
+  selectors file scopes both.
+- **`#tooltip` follows the pointer with no `pointer-events: none`**, so the tooltip raised by
+  hovering one row sits on top of the next row's plus button and eats the click. The buy and
+  upgrade page objects park the pointer before every stepper interaction.
+- **The transfer table's click handler is on the row's NAME column**, not on the row, and the
+  attack mode of the same renderer has no row selection at all.
+
+**Tests:** 82 unit (Vitest, ~0.6 s) and **215 e2e** in 36 spec files across 11 areas —
+**190 passing, 0 failing, 24 `test.fixme`**, plus the one wall-clock budget spec that skips
+outside a single-worker run. Full headless suite at four workers: **2 m 30 s**, or ~6½
+minutes including a cold `npm run build`. Both are inside the 5-minute exit criterion for the
+suite itself.
 
 ---
 
@@ -377,8 +464,10 @@ Order matters — these are sequenced by blast radius.
 
 | Order | Audit ref | Fix |
 |---|---|---|
+| 3.0 | §5.1 AC | Military purchases are charged twice: `addPlayerPurchases` deducts the cost, then both `checkForMinusAndTransfer…` helpers deduct it again outside their `if (short)` branch. Move each trailing deduction inside the branch, or have the helpers transfer only. One-line class of fix, immediately felt by the player. Unblocks `buy-military/purchase.spec.js`. |
 | 3.1 | §5.1 A | Upgrade capacity bonuses: apply `+10 %` **per building purchased in this transaction** against the pre-transaction capacity, not the running total. Recompute from `buildingsBuilt` rather than mutating incrementally. |
-| 3.2 | §5.1 C, B | Hoist `count` out of the AI loops; guard the write-back so `"no match"` is never assigned. Replace the sentinel string with `null` and an explicit `if (!friendly \|\| !enemy) continue;`. |
+| 3.1a | §5.1 AA | **Do this first — it is the only defect that stops the game.** `determineResourcesAvailableForThisGoal` reassigns `refinedTurnGoals` from inside a loop indexed against its old length, throws on the last index, and the unhandled rejection kills `gameLoop()` for good. Iterate a snapshot; rebuild the goal list once, at the end. Unblocks `turn-loop/long-run.spec.js`. |
+| 3.2 | §5.1 C, B, AB | Hoist `count` out of the AI loops; guard the write-back so `"no match"` is never assigned. Replace the sentinel string with `null` and an explicit `if (!friendly \|\| !enemy) continue;`. **Also stop the write-back substituting whole elements** (`mainGameArray[i] = copy`) — assign the fields, or drop the copy entirely, so the Phase 1.5 territory index cannot be orphaned. §5.1 AB is only fully closed by Phase 4.4. |
 | 3.3 | §5.1 E | `unchangeableWarStartCombinedForceDefend = calculateCombinedForce(totalDefendingArmy)`. |
 | 3.4 | §5.1 D | `return` → `continue` in both siege-per-turn loops; push `true` on a miss. |
 | 3.5 | §5.1 F | `territoryPopulation + populationChange` in the starvation simulation. |
