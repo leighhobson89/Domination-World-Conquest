@@ -1,0 +1,52 @@
+node_modules/
+build/
+dist/
+database_OBSOLETE/
+test-reports/
+playwright-report/
+package-lock.json
+
+# Prettier's only change to these is padding table columns to equal width, which
+# turns rows with long cells into 200+ character lines. Worse to maintain, no
+# consistency gained.
+*.md
+
+# Generated lookup data, not hand-edited.
+tests/uniqueIdLookup.json
+
+# Binary / generated assets
+resources/
+*.svg
+*.png
+*.ico
+*.mp3
+*.wav
+
+# ---------------------------------------------------------------------------
+# Legacy pre-refactor sources, deliberately NOT auto-formatted.
+#
+# Reformatting ~18,000 lines in one commit would rewrite every line's blame
+# immediately before a refactor that depends on being able to bisect and blame
+# (see docs/03-refactor-plan.md). Each file comes off this list as it is moved
+# into src/ during Phases 4-6, at which point it gets formatted as part of that
+# move, in its own commit, separate from any behaviour change.
+# ---------------------------------------------------------------------------
+aiCalculations.js
+app.js
+battle.js
+cpuPlayerGenerationAndLoading.js
+dices.js
+gameTurnsLoop.js
+initialData.js
+leaderPersonalities.js
+manualExceptionsForInteractions.js
+music.js
+resourceCalculations.js
+sfx.js
+style.css
+transferAndAttack.js
+ui.js
+index.html
+webpack-buffer-utils.config.js
+webpack-cannon.config.js
+webpack-three.config.js

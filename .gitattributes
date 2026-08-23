@@ -1,0 +1,18 @@
+# Normalise line endings so diffs stay clean across machines, and so the repo
+# agrees with .editorconfig (end_of_line = lf).
+* text=auto eol=lf
+
+# Binary assets -- never touch these.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.psd   binary
+*.pat   binary
+*.mp3   binary
+*.wav   binary
+*.zip   binary
+*.db    binary
+
+# Large committed data. Marking them so `git diff` does not try to render them.
+resources/closestPathsData.json  -diff
+dist/*.js                        -diff linguist-vendored

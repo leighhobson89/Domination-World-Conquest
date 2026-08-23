@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Vite build output (NOT dist/ -- that holds the committed webpack UMD bundles)
+build/
+
+# Test output
+test-reports/
+playwright-report/
+test-results/
+coverage/
+
+# Editor / OS
+.idea/
+.vscode/*
+!.vscode/launch.json
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,13 +1,13 @@
-const path = require('path');
+const path = require("path");
 
 module.exports = {
     entry: {
-        cannon: './node_modules/cannon-es'
+        cannon: "./node_modules/cannon-es",
     },
     output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'cannon-bundle.js',
-        library: 'CANNON',
+        path: path.resolve(__dirname, "dist"),
+        filename: "cannon-bundle.js",
+        library: "CANNON",
     },
     module: {
         rules: [
@@ -15,9 +15,9 @@ module.exports = {
                 test: /\.js$/,
                 exclude: /node_modules/,
                 use: {
-                    loader: 'babel-loader',
+                    loader: "babel-loader",
                     options: {
-                        presets: ['@babel/preset-env'],
+                        presets: ["@babel/preset-env"],
                     },
                 },
             },
