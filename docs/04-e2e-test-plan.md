@@ -59,18 +59,18 @@ export function installSeededRandom(seed) {
 The game already ships `xfnv1a` + `mulberry32` in
 [aiCalculations.js:74](../aiCalculations.js#L74) — reuse them rather than duplicating.
 
-> **This used to be necessary but NOT sufficient — and that is now closed.** Measured during
+> ~~**This used to be necessary but NOT sufficient — and that is now closed.** Measured during
 > Phase 1: `addSparklesRegularly()` re-armed a timer every 0–100 ms and burned **three**
 > `Math.random()` calls per tick on the same global stream the economy and combat drew from.
 > How many cosmetic draws landed between two game-logic draws depended on wall-clock timing,
 > so two runs with the same seed diverged. That is audit §5.3 **Y**, and **Phase 5.8 closed
 > it**: cosmetic randomness moved to `src/platform/cosmeticRng.js`, a self-contained
-> mulberry32 that never touches `Math.random`.
+> mulberry32 that never touches `Math.random`.~~
 >
 > **Consequence for this plan:** the restriction is lifted. **A spec MAY assert an exact
-> combat or economy outcome across runs.** `the same seed produces the same world` in
+> combat or economy outcome across runs.** ~~`the same seed produces the same world` in
 > `bootstrap/e2e-hook.spec.js` was the canary and it is green; `battle/rout.spec.js`,
-> `battle/outcomes.spec.js` and `ai-turn/ai-turn.spec.js` all assert exact outcomes now.
+> `battle/outcomes.spec.js` and `ai-turn/ai-turn.spec.js` all assert exact outcomes now.~~
 >
 > The invariant style is still right wherever the invariant is the more useful statement —
 > "totals only decrease", "ownership transfers", "the right screen appears". It is a choice
@@ -108,7 +108,7 @@ window.__game = {
 };
 ```
 
-**Why each of the Phase 5.8 additions exists** — none of them is convenience:
+~~**Why each of the Phase 5.8 additions exists** — none of them is convenience:
 
 - `greyedOutCountries()` — the country-selection lock was enforced by comparing a path's
   **fill** against a grey constant, which is exactly why it was bypassable. A spec that
@@ -120,7 +120,7 @@ window.__game = {
   them. This is the unrounded truth, deep-copied like everything else here.
 - `forceRandomEvent()` — a random event is a band on the **mean of five draws**, so no seed
   puts a chosen disaster on a chosen turn, and the scenario loader sets up the *world* rather
-  than the *turn*. Without it the four events could only ever be unit-tested.
+  than the *turn*. Without it the four events could only ever be unit-tested.~~
 
 Rationale: the numeric truth of this game lives in the territory model, not in the DOM.
 Asserting food capacity by reading a KMB-formatted table cell (`"1.2M"`) tests the formatter,
@@ -136,8 +136,8 @@ Since refactor Phase 4 the model is `src/state/GameState.js`, and `__game` reads
   how `bootstrap/state-layer.spec.js` proves the map and the model agree — but they are no
   longer where the game keeps the fact.
 - **`?stateGuard=1` logs every territory write that bypasses `state/mutations.js`**, and
-  `?stateGuard=strict` throws on one. It is still in warn mode: Phase 5 made the economy and
-  combat rules pure, but the AI's action executors and `ui.js` still hold territories and
+  `?stateGuard=strict` throws on one. It is still in warn mode: ~~Phase 5 made the economy and
+  combat rules pure, but~~ the AI's action executors and `ui.js` still hold territories and
   assign to them, so each report is a **Phase 6** to-do. A spec that turns the guard on must
   not assert the list is empty.
 
