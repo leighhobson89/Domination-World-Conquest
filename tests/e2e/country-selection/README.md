@@ -9,7 +9,7 @@ picker, and what confirming a country actually does.
 | `greyed-out.spec.js` | A greyed country shows no confirm button; a playable one names itself in `#popup-body` and turns the confirm button green |
 | `colour-picker.spec.js` | Changing colour repaints every path of the pending country, every player-owned territory once started, and survives a phase change |
 | `confirm-and-initialise.spec.js` | Confirming sets the player flag, ungreys the map, marks ownership in both state and SVG, and lands in Buy/Upgrade of turn 1 with the button reading `MILITARY` |
-| `multi-territory-country.spec.js` | Clicking any one path of the United States gives the player all 11; a single-territory country gives exactly one |
+| `multi-territory-country.spec.js` | Clicking any one path of Japan gives the player all five; a single-territory country gives exactly one |
 
 ## Notes
 

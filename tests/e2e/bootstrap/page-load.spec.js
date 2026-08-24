@@ -12,15 +12,39 @@ test.describe("page load", () => {
     test("shows the main menu with New Game disabled until the model is built", async ({
         page,
     }) => {
+        // Sampled from inside the page, not asserted from outside it.
+        //
+        // The button ships disabled and is enabled by enableNewGameButton() once the
+        // territory model exists. Since Phase 1 that whole window is about 600 ms --
+        // faster than a Playwright assertion can reliably land in, so
+        // `await expect(...).toBeDisabled()` after a plain navigation passed only when
+        // the machine happened to be slow, and failed otherwise. A 5 ms sampler
+        // installed before any page script runs sees the disabled state every time.
+        await page.addInitScript(() => {
+            window.__newGameWasDisabled = false;
+            const tick = setInterval(() => {
+                const button = document.getElementById("new-game-btn");
+                if (!button) return;
+                if (button.disabled) {
+                    window.__newGameWasDisabled = true;
+                } else {
+                    clearInterval(tick);
+                }
+            }, 5);
+        });
+
         await page.goto("/?e2e=1", { waitUntil: "domcontentloaded" });
 
-        // The button ships disabled and is enabled by enableNewGameButton() once
-        // the territory model exists. Bootstrap has two halves that finish out of
-        // order -- DOMContentLoaded builds the UI, window load populates `paths` --
-        // so this is the only honest readiness signal.
-        await expect(page.locator(menu.newGame)).toBeDisabled();
-        await expect(page.locator(menu.newGame)).toBeEnabled({ timeout: 30_000 });
         await expect(page.locator(containers.menu)).toBeVisible();
+        await expect(page.locator(menu.newGame)).toBeEnabled({ timeout: 30_000 });
+
+        // Bootstrap has two halves that finish out of order -- DOMContentLoaded builds
+        // the UI, window load populates `paths` -- so the button going from disabled to
+        // enabled is the only honest readiness signal in the page.
+        expect(
+            await page.evaluate(() => window.__newGameWasDisabled),
+            "New Game should ship disabled and be enabled once the model is built"
+        ).toBe(true);
     });
 
     test("resolves both SVG layers", async ({ game, page }) => {

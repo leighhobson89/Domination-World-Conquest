@@ -100,6 +100,28 @@ export let turnGainsArrayPlayer = {
 
 export let turnGainsArrayAi = {};
 
+/** A zeroed turn-gains record. The same sixteen fields as turnGainsArrayPlayer. */
+function createEmptyTurnGains() {
+    return {
+        changeConsMats: 0,
+        changeFood: 0,
+        changeGold: 0,
+        changeOil: 0,
+        changePop: 0,
+        changeProdPop: 0,
+        changeFoodCapacity: 0,
+        changeOilCapacity: 0,
+        changeConsMatsCapacity: 0,
+        changeFoodConsumption: 0,
+        changeOilDemand: 0,
+        changeArmy: 0,
+        changeInfantry: 0,
+        changeAssault: 0,
+        changeAir: 0,
+        changeNaval: 0
+    };
+}
+
 export const INFANTRY_IN_A_TROOP = 1000;
 
 export const armyGoldPrices = {
@@ -122,11 +144,18 @@ export const oilRequirements = {
     assault: 100
 };
 
+//Tuned when maintenance was re-enabled (audit 5.2 R, refactor 3.16). Measured on a fresh
+//world: a territory earns roughly 44-100 gold a turn, while Germany starts with 783,052
+//infantry and China with 2,472,249. At the original rates Germany owed 396 gold a turn
+//against ~50 of income and China owed 1,384 -- every major power bankrupt inside forty
+//turns, with no way to respond. At a tenth of that a normal standing army costs about what
+//its territory earns, so holding an army is sustainable and GROWING one is what has to be
+//paid for. These move to config/balance.js at Phase 5.1.
 export const armyCostPerTurn = {
-    infantry: 0.0005,
-    assault: 0.5,
-    air: 2.5,
-    naval: 10
+    infantry: 0.00005,
+    assault: 0.05,
+    air: 0.25,
+    naval: 1
 }
 
 export const vehicleArmyPersonnelWorth = {
@@ -605,8 +634,15 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    let changeDuringAnySiege = true;
     let ai;
+
+    //audit 5.1 G: zero every AI country gains entry once, here, at the start of the turn
+    //income pass. Mutated in place rather than reassigned so that battle.js, which holds a
+    //reference to the same object, keeps writing into the live one.
+    for (const countryName of Object.keys(turnGainsArrayAi)) {
+        delete turnGainsArrayAi[countryName];
+    }
+
     for (const path of paths) {
         for (let i = 0; i < mainGameArray.length; i++) {
             const defendingTerritoryId = mainGameArray[i].uniqueId;
@@ -616,22 +652,26 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 !Object.values(playerSiegeWarsList).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId) &&
                 !Object.values(aiSiegeWarsList).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)
             ) {
-                for (let i = 0; i < historicWars.length; i++) {
-                    if (historicWars[i].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[i].resetStatsAfterWar) {
-                        if (historicWars[i].turnsInSiege !== null) {
+                //audit 5.2 I: these two loops used `i`, shadowing the territory index of the
+                //enclosing loop, so the post-siege food-capacity reset landed on whichever
+                //territory happened to sit at the WAR index in mainGameArray. `w` and `k`
+                //keep the two indexes apart; ESLint no-shadow stops it coming back.
+                for (let w = 0; w < historicWars.length; w++) {
+                    if (historicWars[w].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[w].resetStatsAfterWar) {
+                        if (historicWars[w].turnsInSiege !== null) {
                             //reset the stats here for food capacity after the siege is finished
-                            mainGameArray[i].foodCapacity = historicWars[i].startingFoodCapacity;
-                            historicWars[i].resetStatsAfterWar = true;
+                            mainGameArray[i].foodCapacity = historicWars[w].startingFoodCapacity;
+                            historicWars[w].resetStatsAfterWar = true;
                             ai = false; //player
                         }
                     }
                 }
-                for (let i = 0; i < historicAiWars.length; i++) {
-                    if (historicAiWars[i].defendingTerritory.uniqueId === defendingTerritoryId && !historicAiWars[i].resetStatsAfterWar) {
-                        if (historicAiWars[i].turnsInSiege !== null) {
+                for (let k = 0; k < historicAiWars.length; k++) {
+                    if (historicAiWars[k].defendingTerritory.uniqueId === defendingTerritoryId && !historicAiWars[k].resetStatsAfterWar) {
+                        if (historicAiWars[k].turnsInSiege !== null) {
                             //reset the stats here for food capacity after the siege is finished
-                            mainGameArray[i].foodCapacity = historicAiWars[i].startingFoodCapacity;
-                            historicAiWars[i].resetStatsAfterWar = true;
+                            mainGameArray[i].foodCapacity = historicAiWars[k].startingFoodCapacity;
+                            historicAiWars[k].resetStatsAfterWar = true;
                             ai = true; //ai
                         }
                     }
@@ -639,19 +679,28 @@ function calculateTerritoryResourceIncomesEachTurn() {
 
                 if (path.getAttribute("uniqueid") === defendingTerritoryId) {
                     changeGold = calculateGoldChange(mainGameArray[i], false, false);
-                    // changeGold -= calculateArmyMaintenanceCostPerTurn(mainGameArray[i]);
+                    //audit 5.2 R: re-enabled. calculateArmyMaintenanceCostPerTurn was fully
+                    //implemented and used during initial army sizing, but commented out
+                    //here -- so standing armies were free, which removed the principal
+                    //economic brake on militarisation and made permanent sieges costless.
+                    changeGold -= calculateArmyMaintenanceCostPerTurn(mainGameArray[i]);
                     changeOil = calculateOilChange(mainGameArray[i], false);
                     changeFood = calculateFoodChange(mainGameArray[i], false, false);
                     changeConsMats = calculateConsMatsChange(mainGameArray[i], false);
                     changePop = calculatePopulationChange(mainGameArray[i], false, null);
                     changeProdPopTemp = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
 
-                    mainGameArray[i].goldForCurrentTerritory += changeGold;
+                    //Upkeep can exceed a turn income, so the change can be negative. Nothing
+                    //in the game models debt -- a negative balance would flow straight into
+                    //the AI spending calculations -- so a territory can be broke but never
+                    //overdrawn. What an unpayable army SHOULD cost you (desertion) is a
+                    //design question for Phase 7, not a defect fix.
+                    mainGameArray[i].goldForCurrentTerritory = Math.max(0, mainGameArray[i].goldForCurrentTerritory + changeGold);
                     mainGameArray[i].oilForCurrentTerritory += changeOil;
                     mainGameArray[i].foodForCurrentTerritory += changeFood;
                     mainGameArray[i].foodConsumption = mainGameArray[i].territoryPopulation + mainGameArray[i].armyForCurrentTerritory;
                     mainGameArray[i].consMatsForCurrentTerritory += changeConsMats;
-                    mainGameArray[i].territoryPopulation += changePop;
+                    mainGameArray[i].territoryPopulation = Math.max(0, mainGameArray[i].territoryPopulation + changePop); //audit 5.2 AJ
                     mainGameArray[i].productiveTerritoryPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
 
                     changeProdPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
@@ -668,24 +717,13 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         turnGainsArrayPlayer.changeProdPop += changeProdPop;
                         break;
                     } else if (countryName !== null) {
-                        turnGainsArrayAi[countryName] = {
-                            changeGold: 0,
-                            changeOil: 0,
-                            changeFood: 0,
-                            changeConsMats: 0,
-                            changePop: 0,
-                            changeProdPop: 0,
-                            changeFoodCapacity: 0,
-                            changeOilCapacity: 0,
-                            changeConsMatsCapacity: 0,
-                            changeFoodConsumption: 0,
-                            changeOilDemand: 0,
-                            changeArmy: 0,
-                            changeInfantry: 0,
-                            changeAssault: 0,
-                            changeAir: 0,
-                            changeNaval: 0,
-                        };
+                        //audit 5.1 G: this assignment used to be unconditional, so a fresh
+                        //zeroed object replaced the running total on EVERY territory and each
+                        //AI country ended the turn showing only its last-processed territory.
+                        //The whole map is zeroed once per turn at the top of this function.
+                        if (!turnGainsArrayAi[countryName]) {
+                            turnGainsArrayAi[countryName] = createEmptyTurnGains();
+                        }
                         // Update turn gains for the AI country
                         turnGainsArrayAi[countryName].changeGold += changeGold;
                         turnGainsArrayAi[countryName].changeOil += changeOil;
@@ -695,8 +733,16 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         turnGainsArrayAi[countryName].changeProdPop += changeProdPop;
                     }
                 }
-            } else if (changeDuringAnySiege) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
-                changeDuringAnySiege = false;
+            } else if (path.getAttribute("uniqueid") === defendingTerritoryId) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
+                //audit 5.2 J: this branch used to be gated on a `changeDuringAnySiege` latch
+                //declared outside the loop and set false on first use, so only ONE besieged
+                //territory per turn got its siege-time food and population processing.
+                //
+                //Dropping the latch alone is not enough: this whole block is nested inside
+                //`for (const path of paths)`, and unlike the income branch beside it this
+                //branch never checked which path it was looking at -- so it would have run
+                //359 times per besieged territory per turn. The path check is what makes
+                //"once per besieged territory, every turn" true.
                 let siegeTerritory;
                 let foundInPlayerSiege = false;
                 for (const key in playerSiegeWarsList) {
@@ -725,7 +771,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 mainGameArray[i].foodForCurrentTerritory += changeFood;
                 mainGameArray[i].foodConsumption = siegeTerritory.defendingTerritory.territoryPopulation + siegeTerritory.defendingTerritory.armyForCurrentTerritory;
                 //mainGameArray[i].consMatsForCurrentTerritory += changeConsMats;
-                mainGameArray[i].territoryPopulation += changePop;
+                mainGameArray[i].territoryPopulation = Math.max(0, mainGameArray[i].territoryPopulation + changePop); //audit 5.2 AJ
                 mainGameArray[i].productiveTerritoryPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
 
                 siegeTerritory.defendingTerritory.foodForCurrentTerritory = mainGameArray[i].foodForCurrentTerritory;
@@ -746,7 +792,11 @@ function calculateTerritoryResourceIncomesEachTurn() {
 function calculateConsMatsChange(territory, isSimulation) {
     let consMatsChange = 0;
 
-    if (randomEventHappening && randomEvent === "Forest Fire" && !isSimulation) { //ConsMats disaster
+    //audit 5.2 Q: selectRandomEvent can return "Warehouse Fire", never "Forest Fire", so
+    //this branch never ran. One of the four random events did nothing at all -- and worse
+    //than nothing, because randomEventHappening still suppressed that turn regeneration and
+    //population change, costing the player a turn of growth for no effect.
+    if (randomEventHappening && randomEvent === "Warehouse Fire" && !isSimulation) { //ConsMats disaster
         const isRandomlyTrue = Math.random() >= 0.5;
         if (isRandomlyTrue) {
             let tempConsMats = territory.consMatsForCurrentTerritory;
@@ -804,12 +854,21 @@ function calculateGoldChange(territory, isSimulation, gameStartAdjustment) {
     }
 
     if (randomEvent !== "Mutiny" || !randomEventHappening) {
-        const areaScalingFactor = Math.log10(territory.area + 1);
-        const populationScalingFactor = Math.log10(territory.productiveTerritoryPop + 1);
+        //audit 5.2 AJ: log10 of a negative is NaN and log10 of 1 is 0, so an emptied
+        //territory used to produce either NaN or a division by zero -- and one NaN in
+        //goldForCurrentTerritory never recovers. Nothing productive left means nothing
+        //earned, which is also the honest answer.
+        const areaScalingFactor = Math.log10(Math.max(0, territory.area) + 1);
+        const populationScalingFactor = Math.log10(Math.max(0, territory.productiveTerritoryPop) + 1);
 
-        const goldIncome = (Math.max(territory.area / 10000000), 1) * parseFloat(territory.devIndex) * continentModifierGold * (territory.productiveTerritoryPop * 0.1);
+        //audit 5.2 P: this read `(Math.max(territory.area / 10000000), 1)`. Math.max of one
+        //argument returns that argument, and the comma operator then discarded it and yielded
+        //1, so territory AREA had no effect on gold income at all. The floor of 1 keeps a
+        //small territory earning what it used to.
+        const areaBonus = Math.max(territory.area / 10000000, 1);
+        const goldIncome = areaBonus * parseFloat(territory.devIndex) * continentModifierGold * (territory.productiveTerritoryPop * 0.1);
         const modifier = areaScalingFactor * populationScalingFactor;
-        goldChange = Math.ceil(goldIncome / modifier) * 0.2;
+        goldChange = modifier > 0 ? Math.ceil(goldIncome / modifier) * 0.2 : 0; //audit 5.2 AJ
 
         const minGoldChange = -800; //this will lift small countries gold
         const maxGoldChange = 1000; //increasing this will push down large countries
@@ -906,7 +965,11 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
             const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
             const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
 
-            populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+            //audit 5.2 AJ: the cap is `currentPopulation`, which counts the ARMY as well as
+            //the civilians -- but this change is applied to territoryPopulation alone. A
+            //famine could therefore kill more civilians than the territory has, driving
+            //territoryPopulation negative and, through it, productiveTerritoryPop.
+            populationChange = -Math.min(foodShortage * deathRate, currentPopulation, territory.territoryPopulation);
             if (cameFromSiege) {
                 randomHitArmy = Math.random();
                 randomHitArmy = randomHitArmy > 0.3;
@@ -919,7 +982,11 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
             populationChange = Math.min(maxGrowth, growthPotential);
         }
 
-        const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation - populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
+        //audit 5.1 F: this subtracted populationChange, which is NEGATIVE while starving, so
+        //the simulated population went UP and the "starve the army instead of the civilians"
+        //branch never fired during an actual famine while firing spuriously during growth.
+        //The simulation wants the population AFTER the change.
+        const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation + populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
 
         if (simulatedProductiveTerritoryPop < 0 || (cameFromSiege && randomHitArmy)) { //if large army and not enough prod-pop, then starve army instead of population
             if (cameFromSiege) {
@@ -1010,7 +1077,20 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
             difference -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
             territory.useableNaval = 0;
         }
+
+        //audit 5.2 AJ: this branch zeroes the infantry and eats into the vehicles but never
+        //touched armyForCurrentTerritory, so the total drifted away from the units it is
+        //supposed to summarise -- observed at -32,263 on a territory still holding 549,615
+        //infantry. Recompute it from what is actually left.
+        territory.armyForCurrentTerritory =
+            territory.infantryForCurrentTerritory +
+            (territory.useableAssault * vehicleArmyPersonnelWorth.assault) +
+            (territory.useableAir * vehicleArmyPersonnelWorth.air) +
+            (territory.useableNaval * vehicleArmyPersonnelWorth.naval);
     }
+    territory.armyForCurrentTerritory = Math.max(0, territory.armyForCurrentTerritory);
+    territory.infantryForCurrentTerritory = Math.max(0, territory.infantryForCurrentTerritory);
+
     if (cameFromSiege) {
         for (let i = 0; i < mainGameArray.length; i++) {
             if (mainGameArray[i].uniqueId === territory.uniqueId) {
@@ -4308,8 +4388,11 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     //update main array
     for (let i = 0; i < mainGameArray.length; i++) {
         if (mainGameArray[i].uniqueId === territory.uniqueId) {
-            mainGameArray[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
-            mainGameArray[i].productiveTerritoryPop -= totalProdPopCost; // subtract consMats from territory
+            //audit 5.1 AC: the cost is NOT deducted here. `territory` is the same object as
+            //mainGameArray[i], and the two checkForMinusAndTransfer... helpers below each end
+            //by deducting their own cost -- that is where a purchase is paid for. Deducting
+            //here as well charged the player exactly twice for every military purchase while
+            //the buy window quoted the correct, single price.
             mainGameArray[i].infantryForCurrentTerritory += parseInt(purchaseArray[0]);
             mainGameArray[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
             mainGameArray[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
@@ -4330,6 +4413,8 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     turnGainsArrayPlayer.changeNaval += parseInt(purchaseArray[3]);
 
 
+    //Borrow from the player's other territories if this one is short, then charge the
+    //cost -- once. See audit 5.1 AC and the comment in the loop above.
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
     checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
 
@@ -4388,20 +4473,33 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
         if (mainGameArray[i].uniqueId === territory.uniqueId) {
             mainGameArray[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
             mainGameArray[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
-            mainGameArray[i].farmsBuilt += parseInt(upgradeArray[0]);
-            mainGameArray[i].forestsBuilt += parseInt(upgradeArray[1]);
-            mainGameArray[i].oilWellsBuilt += parseInt(upgradeArray[2]);
-            mainGameArray[i].fortsBuilt += parseInt(upgradeArray[3]);
-            if (mainGameArray[i].farmsBuilt > 0) {
-                mainGameArray[i].foodCapacity = mainGameArray[i].foodCapacity + (mainGameArray[i].foodCapacity * ((territory.farmsBuilt * 10) / 100)); //calculate new foodCapacity
+            //audit 5.1 A. Each building bought in THIS transaction is worth +10% of the
+            //capacity the territory had BEFORE the transaction. It used to read
+            //`territory.farmsBuilt` -- the same object, already incremented -- and apply
+            //the running total as a multiplier against the already-boosted capacity, so a
+            //5th farm applied +50% on top of an inflated figure. And because the guards
+            //tested the total built rather than what was bought, buying a fort re-applied
+            //the farm, forest and oil bonuses too.
+            const farmsBought = parseInt(upgradeArray[0]) || 0;
+            const forestsBought = parseInt(upgradeArray[1]) || 0;
+            const oilWellsBought = parseInt(upgradeArray[2]) || 0;
+            const fortsBought = parseInt(upgradeArray[3]) || 0;
+
+            mainGameArray[i].farmsBuilt += farmsBought;
+            mainGameArray[i].forestsBuilt += forestsBought;
+            mainGameArray[i].oilWellsBuilt += oilWellsBought;
+            mainGameArray[i].fortsBuilt += fortsBought;
+
+            if (farmsBought > 0) {
+                mainGameArray[i].foodCapacity = totalFoodCapacityTemp + (totalFoodCapacityTemp * ((farmsBought * 10) / 100)); //calculate new foodCapacity
                 turnGainsArrayPlayer.changeFoodCapacity += mainGameArray[i].foodCapacity - totalFoodCapacityTemp;
             }
-            if (mainGameArray[i].forestsBuilt > 0) {
-                mainGameArray[i].consMatsCapacity = mainGameArray[i].consMatsCapacity + (mainGameArray[i].consMatsCapacity * ((territory.forestsBuilt * 10) / 100)); //calculate new consMatsCapacity
+            if (forestsBought > 0) {
+                mainGameArray[i].consMatsCapacity = totalConsMatsTemp + (totalConsMatsTemp * ((forestsBought * 10) / 100)); //calculate new consMatsCapacity
                 turnGainsArrayPlayer.changeConsMatsCapacity += mainGameArray[i].consMatsCapacity - totalConsMatsTemp;
             }
-            if (mainGameArray[i].oilWellsBuilt > 0) {
-                mainGameArray[i].oilCapacity = mainGameArray[i].oilCapacity + (mainGameArray[i].oilCapacity * ((territory.oilWellsBuilt * 10) / 100)); //calculate new oilCapacity
+            if (oilWellsBought > 0) {
+                mainGameArray[i].oilCapacity = totalOilCapacityTemp + (totalOilCapacityTemp * ((oilWellsBought * 10) / 100)); //calculate new oilCapacity
                 turnGainsArrayPlayer.changeOilCapacity += mainGameArray[i].oilCapacity - totalOilCapacityTemp;
             }
             if (mainGameArray[i].fortsBuilt > 0) {

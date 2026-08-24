@@ -172,7 +172,20 @@ const CONTINENT_COLOR_ARRAY = [
     ["Oceania", [74, 202, 233]]
 ];
 const GREY_OUT_COLOR = 'rgb(170,170,170)';
-const COUNTRY_GREYOUT_THRESHOLD = 40000; //countries under this strength greyed out //40
+//audit 5.2 Z. This was `COUNTRY_GREYOUT_THRESHOLD = 40000`, compared against the output of
+//calculateTerritoryStrengths() -- which min-max normalises every country into 0..10000, so
+//the strongest country in the world scores exactly 10000 and nothing could ever exceed
+//40000. No country was ever greyed out and the player could start as the United States. The
+//trailing `//40` in the old comment suggests the constant predates the normalisation.
+//
+//Re-scaling the number would only move the guess. The intent -- "the top few countries are
+//too strong to play" -- is a RANK, so that is what this expresses. It is stable whatever the
+//normaliser does, and it says in one number exactly how many world powers are off limits.
+//Measured on a fresh world, the normalised strengths run China 10000, United States 9545,
+//India 7965, Indonesia 5697, Russia 4438, then Italy 3504 and a long tail. Five is where
+//the superpowers stop: it takes the countries that would make the game trivial and leaves
+//every genuine mid-sized power -- Italy, Germany, Japan, the UK -- playable.
+const COUNTRY_GREYOUT_RANK = 5; //the N strongest countries cannot be chosen
 export const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
 
 //path selection variables
@@ -3801,19 +3814,15 @@ export function enableNewGameButton() {
 }
 
 function greyOutTerritoriesForUnselectableCountries() {
+    //calculateTerritoryStrengths already returns this sorted strongest-first; sorting a copy
+    //keeps that from being a silent assumption. See audit 5.2 Z.
+    const strongestFirst = [...countryStrengthsArray].sort((a, b) => b[1] - a[1]);
+    const unselectableCountries = new Set(
+        strongestFirst.slice(0, COUNTRY_GREYOUT_RANK).map(entry => entry[0])
+    );
+
     paths.forEach(path => {
-        const countryName = path.getAttribute("data-name");
-        let countryStrength;
-
-        // Find the country strength data using a loop
-        for (let i = 0; i < countryStrengthsArray.length; i++) {
-            if (countryStrengthsArray[i][0] === countryName) {
-                countryStrength = countryStrengthsArray[i][1];
-                break;
-            }
-        }
-
-        if (countryStrength > COUNTRY_GREYOUT_THRESHOLD) {
+        if (unselectableCountries.has(path.getAttribute("data-name"))) {
             path.setAttribute("fill", GREY_OUT_COLOR);
             path.setAttribute("greyedOut", "true");
         }
@@ -4241,7 +4250,11 @@ export function removeSiegeImageFromPath(ai, path) {
     let imageElement;
 
     const formattedTerritoryName = siegeObjectElement.defendingTerritory.territoryName.replace(/\s+/g, "_");
-    imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
+    //audit 5.2 AI: getElementById, not querySelector. Six territory names carry real
+    //parentheses -- "Andros Island (Bahamas)", "Grand Bahama (Bahamas)" and friends -- and
+    //`#siegeImage_Andros_Island_(Bahamas)` is not a valid CSS selector, so querySelector
+    //threw rather than returning null. getElementById takes the id literally.
+    imageElement = svgMap.getElementById("siegeImage_" + formattedTerritoryName);
 
 
     if (imageElement) {
@@ -4266,7 +4279,7 @@ export function removeSiegeImageFromPath(ai, path) {
 
 export function removeSiegeImageByTerritoryName(territoryName) {
     const formattedTerritoryName = territoryName.replace(/\s+/g, "_");
-    const imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
+    const imageElement = svgMap.getElementById("siegeImage_" + formattedTerritoryName); //audit 5.2 AI
     if (imageElement) {
         imageElement.remove();
     }

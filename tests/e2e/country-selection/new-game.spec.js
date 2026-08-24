@@ -18,10 +18,9 @@ test.describe("new game", () => {
         await expect(page.locator(containers.bottomTable)).toBeVisible();
     });
 
-    test.fixme("greys out the countries that are too strong to play", async ({ game, page }) => {
-        // 🔴 The strength gate can never fire -- see docs/01-codebase-audit.md
-        // section 5.2 Z and tests/e2e/country-selection/greyed-out.spec.js.
-        // Unskip together with those, in Phase 3.
+    test("greys out the countries that are too strong to play", async ({ game, page }) => {
+        // audit 5.2 Z, fixed in refactor Phase 3 -- see
+        // tests/e2e/country-selection/greyed-out.spec.js.
         await game.open();
         const before = await game.map.attributeCounts("greyedOut");
         expect(before.true ?? 0).toBe(0);

@@ -5,7 +5,7 @@ Rounds, and the outcomes the game is supposed to produce.
 | Spec | Covers |
 |---|---|
 | `rounds.spec.js` | A battle opens with both sides listed, shows a probability in 0..100, only ever reduces both sides as rounds advance, never goes negative, and always ends in either a results screen or a continuing battle — never a dead end |
-| `known-broken.spec.js` | 🔴 The four behaviours that are wrong today, each `test.fixme` against its audit item: the rout threshold (§5.1 E), the cross-unit-type deadlock (§5.2 K), retreat returning survivors, and two concurrent sieges both ticking (§5.1 D) |
+| `known-broken.spec.js` | Four behaviours still `test.fixme`. Three of them — the rout threshold (§5.1 E), the cross-unit-type deadlock (§5.2 K) and two concurrent sieges (§5.1 D) — are **fixed in the code** by refactor Phase 3; what they lack is a way to reach the situation, which is the scenario loader (Phase 4). The fourth, retreat returning survivors, waits on §5.1 AD |
 
 ## The rule that shapes this whole folder
 

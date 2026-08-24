@@ -20,6 +20,7 @@ import {
     totalPlayerResources,
     drawUITable,
     calculateTerritoryStrengths,
+    countryStrengthsArray,
     mainGameArray,
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
@@ -112,6 +113,7 @@ installTestHooks({
         ai: Object.keys(aiSiegeWarsList)
     }),
     pathAreaComputations: () => getPathAreaComputations(),
+    countryStrengths: () => countryStrengthsArray ?? [],
     wars: () => historicWars.map(war => ({
         warId: war.warId,
         defendingTerritory: war.defendingTerritory?.territoryName ?? null,
@@ -401,7 +403,23 @@ async function handleAITurn() {
     let turnGainsArrayAi;
     let currentAiCountry;
 
-    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
+    //audit 5.1 AG. Conquering a territory calls updateArrayOfLeadersAndCountries(), which
+    //rebuilds THIS array in place -- clearing it and pushing a fresh set, with an eliminated
+    //country simply absent. Iterating it by a bare index meant a conquest during one country
+    //turn shifted every later entry, so countries were skipped or moved twice, and once the
+    //list shrank past the cursor `arrayOfLeadersAndCountries[i][2][0]` threw.
+    //
+    //The turn ORDER is fixed at the start of the phase; the index into the live array is
+    //resolved fresh each iteration, because the helpers below all take (array, ..., i).
+    const turnOrder = arrayOfLeadersAndCountries.map(entry => entry[0]);
+
+    for (let turnIndex = 0; turnIndex < turnOrder.length; turnIndex++) {
+        const i = arrayOfLeadersAndCountries.findIndex(entry => entry[0] === turnOrder[turnIndex]);
+        if (i === -1 || arrayOfLeadersAndCountries[i][2].length === 0) {
+            console.log(turnOrder[turnIndex] + " has no territories left and takes no turn");
+            continue;
+        }
+
         let fullTerritoriesInRange = [];
         let attackableTerritoriesInRange = [];
         let arrayOfTerritoriesInRangeThreats = []; //[territoryName, [friendlyTerritory1, threatScore]]

@@ -79,11 +79,12 @@ test.describe("quantity steppers", () => {
 });
 
 test.describe("confirming a purchase", () => {
-    test.fixme("deducts exactly the quoted gold and manpower", async ({ startedGame: game }) => {
-        // 🔴 audit 5.1 AC -- the player is charged TWICE. addPlayerPurchases deducts
-        // the cost, then both checkForMinusAndTransfer... helpers deduct it again
-        // outside the `if (short)` branch they exist for. Un-fixme with refactor
-        // Phase 3.0.
+    test("deducts exactly the quoted gold and manpower", async ({ startedGame: game }) => {
+        // audit 5.1 AC, fixed in refactor Phase 3.0. addPlayerPurchases used to deduct
+        // the cost AND call the two checkForMinusAndTransfer... helpers, each of which
+        // ends by deducting its own cost -- so every military purchase was charged
+        // twice while the window quoted the correct, single price. The caller no
+        // longer deducts; the helpers borrow and then charge, once.
         const before = await game.territory("Germany");
 
         await game.openBuy("Germany");
@@ -103,30 +104,7 @@ test.describe("confirming a purchase", () => {
         );
     });
 
-    test("today: charges double the quoted gold and manpower", async ({ startedGame: game }) => {
-        // Characterisation of audit 5.1 AC, so the suite states the current
-        // behaviour rather than staying quiet about it. When Phase 3.0 lands this
-        // spec fails -- the signal to delete it and un-fixme the one above.
-        const before = await game.territory("Germany");
-
-        await game.openBuy("Germany");
-        await game.buyWindow.plus("assault", 2);
-        const quoted = await game.buyWindow.totals();
-        await game.buyWindow.submit();
-
-        const after = await game.territory("Germany");
-        expect(quoted.gold).toBe(armyGoldPrices.assault * 2);
-        expect(
-            before.goldForCurrentTerritory - after.goldForCurrentTerritory,
-            "audit 5.1 AC -- charged twice"
-        ).toBeCloseTo(quoted.gold * 2, 4);
-        expect(
-            before.productiveTerritoryPop - after.productiveTerritoryPop,
-            "audit 5.1 AC -- charged twice"
-        ).toBeCloseTo(quoted.prodPop * 2, 4);
-    });
-
-    test("adds exactly the units bought", async ({ startedGame: game }) => {
+        test("adds exactly the units bought", async ({ startedGame: game }) => {
         const before = await game.territory("Germany");
 
         await game.openBuy("Germany");

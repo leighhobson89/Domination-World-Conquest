@@ -78,7 +78,7 @@ test.describe("a long run with no player action", () => {
     // spec is for.
     test.setTimeout(600_000);
 
-    test.fixme("completes ten turns with the loop, the world and the player intact", async ({
+    test("completes ten turns with the loop, the world and the player intact", async ({
         startedGame: game,
     }) => {
         // 🔴 audit 5.1 AA -- the AI turn throws and the game loop stops. Unskip
@@ -104,13 +104,12 @@ test.describe("a long run with no player action", () => {
         expect(finalTerritories).toEqual(expect.arrayContaining(startingTerritories));
     });
 
-    test.fixme("completes two turns and keeps the player's territories", async ({
+    test("completes two turns and keeps the player's territories", async ({
         startedGame: game,
     }) => {
-        // 🔴 audit 5.1 AA -- the AI turn throws `Cannot read properties of undefined
-        // (reading '1')` and the unhandled rejection stops `gameLoop()` for good. It
-        // can land as early as the second AI phase, so ANY spec needing more than one
-        // full turn is a coin flip today. Un-fixme with refactor Phase 3.1a.
+        // audit 5.1 AA, fixed in refactor Phase 3.1a. The AI turn used to throw
+        // `Cannot read properties of undefined (reading '1')` and the unhandled
+        // rejection stopped `gameLoop()` for good, as early as the second AI phase.
 
         const startingTerritories = (await game.playerTerritories())
             .map((t) => t.territoryName)
@@ -136,20 +135,15 @@ test.describe("a long run with no player action", () => {
         expect(await nonFiniteFields(game)).toEqual([]);
     });
 
-    test.fixme("holds no NaN anywhere in the world after two turns", async ({
+    test("holds no NaN anywhere in the world after two turns", async ({
         startedGame: game,
     }) => {
-        // 🔴 INTERMITTENT, and a real defect when it fires: an AI turn can leave a
-        // territory with `goldForCurrentTerritory = NaN` (observed on Vatican City).
-        // It does not reproduce on every seed, and the sparkle timer means the seed
-        // does not fully determine the run (audit 5.3 Y), so this is `fixme` rather
-        // than a flaky red.
-        //
-        // The most likely cause is audit 5.1 B: `doAiActions` writes
-        // `mainArrayFriendlyTerritoryCopy` back into `mainGameArray` unconditionally,
-        // and when the two-territory search (5.1 C) fails, the value written is the
-        // sentinel string "no match" -- every later arithmetic on that slot yields
-        // NaN. Confirm the mechanism when Phase 3.2 lands, then un-fixme.
+        // audit 5.1 B and C, fixed in refactor Phase 3.2. The AI used to write the
+        // sentinel string "no match" into mainGameArray when a goal's two-territory
+        // search failed -- and it failed often, because `count` was declared inside
+        // the loop it was meant to count across. Every later arithmetic on that slot
+        // came out NaN; `goldForCurrentTerritory = NaN` on Vatican City is what this
+        // spec caught. The sentinel is gone and an unresolvable goal is skipped.
         await game.playTurns(2);
         expect(await nonFiniteFields(game)).toEqual([]);
     });
@@ -168,17 +162,16 @@ test.describe("a long run with no player action", () => {
         });
     });
 
-    test.fixme("keeps the player's totals equal to the sum of their territories throughout", async ({
+    test("keeps the player's totals equal to the sum of their territories throughout", async ({
         startedGame: game,
     }) => {
-        // 🔴 audit 5.1 AB. addUpAllTerritoryResourcesForCountryAndWriteToTopTable
-        // reads each territory through the O(1) index, which the AI orphans by
-        // substituting whole elements into mainGameArray. From the first AI turn
-        // onward the top table can be summing territories the game has already
-        // replaced, so the headline figure the player reads is stale.
-        //
-        // Un-fixme with refactor Phase 3.2 (stop substituting) -- and it is
-        // structurally closed by Phase 4.4.
+        // audit 5.1 AB, fixed in refactor Phase 3.2. The AI used to SUBSTITUTE whole
+        // elements into mainGameArray (`mainGameArray[i] = copy`), which orphaned the
+        // Phase 1.5 territory index -- it holds object references, so every index
+        // reader was left looking at the object that used to be in that slot, and
+        // addUpAllTerritoryResourcesForCountryAndWriteToTopTable reads through it.
+        // The write-back assigns the fields now, so identity survives. Structurally
+        // closed by Phase 4.4, which removes the copies altogether.
         for (let turn = 1; turn <= SAFE_TURNS; turn += 1) {
             await game.playTurn();
             expect(await totalsAgreeWithTerritories(game), `after turn ${turn}`).toEqual({

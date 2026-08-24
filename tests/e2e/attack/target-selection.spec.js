@@ -1,5 +1,10 @@
 import { test, expect } from "../../support/fixtures.js";
 
+// Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
+// selection strength gate actually fires (audit 5.2 Z), and the United States is above
+// COUNTRY_GREYOUT_RANK, so it can no longer be chosen. Hokkaido is the same shape of
+// fixture and a better one -- it reaches four other Japanese territories and two enemy
+// ones (Russia, Kamchatkan Islands 3), where Alaska reached fewer.
 // Picking an enemy territory to attack: what the move button becomes, what the
 // banner says, and what the map shows.
 //
@@ -55,17 +60,17 @@ test.describe("choosing a target", () => {
     });
 
     test("reverts to TRANSFER when an owned territory is chosen again", async ({ game }) => {
-        await game.start({ country: "Alaska" });
+        await game.start({ country: "Hokkaido" });
         await game.endBuyPhase();
-        await game.selectOnMap("Alaska");
+        await game.selectOnMap("Hokkaido");
 
-        const target = await game.firstEnemyReachableFrom("Alaska");
-        test.skip(!target, "Alaska could reach no enemy territory");
+        const target = await game.firstEnemyReachableFrom("Hokkaido");
+        test.skip(!target, "Hokkaido could reach no enemy territory");
 
         await game.selectOnMap(target);
         expect(await game.moveButton.label()).toBe("ATTACK");
 
-        await game.selectOnMap("Alaska");
+        await game.selectOnMap("Hokkaido");
         expect(await game.moveButton.label()).toBe("TRANSFER");
         expect(await game.moveButton.variant()).toBe("transfer");
     });

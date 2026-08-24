@@ -127,10 +127,68 @@ export class GameDriver {
         }
     }
 
+    /**
+     * Everything the previous phase can leave sitting on top of the phase bar.
+     *
+     * Since refactor Phase 3 the AI actually conquers, which means it also attacks
+     * the PLAYER -- and a turn can now end with the battle results screen up,
+     * waiting to be accepted, with the phase button underneath it. Before Phase 3
+     * that never happened, because the AI turn threw before it got that far.
+     *
+     * The battle UI proper is deliberately NOT dismissed here: if a spec finds one
+     * open it is a real interactive battle and the spec should drive it, not have
+     * the driver click it away.
+     */
+    async dismissBlockingPanels() {
+        await this.dismissBattleResults();
+        await this.dismissStartOfTurnPanel();
+    }
+
+    /**
+     * Accept battle results until none is on screen, and touch nothing else.
+     *
+     * A loop, not a single check: several AI countries can resolve wars against the
+     * player in one AI phase, and each queues its own results screen.
+     *
+     * Separate from dismissBlockingPanels() because a spec asserting on the
+     * start-of-turn info panel needs the results out of the way WITHOUT the panel
+     * being closed along with them.
+     */
+    async dismissBattleResults(limit = 10) {
+        for (let i = 0; i < limit; i += 1) {
+            if (!(await this.battle.resultsShown())) {
+                return i > 0;
+            }
+            await this.battle.acceptResult();
+        }
+        throw new Error(`more than ${limit} battle results queued -- the AI phase is not settling`);
+    }
+
+    /**
+     * Run an action that clicks the phase bar, clearing anything on top of it.
+     *
+     * A battle result can appear a beat AFTER the turn counter advances, so clearing
+     * once and clicking is not enough -- the click then waits on an element the
+     * results screen is covering. Retrying with a short per-attempt budget costs
+     * nothing when the path is clear, which is the usual case.
+     */
+    async withBlockersCleared(action, attempts = 3) {
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+            await this.dismissBlockingPanels();
+            try {
+                return await action();
+            } catch (error) {
+                if (attempt === attempts) {
+                    throw error;
+                }
+            }
+        }
+        return undefined;
+    }
+
     /** Buy/Upgrade -> Military. */
     async endBuyPhase() {
-        await this.dismissStartOfTurnPanel();
-        await this.phaseBar.advanceTo(Phase.MILITARY);
+        await this.withBlockersCleared(() => this.phaseBar.advanceTo(Phase.MILITARY, 30_000));
     }
 
     /**
@@ -138,9 +196,8 @@ export class GameDriver {
      * countries, so this waits on the turn counter rather than on a timer.
      */
     async endTurn() {
-        await this.dismissStartOfTurnPanel();
         const before = await this.turn();
-        await this.phaseBar.confirm.click();
+        await this.withBlockersCleared(() => this.phaseBar.confirm.click({ timeout: 30_000 }));
         await this.page.waitForFunction((previous) => window.__game.turn() > previous, before, {
             timeout: 120_000,
         });

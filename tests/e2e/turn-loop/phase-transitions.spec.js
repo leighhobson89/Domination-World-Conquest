@@ -83,7 +83,7 @@ test.describe("phase transitions", () => {
         await expect(page.locator(phaseBar.title)).toHaveText("Buy / Upgrade Phase");
     });
 
-    test.fixme("cycles cleanly twice in a row", async ({ startedGame: game }) => {
+    test("cycles cleanly twice in a row", async ({ startedGame: game }) => {
         // 🔴 audit 5.1 AA -- the AI turn throws `Cannot read properties of undefined
         // (reading '1')` and the unhandled rejection stops `gameLoop()` for good. It
         // can land as early as the second AI phase, so ANY spec needing more than one

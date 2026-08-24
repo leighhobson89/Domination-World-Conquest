@@ -23,6 +23,11 @@ import { test, expect } from "../../support/fixtures.js";
 //
 // docs/04-e2e-test-plan.md section 5.7.
 
+// Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
+// selection strength gate actually fires (audit 5.2 Z), and the United States is above
+// COUNTRY_GREYOUT_RANK, so it can no longer be chosen. Hokkaido is the same shape of
+// fixture and a better one -- it reaches four other Japanese territories and two enemy
+// ones (Russia, Kamchatkan Islands 3), where Alaska reached fewer.
 const baseGold = { farm: 200, forest: 200, oilWell: 1100, fort: 1000 };
 const baseConsMats = { farm: 500, forest: 500, oilWell: 200, fort: 600 };
 
@@ -137,12 +142,12 @@ test.describe("building caps and affordability", () => {
     });
 
     test("cap a building at five however rich the player is", async ({ game }) => {
-        // The United States funds a purchase from ALL of the player's territories
+        // Japan funds a purchase from ALL of the player's territories
         // (checkForMinusAndTransfer...), so this is the case where the cap, rather
         // than the wallet, is what stops the stepper.
-        await game.start({ country: "Alaska" });
+        await game.start({ country: "Hokkaido" });
 
-        await game.openUpgrade("Alaska");
+        await game.openUpgrade("Hokkaido");
         await game.upgradeWindow.plus("farm", 12);
 
         expect(await game.upgradeWindow.quantity("farm")).toBeLessThanOrEqual(MAX_PER_BUILDING);

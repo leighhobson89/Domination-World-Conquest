@@ -27,9 +27,15 @@ export class PhaseBarPage {
         return this.confirm.isEnabled();
     }
 
-    /** Advance one phase and wait until the button reflects the new one. */
-    async advanceTo(phase) {
-        await this.confirm.click();
+    /**
+     * Advance one phase and wait until the button reflects the new one.
+     *
+     * `clickTimeout` exists so a caller can retry a click that something has covered
+     * -- since refactor Phase 3 the AI attacks the player, and a battle results
+     * screen can land on top of this button. See GameDriver.withBlockersCleared.
+     */
+    async advanceTo(phase, clickTimeout) {
+        await this.confirm.click(clickTimeout ? { timeout: clickTimeout } : {});
         await this.page.waitForFunction(
             ({ selector, label }) => document.querySelector(selector)?.innerText.trim() === label,
             { selector: phaseBar.confirm, label: phaseButtonLabel[phase] },

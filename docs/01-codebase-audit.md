@@ -348,6 +348,52 @@ Two things follow:
    read after an AI turn as suspect, and fix §5.1 B/C first so the substitution at least hits
    the right slot.
 
+**AF. The AI indexes two arrays of different lengths with the same counter** — [aiCalculations.js:231](../aiCalculations.js#L231) *(found in Phase 3, by the ten-turn `long-run` spec)*
+
+`calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory` walks
+`fullTerritoriesInRange` with `j` and reads `arrayOfAiPlayerDefenseScoresForTerritories[j]`
+out of the other array with the same `j`. The two are not the same length:
+
+- `buildFullTerritoriesInRangeArray` returns one entry per territory in
+  `arrayOfLeadersAndCountries[i][2]`.
+- `getFriendlyTerritoriesDefenseScores` returns one entry only for those whose `dataName` is
+  still the country taking its turn.
+
+They agree exactly while a country has lost nothing. The moment it loses a territory the
+defence array is shorter, `[j]` runs off the end, and `[j][1]` throws on `undefined`. The
+rejection escapes the `gameLoop()` promise chain, so the failure mode is the same as
+§5.1 AA: the game freezes on `AI MOVING...`.
+
+**This did not surface before Phase 3** because §5.1 AA killed the AI turn earlier, and
+§5.1 B/C meant conquests rarely wrote back to the right slot. Fixing those exposed it — the
+AI now actually takes and loses territory. Fixed by matching on the territory name, which is
+what the two entries genuinely share.
+
+**AG. An AI country with nothing to do crashes the turn** — [aiCalculations.js:298](../aiCalculations.js#L298) and [gameTurnsLoop.js:404](../gameTurnsLoop.js#L404) *(found in Phase 3, by the ten-turn `long-run` spec)*
+
+Two faults with one cause: the AI turn was written on the assumption that the world never
+changes shape during it.
+
+1. `calculateTurnGoals` reads `sortedThreatArrayInfo[0][2].leader.traits` without checking
+   that there is a `[0]`. Every goal is derived from a threat, so a country with no
+   attackable enemy territory in range produces an empty list — which is an entirely
+   ordinary state once the AI can conquer, because a country whose neighbours are now all
+   its own has no enemy in range. It threw instead.
+2. `handleAITurn` iterates `arrayOfLeadersAndCountries` by a bare index, but conquering a
+   territory calls `updateArrayOfLeadersAndCountries()`, which **rebuilds that same array in
+   place** — clearing it and pushing a fresh set, with any eliminated country simply absent.
+   A conquest during one country's turn therefore shifts every later entry: countries get
+   skipped or move twice, and once the list shrinks past the cursor
+   `arrayOfLeadersAndCountries[i][2][0]` throws.
+
+Fixed by returning no goals for a country with no threats, and by fixing the turn *order* at
+the start of the phase while resolving each country's index into the live array fresh. A
+country conquered earlier in the same turn now takes no turn, which is the correct rule
+rather than a workaround.
+
+Both AF and AG are the same species as §5.1 AA and §5.1 C: **loop state and loop subject
+disagreeing**. It is the single most common defect shape in this codebase.
+
 ### 5.2 High — logic errors
 
 **I. Loop-variable shadowing in the per-turn income loop** — [resourceCalculations.js:565](../resourceCalculations.js#L565)
@@ -443,7 +489,129 @@ The fix is a decision, not just an edit — pick the intended percentile (the co
 the top few countries) and express the threshold in the same units the normaliser produces.
 Covered by `tests/e2e/country-selection/greyed-out.spec.js`, currently `test.fixme`.
 
+**AH. The battle-results Accept button assumes a player-initiated battle** — [battle.js:1068](../battle.js#L1068) *(found in Phase 3, by the ten-turn `long-run` spec)*
+
+`originalDefendingTerritory` is set in exactly one place: the setup of a battle **the player
+opened**. The results screen is shared, though — a siege arrest raises it through
+`handleEndSiegeDueArrest`, and so does an AI attack on the player — and its Accept button runs
+the same handler either way:
+
+```js
+addWarToHistoricWarArray(getResolution(), warId, false);
+```
+
+which begins
+
+```js
+let defendingTerritoryCopy = getOriginalDefendingTerritory();   // undefined
+let strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);   // throws
+```
+
+So the first battle result of a session that the player did not themselves start throws
+`Cannot read properties of undefined (reading 'uniqueId')` from a click handler. The war those
+results describe has already been recorded by whoever raised the screen, so there is nothing
+for this handler to add.
+
+**Reachable only from Phase 3 onwards.** Before it, §5.1 AA killed the AI turn before the AI
+ever attacked the player, so the shared screen was only ever raised by the player's own
+battles. `addRemoveWarSiegeObject` reads the same value without a guard and is fixed with it;
+`getStrokeColorOfDefendingTerritory` now returns `""` rather than falling off the end.
+
+**AI. Six territory names cannot be used in a CSS selector** — [ui.js:4253](../ui.js#L4253) and [:4278](../ui.js#L4278) *(found in Phase 3, by the ten-turn `long-run` spec)*
+
+The siege marker is looked up by an id built from the territory name:
+
+```js
+const formattedTerritoryName = territoryName.replace(/\s+/g, "_");
+const imageElement = svgMap.querySelector("#siegeImage_" + formattedTerritoryName);
+```
+
+Spaces become underscores, but **parentheses are left as they are** — and several names in
+`svgMaster.svg` legitimately carry them: `Andros Island (Bahamas)`,
+`Grand Bahama (Bahamas)` and their neighbours. `#siegeImage_Andros_Island_(Bahamas)` is not
+valid CSS, so `querySelector` **throws** rather than returning `null`:
+
+```
+SyntaxError: Failed to execute 'querySelector' on 'Document':
+'#siegeImage_Andros_Island_(Bahamas)' is not a valid selector.
+```
+
+It surfaced from the per-turn siege sweep, which means it took the AI turn — and therefore
+the game loop — with it. Fixed by using `getElementById`, which takes the id literally and
+needs no escaping. `gameTurnsLoop.js` already did that for the same id; only `ui.js` used a
+selector.
+
+**A second instance of the CLAUDE.md gotcha**: those parentheses are real, not typos, and
+anything that treats a territory name as syntax has to account for them. §5.3 X was the
+first.
+
+**AJ. Starvation drives population, and the army, below zero** — [resourceCalculations.js:960](../resourceCalculations.js#L960) and [:1024](../resourceCalculations.js#L1024) *(found in Phase 3, by the ten-turn `long-run` spec)*
+
+Three related faults, all of which only became reachable once §5.1 F made starvation actually
+starve.
+
+1. **The famine death toll is capped against the wrong total.**
+
+   ```js
+   populationChange = -Math.min(foodShortage * deathRate, currentPopulation);
+   ```
+
+   `currentPopulation` counts the army as well as the civilians — infantry plus each vehicle
+   at its personnel worth — but the change is applied to `territoryPopulation`, the civilian
+   figure, alone. A famine could therefore kill more civilians than the territory had.
+
+2. **`starveArmyInstead` lets `armyForCurrentTerritory` drift.** Its second branch zeroes the
+   infantry and eats into the vehicles but never touches the total those numbers are supposed
+   to summarise. Measured on the Cayman Islands at turn 4: `armyForCurrentTerritory` of
+   **−32,263** on a territory still holding **549,615** infantry.
+
+3. **A negative population makes gold `NaN`, permanently.**
+
+   ```js
+   const populationScalingFactor = Math.log10(territory.productiveTerritoryPop + 1);
+   ...
+   goldChange = Math.ceil(goldIncome / modifier) * 0.2;
+   ```
+
+   `Math.log10` of a negative is `NaN`, and `NaN` in `goldForCurrentTerritory` never recovers —
+   every later turn adds to it. At exactly zero productive population the same line divides by
+   zero instead. Observed as `Montserrat.goldForCurrentTerritory = NaN` and
+   `Cayman Islands.goldForCurrentTerritory = NaN`.
+
+Fixed by capping the deaths at the civilian population as well, recomputing
+`armyForCurrentTerritory` from the units that remain, and treating a territory with nothing
+productive left as earning nothing rather than `NaN`. `territoryPopulation` is floored at zero
+where the turn change is applied, in both the ordinary and the under-siege branch.
+
+**The wider point:** §5.1 F was a one-character fix, and it turned a branch that had never
+executed into one that executes routinely. Every defect downstream of a dormant code path is
+invisible until that path wakes up — which is the argument for the ten-turn run existing at
+all.
+
 ### 5.3 Medium — fragility and correctness risk
+
+**AD. INVADE! never debits the source territory** — [battle.js:330](../battle.js#L330) *(found in Phase 2.3, by `attack/attack-window.spec.js`)*
+
+The e2e plan (§5.9) specifies that committed units leave their source territory the moment the
+invasion launches — that is what stops a player committing the same garrison to two attacks in
+one turn. Measured, the source territory's infantry and army counts are **completely
+unchanged** while the battle runs, and still unchanged a second and a half later. The battle
+works on its own copies of both armies (§3.2 — state in three places at once) and the source is
+reconciled only when the war resolves.
+
+Whether "immediately" is the right design is a genuine question, not just a bug. It is settled
+at **Phase 4.7**, which makes siege and war objects hold a territory id rather than a copy;
+the intended behaviour is `test.fixme` until then, with today's behaviour characterised beside
+it.
+
+**AE. The attack marker survives a cancel** — [transferAndAttack.js](../transferAndAttack.js) *(found in Phase 2.3, by `attack/attack-window.spec.js`)*
+
+Cancelling an attack by either route — the window's X button, or the move button's CANCEL —
+returns the committed units but leaves the attack marker drawn on the target. It is the marker
+half of the map-state desync described in this section: colour and markers are pushed onto the
+SVG imperatively from ~30 call sites rather than derived from state. **Phase 6.7** removes the
+class of bug by making markers a pure function of state.
+
 
 - **Map colour state**: colour is snapshotted into `currentMapColorAndStrokeArray` and restored from ~30 call sites with a boolean/string parameter (`saveMapColorState(false)` vs `saveMapColorState("true")` — both truthy in one call path). Colour desync is a known symptom ("all sieged territories of ai go white").
 - **`gameLoop()` recurses infinitely** ([gameTurnsLoop.js:250](../gameTurnsLoop.js#L250)) — each turn nests another promise chain. No unwinding, no cancellation, no way to end or restart a game.

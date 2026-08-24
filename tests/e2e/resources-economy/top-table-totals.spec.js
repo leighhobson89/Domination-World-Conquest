@@ -1,5 +1,10 @@
 import { test, expect } from "../../support/fixtures.js";
 
+// Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
+// selection strength gate actually fires (audit 5.2 Z), and the United States is above
+// COUNTRY_GREYOUT_RANK, so it can no longer be chosen. Hokkaido is the same shape of
+// fixture and a better one -- it reaches four other Japanese territories and two enemy
+// ones (Russia, Kamchatkan Islands 3), where Alaska reached fewer.
 // The top table is the player's headline figure for every resource. It must be
 // the sum over the territories they own, and it must move when they spend.
 //
@@ -50,7 +55,7 @@ test.describe("the top table", () => {
     test("equals the sum across all eleven territories of a multi-territory country", async ({
         game,
     }) => {
-        await game.start({ country: "Alaska" });
+        await game.start({ country: "Hokkaido" });
 
         const owned = await game.playerTerritories();
         expect(owned.length).toBeGreaterThan(1);

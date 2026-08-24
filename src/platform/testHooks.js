@@ -68,6 +68,12 @@ export function installTestHooks(accessors) {
         pathAreaComputations: () => accessors.pathAreaComputations(),
         sieges: () => snapshot(accessors.sieges()),
         wars: () => snapshot(accessors.wars()),
+
+        // [countryName, normalisedStrength], strongest first. What the country
+        // selection screen greys out is a prefix of this list -- see audit 5.2 Z --
+        // so a spec can name the gate rather than hard-coding which countries are
+        // above it.
+        countryStrengths: () => snapshot(accessors.countryStrengths()),
     };
 }
 

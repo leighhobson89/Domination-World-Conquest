@@ -1,8 +1,13 @@
 import { test, expect } from "../../support/fixtures.js";
 
+// Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
+// selection strength gate actually fires (audit 5.2 Z), and the United States is above
+// COUNTRY_GREYOUT_RANK, so it can no longer be chosen. Hokkaido is the same shape of
+// fixture and a better one -- it reaches four other Japanese territories and two enemy
+// ones (Russia, Kamchatkan Islands 3), where Alaska reached fewer.
 // Moving units between two territories the player owns.
 //
-// The United States is the smallest world in which a transfer is possible at
+// Japan is the smallest world in which a transfer is possible at
 // all: 11 territories, several of them mutually reachable. Germany owns one, so
 // its TRANSFER button is correctly dead (valid-destinations.spec.js).
 //
@@ -33,17 +38,17 @@ test.describe("the transfer window", () => {
     test("lists the destinations the source can reach, and not the source itself", async ({
         game,
     }) => {
-        await game.start({ country: "Alaska" });
-        await openTransferFrom(game, "Alaska");
+        await game.start({ country: "Hokkaido" });
+        await openTransferFrom(game, "Hokkaido");
 
         const rows = await game.transferAttack.rowNames();
         expect(rows.length).toBeGreaterThan(0);
-        expect(rows.some((name) => name.startsWith("Alaska "))).toBe(false);
+        expect(rows.some((name) => name.startsWith("Hokkaido "))).toBe(false);
     });
 
     test("labels each destination coastal or landlocked", async ({ game }) => {
-        await game.start({ country: "Alaska" });
-        await openTransferFrom(game, "Alaska");
+        await game.start({ country: "Hokkaido" });
+        await openTransferFrom(game, "Hokkaido");
 
         const rows = await game.transferAttack.rowNames();
         for (const row of rows) {
@@ -52,11 +57,11 @@ test.describe("the transfer window", () => {
     });
 
     test("needs a row to be selected before its steppers respond", async ({ game }) => {
-        await game.start({ country: "Alaska" });
-        await openTransferFrom(game, "Alaska");
+        await game.start({ country: "Hokkaido" });
+        await openTransferFrom(game, "Hokkaido");
 
-        const destination = await friendlyDestination(game, "Alaska");
-        test.skip(!destination, "Alaska reached no other player-owned territory");
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
 
         expect(await game.transferAttack.selectedRowName()).toBeNull();
         await game.transferAttack.select(destination);
@@ -64,11 +69,11 @@ test.describe("the transfer window", () => {
     });
 
     test("turns the move button into CONFIRM once a quantity is non-zero", async ({ game }) => {
-        await game.start({ country: "Alaska" });
-        await openTransferFrom(game, "Alaska");
+        await game.start({ country: "Hokkaido" });
+        await openTransferFrom(game, "Hokkaido");
 
-        const destination = await friendlyDestination(game, "Alaska");
-        test.skip(!destination, "Alaska reached no other player-owned territory");
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
 
         await game.transferAttack.select(destination);
         expect(await game.moveButton.label()).toBe("CANCEL");
@@ -80,14 +85,14 @@ test.describe("the transfer window", () => {
 
 test.describe("executing a transfer", () => {
     test("moves the chosen units and conserves the total", async ({ game }) => {
-        await game.start({ country: "Alaska" });
-        const destination = await friendlyDestination(game, "Alaska");
-        test.skip(!destination, "Alaska reached no other player-owned territory");
+        await game.start({ country: "Hokkaido" });
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
 
-        const sourceBefore = await game.territory("Alaska");
+        const sourceBefore = await game.territory("Hokkaido");
         const destBefore = await game.territory(destination);
 
-        await openTransferFrom(game, "Alaska");
+        await openTransferFrom(game, "Hokkaido");
         await game.transferAttack.select(destination);
         await game.transferAttack.plus(destination, "infantry");
         const moved = await game.transferAttack.quantity(destination, "infantry");
@@ -96,7 +101,7 @@ test.describe("executing a transfer", () => {
         await game.moveButton.click();
         await expect.poll(async () => game.transferAttack.isOpen()).toBe(false);
 
-        const sourceAfter = await game.territory("Alaska");
+        const sourceAfter = await game.territory("Hokkaido");
         const destAfter = await game.territory(destination);
 
         expect(
@@ -117,11 +122,11 @@ test.describe("executing a transfer", () => {
     test("leaves the units usable in the same turn", async ({ game }) => {
         // Transferred units arrive active -- there is no arrival delay, unlike the
         // post-battle retrieval array.
-        await game.start({ country: "Alaska" });
-        const destination = await friendlyDestination(game, "Alaska");
-        test.skip(!destination, "Alaska reached no other player-owned territory");
+        await game.start({ country: "Hokkaido" });
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
 
-        await openTransferFrom(game, "Alaska");
+        await openTransferFrom(game, "Hokkaido");
         await game.transferAttack.select(destination);
         await game.transferAttack.plus(destination, "infantry");
         await game.moveButton.click();
@@ -133,17 +138,17 @@ test.describe("executing a transfer", () => {
     });
 
     test("returns everything when the window is cancelled instead", async ({ game }) => {
-        await game.start({ country: "Alaska" });
-        const destination = await friendlyDestination(game, "Alaska");
-        test.skip(!destination, "Alaska reached no other player-owned territory");
+        await game.start({ country: "Hokkaido" });
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
 
-        const sourceBefore = await game.territory("Alaska");
+        const sourceBefore = await game.territory("Hokkaido");
 
-        await openTransferFrom(game, "Alaska");
+        await openTransferFrom(game, "Hokkaido");
         await game.transferAttack.select(destination);
         await game.transferAttack.close();
 
-        const sourceAfter = await game.territory("Alaska");
+        const sourceAfter = await game.territory("Hokkaido");
         expect(sourceAfter.infantryForCurrentTerritory).toBe(
             sourceBefore.infantryForCurrentTerritory
         );

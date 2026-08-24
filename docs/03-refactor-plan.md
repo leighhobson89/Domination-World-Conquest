@@ -455,7 +455,7 @@ suite itself.
 
 ---
 
-### Phase 3 — Fix the critical defects (2–3 days)
+### Phase 3 — Fix the critical defects (2–3 days) — ✅ **COMPLETE**
 
 **Goal:** make the game *play correctly* before making the code pretty. Each fix is its own
 commit with a test that fails before and passes after.
@@ -484,6 +484,152 @@ Order matters — these are sequenced by blast radius.
 | 3.16 | §5.1 R | Re-enable per-turn army maintenance. Expect this to change balance significantly; tune `armyCostPerTurn` against a 20-turn playthrough. |
 
 **Exit criteria:** every `fixme` from 2.5 flipped green; a 20-turn scripted playthrough completes with no console errors and no `NaN` in any territory.
+
+#### What actually happened
+
+Every critical and every high-severity defect in the register is closed, plus five more that
+only became **reachable** once the others were fixed. The live status of everything is now in
+[05-known-issues.md](./05-known-issues.md), which this section should be read alongside.
+
+**Order mattered more than the plan expected.** 3.1a first, as written — but fixing it did not
+make the game survive ten turns, it made the game survive long enough to reach the *next*
+crash. Five rounds of that:
+
+| Fixed | What the ten-turn run hit next |
+|---|---|
+| **AA** — the goal list mutated mid-loop | **AF** — two arrays of different lengths indexed by the same counter |
+| **AF** | **AG** — an AI country with no threats in range, and a turn list that rebuilds itself mid-iteration |
+| **AG** | **AH** — the shared battle-results screen assuming a battle the *player* started |
+| **AH** | **AI** — `querySelector("#siegeImage_Andros_Island_(Bahamas)")`, which is not valid CSS |
+| **AI** | **AJ** — starvation driving population and army below zero, and `Math.log10` of a negative turning gold into `NaN` |
+| **AJ** | *(ten turns clean; then twenty)* |
+
+**None of AF–AJ was in the audit, and none could have been.** **AA** killed the AI turn before
+it got that far, and **B**/**C** meant conquests rarely wrote back to the right slot. Fixing
+those let the AI actually take and lose territory — and let sieges, famine and AI attacks on
+the player happen at all. Every one of the five was found by the same spec, the ten-turn
+`long-run`, which is the clearest possible argument for it existing. All five are written up in
+[01-codebase-audit.md](./01-codebase-audit.md).
+
+**AJ is the one to remember.** §5.1 F was a one-character fix — `-` to `+` — and it turned a
+branch that had never executed into one that executes routinely, exposing three further faults
+behind it. Every defect downstream of a dormant code path is invisible until that path wakes up.
+
+Four of them — **AA**, **C**, **AF**, **AG** — are also the same species: **loop state and loop
+subject disagreeing**. Add that to the list of things to look for in every later phase; it is
+the most common defect shape in this codebase.
+
+**Three fixes were design decisions, not restorations of intent.** Each was measured before
+being chosen, and the reasoning is in [05-known-issues.md](./05-known-issues.md) §4:
+
+- **3.15 (K)** — the cross-type matchup matrix, as the plan recommended. Same-type
+  effectiveness is 1, so a conventional battle fights exactly as it always did, and
+  `totalSkirmishes` becomes the number of pairings the two armies can make. It is zero only
+  when one side is empty, which is a *resolved* battle rather than a stalled one.
+- **3.16 (R)** — maintenance re-enabled and re-tuned. The plan predicted a significant balance
+  change and it was right: at the original rates Germany owed 396 gold a turn against ~50 of
+  income, China 1,384 — every major power bankrupt inside forty turns with no way to respond.
+  At a tenth of those rates, holding an army is sustainable and *growing* one is what has to be
+  paid for. Territory gold is floored at zero, because nothing in this game models debt.
+- **Z** — the country-selection gate is now a **rank**, not a magnitude. Re-scaling `40000`
+  would only have moved the guess; measured, the strengths run China 10000, United States 9545,
+  India 7965, Indonesia 5697, Russia 4438, then Italy 3504 and a long tail. Five is where the
+  superpowers stop.
+
+**Corrections to the plan as written**
+
+- **3.9 (J) needed more than dropping the latch.** `changeDuringAnySiege` was a crude guard
+  around a real problem: the siege branch sits inside `for (const path of paths)` and, unlike
+  the income branch beside it, never checked *which* path it was looking at. Removing the latch
+  alone would have run it 359 times per besieged territory per turn. The branch is now scoped
+  by the same path check as its neighbour, which is what makes "every besieged territory, once
+  a turn" actually true.
+- **3.0 (AC) came out as a deletion, not a move.** The plan offered "move each trailing
+  deduction inside the branch, or have the helpers transfer only". Neither was needed: the
+  helpers were already correct — borrow if short, then charge — and the *caller* was the one
+  charging a second time. Removing the caller's two deductions restores the original design.
+- **3.2 (AB) is closed in practice, not structurally.** `Object.assign` into the live element
+  preserves identity so the Phase 1.5 index cannot be orphaned, but the underlying problem —
+  that the AI works on copies at all — is Phase 4.4's.
+- **§5.1 F, §5.1 D, §5.1 E and §5.2 K read correctly in the code but their assertions still
+  wait on the scenario loader** (e2e plan §3.7, a Phase 4 deliverable). A rout, a famine, or two
+  concurrent sieges are not reachable by clicking, and hoping the live map produces one is a
+  seed lottery. The `fixme`s in `battle/known-broken.spec.js` name the loader, not the defect.
+
+**Fallout in the test suite, all of it expected**
+
+- **Three characterisation specs were deleted** — the ones written in Phase 2.5 to fail when
+  the defect was fixed. That is exactly what they did: `today: charges double the quoted gold`,
+  `today: a fort purchase inflates the food capacity`, and `today: nothing is greyed out`.
+  **Ten** `fixme`s were flipped green behind them, and seven more across `turn-loop/` that were
+  blocked on AA -- 24 down to 7.
+- **Seven spec files changed their fixture country.** They used Alaska — and therefore the
+  United States — as "the multi-territory country the player owns", and the United States is
+  now above `COUNTRY_GREYOUT_RANK`. They use **Hokkaido (Japan)** instead, which is a better
+  fixture anyway: it reaches four other Japanese territories and two enemy ones.
+- **The driver had to learn to dismiss a battle results screen.** Since the AI now conquers, it
+  also attacks the *player*, so a turn can end with the results screen sitting on top of the
+  phase button — and it can land a beat AFTER the turn counter moves, so clearing once is not
+  enough. `GameDriver.dismissBlockingPanels()` clears it and `withBlockersCleared()` retries the
+  phase click, which costs nothing when the path is clear. The battle UI proper is deliberately
+  not dismissed — a spec that finds one open should drive it.
+- **`window.__game.countryStrengths()` was added** so a spec can name the selection gate rather
+  than hard-coding which countries sit above it. It is the only change to shipped code that
+  exists for the tests, and it reads state that was already computed.
+- **The pageerror listener now records `error.stack`.** Diagnosing AA took two extra full runs
+  purely because the message arrived without a location. The frames are minified, but they carry
+  byte offsets that `build/assets/*.js.map` resolves back to a file and line.
+- **Two specs were de-flaked.** `bootstrap/page-load`'s "New Game disabled until the model is
+  built" was racing a ~600 ms startup from outside the page and passed only when the machine
+  happened to be slow; it now samples the button state from inside the page, every 5 ms, from
+  before any page script runs. The two multi-turn `start-of-turn-ui` specs were budgeted for one
+  turn and now play several, so they get their own timeout. Neither was a Phase 3 regression, but
+  a flaky safety net undermines every phase after this one.
+
+**Lint moved in the right direction on its own:** 226 errors / 405 warnings → **214 / 394**,
+entirely from the fixes (`no-undef` on the implicit `country` global, `no-shadow` on the
+loop variables). No rule was fixed in passing — house rule 6 holds.
+
+**Verification**
+
+| | Result |
+|---|---|
+| Unit (Vitest) | **82 passing**, unchanged |
+| E2E (Playwright, 4 workers headless) | **204 passing, 0 failing, 8 skipped** — 7 `test.fixme` and the single-worker perf spec — in **5–9 min** depending on how much of the world the AI conquers |
+| `test.fixme` before Phase 3 | 24 |
+| `test.fixme` after | **7** — two on **AD**/**AE** (Phase 4.7 / 6.7), four in `battle/known-broken` waiting on the scenario loader, one on **Y** (Phase 5) |
+| 20-turn scripted playthrough | **completes**, zero page errors, zero console errors, **no non-finite number in any of the 359 territories** |
+| Lint | 226 errors / 405 warnings → **214 / 394** |
+
+The 20-turn run is the plan's stated exit criterion and it is met. The ten-turn version of it
+now lives in the suite as `turn-loop/long-run.spec.js`, un-`fixme`d.
+
+**Left for later, deliberately**
+
+- **AD** (INVADE! does not debit the source) — Phase 4.7. There is no single source to debit
+  until war objects hold a territory id instead of a copy.
+- **AE** (the attack marker survives a cancel) — Phase 6.7, which removes the class of bug.
+- **Unpaid upkeep has no consequence.** With maintenance live, a broke territory keeps its army
+  for free. Desertion is a design decision and belongs in Phase 7.
+- **`updateArrayOfLeadersAndCountries()` still rebuilds mid-turn**, so the AI's view of who owns
+  what can be stale by up to one conquest. Phase 3 stopped that *crashing*; one source of truth
+  (Phase 4) is what stops it being stale.
+
+**Two design problems Phase 3 made visible** — see
+[05-known-issues.md](./05-known-issues.md) §6. Neither is a defect to patch, and both are
+Phase 7 work, but they are what a player will feel first:
+
+- **The AI besieges far more than it can finish.** Over 14 turns, concurrent AI sieges went
+  17 → 67. Sieges end only on an arrest or a conquest, and 206 independent countries each
+  evaluating every reachable enemy launch them far faster than they resolve. This is exactly
+  what **7.7** (consolidate the countries into 8–16 powers) and **7.8** (long-term goals) are
+  for.
+- **A besieged territory earns nothing and can stay besieged indefinitely.** The player was
+  besieged on turn 3 of that run and still besieged on turn 14, gold frozen throughout. The
+  suspension is not a considered rule: the gold, oil and construction-material lines in the
+  siege branch are commented out under *"uncomment other features if decided to involve them in
+  sieges"*. It is a placeholder nobody had reached, because §5.1 D and §5.2 J meant at most one
+  siege was processed per turn.
 
 ---
 

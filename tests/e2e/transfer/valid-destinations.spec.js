@@ -1,5 +1,10 @@
 import { test, expect } from "../../support/fixtures.js";
 
+// Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
+// selection strength gate actually fires (audit 5.2 Z), and the United States is above
+// COUNTRY_GREYOUT_RANK, so it can no longer be chosen. Hokkaido is the same shape of
+// fixture and a better one -- it reaches four other Japanese territories and two enemy
+// ones (Russia, Kamchatkan Islands 3), where Alaska reached fewer.
 // Selecting an owned territory in the Military phase highlights what it can
 // reach and decides what the move button offers.
 //
@@ -7,10 +12,10 @@ import { test, expect } from "../../support/fixtures.js";
 
 test.describe("selecting an owned territory in the Military phase", () => {
     test("offers a live TRANSFER when there is somewhere to send units", async ({ game }) => {
-        await game.start({ country: "Alaska" });
+        await game.start({ country: "Hokkaido" });
         await game.endBuyPhase();
 
-        await game.selectOnMap("Alaska");
+        await game.selectOnMap("Hokkaido");
 
         expect(await game.moveButton.label()).toBe("TRANSFER");
         expect(await game.moveButton.variant()).toBe("transfer");

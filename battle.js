@@ -100,6 +100,64 @@ const armyTypeSiegeValues = {
     naval: 10
 };
 
+//audit 5.2 K. Skirmishes used to pair matching unit types only, with
+//`skirmishesPerType = min(attacker[t], defender[t])`. Two armies sharing no unit type
+//produced totalSkirmishes === 0, so the battle could neither progress nor resolve -- an
+//all-infantry attack on an all-naval defender simply hung.
+//
+//Refactor plan 3.15 offered two ways out and recommended this one: let any type engage any
+//type, scaled by how effective it is against that opponent. Army composition now matters,
+//and because every attacker can find someone to fight, a battle always resolves.
+//
+//Rows are the ATTACKING unit type, columns the DEFENDING one, in unitTypes order:
+//infantry, assault, air, naval. Same-type values are 1 so the common case is unchanged.
+//These are balance numbers and move to config/balance.js at Phase 5.1.
+const UNIT_MATCHUP_EFFECTIVENESS = [
+    //           vs inf  vs assault  vs air  vs naval
+    /* infantry */[1, 0.6, 0.4, 0.5],
+    /* assault  */[1.4, 1, 0.5, 0.7],
+    /* air      */[1.5, 1.6, 1, 1.4],
+    /* naval    */[0.8, 0.7, 0.5, 1]
+];
+
+/**
+ * Which of the defender remaining unit types this attacking type engages.
+ *
+ * Its own type first, so a conventional battle fights exactly as it always did. Failing
+ * that, whichever surviving defender type this attacker is most effective against.
+ * Returns -1 when the defender has nothing left at all.
+ */
+function chooseDefendingUnitTypeIndex(attackingUnitTypeIndex, defendingArmyRemaining) {
+    if (defendingArmyRemaining[attackingUnitTypeIndex] > 0) {
+        return attackingUnitTypeIndex;
+    }
+
+    let bestIndex = -1;
+    let bestEffectiveness = -1;
+    for (let i = 0; i < defendingArmyRemaining.length; i++) {
+        if (defendingArmyRemaining[i] <= 0) {
+            continue;
+        }
+        const effectiveness = UNIT_MATCHUP_EFFECTIVENESS[attackingUnitTypeIndex][i];
+        if (effectiveness > bestEffectiveness) {
+            bestEffectiveness = effectiveness;
+            bestIndex = i;
+        }
+    }
+    return bestIndex;
+}
+
+/**
+ * How many pairings the two armies can make between them: every attacking unit can now
+ * engage some defending unit, so this is simply the smaller of the two head counts. It is
+ * zero only when one side is empty, which is a resolved battle rather than a stalled one.
+ */
+function countPossibleSkirmishes(attackArmy, defendArmy) {
+    const attackers = attackArmy.reduce((sum, count) => sum + count, 0);
+    const defenders = defendArmy.reduce((sum, count) => sum + count, 0);
+    return Math.min(attackers, defenders);
+}
+
 const hitIterations = 10; //number of loops to determine hit for siege
 
 export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
@@ -275,6 +333,11 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
     console.log("Continent Modifier: " + continentModifier);
     console.log("Defense Bonus: " + defenseBonus);
 
+    //audit 5.2 L: proportionsOfAttackArray is module level and is only ever pushed to,
+    //so without this every battle inherited the retrieval proportions of every battle
+    //before it.
+    proportionsOfAttackArray.length = 0;
+
     // Calculate total attacking army
     totalAttackingArmy = [0, 0, 0, 0];
     tempTotalAttackingArmy = [0, 0, 0, 0]; // copy for console output
@@ -328,7 +391,11 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
     console.log("Total Attacking Army: " + totalAttackingArmy);
 
     unchangeableWarStartCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
-    unchangeableWarStartCombinedForceDefend = calculateCombinedForce(totalAttackingArmy);
+    //audit 5.1 E: this was calculated from totalAttackingArmy, so all three rout and
+    //last-push thresholds in processRound compared the DEFENDER's remaining force against
+    //the ATTACKER's starting force. Battles resolved at the wrong moment whenever the two
+    //armies differed in size, which is almost always.
+    unchangeableWarStartCombinedForceDefend = calculateCombinedForce(totalDefendingArmy);
 
     initialCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
     initialCombinedForceDefend = calculateCombinedForce(totalDefendingArmy);
@@ -339,8 +406,11 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
         Math.min(totalAttackingArmy[1], totalDefendingArmy[1]),
         Math.min(totalAttackingArmy[2], totalDefendingArmy[2]),
         Math.min(totalAttackingArmy[3], totalDefendingArmy[3])
-    ];
-    totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
+    ]; //kept for display: how much of this battle is a like-for-like fight
+    //audit 5.2 K: the total is now the number of pairings the two armies can make, which is
+    //zero only when one side is empty. Summing the per-type minimums made it zero whenever
+    //the two armies shared no unit type, and the battle hung.
+    totalSkirmishes = countPossibleSkirmishes(totalAttackingArmy, totalDefendingArmy);
 
     let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
 
@@ -498,8 +568,12 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 siegeButton.disabled = true;
                 siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
             } else if (ai) {
-                for (country of turnGainsArrayAi) {
-                    if (country === siegeObject.dataName) {
+                //audit 5.1 H: this was `for (country of turnGainsArrayAi)` -- an implicit
+                //global (a ReferenceError under a module's strict mode) over a plain object
+                //that is not iterable. It threw every time an AI rout resolved here. The
+                //country NAME is the key; the entry is the value.
+                for (const [countryName, country] of Object.entries(turnGainsArrayAi)) {
+                    if (countryName === siegeObject.dataName) {
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] / 2) * oilRequirements.assault);
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
@@ -616,20 +690,32 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
 }
 
 export function activateAiTerritoriesForNewTurn() {
-    for (let i = 0; i < aiTurnsDeactivatedArray.length; i++) {
+    //Each entry is [uniqueId, turnsToDeactivate, turnsServed]. Walk backwards so the
+    //splice below cannot shift an entry past the cursor.
+    //
+    //audit 5.2 N: the lookup compared a territory's uniqueId against the ARRAY
+    //`aiTurnsDeactivatedArray[0]` rather than against `aiTurnsDeactivatedArray[i][0]`, so
+    //it was never true and AI territories were never reactivated after a conquest.
+    //audit 5.2 O: the entry was then left in the array forever, so once the counter did
+    //match it re-fired on every subsequent turn for the rest of the game.
+    for (let i = aiTurnsDeactivatedArray.length - 1; i >= 0; i--) {
         if (aiTurnsDeactivatedArray[i][1] !== aiTurnsDeactivatedArray[i][2]) {
             aiTurnsDeactivatedArray[i][2]++;
         } else {
             for (let j = 0; j < mainGameArray.length; j++) {
-                if (mainGameArray[j].uniqueId === aiTurnsDeactivatedArray[0]) {
+                if (mainGameArray[j].uniqueId === aiTurnsDeactivatedArray[i][0]) {
                     mainGameArray[j].isDeactivated = false;
+                    break;
                 }
             }
+            aiTurnsDeactivatedArray.splice(i, 1); //served its sentence, stop tracking it
         }
     }
 }
 export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all territories at start of turn
-    for (let i = 0; i < playerTurnsDeactivatedArray.length; i++) {
+    //audit 5.2 O -- see activateAiTerritoriesForNewTurn. Walk backwards, and splice a
+    //reactivated entry out so it cannot re-fire every turn thereafter.
+    for (let i = playerTurnsDeactivatedArray.length - 1; i >= 0; i--) {
         if (playerTurnsDeactivatedArray[i][1] !== playerTurnsDeactivatedArray[i][2]) {
             playerTurnsDeactivatedArray[i][2]++;
         } else {
@@ -651,8 +737,10 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
                     if (mapMode === 1) {
                         setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
                     }
+                    break;
                 }
             }
+            playerTurnsDeactivatedArray.splice(i, 1); //served its sentence, stop tracking it
         }
     }
 }
@@ -680,28 +768,32 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
         for (const unitType of skirmishOrder) {
             const unitTypeIndex = unitTypes.indexOf(unitType);
 
+            //audit 5.2 K: this no longer requires the defender to have units of the SAME
+            //type. Each attacking unit engages its own type where it can and its best
+            //available matchup where it cannot, so no pair of armies can stall the battle.
             if (
                 attackArmyRemaining[unitTypeIndex] > 0 &&
-                defendingArmyRemaining[unitTypeIndex] > 0 &&
+                defendingArmyRemaining.some(count => count > 0) &&
                 skirmishesCompleted < skirmishesPerRound
             ) {
-                let attackerCount = attackArmyRemaining[unitTypeIndex];
-                let defenderCount = defendingArmyRemaining[unitTypeIndex];
                 let skirmishes = 0;
 
                 while (
-                    attackerCount > 0 &&
-                    defenderCount > 0 &&
+                    attackArmyRemaining[unitTypeIndex] > 0 &&
                     skirmishesCompleted < skirmishesPerRound
                     ) {
-                    const odds = Math.min(updatedProbability / 100, 0.65);
+                    const defendingUnitTypeIndex = chooseDefendingUnitTypeIndex(unitTypeIndex, defendingArmyRemaining);
+                    if (defendingUnitTypeIndex === -1) {
+                        break; //nothing left to fight
+                    }
+
+                    const effectiveness = UNIT_MATCHUP_EFFECTIVENESS[unitTypeIndex][defendingUnitTypeIndex];
+                    const odds = Math.min((updatedProbability / 100) * effectiveness, 0.65);
                     const attackerWins = Math.random() <= odds;
 
                     if (attackerWins) {
-                        defenderCount--;
-                        defendingArmyRemaining[unitTypeIndex]--;
+                        defendingArmyRemaining[defendingUnitTypeIndex]--;
                     } else {
-                        attackerCount--;
                         attackArmyRemaining[unitTypeIndex]--;
                     }
 
@@ -719,7 +811,10 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
                 //update UI text
                 let attackArrayText = [...attackArmyRemaining, ...defendingArmyRemaining];
                 setArmyTextValues(attackArrayText, 1, arrayOfUniqueIdsAndAttackingUnits[0]);
-                let updatedProbability = getUpdatedProbability();
+                //audit 5.2 M: a `let` here shadowed the module binding, so the freshly
+                //computed probability was shown once and then thrown away -- every later
+                //reader saw the stale module value.
+                updatedProbability = getUpdatedProbability();
                 setAttackProbabilityOnUI(updatedProbability, 1);
                 break;
             }
@@ -779,7 +874,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
                     Math.min(attackArmyRemaining[2], defendingArmyRemaining[2]),
                     Math.min(attackArmyRemaining[3], defendingArmyRemaining[3])
                 ];
-                totalSkirmishes = skirmishesPerType.reduce((sum, skirmishes) => sum + skirmishes, 0);
+                totalSkirmishes = countPossibleSkirmishes(attackArmyRemaining, defendingArmyRemaining); //audit 5.2 K
 
                 const retreatButton = document.getElementById("retreatButton");
                 const advanceButton = document.getElementById("advanceButton");
@@ -859,6 +954,10 @@ export function setNextWarId(value) {
 
 export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
+    if (!defendingTerritoryCopy) {
+        console.log("No player-initiated battle to turn into a siege object"); //audit 5.2 AH
+        return;
+    }
     let proportionsAttackers = proportionsOfAttackArray;
     const strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
     let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
@@ -973,6 +1072,18 @@ export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker
 export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStart) {
     let proportionsAttackers;
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
+
+    //audit 5.2 AH. `originalDefendingTerritory` is set only when the PLAYER opens a battle
+    //against a territory. The battle-results screen is shared: a siege arrest and an AI
+    //attack on the player both raise it, and its Accept button runs this same handler -- so
+    //on the first such result of a session there is no open battle to describe and every
+    //read below threw on undefined. The war those results describe has already been recorded
+    //by whoever raised the screen, so there is nothing to add here.
+    if (!defendingTerritoryCopy) {
+        console.log("No player-initiated battle to record -- the results screen is showing someone else war");
+        return;
+    }
+
     let strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
     let startingDefenseBonus = defendingTerritoryCopy.defenseBonus;
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
@@ -1024,6 +1135,7 @@ function getStrokeColorOfDefendingTerritory(defendingTerritory) {
             return paths[i].style.stroke;
         }
     }
+    return ""; //no path for that territory: an absent stroke, not undefined
 }
 
 export function incrementSiegeTurns(ai) {
@@ -1117,7 +1229,12 @@ export function calculatePlayerInitiatedSiegePerTurn() {
             hitThisTurn ? damage = calculateDamageDone(false, playerSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
 
             if (!damage) { //if no hit
-                return;
+                //audit 5.1 D: this used to `return`, which abandoned the whole loop and
+                //handed gameTurnsLoop `undefined` -- so one siege missing its hit roll
+                //silently cancelled every other siege's turn processing. A miss is just a
+                //quiet turn for that one siege; it continues.
+                continueSiegeArray.push(true);
+                continue;
             } else if (damage[2]) { //if arrested
                 playerSiegeWarsList[key].defendingArmyRemaining.push(1); //add routing defeat to array
                 continueSiegeArray.push(playerSiegeWarsList[key]);
@@ -1162,7 +1279,10 @@ export function calculateAiInitiatedSiegePerTurn() {
             hitThisTurn ? damage = calculateDamageDone(true, aiSiegeWarsList[key], totalSiegeScore, defenseBonusAttackedTerritory, mountainDefenseBonusAttackedTerritory) : damage = false;
 
             if (!damage) { //if no hit
-                return;
+                //audit 5.1 D -- see calculatePlayerInitiatedSiegePerTurn above. Same bug,
+                //same fix: a miss must not abandon the other AI sieges.
+                continueSiegeArray.push(true);
+                continue;
             } else if (damage[2]) { //if arrested
                 aiSiegeWarsList[key].defendingArmyRemaining.push(1); //add routing defeat to array
                 continueSiegeArray.push(aiSiegeWarsList[key]);

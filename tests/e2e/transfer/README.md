@@ -9,7 +9,7 @@ Moving units between two territories the same player owns, in the Military phase
 
 ## Notes
 
-- **The United States is the smallest world where a transfer is possible.** Germany
+- **Japan is the smallest world where a transfer is possible.** Germany
   owns one territory, so its TRANSFER button is correctly dead — that case is a
   spec of its own, not a limitation.
 - **The row click handler is on the NAME column**, not the row

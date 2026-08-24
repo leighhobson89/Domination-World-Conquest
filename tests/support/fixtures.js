@@ -26,7 +26,12 @@ export const test = base.extend({
         await page.addInitScript(installSeededRandomSource, testInfo.title);
 
         const pageErrors = [];
-        page.on("pageerror", (error) => pageErrors.push(`pageerror: ${error.message}`));
+        // The STACK, not just the message. The specs run against the production build,
+        // so the frames are minified -- but they carry byte offsets that
+        // build/assets/*.js.map resolves back to a file and line. Diagnosing audit
+        // 5.1 AA cost two extra full runs purely because the message arrived with no
+        // location at all.
+        page.on("pageerror", (error) => pageErrors.push(`pageerror: ${error.stack || error.message}`));
         page.on("console", (message) => {
             if (message.type() === "error") pageErrors.push(`console.error: ${message.text()}`);
         });

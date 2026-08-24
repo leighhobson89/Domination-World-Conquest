@@ -16,9 +16,10 @@ import { test, expect } from "../../support/fixtures.js";
 // applies +50%. A fort purchase re-applies the farm, forest and oil bonuses
 // because the three `> 0` guards do not check what was actually bought.
 //
-// These specs are written for the intended behaviour and are `test.fixme` until
-// refactor Phase 3.1 recomputes from `buildingsBuilt` against the pre-transaction
-// capacity. The last spec records what happens today so the defect is not silent.
+// FIXED in refactor Phase 3.1: each building bought in a transaction is worth +10%
+// of the capacity the territory had BEFORE that transaction, and the three guards
+// now test what was BOUGHT rather than what has ever been built, so a fort no
+// longer re-applies the farm, forest and oil bonuses.
 //
 // docs/04-e2e-test-plan.md section 5.7.
 
@@ -33,7 +34,7 @@ async function buildOne(game, building, territoryName = "Germany") {
 }
 
 test.describe("capacity effects of a single building", () => {
-    test.fixme("one farm raises food capacity by exactly ten percent", async ({
+    test("one farm raises food capacity by exactly ten percent", async ({
         startedGame: game,
     }) => {
         const { before, after } = await buildOne(game, "farm");
@@ -42,7 +43,7 @@ test.describe("capacity effects of a single building", () => {
         expect(after.foodCapacity).toBeCloseTo(before.foodCapacity * 1.1, 4);
     });
 
-    test.fixme("one forest raises cons. mats capacity by exactly ten percent", async ({
+    test("one forest raises cons. mats capacity by exactly ten percent", async ({
         startedGame: game,
     }) => {
         const { before, after } = await buildOne(game, "forest");
@@ -51,7 +52,7 @@ test.describe("capacity effects of a single building", () => {
         expect(after.consMatsCapacity).toBeCloseTo(before.consMatsCapacity * 1.1, 4);
     });
 
-    test.fixme("one oil well raises oil capacity by exactly ten percent", async ({
+    test("one oil well raises oil capacity by exactly ten percent", async ({
         startedGame: game,
     }) => {
         const { before, after } = await buildOne(game, "oilWell");
@@ -60,7 +61,7 @@ test.describe("capacity effects of a single building", () => {
         expect(after.oilCapacity).toBeCloseTo(before.oilCapacity * 1.1, 4);
     });
 
-    test.fixme("a second farm raises capacity by ten percent, not twenty", async ({
+    test("a second farm raises capacity by ten percent, not twenty", async ({
         startedGame: game,
     }) => {
         await buildOne(game, "farm");
@@ -70,7 +71,7 @@ test.describe("capacity effects of a single building", () => {
         expect(after.foodCapacity).toBeCloseTo(before.foodCapacity * 1.1, 4);
     });
 
-    test.fixme("buying a fort leaves all three capacities untouched", async ({
+    test("buying a fort leaves all three capacities untouched", async ({
         startedGame: game,
     }) => {
         // A fort has nothing to do with food, cons. mats or oil. The three
@@ -84,20 +85,4 @@ test.describe("capacity effects of a single building", () => {
         expect(after.oilCapacity).toBeCloseTo(before.oilCapacity, 4);
     });
 
-    test("today: a fort purchase inflates the food capacity of a territory with a farm", async ({
-        startedGame: game,
-    }) => {
-        // Characterisation of audit 5.1 A, so the suite states the current
-        // behaviour rather than staying quiet about it. When Phase 3.1 lands, this
-        // spec fails -- which is the signal to delete it and un-fixme the five
-        // above.
-        await buildOne(game, "farm");
-        const { before, after } = await buildOne(game, "fort");
-
-        expect(after.fortsBuilt).toBeGreaterThan(before.fortsBuilt);
-        expect(
-            after.foodCapacity,
-            "audit 5.1 A -- a fort should not touch food capacity"
-        ).toBeGreaterThan(before.foodCapacity);
     });
-});

@@ -22,7 +22,7 @@ per territory, in the Buy/Upgrade phase only.
 - **The stepper usually stops on affordability, not on the cap.** Because the cost
   is quadratic, most territories cannot fund five of anything in one transaction.
   The cap itself is only observable on a rich, multi-territory country, which is
-  why one spec starts as the United States.
+  why one spec starts as Japan.
 - **Upgrades are charged once; military purchases are charged twice** (audit
   §5.1 AC). The asymmetry is exactly why both are pinned.
 - **`defenseBonus` is rounded two different ways** — the ceil is inside the

@@ -228,10 +228,24 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
         let friendlyTerritory;
         for (let j = 0; j < fullTerritoriesInRange.length; j++) {
             friendlyTerritory = fullTerritoriesInRange[j][0][1];
+
+            //audit 5.1 AF. These two arrays used to be indexed by the same `j`, but they are
+            //not the same length: fullTerritoriesInRange has an entry for every territory in
+            //arrayOfLeadersAndCountries[i][2], while getFriendlyTerritoriesDefenseScores only
+            //returns the ones whose dataName is still this country. The moment a country
+            //loses a territory the two desync, `arrayOfAiPlayerDefenseScoresForTerritories[j]`
+            //runs off the end, and reading `[1]` off undefined threw -- killing the AI turn
+            //and, through the uncaught rejection, the whole game loop. Match on the territory
+            //name instead, which is what the two entries actually share.
+            const defenseScore = arrayOfAiPlayerDefenseScoresForTerritories.find(entry => entry[0] === friendlyTerritory);
+            if (!defenseScore) {
+                continue; //no longer one of this country territories
+            }
+
             if (fullTerritoriesInRange[j][1].some(enemyTerritory => enemyTerritory[0] === territory.territoryName)) {
-                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, true, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
+                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, true, defenseScore[1], defenseScore[2]]);
             } else {
-                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, arrayOfAiPlayerDefenseScoresForTerritories[j][1], arrayOfAiPlayerDefenseScoresForTerritories[j][2]]);
+                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, defenseScore[1], defenseScore[2]]);
             }
             for (let k = 0; k < mainGameArray.length; k++) {
                 if (friendlyTerritory[0] === mainGameArray[k].territoryName) {
@@ -284,6 +298,17 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
     let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
     sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
+
+    //audit 5.1 AG. Every goal an AI country makes is derived from a threat, so a country
+    //with no attackable enemy territory in range has nothing to plan. That is a perfectly
+    //ordinary state once the AI can actually conquer -- a country whose neighbours are now
+    //all its own -- but `sortedThreatArrayInfo[0][2]` threw on the empty array, and the
+    //uncaught rejection took the whole game loop with it.
+    if (sortedThreatArrayInfo.length === 0) {
+        console.log("No enemy territory in range this turn -- no goals to plan");
+        return [];
+    }
+
     const leaderTraits = sortedThreatArrayInfo[0][2].leader.traits;
     // console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
     // console.log("Leader of " + sortedThreatArrayInfo[0][2].territoryName + " has the following traits:");
@@ -638,33 +663,46 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
     for (let goalIndex = 0; goalIndex < refinedTurnGoals.length; goalIndex++) {
         const goal = refinedTurnGoals[goalIndex];
         let couldNotAffordEconomy = false;
-        let mainArrayFriendlyTerritoryCopy = "no match";
-        let mainArrayEnemyTerritoryCopy = "no match";
+        let mainArrayFriendlyTerritoryCopy = null;
+        let mainArrayEnemyTerritoryCopy = null;
+
+        //Siege and Attack goals name two territories: the launching one at [3] and the
+        //target at [2]. Everything else names only its own territory, at [2].
+        const goalHasATarget = goal[1] === "Siege" || goal[1] === "Attack";
 
         for (let i = 0; i < mainGameArray.length; i++) { //find territory depending on action
-            let count = 0;
-            if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainArrayFriendlyTerritoryCopy = {
-                    ...mainGameArray[i]
-                };
-                break;
-            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
-                mainArrayFriendlyTerritoryCopy = {
-                    ...mainGameArray[i]
-                };
-                count++;
-                if (count === 2) {
+            const territoryName = mainGameArray[i].territoryName;
+            if (!goalHasATarget) {
+                if (goal[2] === territoryName) {
+                    mainArrayFriendlyTerritoryCopy = {
+                        ...mainGameArray[i]
+                    };
                     break;
                 }
-            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainArrayEnemyTerritoryCopy = {
-                    ...mainGameArray[i]
-                };
-                count++;
-                if (count === 2) {
+            } else {
+                if (goal[3] === territoryName) {
+                    mainArrayFriendlyTerritoryCopy = {
+                        ...mainGameArray[i]
+                    };
+                } else if (goal[2] === territoryName) {
+                    mainArrayEnemyTerritoryCopy = {
+                        ...mainGameArray[i]
+                    };
+                }
+                //audit 5.1 C: `count` used to be declared inside this loop, so it reset on
+                //every iteration and `count === 2` was unreachable. Stop when both are found.
+                if (mainArrayFriendlyTerritoryCopy && mainArrayEnemyTerritoryCopy) {
                     break;
                 }
             }
+        }
+
+        //audit 5.1 B: a goal whose territory is not on the map used to leave the sentinel
+        //string "no match" in place, which the write-back below then wrote into
+        //mainGameArray -- every later arithmetic on that slot came out NaN.
+        if (!mainArrayFriendlyTerritoryCopy || (goalHasATarget && !mainArrayEnemyTerritoryCopy)) {
+            console.log("Skipping goal " + goal[1] + " -- its territory is not in the game array");
+            continue;
         }
 
         let siege = getSiegeObjectFromAiSiegeList(mainArrayFriendlyTerritoryCopy);
@@ -768,21 +806,29 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                 break;
         }
 
+        //Write the copies back. audit 5.1 AB: this used to SUBSTITUTE the element
+        //(`mainGameArray[i] = copy`), which orphaned the Phase 1.5 territory index --
+        //it holds object references, so every index reader was left looking at the
+        //object that used to be in that slot. Assigning the fields keeps the identity.
+        let friendlyWrittenBack = false;
+        let enemyWrittenBack = false;
+
         for (let i = 0; i < mainGameArray.length; i++) {
-            let count = 0;
-            if ((goal[1] !== "Siege" && goal[1] !== "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
-                break;
-            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[3] === mainGameArray[i].territoryName) {
-                mainGameArray[i] = mainArrayFriendlyTerritoryCopy;
-                count++;
-                if (count === 2) {
+            const territoryName = mainGameArray[i].territoryName;
+            if (!goalHasATarget) {
+                if (goal[2] === territoryName) {
+                    Object.assign(mainGameArray[i], mainArrayFriendlyTerritoryCopy);
                     break;
                 }
-            } else if ((goal[1] === "Siege" || goal[1] === "Attack") && goal[2] === mainGameArray[i].territoryName) {
-                mainGameArray[i] = mainArrayEnemyTerritoryCopy;
-                count++;
-                if (count === 2) {
+            } else {
+                if (goal[3] === territoryName) {
+                    Object.assign(mainGameArray[i], mainArrayFriendlyTerritoryCopy);
+                    friendlyWrittenBack = true;
+                } else if (goal[2] === territoryName) {
+                    Object.assign(mainGameArray[i], mainArrayEnemyTerritoryCopy);
+                    enemyWrittenBack = true;
+                }
+                if (friendlyWrittenBack && enemyWrittenBack) {
                     break;
                 }
             }
@@ -813,69 +859,106 @@ function determineIfOtherGoalNeedsResourceThisTurn(resource, refinedTurnGoals, g
     return count;
 }
 
+/**
+ * The mean infantry a Bolster goal is short of: what one territory's share of the
+ * threat implies, minus what it already has.
+ */
+function meanInfantryDeficitForBolsterGoal(goal) {
+    return Math.floor(goal[6] / goal[0]) - goal[4];
+}
+
+/**
+ * Drop the Bolster goals that turn out not to need bolstering.
+ *
+ * Only goals AFTER the cursor are eligible. Removing one at or before it would shift
+ * every later index down by one, which is exactly the mistake this function exists to
+ * undo -- see audit 5.1 AA -- and it would silently skip a goal in the caller's own
+ * index-driven loop as well.
+ */
+function dropBolsterGoalsNeedingNoInfantry(refinedTurnGoals, goalIndex) {
+    return refinedTurnGoals.filter((goal, i) => {
+        if (i <= goalIndex || goal[1] !== "Bolster") {
+            return true;
+        }
+        return !(meanInfantryDeficitForBolsterGoal(goal) < 0); //non-finite deficits are kept, as they were before
+    });
+}
+
+/**
+ * How much of `resource` this goal may spend, given the goals still to come this turn.
+ *
+ * Returns `[goals, amount]`. The goal list comes back because Bolster goals that do not
+ * need bolstering are dropped for the rest of the turn, and the caller adopts the
+ * shortened list.
+ *
+ * That drop happens ONCE, before the loop, over a list that then does not change --
+ * audit 5.1 AA. The original rebuilt `refinedTurnGoals` from inside a loop indexed
+ * against its old length, so the moment it removed an element at or before the cursor
+ * the last index no longer existed and `refinedTurnGoals[i][1]` threw
+ * `Cannot read properties of undefined (reading '1')`. That rejection escaped the
+ * `gameLoop()` promise chain uncaught, `currentTurn++` never ran, and the game froze on
+ * "AI MOVING..." until the page was reloaded.
+ */
 function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurrentlyInTerritory, mainArrayFriendlyTerritoryCopy, numberOfGoalsNeedingResourceAfterThisOne, refinedTurnGoals, goalIndex) {
     let resourcesAvailable;
     let count = 0;
+
     if (numberOfGoalsNeedingResourceAfterThisOne !== 0) {
-        for (let i = 0; i < refinedTurnGoals.length; i++) {
-            if (i > goalIndex) {
-                if (resource === "gold") {
-                    if (refinedTurnGoals[i][1] === "Bolster") {
-                        let refinedTurnGoalsCopy = [...refinedTurnGoals];
-                        let meanInfantryValueLacking = [];
-                        for (let j = 0; j < refinedTurnGoalsCopy.length; j++) {
-                            if (refinedTurnGoalsCopy[j][1] === "Bolster") {
-                                meanInfantryValueLacking.push(refinedTurnGoalsCopy[j], Math.floor(refinedTurnGoalsCopy[j][6] / refinedTurnGoalsCopy[j][0]) - refinedTurnGoalsCopy[j][4]);
-                            }
-                        }
+        let goals = refinedTurnGoals;
+        let proportionsPercentageArray = [];
+        let everyBolsterIsANegativeThreat = false;
 
-                        // Loop through the meanInfantryValueLacking array to find elements with negative [i][1] values as don't need bolstering so remove those jobs from bolster goals for turn
-                        for (let j = 1; j < meanInfantryValueLacking.length; j += 2) {
-                            if (meanInfantryValueLacking[j] < 0) {
-                                const matchingElement = refinedTurnGoals.find(item => item[1] === meanInfantryValueLacking[j - 1][1] && item[2] === meanInfantryValueLacking[j - 1][2]);
-                                refinedTurnGoals = refinedTurnGoals.filter(item => item !== matchingElement);
-                                meanInfantryValueLacking.splice(j - 1, 2);
-                                j -= 2; //watch for out of bounds exceptions  and make some condition to make this 1 if it was previously 1
-                            }
-                        }
+        //only gold is shared out proportionally; consMats goals each count for one
+        const hasLaterBolsterGoal = resource === "gold" &&
+            goals.some((goal, i) => i > goalIndex && goal[1] === "Bolster");
 
-                        let sumOfValues = 0;
-                        for (let j = 1; j < meanInfantryValueLacking.length; j += 2) {
-                            sumOfValues += meanInfantryValueLacking[j];
-                        }
+        if (hasLaterBolsterGoal) {
+            goals = dropBolsterGoalsNeedingNoInfantry(goals, goalIndex);
 
-                        // Calculate the proportion percentage and console out each value
-                        let proportionPercentage;
-                        let proportionsPercentageArray = [];
-                        if (sumOfValues !== 0) {
-                            for (let j = 1; j < meanInfantryValueLacking.length; j += 2) {
-                                const value = meanInfantryValueLacking[j];
-                                proportionPercentage = value / sumOfValues * 100;
-                                proportionsPercentageArray.push([meanInfantryValueLacking[j - 1], proportionPercentage]);
-                            }
-                        } else {
-                            proportionsPercentageArray.length = 0;
-                            console.log("any bolsters for this territory will receive just what is left over after economy as they are a negative mean threat level");
-                            count++; //only do this if the only bolster to do in future was a negative value, and we removed it so can assume no Bolster and can just divide the money into the rest of the counts
-                        }
+            const deficits = goals
+                .filter(goal => goal[1] === "Bolster")
+                .map(goal => [goal, meanInfantryDeficitForBolsterGoal(goal)])
+                .filter(entry => Number.isFinite(entry[1])); //a zero-quantity goal must not poison the sum with NaN
 
-                        //match one of the proportions up with the current refinedTurnGoals element and send the value back
+            const sumOfValues = deficits.reduce((sum, entry) => sum + entry[1], 0);
+
+            if (sumOfValues !== 0) {
+                proportionsPercentageArray = deficits.map(entry => [entry[0], (entry[1] / sumOfValues) * 100]);
+            } else {
+                everyBolsterIsANegativeThreat = true;
+                console.log("any bolsters for this territory will receive just what is left over after economy as they are a negative mean threat level");
+            }
+        }
+
+        for (let i = 0; i < goals.length; i++) {
+            if (i <= goalIndex) { //only interested in goals not done yet for this turn
+                continue;
+            }
+            if (resource === "gold") {
+                if (goals[i][1] === "Bolster") {
+                    if (everyBolsterIsANegativeThreat) {
+                        count++; //no Bolster left to fund, so just divide the money into the rest of the counts
+                    } else {
+                        //match one of the proportions up with this goal and take that share
                         for (let j = 0; j < proportionsPercentageArray.length; j++) {
-                            if (proportionsPercentageArray[j][0][1] === refinedTurnGoals[i][1] && proportionsPercentageArray[j][0][2] === refinedTurnGoals[i][2]) {
-                                count = Math.floor((refinedTurnGoals[i][0] / 100) * proportionsPercentageArray[j][1]);
+                            if (proportionsPercentageArray[j][0][1] === goals[i][1] && proportionsPercentageArray[j][0][2] === goals[i][2]) {
+                                count = Math.floor((goals[i][0] / 100) * proportionsPercentageArray[j][1]);
                                 count === 0 ? count = 1 : null;
                             }
                         }
-
-                    } else if (refinedTurnGoals[i][1] === "Economy") {
-                        count++;
                     }
-                } else if (resource === "consMats") {
+                } else if (goals[i][1] === "Economy") {
                     count++;
                 }
+            } else if (resource === "consMats") {
+                count++;
             }
         }
-        resourcesAvailable = Math.floor(amountOfResourceCurrentlyInTerritory / count);
+
+        refinedTurnGoals = goals;
+        //count of 0 divided into the territory's stock is Infinity, which propagates as NaN
+        //through every later purchase. One goal with everything is what a count of 0 means.
+        resourcesAvailable = Math.floor(amountOfResourceCurrentlyInTerritory / Math.max(1, count));
     } else {
         resourcesAvailable = Math.floor(amountOfResourceCurrentlyInTerritory);
     }

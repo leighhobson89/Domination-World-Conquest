@@ -12,7 +12,7 @@ despite the repository being named `OnlineRiskGame`.
 
 Before any non-trivial change, read the relevant document in [docs/](./docs/):
 
-- [docs/01-codebase-audit.md](./docs/01-codebase-audit.md) — architecture and 20 catalogued
+- [docs/01-codebase-audit.md](./docs/01-codebase-audit.md) — architecture and the catalogued
   defects with file/line references. **Check here before "fixing" something odd** — it is
   probably already logged, with the reason.
 - [docs/02-game-design-document.md](./docs/02-game-design-document.md) — what each mechanic
@@ -20,6 +20,9 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 - [docs/03-refactor-plan.md](./docs/03-refactor-plan.md) — the phased plan. Work follows it.
 - [docs/04-e2e-test-plan.md](./docs/04-e2e-test-plan.md) — functional areas and the test
   harness.
+- [docs/05-known-issues.md](./docs/05-known-issues.md) — the live defect register:
+  every issue found so far, its status, where it is in the code **today**, and the phase that
+  closes it. This is the one that stays current; the audit is the analysis behind it.
 
 ## Commands
 
@@ -27,10 +30,10 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 225 errors, 401 warnings)
+npm run lint           # ESLint (baseline: 214 errors, 394 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
 npm run test:unit      # Vitest, 82 tests, ~1s
-npm run test:e2e       # Playwright, 215 tests, 4 workers headless, ~2.5 min
+npm run test:e2e       # Playwright, 212 tests, 4 workers headless, ~5-9 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -108,10 +111,22 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   waits for both.
 - **The map is an `<object>`, not an `<iframe>`.** `page.frameLocator("#svg-map")` does not
   work in Playwright; use `page.frame({ name: "svg-map" })`.
-- **The AI turn crashes and freezes the game**, from the second or third turn onward
-  (audit §5.1 AA). The phase button sticks on `AI MOVING...` forever and only a reload
-  recovers. Anything that needs more than one full turn is blocked until Phase 3.1a — the
-  `test.fixme`s across `tests/e2e/turn-loop/` are the checklist.
+- **The AI turn used to crash and freeze the game** (audit §5.1 AA) — fixed in Phase 3, along
+  with the four further crashes hiding behind it (§5.1 AF–AJ). A 20-turn playthrough now
+  completes clean. If the phase button ever sticks on `AI MOVING...` again, it is an unhandled
+  rejection escaping the `gameLoop()` promise chain: there is no `catch` anywhere in it, so any
+  throw inside the AI turn stops the game permanently rather than losing one turn.
+- **Since Phase 3 the AI actually conquers — and attacks the player.** A turn can end with a
+  battle results screen sitting on top of the phase button, and it can appear a beat AFTER the
+  turn counter advances. `GameDriver.dismissBlockingPanels()` and `withBlockersCleared()` handle
+  it in the harness; anything new that drives the turn loop has to as well.
+- **A besieged territory earns no gold, oil or construction materials**, and the AI besieges far
+  more than it can finish (17 → 67 concurrent sieges over 14 turns). Both are design problems
+  logged for Phase 7 in [docs/05-known-issues.md](./docs/05-known-issues.md) §6 — do not "fix"
+  either as a bug.
+- **Territory names are not selector-safe.** Six carry real parentheses, so
+  `querySelector("#siegeImage_" + name)` throws rather than returning null (audit §5.2 AI). Use
+  `getElementById` for anything keyed by a territory name.
 - **`xButton` is a duplicated id** — the info panel's close button and the upgrade window's
   both use it, so a bare `#xButton` selector is ambiguous the moment both exist.
 - **`#tooltip` follows the pointer and has no `pointer-events: none`**, so it sits on top of
