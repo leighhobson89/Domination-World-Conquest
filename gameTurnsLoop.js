@@ -1,5 +1,4 @@
 import {
-    playerCountry,
     uiAppearsAtStartOfTurn,
     toggleUIMenu,
     endPlayerTurn,
@@ -8,7 +7,6 @@ import {
     setCurrentMapColorAndStrokeArray,
     saveMapColorState,
     paths,
-    playerColour,
     svg,
     setZoomLevel,
     zoomMap, setColorOnMap
@@ -21,20 +19,16 @@ import {
     drawUITable,
     calculateTerritoryStrengths,
     countryStrengthsArray,
-    mainGameArray,
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
     getTurnGainsArrayAi
 } from './resourceCalculations.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
-    aiSiegeWarsList,
     incrementSiegeTurns,
     calculatePlayerInitiatedSiegePerTurn,
     handleEndSiegeDueArrest,
-    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn,
-    playerSiegeWarsList,
-    historicWars
+    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
@@ -53,7 +47,7 @@ import {
     prioritiseTurnGoalsBasedOnPersonality,
     refineTurnGoals, setDebugArraysToZero,
     resetAiRngContext,
-    setAiRngContext,
+    setAiRngContext
 } from "./aiCalculations.js";
 import {
     loadAdjacency,
@@ -61,40 +55,64 @@ import {
     adjacencyIds
 } from "./src/data/adjacency.js";
 import {
-    getTerritoryByName,
-    getTerritoryByUniqueId
-} from "./src/state/indexes.js";
-import {
     manualAdjacencyExceptions
 } from "./src/data/manualAdjacencyExceptions.js";
+import {
+    getGuardViolations
+} from "./src/state/GameState.js";
+import {
+    applyScenario
+} from "./src/platform/scenarios.js";
+import {
+    referenceDefendingTerritory
+} from "./src/state/sieges.js";
 import {
     installTestHooks,
     installAdjacencyTestHooks,
     signalReady
 } from "./src/platform/testHooks.js";
+import {
+    allTerritories,
+    getTerritory,
+    playerCountryName,
+    playerColour,
+    getTerritoryByName,
+    territoriesWithOwner,
+    currentPhase,
+    currentTurn,
+    playerSieges,
+    aiSieges,
+    historicWarsList,
+    warIds
+} from './src/state/selectors.js';
+import {
+    advanceTurn,
+    setTerritoryOwner,
+    pruneSiegesForMissingTerritories,
+    updateTerritory,
+    addSiege,
+    setNextWarId,
+    setNextAiWarId
+} from './src/state/mutations.js';
+import {
+    phaseName
+} from './src/state/phases.js';
+import {
+    pathCountry
+} from './src/state/pathState.js';
 
 // Read-only accessors for the ?e2e=1 harness. Lazy closures, so this runs safely
 // at module-evaluation time even though the model is not built yet.
 installTestHooks({
-    turn: () => currentTurn,
-    phase: () => currentTurnPhase,
-    // Deliberately a linear scan of the LIVE array rather than the O(1) index.
-    // doAiActions() replaces whole elements (`mainGameArray[i] = copy`), which
-    // orphans whatever the index is still pointing at -- see
-    // docs/01-codebase-audit.md section 5.1 AB. Reading through the index made the
-    // harness report a territory frozen at the moment the AI last touched it,
-    // which is worse than useless in a characterisation suite. 359 comparisons in
-    // a test-only accessor cost nothing; the game's own hot paths keep the index
-    // until Phase 4 removes the need for both.
-    territory: (nameOrId) => {
-        const key = String(nameOrId);
-        return (
-            mainGameArray.find(territory => territory.territoryName === key) ??
-            mainGameArray.find(territory => String(territory.uniqueId) === key) ??
-            null
-        );
-    },
-    territoriesOwnedBy: (owner) => mainGameArray.filter(territory => territory.owner === owner),
+    turn: () => currentTurn(),
+    phase: () => currentPhase(),
+    // Straight through the store's own indexes. This used to be a deliberate linear
+    // scan, because doAiActions() replaced whole elements of mainGameArray and orphaned
+    // the separate territory index (audit 5.1 AB) -- so the index could report a
+    // territory frozen at the moment the AI last touched it. There is one index now and
+    // nothing replaces an element, so the scan has nothing left to protect against.
+    territory: (nameOrId) => getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId),
+    territoriesOwnedBy: (owner) => territoriesWithOwner(owner),
     totals: () => {
         const totals = totalPlayerResources[0];
         return totals ? {
@@ -109,12 +127,42 @@ installTestHooks({
         } : null;
     },
     sieges: () => ({
-        player: Object.keys(playerSiegeWarsList),
-        ai: Object.keys(aiSiegeWarsList)
+        player: Object.keys(playerSieges()),
+        ai: Object.keys(aiSieges())
     }),
+    // Everything the ?stateGuard=1 write guard caught. Empty unless the page was loaded
+    // with that flag; see src/state/GameState.js.
+    stateGuardViolations: () => getGuardViolations().map(violation => ({
+        territory: violation.territory,
+        field: violation.field
+    })),
+    applyScenario: (scenario) => applyScenario(scenario, {
+        getTerritoryByName,
+        updateTerritory,
+        addSiege,
+        referenceDefendingTerritory,
+        nextWarId: (side) => {
+            //Scenario sieges take ids from the same counters the game does, so a scenario
+            //siege and a real one can never collide on warId.
+            if (side === "player") {
+                const id = warIds().nextWarId;
+                setNextWarId(id + 1);
+                return id;
+            }
+            const id = warIds().nextAiWarId;
+            setNextAiWarId(id + 1);
+            return id;
+        }
+    }),
+    retrievals: () => getRetrievalArray().map(entry => ({
+        warId: entry[0],
+        sourceTerritoryIds: (entry[1]?.[0] ?? []).map(set => String(set[0])),
+        turnQueued: entry[2],
+        turnsUntilReturn: entry[3]
+    })),
     pathAreaComputations: () => getPathAreaComputations(),
     countryStrengths: () => countryStrengthsArray ?? [],
-    wars: () => historicWars.map(war => ({
+    wars: () => historicWarsList().map(war => ({
         warId: war.warId,
         defendingTerritory: war.defendingTerritory?.territoryName ?? null,
         resolution: war.battleResolution ?? null,
@@ -122,129 +170,56 @@ installTestHooks({
     }))
 });
 
-export let currentTurn = 1;
-export let currentTurnPhase = 0; //0 - Buy/Upgrade -- 1 - Move/Attack -- 2 -- AI
+//Phase 4.6/4.8: the turn number and the phase used to be two module-level `let`s
+//here, exported by value and shadowed by a THIRD counter (`turnPhase` in ui.js) that
+//the phase button incremented. They now live in GameState; read them through
+//currentTurn()/currentPhase() and write them through setTurn()/setPhase().
 export let randomEventHappening = false;
 export let randomEvent = "";
 
-export let summaryWarsArray = [];
-export let summaryWarsLostArray = [];
+export const summaryWarsArray = [];
+export const summaryWarsLostArray = [];
 
 let probability = 0;
 let attackOptionsArray = [];
 let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
 
-function normalizeSiegeState() {
-    const svgMap = document.getElementById('svg-map').contentDocument;
-
-    const formattedTerritoryNameFromPath = (path) => {
-        const territoryName = path.getAttribute('territory-name');
-        return territoryName ? territoryName.replace(/\s+/g, '_') : null;
-    };
-
-    const pathsByTerritoryName = new Map();
-    for (const path of paths) {
-        const territoryName = path.getAttribute('territory-name');
-        if (territoryName) {
-            pathsByTerritoryName.set(territoryName, path);
-        }
-    }
-
-    for (const territoryName of Object.keys(playerSiegeWarsList)) {
-        if (!pathsByTerritoryName.has(territoryName)) {
-            delete playerSiegeWarsList[territoryName];
-        }
-    }
-
-    for (const territoryName of Object.keys(aiSiegeWarsList)) {
-        if (!pathsByTerritoryName.has(territoryName)) {
-            delete aiSiegeWarsList[territoryName];
-        }
-    }
-
-    for (const path of paths) {
-        const territoryName = path.getAttribute('territory-name');
-        if (!territoryName) {
-            continue;
-        }
-
-        const inPlayerSiege = Object.prototype.hasOwnProperty.call(playerSiegeWarsList, territoryName);
-        const inAiSiege = Object.prototype.hasOwnProperty.call(aiSiegeWarsList, territoryName);
-        const shouldBeUnderSiege = inPlayerSiege || inAiSiege;
-
-        path.setAttribute('underSiege', shouldBeUnderSiege ? 'true' : 'false');
-
-        const formattedTerritoryName = formattedTerritoryNameFromPath(path);
-        if (!formattedTerritoryName) {
-            continue;
-        }
-
-        const existingSiegeImage = svgMap.getElementById('siegeImage_' + formattedTerritoryName);
-
-        if (!shouldBeUnderSiege) {
-            if (existingSiegeImage) {
-                existingSiegeImage.remove();
-            }
-            continue;
-        }
-
-        if (!existingSiegeImage) {
-            try {
-                const pathBounds = path.getBBox();
-                const centerX = pathBounds.x + pathBounds.width / 2;
-                const centerY = pathBounds.y + pathBounds.height / 2;
-                const maxImageWidth = pathBounds.width * 0.7;
-                const maxImageHeight = pathBounds.height * 0.7;
-
-                const imageElement = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-                imageElement.setAttributeNS('http://www.w3.org/1999/xlink', 'href', inAiSiege ? 'siegeai.png' : 'siege.png');
-
-                let imageWidth = Math.min(maxImageWidth, maxImageHeight);
-                let imageHeight = Math.min(maxImageWidth, maxImageHeight);
-                if (inAiSiege) {
-                    imageWidth *= 0.6;
-                    imageHeight *= 0.6;
-                    imageElement.setAttribute('style', 'opacity: 0.4');
-                }
-
-                const imageX = centerX - imageWidth / 2;
-                const imageY = centerY - imageHeight / 2;
-                imageElement.setAttribute('x', imageX.toString());
-                imageElement.setAttribute('y', imageY.toString());
-                imageElement.setAttribute('z-index', '9999');
-                imageElement.setAttribute('width', imageWidth.toString());
-                imageElement.setAttribute('height', imageHeight.toString());
-                imageElement.setAttribute('id', 'siegeImage_' + formattedTerritoryName);
-
-                path.parentNode.appendChild(imageElement);
-            } catch {
-            }
-        }
-    }
-}
+//Phase 4.5. `normalizeSiegeState()` stood here: an 88-line once-per-turn sweep that
+//re-derived the `underSiege` attribute on all 359 paths from the siege lists, dropped
+//sieges naming territories that were not on the map, and added or removed the siege
+//overlay images to match. It existed because the flag and the lists were two separate
+//facts that drifted apart.
+//
+//They are one fact now. `isUnderSiege()` reads the siege lists, the attribute is
+//rendered from that by src/ui/mapAttributeSync.js, and the overlay images by
+//src/ui/siegeOverlay.js -- both on `siegeChanged`, so a siege that is added or removed
+//updates one territory rather than sweeping the map. The only part with anything left
+//to do is the orphan check, and that only matters if the map itself changes, so it runs
+//once at game start rather than every turn.
 
 export async function initialiseGame() {
     setZoomLevel(1);
     zoomMap("init");
     svg.style.pointerEvents = 'none';
     gameInitialisation = true;
-    console.log("Welcome to new game! Your country is " + playerCountry + "!");
+    console.log("Welcome to new game! Your country is " + playerCountryName() + "!");
     const svgMap = document.getElementById('svg-map').contentDocument;
     const paths = Array.from(svgMap.querySelectorAll('path'));
 
-    for (const path of paths) {
-        if (path.getAttribute("data-name") === playerCountry) {
-            path.setAttribute("owner", "Player");
-        }
-    }
-
-    for (const territory of mainGameArray) {
-        if (territory.dataName === playerCountry) {
-            territory.owner = "Player";
+    //Two loops for one fact: the path attribute and then the model field, each over its
+    //own collection. One write now, and src/ui/mapAttributeSync.js renders the attribute
+    //(Phase 4.4).
+    for (const territory of allTerritories()) {
+        if (territory.dataName === playerCountryName()) {
+            setTerritoryOwner(territory.uniqueId, "Player", territory.dataName);
         }
     }
     arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    //The orphan half of the old normalizeSiegeState(): a siege naming a territory the
+    //map does not have can only happen if the map changed under us, so it is checked
+    //once here rather than every turn.
+    pruneSiegesForMissingTerritories(name => getTerritoryByName(name) !== null);
     setCurrentMapColorAndStrokeArray(saveMapColorState(false));
     document.getElementById("top-table-container").style.display = "block";
     toggleTransferAttackButton(true, true);
@@ -257,9 +232,9 @@ export async function initialiseGame() {
     // It is now one 77 KB load and a synchronous pass. See docs/01-codebase-audit.md
     // section 4.1 and docs/03-refactor-plan.md Phase 1.1-1.2.
     await loadAdjacency();
-    for (const territory of mainGameArray) {
+    for (const territory of allTerritories()) {
         // Indexed BY uniqueId, not by push order. The old code pushed in
-        // mainGameArray order and then read attackOptionsArray[uniqueId], which
+        // allTerritories() order and then read attackOptionsArray[uniqueId], which
         // only worked because the two happened to coincide.
         attackOptionsArray[Number(territory.uniqueId)] = [
             territory.uniqueId,
@@ -269,13 +244,13 @@ export async function initialiseGame() {
 
     // Colouring used to be a side effect of the loop above, one territory at a
     // time, which is what produced the visible "loading" sweep across the map.
-    for (const territory of mainGameArray) {
+    for (const territory of allTerritories()) {
         setColorOnMap(territory);
     }
 
     for (const path of paths) {
-        if (path.getAttribute("data-name") === playerCountry) {
-            path.setAttribute("fill", playerColour); //set player as the owner of the territory they select
+        if (pathCountry(path) === playerCountryName()) {
+            path.setAttribute("fill", playerColour()); //set player as the owner of the territory they select
         }
     }
     toggleTransferAttackButton(false, true);
@@ -294,7 +269,7 @@ export async function initialiseGame() {
         adjacencyExceptions: () => manualAdjacencyExceptions,
         strandedTerritories: () =>
             adjacencyIds()
-                .map(id => getTerritoryByUniqueId(id))
+                .map(id => getTerritory(id))
                 .filter(territory =>
                     territory &&
                     getInteractableFrom(territory.uniqueId, territory.territoryName).length === 0)
@@ -325,14 +300,16 @@ function gameLoop() {
             if (element !== true) {
                 continueSiege = false;
                 handleEndSiegeDueArrest(true, element);
-                console.log("Ai Siege Of " + element.defendingTerritory.territoryName + " finished due to arrest of " + element.attackingTerritory.dataName + "'s attacking troops!");
+                //BUG FIX: `attackingTerritory` is the attacking territory NAME, a string, so
+                //`.dataName` on it was always undefined and this line always logged
+                //"undefined's attacking troops". `attackingCountry` is the country.
+                console.log("Ai Siege Of " + element.defendingTerritory.territoryName + " finished due to arrest of " + element.attackingCountry + "'s attacking troops!");
             }
         });
     }
     incrementSiegeTurns(true);
     incrementSiegeTurns(false);
-    normalizeSiegeState();
-    if (currentTurn > 1) {
+    if (currentTurn() > 1) {
         handleArmyRetrievals(getRetrievalArray());
     }
 
@@ -344,14 +321,14 @@ function gameLoop() {
         console.log("There's been a " + randomEvent + "!")
     }
     newTurnResources();
-    calculateTerritoryStrengths(mainGameArray); //might not be necessary every turn // related with greying out
-    if (uiAppearsAtStartOfTurn && currentTurn !== 1 && continueSiege === true) {
+    calculateTerritoryStrengths(allTerritories()); //might not be necessary every turn // related with greying out
+    if (uiAppearsAtStartOfTurn && currentTurn() !== 1 && continueSiege === true) {
         toggleUIMenu(true);
         drawUITable(document.getElementById("uiTable"), 0);
     }
     randomEventHappening = false;
     randomEvent = "";
-    console.log("Turn " + currentTurn + " has started!");
+    console.log("Turn " + currentTurn() + " has started!");
     // Handle player turn
     handleBuyUpgradePhase().then(() => {
         // Handle move/attack phase
@@ -359,7 +336,7 @@ function gameLoop() {
             // Handle AI turn
             handleAITurn().then(() => {
                 // Increment turn counter
-                currentTurn++;
+                advanceTurn();
                 // Repeat game loop
                 gameLoop();
             });
@@ -370,7 +347,7 @@ function gameLoop() {
 function handleBuyUpgradePhase() {
     return new Promise(resolve => {
         console.log("Handling Spend Upgrade Phase");
-        console.log("Current turn-phase is: " + currentTurnPhase);
+        console.log("Current turn-phase is: " + phaseName(currentPhase()));
         const popupConfirmButton = document.getElementById("popup-confirm");
         const onClickHandler = () => {
             popupConfirmButton.removeEventListener("click", onClickHandler);
@@ -383,7 +360,7 @@ function handleBuyUpgradePhase() {
 function handleMilitaryPhase() {
     return new Promise(resolve => {
         console.log("Handling Move Attack Phase");
-        console.log("Current turn-phase is: " + currentTurnPhase);
+        console.log("Current turn-phase is: " + phaseName(currentPhase()));
         const popupConfirmButton = document.getElementById("popup-confirm");
         const onClickHandler = () => {
             popupConfirmButton.removeEventListener("click", onClickHandler);
@@ -433,16 +410,16 @@ async function handleAITurn() {
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
 
-        setAiRngContext(currentTurn, currentAiCountry);
+        setAiRngContext(currentTurn(), currentAiCountry);
 
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
         countryResourceTotals = getCountryResourceTotals()[arrayOfLeadersAndCountries[i][0]];
-        turnGainsArrayAi = currentTurn !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
+        turnGainsArrayAi = currentTurn() !== 1 ? getTurnGainsArrayAi()[arrayOfLeadersAndCountries[i][0]] : turnGainsArrayLastTurn;
         fullTerritoriesInRange = buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i);
         attackableTerritoriesInRange = buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i);
-        attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray);
+        attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange);
         arrayOfAiPlayerDefenseScoresForTerritories = getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i);
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
         // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
@@ -510,12 +487,12 @@ function selectRandomEvent() {
 
 function handleArmyRetrievals(retrievalArray) {
     for (let i = 0; i < retrievalArray.length; i++) {
-        if (currentTurn === retrievalArray[i][2] + retrievalArray[i][3]) {
+        if (currentTurn() === retrievalArray[i][2] + retrievalArray[i][3]) {
             const armySets = retrievalArray[i][1];
             for (let j = 0; j < armySets[0].length; j++) {
                 const uniqueId = armySets[0][j][0].toString();
-                for (let k = 0; k < mainGameArray.length; k++) {
-                    if (mainGameArray[k].uniqueId === uniqueId) {
+                for (let k = 0; k < allTerritories().length; k++) {
+                    if (allTerritories()[k].uniqueId === uniqueId) {
                         const totalInfantry = armySets[0][j][armySets[0][j].length - 4];
                         const totalAssault = armySets[0][j][armySets[0][j].length - 3];
                         const totalAir = armySets[0][j][armySets[0][j].length - 2];
@@ -531,10 +508,10 @@ function handleArmyRetrievals(retrievalArray) {
                         const airQuantity = Math.floor((airPercentage * totalAir) / 100);
                         const navalQuantity = Math.floor((navalPercentage * totalNaval) / 100);
 
-                        mainGameArray[k].infantryForCurrentTerritory += infantryQuantity;
-                        mainGameArray[k].assaultForCurrentTerritory += assaultQuantity;
-                        mainGameArray[k].airForCurrentTerritory += airQuantity;
-                        mainGameArray[k].navalForCurrentTerritory += navalQuantity;
+                        allTerritories()[k].infantryForCurrentTerritory += infantryQuantity;
+                        allTerritories()[k].assaultForCurrentTerritory += assaultQuantity;
+                        allTerritories()[k].airForCurrentTerritory += airQuantity;
+                        allTerritories()[k].navalForCurrentTerritory += navalQuantity;
                     }
                 }
             }
@@ -551,10 +528,6 @@ function changeAllPathsToWhite() {
     }
 }
 
-
-export function modifyCurrentTurnPhase(value) {
-    currentTurnPhase = value;
-}
 
 export function getGameInitialisation() {
     return gameInitialisation;

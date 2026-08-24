@@ -2,8 +2,8 @@ import {
     leaderPersonalities
 } from "./leaderPersonalities.js";
 import {
-    mainGameArray
-} from "./resourceCalculations.js";
+    allTerritories
+} from './src/state/selectors.js';
 
 const personalityTitlesMale = ["King", "Lord", "Emperor", "Warrior", "Champion", "Duke", "Baron", "Prince", "Sultan", "Pharaoh", "Count", "Sir", "Chief", "Captain", "Admiral", "Marquis", "Viscount", "Sir Knight", "Sheikh", "Rajah", "Khan", "Tsar", "Governor", "Sheriff", "Patriarch", "Chancellor", "Warlord", "Chiefdom", "Viceroy", "Sheikh"];
 const personalityTitlesFemale = ["Queen", "Lady", "Empress", "Champion", "Duchess", "Baroness", "Princess", "Sultana", "Pharaohess", "Countess", "Dame", "Chiefess", "Empress Dowager", "Captainess", "Admiralness", "Marchioness", "Viscountess", "Dame Knight", "Sheikha", "Rani", "Khanum", "Tsarina", "Governess", "Sheriffess", "Matriarch", "Chancelless", "Warlady", "Chiefdom Woman", "Vicereine", "Sheikha"];
@@ -39,7 +39,7 @@ export function createCpuPlayerObjectAndAddToMainArray() {
     const countries = {};
     const leaders = {};
 
-    mainGameArray.forEach((territory) => {
+    allTerritories().forEach((territory) => {
         const countryName = territory.dataName;
         if (territory.owner !== "Player") {
             if (!countries[countryName]) {
@@ -120,16 +120,16 @@ function getRandomGender() {
 export function updateArrayOfLeadersAndCountries() { //when called sets the arrayOfLeadersAndCountries with [countryName, leaderObject, [<list of territory names>]
     const countryIndices = {};
     arrayOfLeadersAndCountries.length = 0;
-    for (let i = 0; i < mainGameArray.length; i++) {
-        const countryName = mainGameArray[i].dataName;
+    for (let i = 0; i < allTerritories().length; i++) {
+        const countryName = allTerritories()[i].dataName;
 
-        if (!countryIndices.hasOwnProperty(countryName) && mainGameArray[i].owner !== "Player") {
+        if (!countryIndices.hasOwnProperty(countryName) && allTerritories()[i].owner !== "Player") {
             countryIndices[countryName] = arrayOfLeadersAndCountries.length;
-            arrayOfLeadersAndCountries.push([countryName, mainGameArray[i].leader, [mainGameArray[i]]]);
+            arrayOfLeadersAndCountries.push([countryName, allTerritories()[i].leader, [allTerritories()[i]]]);
         } else {
-            if (mainGameArray[i].owner !== "Player") {
+            if (allTerritories()[i].owner !== "Player") {
                 const index = countryIndices[countryName];
-                arrayOfLeadersAndCountries[index][2].push(mainGameArray[i]);
+                arrayOfLeadersAndCountries[index][2].push(allTerritories()[i]);
             }
         }
     }

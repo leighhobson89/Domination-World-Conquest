@@ -30,10 +30,10 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 214 errors, 394 warnings)
+npm run lint           # ESLint (baseline: 205 errors, 380 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 82 tests, ~1s
-npm run test:e2e       # Playwright, 212 tests, 4 workers headless, ~5-9 min
+npm run test:unit      # Vitest, 111 tests, ~1s
+npm run test:e2e       # Playwright, 227 tests, 4 workers headless, ~5-9 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -86,11 +86,38 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   used to paper over it are gone (Phase 1.7). Static imports work because the symbols involved
   are hoisted function declarations. Do not add more module coupling, and never reintroduce a
   timer to "wait for" an import.
-- **Territory state lives in three places at once** — `mainGameArray`, SVG path attributes,
-  and siege/war object copies. Any change to one usually needs the other two. Phase 4 fixes
-  this; until then, check all three.
-- **`mainGameArray` is sorted by `defenseBonus`**, not by `uniqueId`. Never index it
-  positionally.
+- **Territory state lives in `src/state/GameState.js` and nowhere else** (Phase 4). Read it
+  through `state/selectors.js`, write it through `state/mutations.js`, and subscribe to
+  `state/events.js`. `mainGameArray` is gone: the replacement for "all territories" is
+  `allTerritories()`, and for a lookup `getTerritory(uniqueId)` / `getTerritoryByName(name)`.
+- **The SVG path attributes are output, not state.** `owner`, `data-name`, `deactivated`,
+  `underSiege`, `greyedOut` and `attackableTerritory` are written **only** by
+  `src/ui/mapAttributeSync.js`, from store events. Never write one directly and never read one
+  back — `src/state/pathState.js` answers the same question from the store when you only have
+  a path element. `uniqueid`, `territory-name`, `isCoastal` and `mountainDefenseFactor` are
+  identity and geometry; reading those is fine.
+- **There is a bootstrap window in which the SVG *is* the truth** — between `svgMapLoaded()`
+  (window `load`, which populates `paths`) and `seedTerritories()` (the end of the initial-data
+  Promise). The store has no territories in it, and the attributes are what the model is about
+  to be built from. `pathState.js` handles this: it reads the attribute while
+  `territoriesReady()` is false and the store afterwards. **Anything new that reads territory
+  state during bootstrap has to do the same.** Getting it wrong is not subtle and is not caught
+  by most of the suite: `colorCountriesRandomly()` groups paths by `data-name`, and answering it
+  from the empty store put the entire 359-territory map into one flat colour, with every
+  `countryColor` wrong for the rest of the game. `bootstrap/state-layer.spec.js` guards it now.
+- **`underSiege` is derived, not stored.** A territory is under siege exactly when a siege
+  names it, so `addSiege()` / `removeSiege()` is the whole operation. This is why
+  `normalizeSiegeState()` no longer exists.
+- **A siege holds a territory id, not a copy.** `siege.defendingTerritory` is a live getter
+  onto the real territory (`src/state/sieges.js`), so writing through it writes the world.
+  Do not reintroduce a copy, and do not add a sync-back.
+- **`allTerritories()` is ordered by `defenseBonus`**, not by `uniqueId`. Never index it
+  positionally, and treat it as read-only.
+- **There is a write guard.** Load the page with `?stateGuard=1` to log every territory write
+  that bypasses `mutations.js`, or `?stateGuard=strict` to throw on one;
+  `window.__game.stateGuardViolations()` reports what it caught. It is off by default and
+  will report plenty until Phase 5 makes the rules pure — each report is a Phase 5 to-do,
+  not a regression.
 - **`dataName` is the *current* owner and changes on conquest**; `territoryName` is the stable
   identity; `originalOwner` is historical. Mixing them up is a recurring source of bugs.
 - **`resources/svgMaster.svg` is the authoritative source of territory names.**
@@ -111,11 +138,19 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   waits for both.
 - **The map is an `<object>`, not an `<iframe>`.** `page.frameLocator("#svg-map")` does not
   work in Playwright; use `page.frame({ name: "svg-map" })`.
+- **One phase counter, and it is an enum.** `Phase` in `src/state/phases.js`, read with
+  `currentPhase()` and written with `setPhase()`. The old `currentTurnPhase` / `turnPhase`
+  pair and `modifyCurrentTurnPhase()` are gone. Same for the turn: `currentTurn()` /
+  `advanceTurn()`.
 - **The AI turn used to crash and freeze the game** (audit §5.1 AA) — fixed in Phase 3, along
   with the four further crashes hiding behind it (§5.1 AF–AJ). A 20-turn playthrough now
   completes clean. If the phase button ever sticks on `AI MOVING...` again, it is an unhandled
   rejection escaping the `gameLoop()` promise chain: there is no `catch` anywhere in it, so any
   throw inside the AI turn stops the game permanently rather than losing one turn.
+- **Scenarios beat clicking** for anything the UI cannot reach — a rout, an all-naval
+  defender, two concurrent sieges. `await game.loadScenario("two-sieges")` in a spec;
+  the JSON lives in `tests/support/scenarios/` and is applied through `state/mutations.js`.
+  See [docs/04-e2e-test-plan.md](./docs/04-e2e-test-plan.md) §3.7.
 - **Since Phase 3 the AI actually conquers — and attacks the player.** A turn can end with a
   battle results screen sitting on top of the phase button, and it can appear a beat AFTER the
   turn counter advances. `GameDriver.dismissBlockingPanels()` and `withBlockersCleared()` handle
@@ -124,6 +159,9 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   more than it can finish (17 → 67 concurrent sieges over 14 turns). Both are design problems
   logged for Phase 7 in [docs/05-known-issues.md](./docs/05-known-issues.md) §6 — do not "fix"
   either as a bug.
+- **INVADE! debits the source territory immediately** (Phase 4.7, audit §5.1 AD), and a
+  no-penalty retreat returns the army through `retrievalArray` a turn later. The two halves
+  balance; changing one without the other creates or destroys army.
 - **Territory names are not selector-safe.** Six carry real parentheses, so
   `querySelector("#siegeImage_" + name)` throws rather than returning null (audit §5.2 AI). Use
   `getElementById` for anything keyed by a territory name.

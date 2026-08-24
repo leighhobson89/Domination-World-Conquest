@@ -2,13 +2,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import {
     buildPathIndex,
-    buildTerritoryIndex,
     getPathByUniqueId,
     getPathByName,
-    getTerritoryByUniqueId,
-    getTerritoryByName,
     isPathIndexBuilt,
-    isTerritoryIndexBuilt,
     __resetIndexesForTests,
 } from "../../src/state/indexes.js";
 
@@ -22,12 +18,6 @@ const paths = [
     fakePath({ uniqueid: "0", "territory-name": "United Kingdom", "data-name": "United Kingdom" }),
     fakePath({ uniqueid: "7", "territory-name": "Vatican City", "data-name": "Vatican City" }),
     fakePath({ uniqueid: "8", "territory-name": "Italy", "data-name": "Italy" }),
-];
-
-const territories = [
-    { uniqueId: "8", territoryName: "Italy", dataName: "Italy" },
-    { uniqueId: "0", territoryName: "United Kingdom", dataName: "United Kingdom" },
-    { uniqueId: "7", territoryName: "Vatican City", dataName: "Vatican City" },
 ];
 
 beforeEach(() => __resetIndexesForTests());
@@ -73,38 +63,5 @@ describe("path index", () => {
     });
 });
 
-describe("territory index", () => {
-    it("looks a territory up by uniqueId regardless of array order", () => {
-        // mainGameArray is sorted by defenseBonus, so position never matches uniqueId.
-        buildTerritoryIndex(territories);
-        expect(getTerritoryByUniqueId("0")).toBe(territories[1]);
-        expect(getTerritoryByUniqueId(0)).toBe(territories[1]);
-    });
-
-    it("looks a territory up by name", () => {
-        buildTerritoryIndex(territories);
-        expect(getTerritoryByName("Vatican City")).toBe(territories[2]);
-    });
-
-    it("returns null for an unknown key", () => {
-        buildTerritoryIndex(territories);
-        expect(getTerritoryByUniqueId("9999")).toBe(null);
-        expect(getTerritoryByName("Atlantis")).toBe(null);
-    });
-
-    it("throws a clear error if queried before being built", () => {
-        expect(() => getTerritoryByUniqueId("0")).toThrow(/buildTerritoryIndex/i);
-    });
-
-    it("indexes by identity, so a lookup returns the live object", () => {
-        buildTerritoryIndex(territories);
-        getTerritoryByUniqueId("8").goldForCurrentTerritory = 123;
-        expect(territories[0].goldForCurrentTerritory).toBe(123);
-    });
-
-    it("is independent of the path index", () => {
-        buildTerritoryIndex(territories);
-        expect(isTerritoryIndexBuilt()).toBe(true);
-        expect(isPathIndexBuilt()).toBe(false);
-    });
-});
+// The territory half of this module moved into GameState in Phase 4.1 -- there is one
+// Map over the territories now, not two. Its tests are in state.spec.js.

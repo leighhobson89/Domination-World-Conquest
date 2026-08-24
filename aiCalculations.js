@@ -5,9 +5,7 @@ import {
     PROBABILITY_THRESHOLD_FOR_SIEGE,
     saveMapColorState,
     setColorOnMap,
-    setCountryNameOnPath,
     setCurrentMapColorAndStrokeArrayFromExternal,
-    setOwnerOnPath,
     populateAiDialogueBox,
     setAiDialogueContainerCurrentlyOnScreen,
     toggleAiDialogue,
@@ -25,7 +23,6 @@ import {
     armyProdPopPrices,
     calculateAvailableUpgrades,
     INFANTRY_IN_A_TROOP,
-    mainGameArray,
     maxFarms,
     maxForests,
     maxForts,
@@ -59,6 +56,21 @@ import {
     summaryWarsArray,
     summaryWarsLostArray
 } from "./gameTurnsLoop.js";
+import {
+    allTerritories,
+    getTerritory,
+    getTerritoryByName
+} from './src/state/selectors.js';
+import {
+    setTerritoryOwner,
+    updateTerritory as patchTerritory
+} from './src/state/mutations.js';
+import {
+    getPathByUniqueId
+} from './src/state/indexes.js';
+import {
+    pathIsPlayerOwned
+} from './src/state/pathState.js';
 
 const THREAT_DISREGARD_CONSTANT = -9999999999;
 const MAX_AI_UPGRADES_PER_TURN = 5;
@@ -159,18 +171,17 @@ export function buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountrie
     return attackableTerritoriesInRange;
 }
 
-export function convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange, paths, mainGameArray) {
-    for (let i = 0; i < paths.length; i++) {
-        for (let j = 0; j < mainGameArray.length; j++) {
-            if (paths[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId) {
-                for (let k = 0; k < attackableTerritoriesInRange.length; k++) {
-                    if (attackableTerritoriesInRange[k] === paths[i].getAttribute("territory-name")) {
-                        attackableTerritoriesInRange[k] = mainGameArray[j];
-                        break;
-                    }
-                }
-                break;
-            }
+// Names in, territory objects out. This used to walk all 359 paths, and for each of
+// them all 359 territories, and for each match the whole attackable list -- once per
+// AI territory per turn. The store indexes territories by name, so it is now a map().
+//
+// A name with no territory behind it is left as the string, exactly as before, so a
+// caller that was relying on that (rather than crashing) still gets it.
+export function convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange) {
+    for (let i = 0; i < attackableTerritoriesInRange.length; i++) {
+        const territory = getTerritoryByName(attackableTerritoriesInRange[i]);
+        if (territory) {
+            attackableTerritoriesInRange[i] = territory;
         }
     }
     return attackableTerritoriesInRange;
@@ -247,9 +258,9 @@ export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(at
             } else {
                 arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, defenseScore[1], defenseScore[2]]);
             }
-            for (let k = 0; k < mainGameArray.length; k++) {
-                if (friendlyTerritory[0] === mainGameArray[k].territoryName) {
-                    friendlyTerritoryObject = mainGameArray[k];
+            for (let k = 0; k < allTerritories().length; k++) {
+                if (friendlyTerritory[0] === allTerritories()[k].territoryName) {
+                    friendlyTerritoryObject = allTerritories()[k];
                     break;
                 }
             }
@@ -326,13 +337,13 @@ function organizeThreats(arrayOfTerritoriesInRangeThreats) {
     for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
         for (let j = 0; j < arrayOfTerritoriesInRangeThreats[i][4].length; j++) {
             let count = 0;
-            for (let k = 0; k < mainGameArray.length; k++) { //get territory objects
-                if (arrayOfTerritoriesInRangeThreats[i][0] === mainGameArray[k].territoryName) {
-                    enemyTerritory = mainGameArray[k];
+            for (let k = 0; k < allTerritories().length; k++) { //get territory objects
+                if (arrayOfTerritoriesInRangeThreats[i][0] === allTerritories()[k].territoryName) {
+                    enemyTerritory = allTerritories()[k];
                     count++;
                 }
-                if (arrayOfTerritoriesInRangeThreats[i][4][j][0] === mainGameArray[k].territoryName) {
-                    friendlyTerritory = mainGameArray[k];
+                if (arrayOfTerritoriesInRangeThreats[i][4][j][0] === allTerritories()[k].territoryName) {
+                    friendlyTerritory = allTerritories()[k];
                     count++;
                 }
                 if (count > 1) {
@@ -381,15 +392,15 @@ function addProbabilitiesOfBattle(sortedThreatArrayInfo) {
     let probability;
     for (const threat of sortedThreatArrayInfo) {
         let preAttackArray = [threat[0].uniqueId, parseInt(threat[2].uniqueId), threat[2].infantryForCurrentTerritory, threat[2].useableAssault, threat[2].useableAir, threat[2].useableNaval];
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (preAttackArray[0] === mainGameArray[i].uniqueId) {
-                if (!mainGameArray[i].isCoastal) {
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (preAttackArray[0] === allTerritories()[i].uniqueId) {
+                if (!allTerritories()[i].isCoastal) {
                     preAttackArray[5] = 0;
                     break;
                 }
             }
         }
-        probability = calculateProbabilityPreBattle(preAttackArray, mainGameArray, false);
+        probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
         threat.probabilityOfWin = probability;
         // console.log("Probability of " + threat[2].territoryName + " vs " + threat[0].territoryName + " is:" + threat.probabilityOfWin);
     }
@@ -614,9 +625,9 @@ function calculatePriorityScore(row, leaderTraits) {
 function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry, leaderTraits) {
     for (let i = 0; i < refinedTurnsGoals.length; i++) {
         if (refinedTurnsGoals[i][1] === "Siege" || refinedTurnsGoals[i][1] === "Attack") {
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (mainGameArray[j].territoryName === refinedTurnsGoals[i][2]) {
-                    if (mainGameArray[j].originalOwner === currentAiCountry) {
+            for (let j = 0; j < allTerritories().length; j++) {
+                if (allTerritories()[j].territoryName === refinedTurnsGoals[i][2]) {
+                    if (allTerritories()[j].originalOwner === currentAiCountry) {
                         refinedTurnsGoals[i][0] = (refinedTurnsGoals[i][0] * leaderTraits.reconquista) + refinedTurnsGoals[i][0];
                         break;
                     }
@@ -670,23 +681,23 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
         //target at [2]. Everything else names only its own territory, at [2].
         const goalHasATarget = goal[1] === "Siege" || goal[1] === "Attack";
 
-        for (let i = 0; i < mainGameArray.length; i++) { //find territory depending on action
-            const territoryName = mainGameArray[i].territoryName;
+        for (let i = 0; i < allTerritories().length; i++) { //find territory depending on action
+            const territoryName = allTerritories()[i].territoryName;
             if (!goalHasATarget) {
                 if (goal[2] === territoryName) {
                     mainArrayFriendlyTerritoryCopy = {
-                        ...mainGameArray[i]
+                        ...allTerritories()[i]
                     };
                     break;
                 }
             } else {
                 if (goal[3] === territoryName) {
                     mainArrayFriendlyTerritoryCopy = {
-                        ...mainGameArray[i]
+                        ...allTerritories()[i]
                     };
                 } else if (goal[2] === territoryName) {
                     mainArrayEnemyTerritoryCopy = {
-                        ...mainGameArray[i]
+                        ...allTerritories()[i]
                     };
                 }
                 //audit 5.1 C: `count` used to be declared inside this loop, so it reset on
@@ -699,7 +710,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
 
         //audit 5.1 B: a goal whose territory is not on the map used to leave the sentinel
         //string "no match" in place, which the write-back below then wrote into
-        //mainGameArray -- every later arithmetic on that slot came out NaN.
+        //allTerritories() -- every later arithmetic on that slot came out NaN.
         if (!mainArrayFriendlyTerritoryCopy || (goalHasATarget && !mainArrayEnemyTerritoryCopy)) {
             console.log("Skipping goal " + goal[1] + " -- its territory is not in the game array");
             continue;
@@ -807,30 +818,22 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
         }
 
         //Write the copies back. audit 5.1 AB: this used to SUBSTITUTE the element
-        //(`mainGameArray[i] = copy`), which orphaned the Phase 1.5 territory index --
-        //it holds object references, so every index reader was left looking at the
-        //object that used to be in that slot. Assigning the fields keeps the identity.
-        let friendlyWrittenBack = false;
-        let enemyWrittenBack = false;
-
-        for (let i = 0; i < mainGameArray.length; i++) {
-            const territoryName = mainGameArray[i].territoryName;
-            if (!goalHasATarget) {
-                if (goal[2] === territoryName) {
-                    Object.assign(mainGameArray[i], mainArrayFriendlyTerritoryCopy);
-                    break;
-                }
-            } else {
-                if (goal[3] === territoryName) {
-                    Object.assign(mainGameArray[i], mainArrayFriendlyTerritoryCopy);
-                    friendlyWrittenBack = true;
-                } else if (goal[2] === territoryName) {
-                    Object.assign(mainGameArray[i], mainArrayEnemyTerritoryCopy);
-                    enemyWrittenBack = true;
-                }
-                if (friendlyWrittenBack && enemyWrittenBack) {
-                    break;
-                }
+        //(`mainGameArray[i] = copy`), which orphaned the territory index -- it holds
+        //object references, so every index reader was left looking at the object that
+        //used to be in that slot. Patching the fields keeps the identity.
+        //
+        //Phase 4: this walked all 359 territories comparing names, once per goal. The
+        //store indexes by name, and patchTerritory() reports which fields actually moved
+        //so the map only redraws the territories that changed.
+        const friendlyName = goalHasATarget ? goal[3] : goal[2];
+        const friendlyTerritory = getTerritoryByName(friendlyName);
+        if (friendlyTerritory) {
+            patchTerritory(friendlyTerritory.uniqueId, mainArrayFriendlyTerritoryCopy);
+        }
+        if (goalHasATarget) {
+            const enemyTerritory = getTerritoryByName(goal[2]);
+            if (enemyTerritory) {
+                patchTerritory(enemyTerritory.uniqueId, mainArrayEnemyTerritoryCopy);
             }
         }
     }
@@ -1376,7 +1379,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
     // // END OF DEBUG
 
     const attackArray = [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId), Math.abs(Math.floor(actuallyBeingSent)), 0, 0, 0];
-    const newProb = calculateProbabilityPreBattle(attackArray, mainGameArray, false);
+    const newProb = calculateProbabilityPreBattle(attackArray, allTerritories(), false);
     console.log("Probability of that interaction would be: " + newProb);
 
     if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
@@ -1454,15 +1457,15 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
     let armyRemainingAttack = calculateCombinedForce(armyArray);
     let armyRemainingDefend = calculateCombinedForce([mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval]);
 
-    for (let i = 0; i < mainGameArray.length; i++) { //remove army from attacking territory
-        if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
-            mainGameArray[i].infantryForCurrentTerritory -= armyArray[0];
-            mainGameArray[i].assaultForCurrentTerritory -= armyArray[1];
-            mainGameArray[i].useableAssault -= armyArray[1];
-            mainGameArray[i].airForCurrentTerritory -= armyArray[2];
-            mainGameArray[i].useableAir -= armyArray[2];
-            mainGameArray[i].navalForCurrentTerritory -= armyArray[3];
-            mainGameArray[i].useableNaval -= armyArray[3];
+    for (let i = 0; i < allTerritories().length; i++) { //remove army from attacking territory
+        if (allTerritories()[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
+            allTerritories()[i].infantryForCurrentTerritory -= armyArray[0];
+            allTerritories()[i].assaultForCurrentTerritory -= armyArray[1];
+            allTerritories()[i].useableAssault -= armyArray[1];
+            allTerritories()[i].airForCurrentTerritory -= armyArray[2];
+            allTerritories()[i].useableAir -= armyArray[2];
+            allTerritories()[i].navalForCurrentTerritory -= armyArray[3];
+            allTerritories()[i].useableNaval -= armyArray[3];
             break;
         }
     }
@@ -1552,12 +1555,12 @@ function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEne
     remainderArray.push(infantryCount, assaultAddCount, airAddCount, navalAddCount, attackOrDefend);
 
     if (attackOrDefend === 1) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
-                mainGameArray[i].infantryForCurrentTerritory = remainderArray[0];
-                mainGameArray[i].assaultForCurrentTerritory = remainderArray[1];
-                mainGameArray[i].airForCurrentTerritory = remainderArray[2];
-                mainGameArray[i].navalForCurrentTerritory = remainderArray[3];
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === mainArrayEnemyTerritoryCopy.uniqueId) {
+                allTerritories()[i].infantryForCurrentTerritory = remainderArray[0];
+                allTerritories()[i].assaultForCurrentTerritory = remainderArray[1];
+                allTerritories()[i].airForCurrentTerritory = remainderArray[2];
+                allTerritories()[i].navalForCurrentTerritory = remainderArray[3];
                 break;
             }
         }
@@ -1584,8 +1587,16 @@ function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerrito
     territory.dataName = mainArrayFriendlyTerritoryCopy.dataName;
     territory.leader = mainArrayFriendlyTerritoryCopy.leader;
     setColorOnMap(territory);
-    setOwnerOnPath(territory);
-    setCountryNameOnPath(territory);
+    //`territory` here is still one of doAiActions() working copies, so the conquest is
+    //recorded against the real territory rather than left for the write-back loop to
+    //carry. The path attributes follow from this (Phase 4.4); setOwnerOnPath() and
+    //setCountryNameOnPath() are gone, and with them the bug that the latter wrote
+    //`territory.owner` into `data-name` rather than `territory.dataName`.
+    setTerritoryOwner(
+        territory.uniqueId,
+        mainArrayFriendlyTerritoryCopy.owner,
+        mainArrayFriendlyTerritoryCopy.dataName
+    );
     deactivateTerritoryAi(territory);
     setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
     updateArrayOfLeadersAndCountries();
@@ -1730,9 +1741,9 @@ function removeGoldFromAi(goldToOffer, mainArrayFriendlyTerritoryCopy) {
 
 function addGoldToPlayer(goldToOffer) {
     let arrayOfPlayerTerritoriesFromMainArray = [];
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].owner === "Player") {
-            arrayOfPlayerTerritoriesFromMainArray.push(mainGameArray[i]);
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].owner === "Player") {
+            arrayOfPlayerTerritoriesFromMainArray.push(allTerritories()[i]);
         }
     }
     const numberOfTerritories = arrayOfPlayerTerritoriesFromMainArray.length;
@@ -1742,9 +1753,9 @@ function addGoldToPlayer(goldToOffer) {
         territory.goldForCurrentTerritory += goldPerTerritory;
     }
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].owner === "Player") {
-            console.log(mainGameArray[i].territoryName + mainGameArray[i].goldForCurrentTerritory);
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].owner === "Player") {
+            console.log(allTerritories()[i].territoryName + allTerritories()[i].goldForCurrentTerritory);
         }
     }
 }
@@ -1760,11 +1771,11 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
         }
     }
     for (let i = 0; i < possibleReturnTerritories.length; i++) {
-        if (possibleReturnTerritories[i][0].getAttribute("owner") === "Player") {
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (mainGameArray[j].uniqueId === possibleReturnTerritories[i][0].getAttribute("uniqueid")) {
-                    returnArmyArray.push(mainGameArray[j].territoryName);
-                    let returnTerritory = mainGameArray[j];
+        if (pathIsPlayerOwned(possibleReturnTerritories[i][0])) {
+            for (let j = 0; j < allTerritories().length; j++) {
+                if (allTerritories()[j].uniqueId === possibleReturnTerritories[i][0].getAttribute("uniqueid")) {
+                    returnArmyArray.push(allTerritories()[j].territoryName);
+                    let returnTerritory = allTerritories()[j];
                     returnTerritory.infantryForCurrentTerritory += returnArmyArray[0];
                     returnTerritory.assaultForCurrentTerritory += returnArmyArray[1];
                     returnTerritory.airForCurrentTerritory += returnArmyArray[2];
@@ -1778,12 +1789,12 @@ function removeSiegeAndReturnPlayerArmy(siegedTerritory) {
     }
 
     addRemoveWarSiegeObject(1, siegeObject.warId, false);
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === siegedTerritory.uniqueId) {
-            paths[i].setAttribute("underSiege", "false");
-            removeSiegeImageFromPath(false, paths[i]);
-            break;
-        }
+    //Removing the siege above is what clears `underSiege`; it is derived from the siege
+    //lists and rendered by src/ui/mapAttributeSync.js (Phase 4.4/4.5). Only the overlay
+    //image is left to take down.
+    const siegedPath = getPathByUniqueId(siegedTerritory.uniqueId);
+    if (siegedPath) {
+        removeSiegeImageFromPath(false, siegedPath);
     }
     return returnArmyArray;
 }
@@ -1830,15 +1841,16 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         let currentAiWarId = getCurrentAiWarId();
         setNextAiWarId(currentAiWarId + 1);
 
-        for (let i = 0; i < mainGameArray.length; i++) { //remove army from attacking territory
-            if (mainGameArray[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
-                mainGameArray[i].infantryForCurrentTerritory -= armyArray[0];
-                mainGameArray[i].assaultForCurrentTerritory -= armyArray[1];
-                mainGameArray[i].navalForCurrentTerritory -= armyArray[3];
-                mainGameArray[i].useableAssault -= armyArray[1];
-                mainGameArray[i].useableAir -= armyArray[2];
-                mainGameArray[i].useableNaval -= armyArray[3];
-                mainGameArray[i].armyForCurrentTerritory = mainGameArray[i].infantryForCurrentTerritory + (mainGameArray[i].assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainGameArray[i].airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainGameArray[i].navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+        const attackingTerritory = getTerritory(mainArrayFriendlyTerritoryCopy.uniqueId);
+        { //remove army from attacking territory
+            if (attackingTerritory) {
+                attackingTerritory.infantryForCurrentTerritory -= armyArray[0];
+                attackingTerritory.assaultForCurrentTerritory -= armyArray[1];
+                attackingTerritory.navalForCurrentTerritory -= armyArray[3];
+                attackingTerritory.useableAssault -= armyArray[1];
+                attackingTerritory.useableAir -= armyArray[2];
+                attackingTerritory.useableNaval -= armyArray[3];
+                attackingTerritory.armyForCurrentTerritory = attackingTerritory.infantryForCurrentTerritory + (attackingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (attackingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (attackingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
                 mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory -= armyArray[0];
                 mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory -= armyArray[1];
@@ -1850,7 +1862,6 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
                 mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory = mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory + (mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainArrayFriendlyTerritoryCopy.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainArrayFriendlyTerritoryCopy.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
                 console.log(mainArrayFriendlyTerritoryCopy.territoryName + " had its army adjusted ready for siege");
-                break;
             }
         }
         //add war to siege array for ai
@@ -1861,17 +1872,15 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             currentWarAlreadyInSiegeMode = true;
         }
         //set sieged territory to siege mode
-        for (let i = 0; i < paths.length; i++) {
-            if (paths[i].getAttribute("uniqueid") === mainArrayEnemyTerritoryCopy.uniqueId && !currentWarAlreadyInSiegeMode) {
-                paths[i].setAttribute("underSiege", "true");
-                console.log(paths[i].getAttribute("territory-name") + " has had its underSiege attribute set, it is now: " + paths[i].getAttribute("underSiege"));
-                addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
-                addImageToPath(paths[i], "siegeai.png", 2);
-                console.log("Should now be an image over the territory of " + paths[i].getAttribute("territory-name"));
-                if (mapMode === 1) {
-                    setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
-                }
-                break;
+        const siegeTargetPath = getPathByUniqueId(mainArrayEnemyTerritoryCopy.uniqueId);
+        if (siegeTargetPath && !currentWarAlreadyInSiegeMode) {
+            //Recording the siege is what puts the territory under siege now: the
+            //`underSiege` attribute is derived from the siege lists (Phase 4.4/4.5).
+            addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
+            addImageToPath(siegeTargetPath, "siegeai.png", 2);
+            console.log("Should now be an image over the territory of " + siegeTargetPath.getAttribute("territory-name"));
+            if (mapMode === 1) {
+                setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
             }
         }
     }

@@ -1,0 +1,32 @@
+{
+  "name": "weak-defender",
+  "description": "A neighbour reduced to a token garrison, with the player's territory given a large one. Makes an attacker win -- and a rout -- reachable without a seed lottery.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 400000,
+        "assaultForCurrentTerritory": 500,
+        "useableAssault": 500,
+        "airForCurrentTerritory": 500,
+        "useableAir": 500,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 100,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "fortsBuilt": 0,
+        "defenseBonus": 0
+      }
+    }
+  ]
+}

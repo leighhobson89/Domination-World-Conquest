@@ -1,69 +1,173 @@
 import { test, expect } from "../../support/fixtures.js";
 
-// Battle behaviours whose DEFECTS are fixed but whose ASSERTIONS are not yet
-// writable.
+// Battle behaviours whose defects Phase 3 fixed but whose assertions needed a way to
+// reach the situation being asserted -- a rout, a naval-only defender, two live sieges,
+// a retreat with something to return.
 //
-// Refactor Phase 3 fixed the code behind three of the four: the rout threshold
-// (audit 5.1 E), the cross-unit-type deadlock (5.2 K) and two concurrent sieges
-// (5.1 D). What none of them has is a way to reach the situation being asserted --
-// a rout, a naval-only defender, two live sieges. Every one of those needs the
-// scenario loader (docs/04-e2e-test-plan.md section 3.7, a Phase 4 deliverable);
-// hoping the live map produces one is a seed lottery, not a test.
+// That way is the scenario loader (docs/04-e2e-test-plan.md section 3.7), delivered in
+// Phase 4 because it needs the single state layer to be safe: a scenario is applied
+// through `state/mutations.js`, the same path the game writes by, so it cannot produce a
+// world the game could not have produced itself.
 //
-// So these stay `test.fixme`, and the reason has changed: it is no longer "the
-// game does the wrong thing", it is "the harness cannot set this up yet".
+// No exact combat outcome is asserted here and none can be: seeding Math.random does not
+// make the game reproducible while addSparklesRegularly() shares the global stream (audit
+// 5.3 Y, closed by Phase 5.5). These pin invariants -- the battle resolves, both sieges
+// tick, the survivors come home -- not survivor counts.
 //
 // docs/03-refactor-plan.md step 2.5 · docs/04-e2e-test-plan.md section 5.10.
+
+/** Aim at a named enemy of `source` and open the attack window. */
+async function openAttackOn(game, source, target) {
+    await game.endBuyPhase();
+    await game.selectOnMap(source);
+    await game.selectOnMap(target);
+    expect(await game.moveButton.label()).toBe("ATTACK");
+    await game.moveButton.click();
+    await expect.poll(async () => game.transferAttack.isOpen()).toBe(true);
+}
+
+test.describe("battle behaviour that needs a scenario", () => {
+    test("resolves an all-infantry attack on an all-naval defender rather than stalling", async ({
+        startedGame: game,
+    }) => {
+        // audit 5.2 K, fixed in Phase 3.15 with the cross-type matchup matrix the plan
+        // recommended: `UNIT_MATCHUP_EFFECTIVENESS` scales the odds by how effective an
+        // attacking type is against the type it engages, and `totalSkirmishes` is the
+        // number of pairings the two armies can make -- zero only when one side is empty.
+        // Before that, two armies sharing no unit type produced zero skirmishes and the
+        // battle hung with no way out.
+        const report = await game.loadScenario("naval-only-defender");
+        expect(report.territories).toEqual(["Germany", "France"]);
+
+        await openAttackOn(game, "Germany", "France");
+        await game.transferAttack.plus("Germany", "infantry", 3);
+        await game.moveButton.click();
+
+        await expect.poll(async () => game.battle.isOpen()).toBe(true);
+
+        // The point of the assertion: a probability at all. It was NaN or a hang before.
+        const probability = await game.battle.probability();
+        expect(Number.isFinite(probability)).toBe(true);
+
+        await game.battle.advanceRound();
+        await expect
+            .poll(async () => (await game.battle.isOpen()) || (await game.battle.resultsShown()))
+            .toBe(true);
+    });
+
+    test("ticks two concurrent sieges every turn, not just the first", async ({
+        startedGame: game,
+    }) => {
+        // audit 5.1 D, fixed in Phase 3.4: `calculatePlayerInitiatedSiegePerTurn` did
+        // `if (!damage) { return; }` inside its loop, so one siege that missed its hit
+        // roll aborted processing for every other siege that turn. It is a `continue`
+        // now, in both the player and the AI function -- but proving it needs two sieges
+        // running at once, which no amount of clicking reliably produces.
+        const report = await game.loadScenario("two-sieges");
+        expect(report.sieges).toHaveLength(2);
+
+        const before = await game.sieges();
+        expect(before.ai).toEqual(expect.arrayContaining(["Germany", "France"]));
+
+        const turnsBefore = await game.page.evaluate(() => {
+            const sieges = window.__game.sieges();
+            return sieges.ai.length;
+        });
+        expect(turnsBefore).toBeGreaterThanOrEqual(2);
+
+        await game.playTurns(1);
+
+        // Both are either still besieged -- and therefore both were processed -- or
+        // resolved. What must not happen is one advancing while the other is untouched,
+        // which is what the `return` produced.
+        const after = await game.sieges();
+        const stillBesieged = ["Germany", "France"].filter(
+            (name) => after.ai.includes(name) || after.player.includes(name)
+        );
+        const wars = await game.wars();
+        const resolved = ["Germany", "France"].filter((name) =>
+            wars.some((war) => war.defendingTerritory === name)
+        );
+        expect(stillBesieged.length + resolved.length).toBeGreaterThanOrEqual(2);
+    });
+
+    test("marks a besieged territory on the map from the siege list alone", async ({
+        startedGame: game,
+    }) => {
+        // Phase 4.4/4.5: `underSiege` is derived from the siege lists and rendered by
+        // src/ui/mapAttributeSync.js. The scenario only adds a siege -- it never touches
+        // the attribute -- so if the map shows it, the derivation is what put it there.
+        await game.loadScenario("two-sieges");
+
+        const marked = await game.page.evaluate(() => {
+            const doc = document.getElementById("svg-map").contentDocument;
+            return Array.from(doc.querySelectorAll("path"))
+                .filter((path) => path.getAttribute("underSiege") === "true")
+                .map((path) => path.getAttribute("territory-name"))
+                .sort();
+        });
+        expect(marked).toEqual(["France", "Germany"]);
+    });
+
+    test("debits the source at INVADE! and queues the survivors for return on retreat", async ({
+        startedGame: game,
+    }) => {
+        // Two halves of one rule, and neither was assertable before Phase 4.7: the source
+        // was never debited at INVADE! (audit 5.1 AD), so there was nothing meaningful to
+        // assert about it being credited back. Both are real now, and they have to stay
+        // paired -- debiting without queueing the return would quietly destroy the army.
+        //
+        // The queue is asserted rather than the payout. `handleArmyRetrievals()` pays out
+        // on a later turn, and getting there means surviving two AI phases whose battles
+        // are not reproducible while Math.random is shared with the sparkles (audit 5.3
+        // Y). Asserting the queue tests the mechanism; asserting the payout would test
+        // the seed.
+        await game.loadScenario("weak-defender");
+
+        const source = await game.territory("Germany");
+
+        await openAttackOn(game, "Germany", "France");
+        await game.transferAttack.plus("Germany", "infantry", 3);
+        const committed = await game.transferAttack.quantity("Germany", "infantry");
+        expect(committed).toBeGreaterThan(0);
+
+        await expect.poll(async () => game.moveButton.label()).toBe("INVADE!");
+        await game.moveButton.click();
+        await expect.poll(async () => game.battle.isOpen()).toBe(true);
+
+        const duringBattle = await game.territory("Germany");
+        expect(source.infantryForCurrentTerritory - duringBattle.infantryForCurrentTerritory).toBe(
+            committed
+        );
+
+        expect(await game.retrievals()).toEqual([]);
+
+        await game.battle.retreat.click();
+
+        // Before Phase 4.7 this branch only queued a retrieval when the button read
+        // "Pull Out" -- a siege pullout. A plain retreat from a fresh battle queued
+        // nothing, which was harmless only because nothing had been debited.
+        const queued = await game.retrievals();
+        expect(queued.length).toBe(1);
+        expect(queued[0].sourceTerritoryIds).toContain(String(source.uniqueId));
+        expect(queued[0].turnsUntilReturn).toBeGreaterThan(0);
+    });
+});
 
 test.describe("known-broken battle behaviour", () => {
     test.fixme("a rout hands half the surviving defenders to the attacker", async ({
         startedGame: game,
     }) => {
-        // audit 5.1 E is FIXED (refactor Phase 3.3):
-        // `unchangeableWarStartCombinedForceDefend` was assigned from
-        // `totalAttackingArmy`, so "defender below 5% of its starting force" really
-        // meant "below 5% of the ATTACKER's starting force" and outcomes were wrong
-        // whenever the armies differed in size. It now reads `totalDefendingArmy`.
+        // audit 5.1 E is FIXED (refactor Phase 3.3): `unchangeableWarStartCombinedForceDefend`
+        // was assigned from `totalAttackingArmy`, so "defender below 5% of its starting
+        // force" really meant "below 5% of the ATTACKER's starting force" and outcomes were
+        // wrong whenever the armies differed in size. It now reads `totalDefendingArmy`.
         //
-        // Still `fixme` because a rout is not reliably reachable by clicking. Write
-        // this against the scenario loader (e2e plan section 3.7, Phase 4).
-        expect(true).toBe(false);
-    });
-
-    test.fixme("an all-infantry attack on an all-naval defender resolves rather than stalling", async ({
-        startedGame: game,
-    }) => {
-        // audit 5.2 K is FIXED (refactor Phase 3.15), with the cross-type matchup
-        // matrix the plan recommended: `UNIT_MATCHUP_EFFECTIVENESS` in battle.js
-        // scales the odds by how effective an attacking type is against the type it
-        // engages, and `totalSkirmishes` is now the number of pairings the two armies
-        // can make -- zero only when one side is empty.
-        //
-        // Still `fixme` because constructing an all-infantry attack on an all-naval
-        // defender needs the scenario loader (e2e plan section 3.7, Phase 4).
-        expect(true).toBe(false);
-    });
-
-    test.fixme("retreating returns the survivors to their source territories", async ({
-        startedGame: game,
-    }) => {
-        // Blocked on the same thing as attack/attack-window.spec.js's
-        // "takes the committed units out of their source territory immediately":
-        // the source is never debited at INVADE! time, so there is nothing
-        // meaningful to assert about it being credited back. Phase 4.7 makes war
-        // objects hold a territory id instead of a copy, at which point both
-        // halves become assertable together.
-        expect(true).toBe(false);
-    });
-
-    test.fixme("two concurrent sieges both tick every turn", async ({ startedGame: game }) => {
-        // audit 5.1 D is FIXED (refactor Phase 3.4): `calculatePlayerInitiatedSiegePerTurn`
-        // did `if (!damage) { return; }` inside its loop, so one siege that missed its
-        // hit roll aborted processing for every other siege that turn. It is a
-        // `continue` now, in both the player and the AI function.
-        //
-        // Still `fixme` because setting up two concurrent sieges needs the scenario
-        // loader (e2e plan section 3.7, Phase 4).
+        // Still `fixme`, and the reason has changed again. The scenario loader can now set
+        // up a hopeless defender, but a rout is a random outcome given that setup, and
+        // Math.random is shared with the cosmetic sparkles (audit 5.3 Y) so a seed cannot
+        // force one. Write this against the injected RNG in Phase 5.3/5.5, where
+        // `resolveRound()` is pure and deterministic given its rng.
         expect(true).toBe(false);
     });
 });

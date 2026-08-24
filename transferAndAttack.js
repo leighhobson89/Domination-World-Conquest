@@ -1,5 +1,4 @@
 import {
-    mainGameArray,
     vehicleArmyPersonnelWorth,
     formatNumbersToKMB,
     colourTableText,
@@ -23,9 +22,18 @@ import {
     territoryAboutToBeAttackedOrSieged,
     transferAttackButtonState
 } from './ui.js';
+import {
+    allTerritories
+} from './src/state/selectors.js';
+import {
+    pathIsDeactivated
+} from './src/state/pathState.js';
+import {
+    getTerritory
+} from './src/state/selectors.js';
 
 let selectedTerritoryUniqueId; // transfer only
-export let territoryUniqueIds = []; //attack only
+export const territoryUniqueIds = []; //attack only
 export let probability;
 let preAttackArray = [];
 const disabledFlagsAttack = [];
@@ -454,7 +462,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     } else if (transferOrAttack === 1) { // attack
         //remove deactivated territories from territoriesAbleToAttackArray
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) {
-            if (territoriesAbleToAttackTarget[i].getAttribute("deactivated") === "true") {
+            if (pathIsDeactivated(territoriesAbleToAttackTarget[i])) {
                 territoriesAbleToAttackTarget.splice(i, 1);
                 i--;
             }
@@ -598,20 +606,20 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                             if (multipleValue === 1) {
                                 newValue = currentValue + 1;
                             } else if (multipleValue === 100000000) {
-                                for (let i = 0; i < mainGameArray.length; i++) {
-                                    if (mainGameArray[i].uniqueId === territoryUniqueIds[rowIndex]) {
+                                for (let i = 0; i < allTerritories().length; i++) {
+                                    if (allTerritories()[i].uniqueId === territoryUniqueIds[rowIndex]) {
                                         switch (armyColumnIndex) {
                                             case 0:
-                                                newValue = mainGameArray[i].infantryForCurrentTerritory;
+                                                newValue = allTerritories()[i].infantryForCurrentTerritory;
                                                 break;
                                             case 1:
-                                                newValue = mainGameArray[i].useableAssault;
+                                                newValue = allTerritories()[i].useableAssault;
                                                 break;
                                             case 2:
-                                                newValue = mainGameArray[i].useableAir;
+                                                newValue = allTerritories()[i].useableAir;
                                                 break;
                                             case 3:
-                                                newValue = mainGameArray[i].useableNaval;
+                                                newValue = allTerritories()[i].useableNaval;
                                                 break;
                                         }
                                         break;
@@ -649,7 +657,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateProbabilityPreBattle(preAttackArray, mainGameArray, false);
+                            probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
@@ -726,7 +734,7 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
 
                             updateAttackArray(territoryUniqueIds, quantityTextBoxes);
                             checkAndSetButtonAsAttackOrCancel(preAttackArray);
-                            probability = calculateProbabilityPreBattle(preAttackArray, mainGameArray, false);
+                            probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
                             console.log("pre probability: " + probability);
                             console.log("attackArray: " + finalAttackArray);
                             preAttackArray.length = 0;
@@ -811,7 +819,7 @@ function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck
         const values = [];
 
         for (let i = 0; i < territoryUniqueIds.length; i++) {
-            const matchingElement = mainGameArray.find(element => element.uniqueId === territoryUniqueIds[i]);
+            const matchingElement = allTerritories().find(element => element.uniqueId === territoryUniqueIds[i]);
 
             if (matchingElement) {
                 values.push([
@@ -956,44 +964,44 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
     let newArmyValueFrom = 0;
     let originalArmyValue;
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (parseInt(mainGameArray[i].uniqueId) === transferArray[0]) { //To
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (parseInt(mainGameArray[j].uniqueId) === transferArray[1]) { //From
-                    mainGameArray[i].infantryForCurrentTerritory += transferArray[2];
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (parseInt(allTerritories()[i].uniqueId) === transferArray[0]) { //To
+            for (let j = 0; j < allTerritories().length; j++) {
+                if (parseInt(allTerritories()[j].uniqueId) === transferArray[1]) { //From
+                    allTerritories()[i].infantryForCurrentTerritory += transferArray[2];
                     newArmyValueTo += transferArray[2];
-                    mainGameArray[i].assaultForCurrentTerritory += transferArray[3];
+                    allTerritories()[i].assaultForCurrentTerritory += transferArray[3];
                     newArmyValueTo += transferArray[3] * vehicleArmyPersonnelWorth.assault;
-                    mainGameArray[i].airForCurrentTerritory += transferArray[4];
+                    allTerritories()[i].airForCurrentTerritory += transferArray[4];
                     newArmyValueTo += transferArray[4] * vehicleArmyPersonnelWorth.air;
-                    mainGameArray[i].navalForCurrentTerritory += transferArray[5];
+                    allTerritories()[i].navalForCurrentTerritory += transferArray[5];
                     newArmyValueTo += transferArray[5] * vehicleArmyPersonnelWorth.naval;
 
-                    originalArmyValue = mainGameArray[j].armyForCurrentTerritory;
-                    mainGameArray[j].infantryForCurrentTerritory -= transferArray[2];
+                    originalArmyValue = allTerritories()[j].armyForCurrentTerritory;
+                    allTerritories()[j].infantryForCurrentTerritory -= transferArray[2];
                     newArmyValueFrom -= transferArray[2];
-                    mainGameArray[j].assaultForCurrentTerritory -= transferArray[3];
+                    allTerritories()[j].assaultForCurrentTerritory -= transferArray[3];
                     newArmyValueFrom -= transferArray[3] * vehicleArmyPersonnelWorth.assault;
-                    mainGameArray[j].airForCurrentTerritory -= transferArray[4];
+                    allTerritories()[j].airForCurrentTerritory -= transferArray[4];
                     newArmyValueFrom -= transferArray[4] * vehicleArmyPersonnelWorth.air;
-                    mainGameArray[j].navalForCurrentTerritory -= transferArray[5];
+                    allTerritories()[j].navalForCurrentTerritory -= transferArray[5];
                     newArmyValueFrom -= transferArray[5] * vehicleArmyPersonnelWorth.naval;
 
-                    mainGameArray[i].armyForCurrentTerritory += newArmyValueTo;
-                    mainGameArray[j].armyForCurrentTerritory += newArmyValueFrom;
+                    allTerritories()[i].armyForCurrentTerritory += newArmyValueTo;
+                    allTerritories()[j].armyForCurrentTerritory += newArmyValueFrom;
 
-                    mainGameArray[i].territoryPopulation += newArmyValueTo;
-                    mainGameArray[j].territoryPopulation += newArmyValueFrom;
+                    allTerritories()[i].territoryPopulation += newArmyValueTo;
+                    allTerritories()[j].territoryPopulation += newArmyValueFrom;
 
-                    if (mainGameArray[j].armyForCurrentTerritory < 0) {
-                        mainGameArray[j].armyForCurrentTerritory = 0;
-                        mainGameArray[j].territoryPopulation -= originalArmyValue;
-                        mainGameArray[j].oilDemand = 0;
+                    if (allTerritories()[j].armyForCurrentTerritory < 0) {
+                        allTerritories()[j].armyForCurrentTerritory = 0;
+                        allTerritories()[j].territoryPopulation -= originalArmyValue;
+                        allTerritories()[j].oilDemand = 0;
                     }
 
-                    colourTableText(document.getElementById("bottom-table"), mainGameArray[j]);
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(mainGameArray[j].armyForCurrentTerritory, 0);
-                    document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((mainGameArray[j].territoryPopulation, 0) / 100) * 45) * mainGameArray[j].devIndex) - mainGameArray[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(mainGameArray[j].territoryPopulation, 0) + ")";
+                    colourTableText(document.getElementById("bottom-table"), allTerritories()[j]);
+                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(allTerritories()[j].armyForCurrentTerritory, 0);
+                    document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(((((allTerritories()[j].territoryPopulation, 0) / 100) * 45) * allTerritories()[j].devIndex) - allTerritories()[j].armyForCurrentTerritory) + " (" + formatNumbersToKMB(allTerritories()[j].territoryPopulation, 0) + ")";
                     break;
                 }
             }
@@ -1001,6 +1009,13 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
     }
 }
 
+//Takes the committed units out of the territories that supplied them. `attackArray` is
+//the defending uniqueId followed by [uniqueId, infantry, assault, air, naval] per source.
+//
+//Closes audit 5.1 AD. This is called at INVADE! now, not only when a battle is converted
+//into a siege, so a garrison cannot be committed to two attacks in the same turn and an
+//attack that fails actually costs something. The army comes back through
+//`retrievalArray` on a no-penalty retreat, so the round trip balances.
 export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainArrayOfTerritoriesAndResources) {
     for (let i = 1; i < attackArray.length; i += 5) {
         const uniqueId = attackArray[i].toString();
@@ -1009,20 +1024,23 @@ export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainAr
         const air = attackArray[i + 3];
         const naval = attackArray[i + 4];
 
-        const matchingTerritory = mainArrayOfTerritoriesAndResources.find(
-            territory => territory.uniqueId === uniqueId
-        );
-
-        if (matchingTerritory) {
-            turnGainsArrayPlayer.changeOilDemand -= (assault * oilRequirements.assault);
-            turnGainsArrayPlayer.changeOilDemand -= (air * oilRequirements.air);
-            turnGainsArrayPlayer.changeOilDemand -= (naval * oilRequirements.naval);
-            matchingTerritory.infantryForCurrentTerritory -= infantry;
-            matchingTerritory.assaultForCurrentTerritory -= assault;
-            matchingTerritory.airForCurrentTerritory -= air;
-            matchingTerritory.navalForCurrentTerritory -= naval;
-            matchingTerritory.armyForCurrentTerritory -= (matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval));
+        const matchingTerritory = getTerritory(uniqueId);
+        if (!matchingTerritory) {
+            continue;
         }
+
+        turnGainsArrayPlayer.changeOilDemand -= (assault * oilRequirements.assault);
+        turnGainsArrayPlayer.changeOilDemand -= (air * oilRequirements.air);
+        turnGainsArrayPlayer.changeOilDemand -= (naval * oilRequirements.naval);
+        matchingTerritory.infantryForCurrentTerritory -= infantry;
+        matchingTerritory.assaultForCurrentTerritory -= assault;
+        matchingTerritory.airForCurrentTerritory -= air;
+        matchingTerritory.navalForCurrentTerritory -= naval;
+        //BUG FIX: this was `-=` the sum of what REMAINS, which subtracts the whole
+        //garrison a second time and drives armyForCurrentTerritory negative. The army
+        //total is the sum of the units, so it is an assignment.
+        matchingTerritory.armyForCurrentTerritory = matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+
         matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
         setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArrayOfTerritoriesAndResources, matchingTerritory);
     }
@@ -1036,7 +1054,7 @@ function disableAttackScreenOptions(table, territoryUniqueIds) {
         const armyColumns = Array.from(row.querySelectorAll('.army-type-column'));
 
         armyColumns.forEach((armyColumn, columnIndex) => {
-            const matchingTerritory = mainGameArray.find(territory =>
+            const matchingTerritory = allTerritories().find(territory =>
                 territory.uniqueId === territoryUniqueIds[rowIndex]
             );
 

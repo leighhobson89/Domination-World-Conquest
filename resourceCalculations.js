@@ -9,15 +9,12 @@ import {
     setFlag,
     toggleUpgradeMenu,
     toggleBuyMenu,
-    playerCountry,
     setUpgradeOrBuyWindowOnScreenToTrue,
     saveMapColorState,
     reduceKeywords,
     routeSiegeUIProcesses
 } from './ui.js';
 import {
-    currentTurn,
-    currentTurnPhase,
     randomEvent,
     randomEventHappening
 } from './gameTurnsLoop.js';
@@ -28,10 +25,26 @@ import {
     playSoundClip
 } from './sfx.js';
 import {
-    buildTerritoryIndex,
-    getTerritoryByUniqueId,
-    isTerritoryIndexBuilt
+    allTerritories,
+    getTerritory,
+    currentTurn,
+    currentPhase,
+    playerCountryName
+} from './src/state/selectors.js';
+import {
+    seedTerritories
+} from './src/state/GameState.js';
+import {
+    getPathByUniqueId
 } from './src/state/indexes.js';
+import {
+    startMapAttributeSync
+} from './src/ui/mapAttributeSync.js';
+import {
+} from './src/state/mutations.js';
+import {
+    Phase
+} from './src/state/phases.js';
 import {
     loadPrecomputedPathAreas,
     precomputedAreasFor
@@ -47,10 +60,15 @@ import {
     historicAiWars,
     addRemoveWarSiegeObjectAi
 } from './battle.js';
+import {
+    pathIsDeactivated,
+    pathIsPlayerOwned,
+    pathOwner,
+    pathCountry
+} from './src/state/pathState.js';
 
 export let allowSelectionOfCountry = false;
-export let playerOwnedTerritories = [];
-export let mainGameArray = [];
+export const playerOwnedTerritories = [];
 export let currentlySelectedTerritoryForUpgrades;
 export let currentlySelectedTerritoryForPurchases;
 export let totalGoldPrice = 0;
@@ -193,8 +211,8 @@ export const maxForests = 5;
 export const maxOilWells = 5;
 export const maxForts = 5;
 
-export let totalPlayerResources = [];
-export let countryResourceTotals = {};
+export const totalPlayerResources = [];
+export const countryResourceTotals = {};
 let continentModifier;
 let tooltip = document.getElementById("tooltip");
 let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -217,9 +235,13 @@ const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
 {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
-            mainGameArray = randomiseInitialGold(mainGameArray);
-            buildTerritoryIndex(mainGameArray); //O(1) uniqueId/name -> territory lookups
-            countryStrengthsArray = calculateTerritoryStrengths(mainGameArray);
+            randomiseInitialGold(allTerritories());
+            countryStrengthsArray = calculateTerritoryStrengths(allTerritories());
+            //From here the SVG path attributes are OUTPUT: the store is the truth and this
+            //renders it. Started once both halves exist -- the path index is built by
+            //svgMapLoaded(), which whenPageLoaded() above has already waited for, and the
+            //territory model was seeded by createArrayOfInitialData(). See Phase 4.4.
+            startMapAttributeSync();
             enableNewGameButton();
             saveMapColorState(true);
         })
@@ -233,7 +255,7 @@ export function getPlayerTerritories() {
     playerOwnedTerritories.length = 0;
 
     for (const path of paths) {
-        if (path.getAttribute("owner") === "Player") {
+        if (pathIsPlayerOwned(path)) {
             playerOwnedTerritories.push(path);
         }
     }
@@ -242,11 +264,11 @@ export function getPlayerTerritories() {
 export function populateBottomTableWhenSelectingACountry(countryPath) {
     // Update the table with the response data
     document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-    setFlag(countryPath.getAttribute("data-name"), 2); //set flag for territory clicked on (bottom table)
+    setFlag(pathCountry(countryPath), 2); //set flag for territory clicked on (bottom table)
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === countryPath.getAttribute("uniqueid")) {
-            writeBottomTableInformation(mainGameArray[i], false, countryPath);
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === countryPath.getAttribute("uniqueid")) {
+            writeBottomTableInformation(allTerritories()[i], false, countryPath);
             break;
         }
     }
@@ -282,16 +304,15 @@ export function getPathAreaComputations() {
 // map that has been edited since the areas were precomputed. Read from resource
 // timing so it costs nothing; returns -1 if unavailable, which fails the guard
 // closed and falls back to recomputing.
-// O(1) territory lookup, falling back to a scan until the index exists.
+// O(1) territory lookup.
 //
 // The find()-inside-a-loop pattern this replaces ran ~129,000 comparisons per call
 // in addUpAllTerritoryResourcesForCountryAndWriteToTopTable alone, once per turn.
-// See docs/01-codebase-audit.md section 4.2.
+// See docs/01-codebase-audit.md section 4.2. Since Phase 4 the index is the store's
+// own Map, built by seedTerritories(), so there is no window in which it is missing
+// and no scan to fall back to.
 function territoryByUniqueId(uniqueId) {
-    if (isTerritoryIndexBuilt()) {
-        return getTerritoryByUniqueId(uniqueId);
-    }
-    return mainGameArray.find(territory => territory.uniqueId === uniqueId) ?? null;
+    return getTerritory(uniqueId);
 }
 
 function svgByteLength() {
@@ -349,6 +370,11 @@ function calculatePathAreas() {
 }
 
 function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState) {
+    // Built locally and handed to seedTerritories(). Phase 4.1 deliberately leaves the
+    // calculation alone -- only its destination changes, from a module-level `let` that
+    // anything could reassign to the store.
+    const territories = [];
+
     // Loop through each element in pathAreas array
     for (let i = 0; i < pathAreas.length; i++) {
         let uniqueId = pathAreas[i].uniqueId;
@@ -425,6 +451,9 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     isCoastal = (isCoastal === "true");
                     isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
                     mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
+                    //Read from the SVG, not from the store: this IS the seeding pass, and
+                    //the store has no territories yet. `owner` and `originalOwner` are the
+                    //map's initial political state, and after this they are the store's.
                     owner = path.getAttribute("owner");
                     originalOwner = path.getAttribute("originalOwner");
                 }
@@ -482,7 +511,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let foodConsumption = territoryPopulation + armyForCurrentTerritory;
             let isDeactivated = false;
             // Add updated path data to the new array
-            mainGameArray.push({
+            territories.push({
                 uniqueId: uniqueId,
                 dataName: dataName,
                 territoryId: territoryId,
@@ -526,27 +555,29 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         }
     }
 
-    mainGameArray.sort(function(a, b) { //console out defense bonus
+    territories.sort(function(a, b) { //console out defense bonus
         return b.defenseBonus - a.defenseBonus;
     });
 
-    // for (let i = 0; i < mainGameArray.length; i++) {
-    //     const territory = mainGameArray[i];
+    // for (let i = 0; i < allTerritories().length; i++) {
+    //     const territory = allTerritories()[i];
     //     console.log(territory.defenseBonus + ", " + territory.territoryName);
     // }
 
 
-    return mainGameArray;
+    return territories;
 }
 
 function createArrayOfInitialData() {
     return calculatePathAreasWhenPageLoaded().then(pathAreas => {
         return new Promise((resolve, reject) => {
-            mainGameArray = assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState);
-            /* for (let i = 0; i < mainGameArray.length; i++) {
-                console.log('"' + mainGameArray[i].territoryName + '": ' + '"' + mainGameArray[i].uniqueId + '",');
+            //The one place the store is seeded. Everything downstream reads it through
+            //state/selectors.js; nothing else may replace the territory list.
+            seedTerritories(assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState));
+            /* for (let i = 0; i < allTerritories().length; i++) {
+                console.log('"' + allTerritories()[i].territoryName + '": ' + '"' + allTerritories()[i].uniqueId + '",');
             } */
-            resolve(mainGameArray);
+            resolve(allTerritories());
         });
     });
 }
@@ -567,20 +598,20 @@ function randomiseInitialGold(mainArrayOfTerritoriesAndResources) {
 
 export function newTurnResources() {
     //calculate new array data and set it
-    if (currentTurn !== 1) {
+    if (currentTurn() !== 1) {
         calculateTerritoryResourceIncomesEachTurn();
     }
 
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable(true);
     capacityArray = calculateAllTerritoryCapacitiesForPlayerCountry();
     demandArray = calculateAllTerritoryDemandsForPlayerCountry();
-    if (currentTurn !== 1) {
+    if (currentTurn() !== 1) {
         totalPlayerResources[0].totalUseableAssault = 0;
         totalPlayerResources[0].totalUseableAir = 0;
         totalPlayerResources[0].totalUseableNaval = 0;
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].dataName === playerCountry) {
-                setPlayerUseableNotUseableWeaponsDueToOilDemand(mainGameArray, mainGameArray[i]);
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].dataName === playerCountryName()) {
+                setPlayerUseableNotUseableWeaponsDueToOilDemand(allTerritories(), allTerritories()[i]);
             }
         }
         turnGainsArrayLastTurn = turnGainsArrayPlayer;
@@ -617,20 +648,20 @@ function calculateTerritoryResourceIncomesEachTurn() {
     let changeProdPopTemp;
 
     //continent modifier or possibly handle upgrades in future
-    for (let i = 0; i < mainGameArray.length; i++) {
+    for (let i = 0; i < allTerritories().length; i++) {
         //set each turn so that we can make exceptions after due to upgrades when introduced that code but HC for now
-        if (mainGameArray[i].continent === "Europe") {
-            mainGameArray[i].continentModifier = 1;
-        } else if (mainGameArray[i].continent === "North America") {
-            mainGameArray[i].continentModifier = 1;
-        } else if (mainGameArray[i].continent === "Asia") {
-            mainGameArray[i].continentModifier = 0.7;
-        } else if (mainGameArray[i].continent === "Oceania") {
-            mainGameArray[i].continentModifier = 0.6;
-        } else if (mainGameArray[i].continent === "South America") {
-            mainGameArray[i].continentModifier = 0.6;
-        } else if (mainGameArray[i].continent === "Africa") {
-            mainGameArray[i].continentModifier = 0.5;
+        if (allTerritories()[i].continent === "Europe") {
+            allTerritories()[i].continentModifier = 1;
+        } else if (allTerritories()[i].continent === "North America") {
+            allTerritories()[i].continentModifier = 1;
+        } else if (allTerritories()[i].continent === "Asia") {
+            allTerritories()[i].continentModifier = 0.7;
+        } else if (allTerritories()[i].continent === "Oceania") {
+            allTerritories()[i].continentModifier = 0.6;
+        } else if (allTerritories()[i].continent === "South America") {
+            allTerritories()[i].continentModifier = 0.6;
+        } else if (allTerritories()[i].continent === "Africa") {
+            allTerritories()[i].continentModifier = 0.5;
         }
     }
 
@@ -644,8 +675,8 @@ function calculateTerritoryResourceIncomesEachTurn() {
     }
 
     for (const path of paths) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            const defendingTerritoryId = mainGameArray[i].uniqueId;
+        for (let i = 0; i < allTerritories().length; i++) {
+            const defendingTerritoryId = allTerritories()[i].uniqueId;
 
             // Update values only if territory is not defending against a siege war
             if (
@@ -654,13 +685,13 @@ function calculateTerritoryResourceIncomesEachTurn() {
             ) {
                 //audit 5.2 I: these two loops used `i`, shadowing the territory index of the
                 //enclosing loop, so the post-siege food-capacity reset landed on whichever
-                //territory happened to sit at the WAR index in mainGameArray. `w` and `k`
+                //territory happened to sit at the WAR index in allTerritories(). `w` and `k`
                 //keep the two indexes apart; ESLint no-shadow stops it coming back.
                 for (let w = 0; w < historicWars.length; w++) {
                     if (historicWars[w].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[w].resetStatsAfterWar) {
                         if (historicWars[w].turnsInSiege !== null) {
                             //reset the stats here for food capacity after the siege is finished
-                            mainGameArray[i].foodCapacity = historicWars[w].startingFoodCapacity;
+                            allTerritories()[i].foodCapacity = historicWars[w].startingFoodCapacity;
                             historicWars[w].resetStatsAfterWar = true;
                             ai = false; //player
                         }
@@ -670,7 +701,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     if (historicAiWars[k].defendingTerritory.uniqueId === defendingTerritoryId && !historicAiWars[k].resetStatsAfterWar) {
                         if (historicAiWars[k].turnsInSiege !== null) {
                             //reset the stats here for food capacity after the siege is finished
-                            mainGameArray[i].foodCapacity = historicAiWars[k].startingFoodCapacity;
+                            allTerritories()[i].foodCapacity = historicAiWars[k].startingFoodCapacity;
                             historicAiWars[k].resetStatsAfterWar = true;
                             ai = true; //ai
                         }
@@ -678,35 +709,35 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 }
 
                 if (path.getAttribute("uniqueid") === defendingTerritoryId) {
-                    changeGold = calculateGoldChange(mainGameArray[i], false, false);
+                    changeGold = calculateGoldChange(allTerritories()[i], false, false);
                     //audit 5.2 R: re-enabled. calculateArmyMaintenanceCostPerTurn was fully
                     //implemented and used during initial army sizing, but commented out
                     //here -- so standing armies were free, which removed the principal
                     //economic brake on militarisation and made permanent sieges costless.
-                    changeGold -= calculateArmyMaintenanceCostPerTurn(mainGameArray[i]);
-                    changeOil = calculateOilChange(mainGameArray[i], false);
-                    changeFood = calculateFoodChange(mainGameArray[i], false, false);
-                    changeConsMats = calculateConsMatsChange(mainGameArray[i], false);
-                    changePop = calculatePopulationChange(mainGameArray[i], false, null);
-                    changeProdPopTemp = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
+                    changeGold -= calculateArmyMaintenanceCostPerTurn(allTerritories()[i]);
+                    changeOil = calculateOilChange(allTerritories()[i], false);
+                    changeFood = calculateFoodChange(allTerritories()[i], false, false);
+                    changeConsMats = calculateConsMatsChange(allTerritories()[i], false);
+                    changePop = calculatePopulationChange(allTerritories()[i], false, null);
+                    changeProdPopTemp = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
 
                     //Upkeep can exceed a turn income, so the change can be negative. Nothing
                     //in the game models debt -- a negative balance would flow straight into
                     //the AI spending calculations -- so a territory can be broke but never
                     //overdrawn. What an unpayable army SHOULD cost you (desertion) is a
                     //design question for Phase 7, not a defect fix.
-                    mainGameArray[i].goldForCurrentTerritory = Math.max(0, mainGameArray[i].goldForCurrentTerritory + changeGold);
-                    mainGameArray[i].oilForCurrentTerritory += changeOil;
-                    mainGameArray[i].foodForCurrentTerritory += changeFood;
-                    mainGameArray[i].foodConsumption = mainGameArray[i].territoryPopulation + mainGameArray[i].armyForCurrentTerritory;
-                    mainGameArray[i].consMatsForCurrentTerritory += changeConsMats;
-                    mainGameArray[i].territoryPopulation = Math.max(0, mainGameArray[i].territoryPopulation + changePop); //audit 5.2 AJ
-                    mainGameArray[i].productiveTerritoryPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
+                    allTerritories()[i].goldForCurrentTerritory = Math.max(0, allTerritories()[i].goldForCurrentTerritory + changeGold);
+                    allTerritories()[i].oilForCurrentTerritory += changeOil;
+                    allTerritories()[i].foodForCurrentTerritory += changeFood;
+                    allTerritories()[i].foodConsumption = allTerritories()[i].territoryPopulation + allTerritories()[i].armyForCurrentTerritory;
+                    allTerritories()[i].consMatsForCurrentTerritory += changeConsMats;
+                    allTerritories()[i].territoryPopulation = Math.max(0, allTerritories()[i].territoryPopulation + changePop); //audit 5.2 AJ
+                    allTerritories()[i].productiveTerritoryPop = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
 
-                    changeProdPop = (((mainGameArray[i].territoryPopulation / 100) * 45) * mainGameArray[i].devIndex);
+                    changeProdPop = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
                     changeProdPop = changeProdPop - changeProdPopTemp;
 
-                    const countryName = path.getAttribute("owner");
+                    const countryName = pathOwner(path);
 
                     if (countryName === "Player") {
                         turnGainsArrayPlayer.changeGold += changeGold;
@@ -743,46 +774,40 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 //branch never checked which path it was looking at -- so it would have run
                 //359 times per besieged territory per turn. The path check is what makes
                 //"once per besieged territory, every turn" true.
-                let siegeTerritory;
-                let foundInPlayerSiege = false;
-                for (const key in playerSiegeWarsList) {
-                    if (playerSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
-                        siegeTerritory = playerSiegeWarsList[key];
-                        foundInPlayerSiege = true;
-                        break;
-                    }
+                //Phase 4.7: the siege references this very territory, so the four-line
+                //write-back that used to sit at the bottom of this block -- copying food,
+                //consumption, population and productive population from the model into the
+                //siege's own copy -- has nothing left to copy. It also means the productive
+                //population below is derived from the population as just updated, which is
+                //what the income branch beside this one already did; the copy made it lag a
+                //turn here.
+                const besiegedTerritory = allTerritories()[i];
+                const siegeTerritory =
+                    playerSiegeWarsList[besiegedTerritory.territoryName] ??
+                    aiSiegeWarsList[besiegedTerritory.territoryName];
+                if (!siegeTerritory) {
+                    continue;
                 }
-                for (const key in aiSiegeWarsList) {
-                    if (aiSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId && !foundInPlayerSiege) {
-                        siegeTerritory = aiSiegeWarsList[key];
-                        break;
-                    }
-                }
+
                 //changeGold = calculateGoldChange(siegeTerritory, false);
                 //changeOil = calculateOilChange(siegeTerritory, false);
                 changeFood = calculateFoodChange(siegeTerritory, false, true, ai);
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true, ai);
 
-                changeProdPopTemp = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
+                changeProdPopTemp = (((besiegedTerritory.territoryPopulation / 100) * 45) * besiegedTerritory.devIndex);
 
-                //mainGameArray[i].goldForCurrentTerritory += changeGold;
-                //mainGameArray[i].oilForCurrentTerritory += changeOil;
-                mainGameArray[i].foodForCurrentTerritory += changeFood;
-                mainGameArray[i].foodConsumption = siegeTerritory.defendingTerritory.territoryPopulation + siegeTerritory.defendingTerritory.armyForCurrentTerritory;
-                //mainGameArray[i].consMatsForCurrentTerritory += changeConsMats;
-                mainGameArray[i].territoryPopulation = Math.max(0, mainGameArray[i].territoryPopulation + changePop); //audit 5.2 AJ
-                mainGameArray[i].productiveTerritoryPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
+                //besiegedTerritory.goldForCurrentTerritory += changeGold;
+                //besiegedTerritory.oilForCurrentTerritory += changeOil;
+                besiegedTerritory.foodForCurrentTerritory += changeFood;
+                besiegedTerritory.foodConsumption = besiegedTerritory.territoryPopulation + besiegedTerritory.armyForCurrentTerritory;
+                //besiegedTerritory.consMatsForCurrentTerritory += changeConsMats;
+                besiegedTerritory.territoryPopulation = Math.max(0, besiegedTerritory.territoryPopulation + changePop); //audit 5.2 AJ
+                besiegedTerritory.productiveTerritoryPop = (((besiegedTerritory.territoryPopulation / 100) * 45) * besiegedTerritory.devIndex);
 
-                siegeTerritory.defendingTerritory.foodForCurrentTerritory = mainGameArray[i].foodForCurrentTerritory;
-                siegeTerritory.defendingTerritory.foodConsumption = mainGameArray[i].foodConsumption;
-                siegeTerritory.defendingTerritory.territoryPopulation = mainGameArray[i].territoryPopulation;
-                siegeTerritory.defendingTerritory.productiveTerritoryPop = mainGameArray[i].productiveTerritoryPop;
-
-                changeProdPop = (((siegeTerritory.defendingTerritory.territoryPopulation / 100) * 45) * siegeTerritory.defendingTerritory.devIndex);
-                changeProdPop = changeProdPop - changeProdPopTemp;
+                changeProdPop = besiegedTerritory.productiveTerritoryPop - changeProdPopTemp;
                 if (!ai) {
-                    writeBottomTableInformation(mainGameArray[i], true, null);
+                    writeBottomTableInformation(besiegedTerritory, true, null);
                 }
             }
         }
@@ -1005,12 +1030,11 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
                         addRemoveWarSiegeObjectAi(1, siegeObject.warId, siegeObject, dummyAttackerObject); //we dont need the attacker but its mandatory to set variables at the start of the function so use this dummyAttackerObject as a workaround
                     }
 
-                    for (let i = 0; i < paths.length; i++) { //exit siegeMode
-                        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-                            paths[i].setAttribute("underSiege", "false");
-                            removeSiegeImageFromPath(ai, paths[i]);
-                            break;
-                        }
+                    //Ending the siege above clears `underSiege` on its own -- it is derived
+                    //from the siege lists (Phase 4.4/4.5) -- so only the overlay is left.
+                    const siegedPath = getPathByUniqueId(territory.uniqueId);
+                    if (siegedPath) {
+                        removeSiegeImageFromPath(ai, siegedPath);
                     }
                     setBattleResolutionOnHistoricWarArrayAfterSiege("Victory", warId, ai); //set war resolution as victory so icon works on war ui table etc, still useful for ai too
                     if (!ai) {
@@ -1092,14 +1116,14 @@ function starveArmyInstead(territory, populationChange, cameFromSiege) {
     territory.infantryForCurrentTerritory = Math.max(0, territory.infantryForCurrentTerritory);
 
     if (cameFromSiege) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === territory.uniqueId) {
-                mainGameArray[i].armyForCurrentTerritory = territory.armyForCurrentTerritory;
-                mainGameArray[i].infantryForCurrentTerritory = territory.infantryForCurrentTerritory;
-                mainGameArray[i].useableAssault = territory.useableAssault;
-                mainGameArray[i].useableAir = territory.useableAir;
-                mainGameArray[i].useableNaval = territory.useableNaval;
-                //console.log("Useable: Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === territory.uniqueId) {
+                allTerritories()[i].armyForCurrentTerritory = territory.armyForCurrentTerritory;
+                allTerritories()[i].infantryForCurrentTerritory = territory.infantryForCurrentTerritory;
+                allTerritories()[i].useableAssault = territory.useableAssault;
+                allTerritories()[i].useableAir = territory.useableAir;
+                allTerritories()[i].useableNaval = territory.useableNaval;
+                //console.log("Useable: Assault: " + allTerritories()[i].useableAssault + " Air: " + allTerritories()[i].useableAir + " Naval: " + allTerritories()[i].useableNaval);
             }
         }
     }
@@ -1134,11 +1158,11 @@ export function formatNumbersToKMB(number, place) {
 export function calculateAllTerritoryDemandsForPlayerCountry() {
     const demandArray = [];
 
-    for (let i = 0; i < mainGameArray.length; i++) {
+    for (let i = 0; i < allTerritories().length; i++) {
         for (let j = 0; j < playerOwnedTerritories.length; j++) {
-            if (mainGameArray[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                const totalOilDemand = mainGameArray[i].oilDemand;
-                const totalFoodConsumption = mainGameArray[i].foodConsumption;
+            if (allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                const totalOilDemand = allTerritories()[i].oilDemand;
+                const totalFoodConsumption = allTerritories()[i].foodConsumption;
 
                 demandArray.push([totalOilDemand, totalFoodConsumption]);
             }
@@ -1160,12 +1184,12 @@ export function calculateAllTerritoryDemandsForPlayerCountry() {
 function calculateAllTerritoryCapacitiesForPlayerCountry() {
     const capacityArray = [];
 
-    for (let i = 0; i < mainGameArray.length; i++) {
+    for (let i = 0; i < allTerritories().length; i++) {
         for (let j = 0; j < playerOwnedTerritories.length; j++) {
-            if (mainGameArray[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                const totalOilCapacity = mainGameArray[i].oilCapacity;
-                const totalFoodCapacity = mainGameArray[i].foodCapacity;
-                const totalConsMatsCapacity = mainGameArray[i].consMatsCapacity;
+            if (allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                const totalOilCapacity = allTerritories()[i].oilCapacity;
+                const totalFoodCapacity = allTerritories()[i].foodCapacity;
+                const totalConsMatsCapacity = allTerritories()[i].consMatsCapacity;
 
                 capacityArray.push([totalOilCapacity, totalFoodCapacity, totalConsMatsCapacity]);
             }
@@ -1205,7 +1229,7 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
     let totalUseableNaval = 0;
 
     for (const path of paths) {
-        const territoryOwner = path.getAttribute("owner");
+        const territoryOwner = pathOwner(path);
         // Skip territories with no owner
         if (!territoryOwner) {
             continue;
@@ -1483,7 +1507,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             if (j === 0) {
                 countryGainsColumn.style.width = "55%";
                 // Set the value of the first column to a custom value
-                countryGainsColumn.textContent = playerCountry;
+                countryGainsColumn.textContent = playerCountryName();
             } else {
                 countryGainsColumn.classList.add("centerIcons");
                 let displayText;
@@ -1661,7 +1685,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             if (j === 0) {
                 countrySummaryColumn.style.width = "55%";
                 // Set the value of the first column to a custom value
-                countrySummaryColumn.textContent = playerCountry;
+                countrySummaryColumn.textContent = playerCountryName();
             } else {
                 countrySummaryColumn.classList.add("centerIcons");
                 let displayText;
@@ -1912,7 +1936,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 const upgradeButtonImageElement = document.createElement("img");
                                 // Create upgrade button div
                                 const upgradeButtonDiv = document.createElement("div");
-                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                     upgradeButtonDiv.classList.add("upgrade-button");
                                     upgradeButtonImageElement.src = "resources/upgradeButtonIcon.png";
                                 } else {
@@ -1925,14 +1949,14 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
                                 // Add event listeners for click and mouseup events
                                 upgradeButtonDiv.addEventListener("mousedown", () => {
-                                    if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                    if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                         playSoundClip("click");
                                         upgradeButtonImageElement.src = "resources/upgradeButtonIconPressed.png";
                                     }
                                 });
 
                                 upgradeButtonDiv.addEventListener("mouseup", () => {
-                                    if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                    if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                         populateUpgradeTable(territoryData);
                                         toggleUpgradeMenu(true, territoryData);
                                         currentlySelectedTerritoryForUpgrades = territoryData;
@@ -1998,7 +2022,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 const buyButtonImageElement = document.createElement("img");
                                 // Create buy button div
                                 const buyButtonDiv = document.createElement("div");
-                                if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                     buyButtonDiv.classList.add("buy-button");
                                     buyButtonImageElement.src = "resources/buyButtonIcon.png";
                                 } else {
@@ -2011,14 +2035,14 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
                                 // Add event listeners for click and mouseup events
                                 buyButtonDiv.addEventListener("mousedown", () => {
-                                    if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                    if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                         playSoundClip("click");
                                         buyButtonImageElement.src = "resources/buyButtonIconPressed.png";
                                     }
                                 });
 
                                 buyButtonDiv.addEventListener("mouseup", () => {
-                                    if (currentTurnPhase === 0 && playerOwnedTerritories[i].getAttribute("deactivated") === "false") {
+                                    if (currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(playerOwnedTerritories[i])) {
                                         populateBuyTable(territoryData);
                                         toggleBuyMenu(true, territoryData);
                                         currentlySelectedTerritoryForPurchases = territoryData;
@@ -2124,7 +2148,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
                                 break;
                             case 3:
-                                flagString = playerCountry;
+                                flagString = playerCountryName();
                                 img = document.createElement('img');
                                 img.classList.add("flag-war");
                                 img.src = `./resources/flags/${flagString}.png`;
@@ -2248,7 +2272,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                                 column.textContent = reduceKeywords(warData.defendingTerritory.territoryName);
                                 break;
                             case 3:
-                                flagString = playerCountry;
+                                flagString = playerCountryName();
                                 img = document.createElement('img');
                                 img.classList.add("flag-war");
                                 img.src = `./resources/flags/${flagString}.png`;
@@ -2631,9 +2655,9 @@ function tooltipUIArmyRow(row, territoryData, event) {
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territoryData.uniqueId) {
-            oilDemand = mainGameArray[i].oilDemand;
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === territoryData.uniqueId) {
+            oilDemand = allTerritories()[i].oilDemand;
         }
     }
 
@@ -2659,10 +2683,10 @@ function tooltipUIArmyRow(row, territoryData, event) {
 
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
-        if (currentTurnPhase === 0) {
+        if (currentPhase() === Phase.BUY_UPGRADE) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
-                    if (paths[i].getAttribute("deactivated") === "true") {
+                    if (pathIsDeactivated(paths[i])) {
                         tooltip.innerHTML = "Territory deactivated for rebuilding!";
                     } else {
                         tooltip.innerHTML = "Click To Buy Military!";
@@ -2672,7 +2696,7 @@ function tooltipUIArmyRow(row, territoryData, event) {
         } else {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
-                    if (paths[i].getAttribute("deactivated") === "true") {
+                    if (pathIsDeactivated(paths[i])) {
                         tooltip.innerHTML = "Territory deactivated for rebuilding!";
                     } else {
                         tooltip.innerHTML = "Wrong Turn Phase To Buy";
@@ -2802,10 +2826,10 @@ function tooltipUITerritoryRow(row, territoryData, event) {
 
     // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
-        if (currentTurnPhase === 0) {
+        if (currentPhase() === Phase.BUY_UPGRADE) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
-                    if (paths[i].getAttribute("deactivated") === "true") {
+                    if (pathIsDeactivated(paths[i])) {
                         tooltip.innerHTML = "Territory deactivated for rebuilding!";
                     } else {
                         tooltip.innerHTML = "Click To Upgrade!";
@@ -2815,7 +2839,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         } else {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
-                    if (paths[i].getAttribute("deactivated") === "true") {
+                    if (pathIsDeactivated(paths[i])) {
                         tooltip.innerHTML = "Territory deactivated for rebuilding!";
                     } else {
                         tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
@@ -4386,21 +4410,21 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalPlayerResources[0].totalNaval += parseInt(purchaseArray[3]);
 
     //update main array
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territory.uniqueId) {
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === territory.uniqueId) {
             //audit 5.1 AC: the cost is NOT deducted here. `territory` is the same object as
-            //mainGameArray[i], and the two checkForMinusAndTransfer... helpers below each end
+            //allTerritories()[i], and the two checkForMinusAndTransfer... helpers below each end
             //by deducting their own cost -- that is where a purchase is paid for. Deducting
             //here as well charged the player exactly twice for every military purchase while
             //the buy window quoted the correct, single price.
-            mainGameArray[i].infantryForCurrentTerritory += parseInt(purchaseArray[0]);
-            mainGameArray[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
-            mainGameArray[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
-            mainGameArray[i].navalForCurrentTerritory += parseInt(purchaseArray[3]);
-            mainGameArray[i].oilDemand += (oilRequirements.assault * parseInt(purchaseArray[1]));
-            mainGameArray[i].oilDemand += (oilRequirements.air * parseInt(purchaseArray[2]));
-            mainGameArray[i].oilDemand += (oilRequirements.naval * parseInt(purchaseArray[3]));
-            mainGameArray[i].armyForCurrentTerritory += parseInt(purchaseArray[0]);
+            allTerritories()[i].infantryForCurrentTerritory += parseInt(purchaseArray[0]);
+            allTerritories()[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
+            allTerritories()[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
+            allTerritories()[i].navalForCurrentTerritory += parseInt(purchaseArray[3]);
+            allTerritories()[i].oilDemand += (oilRequirements.assault * parseInt(purchaseArray[1]));
+            allTerritories()[i].oilDemand += (oilRequirements.air * parseInt(purchaseArray[2]));
+            allTerritories()[i].oilDemand += (oilRequirements.naval * parseInt(purchaseArray[3]));
+            allTerritories()[i].armyForCurrentTerritory += parseInt(purchaseArray[0]);
         }
     }
 
@@ -4418,9 +4442,9 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
     checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territory.uniqueId) {
-            if (mainGameArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === territory.uniqueId) {
+            if (allTerritories()[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
                 //update bottom table for selected territory
                 document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
                 document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
@@ -4441,7 +4465,7 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalPlayerResources[0].totalUseableAssault = 0;
     totalPlayerResources[0].totalUseableAir = 0;
     totalPlayerResources[0].totalUseableNaval = 0;
-    setPlayerUseableNotUseableWeaponsDueToOilDemand(mainGameArray, currentlySelectedTerritoryForPurchases);
+    setPlayerUseableNotUseableWeaponsDueToOilDemand(allTerritories(), currentlySelectedTerritoryForPurchases);
 
     drawUITable(document.getElementById("uiTable"), 2);
 }
@@ -4469,10 +4493,10 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     turnGainsArrayPlayer.changeConsMats += -totalConsMatsCost;
 
     //update main array
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territory.uniqueId) {
-            mainGameArray[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
-            mainGameArray[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === territory.uniqueId) {
+            allTerritories()[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
+            allTerritories()[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
             //audit 5.1 A. Each building bought in THIS transaction is worth +10% of the
             //capacity the territory had BEFORE the transaction. It used to read
             //`territory.farmsBuilt` -- the same object, already incremented -- and apply
@@ -4485,32 +4509,32 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
             const oilWellsBought = parseInt(upgradeArray[2]) || 0;
             const fortsBought = parseInt(upgradeArray[3]) || 0;
 
-            mainGameArray[i].farmsBuilt += farmsBought;
-            mainGameArray[i].forestsBuilt += forestsBought;
-            mainGameArray[i].oilWellsBuilt += oilWellsBought;
-            mainGameArray[i].fortsBuilt += fortsBought;
+            allTerritories()[i].farmsBuilt += farmsBought;
+            allTerritories()[i].forestsBuilt += forestsBought;
+            allTerritories()[i].oilWellsBuilt += oilWellsBought;
+            allTerritories()[i].fortsBuilt += fortsBought;
 
             if (farmsBought > 0) {
-                mainGameArray[i].foodCapacity = totalFoodCapacityTemp + (totalFoodCapacityTemp * ((farmsBought * 10) / 100)); //calculate new foodCapacity
-                turnGainsArrayPlayer.changeFoodCapacity += mainGameArray[i].foodCapacity - totalFoodCapacityTemp;
+                allTerritories()[i].foodCapacity = totalFoodCapacityTemp + (totalFoodCapacityTemp * ((farmsBought * 10) / 100)); //calculate new foodCapacity
+                turnGainsArrayPlayer.changeFoodCapacity += allTerritories()[i].foodCapacity - totalFoodCapacityTemp;
             }
             if (forestsBought > 0) {
-                mainGameArray[i].consMatsCapacity = totalConsMatsTemp + (totalConsMatsTemp * ((forestsBought * 10) / 100)); //calculate new consMatsCapacity
-                turnGainsArrayPlayer.changeConsMatsCapacity += mainGameArray[i].consMatsCapacity - totalConsMatsTemp;
+                allTerritories()[i].consMatsCapacity = totalConsMatsTemp + (totalConsMatsTemp * ((forestsBought * 10) / 100)); //calculate new consMatsCapacity
+                turnGainsArrayPlayer.changeConsMatsCapacity += allTerritories()[i].consMatsCapacity - totalConsMatsTemp;
             }
             if (oilWellsBought > 0) {
-                mainGameArray[i].oilCapacity = totalOilCapacityTemp + (totalOilCapacityTemp * ((oilWellsBought * 10) / 100)); //calculate new oilCapacity
-                turnGainsArrayPlayer.changeOilCapacity += mainGameArray[i].oilCapacity - totalOilCapacityTemp;
+                allTerritories()[i].oilCapacity = totalOilCapacityTemp + (totalOilCapacityTemp * ((oilWellsBought * 10) / 100)); //calculate new oilCapacity
+                turnGainsArrayPlayer.changeOilCapacity += allTerritories()[i].oilCapacity - totalOilCapacityTemp;
             }
-            if (mainGameArray[i].fortsBuilt > 0) {
-                mainGameArray[i].defenseBonus = Math.ceil((mainGameArray[i].fortsBuilt * (mainGameArray[i].fortsBuilt + 1) * 10) * mainGameArray[i].devIndex + mainGameArray[i].isLandLockedBonus);
+            if (allTerritories()[i].fortsBuilt > 0) {
+                allTerritories()[i].defenseBonus = Math.ceil((allTerritories()[i].fortsBuilt * (allTerritories()[i].fortsBuilt + 1) * 10) * allTerritories()[i].devIndex + allTerritories()[i].isLandLockedBonus);
             }
         }
     }
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territory.uniqueId) {
-            if (mainGameArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+    for (let i = 0; i < allTerritories().length; i++) {
+        if (allTerritories()[i].uniqueId === territory.uniqueId) {
+            if (allTerritories()[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
                 document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
                 document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
                 break;
@@ -4663,7 +4687,7 @@ export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, terri
         }
     }
     for (let i = 0; i < mainArray.length; i++) {
-        if (mainArray[i].dataName === playerCountry) {
+        if (mainArray[i].dataName === playerCountryName()) {
             totalUseableAssault += (mainArray[i].useableAssault);
             totalUseableAir += (mainArray[i].useableAir);
             totalUseableNaval += (mainArray[i].useableNaval);
@@ -4686,10 +4710,10 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
         /*         console.log("Territory needs to borrow money");
                 console.log("Here's the descending list of gold in the player owned territories:"); */
 
-        for (let i = 0; i < mainGameArray.length; i++) {
+        for (let i = 0; i < allTerritories().length; i++) {
             for (let j = 0; j < playerOwnedTerritories.length; j++) {
-                if (mainGameArray[i].uniqueId !== territory.uniqueId && mainGameArray[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                    descendingGoldArray.push([mainGameArray[i].goldForCurrentTerritory, mainGameArray[i].uniqueId]);
+                if (allTerritories()[i].uniqueId !== territory.uniqueId && allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                    descendingGoldArray.push([allTerritories()[i].goldForCurrentTerritory, allTerritories()[i].uniqueId]);
                 }
             }
         }
@@ -4708,10 +4732,10 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
                 Math.abs(goldAmount)
             );
 
-            for (let i = 0; i < mainGameArray.length; i++) {
-                if (mainGameArray[i].uniqueId === uniqueId) {
-                    /* console.log(transferAmount + "was taken from " + mainGameArray[i].territoryName); */
-                    mainGameArray[i].goldForCurrentTerritory -= transferAmount;
+            for (let i = 0; i < allTerritories().length; i++) {
+                if (allTerritories()[i].uniqueId === uniqueId) {
+                    /* console.log(transferAmount + "was taken from " + allTerritories()[i].territoryName); */
+                    allTerritories()[i].goldForCurrentTerritory -= transferAmount;
                     /* console.log("and added to " + territory.territoryName); */
                     territory.goldForCurrentTerritory += transferAmount;
                 }
@@ -4737,10 +4761,10 @@ function checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory
 
     if (territory.productiveTerritoryPop < prodPopCost) {
 
-        for (let i = 0; i < mainGameArray.length; i++) {
+        for (let i = 0; i < allTerritories().length; i++) {
             for (let j = 0; j < playerOwnedTerritories.length; j++) {
-                if (mainGameArray[i].uniqueId !== territory.uniqueId && mainGameArray[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                    descendingPopArray.push([mainGameArray[i].productiveTerritoryPop, mainGameArray[i].uniqueId]);
+                if (allTerritories()[i].uniqueId !== territory.uniqueId && allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
+                    descendingPopArray.push([allTerritories()[i].productiveTerritoryPop, allTerritories()[i].uniqueId]);
                 }
             }
         }
@@ -4756,9 +4780,9 @@ function checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory
                 Math.abs(popAmount)
             );
 
-            for (let i = 0; i < mainGameArray.length; i++) {
-                if (mainGameArray[i].uniqueId === uniqueId) {
-                    mainGameArray[i].productiveTerritoryPop -= transferAmount;
+            for (let i = 0; i < allTerritories().length; i++) {
+                if (allTerritories()[i].uniqueId === uniqueId) {
+                    allTerritories()[i].productiveTerritoryPop -= transferAmount;
                     territory.productiveTerritoryPop += transferAmount;
                 }
             }
@@ -4855,7 +4879,7 @@ function calculateStartingArmy(territory) {
 }
 
 export function addRandomFortsToAllNonPlayerTerritories() {
-    mainGameArray.forEach(element => {
+    allTerritories().forEach(element => {
         if (!playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId)) {
             element.fortsBuilt = Math.floor(Math.random() * 4);
             element.defenseBonus = Math.ceil((element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus);

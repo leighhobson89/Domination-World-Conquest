@@ -87,13 +87,29 @@ window.__game = {
   totals: () => ({ gold, oil, food, consMats, prodPop, area, army }),
   sieges: () => ({ player: [...], ai: [...] }),
   wars:   () => [...],
+  retrievals: () => [{ warId, sourceTerritoryIds, turnQueued, turnsUntilReturn }],
+  stateGuardViolations: () => [{ territory, field }],  // Phase 4; empty without ?stateGuard=1
+  applyScenario: (scenario) => ({ territories, sieges, errors }),  // see 3.7
   lastError: () => Error | null,
 };
 ```
 
-Rationale: the numeric truth of this game lives in `mainGameArray`, not in the DOM. Asserting
-food capacity by reading a KMB-formatted table cell (`"1.2M"`) tests the formatter, not the
-economy. **Assert numbers through `__game`, assert behaviour and visibility through the DOM.**
+Rationale: the numeric truth of this game lives in the territory model, not in the DOM.
+Asserting food capacity by reading a KMB-formatted table cell (`"1.2M"`) tests the formatter,
+not the economy. **Assert numbers through `__game`, assert behaviour and visibility through
+the DOM.**
+
+Since refactor Phase 4 the model is `src/state/GameState.js`, and `__game` reads it through
+`state/selectors.js`. Two consequences for specs:
+
+- **The SVG path attributes are output.** `owner`, `data-name`, `deactivated`, `underSiege`,
+  `greyedOut` and `attackableTerritory` are rendered from state by
+  `src/ui/mapAttributeSync.js`. Asserting on them is still fine and several specs do — it is
+  how `bootstrap/state-layer.spec.js` proves the map and the model agree — but they are no
+  longer where the game keeps the fact.
+- **`?stateGuard=1` logs every territory write that bypasses `state/mutations.js`**, and
+  `?stateGuard=strict` throws on one. Phase 5 is what empties that list; until then a spec
+  that turns the guard on must not assert it is empty.
 
 ### 2.4 Stable selectors
 
@@ -308,22 +324,38 @@ await game.select("Bavaria");
 const t = await game.territory("Bavaria");   // snapshot object
 ```
 
-### 3.7 Test-data seeding
+### 3.7 Test-data seeding — ✅ **DONE** (refactor Phase 4)
 
 Several areas (battle outcomes, siege ticks, starvation, economy over many turns) are
-impractical to reach by clicking. Add, behind `?e2e=1` only, a **scenario loader**:
+impractical to reach by clicking. Behind `?e2e=1` only, a **scenario loader** puts the world
+into a named state:
 
+```js
+await game.loadScenario("two-sieges");
 ```
-?e2e=1&scenario=besieged-fort
-```
 
-Scenarios live in `tests/support/scenarios/*.json` and are applied via `mutations.js` after
-initialisation — set a territory's owner, army, resources, forts, or open a siege. This keeps
-specs short and makes edge cases (defender with only naval units, territory at 0 food,
-5 forts) reachable in one line. **This is a Refactor Phase 4 deliverable** — it needs the
-single state layer to be safe.
+Scenarios live in `tests/support/scenarios/*.json` and are applied through
+`state/mutations.js` — the same path the game writes by, so a scenario cannot produce a world
+the game could not have produced itself. Set a territory's army, resources or forts, or open a
+siege. See [`tests/support/scenarios/README.md`](../tests/support/scenarios/README.md) for the
+shape and [`src/platform/scenarios.js`](../src/platform/scenarios.js) for the loader.
 
-Until then, the P0/P1 areas that can be reached by clicking are covered first (§5).
+**One deviation from the original design.** It specified `?e2e=1&scenario=besieged-fort`, with
+the page fetching the JSON. The preview server serves `build/`, not the repository, so the page
+cannot reach those files. The primitive is `window.__game.applyScenario(scenarioObject)`, and
+`GameDriver.loadScenario(name)` reads the JSON in Node and passes it in. The scenarios live
+where the plan put them and the specs read the same.
+
+`applyScenario` returns a report — the territories and sieges it applied, and any name it could
+not resolve — and `loadScenario` throws on a non-empty error list. A scenario that silently did
+nothing turns every spec built on it into a spec that asserts nothing, so the loader has its own
+coverage in `bootstrap/scenario-loader.spec.js`.
+
+**What it unblocked:** three of the four `battle/known-broken` specs — the naval-only defender
+(audit 5.2 K), two concurrent sieges (5.1 D), and the INVADE!-debit/retreat-return round trip
+(5.1 AD). The fourth, the rout threshold (5.1 E), still needs the injected RNG from Phase 5.3:
+the loader can set up a hopeless defender, but a rout is a random outcome given that setup and
+`Math.random` is shared with the cosmetic sparkles (5.3 Y), so a seed cannot force one.
 
 ---
 

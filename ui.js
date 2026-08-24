@@ -7,11 +7,8 @@ import {
     getPathByName
 } from './src/state/indexes.js';
 import {
-    currentTurn,
-    currentTurnPhase,
     getGameInitialisation,
-    initialiseGame,
-    modifyCurrentTurnPhase
+    initialiseGame
 } from './gameTurnsLoop.js';
 import {
     addPlayerPurchases,
@@ -26,7 +23,6 @@ import {
     demandArray,
     drawUITable,
     formatNumbersToKMB,
-    mainGameArray,
     playerOwnedTerritories,
     populateBottomTableWhenSelectingACountry,
     totalConsMats,
@@ -53,13 +49,13 @@ import {
     addWarToHistoricWarArray,
     aiSiegeWarsList,
     calculateSiegeScore,
-    currentWarId,
     defendingArmyRemaining,
     defendingTerritory,
     getAttackingArmyRemaining,
     getCurrentAiWarId,
     getCurrentRound,
     getCurrentWarId,
+    getNextWarId,
     getFinalAttackArray,
     getMassiveAssaultStatus,
     getResolution,
@@ -68,7 +64,6 @@ import {
     getUpdatedProbability,
     historicWars,
     historicAiWars,
-    nextWarId,
     playerSiegeWarsList,
     playerTurnsDeactivatedArray,
     processRound,
@@ -77,7 +72,7 @@ import {
     setCurrentRound,
     setCurrentWarId,
     setFinalAttackArray,
-    setMainArrayToArmyRemaining,
+    applySiegeSurvivorsToTerritory,
     setMassiveAssaultStatus,
     setNewWarOnRetrievalArray,
     setNextWarId,
@@ -97,9 +92,38 @@ import {
 import {
     setAiResponseFlag
 } from "./aiCalculations.js";
+import {
+    allTerritories,
+    getTerritory,
+    currentTurn,
+    currentPhase,
+    playerCountryName,
+    playerColour
+} from './src/state/selectors.js';
+import {
+    setPhase,
+    setPlayerCountry,
+    setPlayerColour,
+    setPlayerFlag,
+    setGreyedOutCountries,
+    clearGreyedOutCountries,
+    setAttackableTerritories,
+    clearAttackableTerritories
+} from './src/state/mutations.js';
+import {
+    Phase
+} from './src/state/phases.js';
+import {
+    pathIsGreyedOut,
+    pathIsUnderSiege,
+    pathIsDeactivated,
+    pathIsAttackable,
+    pathIsPlayerOwned,
+    pathOwner,
+    pathCountry
+} from './src/state/pathState.js';
 
 let currentlySelectedColorsArray = [];
-let turnPhase = currentTurnPhase;
 
 export let pageLoaded = false;
 
@@ -117,7 +141,7 @@ export let pageLoaded = false;
 // 800ms setInterval, from two places. That wasted up to 1.6s of pure idling, and
 // the delay was also masking the ordering problem above: by the time a tick fired,
 // svgMapLoaded() had usually run. Removing the poll without waiting for the map too
-// meant calculatePathAreas() ran against an empty `paths`, leaving mainGameArray
+// meant calculatePathAreas() ran against an empty `paths`, leaving allTerritories()
 // short and every later territory lookup returning undefined.
 // See docs/03-refactor-plan.md Phase 1.4.
 let resolveBootstrapReady;
@@ -156,9 +180,11 @@ export let defs = [];
 export let patterns = [];
 
 //variables that receive information for resources of country's after database reading and calculations, before game starts
-export let playerCountry;
-export let playerColour = "rgb(255,255,255)"; //default to white player
-export let flag;
+//Phase 4.8. `playerCountryName()`, `playerColour()` and `flag` were `export let`s here: three
+//module-level variables that four other files imported as live bindings and only this
+//one could assign. They are in GameState now, read through playerCountryName() and
+//playerColour(). `flag` is gone entirely -- it was only ever a second name for
+//playerCountryName(), assigned on the line after it and never anything else.
 
 export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
 let listOfStartingCountryColorsArray = [];
@@ -304,12 +330,12 @@ export function svgMapLoaded() {
         currentPath = element; // Set the current element
 
         // Call the hoverColorChange function
-        if (element.getAttribute("greyedOut") === "false") {
+        if (!pathIsGreyedOut(element)) {
             hoverOverTerritory(element, "mouseOver");
         }
 
         // Get the name of the country from the "data-name" attribute
-        const countryName = element.getAttribute("owner");
+        const countryName = pathOwner(element);
 
         // Add an event listener for mousemove on the element
         element.addEventListener("mousemove", function(e) {
@@ -358,7 +384,7 @@ export function svgMapLoaded() {
         tooltip.innerHTML = "";
         tooltip.style.display = "none";
         if (currentPath) {
-            if (currentPath.getAttribute("greyedOut") === "false") {
+            if (!pathIsGreyedOut(currentPath)) {
                 hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
             }
         }
@@ -387,11 +413,11 @@ export function svgMapLoaded() {
 
         if (mapMode === 2) {
             flipMapMode();
-            for (let i = 0; i < mainGameArray.length; i++) {
-                if (!selectCountryPlayerState && mainGameArray[i].owner !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                    setColorOnMap(mainGameArray[i]);
+            for (let i = 0; i < allTerritories().length; i++) {
+                if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                    setColorOnMap(allTerritories()[i]);
                     for (let j = 0; j < paths.length; j++) {
-                        if (paths[j].getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
+                        if (paths[j].getAttribute("uniqueid") === allTerritories()[i].uniqueId) {
                             setStrokeWidth(paths[j], "1");
                             break;
                         }
@@ -401,7 +427,7 @@ export function svgMapLoaded() {
             }
         }
         if (!isDragging) {
-            if (e.target.tagName === "rect" && currentTurnPhase === 1) {
+            if (e.target.tagName === "rect" && currentPhase() === Phase.MOVE_ATTACK) {
                 restoreMapColorState(currentMapColorAndStrokeArray, false);
                 toggleTransferAttackButton(false, false);
                 if (svgMap.querySelector("#attackImage")) {
@@ -419,7 +445,7 @@ export function svgMapLoaded() {
                 }
                 currentSelectedPath = currentPath;
                 if (countrySelectedAndGameStarted) {
-                    if (currentTurnPhase === 1) { //move/deploy phase show interactable countries when clicking a country
+                    if (currentPhase() === Phase.MOVE_ATTACK) { //move/deploy phase show interactable countries when clicking a country
                         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
                         if (currentPath.hasAttribute("fill")) {
                             hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
@@ -428,19 +454,19 @@ export function svgMapLoaded() {
                             closestDistancesArray = validDestinationsAndClosestPointArray.map(dest => dest[2]);
                             let centerOfTargetPath = findCentroidsFromArrayOfPaths(validDestinationsArray[0]);
                             let closestPointOfDestPathArray = getClosestPointsDestinationPaths(centerOfTargetPath, validDestinationsAndClosestPointArray.map(dest => dest[1]));
-                            if (e.target.getAttribute("owner") === "Player") {
+                            if (pathIsPlayerOwned(e.target)) {
                                 validDestinationsArray = highlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, false);
                                 lastPlayerOwnedValidDestinationsArray = validDestinationsArray;
                             } else {
                                 territoriesAbleToAttackTarget = highlightInteractableCountriesAfterSelectingOne(currentSelectedPath, closestPointOfDestPathArray, validDestinationsArray, closestDistancesArray, true); //extract rows to put in attacking table
                                 territoriesAbleToAttackTarget = territoriesAbleToAttackTarget.filter(territoryCandidate => {
-                                    const owner = territoryCandidate.getAttribute("owner");
+                                    const owner = pathOwner(territoryCandidate);
                                     return owner === "Player";
                                 });
                             }
                             handleMovePhaseTransferAttackButton(e.target, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, false, 2);
                         }
-                    } else if (currentTurnPhase === 2) {
+                    } else if (currentPhase() === Phase.AI) {
 
                     }
                 } else { //if on country selection screen
@@ -499,9 +525,9 @@ export function svgMapLoaded() {
 
 
 function selectCountry(country, escKeyEntry) {
-    if (country.getAttribute("greyedOut") === "false") {
-        if (country.getAttribute("underSiege") === "false") {
-            const deactivatedPaths = paths.filter(path => path.getAttribute("deactivated") === "true");
+    if (!pathIsGreyedOut(country)) {
+        if (!pathIsUnderSiege(country)) {
+            const deactivatedPaths = paths.filter(path => pathIsDeactivated(path));
 
             if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
                 const lowestIndex = paths.indexOf(deactivatedPaths[0]);
@@ -510,7 +536,7 @@ function selectCountry(country, escKeyEntry) {
                 svgMap.documentElement.appendChild(country);
             }
         } else {
-            const siegedPaths = paths.filter(path => path.getAttribute("underSiege") === "true");
+            const siegedPaths = paths.filter(path => pathIsUnderSiege(path));
 
             if (siegedPaths.length > 0) { //make sure order correct for sieged paths
                 const lowestIndex = paths.indexOf(siegedPaths[0]);
@@ -522,16 +548,16 @@ function selectCountry(country, escKeyEntry) {
 
         if (selectCountryPlayerState && !escKeyEntry) { //in select country state, colour territory and other connected clicked on
             for (let i = 0; i < paths.length; i++) {
-                if (paths[i].getAttribute("data-name") === country.getAttribute("data-name")) {
-                    if (country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
-                        paths[i].setAttribute('fill', playerColour);
+                if (pathCountry(paths[i]) === pathCountry(country)) {
+                    if (pathCountry(country) !== pathCountry(lastClickedPath)) {
+                        paths[i].setAttribute('fill', playerColour());
                     }
                 }
             }
         } else if (!selectCountryPlayerState && !escKeyEntry) { // in game state, colour player territories when clicked on
             for (let i = 0; i < paths.length; i++) {
-                if (paths[i].getAttribute("owner") === "Player") {
-                    paths[i].setAttribute('fill', playerColour);
+                if (pathIsPlayerOwned(paths[i])) {
+                    paths[i].setAttribute('fill', playerColour());
                     if (territoryAboutToBeAttackedOrSieged) {
                         document.getElementById("attack-destination-container").style.display = "none";
                         attackTextCurrentlyDisplayed = false;
@@ -545,32 +571,32 @@ function selectCountry(country, escKeyEntry) {
 
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previously been clicked, handle deselecting previous
             for (let i = 0; i < paths.length; i++) {
-                if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") === "Player" && country.getAttribute("deactivated") === "false") { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
-                    paths[i].setAttribute('fill', playerColour);
-                } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && paths[i].getAttribute("owner") !== "Player" && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && pathIsPlayerOwned(paths[i]) && !pathIsDeactivated(country)) { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
+                    paths[i].setAttribute('fill', playerColour());
+                } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && !pathIsPlayerOwned(paths[i]) && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     if (mapMode === 1) {
-                        for (let j = 0; j < mainGameArray.length; j++) {
-                            if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
-                                setColorOnMap(mainGameArray[j]);
+                        for (let j = 0; j < allTerritories().length; j++) {
+                            if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                setColorOnMap(allTerritories()[j]);
                                 break;
                             }
                         }
                     } else if (mapMode === 2) {
                         flipMapMode();
-                        for (let j = 0; j < mainGameArray.length; j++) {
-                            if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
-                                setColorOnMap(mainGameArray[j]);
+                        for (let j = 0; j < allTerritories().length; j++) {
+                            if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                                setColorOnMap(allTerritories()[j]);
                                 break;
                             }
                         }
                     }
                     setStrokeWidth(paths[i], "1");
-                } else if (selectCountryPlayerState && country.getAttribute("data-name") !== lastClickedPath.getAttribute("data-name")) {
+                } else if (selectCountryPlayerState && pathCountry(country) !== pathCountry(lastClickedPath)) {
                     for (let j = 0; j < paths.length; j++) {
-                        if (lastClickedPath.getAttribute("data-name") === paths[j].getAttribute("data-name") && lastClickedPath.getAttribute("greyedOut") === "false") {
-                            for (let k = 0; k < mainGameArray.length; k++) {
-                                if (mainGameArray[k].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                                    setColorOnMap(mainGameArray[k], true);
+                        if (pathCountry(lastClickedPath) === pathCountry(paths[j]) && !pathIsGreyedOut(lastClickedPath)) {
+                            for (let k = 0; k < allTerritories().length; k++) {
+                                if (allTerritories()[k].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                                    setColorOnMap(allTerritories()[k], true);
                                     break;
                                 }
                             }
@@ -581,10 +607,10 @@ function selectCountry(country, escKeyEntry) {
             }
         }
     } else {
-        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && lastClickedPath.getAttribute("greyedOut") === "false" && country.getAttribute("greyedOut") === "true") {
-            for (let i = 0; i < mainGameArray.length; i++) {
-                if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                    setColorOnMap(mainGameArray[i]);
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && !pathIsGreyedOut(lastClickedPath) && pathIsGreyedOut(country)) {
+            for (let i = 0; i < allTerritories().length; i++) {
+                if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                    setColorOnMap(allTerritories()[i]);
                     break;
                 }
             }
@@ -596,10 +622,10 @@ function selectCountry(country, escKeyEntry) {
 
         if (!escKeyEntry) {
             if (lastClickedPath.getAttribute('d') !== 'M0 0 L50 50') {
-                if (lastClickedPath.getAttribute("deactivated") === "false" && lastClickedPath.getAttribute("underSiege") === "false") {
+                if (!pathIsDeactivated(lastClickedPath) && !pathIsUnderSiege(lastClickedPath)) {
                     lastClickedPath.parentNode.insertBefore(lastClickedPath, lastClickedPath.parentNode.children[9]);
                 }
-                if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && lastClickedPath.getAttribute("owner") !== "Player" && lastClickedPath.getAttribute("underSiege") === "false") {
+                if (lastClickedPath.getAttribute("uniqueid") !== currentPath.getAttribute("uniqueid") && !pathIsPlayerOwned(lastClickedPath) && !pathIsUnderSiege(lastClickedPath)) {
                     setStrokeWidth(lastClickedPath, "1");
                 }
             }
@@ -608,7 +634,7 @@ function selectCountry(country, escKeyEntry) {
         lastClickedPath = country; // Update the previously clicked path
 
         if (selectCountryPlayerState && !escKeyEntry) {
-            adjustTextToFit(document.getElementById('popup-body'), country.getAttribute("data-name"));
+            adjustTextToFit(document.getElementById('popup-body'), pathCountry(country));
             document.getElementById('popup-confirm').classList.add("greenBackground");
             document.getElementById('popup-confirm').style.display = "block";
         }
@@ -765,19 +791,19 @@ document.addEventListener("DOMContentLoaded", function() {
         if (mapMode === 2) {
             flipMapMode();
         }
-        playerColour = convertHexValueToRGBOrViceVersa(document.getElementById("player-color-picker").value, 0);
+        setPlayerColour(convertHexValueToRGBOrViceVersa(document.getElementById("player-color-picker").value, 0));
         restoreMapColorState(currentMapColorAndStrokeArray, false);
-        document.getElementById("popup-color").style.color = playerColour;
+        document.getElementById("popup-color").style.color = playerColour();
         if (selectCountryPlayerState) {
             for (let i = 0; i < paths.length; i++) {
-                if (paths[i].getAttribute("data-name") === lastClickedPath.getAttribute("data-name")) {
-                    paths[i].setAttribute("fill", playerColour);
+                if (pathCountry(paths[i]) === pathCountry(lastClickedPath)) {
+                    paths[i].setAttribute("fill", playerColour());
                 }
             }
         } else if (countrySelectedAndGameStarted) {
             paths.forEach(path => {
-                if (path.getAttribute("owner") === "Player") {
-                    path.setAttribute("fill", playerColour);
+                if (pathIsPlayerOwned(path)) {
+                    path.setAttribute("fill", playerColour());
                 }
             });
             currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -792,12 +818,12 @@ document.addEventListener("DOMContentLoaded", function() {
             setAllGreyedOutAttributesToFalseOnGameStart();
             selectCountryPlayerState = false;
             countrySelectedAndGameStarted = true;
-            document.getElementById("popup-color").style.color = playerColour;
+            document.getElementById("popup-color").style.color = playerColour();
             popupSubTitle.style.opacity = "0.5";
-            playerCountry = document.getElementById("popup-body").innerHTML;
-            flag = playerCountry;
-            setFlag(flag, 1); //set player flag in top table
-            setFlag(flag, 3); //set player flag in ui info panel
+            setPlayerCountry(document.getElementById("popup-body").innerHTML);
+            setPlayerFlag(playerCountryName());
+            setFlag(playerCountryName(), 1); //set player flag in top table
+            setFlag(playerCountryName(), 3); //set player flag in ui info panel
             restoreMapColorState(currentMapColorAndStrokeArray, true);
             popupTitle.innerText = "LOADING...";
             popupSubTitle.innerText = "";
@@ -817,25 +843,28 @@ document.addEventListener("DOMContentLoaded", function() {
             popupTitle.innerText = "Buy / Upgrade Phase";
             popupSubTitle.innerText = "";
             popupConfirm.innerText = "MILITARY";
-            turnPhase++;
+            //Phase 4.6. This button used to walk its own counter, `turnPhase`, one step
+            //AHEAD of the `currentTurnPhase` the rest of the game read, and push the old
+            //value across on each click. Two counters for one fact, only ever in step by
+            //convention. The button now reads and writes the single phase in GameState.
+            setPhase(Phase.BUY_UPGRADE);
             if (mapMode === 1) {
                 currentMapColorAndStrokeArray = saveMapColorState(false);
             }
-        } else if (countrySelectedAndGameStarted && turnPhase === 1) {
+        } else if (countrySelectedAndGameStarted && currentPhase() === Phase.BUY_UPGRADE) {
             if (mapMode === 1) {
                 currentMapColorAndStrokeArray = saveMapColorState(false);
             }
             popupTitle.innerText = "Military Phase";
             popupConfirm.innerText = "END TURN";
-            modifyCurrentTurnPhase(turnPhase);
-            turnPhase++;
+            setPhase(Phase.MOVE_ATTACK);
         }
-        else if (countrySelectedAndGameStarted && turnPhase === 2) {
+        else if (countrySelectedAndGameStarted && currentPhase() === Phase.MOVE_ATTACK) {
             for (let i = 0; i < paths.length; i++) {
-                if (paths[i].getAttribute("owner") !== "Player") {
-                    for (let j = 0; j < mainGameArray.length; j++) {
-                        if (mainGameArray[j].uniqueId === paths[i].getAttribute("uniqueid")) {
-                            setColorOnMap(mainGameArray[j]);
+                if (!pathIsPlayerOwned(paths[i])) {
+                    for (let j = 0; j < allTerritories().length; j++) {
+                        if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                            setColorOnMap(allTerritories()[j]);
                             break;
                         }
                     }
@@ -864,7 +893,7 @@ document.addEventListener("DOMContentLoaded", function() {
     topTableFlag.classList.add("iconCell");
     topTableFlag.setAttribute("id", "flag-top");
     topTableFlag.addEventListener("mouseover", () => {
-        tooltip.innerHTML = playerCountry;
+        tooltip.innerHTML = playerCountryName();
         tooltip.style.display = "block";
     });
     topTableFlag.addEventListener("mouseout", () => {
@@ -2591,15 +2620,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (!currentWarAlreadyInSiegeMode) {
             let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId, battleStart); // add to siege
-            let mainArrayElementForSiege = setMainArrayToArmyRemaining(getSiegeObjectFromPlayerSiegeList(territoryToAddToSiege));
+            let mainArrayElementForSiege = applySiegeSurvivorsToTerritory(getSiegeObjectFromPlayerSiegeList(territoryToAddToSiege));
             writeBottomTableInformation(mainArrayElementForSiege, true, null);
 
-            for (let i = 0; i < paths.length; i++) {
-                //set in siege mode on svg
-                if (paths[i].getAttribute("territory-name") === territoryToAddToSiege.territoryName) {
-                    paths[i].setAttribute("underSiege", "true");
-                }
-            }
+            //`underSiege` is not set here any more. addRemoveWarSiegeObject() above put
+            //the siege in the store, and the attribute is derived from the siege lists
+            //and rendered by src/ui/mapAttributeSync.js (Phase 4.4/4.5).
 
             //set graphics for territory under siege (include defense bonus)
             addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", 1);
@@ -2613,9 +2639,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     //click handler for retreat button
     retreatButton.addEventListener('click', function() {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                setColorOnMap(mainGameArray[i]);
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                setColorOnMap(allTerritories()[i]);
                 break;
             }
         }
@@ -2623,9 +2649,9 @@ document.addEventListener("DOMContentLoaded", function() {
     lastClickedPath.setAttribute("stroke-width", "1");
     lastClickedPath.style.strokeDasharray = "none";
         let defendingTerritoryRetreatClick;
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
-                defendingTerritoryRetreatClick = mainGameArray[i];
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
+                defendingTerritoryRetreatClick = allTerritories()[i];
             }
         }
         setDefendingTerritoryCopyStart(defendingTerritoryRetreatClick);
@@ -2636,8 +2662,12 @@ document.addEventListener("DOMContentLoaded", function() {
         switch (retreatButtonState) {
             case 0: //before battle or between rounds of 5 - no penalty
                 defeatType = "retreat"; //also pull out from siege before starting assault
+                //A no-penalty retreat returns the committed army whether or not this
+                //battle was opened from INVADE!. Before audit 5.1 AD was closed the
+                //source was never debited, so failing to queue the retrieval here cost
+                //the player nothing; now it would quietly destroy the army.
+                setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 1);
                 if (!battleStart) {
-                    setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 1);
                     proportionsOfAttackArray.length = 0;
                     defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
                     defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
@@ -2647,9 +2677,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     //update top table army value when leaving battle
 
                 } else {
-                    if (retreatButton.innerHTML === "Pull Out") {
-                        setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 1);
-                    }
                     addWarToHistoricWarArray("Retreat", 0, true);
                 }
 
@@ -2658,7 +2685,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (war) { //handle case where retreat after coming back from a siege
                         addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
                         removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
-                        territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg
+                        //siege removed from the store above; `underSiege` follows (Phase 4.4)
                         //army is restored already by assignProportionsToTerritories in case "0"
                     }
                 }
@@ -2670,7 +2697,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 for (let i = 0; i < attackingArmyRemaining.length; i++) {
                     attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
                 }
-                setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn, 2);
+                setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 2);
                 proportionsOfAttackArray.length = 0;
 
                 defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
@@ -2713,7 +2740,7 @@ document.addEventListener("DOMContentLoaded", function() {
             defeatType = "retreat";
         }
         if (territoryAboutToBeAttackedOrSieged) {
-            currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
+            currentWarFlagString = pathCountry(territoryAboutToBeAttackedOrSieged);
         }
         populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
         addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
@@ -2730,13 +2757,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 toggleDiceCanvas(true);
                 playSoundClip("click");
                 battleStart = false;
-                let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
+                let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
                 if (!hasSiegedBefore) {
-                    transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainGameArray);
+                    transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
                 }
                 setCurrentRound(currentRound + 1);
                 if (hasSiegedBefore) {
-                    let war = historicWars.find((siege) => siege.warId === currentWarId);
+                    let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
                     let siegeAttackArray = [];
                     siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
                     siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
@@ -2744,7 +2771,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         siegeAttackArray.push(war.attackingArmyRemaining[i]);
                     }
                     setFinalAttackArray(siegeAttackArray);
-                    setupBattle(probability, getFinalAttackArray(), mainGameArray);
+                    setupBattle(probability, getFinalAttackArray(), allTerritories());
                 }
                 advanceButtonState = 1;
                 setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -2768,7 +2795,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     setArmyTextValues(attackArrayText, 1, defendingUniqueId);
                     let updatedProbability = getUpdatedProbability();
                     setAttackProbabilityOnUI(updatedProbability, 1);
-                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
+                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
                     if (hasSiegedBefore) {
                         enableDisableSiegeButton(1);
                     } else if (updatedProbability >= PROBABILITY_THRESHOLD_FOR_SIEGE) {
@@ -2789,9 +2816,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     setAdvanceButtonText(advanceButtonState, advanceButton);
                     retreatButtonState = 1;
                     setRetreatButtonText(retreatButtonState, retreatButton);
-                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
+                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
                     if (hasSiegedBefore) {
-                        let war = historicWars.find((siege) => siege.warId === currentWarId);
+                        let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
                         let siegeAttackArray = [];
                         siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
                         siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
@@ -2837,7 +2864,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         }
         if (territoryAboutToBeAttackedOrSieged) {
-            currentWarFlagString = territoryAboutToBeAttackedOrSieged.getAttribute("data-name");
+            currentWarFlagString = pathCountry(territoryAboutToBeAttackedOrSieged);
         }
     });
 
@@ -2851,7 +2878,7 @@ document.addEventListener("DOMContentLoaded", function() {
         setCurrentWarId(war.warId);
         addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
         removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
-        territoryAboutToBeAttackedOrSieged.setAttribute("underSiege", "false"); //remove siege mode in svg
+        //siege removed from the store above; `underSiege` follows (Phase 4.4)
         //setup  battle to conquer territory
         enableDisableSiegeButton(1); //disable siege button at start
         let siegeAttackArray = [];
@@ -2892,7 +2919,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (battleUIState === 1) {
             setBattleResolutionOnHistoricWarArrayAfterSiege(getResolution(), warId);
         } else {
-            if (!historicWars.some(war => war.warId === currentWarId)) {
+            if (!historicWars.some(war => war.warId === getCurrentWarId())) {
                 addWarToHistoricWarArray(getResolution(), warId, false);
             }
         }
@@ -3045,7 +3072,7 @@ export function findClosestPaths(targetPath) {
                      distance,
                      path
                  }) =>
-                    path.getAttribute("data-name") === targetPath.getAttribute("data-name")
+                    pathCountry(path) === pathCountry(targetPath)
             )
             .map(({
                       path,
@@ -3071,7 +3098,7 @@ export function findClosestPaths(targetPath) {
     // add paths with matching "data-name" attribute
     const matchingPaths = Array.from(paths).filter(
         (path) =>
-            path.getAttribute("data-name") === targetPath.getAttribute("data-name") &&
+            pathCountry(path) === pathCountry(targetPath) &&
             path.getAttribute("territory-id") !== targetPath.getAttribute("territory-id")
     );
     resultsPaths.push(...matchingPaths.map((path) => [path, getPoints(path), getMinimumDistance(path)]));
@@ -3168,7 +3195,7 @@ function manualExceptionPaths(targetPath, direction) {
 }
 
 function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
-    if (targetPath.getAttribute("deactivated") === "true") {
+    if (pathIsDeactivated(targetPath)) {
         return;
     }
     let manualExceptionsArray = [];
@@ -3201,8 +3228,8 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
     }
 
     for (let i = 0; i < destinationPathObjectArray.length; i++) {
-        const targetName = targetPath.getAttribute("data-name");
-        const destName = destinationPathObjectArray[i].getAttribute("data-name");
+        const targetName = pathCountry(targetPath);
+        const destName = pathCountry(destinationPathObjectArray[i]);
 
         if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
             tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
@@ -3228,7 +3255,7 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
                     count++;
                 }
 
-                if (targetPath.getAttribute("data-name") === destObjJ.getAttribute("data-name")) {
+                if (pathCountry(targetPath) === pathCountry(destObjJ)) {
                     break;
                 }
             }
@@ -3241,10 +3268,10 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         for (let i = 0; i < paths.length; i++) {
             if (paths[i].getAttribute("fill").startsWith("url")) {
                 validDestinationsArray.push(paths[i]);
-                paths[i].setAttribute("attackableTerritory", "true");
             }
 
         }
+        setAttackableTerritories(validDestinationsArray.map(path => path.getAttribute("uniqueid")));
 
         for (let i = 0; i < validDestinationsArray.length; i++) {
             setStrokeWidth(validDestinationsArray[i], "3");
@@ -3329,7 +3356,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         line2.setAttribute('x2', '20');
         line2.setAttribute('y2', '15');
         line2.setAttribute('stroke-width', '10');
-        line2.setAttribute('stroke', playerColour);
+        line2.setAttribute('stroke', playerColour());
         pattern.appendChild(line2);
 
         // add the pattern element to the defs section of the SVG
@@ -3434,7 +3461,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                 g += 20;
                 b += 20;
                 territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-            } else if (mapMode === 2 && territory.getAttribute("owner") !== "Player") {
+            } else if (mapMode === 2 && !pathIsPlayerOwned(territory)) {
                 [r, g, b] = [255, 255, 255];
                 territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
                 territory.setAttribute("fill-opacity", "0.3");
@@ -3446,11 +3473,11 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                 g -= 20;
                 b -= 20;
                 if (selectCountryPlayerState && territory === currentSelectedPath) {
-                    territory.setAttribute("fill", playerColour);
+                    territory.setAttribute("fill", playerColour());
                 } else {
                     territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
                 }
-            } else if (mapMode === 2 && territory.getAttribute("owner") !== "Player") {
+            } else if (mapMode === 2 && !pathIsPlayerOwned(territory)) {
                 territory.setAttribute("fill-opacity", "0.01");
             }
         } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
@@ -3463,7 +3490,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                 for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
                     let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
                     arrayOfSelectedCountries[i][0].setAttribute("fill", rGBValuesToReplace);
-                    if (arrayOfSelectedCountries[i][0].getAttribute("deactivated") === "false" && arrayOfSelectedCountries[i][0].getAttribute("underSiege") === "false") {
+                    if (!pathIsDeactivated(arrayOfSelectedCountries[i][0]) && !pathIsUnderSiege(arrayOfSelectedCountries[i][0])) {
                         setStrokeWidth(arrayOfSelectedCountries[i][0], "1");
                     }
                 }
@@ -3503,7 +3530,7 @@ export function restoreMapColorState(array, countrySelectionState) {
         for (let i = 0; i < array.length; i++) {
             if (array[i][0] === path.getAttribute("uniqueid")) {
                 if (countrySelectionState) {
-                    if (path.getAttribute("data-name") !== currentSelectedPath.getAttribute("data-name")) {
+                    if (pathCountry(path) !== pathCountry(currentSelectedPath)) {
                         path.setAttribute("fill", array[i][1]);
                         path.setAttribute("stroke-width", array[i][2]);
                     }
@@ -3520,7 +3547,7 @@ export function restoreMapColorState(array, countrySelectionState) {
 function colorByStandardColoring() {
     paths.forEach(path => {
         const uniqueId = path.getAttribute("uniqueid");
-        const dataName = path.getAttribute("data-name");
+        const dataName = pathCountry(path);
         const matchingElement = listOfStartingCountryColorsArray.find(i => i[1] === dataName);
         let pathInfo;
         let randomRgbValue;
@@ -3821,18 +3848,19 @@ function greyOutTerritoriesForUnselectableCountries() {
         strongestFirst.slice(0, COUNTRY_GREYOUT_RANK).map(entry => entry[0])
     );
 
+    //Phase 4.4: which countries are unselectable is state, not a DOM attribute. The
+    //fill stays here because it is presentation; `greyedOut` is rendered from the set.
+    setGreyedOutCountries(unselectableCountries);
+
     paths.forEach(path => {
-        if (unselectableCountries.has(path.getAttribute("data-name"))) {
+        if (unselectableCountries.has(pathCountry(path))) {
             path.setAttribute("fill", GREY_OUT_COLOR);
-            path.setAttribute("greyedOut", "true");
         }
     });
 }
 
 function setAllGreyedOutAttributesToFalseOnGameStart() {
-    for (let i = 0; i < paths.length; i++) {
-        paths[i].setAttribute("greyedOut", "false");
-    }
+    clearGreyedOutCountries();
 }
 
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
@@ -3843,9 +3871,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     if (!xButtonClicked) {
         //if clicked territory is not owned by the player and is not a valid destination then return
         //if not a player owned territory and the lastPlayerOwned array does not contain the path
-        if (lastPlayerOwnedValidDestinationsArray && path.getAttribute("owner") !== "Player" && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
+        if (lastPlayerOwnedValidDestinationsArray && !pathIsPlayerOwned(path) && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
             return;
-        } else if (path.getAttribute("owner") === "Player") {
+        } else if (pathIsPlayerOwned(path)) {
             territoryAboutToBeAttackedOrSieged = null;
 
             //if territory is deactivated, then get how many turns are left
@@ -3856,7 +3884,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                 }
             }
             // if clicks on a player-owned territory then show button in transfer state
-            if (path.getAttribute("deactivated") === "true") {
+            if (pathIsDeactivated(path)) {
                 button.innerHTML = "DEACTIVATED (" + deactivatedTurnsLeft + ")";
                 button.classList.remove("move-phase-button-red-background");
                 button.classList.remove("move-phase-button-green-background");
@@ -3887,7 +3915,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                 button.style.display = "flex";
                 transferAttackButtonDisplayed = true;
             }
-        } else if (lastClickedPathExternal.getAttribute("owner") === "Player" && path.getAttribute("attackableTerritory") === "true" && path.getAttribute("owner") !== "Player" && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")) && path.getAttribute("underSiege") === "false") {
+        } else if (pathIsPlayerOwned(lastClickedPathExternal) && pathIsAttackable(path) && !pathIsPlayerOwned(path) && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")) && !pathIsUnderSiege(path)) {
             // if clicks on an enemy territory that is within reach then show attack state
             button.innerHTML = "ATTACK";
             button.classList.remove("move-phase-button-green-background");
@@ -3900,7 +3928,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             button.disabled = false;
             transferAttackButtonState = 1; //attack
             setTerritoryForAttack(path);
-        } else if (path.getAttribute("underSiege") === "true") {
+        } else if (pathIsUnderSiege(path)) {
             // if clicks on an enemy territory that is within reach but under siege then set it up for that
             const territoryName = path.getAttribute("territory-name");
             const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
@@ -3966,10 +3994,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             territoryAboutToBeAttackedOrSieged && territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") !== null ?
                                 territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") :
                                 "transferring",
-                            territoryAboutToBeAttackedOrSieged ? territoryAboutToBeAttackedOrSieged.getAttribute("data-name") : null,
+                            territoryAboutToBeAttackedOrSieged ? pathCountry(territoryAboutToBeAttackedOrSieged) : null,
                             territoryComingFrom,
                             transferAttackButtonState,
-                            mainGameArray
+                            allTerritories()
                         );
 
                         button.classList.remove("move-phase-button-green-background");
@@ -3978,7 +4006,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         button.innerHTML = "CANCEL";
                         drawAndHandleTransferAttackTable(
                             document.getElementById("transferTable"),
-                            mainGameArray,
+                            allTerritories(),
                             playerOwnedTerritories,
                             territoriesAbleToAttackTarget,
                             transferAttackButtonState
@@ -3988,9 +4016,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         setTransferToTerritory(selection);
 
                         if (transferAttackButtonState === 1) {
-                            for (let i = 0; i < paths.length; i++) {
-                                paths[i].setAttribute("attackableTerritory", "false");
-                            }
+                            clearAttackableTerritories();
                         }
                         setTimeout(function() {
                             eventHandlerExecuted = false;
@@ -4039,8 +4065,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     } else if (transferAttackButtonState === 1) {
                         if (button.innerHTML === "INVADE!") {
                             battleStart = true;
-                            setCurrentWarId(nextWarId);
-                            setNextWarId(nextWarId + 1);
+                            setCurrentWarId(getNextWarId());
+                            setNextWarId(getNextWarId() + 1);
                             toggleTransferAttackWindow(false);
                             transferAttackWindowOnScreen = false;
                             toggleBattleUI(true, false);
@@ -4053,8 +4079,13 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             toggleTransferAttackButton(false, false);
                             transferAttackButtonDisplayed = false;
                             attackTextCurrentlyDisplayed = false;
-                            setupBattle(probability, getFinalAttackArray(), mainGameArray);
+                            setupBattle(probability, getFinalAttackArray(), allTerritories());
                             setupBattleUI(getFinalAttackArray());
+                            //audit 5.1 AD: take the committed units out of the territories
+                            //that supplied them, now, rather than reconciling when the war
+                            //resolves. Before Phase 4.7 there was no single territory to
+                            //debit -- the battle ran on copies.
+                            transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
                             setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);
                             battleUIDisplayed = true;
                             setTimeout(function() {
@@ -4144,11 +4175,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
 function setTerritoryForAttack(territoryToAttack) {
     territoryAboutToBeAttackedOrSieged = territoryToAttack;
     document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
-    document.getElementById("leftBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
-    document.getElementById("rightBattleImage").src = setFlag(territoryToAttack.getAttribute("data-name"), 0);
+    document.getElementById("leftBattleImage").src = setFlag(pathCountry(territoryToAttack), 0);
+    document.getElementById("rightBattleImage").src = setFlag(pathCountry(territoryToAttack), 0);
     document.getElementById("attack-destination-container").style.display = "flex";
     attackTextCurrentlyDisplayed = true;
-    if (territoryToAttack.getAttribute("underSiege") === "true") {
+    if (pathIsUnderSiege(territoryToAttack)) {
         const territoryName = territoryToAttack.getAttribute("territory-name");
         const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
         if (siege && siege.strokeColor) {
@@ -4158,7 +4189,7 @@ function setTerritoryForAttack(territoryToAttack) {
         territoryToAttack.style.strokeDasharray = "10, 5";
     } else {
         territoryToAttack.style.stroke = territoryToAttack.getAttribute("fill");
-        territoryToAttack.setAttribute("fill", playerColour);
+        territoryToAttack.setAttribute("fill", playerColour());
         territoryToAttack.setAttribute("stroke-width", "5px");
         territoryToAttack.style.strokeDasharray = "10, 5";
         addImageToPath(territoryToAttack, "battle.png", 0);
@@ -4168,8 +4199,8 @@ function setTerritoryForAttack(territoryToAttack) {
 function setTerritoryForSiege(territoryToSiege) {
     territoryAboutToBeAttackedOrSieged = territoryToSiege;
     document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
-    document.getElementById("leftBattleImage").src = setFlag(territoryToSiege.getAttribute("data-name"), 0);
-    document.getElementById("rightBattleImage").src = setFlag(territoryToSiege.getAttribute("data-name"), 0);
+    document.getElementById("leftBattleImage").src = setFlag(pathCountry(territoryToSiege), 0);
+    document.getElementById("rightBattleImage").src = setFlag(pathCountry(territoryToSiege), 0);
     document.getElementById("attack-destination-container").style.display = "flex";
     attackTextCurrentlyDisplayed = true;
 
@@ -4207,7 +4238,7 @@ export function addImageToPath(pathElement, imagePath, siege) {
         imageElement.setAttribute("width", imageWidth.toString());
         imageElement.setAttribute("height", imageHeight.toString());
         for (const key in playerSiegeWarsList) {
-            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === currentWarId) {
+            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === getCurrentWarId()) {
                 for (let i = 0; i < paths.length; i++) {
                     if (paths[i].getAttribute("territory-name") === playerSiegeWarsList[key].defendingTerritory.territoryName) {
                         const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
@@ -4262,9 +4293,9 @@ export function removeSiegeImageFromPath(ai, path) {
     }
 
     if (mapMode === 1) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === path.getAttribute("uniqueid")) {
-                setColorOnMap(mainGameArray[i]);
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === path.getAttribute("uniqueid")) {
+                setColorOnMap(allTerritories()[i]);
                 break;
             }
         }
@@ -4292,12 +4323,12 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
     if (buttonState === 1) {
         for (let i = 0; i < territoriesAbleToAttackTarget.length; i++) { //get total attack numbers for icon row attack window
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId && !territoriesAbleToAttackTarget[i].isDeactivated) {
-                    totalAttackAmountArray[0] += mainGameArray[j].infantryForCurrentTerritory;
-                    totalAttackAmountArray[1] += mainGameArray[j].useableAssault;
-                    totalAttackAmountArray[2] += mainGameArray[j].useableAir;
-                    totalAttackAmountArray[3] += mainGameArray[j].useableNaval;
+            for (let j = 0; j < allTerritories().length; j++) {
+                if (territoriesAbleToAttackTarget[i].getAttribute("uniqueid") === allTerritories()[j].uniqueId && !territoriesAbleToAttackTarget[i].isDeactivated) {
+                    totalAttackAmountArray[0] += allTerritories()[j].infantryForCurrentTerritory;
+                    totalAttackAmountArray[1] += allTerritories()[j].useableAssault;
+                    totalAttackAmountArray[2] += allTerritories()[j].useableAir;
+                    totalAttackAmountArray[3] += allTerritories()[j].useableNaval;
                 }
             }
         }
@@ -4775,7 +4806,7 @@ function setupSiegeUI(territory) {
     const advanceButton = document.getElementById("advanceButton");
     const siegeBottomBarButton = document.getElementById("siegeBottomBarButton");
 
-    const attackerCountry = playerCountry;
+    const attackerCountry = playerCountryName();
     const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
 
     let probBarAdded = false;
@@ -4839,7 +4870,7 @@ function setupSiegeUI(territory) {
 }
 
 function setupBattleUI(attackArray) {
-    let war = historicWars.find((siege) => siege.warId === currentWarId);
+    let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
     if (war) {
         battleUIState = 1;
     } else {
@@ -4869,11 +4900,11 @@ function setupBattleUI(attackArray) {
     for (let i = 0; i < attackArray.length; i++) {
         for (let j = 0; j < paths.length; j++) {
             if (paths[j].getAttribute("uniqueid") === attackArray[0]) {
-                flagStringDefender = paths[j].getAttribute("data-name");
+                flagStringDefender = pathCountry(paths[j]);
                 defenderTerritory = paths[j];
             }
             if (paths[j].getAttribute("uniqueid") === attackArray[1].toString()) { //any player territory to get country name
-                flagStringAttacker = paths[j].getAttribute("data-name");
+                flagStringAttacker = pathCountry(paths[j]);
                 attackerCountry = paths[j];
             }
         }
@@ -4908,17 +4939,17 @@ function setupBattleUI(attackArray) {
     setAttackProbabilityOnUI(probability, 1);
 
     //SET ARMY TEXT VALUES
-    let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
+    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
     if (!hasSiegedBefore) {
         setArmyTextValues(attackArray, 0, defenderTerritory.getAttribute("uniqueid"));
     }
 
     //SET DEFENSE BONUS VALUE
     if (!hasSiegedBefore) {
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (defenderTerritory.getAttribute("uniqueid") === mainGameArray[i].uniqueId) {
-                document.getElementById("defenseBonusText").innerHTML = mainGameArray[i].defenseBonus;
-                document.getElementById("mountainDefenseText").innerHTML = mainGameArray[i].mountainDefenseBonus;
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (defenderTerritory.getAttribute("uniqueid") === allTerritories()[i].uniqueId) {
+                document.getElementById("defenseBonusText").innerHTML = allTerritories()[i].defenseBonus;
+                document.getElementById("mountainDefenseText").innerHTML = allTerritories()[i].mountainDefenseBonus;
             }
         }
     } else {
@@ -4947,17 +4978,15 @@ function setupBattleUI(attackArray) {
     advanceButtonState = 0;
     setAdvanceButtonText(6, advanceButton);
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (attackArray[1].toString() === mainGameArray[i].uniqueId) {
-            attackCountry = mainGameArray[i].dataName;
-        }
-        if (attackArray[0] === mainGameArray[i].uniqueId) {
-            defendTerritory = mainGameArray[i];
-        }
-    }
-    originalDefendingTerritory = {
-        ...defendTerritory
-    };
+    attackCountry = getTerritory(attackArray[1])?.dataName;
+    defendTerritory = getTerritory(attackArray[0]);
+
+    //A deliberate snapshot, and the one copy of a territory Phase 4.7 keeps. The siege and
+    //historic-war objects built from it take only its `uniqueId` and then reference the live
+    //territory; what they read off this copy are the `startingDefenseBonus` /
+    //`startingFoodCapacity` / `startingProdPop` / `startingTerritoryPop` values, which have
+    //to be the numbers as they were when the battle opened. Nothing writes through it.
+    originalDefendingTerritory = defendTerritory ? { ...defendTerritory } : null;
 }
 
 function setTitleTextBattleUI(attacker, defender, attackSiege) {
@@ -4965,7 +4994,7 @@ function setTitleTextBattleUI(attacker, defender, attackSiege) {
     let defenderContainer = document.getElementById("battleUITitleTitleRight");
 
     if (attackSiege === 0) { //attack
-        let attackerCountry = attacker.getAttribute("data-name");
+        let attackerCountry = pathCountry(attacker);
         let defenderTerritory = defender.getAttribute("territory-name");
 
         attackerCountry = reduceKeywords(attackerCountry);
@@ -5004,12 +5033,12 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
         }
 
         //get defending army
-        for (let i = 0; i < mainGameArray.length; i++) {
-            if (mainGameArray[i].uniqueId === defendingUniqueId) { //any player territory to get country name
-                const infantryCount = mainGameArray[i].infantryForCurrentTerritory;
-                const assaultCount = mainGameArray[i].useableAssault;
-                const airCount = mainGameArray[i].useableAir;
-                const navalCount = mainGameArray[i].useableNaval;
+        for (let i = 0; i < allTerritories().length; i++) {
+            if (allTerritories()[i].uniqueId === defendingUniqueId) { //any player territory to get country name
+                const infantryCount = allTerritories()[i].infantryForCurrentTerritory;
+                const assaultCount = allTerritories()[i].useableAssault;
+                const airCount = allTerritories()[i].useableAir;
+                const navalCount = allTerritories()[i].useableNaval;
 
                 totalDefendingArmy[0] += infantryCount;
                 totalDefendingArmy[1] += assaultCount;
@@ -5188,7 +5217,7 @@ export function populateWarResultPopup(situation, flagStringAttacker, territoryD
         confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
         document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
-        territoryPath.setAttribute("fill", playerColour);
+        territoryPath.setAttribute("fill", playerColour());
         if (mapMode === 1) {
             currentMapColorAndStrokeArray = saveMapColorState(false);
         }
@@ -5739,9 +5768,9 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
     if (situation === 0) {
         defendingTerritory = siegeObject.defendingTerritory;
     } else {
-        for (let i = 0; i < mainGameArray; i++) {
-            if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                defendingTerritory = mainGameArray[i];
+        for (let i = 0; i < allTerritories(); i++) {
+            if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+                defendingTerritory = allTerritories()[i];
             }
         }
     }
@@ -5976,14 +6005,14 @@ function flipMapMode() {
             }
             for (let i = 0; i < paths.length; i++) {
                 paths[i].setAttribute("fill-opacity", "0.01");
-                for (let j = 0; j < mainGameArray.length; j++) {
-                    if (mainGameArray[j].unique === paths[i].getAttribute("uniqueid")) {
-                        setStrokeOnMap(mainGameArray[j]);
+                for (let j = 0; j < allTerritories().length; j++) {
+                    if (allTerritories()[j].unique === paths[i].getAttribute("uniqueid")) {
+                        setStrokeOnMap(allTerritories()[j]);
                         break;
                     }
                 }
                 paths[i].setAttribute("stroke-width", "1px");
-                paths[i].getAttribute("owner") === "Player" ? (paths[i].setAttribute("fill", playerColour), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
+                pathIsPlayerOwned(paths[i]) ? (paths[i].setAttribute("fill", playerColour()), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
             }
             break;
         case 2:
@@ -6034,12 +6063,12 @@ export function endPlayerTurn() {
         flipMapMode();
     }
     for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("underSiege") === "false" && paths[i].getAttribute("deactivated") === "false") {
+        if (!pathIsUnderSiege(paths[i]) && !pathIsDeactivated(paths[i])) {
             paths[i].style.stroke = "rgb(0,0,0)";
             paths[i].setAttribute("stroke-width", "1");
             paths[i].style.strokeDasharray = "none";
         } else {
-            paths[i].setAttribute("fill", playerColour);
+            paths[i].setAttribute("fill", playerColour());
         }
     }
     if (svgMap.querySelector("#attackImage")) {
@@ -6051,8 +6080,7 @@ export function endPlayerTurn() {
     restoreMapColorState(currentMapColorAndStrokeArray, false);
     document.getElementById("popup-title").innerText = "AI turn";
     document.getElementById("popup-confirm").innerText = "AI MOVING...";
-    modifyCurrentTurnPhase(turnPhase);
-    turnPhase = 0;
+    setPhase(Phase.AI);
 }
 
 export function initialiseNewPlayerTurn() {
@@ -6060,9 +6088,9 @@ export function initialiseNewPlayerTurn() {
     document.getElementById("popup-confirm").disabled = false;
     if (playerSiegeWarsList) {
         for (const key in playerSiegeWarsList) {
-            for (let i = 0; i < mainGameArray.length; i++) {
-                if (playerSiegeWarsList[key].defendingTerritory.uniqueId === mainGameArray[i].uniqueId) {
-                    console.log("Beginning of turn Useable for " + mainGameArray[i].territoryName + ": Assault: " + mainGameArray[i].useableAssault + " Air: " + mainGameArray[i].useableAir + " Naval: " + mainGameArray[i].useableNaval);
+            for (let i = 0; i < allTerritories().length; i++) {
+                if (playerSiegeWarsList[key].defendingTerritory.uniqueId === allTerritories()[i].uniqueId) {
+                    console.log("Beginning of turn Useable for " + allTerritories()[i].territoryName + ": Assault: " + allTerritories()[i].useableAssault + " Air: " + allTerritories()[i].useableAir + " Naval: " + allTerritories()[i].useableNaval);
                 }
             }
         }
@@ -6072,8 +6100,7 @@ export function initialiseNewPlayerTurn() {
     }
     document.getElementById("popup-title").innerText = "Buy / Upgrade Phase";
     document.getElementById("popup-confirm").innerText = "MILITARY";
-    modifyCurrentTurnPhase(turnPhase);
-    turnPhase++;
+    setPhase(Phase.BUY_UPGRADE);
 }
 
 export function setCurrentMapColorAndStrokeArray(value) {
@@ -6112,9 +6139,9 @@ export function setZoomLevel(value) {
 
 function pushColorsToMainArray() {
     for (let i = 0; i < paths.length; i++) {
-        for (let j = 0; j < mainGameArray.length; j++) {
-            if (paths[i].getAttribute("uniqueid") === mainGameArray[j].uniqueId) {
-                mainGameArray[j].countryColor = paths[i].getAttribute("fill");
+        for (let j = 0; j < allTerritories().length; j++) {
+            if (paths[i].getAttribute("uniqueid") === allTerritories()[j].uniqueId) {
+                allTerritories()[j].countryColor = paths[i].getAttribute("fill");
             }
         }
     }
@@ -6123,7 +6150,7 @@ function pushColorsToMainArray() {
 export function setColorOnMap(territory, selectCountryState) {
     if (selectCountryState) {
         for (let i = 0; i < paths.length; i++) {
-            if (paths[i].getAttribute("data-name") === territory.dataName) {
+            if (pathCountry(paths[i]) === territory.dataName) {
                 for (let j = 0; j < listOfStartingCountryColorsArray.length; j++) {
                     if (listOfStartingCountryColorsArray[j][0] === paths[i].getAttribute("uniqueid")) {
                         console.log("rgb(" + listOfStartingCountryColorsArray[j][2][0].toString() + "," + listOfStartingCountryColorsArray[j][2][1].toString() + "," + listOfStartingCountryColorsArray[j][2][2].toString() + ");");
@@ -6152,25 +6179,15 @@ export function setStrokeOnMap(territory) {
     }
 }
 
-export function setOwnerOnPath(territory) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-            paths[i].setAttribute("owner", territory.owner);
-        }
-    }
-}
-
-export function setCountryNameOnPath(territory) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-            paths[i].setAttribute("data-name", territory.owner);
-        }
-    }
-}
+//setOwnerOnPath() and setCountryNameOnPath() lived here. Both scanned all 359 paths to
+//push a field of the territory model onto one path attribute, and the second of them
+//wrote `territory.owner` into `data-name` -- the current-owner attribute -- which is
+//only ever right because an AI country name happens to be both. Ownership is set through
+//state/mutations.js now and rendered by src/ui/mapAttributeSync.js (Phase 4.4).
 
 export async function populateAiDialogueBox(situation, attacker, defender, parameter) {
     setFlag(attacker.dataName, 8);
-    setFlag(playerCountry, 9);
+    setFlag(playerCountryName(), 9);
     setAiDialogueBodyBottomContentState(0);
     convertAiDialogueButtonRow(1);
     switch (situation) {

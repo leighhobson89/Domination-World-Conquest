@@ -16,11 +16,13 @@ questions:
    drifted; the numbers here are against the current working tree.
 3. What proves it fixed?
 
-**Issue ids are the audit's letters** (`A`–`Z`, `AA`–`AJ`) and are stable. They are cited by
+**Issue ids are the audit's letters** (`A`–`Z`, `AA`–`AL`) and are stable. They are cited by
 the e2e specs and by the refactor plan, so they must not be renumbered. `AD` and `AE` were
-found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3.
+found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `AK` and `AL` by the
+same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
+symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: end of refactor Phase 3.**
+**Last updated: end of refactor Phase 4.**
 
 ## Status legend
 
@@ -35,29 +37,32 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3.
 
 | | Critical | High | Medium | Low |
 |---|---:|---:|---:|---:|
-| 🟢 Fixed | 11 | 14 | 5 | — |
-| 🔴 Open | 0 | 0 | 2 | — |
-| 🟡 / ⚪ | 0 | 0 | 12 | 7 |
+| 🟢 Fixed | 13 | 15 | 9 | — |
+| 🔴 Open | 0 | 0 | 1 | — |
+| 🟡 / ⚪ | 0 | 0 | 7 | 5 |
 
 Phase 3 closed every critical and every high-severity defect in the register, plus five
 (**AF** through **AJ**) that only became reachable once the others were fixed. Every one of
 those five was found by the same spec: the ten-turn `long-run`.
 
+Phase 4 closed **AD**, **AK** and **AL**, structurally closed **AB**, and closed five more
+found while doing it (§4b). One defect is left open: **AE**, which Phase 6.7 owns.
+
 ---
 
 ## 1. Still open
 
-Two defects, both structural rather than arithmetic, both already sequenced.
+One defect, structural rather than arithmetic, already sequenced.
 
 | Id | Issue | Status | Now at | Fixed by | Covered by |
 |---|---|---|---|---|---|
-| **AD** | **INVADE! never debits the source territory** — the battle runs on copies and the source is reconciled only when the war resolves | 🔴 Open | [battle.js:330](../battle.js#L330) onward | 4.7 | `attack/attack-window.spec.js` (fixme + characterisation) |
 | **AE** | **The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL | 🔴 Open | [transferAndAttack.js](../transferAndAttack.js), [ui.js](../ui.js) | 6.7 | `attack/attack-window.spec.js` (fixme) |
 
-Neither is a patch. **AD** is only meaningful once war objects hold a territory id instead of
-a copy (Phase 4.7) — until then there is no single source to debit. **AE** is the marker half
-of the map-state desync, and Phase 6.7 removes the whole class by making markers a pure
-function of state rather than something pushed onto the SVG from ~30 call sites.
+It is not a patch. **AE** is the marker half of the map-state desync, and Phase 6.7 removes
+the whole class by making markers a pure function of state rather than something pushed onto
+the SVG from ~30 call sites. Phase 4 did the same thing to the six *attribute* halves of that
+desync, which is why the attribute specs in `bootstrap/state-layer.spec.js` can now assert
+map-equals-model outright.
 
 ---
 
@@ -72,10 +77,8 @@ Real, understood, deliberately not being fixed yet.
 | — | Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path | 6.7 | the same root cause as **AE** |
 | — | `gameLoop()` **recurses infinitely** — no unwinding, no cancellation, no restart | 5.7 | |
 | — | Bootstrap ordering is timing-luck: turn 1's economy runs before leaders and forts exist | 5.7 | |
-| — | `mainGameArray` is re-sorted by `defenseBonus`; safe only because every consumer scans linearly | 4.1 | |
 | — | `eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state | 6.6 | |
 | — | Essentially **no error handling** — two `try/catch` in 19,800 lines, one of them empty | 5.7 | This is why every defect in §3 below froze the *whole game* rather than one turn |
-| — | `updateArrayOfLeadersAndCountries()` rebuilds mid-turn, so the AI's view of who owns what is stale by up to one conquest | 4.1 | Phase 3 stopped it *crashing* (**AG**); one source of truth stops it being stale |
 | — | **No win or lose condition.** The game cannot be finished | 7.1 | |
 | — | **No save or load.** A refresh destroys everything | 7.3 | |
 | — | Unpaid army upkeep has **no consequence** — a broke territory keeps its army for free | 7.x | New in Phase 3, with maintenance re-enabled (**R**). Desertion is a design decision, not a defect fix |
@@ -92,9 +95,10 @@ Real, understood, deliberately not being fixed yet.
 | `//DEBUG` blocks shipped in the turn loop (`logGoldStats`, `setDebugArraysToZero`) | 5.7 |
 | ~200 `console.log` calls in the turn and battle hot path | 5.7 |
 | Magic numbers throughout — `15`, `0.7`, `8000000`, `136067649`, `1000`, and now `COUNTRY_GREYOUT_RANK`, `UNIT_MATCHUP_EFFECTIVENESS`, `armyCostPerTurn` | 5.1 — `config/balance.js` |
-| Four names for one structure: `mainGameArray` / `mainArrayOfTerritoriesAndResources` / `mainArray` / `territories` | 4.1 |
-| `dataName` is the *current owner* and changes on conquest, `territoryName` is the stable identity, `originalOwner` is historical | 4.1 |
-| Lint baseline: **214 errors, 394 warnings** (was 226 / 405 before Phase 3) | per file, as each moves into `src/` — house rule 6 |
+| Four names for one structure: `mainGameArray` / `mainArrayOfTerritoriesAndResources` / `mainArray` / `territories` — the first is gone, the parameter name survives in `battle.js` and `transferAndAttack.js` | 5.2 / 5.3, as each function becomes pure |
+| `dataName` is the *current owner* and changes on conquest, `territoryName` is the stable identity, `originalOwner` is historical. Named as such in `state/selectors.js` (`countryOf` vs `getTerritoryByName`) but the fields keep their old names in the model | 5.2 |
+| `battle.js` still exports ~25 `let`s of per-battle scratch (`currentRound`, `attackingArmyRemaining`, …) | 5.3 — `resolveRound()` is pure and has no module state |
+| Lint baseline: **205 errors, 380 warnings** (was 214 / 394 after Phase 3) | per file, as each moves into `src/` — house rule 6 |
 
 ---
 
@@ -210,6 +214,65 @@ A territory's gold is now floored at zero when the turn change is applied. Nothi
 game models debt, and a negative balance would flow straight into the AI's spending
 calculations. What an unpayable army *should* cost you is desertion, and that is a Phase 7
 design decision — logged in §2 above rather than invented here.
+
+---
+
+## 4b. Closed in Phase 4
+
+**AD**, plus four defects found while inverting the SVG relationship. None of the four was
+reachable by reading one function: each was a pair of writes that had to agree and did not,
+which is the shape Phase 4 exists to remove.
+
+| Id | Issue | Fix |
+|---|---|---|
+| **AD** | **INVADE! never debited the source territory.** The battle ran on copies, so the same garrison could be committed to two attacks in one turn and a failed attack cost nothing | The source is debited at INVADE!. Sieges now hold a territory id, so there is one territory to debit. The army returns through `retrievalArray` on a no-penalty retreat — which had to be made unconditional, because the `battleStart` branch only queued the retrieval for a siege pullout and would otherwise have destroyed the army. `attack/attack-window.spec.js` un-`fixme`d |
+| **AB** | The AI substituted whole elements of `mainGameArray`, orphaning the territory index | **Structurally closed.** There is one index, it is the store's own `Map`, and nothing can replace an element: the write-back is `updateTerritory(id, patch)` |
+| — | `transferArmyOutOfTerritoryOnStartingInvasion()` computed `armyForCurrentTerritory -= (sum of what remains)`, subtracting the garrison a second time and driving the total negative | It is the sum of the units, so it is an assignment. Only reachable now that the debit runs at all |
+| — | `deactivateTerritoryAi()` took a **territory** from the AI and an **SVG path** from `handleWarEndingsAndOptions()`. A path has no `uniqueId` property, so every AI conquest of a player territory pushed `[undefined, n, 0]` onto the deactivation list, deactivated nothing, and left the entry there forever | Accepts either and resolves one id |
+| — | `setCountryNameOnPath()` wrote `territory.owner` into `data-name` — the *current owner* attribute. Correct only because an AI country name happens to be both, and wrong the moment the player held the territory | Deleted. Ownership is `setTerritoryOwner(id, owner, country)` and the attributes are rendered from it |
+| — | `setMainArrayToArmyRemaining()` wrote the siege survivors back, then wrote them a second time into the siege's own copy — read from `getSiegeObjectFromPath(lastClickedPath)`, a *different* siege from the one passed in | `applySiegeSurvivorsToTerritory()`: one write, no copy, no second lookup |
+| — | The AI siege-arrest log printed `undefined's attacking troops` — `attackingTerritory` is a name string, not an object | Uses `attackingCountry` |
+| **AL** | **A siege arrest could set a territory's army to `NaN`, permanently.** `handleEndSiegeDueArrest()` restored the defender's four unit types by adding back half the arrested attackers. Three lines read `defendingArmyRemaining[n] + Math.floor(attackingArmyRemaining[n] * 0.5)`; the assault line had the bracket in the wrong place and read `defendingArmyRemaining[1 + Math.floor(...)]` — indexing a four-element array by half the attacker's assault count. Any arrest against an attacker with two or more assault units assigned `undefined`, `armyForCurrentTerritory` came out `NaN`, and every later turn recomputed population, productive population and food consumption from it | The bracket. Found by the ten-turn `long-run` on turn 10, once **AK** stopped it failing on turn 2 |
+| **AK** | **A siege could set a territory's `foodCapacity` to `NaN`, permanently.** `calculateDamageDone()` declared `collateralDamage` and assigned it in three of four paths: it was left `undefined` when the destroy roll succeeded and the score difference was under 50, which is reachable for any difference in [20, 50) where the destroy probability is 0.3. `foodCapacityDestroyed` then came out `NaN`, and `arrested` came out `false` because `undefined === 0` is false, so the siege could not be arrested either | Computed once, before the branch — every path wanted the same value. `changeDefendingTerritoryStatsBasedOnSiege()` also clamps `foodCapacity` at zero and ignores a non-finite damage figure |
+
+**AK** and **AL** are the clearest illustration of what the phase was for. The `NaN` was **always** being
+computed; it landed on the siege's own copy of the territory, and the copy-back at the end of a
+siege carried only the four building counts, so it never reached the world. Removing the copy
+made a five-turn-old bug visible on turn 2 of the ten-turn `long-run` — a spec that has been
+green since Phase 3 and that specifically looks for non-finite numbers. Nothing about the
+defect changed; the place it could hide did.
+
+**AL** then came out from behind **AK**: the ten-turn run had never reached turn 10 while **AK**
+was failing it on turn 2. Two `NaN`-producing defects, in the same subsystem, neither visible
+while the other was in front of it — which is the argument for a characterisation suite that
+asserts an invariant over the whole world rather than one number at a time.
+
+**One defect Phase 4 introduced and fixed before the phase closed**, recorded because the
+shape of it will recur in Phases 5 and 6. Converting `colorCountriesRandomly()` from
+`path.getAttribute("data-name")` to a store read broke it, because that function runs during
+bootstrap — after `svgMapLoaded()` populates `paths`, but before `seedTerritories()` fills the
+store. Every path answered `null`, they all grouped into one country, and the whole map came
+out a single flat colour with every territory's `countryColor` wrong for the rest of the game.
+
+Two things are worth keeping from it:
+
+- **The SVG genuinely is the truth in that window**, because it is what the model is seeded
+  from. `state/pathState.js` now reads the attribute while `territoriesReady()` is false, and
+  the store once it is true — bounded by readiness rather than by "the lookup returned null",
+  so that a missing territory after seeding still surfaces as a bug.
+- **225 specs did not notice the map going one colour**, because they all assert on state and
+  text. `bootstrap/state-layer.spec.js` now asserts the map has one colour per country, before
+  a game starts and after one does.
+
+**What Phase 4 makes impossible**, as opposed to fixed:
+
+- the map and the model disagreeing about ownership, deactivation or siege status — there is
+  one fact and the attribute is rendered from it (`bootstrap/state-layer.spec.js`);
+- a siege damaging a territory the rest of the game never hears about — the siege references
+  the territory rather than copying it;
+- two phase counters drifting apart — there is one, and it is an enum;
+- a module reassigning another module's game state — the `export let`s that held world state
+  are gone.
 
 ---
 

@@ -119,22 +119,14 @@ test.describe("the attack window", () => {
 });
 
 test.describe("launching the attack", () => {
-    test.fixme("takes the committed units out of their source territory immediately", async ({
+    test("takes the committed units out of their source territory immediately", async ({
         startedGame: game,
     }) => {
-        // 🔴 It does not. Measured: committing 100 infantry from Germany and
-        // pressing INVADE! opens the battle with the source territory's
-        // infantry and army counts completely unchanged, and they are still
-        // unchanged a second and a half later. The battle works on its own
-        // copies of both armies (audit section 3.2 -- state lives in three
-        // places at once), and the source is only reconciled when the war
-        // resolves.
-        //
-        // Whether "immediately" is the right design is a real question: it is
-        // what the e2e plan specifies (section 5.9) and what stops a player
-        // committing the same garrison to two attacks in one turn. Settle it
-        // in Phase 4.7, which makes siege and war objects hold a territory id
-        // rather than a copy, and un-fixme then.
+        // audit 5.1 AD, closed in Phase 4.7. It used to leave the source untouched
+        // because the battle ran on copies of both armies and the source was only
+        // reconciled when the war resolved -- so the same garrison could be committed
+        // to two attacks in one turn and a failed attack cost nothing. Now the siege
+        // and war objects reference the real territory, so INVADE! debits it.
         const before = await game.territory("Germany");
 
         await openAttackFrom(game, "Germany");
@@ -151,22 +143,22 @@ test.describe("launching the attack", () => {
         );
     });
 
-    test("today: leaves the source territory's garrison untouched while the battle runs", async ({
+    test("leaves the source territory's army total consistent with its units", async ({
         startedGame: game,
     }) => {
-        // Characterisation of the behaviour above, so the suite is not silent
-        // about it. When the source is debited at INVADE! time this spec fails --
-        // the signal to delete it and un-fixme the one above.
-        const before = await game.territory("Germany");
-
+        // The debit above used to be written as `armyForCurrentTerritory -= (sum of
+        // what remains)`, which subtracts the garrison a second time and sends the
+        // total negative. It is the sum of the units, so it is an assignment.
         await openAttackFrom(game, "Germany");
         await game.transferAttack.plus("Germany", "infantry");
         await game.moveButton.click();
         await expect.poll(async () => game.battle.isOpen()).toBe(true);
 
         const after = await game.territory("Germany");
-        expect(after.infantryForCurrentTerritory).toBe(before.infantryForCurrentTerritory);
-        expect(after.armyForCurrentTerritory).toBe(before.armyForCurrentTerritory);
+        expect(after.armyForCurrentTerritory).toBeGreaterThanOrEqual(0);
+        expect(after.armyForCurrentTerritory).toBeGreaterThanOrEqual(
+            after.infantryForCurrentTerritory
+        );
     });
 
     test("opens the battle UI and closes the attack window", async ({ startedGame: game }) => {

@@ -1,0 +1,30 @@
+{
+  "name": "naval-only-defender",
+  "description": "A defender holding nothing but naval units, and an attacker holding nothing but infantry. Before audit 5.2 K was fixed the two armies shared no unit type, totalSkirmishes came out zero and the battle hung; the matchup matrix now scales the odds instead.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 50000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 500,
+        "useableNaval": 500
+      }
+    }
+  ]
+}

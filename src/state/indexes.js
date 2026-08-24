@@ -1,19 +1,20 @@
-// O(1) lookups for the two collections the game scans constantly.
+// O(1) lookups for the SVG territory paths.
 //
 // Nearly every lookup in the legacy code is a linear scan:
 //
-//     for (let i = 0; i < mainGameArray.length; i++) {
-//         if (mainGameArray[i].uniqueId === someId) { ... break; }
+//     for (let i = 0; i < paths.length; i++) {
+//         if (paths[i].getAttribute("uniqueid") === someId) { ... break; }
 //     }
 //
-// There are around ninety of these, several of them nested inside per-turn loops
-// over all 359 paths -- see docs/01-codebase-audit.md section 4.2. These indexes
-// replace them.
+// There were around ninety of these, several of them nested inside per-turn loops
+// over all 359 paths -- see docs/01-codebase-audit.md section 4.2. This index
+// replaces them.
 //
-// Note that `mainGameArray` is sorted by defenseBonus immediately after it is
-// built, so a territory's position in the array has nothing to do with its
-// uniqueId. Anything that indexes it positionally is already wrong; that is
-// exactly what these lookups are here to prevent.
+// The territory half of this module has gone. It indexed `mainGameArray` by
+// uniqueId and by name, which is exactly what `GameState` does now, so keeping it
+// would have meant two Maps over the same objects and a second thing to rebuild.
+// Territory lookups are `getTerritory()` and `getTerritoryByName()` in
+// `state/selectors.js`. See docs/03-refactor-plan.md Phase 4.1.
 //
 // This module imports nothing.
 
@@ -21,11 +22,6 @@
 let pathsByUniqueId = null;
 /** @type {Map<string, object> | null} */
 let pathsByName = null;
-
-/** @type {Map<string, object> | null} */
-let territoriesByUniqueId = null;
-/** @type {Map<string, object> | null} */
-let territoriesByName = null;
 
 /**
  * Index the SVG territory paths. Call once after the map loads, and again after
@@ -54,26 +50,6 @@ export function buildPathIndex(paths) {
     }
 }
 
-/**
- * Index the territory objects. Call once after the territory model is built, and
- * again if the array is rebuilt.
- *
- * @param {Iterable<object>} territories
- */
-export function buildTerritoryIndex(territories) {
-    territoriesByUniqueId = new Map();
-    territoriesByName = new Map();
-
-    for (const territory of territories) {
-        if (territory?.uniqueId !== undefined && territory.uniqueId !== null) {
-            territoriesByUniqueId.set(String(territory.uniqueId), territory);
-        }
-        if (territory?.territoryName) {
-            territoriesByName.set(territory.territoryName, territory);
-        }
-    }
-}
-
 function requireIndex(index, builder) {
     if (index === null) {
         throw new Error(`Index not built. Call ${builder}() first.`);
@@ -91,28 +67,12 @@ export function getPathByName(territoryName) {
     return requireIndex(pathsByName, "buildPathIndex").get(territoryName) ?? null;
 }
 
-/** The territory object for a uniqueId, or null. */
-export function getTerritoryByUniqueId(uniqueId) {
-    return requireIndex(territoriesByUniqueId, "buildTerritoryIndex").get(String(uniqueId)) ?? null;
-}
-
-/** The territory object for a territory name, or null. */
-export function getTerritoryByName(territoryName) {
-    return requireIndex(territoriesByName, "buildTerritoryIndex").get(territoryName) ?? null;
-}
-
 export function isPathIndexBuilt() {
     return pathsByUniqueId !== null;
-}
-
-export function isTerritoryIndexBuilt() {
-    return territoriesByUniqueId !== null;
 }
 
 /** Test seam. */
 export function __resetIndexesForTests() {
     pathsByUniqueId = null;
     pathsByName = null;
-    territoriesByUniqueId = null;
-    territoriesByName = null;
 }

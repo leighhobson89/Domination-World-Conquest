@@ -1,0 +1,20 @@
+{
+  "name": "two-sieges",
+  "description": "Two concurrent AI sieges against player territories, so that audit 5.1 D -- one siege missing its hit roll aborting every other siege that turn -- is assertable. Both start with a large attacking force so neither is arrested on the first tick.",
+  "sieges": [
+    {
+      "side": "ai",
+      "territory": "Germany",
+      "attackingCountry": "Poland",
+      "attackingArmy": [200000, 2000, 2000, 0],
+      "turnsInSiege": 0
+    },
+    {
+      "side": "ai",
+      "territory": "France",
+      "attackingCountry": "Spain",
+      "attackingArmy": [200000, 2000, 2000, 0],
+      "turnsInSiege": 0
+    }
+  ]
+}

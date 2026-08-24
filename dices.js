@@ -3,7 +3,7 @@ import {
 } from './ui.js';
 import {
     playerColour
-} from "./ui.js";
+} from './src/state/selectors.js';
 
 let canvasElement = document.querySelector('#canvas');
 let scoreResultArray = [];
@@ -223,10 +223,10 @@ function createDiceMesh(diceNumber, enemyColor) {
     let boxMaterialInner;
     if (diceNumber === 0) {
         boxMaterialOuter = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(playerColour, 1),
+            color: convertHexValueToRGBOrViceVersa(playerColour(), 1),
         })
         boxMaterialInner = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(playerColour), 1),
+            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(playerColour()), 1),
             roughness: 0,
             shininess: 2,
             side: THREE.DoubleSide

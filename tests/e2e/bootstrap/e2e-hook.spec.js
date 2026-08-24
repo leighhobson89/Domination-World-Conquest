@@ -20,13 +20,16 @@ test.describe("?e2e=1 state hook", () => {
         const api = await page.evaluate(() => Object.keys(window.__game).sort());
         expect(api).toEqual(
             [
+                "applyScenario",
                 "countryStrengths",
         "isReady",
                 "pathAreaComputations",
                 "phase",
                 "ready",
+                "retrievals",
                 "seed",
                 "sieges",
+                "stateGuardViolations",
                 "territoriesOwnedBy",
                 "territory",
                 "totals",

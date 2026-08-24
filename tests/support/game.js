@@ -17,6 +17,8 @@ import {
     TransferAttackPage,
     BattlePage,
 } from "./pages/index.js";
+import { readFile } from "node:fs/promises";
+
 import { Phase, phaseButtonLabel, phaseBar as phaseBarSelectors } from "./selectors.js";
 
 export class GameDriver {
@@ -251,8 +253,40 @@ export class GameDriver {
         return this.page.evaluate(() => window.__game.sieges());
     }
 
+    /**
+     * Put the world into a named state that clicking cannot reach -- a rout, an
+     * all-naval defender, two concurrent sieges. Scenarios live in
+     * `tests/support/scenarios/*.json` and are applied through `state/mutations.js`,
+     * the same path the game writes by. See docs/04-e2e-test-plan.md section 3.7.
+     *
+     * The JSON is read here rather than fetched by the page, because the preview
+     * server serves `build/` and not the repository.
+     *
+     * Throws if the scenario named a territory that does not exist: a scenario that
+     * silently did nothing is worse than a failing assertion.
+     */
+    async loadScenario(name) {
+        const url = new URL(`./scenarios/${name}.json`, import.meta.url);
+        const scenario = JSON.parse(await readFile(url, "utf8"));
+        const report = await this.page.evaluate(
+            (input) => window.__game.applyScenario(input),
+            scenario
+        );
+        if (report.errors.length > 0) {
+            throw new Error(
+                `scenario "${name}" did not apply cleanly: ${report.errors.join("; ")}`
+            );
+        }
+        return report;
+    }
+
     async wars() {
         return this.page.evaluate(() => window.__game.wars());
+    }
+
+    /** Armies committed to an attack, retreated from it, and due back on a later turn. */
+    async retrievals() {
+        return this.page.evaluate(() => window.__game.retrievals());
     }
 
     /** Territory names the player can reach from `territoryName`. */

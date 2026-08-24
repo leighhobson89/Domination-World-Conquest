@@ -69,11 +69,26 @@ export function installTestHooks(accessors) {
         sieges: () => snapshot(accessors.sieges()),
         wars: () => snapshot(accessors.wars()),
 
+        // Armies in transit: committed to an attack, retreated from it, and due back at
+        // their source territory on a later turn. [warId, sourceTerritoryIds, turnQueued,
+        // turnsUntilReturn]. This is the credit half of audit 5.1 AD; without it a spec
+        // has to play two more turns to find out whether a retreat destroyed the army.
+        retrievals: () => snapshot(accessors.retrievals()),
+
         // [countryName, normalisedStrength], strongest first. What the country
         // selection screen greys out is a prefix of this list -- see audit 5.2 Z --
         // so a spec can name the gate rather than hard-coding which countries are
         // above it.
         countryStrengths: () => snapshot(accessors.countryStrengths()),
+
+        // Direct writes to territory state that bypassed state/mutations.js, recorded
+        // only when the page is loaded with ?stateGuard=1. Always empty otherwise.
+        stateGuardViolations: () => snapshot(accessors.stateGuardViolations?.() ?? []),
+
+        // Put the world into a state clicking cannot reach -- a rout, an all-naval
+        // defender, two concurrent sieges. Writes through state/mutations.js like the
+        // game does. See src/platform/scenarios.js and docs/04-e2e-test-plan.md 3.7.
+        applyScenario: (scenario) => snapshot(accessors.applyScenario(scenario)),
     };
 }
 

@@ -1,7 +1,6 @@
 import {
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
     formatNumbersToKMB,
-    mainGameArray,
     oilRequirements,
     playerOwnedTerritories,
     setPlayerUseableNotUseableWeaponsDueToOilDemand, turnGainsArrayAi,
@@ -12,11 +11,8 @@ import {
     currentMapColorAndStrokeArray,
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
-    lastClickedPath,
     mapMode,
     paths,
-    playerColour,
-    playerCountry,
     populateWarResultPopup,
     removeSiegeImageFromPath,
     retreatButtonState,
@@ -30,30 +26,57 @@ import {
     setDefendingTerritoryCopyStart,
     setFirstSetOfRounds,
     setFlag,
-    setOwnerOnPath,
     setRetreatButtonState,
     setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
-    setUpResultsOfWarExternal,
+    setUpResultsOfWarExternal
 } from './ui.js';
 
-// NOTE: this module and the one below sit in an import cycle. The previous code
-// worked around it with `setTimeout(..., 1000)` before a dynamic import(), which
-// is a race: on a slow load the binding was still undefined when first used.
-// A plain static import is correct here because the imported symbol is a hoisted
-// function declaration, so it is initialised before any module body runs.
-// See docs/03-refactor-plan.md Phase 1.7.
+// NOTE: `./ui.js` above is an import cycle -- ui.js imports this file too. The previous
+// code worked around it with `setTimeout(..., 1000)` before a dynamic import(), which is
+// a race: on a slow load the binding was still undefined when first used. A plain static
+// import is correct because the imported symbols are hoisted function declarations, so
+// they are initialised before any module body runs. See docs/03-refactor-plan.md Phase 1.7.
+//
+// The `src/state/*` imports below are NOT in the cycle and must not be allowed to join it:
+// the state layer imports nothing from the game.
 import {
-    transferArmyOutOfTerritoryOnStartingInvasion
-} from './transferAndAttack.js';
+    allTerritories,
+    getTerritory,
+    playerCountryName,
+    playerColour,
+    playerSieges,
+    aiSieges,
+    historicWarsList,
+    historicAiWarsList,
+    warIds
+} from './src/state/selectors.js';
+import {
+    referenceDefendingTerritory
+} from './src/state/sieges.js';
+import {
+    getPathByUniqueId
+} from './src/state/indexes.js';
+import {
+    addSiege,
+    removeSiege,
+    recordHistoricWar,
+    recordHistoricAiWar,
+    setTerritoryOwner,
+    setTerritoryDeactivated,
+    setCurrentWarId as storeCurrentWarId,
+    setCurrentAiWarId as storeCurrentAiWarId,
+    setNextWarId as storeNextWarId,
+    setNextAiWarId as storeNextAiWarId
+} from './src/state/mutations.js';
 
 const maxAreaThreshold = 350000;
 export let finalAttackArray = [];
-export let proportionsOfAttackArray = [];
+export const proportionsOfAttackArray = [];
 let reusableAttackingAverageDevelopmentIndex;
 let reusableCombatContinentModifier;
-export let playerTurnsDeactivatedArray = [];
-export let aiTurnsDeactivatedArray = [];
+export const playerTurnsDeactivatedArray = [];
+export const aiTurnsDeactivatedArray = [];
 
 export let currentRound = 1;
 export let attackingArmyRemaining;
@@ -75,16 +98,18 @@ export let tempTotalDefendingArmy;
 export let defendingTerritory;
 export let defendingTerritoryId;
 export let defenseBonus;
-export let retrievalArray = [];
+export const retrievalArray = [];
 
-export let playerSiegeWarsList = {};
-export let aiSiegeWarsList = {};
-export let historicWars = [];
-export let historicAiWars = [];
-export let currentWarId;
-export let currentAiWarId;
-export let nextAiWarId = 0;
-export let nextWarId = 0;
+//Phase 4.8. These four were `export let`s, which meant every importer held a live
+//binding to a module-level variable that only this file could reassign, and the AI,
+//the UI and the economy all read them. They are now the store's, re-exported under
+//their historical names: the objects and arrays themselves are the store's, with a
+//stable identity, so the ~60 read sites are unchanged and only the writes moved to
+//state/mutations.js.
+export const playerSiegeWarsList = playerSieges();
+export const aiSiegeWarsList = aiSieges();
+export const historicWars = historicWarsList();
+export const historicAiWars = historicAiWarsList();
 let resolution;
 
 let rout = false;
@@ -309,7 +334,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
 }
 
 export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
-    console.log("warId = " + currentWarId);
+    console.log("warId = " + getCurrentWarId());
     console.log("Battle Underway!");
     console.log("Probability of a win is: " + probability);
 
@@ -412,14 +437,14 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
     //the two armies shared no unit type, and the battle hung.
     totalSkirmishes = countPossibleSkirmishes(totalAttackingArmy, totalDefendingArmy);
 
-    let hasSiegedBefore = historicWars.some((siege) => siege.warId === currentWarId);
+    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
 
     // Divide skirmishes into 5 rounds
     skirmishesPerRound = Math.ceil(totalSkirmishes / rounds);
 
     attackingArmyRemaining = [...totalAttackingArmy];
     if (hasSiegedBefore) {
-        let war = historicWars.find((siege) => siege.warId === currentWarId);
+        let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
         defendingArmyRemaining = war.defendingArmyRemaining;
     } else {
         defendingArmyRemaining = [...totalDefendingArmy];
@@ -490,12 +515,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
         }
     }
     if (routFromSiege) { //assure correct data updated
-        for (let j = 0; j < mainGameArray.length; j++) {
-            if (mainGameArray[j].uniqueId === contestedTerritory.uniqueId) {
-                contestedTerritory = mainGameArray[j];
-                break;
-            }
-        }
+        contestedTerritory = getTerritory(contestedTerritory.uniqueId) ?? contestedTerritory;
     }
     switch (situation) {
         case 0:
@@ -507,10 +527,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
             //Set territory to owner player, replace army values with remaining attackers in main array, change colors, deactivate territory until next turn
             playerOwnedTerritories.push(contestedPath);
-            contestedPath.setAttribute("owner", "Player");
-            contestedTerritory.owner = "Player";
-            contestedPath.setAttribute("data-name", playerCountry);
-            contestedTerritory.dataName = playerCountry;
+            setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
             contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
             contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
             contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
@@ -547,10 +564,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] / 2) * oilRequirements.air);
                 turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] / 2) * oilRequirements.naval);
                 playerOwnedTerritories.push(contestedPath);
-                contestedPath.setAttribute("owner", "Player");
-                contestedTerritory.owner = "Player";
-                contestedPath.setAttribute("data-name", playerCountry);
-                contestedTerritory.dataName = playerCountry;
+                setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
                 turnGainsArrayPlayer.changeInfantry += Math.floor(defendingArmyRemaining[0] / 2);
                 turnGainsArrayPlayer.changeAssault += Math.floor(defendingArmyRemaining[1] / 2);
                 turnGainsArrayPlayer.changeAir += Math.floor(defendingArmyRemaining[2] / 2);
@@ -589,10 +603,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 contestedTerritory.airForCurrentTerritory = siegeObject.attackingArmyRemaining[2];
                 contestedTerritory.navalForCurrentTerritory = siegeObject.attackingArmyRemaining[3];
                 contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                contestedPath.setAttribute("owner", siegeObject.dataName);
-                contestedTerritory.owner = siegeObject.dataName;
-                contestedPath.setAttribute("data-name", siegeObject.dataName);
-                contestedTerritory.dataName = siegeObject.dataName;
+                setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.dataName);
             }
             break;
         case 3:
@@ -605,10 +616,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * 0.8) * oilRequirements.air);
             turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * 0.8) * oilRequirements.naval);
             playerOwnedTerritories.push(contestedPath);
-            contestedPath.setAttribute("owner", "Player");
-            contestedTerritory.owner = "Player";
-            contestedPath.setAttribute("data-name", playerCountry);
-            contestedTerritory.dataName = playerCountry;
+            setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
             contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * 0.8));
             contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * 0.8));
             contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * 0.8));
@@ -637,20 +645,21 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             break;
     }
     contestedTerritory.oilDemand = ((oilRequirements.assault * contestedTerritory.assaultForCurrentTerritory) + (oilRequirements.air * contestedTerritory.airForCurrentTerritory) + (oilRequirements.naval * contestedTerritory.navalForCurrentTerritory));
-    setPlayerUseableNotUseableWeaponsDueToOilDemand(mainGameArray, contestedTerritory);
+    setPlayerUseableNotUseableWeaponsDueToOilDemand(allTerritories(), contestedTerritory);
 
     if (won && !ai) {
-        setFlag(playerCountry, 2);
-        contestedPath.setAttribute("data-name", playerCountry);
+        setFlag(playerCountryName(), 2);
+        setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
         deactivateTerritory(contestedPath);
         if (mapMode === 2) {
             contestedPath.style.stroke = "white";
         }
     } else if (won && ai) {
-        contestedPath.setAttribute("data-name", siegeObject.dataName);
+        setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.dataName);
         deactivateTerritoryAi(contestedPath);
     } else {
-        setOwnerOnPath(contestedTerritory);
+        //Nothing to do: the path renders the owner from the store (Phase 4.4), and
+        //nothing above this point changed it in the branch that lands here.
     }
 }
 
@@ -661,7 +670,7 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     let tempArray = currentMapColorAndStrokeArray;
     for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
         if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
-            tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour, 3];
+            tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour(), 3];
         }
     }
 
@@ -673,7 +682,6 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     document.getElementById("move-phase-button").classList.remove("move-phase-button-green-background");
     document.getElementById("move-phase-button").classList.add("move-phase-button-grey-background");
 
-    contestedPath.setAttribute("deactivated", "true");
     contestedPath.style.stroke = "red";
     contestedPath.style.strokeDasharray = "10, 5";
     contestedPath.setAttribute("stroke-width", "3");
@@ -681,12 +689,11 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     setTerritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
     setCurrentMapColorAndStrokeArrayFromExternal(tempArray);
 
-    //set deactivated in main array
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === contestedPath.getAttribute("uniqueid")) {
-            mainGameArray[i].isDeactivated = true;
-        }
-    }
+    //One write, one render. The `deactivated` attribute and this flag used to be set
+    //separately -- the attribute here, the flag in a scan of the whole territory list a
+    //few lines below -- and either could be reached without the other. The attribute is
+    //rendered from the flag now (Phase 4.4).
+    setTerritoryDeactivated(contestedPath.getAttribute("uniqueid"), true);
 }
 
 export function activateAiTerritoriesForNewTurn() {
@@ -702,12 +709,7 @@ export function activateAiTerritoriesForNewTurn() {
         if (aiTurnsDeactivatedArray[i][1] !== aiTurnsDeactivatedArray[i][2]) {
             aiTurnsDeactivatedArray[i][2]++;
         } else {
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (mainGameArray[j].uniqueId === aiTurnsDeactivatedArray[i][0]) {
-                    mainGameArray[j].isDeactivated = false;
-                    break;
-                }
-            }
+            setTerritoryDeactivated(aiTurnsDeactivatedArray[i][0], false);
             aiTurnsDeactivatedArray.splice(i, 1); //served its sentence, stop tracking it
         }
     }
@@ -728,12 +730,7 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
                     }
                     paths[j].style.strokeDasharray = "none";
                     paths[j].setAttribute("stroke-width", "1");
-                    paths[j].setAttribute("deactivated", "false");
-                    for (let k = 0; k < mainGameArray.length; k++) {
-                        if (mainGameArray[k].uniqueId === paths[j].getAttribute("uniqueid")) {
-                            mainGameArray[k].isDeactivated = false;
-                        }
-                    }
+                    setTerritoryDeactivated(paths[j].getAttribute("uniqueid"), false);
                     if (mapMode === 1) {
                         setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
                     }
@@ -746,9 +743,9 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
 }
 export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
     // let diceScoreArray; //DICE CODE EXECUTION
-    // for (let i = 0; i < mainGameArray.length; i++) {
-    //     if (mainGameArray[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-    //         diceScoreArray = await callDice(setColorOnMap(mainGameArray[i]));
+    // for (let i = 0; i < allTerritories().length; i++) {
+    //     if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
+    //         diceScoreArray = await callDice(setColorOnMap(allTerritories()[i]));
     //         break;
     //     }
     // }
@@ -832,7 +829,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
     console.log("Defending Naval Left:", defendingArmyRemaining[3], "out of", totalDefendingArmy[3]);
     console.log("Combined Attack Force: " + combinedForceAttack + " Defense Force: " + combinedForceDefend);
 
-    updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainGameArray, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+    updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, allTerritories(), true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
     console.log("New probability for next round is:", updatedProbability);
 
     if (currentRound < rounds && !defendingArmyRemaining.every(count => count === 0) && currentRound !== 0) {
@@ -866,7 +863,7 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
                 initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
                 initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
 
-                updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, mainGameArray, true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+                updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, allTerritories(), true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
 
                 skirmishesPerType = [
                     Math.min(attackArmyRemaining[0], defendingArmyRemaining[0]),
@@ -924,32 +921,38 @@ export function setMassiveAssaultStatus(value) {
     return massiveAssault = value;
 }
 
+//The four war-id counters. They were `export let`s here; the accessors already
+//existed for most of them, so Phase 4.8 only had to move where the number is kept.
 export function getCurrentWarId() {
-    return currentWarId;
+    return warIds().currentWarId;
 }
 
 export function getCurrentAiWarId() {
-    return currentAiWarId;
+    return warIds().currentAiWarId;
 }
 
 export function getNextAiWarId() {
-    return nextAiWarId;
+    return warIds().nextAiWarId;
+}
+
+export function getNextWarId() {
+    return warIds().nextWarId;
 }
 
 export function setNextAiWarId(value) {
-    nextAiWarId = value;
+    return storeNextAiWarId(value);
 }
 
 export function setCurrentAiWarId(value) {
-    currentAiWarId = value;
+    return storeCurrentAiWarId(value);
 }
 
 export function setCurrentWarId(value) {
-    return currentWarId = value;
+    return storeCurrentWarId(value);
 }
 
 export function setNextWarId(value) {
-    return nextWarId = value;
+    return storeNextWarId(value);
 }
 
 export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
@@ -969,10 +972,15 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (addOrRemove === 0) { // add war to siege object
-        playerSiegeWarsList[defendingTerritoryCopy.territoryName] = {
+        //Phase 4.7: the siege references the territory by id and resolves it live. It
+        //used to hold `defendingTerritoryCopy` -- a shallow copy taken here -- which is
+        //why the forts and food a siege destroyed had to be copied back into the model
+        //when the siege ended, and why a siege could damage a territory the map never
+        //heard about. The `startingX` fields below are still snapshots, deliberately:
+        //they are what the siege panel compares the live values against.
+        const siege = referenceDefendingTerritory({
             warId: warId,
             proportionsAttackers: proportionsAttackers,
-            defendingTerritory: defendingTerritoryCopy,
             defendingArmyRemaining: defendingArmyRemaining,
             attackingArmyRemaining: attackingArmyRemaining,
             turnsInSiege: 0,
@@ -986,30 +994,24 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
             defenseBonusColor: defenseBonusColor,
             foodCapacityColor: foodCapacityColor,
             productiveTerritoryPopColor: productiveTerritoryPopColor
-        };
+        }, defendingTerritoryCopy.uniqueId);
 
-        battleStart ? transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), mainGameArray) : null;
+        addSiege("player", defendingTerritoryCopy.territoryName, siege);
 
-        return playerSiegeWarsList[defendingTerritory.territoryName].defendingTerritory;
+        //The source territories were debited when INVADE! was pressed (audit 5.1 AD),
+        //so converting that battle into a siege must not debit them again.
+
+        return siege.defendingTerritory;
 
     } else if (addOrRemove === 1) {
-        let isDuplicate = false;
-        for (const key in playerSiegeWarsList) {
-            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === warId) {
-                for (let i = 0; i < mainGameArray.length; i++) { //copy back updated number of buildings after siege
-                    if (mainGameArray[i].territoryName === playerSiegeWarsList[key].defendingTerritory.territoryName) {
-                        mainGameArray[i].farmsBuilt = playerSiegeWarsList[key].defendingTerritory.farmsBuilt;
-                        mainGameArray[i].forestsBuilt = playerSiegeWarsList[key].defendingTerritory.forestsBuilt;
-                        mainGameArray[i].oilWellsBuilt = playerSiegeWarsList[key].defendingTerritory.oilWellsBuilt;
-                        mainGameArray[i].fortsBuilt = playerSiegeWarsList[key].defendingTerritory.fortsBuilt;
-                        break;
-                    }
-                }
-                isDuplicate = historicWars.some(obj => obj.warId === warId);
-                if (!isDuplicate) {
-                    historicWars.push(playerSiegeWarsList[key]);
-                }
-                delete playerSiegeWarsList[key];
+        //The buildings copy-back that used to sit here has gone with Phase 4.7: the siege
+        //damaged a COPY of the territory, so its farms, forests, oil wells and forts had
+        //to be written back into the model by hand when the siege ended. It references
+        //the real territory now, so there is nothing to copy.
+        for (const key of Object.keys(playerSiegeWarsList)) {
+            if (playerSiegeWarsList[key].warId === warId) {
+                recordHistoricWar(playerSiegeWarsList[key]);
+                removeSiege("player", key);
                 break;
             }
         }
@@ -1028,11 +1030,10 @@ export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker
     let attackingTerritory = attacker.territoryName;
 
     if (addOrRemove === 0) { // add war to siege object
-        aiSiegeWarsList[defender.territoryName] = {
+        const siege = referenceDefendingTerritory({
             warId: warId,
             attackingCountry: attackingCountry,
             attackingTerritory: attackingTerritory,
-            defendingTerritory: defender,
             defendingArmyRemaining: startingDef,
             attackingArmyRemaining: startingAtt,
             turnsInSiege: 0,
@@ -1042,27 +1043,17 @@ export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker
             startingFoodCapacity: startingFoodCapacity,
             startingProdPop: startingProdPop,
             startingTerritoryPop: startingTerritoryPop
-        };
+        }, defender.uniqueId);
+
+        addSiege("ai", defender.territoryName, siege);
         console.log("Siege now added to aiSiegeWarsList, array is as follows:");
         console.log(aiSiegeWarsList);
     } else if (addOrRemove === 1) {
-        let isDuplicate = false;
-        for (const key in aiSiegeWarsList) {
-            if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === warId) {
-                for (let i = 0; i < mainGameArray.length; i++) { //copy back updated number of buildings after siege
-                    if (mainGameArray[i].territoryName === aiSiegeWarsList[key].defendingTerritory.territoryName) {
-                        mainGameArray[i].farmsBuilt = aiSiegeWarsList[key].defendingTerritory.farmsBuilt;
-                        mainGameArray[i].forestsBuilt = aiSiegeWarsList[key].defendingTerritory.forestsBuilt;
-                        mainGameArray[i].oilWellsBuilt = aiSiegeWarsList[key].defendingTerritory.oilWellsBuilt;
-                        mainGameArray[i].fortsBuilt = aiSiegeWarsList[key].defendingTerritory.fortsBuilt;
-                        break;
-                    }
-                }
-                isDuplicate = historicAiWars.some(obj => obj.warId === warId);
-                if (!isDuplicate) {
-                    historicAiWars.push(aiSiegeWarsList[key]);
-                }
-                delete aiSiegeWarsList[key];
+        //As above: no copy, so no copy-back.
+        for (const key of Object.keys(aiSiegeWarsList)) {
+            if (aiSiegeWarsList[key].warId === warId) {
+                recordHistoricAiWar(aiSiegeWarsList[key]);
+                removeSiege("ai", key);
                 break;
             }
         }
@@ -1094,8 +1085,8 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
     let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (retreatBeforeStart) {
-        console.log(nextWarId + " " + currentWarId);
-        warId = currentWarId;
+        console.log(getNextWarId() + " " + getCurrentWarId());
+        warId = getCurrentWarId();
         proportionsAttackers = [0, 0, 0, 0];
         defendingArmyRemaining = [defendingTerritoryCopy.infantryForCurrentTerritory, defendingTerritoryCopy.assaultForCurrentTerritory, defendingTerritoryCopy.airForCurrentTerritory, defendingTerritoryCopy.navalForCurrentTerritory];
         attackingArmyRemaining = ["All", "All", "All", "All"];
@@ -1106,10 +1097,12 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
         proportionsAttackers = proportionsOfAttackArray;
         strokeColor = getStrokeColorOfDefendingTerritory(defendingTerritoryCopy);
     }
-    historicWars.push({
+    //Phase 4.7: the last territory copy in the file. A historic war references the
+    //territory like a siege does; the values it needs frozen are the `startingX` fields
+    //and the two army arrays, which are already snapshots.
+    recordHistoricWar(referenceDefendingTerritory({
         warId: warId,
         proportionsAttackers: proportionsAttackers,
-        defendingTerritory: defendingTerritoryCopy,
         defendingArmyRemaining: defendingArmyRemaining,
         attackingArmyRemaining: attackingArmyRemaining,
         turnsInSiege: null,
@@ -1124,18 +1117,14 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
         defenseBonusColor: defenseBonusColor,
         foodCapacityColor: foodCapacityColor,
         productiveTerritoryPopColor: productiveTerritoryPopColor
-    });
+    }, defendingTerritoryCopy.uniqueId));
 
     console.log(historicWars);
 }
 
 function getStrokeColorOfDefendingTerritory(defendingTerritory) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === defendingTerritory.uniqueId) {
-            return paths[i].style.stroke;
-        }
-    }
-    return ""; //no path for that territory: an absent stroke, not undefined
+    const path = getPathByUniqueId(defendingTerritory.uniqueId);
+    return path ? path.style.stroke : ""; //no path for that territory: an absent stroke, not undefined
 }
 
 export function incrementSiegeTurns(ai) {
@@ -1373,7 +1362,17 @@ function calculateDamageDone(ai, siegeObject, totalSiegeScore, defenseBonusAttac
         },
     ];
 
-    let collateralDamage;
+    //BUG FIX, unmasked by Phase 4.7. Collateral damage was declared here and assigned in
+    //three of the four paths below: it was left UNDEFINED when the destroy roll succeeded
+    //but the score difference was under 50 (reachable whenever difference >= 20, where the
+    //destroy probability is 0.3). `foodCapacityDestroyed` then came out NaN, and the
+    //`arrested` flag came out false because `undefined === 0` is false.
+    //
+    //That NaN used to land on the siege's own COPY of the territory and stop there, because
+    //the copy-back at the end of a siege carried only the four building counts. Now that a
+    //siege references the real territory, it reached the world -- which is how the ten-turn
+    //`long-run` spec found it. Every path wants the same value, so it is computed once.
+    const collateralDamage = calculateCollateralDamage(difference);
 
     // Find the appropriate destroy probability based on the difference
     const destroyProbability = slidingScale.reduce((acc, scale) => (difference >= scale.scoreDifference ? scale.destroyProbability : acc), 0);
@@ -1384,7 +1383,6 @@ function calculateDamageDone(ai, siegeObject, totalSiegeScore, defenseBonusAttac
     if (Math.random() < destroyProbability) {
         // Determine the number of forts to destroy based on the sliding scale
         if (difference >= 200) {
-            collateralDamage = calculateCollateralDamage(difference);
             // First 70:30 chance
             if (Math.random() > 0.3) {
                 const resourceIndex = Math.floor(Math.random() * resources.length);
@@ -1401,8 +1399,6 @@ function calculateDamageDone(ai, siegeObject, totalSiegeScore, defenseBonusAttac
                 // console.log(`1 ${resource.name} destroyed!`);
             }
         } else if (difference >= 50) {
-            collateralDamage = calculateCollateralDamage(difference);
-
             // Single 50:50 chance
             if (Math.random() > 0.5) {
                 const resourceIndex = Math.floor(Math.random() * resources.length);
@@ -1411,10 +1407,8 @@ function calculateDamageDone(ai, siegeObject, totalSiegeScore, defenseBonusAttac
                 // console.log(`1 ${resource.name} destroyed!`);
             }
         }
-    } else {
-        // console.log("collateral damage only!");
-        collateralDamage = calculateCollateralDamage(difference);
     }
+    // console.log("collateral damage only!");
     const foodCapacityDestroyed = Math.floor(siegeObject.defendingTerritory.foodCapacity * collateralDamage / 100);
     collateralDamage === 0 ? arrested = true : arrested = false;
     const damage = [resources, foodCapacityDestroyed, arrested];
@@ -1448,23 +1442,23 @@ export function handleEndSiegeDueArrest(ai, siege) {
     let defendingPath;
 
     if (siege.defendingArmyRemaining[4]) { //if siege marked as arrested
-        //set siege data to attacker and defender territory
-        for (let i = 0; i < paths.length; i++) {
-            for (let j = 0; j < mainGameArray.length; j++) {
-                if (siege.defendingTerritory.uniqueId === mainGameArray[j].uniqueId) {
-                    defendingTerritory = mainGameArray[j];
-                }
-                if (defendingTerritory) {
-                    if (defendingTerritory.uniqueId === paths[i].getAttribute("uniqueid")) {
-                        defendingPath = paths[i];
-                        break;
-                    }
-                }
-            }
+        //The siege already references the live territory (Phase 4.7), so the 359x359
+        //scan that used to find it here -- and then find its path -- is two lookups.
+        defendingTerritory = siege.defendingTerritory;
+        defendingPath = defendingTerritory ? getPathByUniqueId(defendingTerritory.uniqueId) : null;
+        if (!defendingTerritory || !defendingPath) {
+            console.log("Siege arrest for a territory that is no longer on the map; ignoring");
+            return;
         }
 
         defendingTerritory.infantryForCurrentTerritory = siege.defendingArmyRemaining[0] + (Math.floor(siege.attackingArmyRemaining[0] * 0.5));
-        defendingTerritory.assaultForCurrentTerritory = siege.defendingArmyRemaining[1 + (Math.floor(siege.attackingArmyRemaining[1] * 0.5))];
+        //BUG FIX: a misplaced bracket. Every sibling line reads
+        //`defendingArmyRemaining[n] + Math.floor(attackingArmyRemaining[n] * 0.5)`; this one
+        //read `defendingArmyRemaining[1 + Math.floor(...)]`, indexing a four-element array by
+        //half the attacker's assault count. Any arrest against an attacker with two or more
+        //assault units therefore assigned `undefined`, and the army total below came out NaN
+        //-- and stayed NaN, because every later turn recomputes from it.
+        defendingTerritory.assaultForCurrentTerritory = siege.defendingArmyRemaining[1] + (Math.floor(siege.attackingArmyRemaining[1] * 0.5));
         defendingTerritory.airForCurrentTerritory = siege.defendingArmyRemaining[2] + (Math.floor(siege.attackingArmyRemaining[2] * 0.5));
         defendingTerritory.navalForCurrentTerritory = siege.defendingArmyRemaining[3] + (Math.floor(siege.attackingArmyRemaining[3] * 0.5));
         defendingTerritory.armyForCurrentTerritory = defendingTerritory.infantryForCurrentTerritory + (defendingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
@@ -1477,29 +1471,19 @@ export function handleEndSiegeDueArrest(ai, siege) {
         setCurrentWarFlagString(defendingTerritory.dataName);
 
         if (!ai) {
-            populateWarResultPopup(1, playerCountry, defendingTerritory, "arrest", siege);
+            populateWarResultPopup(1, playerCountryName(), defendingTerritory, "arrest", siege);
             addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
-            historicWars.push(siege);
-
-            for (const key in playerSiegeWarsList) {
-                if (key === siege.defendingTerritory.territoryName) {
-                    delete playerSiegeWarsList[key];
-                    break;
-                }
-            }
+            recordHistoricWar(siege);
+            removeSiege("player", defendingTerritory.territoryName);
         } else {
-            historicAiWars.push(siege);
-
-            for (const key in aiSiegeWarsList) {
-                if (key === siege.defendingTerritory.territoryName) {
-                    delete aiSiegeWarsList[key];
-                    break;
-                }
-            }
+            recordHistoricAiWar(siege);
+            removeSiege("ai", defendingTerritory.territoryName);
         }
 
+        //`underSiege` is no longer written here. Phase 4.4/4.5: it is derived from the
+        //siege lists and rendered by src/ui/mapAttributeSync.js, so removing the siege
+        //above is what clears it -- there is no second fact to keep in step.
         removeSiegeImageFromPath(ai, defendingPath);
-        defendingPath.setAttribute("underSiege", "false");
     }
 }
 
@@ -1528,8 +1512,11 @@ function changeDefendingTerritoryStatsBasedOnSiege(siege, damage) {
     //recalculate defense bonus
     siege.defendingTerritory.defenseBonus = Math.ceil((siege.defendingTerritory.fortsBuilt * (siege.defendingTerritory.fortsBuilt + 1) * 10) * siege.defendingTerritory.devIndex + siege.defendingTerritory.isLandLockedBonus);
 
-    if (siege.defendingTerritory.foodCapacity > 0) { //lower food capacity
-        siege.defendingTerritory.foodCapacity -= damage[1];
+    if (siege.defendingTerritory.foodCapacity > 0 && Number.isFinite(damage[1])) { //lower food capacity
+        //Clamped: a long siege could otherwise drive capacity negative, and the finite check
+        //means a bad damage figure costs one siege tick rather than poisoning the territory
+        //for the rest of the game. Neither should be reachable; both were.
+        siege.defendingTerritory.foodCapacity = Math.max(0, siege.defendingTerritory.foodCapacity - damage[1]);
     }
 }
 
@@ -1541,8 +1528,8 @@ export function setValuesForBattleFromSiegeObject(path, routCheck) { //when clic
         siegeObject = path; //confusing but if checking for rout from siege, we pass the object directly
     }
 
-    for (let i = 0; i < mainGameArray.length; i++) {
-        const mainElement = mainGameArray[i];
+    for (let i = 0; i < allTerritories().length; i++) {
+        const mainElement = allTerritories()[i];
         if (mainElement.uniqueId === siegeObject.defendingTerritory.uniqueId) {
             siegeObject.defendingArmyRemaining = [mainElement.infantryForCurrentTerritory, mainElement.useableAssault, mainElement.useableAir, mainElement.useableNaval];
             break;
@@ -1550,27 +1537,25 @@ export function setValuesForBattleFromSiegeObject(path, routCheck) { //when clic
     }
 }
 
-export function setMainArrayToArmyRemaining(territory) { //when clicking siege button
-    let mainElement;
-    for (let i = 0; i < mainGameArray.length; i++) {
-        mainElement = mainGameArray[i];
-        if (mainElement.uniqueId === territory.defendingTerritory.uniqueId) {
-            mainElement.infantryForCurrentTerritory = territory.defendingArmyRemaining[0];
-            mainElement.assaultForCurrentTerritory = territory.defendingArmyRemaining[1];
-            mainElement.airForCurrentTerritory = territory.defendingArmyRemaining[2];
-            mainElement.navalForCurrentTerritory = territory.defendingArmyRemaining[3];
-            mainElement.armyForCurrentTerritory = mainElement.infantryForCurrentTerritory + (mainElement.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainElement.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainElement.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-
-            let siegeObject = getSiegeObjectFromPath(lastClickedPath);
-            siegeObject.defendingTerritory.infantryForCurrentTerritory = mainElement.infantryForCurrentTerritory;
-            siegeObject.defendingTerritory.assaultForCurrentTerritory = mainElement.assaultForCurrentTerritory;
-            siegeObject.defendingTerritory.airForCurrentTerritory = mainElement.airForCurrentTerritory;
-            siegeObject.defendingTerritory.navalForCurrentTerritory = mainElement.navalForCurrentTerritory;
-            siegeObject.defendingTerritory.armyForCurrentTerritory = siegeObject.defendingTerritory.infantryForCurrentTerritory + (siegeObject.defendingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (siegeObject.defendingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (siegeObject.defendingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-            break;
-        }
+//Phase 4.7: this was `setMainArrayToArmyRemaining()`, one of the manual sync-backs the
+//copy-holding siege objects needed. It scanned all 359 territories to write the siege
+//survivors into the model, and then wrote the very same numbers a second time into the
+//siege object's own copy of that territory -- and it read that copy from
+//`getSiegeObjectFromPath(lastClickedPath)`, a DIFFERENT siege from the one passed in, so
+//a click on the wrong path wrote one siege's survivors onto another.
+//
+//The siege references the live territory now, so this is one write and no copy.
+export function applySiegeSurvivorsToTerritory(siege) { //when clicking siege button
+    const territory = siege?.defendingTerritory;
+    if (!territory) {
+        return null;
     }
-    return mainElement;
+    territory.infantryForCurrentTerritory = siege.defendingArmyRemaining[0];
+    territory.assaultForCurrentTerritory = siege.defendingArmyRemaining[1];
+    territory.airForCurrentTerritory = siege.defendingArmyRemaining[2];
+    territory.navalForCurrentTerritory = siege.defendingArmyRemaining[3];
+    territory.armyForCurrentTerritory = territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+    return territory;
 }
 
 export function calculateSiegeScore(siegeObjectElement) {
@@ -1602,26 +1587,29 @@ export function getRetrievalArray() {
 }
 
 export function setNewWarOnRetrievalArray(warId, array, turn, type) {
-    if (retrievalArray.length === 0) {
-        retrievalArray = [
-            [warId, array, turn, type]
-        ]; // Initialize the array with the first element
-    } else {
-        retrievalArray.push([warId, array, turn, type]); // Add subsequent elements
-    }
+    //The empty case used to REPLACE the array rather than push into it, which meant the
+    //binding had to stay a `let` and any module holding the old array kept the old one.
+    //A push does the same thing to an empty array.
+    retrievalArray.push([warId, array, turn, type]);
     return retrievalArray;
 }
 
-export function deactivateTerritoryAi(territory) {
-    const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
-    aiTurnsDeactivatedArray.push([territory.uniqueId, turnsToDeactivate, 0]);
-
-    for (let i = 0; i < mainGameArray.length; i++) {
-        if (mainGameArray[i].uniqueId === territory.uniqueId) {
-            mainGameArray[i].isDeactivated = true;
-            break;
-        }
+//BUG FIX, found while doing Phase 4.4. Two callers, two different argument types:
+//aiCalculations.updateTerritory() passes a TERRITORY, and handleWarEndingsAndOptions()
+//passes an SVG PATH. A path has no `uniqueId` property (its id is the `uniqueid`
+//attribute), so for every AI conquest of a player territory this pushed
+//[undefined, n, 0] onto the deactivation list and matched no territory at all -- the
+//territory was never deactivated, and the entry sat in the list forever. Accepting
+//either and resolving one id is what makes the two call sites agree.
+export function deactivateTerritoryAi(territoryOrPath) {
+    const uniqueId = territoryOrPath?.uniqueId ?? territoryOrPath?.getAttribute?.("uniqueid") ?? null;
+    if (uniqueId === null) {
+        console.log("deactivateTerritoryAi: no territory to deactivate");
+        return;
     }
+    const turnsToDeactivate = Math.floor(Math.random() * 3) + 1;
+    aiTurnsDeactivatedArray.push([String(uniqueId), turnsToDeactivate, 0]);
+    setTerritoryDeactivated(uniqueId, true);
 }
 
 export function getSiegeObjectFromPlayerSiegeList(territory) {

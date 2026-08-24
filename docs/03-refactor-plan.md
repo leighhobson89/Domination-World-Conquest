@@ -633,7 +633,7 @@ Phase 7 work, but they are what a player will feel first:
 
 ---
 
-### Phase 4 — Extract the state layer (3–4 days)
+### Phase 4 — Extract the state layer (3–4 days) — ✅ **COMPLETE**
 
 **Goal:** one source of truth. This is the change everything else depends on.
 
@@ -649,6 +649,120 @@ Phase 7 work, but they are what a player will feel first:
 | 4.8 | Remove every `export let` of game state; export functions instead. |
 
 **Exit criteria:** `mainGameArray` no longer exists; no game state is read from a DOM attribute; e2e suite still green.
+
+#### What Phase 4 actually did
+
+**The store**
+
+| File | What it holds |
+|---|---|
+| `src/state/GameState.js` | the store: `territories` (a `Map` plus a `defenseBonus`-ordered view), `players`, `turn`, `phase`, `wars`, `sieges`, and the selection sets. Imports nothing. |
+| `src/state/selectors.js` | every read. No DOM, no writes, loads in Node. |
+| `src/state/mutations.js` | every write. Opens the guard window, changes the store, emits. |
+| `src/state/events.js` | the emitter: `territoryChanged`, `turnChanged`, `phaseChanged`, `warChanged`, `siegeChanged`, `selectionChanged`. |
+| `src/state/phases.js` | the `Phase` enum and its transitions. |
+| `src/state/sieges.js` | `referenceDefendingTerritory()` — a siege stores an id and resolves the territory live. |
+| `src/state/pathState.js` | ask the store about the territory a path draws, for the UI code that still holds path elements. |
+| `src/ui/mapAttributeSync.js` | the only writer of the six rendered attributes, driven by events. |
+| `src/ui/siegeOverlay.js` | the siege markers, likewise. |
+| `src/platform/scenarios.js` | the scenario loader (e2e plan 3.7), a Phase 4 deliverable because it needs a single state layer to write through. |
+
+**`mainGameArray` is gone.** All 372 references now go through `allTerritories()`,
+`getTerritory()` or `getTerritoryByName()`. It was an `export let` that any of seven files
+could reassign; the construction path builds a local array and hands it to
+`seedTerritories()`, which is the one place the store is filled.
+
+**The SVG relationship is inverted.** `owner`, `data-name`, `deactivated`, `underSiege`,
+`greyedOut` and `attackableTerritory` are still written — the e2e suite asserts on them —
+but only by `mapAttributeSync.js`, and nothing reads them back. `tests/e2e/bootstrap/state-layer.spec.js`
+compares the map against the model directly and fails if they ever disagree.
+
+**`normalizeSiegeState()` is deleted.** `underSiege` is derived from the siege lists, so
+there is nothing to reconcile. The orphan check it also did — a siege naming a territory
+the map does not have — survives as `pruneSiegesForMissingTerritories()`, called once at
+game start rather than every turn.
+
+**Three phase counters became one.** `currentTurnPhase` in `gameTurnsLoop.js`, `turnPhase`
+in `ui.js` (which ran one step ahead of it) and the bare `0`/`1`/`2` comparisons scattered
+through both are now `GameState.phase` and the `Phase` enum. `modifyCurrentTurnPhase()` is
+gone.
+
+**Sieges hold a territory id.** `referenceDefendingTerritory()` gives a siege a
+`defendingTerritoryId` and a live `defendingTerritory` getter, so the sixty-odd
+`siege.defendingTerritory.something` readers are unchanged but now read and write the real
+territory. Every manual sync-back went with it: `setMainArrayToArmyRemaining()` (now
+`applySiegeSurvivorsToTerritory()`, one write instead of four) and the four buildings
+copy-back loops in `battle.js`.
+
+**`export let` game state is gone** for everything that is world state: `mainGameArray`,
+`currentTurn`, `currentTurnPhase`, `playerCountry`, `playerColour`, `flag`,
+`playerSiegeWarsList`, `aiSiegeWarsList`, `historicWars`, `historicAiWars` and the four war-id
+counters. Six more that were never actually reassigned became `const`.
+
+**The write guard** (`?stateGuard=1`) proxies every territory and records writes that
+bypass `mutations.js`; `?stateGuard=strict` throws. It is **off by default and diagnostic,
+not a wall** — Phase 5 is what converts the economy and combat rules into pure functions
+that return deltas, and until then a great many callers legitimately still hold a territory
+and assign to it. `window.__game.stateGuardViolations()` reports what it caught.
+
+**Defects closed on the way**
+
+| Ref | Defect |
+|---|---|
+| **AD** | **INVADE! never debited the source territory.** The battle ran on copies, so a garrison could be committed to two attacks in one turn and a failed attack cost nothing. Now debited at INVADE!; the army returns through `retrievalArray` on a no-penalty retreat, which had to be made unconditional for the round trip to balance. `attack/attack-window.spec.js` is un-`fixme`d. |
+| — | `transferArmyOutOfTerritoryOnStartingInvasion()` computed `armyForCurrentTerritory -= (sum of what remains)`, subtracting the garrison a second time. It is the sum of the units, so it is an assignment. Only reachable now that the debit actually runs. |
+| — | `deactivateTerritoryAi()` was called with a **territory** by the AI and with an **SVG path** by `handleWarEndingsAndOptions()`. A path has no `uniqueId` property, so every AI conquest of a player territory pushed `[undefined, n, 0]` and deactivated nothing. |
+| — | `setCountryNameOnPath()` wrote `territory.owner` into `data-name`, the *current owner* attribute. Correct only because an AI country name happens to be both. Deleted. |
+| — | `setMainArrayToArmyRemaining()` read the siege to write back from `getSiegeObjectFromPath(lastClickedPath)` — a different siege from the one passed in. |
+| — | The AI siege log printed `undefined's attacking troops`: `attackingTerritory` is a name string, not an object. |
+| **AL** | **A siege arrest set a territory's army to `NaN`, permanently.** A misplaced bracket: `defendingArmyRemaining[1 + Math.floor(...)]` where the three sibling lines read `defendingArmyRemaining[n] + Math.floor(...)`. Any arrest against an attacker with two or more assault units assigned `undefined`. Found on turn 10 of the ten-turn `long-run`, once **AK** stopped it failing on turn 2. |
+| **AK** | **A siege set `foodCapacity` to `NaN`, permanently.** `collateralDamage` was left `undefined` when the destroy roll succeeded and the score difference was under 50. The `NaN` had always been computed; it landed on the siege's copy of the territory and the copy-back carried only the building counts, so the world never saw it. Removing the copy made a long-standing bug fail on turn 2 of the ten-turn `long-run`. |
+
+**What the guard reports today**, which is Phase 5's inventory. Six turns as Germany under
+`?e2e=1&stateGuard=1`: **21,285** direct writes, zero page errors, zero console errors. By
+field, largest first:
+
+| Field | Writes | Owner |
+|---|---:|---|
+| `goldForCurrentTerritory`, `oilForCurrentTerritory`, `foodForCurrentTerritory`, `consMatsForCurrentTerritory`, `territoryPopulation`, `productiveTerritoryPop`, `foodConsumption`, `oilDemand` | the bulk | 5.2 — `rules/economy/*` returns deltas |
+| `fortsBuilt`, `defenseBonus` | 424 each | 5.1/5.2 |
+| `countryColor`, `leader` | 359 each | 5.5 — set once, by `cpuPlayerGenerationAndLoading` |
+| `useableAssault`, `useableAir`, `useableNaval` | 250 each | 5.2 — oil gating |
+| `assaultForCurrentTerritory`, `navalForCurrentTerritory`, `airForCurrentTerritory`, `infantryForCurrentTerritory` | 106–165 each | 5.3 — `resolveRound()` |
+| `farmsBuilt`, `forestsBuilt`, `oilWellsBuilt`, `foodCapacity` | 66–81 each | 5.2 |
+
+The guard goes to strict once 5.2 and 5.3 are done, and that is the real end of "state lives
+in three places at once".
+
+**The scenario loader** (e2e plan 3.7) shipped with the phase, because it is only safe once
+there is one place to write state. Scenarios in `tests/support/scenarios/*.json` are applied
+through `mutations.js`, so a scenario cannot produce a world the game could not have produced.
+It un-`fixme`d three of the four `battle/known-broken` specs: the naval-only defender (5.2 K),
+two concurrent sieges (5.1 D), and the INVADE!-debit / retreat-return round trip (5.1 AD). The
+fourth — the rout threshold (5.1 E) — needs the injected RNG from 5.3, because a rout is a
+random outcome even given a hopeless defender.
+
+**The one regression the phase introduced**, fixed before it closed and worth carrying into
+Phase 6. `colorCountriesRandomly()` runs during bootstrap — after `svgMapLoaded()` populates
+`paths`, before `seedTerritories()` fills the store — and converting its `data-name` read to a
+store read returned `null` for all 359 paths. They grouped into one country and the map came
+out a single flat colour, with every `countryColor` wrong thereafter. `state/pathState.js`
+reads the attribute while `territoriesReady()` is false and the store afterwards; the boundary
+is readiness, not "the lookup returned null", so a missing territory after seeding still
+surfaces. **Any Phase 6 component that reads territory state during bootstrap has the same
+constraint.** The suite had 225 specs and none of them noticed the map go flat, because they
+all assert on state and text — `bootstrap/state-layer.spec.js` now asserts the colouring too.
+
+**Left for Phase 5, deliberately**
+
+- **`battle.js` still has ~25 `export let`s** of per-battle scratch (`currentRound`,
+  `attackingArmyRemaining`, `combinedForceAttack`, …). These are not world state; they are the
+  working set of a battle, and 5.3 removes them by making `resolveRound()` pure. Converting
+  them to accessors now would be churn with no structural gain.
+- **The resource caches** (`capacityArray`, `demandArray`, `turnGains*`, `countryStrengthsArray`)
+  belong to 5.2, which turns the economy into `(territory, context) → deltas`.
+- **The write guard stays in warn mode** until those two are done. Every direct write it
+  reports is a Phase 5 to-do.
 
 ---
 
@@ -716,7 +830,7 @@ Phase 7 work, but they are what a player will feel first:
 | 1 | Load performance & test hooks | 1–2 d | Cold start < 3 s |
 | 2 | E2E safety net | 2–3 d | P0+P1 green |
 | 3 | Critical defect fixes | 2–3 d | 20-turn playthrough clean |
-| 4 | Single state layer | 3–4 d | `mainGameArray` gone |
+| 4 | Single state layer | 3–4 d | ✅ `mainGameArray` gone |
 | 5 | Pure rules + engine | 4–5 d | `rules/` runs in Node |
 | 6 | UI decomposition | 5–7 d | No file > 400 lines |
 | 7 | Design gaps | 3–5 d | Game is finishable |
@@ -741,9 +855,9 @@ extensible. Phase 7 is where it becomes a game rather than a simulation.
 
 ## 5. Immediate next three actions
 
-1. **Phase 1.1** — single-load adjacency map. One function, order-of-magnitude payoff, no
-   behavioural risk.
-2. **Phase 1.6** — the `?e2e=1` test hook and seeded RNG. Everything in
-   [04-e2e-test-plan.md](./04-e2e-test-plan.md) depends on it.
-3. **Phase 2.1–2.2** — harness plus the four P0 specs, so Phase 3's fixes have something to
-   prove themselves against.
+1. **Phase 5.1** — move the tunable numbers into `config/balance.js`. No behavioural risk, and
+   every later rule extraction wants them named.
+2. **Phase 5.2** — `rules/economy/*` as `(territory, context) → deltas`, applied through
+   `mutations.js`. This is what lets the write guard go from warn to strict.
+3. **Phase 5.3–5.4** — `rules/military/*` with an injected RNG, which is also what finally
+   makes a combat outcome assertable in a test (see the seeding gotcha in `CLAUDE.md`).
