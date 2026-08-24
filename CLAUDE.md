@@ -30,10 +30,10 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 205 errors, 380 warnings)
+npm run lint           # ESLint (baseline: 188 errors, 332 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 111 tests, ~1s
-npm run test:e2e       # Playwright, 227 tests, 4 workers headless, ~5-9 min
+npm run test:unit      # Vitest, 294 tests, ~1s
+npm run test:e2e       # Playwright, 275 tests, 4 workers headless, ~8-14 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -86,6 +86,12 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   used to paper over it are gone (Phase 1.7). Static imports work because the symbols involved
   are hoisted function declarations. Do not add more module coupling, and never reintroduce a
   timer to "wait for" an import.
+- **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
+  import from `src/config/` and `src/state/selectors.js` and from nothing else — no DOM, no
+  `ui.js`. That is the property the unit suite depends on, so before adding an import to any
+  of them, check it does not drag the UI in. Two dependencies are INJECTED for exactly this
+  reason: the AI's seeded rng, and `calculateProbabilityPreBattle` (which lives in `battle.js`,
+  which imports `ui.js`). Rules take an `rng` parameter rather than calling `Math.random`.
 - **Territory state lives in `src/state/GameState.js` and nowhere else** (Phase 4). Read it
   through `state/selectors.js`, write it through `state/mutations.js`, and subscribe to
   `state/events.js`. `mainGameArray` is gone: the replacement for "all territories" is
@@ -128,10 +134,14 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
 - **`resources/adjacency.json` and `resources/pathAreas.json` are generated** by `tools/`.
   Edit the generator, never the JSON. `npm run build:data` regenerates both; the `:check`
   variants verify they are current.
-- **Seeding `Math.random` does not make the game deterministic.** `addSparklesRegularly()` in
-  `ui.js` burns three draws per timer tick on the same global stream as combat and the
-  economy. Until Phase 5 splits game RNG from cosmetic RNG, **no test may assert an exact
-  combat or economy outcome across runs**.
+- **Seeding `Math.random` DOES make the game deterministic** — since Phase 5.8, and it did not
+  before. `addSparklesRegularly()` burned three draws per timer tick on the same global stream
+  as combat and the economy, so two runs of the same seed diverged (audit 5.3 Y). Cosmetic
+  randomness now lives in `src/platform/cosmeticRng.js`, a self-contained mulberry32 that never
+  touches `Math.random`. **Nothing decorative may draw from `Math.random`** — a new sparkle, a
+  sound choice, an animation delay all go through `cosmeticRandom()`, or the whole suite's
+  exact-outcome assertions start flaking. Cosmetics are deliberately not reproducible; seeding
+  them from the harness would put the timer straight back on the game's stream.
 - **Bootstrap has two halves that finish out of order.** The `DOMContentLoaded` handler builds
   the UI and sets `pageLoaded`; `svgMapLoaded()` runs later on window `load` and is what
   populates `paths`. Anything needing territory geometry must await `whenPageLoaded()`, which
@@ -144,9 +154,30 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   `advanceTurn()`.
 - **The AI turn used to crash and freeze the game** (audit §5.1 AA) — fixed in Phase 3, along
   with the four further crashes hiding behind it (§5.1 AF–AJ). A 20-turn playthrough now
-  completes clean. If the phase button ever sticks on `AI MOVING...` again, it is an unhandled
-  rejection escaping the `gameLoop()` promise chain: there is no `catch` anywhere in it, so any
-  throw inside the AI turn stops the game permanently rather than losing one turn.
+  completes clean.
+- **The turn loop is `src/engine/TurnEngine.js`** (Phase 5.7), not a recursive `gameLoop()`.
+  It is a sequencer that knows nothing about this game: `beginTurn`, each step in order,
+  `endTurn`, repeat. `gameTurnsLoop.js` supplies the hooks. Three consequences worth knowing:
+  **a step that throws no longer kills the game** — it is reported through `onError` and the
+  turn continues without it, so a crash now shows up as a `console.error` (and therefore a
+  failing e2e spec) instead of the phase button silently sticking on `AI MOVING...`; **there
+  is exactly one `#popup-confirm` listener**, installed once, calling `engine.advancePhase()`,
+  rather than three transient ones added and removed per phase; and **`stop()` / `reset()`
+  exist**, which is what makes New Game possible in Phase 7. Do not reintroduce a phase that
+  waits by attaching its own listener — add a step with `waitsForPlayer`.
+- **`window.__game` has grown, and each accessor exists because a spec could not be written
+  without it.** Beyond the readers: `greyedOutCountries()` (the selection lock as state, not as
+  a fill), `siegeAt(name)` (one live siege — `sieges()` only says *which* territories are
+  besieged), `battle()` (the two armies unrounded; the battle UI's cells are formatted `"1.9k"`),
+  `randomEventProbability()` and `forceRandomEvent(name)` (an event is a band on the mean of
+  five draws, so no seed reaches a chosen one on a chosen turn), and `applyScenario()`.
+- **A scenario must patch `armyForCurrentTerritory` as well as the four unit counts.** It is a
+  stored total, not a derived one. Patch the units alone and the probability calculation reads
+  one number while the bottom table reads another — the scenario looks applied and the battle
+  behaves as though it were not.
+- **A `console.error` fails every e2e spec.** `tests/support/fixtures.js` collects them
+  alongside `pageerror`. That is deliberate and it is how known-issue AM was finally caught,
+  so do not silence the engine's `onError` to make a run go green — find what threw.
 - **Scenarios beat clicking** for anything the UI cannot reach — a rout, an all-naval
   defender, two concurrent sieges. `await game.loadScenario("two-sieges")` in a spec;
   the JSON lives in `tests/support/scenarios/` and is applied through `state/mutations.js`.
@@ -159,6 +190,23 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   more than it can finish (17 → 67 concurrent sieges over 14 turns). Both are design problems
   logged for Phase 7 in [docs/05-known-issues.md](./docs/05-known-issues.md) §6 — do not "fix"
   either as a bug.
+- **Do not move the CPU-leader and starting-fort setup earlier in bootstrap.** It looks wrong —
+  `initialiseGame()` starts turn 1 before either exists, which is why `newTurnResources()` skips
+  the income pass on turn 1 — and moving it inside `initialiseGame()` was tried and **measured**
+  in Phase 5.8: the ten-turn `long-run` went from 6/6 green to 0/6, the player eliminated every
+  time. Giving the AI a fully-formed first turn is a balance change, and it belongs to the Phase
+  7 balance pass. The measurement is recorded at the site in `gameTurnsLoop.js`.
+- **The five strongest countries are LOCKED on the selection screen and that is deliberate**
+  (`COUNTRY_GREYOUT_RANK`, audit 5.2 Z). They are painted in their own colour muted toward grey,
+  not flat grey, because flat grey read as "failed to render". The lock is enforced from the
+  store — never from a fill colour, which is how it used to be bypassable in three clicks.
+- **A marker is decoration and must never intercept a click.** Siege overlays and the attack
+  image carry `pointer-events: none`. Without it the marker sits over the middle of the
+  territory it marks and swallows the click, and clicking a besieged territory is the only route
+  to VIEW SIEGE. Same class as `#tooltip`, which is still outstanding.
+- **Siege markers are rendered from state**, by `src/ui/siegeOverlay.js` on the `siegeChanged`
+  event. Do not also draw one imperatively where a siege is created — that produced two
+  `<image>` elements sharing one id, of which only one was ever removed.
 - **INVADE! debits the source territory immediately** (Phase 4.7, audit §5.1 AD), and a
   no-penalty retreat returns the army through `retrievalArray` a turn later. The two halves
   balance; changing one without the other creates or destroys army.

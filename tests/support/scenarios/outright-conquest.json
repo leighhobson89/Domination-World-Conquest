@@ -1,0 +1,35 @@
+{
+  "name": "outright-conquest",
+  "description": "A defender with a token garrison and no fortification at all, against a fleet. There is nothing to rout: the defenders are destroyed outright, which is WarOutcome.ATTACKER_WON, and the conqueror garrisons the territory with exactly what survived.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 300,
+        "useableNaval": 300,
+        "armyForCurrentTerritory": 6000000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 50,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "armyForCurrentTerritory": 50,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

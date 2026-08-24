@@ -4,7 +4,6 @@ import { containers, phaseBar } from "../../support/selectors.js";
 // New Game through to a country being picked.
 // docs/04-e2e-test-plan.md section 5.2.
 
-const GREY_OUT_COLOR = "rgb(170,170,170)";
 
 test.describe("new game", () => {
     test("hides the menu and shows the country-selection popup", async ({ game, page }) => {
@@ -34,24 +33,33 @@ test.describe("new game", () => {
         expect(after.false, "and some should still be playable").toBeGreaterThan(0);
     });
 
-    test("keeps the greyedOut attribute and the grey fill in agreement", async ({ game, page }) => {
-        // selectCountry() decides whether to offer the confirm button by reading the
-        // FILL, while everything else reads the attribute. They must not diverge --
-        // and, given audit 5.2 Z, today they agree by both being empty.
+    test("keeps the greyedOut attribute and the store's lock set in agreement", async ({
+        game,
+        page,
+    }) => {
+        // This used to compare the attribute against the FILL, because selectCountry()
+        // decided whether to offer the confirm button by reading the fill. That is what
+        // made the lock bypassable through the colour picker, and Phase 5.8 moved the gate
+        // onto the store -- so the honest pairing now is attribute against store, and the
+        // fill is free to be a muted country colour rather than one flat grey.
+        // The lock's own behaviour is pinned in locked-countries.spec.js.
         await game.open();
         await game.newGame();
 
-        const mismatched = await page.evaluate((grey) => {
+        const locked = await page.evaluate(() => window.__game.greyedOutCountries());
+        expect(locked.length).toBeGreaterThan(0);
+
+        const mismatched = await page.evaluate((lockedCountries) => {
             const doc = document.getElementById("svg-map").contentDocument;
             return [...doc.querySelectorAll("path[uniqueid]")]
                 .filter(
                     (p) =>
                         (p.getAttribute("greyedOut") === "true") !==
-                        (p.getAttribute("fill") === grey)
+                        lockedCountries.includes(p.getAttribute("data-name"))
                 )
                 .map((p) => p.getAttribute("territory-name"))
                 .slice(0, 10);
-        }, GREY_OUT_COLOR);
+        }, locked);
         expect(mismatched).toEqual([]);
     });
 

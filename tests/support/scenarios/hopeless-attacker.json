@@ -1,0 +1,35 @@
+{
+  "name": "hopeless-attacker",
+  "description": "A token fleet thrown at a defender it cannot dent. The attacking force is destroyed, which is WarOutcome.DEFENDER_WON: ownership does not change and the committed units are gone -- they do NOT come back, which is what separates a defeat from a retreat.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 6,
+        "useableNaval": 6,
+        "armyForCurrentTerritory": 120000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 400000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "armyForCurrentTerritory": 400000,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

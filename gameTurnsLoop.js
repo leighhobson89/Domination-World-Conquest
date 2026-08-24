@@ -28,12 +28,24 @@ import {
     incrementSiegeTurns,
     calculatePlayerInitiatedSiegePerTurn,
     handleEndSiegeDueArrest,
-    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn
+    getRetrievalArray, activateAiTerritoriesForNewTurn, calculateAiInitiatedSiegePerTurn,
+    getAttackingArmyRemaining, getDefendingArmyRemaining, getCurrentRound, getCurrentWarId,
+    getUpdatedProbability
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
+import {
+    createTurnEngine
+} from "./src/engine/TurnEngine.js";
+import {
+    rollRandomEventLikelihood,
+    selectRandomEvent
+} from "./src/rules/events/randomEvents.js";
+import {
+    RANDOM_EVENTS
+} from "./src/config/balance.js";
 import {
     buildAttackableTerritoriesInRangeArray,
     buildFullTerritoriesInRangeArray,
@@ -41,11 +53,9 @@ import {
     calculateTurnGoals,
     convertAttackableArrayStringsToMainArrayObjects,
     doAiActions,
-    getArrayOfGoldToSpendOnBolster,
-    getArrayOfGoldToSpendOnEconomy,
     getFriendlyTerritoriesDefenseScores,
     prioritiseTurnGoalsBasedOnPersonality,
-    refineTurnGoals, setDebugArraysToZero,
+    refineTurnGoals,
     resetAiRngContext,
     setAiRngContext
 } from "./aiCalculations.js";
@@ -83,7 +93,9 @@ import {
     playerSieges,
     aiSieges,
     historicWarsList,
-    warIds
+    warIds,
+    greyedOutCountryNames,
+    siegeOn
 } from './src/state/selectors.js';
 import {
     advanceTurn,
@@ -130,6 +142,14 @@ installTestHooks({
         player: Object.keys(playerSieges()),
         ai: Object.keys(aiSieges())
     }),
+    siegeAt: (territoryName) => {
+        //`side` is not stored on a siege -- which list it is in IS the side -- so it is
+        //resolved here rather than invented on the object.
+        const side = playerSieges()[territoryName] ? "player"
+            : aiSieges()[territoryName] ? "ai" : null;
+        const siege = siegeOn(territoryName);
+        return siege ? { siege, side } : null;
+    },
     // Everything the ?stateGuard=1 write guard caught. Empty unless the page was loaded
     // with that flag; see src/state/GameState.js.
     stateGuardViolations: () => getGuardViolations().map(violation => ({
@@ -162,6 +182,31 @@ installTestHooks({
     })),
     pathAreaComputations: () => getPathAreaComputations(),
     countryStrengths: () => countryStrengthsArray ?? [],
+    randomEventProbability: () => probability,
+    forceRandomEvent: (name) => {
+        if (name !== null && !RANDOM_EVENTS.includes(name)) {
+            throw new Error("unknown random event: " + name);
+        }
+        forcedRandomEvent = name;
+        return name;
+    },
+    battle: () => {
+        const attackers = getAttackingArmyRemaining();
+        const defenders = getDefendingArmyRemaining();
+        if (!attackers || !defenders) {
+            return null;
+        }
+        return {
+            //The legacy code pushes a defeat-type marker onto the END of these arrays when a
+            //war resolves, so take the four unit slots and nothing else.
+            attackers: attackers.slice(0, 4),
+            defenders: defenders.slice(0, 4),
+            round: getCurrentRound(),
+            warId: getCurrentWarId(),
+            probability: getUpdatedProbability() ?? null
+        };
+    },
+    greyedOutCountries: () => [...greyedOutCountryNames()],
     wars: () => historicWarsList().map(war => ({
         warId: war.warId,
         defendingTerritory: war.defendingTerritory?.territoryName ?? null,
@@ -215,6 +260,17 @@ export async function initialiseGame() {
             setTerritoryOwner(territory.uniqueId, "Player", territory.dataName);
         }
     }
+    //Bootstrap ordering, and it is NOT an accident -- see docs/05-known-issues.md section 2.
+    //The CPU leaders and the AI's starting forts are created by the confirm handler in
+    //ui.js AFTER this function resolves, which is after `turnEngine.start()` has run turn 1.
+    //Turn 1 therefore plans and earns over a world with no leaders and no forts, which is
+    //why `newTurnResources()` skips the income pass on turn 1.
+    //
+    //Moving that setup in here, before the engine starts, was tried in Phase 5.8 and
+    //MEASURED: the ten-turn `long-run` went from 6/6 green to 0/6, with the player's
+    //country eliminated every single time. Giving the AI a fully-formed first turn is a
+    //balance change, not a tidy-up, so it belongs to the Phase 7 balance pass together with
+    //the AI's unbounded sieges. Do not move these calls without re-running that spec.
     arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
     //The orphan half of the old normalizeSiegeState(): a siege naming a territory the
     //map does not have can only happen if the map changed under us, so it is checked
@@ -277,15 +333,24 @@ export async function initialiseGame() {
     });
     signalReady();
 
-    gameLoop();
+    installPhaseButton();
+    turnEngine.start();
 }
 
-function gameLoop() {
+/**
+ * Everything that happens before the player may act: sieges tick, armies come home, the
+ * economy runs, and a disaster may fire.
+ *
+ * This is the block that used to open `gameLoop()`. It is a named function now because the
+ * engine calls it -- which also means the start of a turn is one thing that can be reasoned
+ * about, rather than the first forty lines of a recursive function.
+ */
+function beginTurn() {
     activateAllPlayerTerritoriesForNewTurn();
     activateAiTerritoriesForNewTurn();
 
     let continueSiege = true;
-    let continueSiegeArrayPlayer = calculatePlayerInitiatedSiegePerTurn(); //large function to work out siege effects per turn
+    const continueSiegeArrayPlayer = calculatePlayerInitiatedSiegePerTurn(); //large function to work out siege effects per turn
     if (continueSiegeArrayPlayer) {
         continueSiegeArrayPlayer.forEach(element => {
             if (element !== true) {
@@ -294,7 +359,7 @@ function gameLoop() {
             }
         });
     }
-    let continueSiegeArrayAi = calculateAiInitiatedSiegePerTurn();
+    const continueSiegeArrayAi = calculateAiInitiatedSiegePerTurn();
     if (continueSiegeArrayAi) {
         continueSiegeArrayAi.forEach(element => {
             if (element !== true) {
@@ -317,57 +382,84 @@ function gameLoop() {
     console.log("Probability of Random Event: " + probability + "%");
     randomEventHappening = handleRandomEventLikelihood();
     if (randomEventHappening) {
-        randomEvent = selectRandomEvent();
+        randomEvent = forcedRandomEvent ?? selectRandomEvent();
+        forcedRandomEvent = null;
         console.log("There's been a " + randomEvent + "!")
     }
     newTurnResources();
     calculateTerritoryStrengths(allTerritories()); //might not be necessary every turn // related with greying out
-    if (uiAppearsAtStartOfTurn && currentTurn() !== 1 && continueSiege === true) {
+    //Phase 5.8. This was gated on `continueSiege === true` as well -- meaning the panel was
+    //suppressed on any turn where a siege ended in an arrest, because the arrest raised the
+    //battle results screen and the two would collide. Once sieges actually ticked (audit
+    //5.1 D, 5.2 J) an arrest happened on nearly every turn, so the preference silently never
+    //took effect at all. The collision is gone: an arrest only raises the results screen
+    //when the player was a party to it, so the gate can say what it means.
+    if (uiAppearsAtStartOfTurn && currentTurn() !== 1) {
         toggleUIMenu(true);
         drawUITable(document.getElementById("uiTable"), 0);
     }
     randomEventHappening = false;
     randomEvent = "";
     console.log("Turn " + currentTurn() + " has started!");
-    // Handle player turn
-    handleBuyUpgradePhase().then(() => {
-        // Handle move/attack phase
-        handleMilitaryPhase().then(() => {
-            // Handle AI turn
-            handleAITurn().then(() => {
-                // Increment turn counter
-                advanceTurn();
-                // Repeat game loop
-                gameLoop();
-            });
-        });
-    });
 }
 
-function handleBuyUpgradePhase() {
-    return new Promise(resolve => {
-        console.log("Handling Spend Upgrade Phase");
-        console.log("Current turn-phase is: " + phaseName(currentPhase()));
-        const popupConfirmButton = document.getElementById("popup-confirm");
-        const onClickHandler = () => {
-            popupConfirmButton.removeEventListener("click", onClickHandler);
-            resolve();
-        };
-        popupConfirmButton.addEventListener("click", onClickHandler);
-    });
+/** Announce a phase as it opens. The phase enum itself is walked by the button in ui.js. */
+function announcePhase(description) {
+    console.log(description);
+    console.log("Current turn-phase is: " + phaseName(currentPhase()));
 }
 
-function handleMilitaryPhase() {
-    return new Promise(resolve => {
-        console.log("Handling Move Attack Phase");
-        console.log("Current turn-phase is: " + phaseName(currentPhase()));
-        const popupConfirmButton = document.getElementById("popup-confirm");
-        const onClickHandler = () => {
-            popupConfirmButton.removeEventListener("click", onClickHandler);
-            resolve();
-        };
-        popupConfirmButton.addEventListener("click", onClickHandler);
-    });
+//Phase 5.7. `gameLoop()` stood here: a function that ran the start-of-turn block and then
+//chained three promises, the last of which called itself. There was no way to stop it, no
+//`catch` anywhere in the chain -- so any throw inside the AI turn ended the game silently,
+//with the phase button stuck on AI MOVING... -- and "wait for the player" was three
+//near-identical private functions each wrapping a `#popup-confirm` listener in a Promise.
+//
+//It is an explicit state machine now: src/engine/TurnEngine.js. The engine knows nothing
+//about this game; everything game-specific is in the hooks below.
+const turnEngine = createTurnEngine({
+    beginTurn: beginTurn,
+    steps: [
+        {
+            name: "buyUpgrade",
+            waitsForPlayer: true,
+            onEnter: () => announcePhase("Handling Spend Upgrade Phase")
+        },
+        {
+            name: "military",
+            waitsForPlayer: true,
+            onEnter: () => announcePhase("Handling Move Attack Phase")
+        },
+        {
+            name: "ai",
+            run: handleAITurn
+        }
+    ],
+    endTurn: advanceTurn,
+    onError: (error, context) => {
+        //The old loop had no catch at all, so this was a dead game. It is now a lost step.
+        console.error("Turn engine: the " + (context.step ?? context.stage) + " stage threw; " +
+            "the turn continues without it.", error);
+    }
+});
+
+/** The engine, for the test hooks and for whatever offers "New Game" in Phase 7. */
+export function getTurnEngine() {
+    return turnEngine;
+}
+
+/**
+ * Let the waiting phase proceed.
+ *
+ * One listener on `#popup-confirm`, installed once, replaces the three transient ones the
+ * phase functions used to add and remove. A click when no phase is waiting -- during the AI
+ * turn, or between turns -- is ignored, exactly as it was when the listener did not exist.
+ */
+function installPhaseButton() {
+    const popupConfirmButton = document.getElementById("popup-confirm");
+    if (popupConfirmButton) {
+        popupConfirmButton.addEventListener("click", () => turnEngine.advancePhase());
+    }
 }
 
 async function handleAITurn() {
@@ -434,11 +526,10 @@ async function handleAITurn() {
         // TODO: Based on threat, move available army around between available owned territories
         // TODO: Assess if turn goal was realised and update long-term goal if necessary
     }
-    //DEBUG
-    logGoldStats(getArrayOfGoldToSpendOnEconomy(), "Economy");
-    logGoldStats(getArrayOfGoldToSpendOnBolster(), "Bolster");
-    setDebugArraysToZero();
-    //
+    //Phase 5.8. A `//DEBUG` block stood here: two calls to a 40-line `logGoldStats()` that
+    //sorted, averaged and took the mode of every AI country's spending, twice, on every AI
+    //turn, purely to print two lines -- then cleared the arrays it had just measured. It was
+    //shipped and it ran in production. The whole chain is gone, arrays included.
     for (let i = 0; i < summaryWarsArray.length; i++) {
         console.log(`%c${summaryWarsArray[i]}`, "color: rgb(0,255,0);");
         if (i < summaryWarsArray.length - 1) {
@@ -458,31 +549,36 @@ async function handleAITurn() {
 
 }
 
+/**
+ * Roll for this turn's disaster and carry the running probability forward.
+ *
+ * Phase 5.2 wrote `rollRandomEventLikelihood()` in src/rules/events/randomEvents.js and
+ * `randomEventDamageFor()` alongside it, but only the damage half was ever wired up -- so
+ * the sample size and the four event NAMES existed in two places, and the names are exactly
+ * what audit 5.2 Q was: the construction-materials branch tested for "Forest Fire", which
+ * nothing produced, and one of the four disasters did nothing at all. One list now.
+ */
 function handleRandomEventLikelihood() {
-    const decimalProbability = probability / 100;
-    const randomNumberSum = Array.from({
-        length: 5
-    }, () => Math.random()).reduce((a, b) => a + b, 0);
-    const averageRandomNumber = randomNumberSum / 5;
-    if (averageRandomNumber <= decimalProbability) {
+    //Test-only, and only with ?e2e=1: force the NEXT turn to fire a named disaster. A random
+    //event is a band on the mean of five draws, so no seed reaches a chosen one on a chosen
+    //turn, and the scenario loader sets up the world rather than the turn. Without this the
+    //four disasters can only be unit-tested, and what the game DOES with one -- suppressing
+    //that turn's regeneration, halving food, taking a quarter of the gold -- goes untested.
+    if (forcedRandomEvent) {
         probability = 0;
         return true;
-    } else {
-        probability = probability + 1;
-        return false;
     }
+    const result = rollRandomEventLikelihood(probability);
+    probability = result.nextProbabilityPercent;
+    return result.happening;
 }
 
-function selectRandomEvent() {
-    const events = [
-        "Food Disaster",
-        "Oil Well Fire",
-        "Warehouse Fire",
-        "Mutiny"
-    ];
-    const randomIndex = Math.floor(Math.random() * events.length);
-    return events[randomIndex];
-    /* return events[0]; */
+/** The event a spec has queued for the next turn, or null. See installTestHooks below. */
+let forcedRandomEvent = null;
+
+/** The running per-turn chance of a disaster, for the ?e2e=1 harness. */
+export function randomEventProbability() {
+    return probability;
 }
 
 function handleArmyRetrievals(retrievalArray) {
@@ -533,46 +629,4 @@ export function getGameInitialisation() {
     return gameInitialisation;
 }
 
-//DEBUG
-function logGoldStats(arr, name) {
-    // Sort the array in ascending order to find the five smallest values
-    const sortedAscending = arr.slice().sort((a, b) => a - b);
-    const smallest = sortedAscending.slice(0, 10); //change last number for more/less output
-
-    // Sort the array in descending order to find the five largest values
-    const sortedDescending = arr.slice().sort((a, b) => b - a);
-    const largest = sortedDescending.slice(0, 10); //change last number for more/less output
-
-    // Calculate the average of all values in the array
-    const sum = arr.reduce((total, value) => total + value, 0);
-    const average = sum / arr.length;
-
-    // Calculate the median
-    const middleIndex = Math.floor(arr.length / 2);
-    const median = arr.length % 2 === 0 ? (arr[middleIndex - 1] + arr[middleIndex]) / 2 : arr[middleIndex];
-
-    // Calculate the mode
-    const frequencyMap = {};
-    arr.forEach((value) => {
-        frequencyMap[value] = (frequencyMap[value] || 0) + 1;
-    });
-    let mode;
-    let maxFrequency = 0;
-    for (const key in frequencyMap) {
-        if (frequencyMap[key] > maxFrequency) {
-            mode = key;
-            maxFrequency = frequencyMap[key];
-        }
-    }
-
-    // Log the information
-    console.log(
-        name +
-        "ECONOMY GOLD: Min 10 values: " + smallest.join(", ") +
-        " Max 10 values: " + largest.join(", ") +
-        " AVERAGE: " + average +
-        " MEDIAN: " + median +
-        " MODE: " + mode
-    );
-}
 //

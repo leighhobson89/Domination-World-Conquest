@@ -172,7 +172,13 @@ export const battle = {
     advance: "#advanceButton",
     retreat: "#retreatButton",
     siege: "#siegeButton",
-    percentage: "#percentageAttack",
+    // TWO probabilities, written by the same `setAttackProbabilityOnUI(probability,
+    // situation)`: situation 0 is the ATTACK WINDOW's bar, situation 1 is the BATTLE UI's.
+    // They are different elements and only one of them is live at a time -- the attack
+    // window's is left holding whatever it last showed once the window closes, which is why
+    // reading it from inside a battle returned a stale 0.
+    attackWindowPercentage: "#percentageAttack",
+    percentage: "#battleUIRow4Col1TextProbabilityTurnsSiege",
     probabilityBox: "#probabilityColumnBox",
     resultsRow: (n) => `#battleResultsRow${n}`,
     kills: "#battleResultsRow2Row3Kills",

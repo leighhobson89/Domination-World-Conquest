@@ -1,0 +1,35 @@
+{
+  "name": "evenly-matched",
+  "description": "Two fleets of the same size, so five rounds pass without either side reaching a threshold. That is WarOutcome.FIGHT_AGAIN: another five rounds begin and the attacker pays war weariness for the stalemate.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 400,
+        "useableNaval": 400,
+        "armyForCurrentTerritory": 8000000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 400,
+        "useableNaval": 400,
+        "armyForCurrentTerritory": 8000000,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

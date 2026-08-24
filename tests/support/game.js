@@ -225,6 +225,95 @@ export class GameDriver {
         }
     }
 
+    // --------------------------------------------------------------- attacking
+
+    /**
+     * End Buy/Upgrade, aim `from` at `to`, commit the WHOLE garrison of one unit type, and
+     * open the battle. Returns how many units were committed.
+     *
+     * The allocation multiplier starts on "All", so a single press of the plus button
+     * commits everything -- which is the only practical way to field a large force, since
+     * the next multipliers are x1, x10, x100 and x1k.
+     *
+     * The INVADE! click is retried. `#tooltip` follows the pointer with no `pointer-events:
+     * none`, so it can cover the move button and swallow the click; a swallowed click leaves
+     * the attack window open and is indistinguishable from "the battle never opened".
+     */
+    async launchWholeGarrison({ from, to, unit = "naval" }) {
+        await this.endBuyPhase();
+        await this.selectOnMap(from);
+        await this.selectOnMap(to);
+        await this.page.waitForFunction(
+            () => document.getElementById("move-phase-button")?.innerHTML === "ATTACK",
+            null,
+            { timeout: 30_000 }
+        );
+        await this.moveButton.click();
+        await this.page.waitForFunction(
+            () =>
+                getComputedStyle(document.getElementById("transfer-attack-window-container"))
+                    .display !== "none",
+            null,
+            { timeout: 30_000 }
+        );
+
+        await this.transferAttack.plus(from, unit, 1);
+        const committed = await this.transferAttack.quantity(from, unit);
+
+        await this.page.waitForFunction(
+            () => document.getElementById("move-phase-button")?.innerHTML === "INVADE!",
+            null,
+            { timeout: 30_000 }
+        );
+        const deadline = Date.now() + 30_000;
+        while (!(await this.battle.isOpen())) {
+            if (Date.now() > deadline) {
+                throw new Error("the battle never opened after INVADE!");
+            }
+            await this.page.mouse.move(5, 5);
+            await this.moveButton.click().catch(() => {});
+            await this.page.waitForTimeout(150);
+        }
+        return committed;
+    }
+
+    /**
+     * Click the battle's advance button until the battle reaches a terminal state, and
+     * report the label it stopped on with the armies as they stood just before the click
+     * that ended it.
+     *
+     * The advance button walks "Begin War!" -> "Next Skirmish" x5 -> "End Round" ->
+     * "Start Attack!" and round again, so a round of five costs about seven clicks. It
+     * stops on one of "Victory!", "Rout The Enemy", "Massive Assault", or by becoming
+     * disabled -- which is how a defeat presents, with the retreat button reading "Defeat!".
+     */
+    async fightToResolution({ maxClicks = 80 } = {}) {
+        const terminal = ["Victory!", "Rout The Enemy", "Massive Assault"];
+        let live = null;
+        for (let i = 0; i < maxClicks; i += 1) {
+            if (await this.battle.resultsShown()) {
+                return { ending: "results", live };
+            }
+            const state = await this.page.evaluate(() => ({
+                label: document.getElementById("advanceButton")?.innerText ?? "",
+                disabled: !!document.getElementById("advanceButton")?.disabled,
+            }));
+            const snapshot = await this.page.evaluate(() => window.__game.battle());
+            if (snapshot) {
+                live = snapshot;
+            }
+            if (state.disabled) {
+                return { ending: "attackerDestroyed", live };
+            }
+            await this.battle.advanceRound();
+            await this.page.waitForTimeout(80);
+            if (terminal.includes(state.label)) {
+                return { ending: state.label, live };
+            }
+        }
+        return { ending: "unresolved", live };
+    }
+
     // -------------------------------------------------------------- state access
 
     /**

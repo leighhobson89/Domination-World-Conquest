@@ -1,0 +1,35 @@
+{
+  "name": "rout-bound-defender",
+  "description": "A defender whose combined force is almost all naval -- 100 naval at 20,000 personnel each, plus 2,000 infantry -- attacked by a naval force. `chooseDefendingUnitTypeIndex()` engages its own type first, so the attacker destroys the naval and leaves the infantry alive: the defender's COMBINED FORCE collapses below the 5% rout threshold while it still has units on the field. That is a rout, and it is what makes audit 5.1 E assertable end to end instead of hoping the live map produces one. Attrition alone cannot reach the band -- an attacker big enough to win takes the defender from ~13% of its starting force to zero in one step.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 300,
+        "useableNaval": 300,
+        "armyForCurrentTerritory": 6000000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 2000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 100,
+        "useableNaval": 100,
+        "armyForCurrentTerritory": 2002000,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

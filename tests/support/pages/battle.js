@@ -3,11 +3,11 @@ import { battle, containers } from "../selectors.js";
 /**
  * The battle UI and its results screen.
  *
- * Every numeric assertion here is coarse-grained on purpose: seeding
- * Math.random does NOT make combat reproducible while addSparklesRegularly()
- * shares the global stream (docs/04-e2e-test-plan.md section 2.2), so specs
- * assert invariants -- totals only decrease, ownership transfers, the right
- * screen appears -- not exact survivor counts. That changes at refactor Phase 5.
+ * Numeric assertions here were coarse-grained because seeding Math.random did not make
+ * combat reproducible while addSparklesRegularly() shared the global stream (audit 5.3 Y).
+ * That is closed: cosmetic randomness moved to src/platform/cosmeticRng.js in Phase 5.8, so
+ * `?seed=` now makes a run repeat exactly. Exact-outcome assertions are legitimate; the
+ * invariant style is kept where the invariant is the more useful thing to state.
  */
 export class BattlePage {
     constructor(page) {
@@ -18,6 +18,7 @@ export class BattlePage {
         this.retreat = page.locator(battle.retreat);
         this.siege = page.locator(battle.siege);
         this.percentage = page.locator(battle.percentage);
+        this.attackWindowPercentage = page.locator(battle.attackWindowPercentage);
     }
 
     async isOpen() {
@@ -28,9 +29,22 @@ export class BattlePage {
         return (await this.results.evaluate((el) => getComputedStyle(el).display)) !== "none";
     }
 
-    /** The win probability as a number, e.g. "63%" -> 63. */
+    /**
+     * The battle UI's win probability as a number, e.g. "63%" -> 63.
+     *
+     * NOT `#percentageAttack`: that is the ATTACK WINDOW's bar. `setAttackProbabilityOnUI()`
+     * writes one or the other depending on its `situation` argument, and the attack window's
+     * element keeps whatever it last showed after the window closes -- so reading it during a
+     * battle reported a stale figure, usually 0, and any assertion on it was vacuous.
+     */
     async probability() {
         const text = await this.percentage.innerText();
+        return Number(text.replace(/[^0-9.-]/g, ""));
+    }
+
+    /** The attack window's probability bar, before INVADE! is pressed. */
+    async attackProbability() {
+        const text = await this.attackWindowPercentage.innerText();
         return Number(text.replace(/[^0-9.-]/g, ""));
     }
 

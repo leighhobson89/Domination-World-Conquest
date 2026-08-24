@@ -2,7 +2,6 @@
 
 import {
     paths,
-    PROBABILITY_THRESHOLD_FOR_SIEGE,
     saveMapColorState,
     setColorOnMap,
     setCurrentMapColorAndStrokeArrayFromExternal,
@@ -14,7 +13,6 @@ import {
     findClosestPaths,
     setAiDialogueBodyBottomContentState,
     populateArmyDataFields,
-    addImageToPath,
     mapMode,
 } from "./ui.js";
 import {
@@ -71,46 +69,35 @@ import {
 import {
     pathIsPlayerOwned
 } from './src/state/pathState.js';
+import {
+    MAX_AI_UPGRADES_PER_TURN,
+    PROBABILITY_THRESHOLD_FOR_SIEGE
+} from './src/config/balance.js';
+import {
+    aiRandom
+} from './src/ai/rng.js';
+import {
+    calculateTurnGoals as planTurnGoals,
+    prioritiseTurnGoalsBasedOnPersonality as prioritiseTurnGoals
+} from './src/ai/goals.js';
 
-const THREAT_DISREGARD_CONSTANT = -9999999999;
-const MAX_AI_UPGRADES_PER_TURN = 5;
+//Balance numbers live in src/config/balance.js (Phase 5.1); imported above.
 
 let aiDialogueResponse = false;
 let aiDialogueSelection = 0;
 
-let aiRng = Math.random;
+//The seeded per-country RNG lives in src/ai/rng.js (Phase 5.5). `aiRandom` is a stable
+//function reference that draws from whichever stream is current, so the ~13 call sites below
+//are unchanged and nothing here has to know how the stream is chosen.
+const aiRng = aiRandom;
 
-function xfnv1a(str) {
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-}
-
-function mulberry32(seed) {
-    return function() {
-        let t = seed += 0x6D2B79F5;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
-export function setAiRngContext(turn, countryName) {
-    const seed = xfnv1a(`${turn}|${countryName}`);
-    aiRng = mulberry32(seed);
-}
-
-export function resetAiRngContext() {
-    aiRng = Math.random;
-}
-
-//DEBUG
-let arrayOfGoldToSpendOnEconomy = [];
-let arrayOfGoldToSpendOnBolster = [];
-//
+//Phase 5.8. `arrayOfGoldToSpendOnEconomy` and `arrayOfGoldToSpendOnBolster` stood here,
+//marked `//DEBUG`: two module-level arrays that every AI country pushed its per-goal spend
+//onto so that a 40-line `logGoldStats()` in gameTurnsLoop.js could sort, average and take
+//the mode of them once a turn and print two lines. Shipped, running in production, and read
+//by nobody. The whole chain -- arrays, pushes, both getters and `setDebugArraysToZero()` --
+//is gone. If the numbers are wanted again they belong in a unit test over `src/ai/`, which
+//can measure them without the game paying for it every turn.
 
 // readClosestPointsJSON(), fetchJSONFile(), parseJSON() and
 // addManualExceptionsAndRemoveDenials() lived here. They re-fetched and re-parsed
@@ -119,546 +106,43 @@ let arrayOfGoldToSpendOnBolster = [];
 // src/data/adjacency.js, which loads a 77 KB file once and answers synchronously.
 // See docs/01-codebase-audit.md section 4.1.
 
-function formatAttackableTerritoriesArray(arr) {
-    const uniqueElements = {};
-    let result = [];
-
-    for (const [name, coordinates, distance] of arr) {
-        if (!uniqueElements[name]) {
-            uniqueElements[name] = true;
-            result.push([name, coordinates, distance]);
-        }
-    }
-
-    result = result.map(item => item[0]);
-
-    return result;
-}
-
-export function buildFullTerritoriesInRangeArray(arrayOfLeadersAndCountries, attackOptionsArray, i) {
-    let fullTerritoriesInRange = [];
-    for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //array of all AI players[whichAi][mainArrayObjectArrayForTerritoriesOwned]
-        let territory = arrayOfLeadersAndCountries[i][2][j].uniqueId;
-        fullTerritoriesInRange.push([
-            [territory, arrayOfLeadersAndCountries[i][2][j].territoryName], attackOptionsArray[parseInt(territory)][1]
-        ]); //should return every territory in json for that unique id
-    }
-    return fullTerritoriesInRange;
-}
-
-export function buildAttackableTerritoriesInRangeArray(arrayOfLeadersAndCountries, fullTerritoriesInRange, i) {
-    let attackableTerritoriesInRange = [];
-
-    for (let j = 0; j < fullTerritoriesInRange.length; j++) {
-        let isOwned = false;
-
-        for (let k = 0; k < fullTerritoriesInRange[j][1].length; k++) {
-            const territoryNameToCheck = fullTerritoriesInRange[j][1][k][0];
-            for (let l = 0; l < arrayOfLeadersAndCountries[i][2].length; l++) {
-                const ownedTerritoryName = arrayOfLeadersAndCountries[i][2][l].territoryName;
-                if (territoryNameToCheck === ownedTerritoryName) {
-                    isOwned = true;
-                    break;
-                }
-            }
-            if (!isOwned) {
-                attackableTerritoriesInRange.push(fullTerritoriesInRange[j][1][k]);
-            }
-            isOwned = false;
-        }
-    }
-    attackableTerritoriesInRange = formatAttackableTerritoriesArray(attackableTerritoriesInRange);
-    return attackableTerritoriesInRange;
-}
-
-// Names in, territory objects out. This used to walk all 359 paths, and for each of
-// them all 359 territories, and for each match the whole attackable list -- once per
-// AI territory per turn. The store indexes territories by name, so it is now a map().
+//Phase 5.5. Three stages of the AI turn moved out of this file:
 //
-// A name with no territory behind it is left as the string, exactly as before, so a
-// caller that was relying on that (rather than crashing) still gets it.
-export function convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange) {
-    for (let i = 0; i < attackableTerritoriesInRange.length; i++) {
-        const territory = getTerritoryByName(attackableTerritoriesInRange[i]);
-        if (territory) {
-            attackableTerritoriesInRange[i] = territory;
-        }
-    }
-    return attackableTerritoriesInRange;
-}
+//  src/ai/rng.js     the seeded per-country stream
+//  src/ai/threat.js  how dangerous each enemy territory in range is
+//  src/ai/goals.js   what to do about it, ranked by the leader's personality
+//
+//All three run in Node: they import from state/ and config/ and from nothing else. What is
+//left in this file is the third stage, ACTING on a goal -- which opens dialogues, repaints
+//the map and adds siege images, and so is inseparable from the UI until Phase 6 decomposes
+//it. `goals.js` takes its two impure dependencies as arguments rather than importing them,
+//which is what let it leave: the seeded rng, and `calculateProbabilityPreBattle` (which
+//lives in battle.js and caches modifiers for a mid-battle recalculation -- a side effect the
+//planner has no business knowing about).
+//
+//The re-exports below keep gameTurnsLoop.js importing the whole AI turn from one place.
+export {
+    buildAttackableTerritoriesInRangeArray,
+    buildFullTerritoriesInRangeArray,
+    calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
+    convertAttackableArrayStringsToMainArrayObjects,
+    getFriendlyTerritoriesDefenseScores,
+    retrieveArmyPowerOfTerritory
+} from "./src/ai/threat.js";
+export { refineTurnGoals } from "./src/ai/goals.js";
+export { resetAiRngContext, setAiRngContext } from "./src/ai/rng.js";
 
-export function determineIfStillHasTurnInThisTurn(enemyTerritory, arrayOfLeadersAndCountries, aiPlayerIndex) {
-    for (let i = 0; i < arrayOfLeadersAndCountries.length; i++) {
-        const territoryArray = arrayOfLeadersAndCountries[i][2];
-        for (let j = 0; j < territoryArray.length; j++) {
-            if (territoryArray[j].uniqueId === enemyTerritory.uniqueId) {
-                return i > aiPlayerIndex;
-            }
-        }
-    }
-    console.log("Didn't find a match in determineIfStillHasTurnInThisTurn() function call, probably missing because player is the country that has the enemyTerritory.uniqueId so returning false is fine");
-    return false;
-}
-
-export function retrieveArmyPowerOfTerritory(territory, defense) {
-    let armyScore, assault, air, naval, useableAssault, useableAir, useableNaval;
-    assault = territory.assaultForCurrentTerritory;
-    air = territory.airForCurrentTerritory;
-    naval = territory.navalForCurrentTerritory;
-    useableAssault = territory.useableAssault;
-    useableAir = territory.useableAir;
-    useableNaval = territory.useableNaval;
-    if (!defense) {
-        armyScore = territory.armyForCurrentTerritory - ((assault - useableAssault) * vehicleArmyPersonnelWorth.assault) - ((air - useableAir) * vehicleArmyPersonnelWorth.air) - ((naval - useableNaval) * vehicleArmyPersonnelWorth.naval);
-    } else {
-        armyScore = (territory.armyForCurrentTerritory - ((assault - useableAssault) * vehicleArmyPersonnelWorth.assault) - ((air - useableAir) * vehicleArmyPersonnelWorth.air) - ((naval - useableNaval) * vehicleArmyPersonnelWorth.naval) * (Math.ceil((territory.defenseBonus + territory.mountainDefenseBonus) / 15)));
-    }
-    return armyScore;
-}
-
-export function getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i) {
-    let arr = [];
-    for (let j = 0; j < arrayOfLeadersAndCountries[i][2].length; j++) { //add defense array with army power modified for defense bonus and indicate if coastal
-        if (arrayOfLeadersAndCountries[i][2][j].dataName === currentAiCountry) {
-            arr.push([arrayOfLeadersAndCountries[i][2][j].territoryName, retrieveArmyPowerOfTerritory(arrayOfLeadersAndCountries[i][2][j], true), arrayOfLeadersAndCountries[i][2][j].isCoastal]);
-        }
-    }
-    return arr;
-}
-
-export function calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i) {
-    let arr = [];
-    for (const territory of attackableTerritoriesInRange) {
-        let friendlyTerritoryObject;
-        let turnStillToCome = false;
-        let armyPowerOfEnemyTerritory;
-        let arrayOfTerritoryThreats = [];
-        turnStillToCome = determineIfStillHasTurnInThisTurn(territory, arrayOfLeadersAndCountries, i);
-        armyPowerOfEnemyTerritory = retrieveArmyPowerOfTerritory(territory, false);
-        let arrayOfEnemyToFriendlyInteractibility = [];
-        let friendlyTerritory;
-        for (let j = 0; j < fullTerritoriesInRange.length; j++) {
-            friendlyTerritory = fullTerritoriesInRange[j][0][1];
-
-            //audit 5.1 AF. These two arrays used to be indexed by the same `j`, but they are
-            //not the same length: fullTerritoriesInRange has an entry for every territory in
-            //arrayOfLeadersAndCountries[i][2], while getFriendlyTerritoriesDefenseScores only
-            //returns the ones whose dataName is still this country. The moment a country
-            //loses a territory the two desync, `arrayOfAiPlayerDefenseScoresForTerritories[j]`
-            //runs off the end, and reading `[1]` off undefined threw -- killing the AI turn
-            //and, through the uncaught rejection, the whole game loop. Match on the territory
-            //name instead, which is what the two entries actually share.
-            const defenseScore = arrayOfAiPlayerDefenseScoresForTerritories.find(entry => entry[0] === friendlyTerritory);
-            if (!defenseScore) {
-                continue; //no longer one of this country territories
-            }
-
-            if (fullTerritoriesInRange[j][1].some(enemyTerritory => enemyTerritory[0] === territory.territoryName)) {
-                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, true, defenseScore[1], defenseScore[2]]);
-            } else {
-                arrayOfEnemyToFriendlyInteractibility.push([friendlyTerritory, false, defenseScore[1], defenseScore[2]]);
-            }
-            for (let k = 0; k < allTerritories().length; k++) {
-                if (friendlyTerritory[0] === allTerritories()[k].territoryName) {
-                    friendlyTerritoryObject = allTerritories()[k];
-                    break;
-                }
-            }
-        }
-        let threatScores = [];
-        for (const friendlyTerritory of arrayOfAiPlayerDefenseScoresForTerritories) {
-            let threatScore = 0;
-
-            const enemyCanAttack = arrayOfEnemyToFriendlyInteractibility.some(
-                ([friendly, canAttack]) => friendly === friendlyTerritory[0] && canAttack
-            );
-
-            if (enemyCanAttack) {
-                if (!friendlyTerritory[2]) { //if not coastal
-                    armyPowerOfEnemyTerritory -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
-                }
-
-                threatScore += armyPowerOfEnemyTerritory - friendlyTerritory[1]; // baseline threat score based on difference in army
-
-                //traits
-                //reconquista - DONE
-                if (friendlyTerritoryObject && friendlyTerritoryObject.originalOwner === territory.dataName) {
-                    let reconquistaValue = Math.abs(threatScore) * territory.leader.traits.reconquista;
-                    threatScore += reconquistaValue;
-                }
-                //territory_expansion - DONE
-                let territoryExpansionValue = Math.abs(threatScore) * territory.leader.traits.territory_expansion;
-                threatScore += territoryExpansionValue;
-
-                //fortification
-                //needs taking into account when we have goals implemented if enemy territory leader has a goal to destroy AI player
-
-                //add a minor amount if player precedes enemy territory - can be used to influence AI if any reason why this is significant is realised
-                threatScore += turnStillToCome ? 1 : 0;
-            } else {
-                threatScore = THREAT_DISREGARD_CONSTANT; //can't attack, no threat
-            }
-            threatScores.push([friendlyTerritory[0], threatScore]);
-        }
-        arrayOfTerritoryThreats.push(territory.territoryName, turnStillToCome, armyPowerOfEnemyTerritory, territory.isCoastal, threatScores);
-        arr.push(arrayOfTerritoryThreats);
-    }
-    return arr;
-}
-
+/** The AI's goal planner, with this file's two impure dependencies bound in. */
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
-    let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
-    sortedThreatArrayInfo.sort((a, b) => b[3] - a[3]);
-
-    //audit 5.1 AG. Every goal an AI country makes is derived from a threat, so a country
-    //with no attackable enemy territory in range has nothing to plan. That is a perfectly
-    //ordinary state once the AI can actually conquer -- a country whose neighbours are now
-    //all its own -- but `sortedThreatArrayInfo[0][2]` threw on the empty array, and the
-    //uncaught rejection took the whole game loop with it.
-    if (sortedThreatArrayInfo.length === 0) {
-        console.log("No enemy territory in range this turn -- no goals to plan");
-        return [];
-    }
-
-    const leaderTraits = sortedThreatArrayInfo[0][2].leader.traits;
-    // console.log("The biggest threat is to their territory of " + sortedThreatArrayInfo[0][2].territoryName + " and comes from " + sortedThreatArrayInfo[0][0].territoryName + ", " + sortedThreatArrayInfo[0][0].dataName + " owned by " + sortedThreatArrayInfo[0][0].leader.name + " with a threat of " + sortedThreatArrayInfo[0][3]);
-    // console.log("Leader of " + sortedThreatArrayInfo[0][2].territoryName + " has the following traits:");
-    // console.log("Type: " + sortedThreatArrayInfo[0][2].leader.leaderType + " traits:");
-    // console.log(leaderTraits);
-    sortedThreatArrayInfo = removeNonThreats(sortedThreatArrayInfo);
-    sortedThreatArrayInfo = addProbabilitiesOfBattle(sortedThreatArrayInfo);
-    return getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits);
-}
-
-function organizeThreats(arrayOfTerritoriesInRangeThreats) {
-    let arr = [];
-    let enemyTerritory;
-    let friendlyTerritory;
-    for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
-        for (let j = 0; j < arrayOfTerritoriesInRangeThreats[i][4].length; j++) {
-            let count = 0;
-            for (let k = 0; k < allTerritories().length; k++) { //get territory objects
-                if (arrayOfTerritoriesInRangeThreats[i][0] === allTerritories()[k].territoryName) {
-                    enemyTerritory = allTerritories()[k];
-                    count++;
-                }
-                if (arrayOfTerritoriesInRangeThreats[i][4][j][0] === allTerritories()[k].territoryName) {
-                    friendlyTerritory = allTerritories()[k];
-                    count++;
-                }
-                if (count > 1) {
-                    break;
-                }
-            }
-            arr.push([enemyTerritory, enemyTerritory.leader, friendlyTerritory, arrayOfTerritoriesInRangeThreats[i][4][j][1]]);
-        }
-    }
-    return arr;
-}
-
-function removeNonThreats(sortedThreatArrayInfo) {
-    for (let i = sortedThreatArrayInfo.length - 1; i >= 0; i--) {
-        if (sortedThreatArrayInfo[i][3] === THREAT_DISREGARD_CONSTANT) {
-            sortedThreatArrayInfo.splice(i, 1);
-        }
-    }
-    return sortedThreatArrayInfo;
-}
-
-function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits) {
-    let possibleGoalsArray = [];
-    for (const threat of sortedThreatArrayInfo) {
-        const threatScore = threat[3];
-        const styleOfWar = leaderTraits.style_of_war;
-        const territoryExpansion = leaderTraits.territory_expansion;
-        const considerSiege = aiRng() >= styleOfWar;
-        let considerWar = aiRng() <= territoryExpansion;
-        if (considerWar) {
-            considerWar = territoryExpansion <= (threat.probabilityOfWin / 100);
-        }
-        if (threatScore >= 0) {
-            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
-            possibleGoalsArray.push(["Bolster", threat[0].territoryName, threat[2].territoryName, threat[2].fortsBuilt, threat[2].armyForCurrentTerritory, threat[2].isCoastal, threatScore, threat.probabilityOfWin]);
-        } else {
-            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
-            territoryExpansion <= (threat.probabilityOfWin / 100) && considerWar ? possibleGoalsArray.push(["Attack", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
-        }
-        possibleGoalsArray.push(["Economy", threat[2].territoryName, threat[2].farmsBuilt, threat[2].forestsBuilt, threat[2].oilWellsBuilt]);
-    }
-    return possibleGoalsArray;
-}
-
-function addProbabilitiesOfBattle(sortedThreatArrayInfo) {
-    let probability;
-    for (const threat of sortedThreatArrayInfo) {
-        let preAttackArray = [threat[0].uniqueId, parseInt(threat[2].uniqueId), threat[2].infantryForCurrentTerritory, threat[2].useableAssault, threat[2].useableAir, threat[2].useableNaval];
-        for (let i = 0; i < allTerritories().length; i++) {
-            if (preAttackArray[0] === allTerritories()[i].uniqueId) {
-                if (!allTerritories()[i].isCoastal) {
-                    preAttackArray[5] = 0;
-                    break;
-                }
-            }
-        }
-        probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
-        threat.probabilityOfWin = probability;
-        // console.log("Probability of " + threat[2].territoryName + " vs " + threat[0].territoryName + " is:" + threat.probabilityOfWin);
-    }
-    return sortedThreatArrayInfo;
-}
-
-export function refineTurnGoals(unrefinedGoals, currentAiCountry, leaderTraits) {
-    let refinedGoals = countAndUnshiftSimilarRows(unrefinedGoals);
-    refinedGoals = sumTogetherSimilarThreatValues(refinedGoals);
-    refinedGoals = finalRefinementOfArrayReduceDown(refinedGoals);
-    refinedGoals = upPriorityForReconquistaTerritories(refinedGoals, currentAiCountry, leaderTraits);
-    return refinedGoals;
-}
-
-function countAndUnshiftSimilarRows(arr) {
-    const countMapEconomy = new Map();
-    const countMapBolster = new Map();
-    const countMapSiege = new Map();
-    const countMapAttack = new Map();
-
-    for (const row of arr[0]) {
-        if (row[0] === "Economy") {
-            const key = JSON.stringify([row[0], row[1]]);
-            countMapEconomy.set(key, (countMapEconomy.get(key) || 0) + 1);
-        } else if (row[0] === "Bolster") {
-            const key = JSON.stringify([row[0], row[2]]);
-            countMapBolster.set(key, (countMapBolster.get(key) || 0) + 1);
-        } else if (row[0] === "Siege") {
-            const key = JSON.stringify([row[0], row[1]]);
-            countMapSiege.set(key, (countMapSiege.get(key) || 0) + 1);
-        } else if (row[0] === "Attack") {
-            const key = JSON.stringify([row[0], row[1]]);
-            countMapAttack.set(key, (countMapAttack.get(key) || 0) + 1);
-        }
-    }
-
-    for (const row of arr[0]) {
-        if (row[0] === "Economy") {
-            const key = JSON.stringify([row[0], row[1]]);
-            const count = countMapEconomy.get(key);
-            row.unshift(count);
-        } else if (row[0] === "Bolster") {
-            const key = JSON.stringify([row[0], row[2]]);
-            const count = countMapBolster.get(key);
-            row.unshift(count);
-        } else if (row[0] === "Siege") {
-            const key = JSON.stringify([row[0], row[1]]);
-            const count = countMapSiege.get(key);
-            row.unshift(count);
-        } else if (row[0] === "Attack") {
-            const key = JSON.stringify([row[0], row[1]]);
-            const count = countMapAttack.get(key);
-            row.unshift(count);
-        }
-    }
-    return arr;
-}
-
-function sumTogetherSimilarThreatValues(refinedGoalsArray) {
-    const economyGroups = {};
-    const bolsterGroups = {};
-    const siegeGroups = {};
-    const attackGroups = {};
-
-    for (const row of refinedGoalsArray[0]) {
-        const key = row[1] === "Economy" || row[1] === "Siege" || row[1] === "Attack" ? `${row[1]}_${row[2]}` : `${row[1]}_${row[3]}`;
-
-        if (row[1] === "Economy") {
-            if (!economyGroups[key]) economyGroups[key] = [];
-            economyGroups[key].push(row);
-        } else if (row[1] === "Bolster") {
-            if (!bolsterGroups[key]) bolsterGroups[key] = [];
-            bolsterGroups[key].push(row);
-        } else if (row[1] === "Siege") {
-            if (!siegeGroups[key]) siegeGroups[key] = [];
-            siegeGroups[key].push(row);
-        } else if (row[1] === "Attack") {
-            if (!attackGroups[key]) attackGroups[key] = [];
-            attackGroups[key].push(row);
-        }
-    }
-
-    const processedEconomyGroups = [];
-    for (const groupKey in economyGroups) {
-        const group = economyGroups[groupKey];
-        const sum = group.reduce((acc, row) => acc + row[3], 0);
-        const modifiedGroup = group.map((row) => {
-            const newRow = [...row];
-            newRow[3] = sum;
-            return newRow;
-        });
-        processedEconomyGroups.push(...modifiedGroup);
-    }
-
-    const processedBolsterGroups = [];
-    for (const groupKey in bolsterGroups) {
-        const group = bolsterGroups[groupKey];
-        const sum = group.reduce((acc, row) => acc + row[7], 0);
-        const modifiedGroup = group.map((row) => {
-            const newRow = [...row];
-            newRow[7] = sum;
-            return newRow;
-        });
-        processedBolsterGroups.push(...modifiedGroup);
-    }
-
-    const processedSiegeGroups = [];
-    for (const groupKey in siegeGroups) {
-        const group = siegeGroups[groupKey];
-        const sum = group.reduce((acc, row) => acc + row[4], 0);
-        const modifiedGroup = group.map((row) => {
-            const newRow = [...row];
-            newRow[4] = sum;
-            return newRow;
-        });
-        processedSiegeGroups.push(...modifiedGroup);
-    }
-
-    const processedAttackGroups = [];
-    for (const groupKey in attackGroups) {
-        const group = attackGroups[groupKey];
-        const sum = group.reduce((acc, row) => acc + row[4], 0);
-        const modifiedGroup = group.map((row) => {
-            const newRow = [...row];
-            newRow[4] = sum;
-            return newRow;
-        });
-        processedAttackGroups.push(...modifiedGroup);
-    }
-
-    return [...processedEconomyGroups, ...processedBolsterGroups, ...processedSiegeGroups.reverse(), ...processedAttackGroups.reverse()];
-}
-
-function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
-    const filteredRefinedGoalsArray = [];
-
-    const seenEconomy = new Set();
-    const seenBolster = new Set();
-    const seenSiege = new Set();
-    const seenAttack = new Set();
-
-    for (const row of refinedGoalsArray) {
-        const type = row[1];
-        const key = row[0];
-
-        if (type === "Economy") {
-            if (!seenEconomy.has(key)) {
-                filteredRefinedGoalsArray.push(row);
-                seenEconomy.add(key);
-            }
-        } else if (type === "Bolster") {
-            const subKey = row[3];
-            const compoundKey = `${key}_${subKey}`;
-            if (!seenBolster.has(compoundKey)) {
-                // Remove the [2] element for "Bolster" rows before pushing
-                filteredRefinedGoalsArray.push([row[0], row[1], row[3], row[4], row[5], row[6], row[7], row[8]]);
-                seenBolster.add(compoundKey);
-            }
-        } else if (type === "Siege") {
-            const subKey = row[2];
-            const compoundKey = `${key}_${subKey}`;
-            if (!seenSiege.has(compoundKey)) {
-                filteredRefinedGoalsArray.push(row);
-                seenSiege.add(compoundKey);
-            }
-        } else if (type === "Attack") {
-            const subKey = row[2];
-            const compoundKey = `${key}_${subKey}`;
-            if (!seenAttack.has(compoundKey)) {
-                filteredRefinedGoalsArray.push(row);
-                seenAttack.add(compoundKey);
-            }
-        } else {
-            filteredRefinedGoalsArray.push(row);
-        }
-    }
-    return filteredRefinedGoalsArray;
-}
-
-export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits) {
-    // console.log (leaderTraits);
-    // console.log("Before:");
-    // console.log(refinedTurnGoals);
-    refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits);
-    refinedTurnGoals = removeDoubleAttackSiege(refinedTurnGoals);
-    // console.log("After:");
-    // console.log(refinedTurnGoals);
-    return refinedTurnGoals;
-}
-
-function prioritizeActions(array, leaderTraits) {
-    return array.sort((a, b) => {
-        const priorityA = calculatePriorityScore(a, leaderTraits);
-        const priorityB = calculatePriorityScore(b, leaderTraits);
-        return priorityB - priorityA; // Sort in descending order
+    return planTurnGoals(arrayOfTerritoriesInRangeThreats, {
+        rng: aiRng,
+        probabilityFor: calculateProbabilityPreBattle
     });
 }
 
-function calculatePriorityScore(row, leaderTraits) {
-    let priorityScore = 0;
-
-    const rowQuantitiesReduced = row[0];
-    const action = row[1];
-
-    let fortification = leaderTraits.fortification;
-    let territoryExpansion = leaderTraits.territory_expansion;
-    let economy = aiRng() * fortification;
-
-    if (action === "Bolster") {
-        priorityScore = rowQuantitiesReduced * fortification;
-    } else if (action === "Siege") {
-        priorityScore = rowQuantitiesReduced * territoryExpansion;
-    } else if (action === "Attack") {
-        priorityScore = rowQuantitiesReduced * territoryExpansion;
-    } else if (action === "Economy") {
-        priorityScore = economy;
-    }
-
-    return priorityScore;
-}
-
-function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry, leaderTraits) {
-    for (let i = 0; i < refinedTurnsGoals.length; i++) {
-        if (refinedTurnsGoals[i][1] === "Siege" || refinedTurnsGoals[i][1] === "Attack") {
-            for (let j = 0; j < allTerritories().length; j++) {
-                if (allTerritories()[j].territoryName === refinedTurnsGoals[i][2]) {
-                    if (allTerritories()[j].originalOwner === currentAiCountry) {
-                        refinedTurnsGoals[i][0] = (refinedTurnsGoals[i][0] * leaderTraits.reconquista) + refinedTurnsGoals[i][0];
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return refinedTurnsGoals;
-}
-
-function removeDoubleAttackSiege(arr) {
-    const seenLocations = new Set();
-    const seenCountries = new Set();
-    const filteredArr = [];
-
-    for (let i = 0; i < arr.length; i++) {
-        const [_, type, location, country] = arr[i];
-
-        if (type === 'Attack' || type === 'Siege') {
-            const locationCountryKey = `${location}_${country}`;
-
-            if (seenLocations.has(locationCountryKey)) {
-                continue;
-            } else {
-                seenLocations.add(locationCountryKey);
-                seenCountries.add(country);
-            }
-        }
-        filteredArr.push(arr[i]);
-    }
-    return filteredArr;
+/** As `prioritiseTurnGoals()`, with the seeded stream bound in. */
+export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits) {
+    return prioritiseTurnGoals(refinedTurnGoals, currentAiCountry, leaderTraits, aiRng);
 }
 
 export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
@@ -736,9 +220,6 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     refinedTurnGoals = goldToSpend[0];
                     goldNeedsSpendingAfterThisGoal = determineIfOtherGoalNeedsResourceThisTurn("gold", refinedTurnGoals, goalIndex);
                     goldToSpend = goldToSpend[1];
-                    //DEBUG
-                    arrayOfGoldToSpendOnEconomy.push(goldToSpend);
-                    //
                     let consMatsToSpend = determineResourcesAvailableForThisGoal("consMats", consMatsInTerritory, mainArrayFriendlyTerritoryCopy, consMatsNeedsSpendingAfterThisGoal, refinedTurnGoals, goalIndex);
                     consMatsToSpend = consMatsToSpend[1];
                     console.log("Gold to spend on this ECONOMY = " + goldToSpend);
@@ -766,9 +247,6 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                         goldToSpend = goldToSpend[1];
                         let consMatsToSpend = mainArrayFriendlyTerritoryCopy.consMatsForCurrentTerritory;
                         console.log("Gold to spend on this BOLSTER = " + goldToSpend);
-                        //DEBUG
-                        arrayOfGoldToSpendOnBolster.push(goldToSpend);
-                        //
                         console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
                         goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
@@ -1125,19 +603,6 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
     return couldNotAffordEconomy;
 }
 
-//DEBUG
-export function getArrayOfGoldToSpendOnEconomy() {
-    return arrayOfGoldToSpendOnEconomy;
-}
-
-export function getArrayOfGoldToSpendOnBolster() {
-    return arrayOfGoldToSpendOnBolster;
-}
-
-export function setDebugArraysToZero() {
-    arrayOfGoldToSpendOnEconomy.length = 0;
-    arrayOfGoldToSpendOnBolster.length = 0;
-}
 
 function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy, refinedTurnGoals, goalIndex, goal) {
     let updated = false;
@@ -1877,7 +1342,10 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             //Recording the siege is what puts the territory under siege now: the
             //`underSiege` attribute is derived from the siege lists (Phase 4.4/4.5).
             addRemoveWarSiegeObjectAi(0, currentAiWarId, mainArrayEnemyTerritoryCopy, mainArrayFriendlyTerritoryCopy);
-            addImageToPath(siegeTargetPath, "siegeai.png", 2);
+            //Phase 5.8. Removed for the same reason as the player's marker in ui.js: the
+            //siege was added to the store just above, `siegeChanged` fired, and
+            //src/ui/siegeOverlay.js has already drawn the AI variant. Drawing it again
+            //produced a second <image> with a duplicated id.
             console.log("Should now be an image over the territory of " + siegeTargetPath.getAttribute("territory-name"));
             if (mapMode === 1) {
                 setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));

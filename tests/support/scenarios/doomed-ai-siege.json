@@ -1,0 +1,35 @@
+{
+  "name": "doomed-ai-siege",
+  "description": "An AI siege on the player's own territory mounted by a force far too weak to sustain it, against a strong garrison behind forts. The siege score minus the territory's fortification is deeply negative, so the besiegers are ARRESTED on an early tick: the siege ends, the marker clears and the attacking army is lost.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 800000,
+        "armyForCurrentTerritory": 800000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "fortsBuilt": 5,
+        "defenseBonus": 300
+      }
+    }
+  ],
+  "sieges": [
+    {
+      "side": "ai",
+      "territory": "Germany",
+      "attackingCountry": "Poland",
+      "attackingArmy": [
+        10,
+        0,
+        0,
+        0
+      ],
+      "turnsInSiege": 0
+    }
+  ]
+}

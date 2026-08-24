@@ -61,6 +61,58 @@ import {
     addRemoveWarSiegeObjectAi
 } from './battle.js';
 import {
+    armyGoldPrices,
+    armyProdPopPrices,
+    oilRequirements,
+    armyCostPerTurn,
+    vehicleArmyPersonnelWorth,
+    territoryUpgradeBaseCostsGold,
+    territoryUpgradeBaseCostsConsMats,
+    maxFarms,
+    maxForests,
+    maxOilWells,
+    maxForts,
+    continentModifiers,
+    population as populationBalance,
+    territoryStrengthScales,
+    startingArmy,
+    initialArmyDistribution,
+    INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ,
+    SIEGE_ROUT_THRESHOLD,
+    FOOD_UNIT_SCALE,
+    MOUNTAIN_DEFENSE_SCALE
+} from './src/config/balance.js';
+import {
+    consMatsChangeFor,
+    oilChangeFor,
+    foodChangeFor,
+    goldChangeFor
+} from './src/rules/economy/income.js';
+import {
+    productivePopulationFor,
+    productivePopulationOf,
+    foodConsumptionOf,
+    populationChangeFor,
+    isStarving,
+    armyStarvesInstead,
+    siegeArmyStarvationChange,
+    planArmyStarvation
+} from './src/rules/economy/population.js';
+import {
+    armyTotalFor,
+    useableUnitsFor,
+    defenseBonusFor,
+    totalCapacities,
+    totalDemands
+} from './src/rules/economy/capacity.js';
+import {
+    armyMaintenanceFor,
+    initialArmyAdjustmentCost
+} from './src/rules/economy/maintenance.js';
+import {
+    randomEventDamageFor
+} from './src/rules/events/randomEvents.js';
+import {
     pathIsDeactivated,
     pathIsPlayerOwned,
     pathOwner,
@@ -140,62 +192,24 @@ function createEmptyTurnGains() {
     };
 }
 
-export const INFANTRY_IN_A_TROOP = 1000;
-
-export const armyGoldPrices = {
-    infantry: 10,
-    assault: 50,
-    air: 100,
-    naval: 200
-}
-
-export const armyProdPopPrices = {
-    infantry: INFANTRY_IN_A_TROOP,
-    assault: 1000,
-    air: 5000,
-    naval: 20000
-}
-
-export const oilRequirements = {
-    naval: 1000,
-    air: 300,
-    assault: 100
-};
-
-//Tuned when maintenance was re-enabled (audit 5.2 R, refactor 3.16). Measured on a fresh
-//world: a territory earns roughly 44-100 gold a turn, while Germany starts with 783,052
-//infantry and China with 2,472,249. At the original rates Germany owed 396 gold a turn
-//against ~50 of income and China owed 1,384 -- every major power bankrupt inside forty
-//turns, with no way to respond. At a tenth of that a normal standing army costs about what
-//its territory earns, so holding an army is sustainable and GROWING one is what has to be
-//paid for. These move to config/balance.js at Phase 5.1.
-export const armyCostPerTurn = {
-    infantry: 0.00005,
-    assault: 0.05,
-    air: 0.25,
-    naval: 1
-}
-
-export const vehicleArmyPersonnelWorth = {
-    infantry: 1,
-    naval: 20000,
-    air: 5000,
-    assault: 1000
-}
-
-export const territoryUpgradeBaseCostsGold = {
-    farm: 200,
-    forest: 200,
-    oilWell: 1100,
-    fort: 1000,
-}
-
-export const territoryUpgradeBaseCostsConsMats = {
-    farm: 500,
-    forest: 500,
-    oilWell: 200,
-    fort: 600,
-}
+//Phase 5.1: these are balance numbers and now live in src/config/balance.js, which imports
+//nothing and loads in Node. They are re-exported here because ui.js, battle.js,
+//transferAndAttack.js, aiCalculations.js and three e2e specs import them from this module;
+//call sites move to the config path as their owning file moves into src/.
+export {
+    INFANTRY_IN_A_TROOP,
+    armyGoldPrices,
+    armyProdPopPrices,
+    oilRequirements,
+    armyCostPerTurn,
+    vehicleArmyPersonnelWorth,
+    territoryUpgradeBaseCostsGold,
+    territoryUpgradeBaseCostsConsMats,
+    maxFarms,
+    maxForests,
+    maxOilWells,
+    maxForts
+} from './src/config/balance.js';
 
 const dummyAttackerObject = { //for a use case where need to split types of siege on line 886
     infantryForCurrentTerritory: 0,
@@ -206,10 +220,6 @@ const dummyAttackerObject = { //for a use case where need to split types of sieg
     dataName: "dummy"
 }
 
-export const maxFarms = 5;
-export const maxForests = 5;
-export const maxOilWells = 5;
-export const maxForts = 5;
 
 export const totalPlayerResources = [];
 export const countryResourceTotals = {};
@@ -231,7 +241,6 @@ let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infa
 let pathAreasPromise = null;
 let pathAreaComputations = 0;
 
-const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
 {
     Promise.all([calculatePathAreasWhenPageLoaded(), createArrayOfInitialData()])
         .then(([pathAreas, armyArray]) => {
@@ -474,14 +483,14 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             }
             let armyAdjustment = calculateGoldChange(adjustmentArray, true, true);
             let bigEnoughToGetMin = armyAdjustment >= INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ;
-            armyAdjustment -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
+            armyAdjustment -= initialArmyAdjustmentCost(armyForCurrentTerritory);
             // console.log("Pre reduce for " + territoryName) + ":"
             // console.log (armyForCurrentTerritory, armyAdjustment);
             if (armyAdjustment < INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ && bigEnoughToGetMin) {
                 armyForCurrentTerritory = reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment);
             }
             let armyAdjustmentTest = calculateGoldChange(adjustmentArray, true, true);
-            armyAdjustmentTest -= calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(armyForCurrentTerritory);
+            armyAdjustmentTest -= initialArmyAdjustmentCost(armyForCurrentTerritory);
             // console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
             let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
             let oilCapacity = oilForCurrentTerritory;
@@ -491,8 +500,19 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
             let fortsBuilt = 0;
-            let defenseBonus = Math.ceil(fortsBuilt * (fortsBuilt + 1) * 10) * dev_index + isLandLockedBonus;
-            let mountainDefenseBonus = mountainDefense * 10;
+            //known-issues AQ. This read
+            //`Math.ceil(f * (f + 1) * 10) * dev + landlocked`, with the ceiling around the
+            //fort term instead of around the whole expression -- different brackets from the
+            //three other sites, and so a different answer. It never actually diverged,
+            //because `fortsBuilt` is 0 here and both forms then reduce to the land-locked
+            //bonus, but a fourth copy of the formula is how the divergence would arrive.
+            //There is one copy now, and it is unit-tested.
+            let defenseBonus = defenseBonusFor({
+                fortsBuilt: fortsBuilt,
+                devIndex: dev_index,
+                isLandLockedBonus: isLandLockedBonus
+            });
+            let mountainDefenseBonus = mountainDefense * MOUNTAIN_DEFENSE_SCALE;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
             // console.log(territoryName + ": " + initialArmyDistributionArray.infantry + ", " + initialArmyDistributionArray.assault + ", " + initialArmyDistributionArray.air + ", " + initialArmyDistributionArray.naval);
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
@@ -505,8 +525,13 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 
             armyForCurrentTerritory = (navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval) + (airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
 
-            productiveTerritoryPop = (((territoryPopulation / 100) * 45) * dev_index) - armyForCurrentTerritory;
-            let foodForCurrentTerritory = (territoryPopulation / 10000) + (armyForCurrentTerritory / 10000);
+            //Phase 5.5: the productive-population formula was written out inline in five
+            //places, twice with a different sign on the population (audit 5.1 F). This is the
+            //last of them.
+            productiveTerritoryPop =
+                productivePopulationFor(territoryPopulation, dev_index) - armyForCurrentTerritory;
+            let foodForCurrentTerritory =
+                (territoryPopulation / FOOD_UNIT_SCALE) + (armyForCurrentTerritory / FOOD_UNIT_SCALE);
             let foodCapacity = territoryPopulation + armyForCurrentTerritory;
             let foodConsumption = territoryPopulation + armyForCurrentTerritory;
             let isDeactivated = false;
@@ -647,21 +672,12 @@ function calculateTerritoryResourceIncomesEachTurn() {
     let changeProdPop;
     let changeProdPopTemp;
 
-    //continent modifier or possibly handle upgrades in future
+    //Continent modifier, reset every turn so a future upgrade can override it for one turn
+    //without the override sticking. The table is in src/config/balance.js (Phase 5.1).
     for (let i = 0; i < allTerritories().length; i++) {
-        //set each turn so that we can make exceptions after due to upgrades when introduced that code but HC for now
-        if (allTerritories()[i].continent === "Europe") {
-            allTerritories()[i].continentModifier = 1;
-        } else if (allTerritories()[i].continent === "North America") {
-            allTerritories()[i].continentModifier = 1;
-        } else if (allTerritories()[i].continent === "Asia") {
-            allTerritories()[i].continentModifier = 0.7;
-        } else if (allTerritories()[i].continent === "Oceania") {
-            allTerritories()[i].continentModifier = 0.6;
-        } else if (allTerritories()[i].continent === "South America") {
-            allTerritories()[i].continentModifier = 0.6;
-        } else if (allTerritories()[i].continent === "Africa") {
-            allTerritories()[i].continentModifier = 0.5;
+        const modifier = continentModifiers[allTerritories()[i].continent];
+        if (modifier !== undefined) {
+            allTerritories()[i].continentModifier = modifier;
         }
     }
 
@@ -714,12 +730,12 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     //implemented and used during initial army sizing, but commented out
                     //here -- so standing armies were free, which removed the principal
                     //economic brake on militarisation and made permanent sieges costless.
-                    changeGold -= calculateArmyMaintenanceCostPerTurn(allTerritories()[i]);
+                    changeGold -= armyMaintenanceFor(allTerritories()[i]);
                     changeOil = calculateOilChange(allTerritories()[i], false);
                     changeFood = calculateFoodChange(allTerritories()[i], false, false);
                     changeConsMats = calculateConsMatsChange(allTerritories()[i], false);
                     changePop = calculatePopulationChange(allTerritories()[i], false, null);
-                    changeProdPopTemp = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
+                    changeProdPopTemp = productivePopulationOf(allTerritories()[i]);
 
                     //Upkeep can exceed a turn income, so the change can be negative. Nothing
                     //in the game models debt -- a negative balance would flow straight into
@@ -729,12 +745,12 @@ function calculateTerritoryResourceIncomesEachTurn() {
                     allTerritories()[i].goldForCurrentTerritory = Math.max(0, allTerritories()[i].goldForCurrentTerritory + changeGold);
                     allTerritories()[i].oilForCurrentTerritory += changeOil;
                     allTerritories()[i].foodForCurrentTerritory += changeFood;
-                    allTerritories()[i].foodConsumption = allTerritories()[i].territoryPopulation + allTerritories()[i].armyForCurrentTerritory;
+                    allTerritories()[i].foodConsumption = foodConsumptionOf(allTerritories()[i]);
                     allTerritories()[i].consMatsForCurrentTerritory += changeConsMats;
                     allTerritories()[i].territoryPopulation = Math.max(0, allTerritories()[i].territoryPopulation + changePop); //audit 5.2 AJ
-                    allTerritories()[i].productiveTerritoryPop = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
+                    allTerritories()[i].productiveTerritoryPop = productivePopulationOf(allTerritories()[i]);
 
-                    changeProdPop = (((allTerritories()[i].territoryPopulation / 100) * 45) * allTerritories()[i].devIndex);
+                    changeProdPop = productivePopulationOf(allTerritories()[i]);
                     changeProdPop = changeProdPop - changeProdPopTemp;
 
                     const countryName = pathOwner(path);
@@ -795,15 +811,15 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true, ai);
 
-                changeProdPopTemp = (((besiegedTerritory.territoryPopulation / 100) * 45) * besiegedTerritory.devIndex);
+                changeProdPopTemp = productivePopulationOf(besiegedTerritory);
 
                 //besiegedTerritory.goldForCurrentTerritory += changeGold;
                 //besiegedTerritory.oilForCurrentTerritory += changeOil;
                 besiegedTerritory.foodForCurrentTerritory += changeFood;
-                besiegedTerritory.foodConsumption = besiegedTerritory.territoryPopulation + besiegedTerritory.armyForCurrentTerritory;
+                besiegedTerritory.foodConsumption = foodConsumptionOf(besiegedTerritory);
                 //besiegedTerritory.consMatsForCurrentTerritory += changeConsMats;
                 besiegedTerritory.territoryPopulation = Math.max(0, besiegedTerritory.territoryPopulation + changePop); //audit 5.2 AJ
-                besiegedTerritory.productiveTerritoryPop = (((besiegedTerritory.territoryPopulation / 100) * 45) * besiegedTerritory.devIndex);
+                besiegedTerritory.productiveTerritoryPop = productivePopulationOf(besiegedTerritory);
 
                 changeProdPop = besiegedTerritory.productiveTerritoryPop - changeProdPopTemp;
                 if (!ai) {
@@ -814,320 +830,168 @@ function calculateTerritoryResourceIncomesEachTurn() {
     }
 }
 
-function calculateConsMatsChange(territory, isSimulation) {
-    let consMatsChange = 0;
+//Phase 5.2: the arithmetic below lives in src/rules/economy/*, which is pure and runs in
+//Node. What is left here is the bridge: build the turn context, apply the disaster damage to
+//the live territory, and hand the delta back to the caller that writes it.
+//
+//The disaster damage is still a direct write to the territory rather than a delta, because
+//it is a REPLACEMENT of the stock and the four callers below all add their return value to
+//that same stock. Making it a delta too is the last step of the write-guard work and is
+//tracked in docs/05-known-issues.md.
 
-    //audit 5.2 Q: selectRandomEvent can return "Warehouse Fire", never "Forest Fire", so
-    //this branch never ran. One of the four random events did nothing at all -- and worse
-    //than nothing, because randomEventHappening still suppressed that turn regeneration and
-    //population change, costing the player a turn of growth for no effect.
-    if (randomEventHappening && randomEvent === "Warehouse Fire" && !isSimulation) { //ConsMats disaster
-        const isRandomlyTrue = Math.random() >= 0.5;
-        if (isRandomlyTrue) {
-            let tempConsMats = territory.consMatsForCurrentTerritory;
-            territory.consMatsForCurrentTerritory /= 1.5;
-            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its construction materials!");
-            console.log("It had " + tempConsMats + " but now it has " + territory.consMatsForCurrentTerritory);
-        } else {
-            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
+/** The turn's disaster state, in the shape rules/economy expects. */
+function economyContext(isSimulation) {
+    return {
+        randomEventHappening: randomEventHappening,
+        randomEvent: randomEvent,
+        isSimulation: Boolean(isSimulation)
+    };
+}
+
+/**
+ * Apply this turn's disaster to one territory, and log what it cost.
+ *
+ * `ownEvent` is the one disaster this caller is responsible for. Each of the four resource
+ * functions damages its own stock and no other, so exactly one of them acts on any given
+ * turn -- without that the four would each roll against the same active event and a mutiny
+ * would be charged four times.
+ */
+function applyRandomEventDamage(territory, context, ownEvent) {
+    const damage = context.randomEvent === ownEvent
+        ? randomEventDamageFor(territory, context)
+        : null;
+    if (context.randomEvent !== ownEvent) {
+        return;
+    }
+    if (!damage) {
+        if (context.randomEventHappening && !context.isSimulation) {
+            console.log(territory.dataName + "'s " + territory.territoryName + " escaped harm!");
         }
+        return;
     }
+    territory[damage.field] = damage.to;
+    console.log(territory.dataName + "'s " + territory.territoryName +
+        " was hit by the " + context.randomEvent + ": " + damage.from + " became " + damage.to);
+}
 
-    //if consMats is below consMats capacity then grow at 25% per turn
-    if (!randomEventHappening && territory.consMatsCapacity > territory.consMatsForCurrentTerritory) {
-        const consMatsDifference = territory.consMatsCapacity - (territory.consMatsForCurrentTerritory);
-        consMatsChange = (Math.ceil(consMatsDifference * 0.25));
-    }
-
-    //if consMats is above consMats capacity then lose it at 10% per turn until it balances
-    if (!randomEventHappening && territory.consMatsCapacity < territory.consMatsForCurrentTerritory) {
-        const consMatsDifference = (territory.consMatsForCurrentTerritory) - territory.consMatsCapacity;
-        consMatsChange = -(Math.ceil(consMatsDifference * 0.1));
-    }
-
-    return consMatsChange;
+function calculateConsMatsChange(territory, isSimulation) {
+    const context = economyContext(isSimulation);
+    applyRandomEventDamage(territory, context, "Warehouse Fire");
+    return consMatsChangeFor(territory, context);
 }
 
 function calculateGoldChange(territory, isSimulation, gameStartAdjustment) {
-    let goldChange = 0;
-    let continentModifierGold;
-
-    if (territory.continent === "Europe") {
-        continentModifierGold = 1;
-    } else if (territory.continent === "North America") {
-        continentModifierGold = 1;
-    } else if (territory.continent === "Asia") {
-        continentModifierGold = 0.5;
-    } else if (territory.continent === "Oceania") {
-        continentModifierGold = 0.8;
-    } else if (territory.continent === "South America") {
-        continentModifierGold = 0.4;
-    } else if (territory.continent === "Africa") {
-        continentModifierGold = 0.3;
-    }
-
-    if (randomEventHappening && randomEvent === "Mutiny" && !isSimulation) { //gold disaster
-        const isRandomlyTrue = Math.random() >= 0.5;
-        if (isRandomlyTrue) {
-            let tempGold = territory.goldForCurrentTerritory;
-            territory.goldForCurrentTerritory = Math.floor(territory.goldForCurrentTerritory * 0.75);
-            console.log(territory.dataName + "'s " + territory.territoryName + "was hit by a mutiny and lost 25% its gold!");
-            console.log("It had " + tempGold + " but now it has " + territory.goldForCurrentTerritory);
-        } else {
-            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-        }
-    }
-
-    if (randomEvent !== "Mutiny" || !randomEventHappening) {
-        //audit 5.2 AJ: log10 of a negative is NaN and log10 of 1 is 0, so an emptied
-        //territory used to produce either NaN or a division by zero -- and one NaN in
-        //goldForCurrentTerritory never recovers. Nothing productive left means nothing
-        //earned, which is also the honest answer.
-        const areaScalingFactor = Math.log10(Math.max(0, territory.area) + 1);
-        const populationScalingFactor = Math.log10(Math.max(0, territory.productiveTerritoryPop) + 1);
-
-        //audit 5.2 P: this read `(Math.max(territory.area / 10000000), 1)`. Math.max of one
-        //argument returns that argument, and the comma operator then discarded it and yielded
-        //1, so territory AREA had no effect on gold income at all. The floor of 1 keeps a
-        //small territory earning what it used to.
-        const areaBonus = Math.max(territory.area / 10000000, 1);
-        const goldIncome = areaBonus * parseFloat(territory.devIndex) * continentModifierGold * (territory.productiveTerritoryPop * 0.1);
-        const modifier = areaScalingFactor * populationScalingFactor;
-        goldChange = modifier > 0 ? Math.ceil(goldIncome / modifier) * 0.2 : 0; //audit 5.2 AJ
-
-        const minGoldChange = -800; //this will lift small countries gold
-        const maxGoldChange = 1000; //increasing this will push down large countries
-
-        const normalizedGoldChange = (goldChange - minGoldChange) / (maxGoldChange - minGoldChange);
-        const adjustedGoldChange = normalizedGoldChange * 100;
-        goldChange = adjustedGoldChange;
-    }
-
-    return goldChange;
+    const context = economyContext(isSimulation);
+    applyRandomEventDamage(territory, context, "Mutiny");
+    return goldChangeFor(territory, context);
 }
 
 function calculateOilChange(territory, isSimulation) {
-    let oilChange = 0;
-
-    if (randomEventHappening && randomEvent === "Oil Well Fire" && !isSimulation) { //oil disaster
-        const isRandomlyTrue = Math.random() >= 0.5;
-        if (isRandomlyTrue) {
-            let tempOil = territory.oilForCurrentTerritory;
-            territory.oilForCurrentTerritory /= 1.5;
-            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its oil!");
-            console.log("It had " + tempOil + " but now it has " + territory.oilForCurrentTerritory);
-        } else {
-            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-        }
-    }
-
-    //if oil is below oil capacity then grow at 30% per turn
-    if (!randomEventHappening && territory.oilCapacity > (territory.oilForCurrentTerritory)) {
-        const oilDifference = territory.oilCapacity - (territory.oilForCurrentTerritory);
-        oilChange = (Math.ceil(oilDifference * 0.3));
-    }
-
-    //if oil is above oil capacity then lose it at 10% per turn until it balances
-    if (!randomEventHappening && territory.oilCapacity < (territory.oilForCurrentTerritory)) {
-        const oilDifference = (territory.oilForCurrentTerritory) - territory.oilCapacity;
-        oilChange = -(Math.ceil(oilDifference * 0.1));
-    }
-
-    return oilChange;
+    const context = economyContext(isSimulation);
+    applyRandomEventDamage(territory, context, "Oil Well Fire");
+    return oilChangeFor(territory, context);
 }
 
 function calculateFoodChange(territory, isSimulation, cameFromSiege, ai) {
     if (cameFromSiege) {
-        territory = territory.defendingTerritory; //drill into array to make this function work
+        territory = territory.defendingTerritory; //a siege is passed in place of its territory
     }
-
-    let foodChange = 0;
-
-    if (randomEventHappening && randomEvent === "Food Disaster" && !isSimulation) { //food disaster
-        const isRandomlyTrue = Math.random() >= 0.5;
-        if (isRandomlyTrue) {
-            let tempFood = territory.foodForCurrentTerritory;
-            territory.foodForCurrentTerritory /= 2;
-            console.log(territory.dataName + "'s " + territory.territoryName + "was hit and  lost half its food!");
-            console.log("It had " + tempFood + " but now it has " + territory.foodForCurrentTerritory);
-        } else {
-            console.log(territory.dataName + "'s " + territory.territoryName + "escaped harm!");
-        }
-    }
-
-    //if food is below food capacity then grow at 20% per turn
-    if (!randomEventHappening && territory.foodCapacity > (territory.foodForCurrentTerritory * 10000)) {
-        const foodDifference = territory.foodCapacity - (territory.foodForCurrentTerritory * 10000);
-        foodChange = (Math.ceil(foodDifference * 0.2) / 10000);
-    }
-
-    //if food is above food capacity then lose it at 10% per turn until it balances
-    if (!randomEventHappening && territory.foodCapacity < (territory.foodForCurrentTerritory * 10000)) {
-        const foodDifference = (territory.foodForCurrentTerritory * 10000) - territory.foodCapacity;
-        foodChange = -(Math.ceil(foodDifference * 0.1) / 10000);
-    }
-
-    return foodChange;
+    const context = economyContext(isSimulation);
+    applyRandomEventDamage(territory, context, "Food Disaster");
+    return foodChangeFor(territory, context);
 }
 
+
+/**
+ * How much a territory's civilian population changes this turn, and what happens when the
+ * answer is "the army starves first".
+ *
+ * Phase 5.2: the arithmetic is in src/rules/economy/population.js, which is pure. What is
+ * left here is the part that is not arithmetic -- rolling the siege's army-starvation
+ * chance, ending a hopeless siege, and telling the UI. A besieged territory is passed as its
+ * SIEGE, not as its territory, which is why the first thing this does is drill into it.
+ *
+ * Returns 0 when the army starved instead: the civilians are untouched in that case, and
+ * the caller adds the return value to territoryPopulation.
+ */
 function calculatePopulationChange(territory, cameFromSiege, ai) {
     let siegeObject;
     if (cameFromSiege) {
         siegeObject = territory;
-        territory = territory.defendingTerritory; //drill into territory to make this function work
+        territory = territory.defendingTerritory;
     }
 
-    if (!randomEventHappening) {
-        let randomHitArmy = false;
-        const currentPopulation = territory.territoryPopulation + territory.infantryForCurrentTerritory + (territory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (territory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (territory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-        const devIndex = territory.devIndex;
-        const foodForCurrentTerritory = territory.foodForCurrentTerritory;
+    if (randomEventHappening) {
+        //A disaster turn costs nobody their life immediately, so the player has a turn to
+        //react to the loss before the famine it causes arrives.
+        return 0;
+    }
 
-        let populationChange = 0;
+    let populationChange = populationChangeFor(territory);
 
-        if (foodForCurrentTerritory * 10000 < currentPopulation) {
-            // Starvation situation
-            const foodShortage = Math.ceil((currentPopulation - foodForCurrentTerritory * 10000) / 1000);
-            const deathRate = Math.round(100 * (1 - devIndex) * 3); // Number of people who die based on devIndex
+    //A besieged garrison can be the one that goes hungry even when the civilians could have
+    //absorbed the shortfall. Rolled only while starving and only under siege, which is what
+    //the legacy code did and what keeps the draw count per turn unchanged.
+    const siegeHitsArmy = cameFromSiege && isStarving(territory) &&
+        Math.random() > populationBalance.siegeArmyStarvationChance;
 
-            //audit 5.2 AJ: the cap is `currentPopulation`, which counts the ARMY as well as
-            //the civilians -- but this change is applied to territoryPopulation alone. A
-            //famine could therefore kill more civilians than the territory has, driving
-            //territoryPopulation negative and, through it, productiveTerritoryPop.
-            populationChange = -Math.min(foodShortage * deathRate, currentPopulation, territory.territoryPopulation);
-            if (cameFromSiege) {
-                randomHitArmy = Math.random();
-                randomHitArmy = randomHitArmy > 0.3;
-            }
-        } else {
-            // Growth situation
-            const maxGrowth = foodForCurrentTerritory * 10000 - currentPopulation;
-            const growthPotential = Math.floor(devIndex * currentPopulation * 0.1);
-
-            populationChange = Math.min(maxGrowth, growthPotential);
-        }
-
-        //audit 5.1 F: this subtracted populationChange, which is NEGATIVE while starving, so
-        //the simulated population went UP and the "starve the army instead of the civilians"
-        //branch never fired during an actual famine while firing spuriously during growth.
-        //The simulation wants the population AFTER the change.
-        const simulatedProductiveTerritoryPop = ((((territory.territoryPopulation + populationChange) / 100) * 45) * devIndex) - territory.armyForCurrentTerritory;
-
-        if (simulatedProductiveTerritoryPop < 0 || (cameFromSiege && randomHitArmy)) { //if large army and not enough prod-pop, then starve army instead of population
-            if (cameFromSiege) {
-                const proportion = territory.armyForCurrentTerritory / territory.territoryPopulation;
-                populationChange = Math.floor(proportion * populationChange) * 10; //factor may have to change
-                let leaveSiegeFlag = checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject);
-                if (!leaveSiegeFlag) {
-                    starveArmyInstead(territory, populationChange, cameFromSiege);
-                } else {
-                    //leaveSiege
-                    const warId = siegeObject.warId;
-                    if (!ai) {
-                        setCurrentWarFlagString(siegeObject.defendingTerritory.dataName);
-                        addRemoveWarSiegeObject(1, siegeObject.warId, false);
-                    } else if (ai) {
-                        addRemoveWarSiegeObjectAi(1, siegeObject.warId, siegeObject, dummyAttackerObject); //we dont need the attacker but its mandatory to set variables at the start of the function so use this dummyAttackerObject as a workaround
-                    }
-
-                    //Ending the siege above clears `underSiege` on its own -- it is derived
-                    //from the siege lists (Phase 4.4/4.5) -- so only the overlay is left.
-                    const siegedPath = getPathByUniqueId(territory.uniqueId);
-                    if (siegedPath) {
-                        removeSiegeImageFromPath(ai, siegedPath);
-                    }
-                    setBattleResolutionOnHistoricWarArrayAfterSiege("Victory", warId, ai); //set war resolution as victory so icon works on war ui table etc, still useful for ai too
-                    if (!ai) {
-                        routeSiegeUIProcesses();  //draw correct ui in this process
-                    }
-                    handleWarEndingsAndOptions(2, territory, siegeObject.attackingArmyRemaining, siegeObject.defendingArmyRemaining, true, ai, siegeObject);
-                }
-            } else {
-                starveArmyInstead(territory, populationChange, cameFromSiege);
-            }
-            return 0;
-        }
-
+    if (!armyStarvesInstead(territory, populationChange) && !siegeHitsArmy) {
         return populationChange;
-    } else {
-        return 0; //if random event just happened for food, don't lose any people immediately until the next turn so the user can process it
     }
+
+    if (!cameFromSiege) {
+        applyArmyStarvation(territory, populationChange);
+        return 0;
+    }
+
+    populationChange = siegeArmyStarvationChange(territory, populationChange);
+
+    if (!checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject)) {
+        applyArmyStarvation(territory, populationChange);
+        return 0;
+    }
+
+    //The garrison is spent and holds no forts: the siege is over and the besieger has won.
+    const warId = siegeObject.warId;
+    if (!ai) {
+        setCurrentWarFlagString(siegeObject.defendingTerritory.dataName);
+        addRemoveWarSiegeObject(1, siegeObject.warId, false);
+    } else {
+        //doesn't need the attacker, but the function sets variables from it before it can
+        //branch, so a dummy stands in.
+        addRemoveWarSiegeObjectAi(1, siegeObject.warId, siegeObject, dummyAttackerObject);
+    }
+
+    //Ending the siege above clears `underSiege` on its own -- it is derived from the siege
+    //lists (Phase 4.4/4.5) -- so only the overlay is left.
+    const siegedPath = getPathByUniqueId(territory.uniqueId);
+    if (siegedPath) {
+        removeSiegeImageFromPath(ai, siegedPath);
+    }
+    setBattleResolutionOnHistoricWarArrayAfterSiege("Victory", warId, ai);
+    if (!ai) {
+        routeSiegeUIProcesses();
+    }
+    handleWarEndingsAndOptions(2, territory, siegeObject.attackingArmyRemaining, siegeObject.defendingArmyRemaining, true, ai, siegeObject);
+    return 0;
 }
 
-function starveArmyInstead(territory, populationChange, cameFromSiege) {
-    if (territory.infantryForCurrentTerritory > Math.abs(populationChange)) {
-        territory.infantryForCurrentTerritory -= Math.abs(populationChange);
-        territory.armyForCurrentTerritory -= Math.abs(populationChange);
-    } else {
-        let difference = Math.abs(populationChange) - territory.infantryForCurrentTerritory;
-        territory.infantryForCurrentTerritory = 0;
-
-        if (difference > 0 && difference < territory.useableAssault * vehicleArmyPersonnelWorth.assault) {
-            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyPersonnelWorth.assault);
-            if (amountToMakeUnuseable <= territory.useableAssault) {
-                territory.useableAssault -= amountToMakeUnuseable;
-                difference -= amountToMakeUnuseable * vehicleArmyPersonnelWorth.assault;
-            } else {
-                difference -= territory.useableAssault * vehicleArmyPersonnelWorth.assault;
-                territory.useableAssault = 0;
-            }
-        } else {
-            difference -= territory.useableAssault * vehicleArmyPersonnelWorth.assault;
-            territory.useableAssault = 0;
-        }
-
-        if (difference > 0 && difference < territory.useableAir * vehicleArmyPersonnelWorth.air) {
-            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyPersonnelWorth.air);
-            if (amountToMakeUnuseable <= territory.useableAir) {
-                territory.useableAir -= amountToMakeUnuseable;
-                difference -= amountToMakeUnuseable * vehicleArmyPersonnelWorth.air;
-            } else {
-                difference -= territory.useableAir * vehicleArmyPersonnelWorth.air;
-                territory.useableAir = 0;
-            }
-        } else {
-            difference -= territory.useableAir * vehicleArmyPersonnelWorth.air;
-            territory.useableAir = 0;
-        }
-
-        if (difference > 0 && difference < territory.useableNaval * vehicleArmyPersonnelWorth.naval) {
-            let amountToMakeUnuseable = Math.ceil(difference / vehicleArmyPersonnelWorth.naval);
-            if (amountToMakeUnuseable <= territory.useableNaval) {
-                territory.useableNaval -= amountToMakeUnuseable;
-            } else {
-                territory.useableNaval = 0;
-            }
-        } else {
-            difference -= territory.useableNaval * vehicleArmyPersonnelWorth.naval;
-            territory.useableNaval = 0;
-        }
-
-        //audit 5.2 AJ: this branch zeroes the infantry and eats into the vehicles but never
-        //touched armyForCurrentTerritory, so the total drifted away from the units it is
-        //supposed to summarise -- observed at -32,263 on a territory still holding 549,615
-        //infantry. Recompute it from what is actually left.
-        territory.armyForCurrentTerritory =
-            territory.infantryForCurrentTerritory +
-            (territory.useableAssault * vehicleArmyPersonnelWorth.assault) +
-            (territory.useableAir * vehicleArmyPersonnelWorth.air) +
-            (territory.useableNaval * vehicleArmyPersonnelWorth.naval);
-    }
-    territory.armyForCurrentTerritory = Math.max(0, territory.armyForCurrentTerritory);
-    territory.infantryForCurrentTerritory = Math.max(0, territory.infantryForCurrentTerritory);
-
-    if (cameFromSiege) {
-        for (let i = 0; i < allTerritories().length; i++) {
-            if (allTerritories()[i].uniqueId === territory.uniqueId) {
-                allTerritories()[i].armyForCurrentTerritory = territory.armyForCurrentTerritory;
-                allTerritories()[i].infantryForCurrentTerritory = territory.infantryForCurrentTerritory;
-                allTerritories()[i].useableAssault = territory.useableAssault;
-                allTerritories()[i].useableAir = territory.useableAir;
-                allTerritories()[i].useableNaval = territory.useableNaval;
-                //console.log("Useable: Assault: " + allTerritories()[i].useableAssault + " Air: " + allTerritories()[i].useableAir + " Naval: " + allTerritories()[i].useableNaval);
-            }
-        }
-    }
+/**
+ * Take the units a famine costs.
+ *
+ * Phase 5.2: which units are lost is decided by `planArmyStarvation()`, which is pure and
+ * returns absolute counts. This writes them, and -- because a besieged territory used to be
+ * a separate copy -- no longer scans all 359 territories to write the same numbers twice.
+ */
+function applyArmyStarvation(territory, populationChange) {
+    const survivors = planArmyStarvation(territory, populationChange);
+    territory.infantryForCurrentTerritory = survivors.infantryForCurrentTerritory;
+    territory.useableAssault = survivors.useableAssault;
+    territory.useableAir = survivors.useableAir;
+    territory.useableNaval = survivors.useableNaval;
+    territory.armyForCurrentTerritory = survivors.armyForCurrentTerritory;
 }
+
 
 export function formatNumbersToKMB(number, place) {
     if (number === 0 || (number > -1 && number < 1)) {
@@ -1155,58 +1019,21 @@ export function formatNumbersToKMB(number, place) {
     }
 }
 
+//Phase 5.2: both of these used to be a 359 x N nested scan producing an array of pairs and
+//then reducing it. The summation is in src/rules/economy/capacity.js and is pure; what is
+//left is turning the player path list into the territories it names.
+
+function playerTerritoryModels() {
+    const owned = new Set(playerOwnedTerritories.map(path => path.getAttribute("uniqueid")));
+    return allTerritories().filter(territory => owned.has(territory.uniqueId));
+}
+
 export function calculateAllTerritoryDemandsForPlayerCountry() {
-    const demandArray = [];
-
-    for (let i = 0; i < allTerritories().length; i++) {
-        for (let j = 0; j < playerOwnedTerritories.length; j++) {
-            if (allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                const totalOilDemand = allTerritories()[i].oilDemand;
-                const totalFoodConsumption = allTerritories()[i].foodConsumption;
-
-                demandArray.push([totalOilDemand, totalFoodConsumption]);
-            }
-        }
-    }
-
-    const reducedDemandArray = demandArray.reduce((acc, curr) => {
-        return curr.map((value, index) => acc[index] + value);
-    }, [0, 0]);
-
-    const result = {
-        totalOilDemand: reducedDemandArray[0],
-        totalFoodConsumption: reducedDemandArray[1]
-    };
-
-    return result;
+    return totalDemands(playerTerritoryModels());
 }
 
 function calculateAllTerritoryCapacitiesForPlayerCountry() {
-    const capacityArray = [];
-
-    for (let i = 0; i < allTerritories().length; i++) {
-        for (let j = 0; j < playerOwnedTerritories.length; j++) {
-            if (allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
-                const totalOilCapacity = allTerritories()[i].oilCapacity;
-                const totalFoodCapacity = allTerritories()[i].foodCapacity;
-                const totalConsMatsCapacity = allTerritories()[i].consMatsCapacity;
-
-                capacityArray.push([totalOilCapacity, totalFoodCapacity, totalConsMatsCapacity]);
-            }
-        }
-    }
-
-    const reducedCapacityArray = capacityArray.reduce((acc, curr) => {
-        return curr.map((value, index) => acc[index] + value);
-    }, [0, 0, 0]);
-
-    const result = {
-        totalOilCapacity: reducedCapacityArray[0],
-        totalFoodCapacity: reducedCapacityArray[1],
-        totalConsMatsCapacity: reducedCapacityArray[2]
-    };
-
-    return result;
+    return totalCapacities(playerTerritoryModels());
 }
 
 
@@ -4527,7 +4354,7 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
                 turnGainsArrayPlayer.changeOilCapacity += allTerritories()[i].oilCapacity - totalOilCapacityTemp;
             }
             if (allTerritories()[i].fortsBuilt > 0) {
-                allTerritories()[i].defenseBonus = Math.ceil((allTerritories()[i].fortsBuilt * (allTerritories()[i].fortsBuilt + 1) * 10) * allTerritories()[i].devIndex + allTerritories()[i].isLandLockedBonus);
+                allTerritories()[i].defenseBonus = defenseBonusFor(allTerritories()[i]);
             }
         }
     }
@@ -4565,13 +4392,13 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     };
 
     // Allocate 10% of the initialValue to infantry
-    const infantryAllocation = Math.floor(initialValue * 0.1);
+    const infantryAllocation = Math.floor(initialValue * initialArmyDistribution.infantryShare);
     initialDistribution.infantry = infantryAllocation;
     let remainingArmyValue = initialValue - infantryAllocation;
 
     // Allocate naval units based on available oil (limited to 20% of oilTerritory and 30% of remainingArmyValue)
-    const maxNavalOil = Math.floor(oilTerritory * 0.2);
-    const maxNavalArmy = Math.floor(remainingArmyValue * 0.3);
+    const maxNavalOil = Math.floor(oilTerritory * initialArmyDistribution.naval.oilShare);
+    const maxNavalArmy = Math.floor(remainingArmyValue * initialArmyDistribution.naval.armyShare);
     if (territory.getAttribute("isCoastal") === "true") {
         initialDistribution.naval = Math.min(
             Math.min(
@@ -4584,8 +4411,8 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     }
 
     // Allocate air units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
-    const maxAirOil = Math.floor(oilTerritory * 0.2);
-    const maxAirArmy = Math.floor(remainingArmyValue * 0.2);
+    const maxAirOil = Math.floor(oilTerritory * initialArmyDistribution.air.oilShare);
+    const maxAirArmy = Math.floor(remainingArmyValue * initialArmyDistribution.air.armyShare);
     initialDistribution.air = Math.min(
         Math.min(
             Math.floor(maxAirOil / oilRequirements.air),
@@ -4596,8 +4423,8 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     remainingArmyValue -= initialDistribution.air * vehicleArmyPersonnelWorth.air;
 
     // Allocate assault units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
-    const maxAssaultOil = Math.floor(oilTerritory * 0.2);
-    const maxAssaultArmy = Math.floor(remainingArmyValue * 0.2);
+    const maxAssaultOil = Math.floor(oilTerritory * initialArmyDistribution.assault.oilShare);
+    const maxAssaultArmy = Math.floor(remainingArmyValue * initialArmyDistribution.assault.armyShare);
     initialDistribution.assault = Math.min(
         Math.min(
             Math.floor(maxAssaultOil / oilRequirements.assault),
@@ -4613,85 +4440,43 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     return initialDistribution;
 }
 
+/**
+ * Recompute which of a territory's vehicles it can fuel, and roll the answer up into the
+ * player's totals.
+ *
+ * Phase 5.2: the gating itself is useableUnitsFor() in src/rules/economy/capacity.js and is
+ * pure. This is the part that is not: writing the answer onto the territory and refreshing
+ * the two table cells that show it. The three scans of all 359 territories the legacy
+ * version did -- one to read the territory, one to write it back, one to total the player up
+ * -- are a lookup and a single pass.
+ */
 export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
-    let territoryOilDemand;
-    let territoryOil;
+    const target = mainArray.find(candidate => candidate.uniqueId === territory.uniqueId);
+    if (!target) {
+        return;
+    }
 
-    let numberAssault;
-    let numberAir;
-    let numberNaval;
+    const useable = useableUnitsFor(target);
+    target.useableAssault = useable.useableAssault;
+    target.useableAir = useable.useableAir;
+    target.useableNaval = useable.useableNaval;
+    target.armyForCurrentTerritory = useable.armyForCurrentTerritory;
 
-    let useableAssault;
-    let useableAir;
-    let useableNaval;
+    if (currentSelectedPath && target.uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
+        document.getElementById("bottom-table").rows[0].cells[17].innerHTML =
+            formatNumbersToKMB(territory.armyForCurrentTerritory);
+    }
 
     let totalArmy = 0;
     let totalUseableAssault = 0;
     let totalUseableAir = 0;
     let totalUseableNaval = 0;
-
-    for (let i = 0; i < mainArray.length; i++) {
-        if (mainArray[i].uniqueId === territory.uniqueId) {
-            territoryOilDemand = mainArray[i].oilDemand;
-            territoryOil = mainArray[i].oilForCurrentTerritory;
-            numberAssault = mainArray[i].assaultForCurrentTerritory;
-            numberAir = mainArray[i].airForCurrentTerritory;
-            numberNaval = mainArray[i].navalForCurrentTerritory;
-            useableAssault = numberAssault;
-            useableAir = numberAir;
-            useableNaval = numberNaval;
-            break;
-        }
-    }
-
-    if (territoryOilDemand > territoryOil) {
-        let difference = territoryOilDemand - territoryOil;
-
-        let types = ["naval", "air", "assault"];
-        let index = 0;
-
-        while (difference > 0) {
-            let currentType = types[index];
-
-            if (currentType === "naval" && useableNaval > 0) {
-                useableNaval--;
-                difference -= oilRequirements.naval;
-            } else if (currentType === "air" && useableAir > 0) {
-                useableAir--;
-                difference -= oilRequirements.air;
-            } else if (currentType === "assault" && useableAssault > 0) {
-                useableAssault--;
-                difference -= oilRequirements.assault;
-            }
-
-            index = (index + 1) % 3;
-
-            if (difference <= 0) break;
-        }
-    }
-    for (let i = 0; i < mainArray.length; i++) {
-        if (mainArray[i].uniqueId === territory.uniqueId) {
-            mainArray[i].useableAssault = useableAssault;
-            mainArray[i].useableAir = useableAir;
-            mainArray[i].useableNaval = useableNaval;
-
-            mainArray[i].armyForCurrentTerritory = (mainArray[i].useableAssault * vehicleArmyPersonnelWorth.assault) + (mainArray[i].useableAir * vehicleArmyPersonnelWorth.air) + (mainArray[i].useableNaval * vehicleArmyPersonnelWorth.naval) + mainArray[i].infantryForCurrentTerritory;
-
-            if (mainArray[i].uniqueId === territory.uniqueId) {
-                if (mainArray[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
-                    break;
-                }
-            }
-            break;
-        }
-    }
-    for (let i = 0; i < mainArray.length; i++) {
-        if (mainArray[i].dataName === playerCountryName()) {
-            totalUseableAssault += (mainArray[i].useableAssault);
-            totalUseableAir += (mainArray[i].useableAir);
-            totalUseableNaval += (mainArray[i].useableNaval);
-            totalArmy += (mainArray[i].useableAssault * vehicleArmyPersonnelWorth.assault) + (mainArray[i].useableAir * vehicleArmyPersonnelWorth.air) + (mainArray[i].useableNaval * vehicleArmyPersonnelWorth.naval) + mainArray[i].infantryForCurrentTerritory;
+    for (const candidate of mainArray) {
+        if (candidate.dataName === playerCountryName()) {
+            totalUseableAssault += candidate.useableAssault;
+            totalUseableAir += candidate.useableAir;
+            totalUseableNaval += candidate.useableNaval;
+            totalArmy += armyTotalFor(candidate);
         }
     }
 
@@ -4700,7 +4485,8 @@ export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, terri
     totalPlayerResources[0].totalUseableAir = totalUseableAir;
     totalPlayerResources[0].totalUseableNaval = totalUseableNaval;
 
-    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+    document.getElementById("top-table").rows[0].cells[15].innerHTML =
+        formatNumbersToKMB(totalPlayerResources[0].totalArmy);
 }
 
 function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldCost) {
@@ -4841,12 +4627,12 @@ export function calculateTerritoryStrengths(territories) {
 
 function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory) {
     // Define scaling factors for each factor
-    const areaScale = 0.00001;
-    const resourceScale = 0.2;
-    const devIndexScale = 0.6;
-    const populationScale = 0.00001;
-    const continentModifierScale = 0.2;
-    const armyScale = 0.5;
+    const areaScale = territoryStrengthScales.area;
+    const resourceScale = territoryStrengthScales.resources;
+    const devIndexScale = territoryStrengthScales.devIndex;
+    const populationScale = territoryStrengthScales.population;
+    const continentModifierScale = territoryStrengthScales.continentModifier;
+    const armyScale = territoryStrengthScales.army;
 
     // Calculate the scaled values for each factor
     const scaledArea = area * areaScale;
@@ -4870,19 +4656,19 @@ export function setDemandArray(value) {
 }
 
 function calculateStartingArmy(territory) {
-    let startingArmy = (territory.startingPop * 0.01) * parseFloat(territory.dev_index);
+    let army = (territory.startingPop * startingArmy.populationRate) * parseFloat(territory.dev_index);
 
-    if (territory.country === "China" || territory.country === "India") {
-        startingArmy = Math.floor(startingArmy / 4); //moderate china and india due to their large starting pop
+    if (startingArmy.moderatedCountries.includes(territory.country)) {
+        army = Math.floor(army / startingArmy.moderationDivisor); //their starting populations dwarf everyone else's
     }
-    return startingArmy;
+    return army;
 }
 
 export function addRandomFortsToAllNonPlayerTerritories() {
     allTerritories().forEach(element => {
         if (!playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId)) {
             element.fortsBuilt = Math.floor(Math.random() * 4);
-            element.defenseBonus = Math.ceil((element.fortsBuilt * (element.fortsBuilt + 1) * 10) * element.devIndex + element.isLandLockedBonus);
+            element.defenseBonus = defenseBonusFor(element);
         }
 
         const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);
@@ -4932,31 +4718,15 @@ function checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject) {
 
     const fortsRemaining = siegeObject.defendingTerritory.fortsBuilt;
 
-    const result = fortsRemaining === 0 ? (remainingDefenseTotal <= startingDefenseTotal * 0.05) : false;
+    const result = fortsRemaining === 0 ? (remainingDefenseTotal <= startingDefenseTotal * SIEGE_ROUT_THRESHOLD) : false;
     console.log("Would be a rout: " + result);
     return result; //true leaves siege
 }
 
-function calculateArmyMaintenanceCostPerTurn(territory) {
-    const infantryCostPerUnit = armyCostPerTurn.infantry;
-    const assaultCostPerUnit = armyCostPerTurn.assault;
-    const airCostPerUnit = armyCostPerTurn.air;
-    const navalCostPerUnit = armyCostPerTurn.naval;
+//Phase 5.2: army upkeep is src/rules/economy/maintenance.js. armyMaintenanceFor() is
+//imported directly at the two call sites.
 
-    let totalMaintenanceCost = 0;
 
-    // Calculate maintenance cost for units
-    totalMaintenanceCost += territory.infantryForCurrentTerritory * infantryCostPerUnit;
-    totalMaintenanceCost += territory.useableAssault * assaultCostPerUnit;
-    totalMaintenanceCost += territory.useableAir * airCostPerUnit;
-    totalMaintenanceCost += territory.useableNaval * navalCostPerUnit;
-    return totalMaintenanceCost;
-}
-
-function calculateArmyMaintenanceCostForAdjustmentAtStartOfGame(totalArmyForCountry) {
-    const armyCostPerUnit = 0.001;
-    return totalArmyForCountry * armyCostPerUnit;
-}
 
 function reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment) {
     let multiple = armyCostPerTurn.infantry * 1000000;

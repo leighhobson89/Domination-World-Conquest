@@ -10,22 +10,23 @@ moment the battle UI opens; what happens inside it is `../battle/`.
 
 ## Notes
 
-- **🔴 INVADE! does not debit the source territory.** The plan (§5.9) says the
-  committed units leave immediately; measured, the source's infantry and army are
-  completely unchanged while the battle runs. The battle works on its own copies of
-  both armies (audit §3.2 — state in three places at once) and the source is only
-  reconciled when the war resolves. The intended behaviour is `test.fixme`; today's
-  is characterised beside it. Settle it in Phase 4.7.
+- **INVADE! debits the source territory immediately** (Phase 4.7, audit §5.1 AD), and a
+  no-penalty retreat returns the army through `retrievalArray` a turn later. Phase 5.8 found
+  the other half of that fix missing: the ORIGINAL debit, in the advance button's `Begin War!`
+  branch, had never been removed, so a fresh battle charged its sources **twice** and a player
+  committing a whole garrison was left holding a negative army.
+  `battle/outcomes.spec.js` pins it at once.
 - **🔴 The attack marker survives a cancel** by either route — the window's X or
   the move button's CANCEL. It is the marker half of the map-state desync in audit
   §5.3. Phase 6.7 removes the class of bug by making markers a function of state.
 - **`__game.wars()` reads `historicWars`, which is only written when a war ENDS.**
   An in-progress battle is not in it, so "who is fighting whom" is asserted through
   the battle UI's own title.
-- **No exact outcome is asserted anywhere.** See `../battle/README.md`.
+- **Exact outcomes ARE assertable now** — audit §5.3 Y is closed. See `../battle/README.md`.
 
 ## Out of scope here
 
-- The siege offer (probability under 15 %) and `siege-offer.spec.js` — reaching a
-  sub-15 % attack by clicking means finding a hopeless matchup on the live map,
-  which is a seed lottery. It wants the scenario loader (e2e plan §3.7).
+- The siege offer — delivered next door in `../siege/start-siege.spec.js`, because the button
+  lives in the battle UI rather than in the attack window. Note that the e2e plan states the
+  rule backwards: the Siege button is enabled **at or above** the 15 % threshold, not below it,
+  and the AI's rule in `ai/goals.js` agrees with the code.

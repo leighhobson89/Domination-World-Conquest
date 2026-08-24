@@ -16,13 +16,13 @@ questions:
    drifted; the numbers here are against the current working tree.
 3. What proves it fixed?
 
-**Issue ids are the audit's letters** (`A`–`Z`, `AA`–`AL`) and are stable. They are cited by
+**Issue ids are the audit's letters** (`A`–`Z`, `AA`–`AR`) and are stable. They are cited by
 the e2e specs and by the refactor plan, so they must not be renumbered. `AD` and `AE` were
 found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `AK` and `AL` by the
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: end of refactor Phase 4.**
+**Last updated: end of refactor Phase 5, including 5.8.**
 
 ## Status legend
 
@@ -37,16 +37,19 @@ symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
 | | Critical | High | Medium | Low |
 |---|---:|---:|---:|---:|
-| 🟢 Fixed | 13 | 15 | 9 | — |
+| 🟢 Fixed | 14 | 16 | 16 | 1 |
 | 🔴 Open | 0 | 0 | 1 | — |
-| 🟡 / ⚪ | 0 | 0 | 7 | 5 |
+| 🟡 / ⚪ | 0 | 0 | 6 | 4 |
 
 Phase 3 closed every critical and every high-severity defect in the register, plus five
 (**AF** through **AJ**) that only became reachable once the others were fixed. Every one of
 those five was found by the same spec: the ten-turn `long-run`.
 
 Phase 4 closed **AD**, **AK** and **AL**, structurally closed **AB**, and closed five more
-found while doing it (§4b). One defect is left open: **AE**, which Phase 6.7 owns.
+found while doing it (§4b).
+
+Phase 5.8 closed **Y** — the one that had held back the whole suite — and seven defects that
+closing it made reachable (§8). **One defect is left open: AE, which Phase 6.7 owns.**
 
 ---
 
@@ -56,7 +59,7 @@ One defect, structural rather than arithmetic, already sequenced.
 
 | Id | Issue | Status | Now at | Fixed by | Covered by |
 |---|---|---|---|---|---|
-| **AE** | **The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL | 🔴 Open | [transferAndAttack.js](../transferAndAttack.js), [ui.js](../ui.js) | 6.7 | `attack/attack-window.spec.js` (fixme) |
+| **AE** | **The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL | 🔴 Open | [transferAndAttack.js](../transferAndAttack.js), [ui.js](../ui.js) | 6.7 | `attack/attack-window.spec.js` — **the only `test.fixme` left in the suite** |
 
 It is not a patch. **AE** is the marker half of the map-state desync, and Phase 6.7 removes
 the whole class by making markers a pure function of state rather than something pushed onto
@@ -72,18 +75,17 @@ Real, understood, deliberately not being fixed yet.
 
 | Id | Issue | Fixed by | Notes |
 |---|---|---|---|
-| **Y** | Global `Math.random` — cosmetic sparkles share the game's RNG stream, so **seeding cannot make two runs agree** | 5.5 — injected RNG | `bootstrap/e2e-hook.spec.js` is `fixme`. **No test may assert an exact combat or economy outcome across runs until this is closed.** |
 | **S** | ~60 bare `tooltip` / `uiTable` identifiers resolve **only via named window access** | 6.3 | ESLint `no-undef` is the checklist |
 | — | Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path | 6.7 | the same root cause as **AE** |
-| — | `gameLoop()` **recurses infinitely** — no unwinding, no cancellation, no restart | 5.7 | |
-| — | Bootstrap ordering is timing-luck: turn 1's economy runs before leaders and forts exist | 5.7 | |
+| — | **Bootstrap ordering is timing-luck**: CPU leaders and the AI's starting forts are created *after* `initialiseGame()` resolves, which is after the engine has run turn 1 — so turn 1 plans and earns over a world with no leaders and no forts, and `newTurnResources()` skips the income pass on turn 1 to hide it | **7.x — balance pass** (was 5.7) | Re-sequenced in 5.8, with a measurement. Moving the setup inside `initialiseGame()` was implemented and tried: the ten-turn `long-run` went from **6/6 green to 0/6**, the player eliminated every time. A fully-formed AI first turn is a balance change, not a tidy-up. The finding is recorded at the site in `gameTurnsLoop.js` so nobody repeats it blind |
 | — | `eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state | 6.6 | |
-| — | Essentially **no error handling** — two `try/catch` in 19,800 lines, one of them empty | 5.7 | This is why every defect in §3 below froze the *whole game* rather than one turn |
+| — | ~~Essentially **no error handling** — two `try/catch` in 19,800 lines, one of them empty~~ | **DONE in 5.7** | `src/engine/TurnEngine.js` reports a thrown step through `onError` and carries on: one lost turn instead of a dead game. It is why every defect in §3 froze the *whole game* rather than one turn, and why a crash is now a failing e2e spec instead of a stuck phase button |
 | — | **No win or lose condition.** The game cannot be finished | 7.1 | |
 | — | **No save or load.** A refresh destroys everything | 7.3 | |
 | — | Unpaid army upkeep has **no consequence** — a broke territory keeps its army for free | 7.x | New in Phase 3, with maintenance re-enabled (**R**). Desertion is a design decision, not a defect fix |
-| — | The start-of-turn info panel is **suppressed on any turn that ends a siege by arrest** (`continueSiege === true` gates it), because the arrest raises the battle-results screen instead | 6.3 | Long-standing, but only visible now that sieges tick properly (**D**, **J**). `turn-loop/start-of-turn-ui.spec.js` states the rule rather than assuming the next turn |
+| — | ~~The start-of-turn info panel is **suppressed on any turn that ends a siege by arrest**~~ | **DONE in 5.8** | It was far worse than recorded: once sieges ticked properly (**D**, **J**) the AI arrested something nearly every turn, so the panel opened on NO turn at all and an empty results screen appeared in its place. See **AT** and **AU** in §8 |
 | — | **AI sieges accumulate without bound, and a besieged territory earns nothing.** Measured over 14 turns: 17 → 67 concurrent AI sieges, and a player besieged on turn 3 was still besieged on turn 14 with its income suspended throughout | 7.7 / 7.8 | See §5 — the single most player-visible consequence of Phase 3, and a design problem rather than a defect |
+| — | **The AI can eliminate a single-territory player in ten turns** once it plans its first turn with full information. Not reachable today — it is what the bootstrap-ordering item above turns on — but it is the measurement that sequences both | 7.7 / 7.x | Same root as the unbounded sieges: 206 independent actors, each evaluating every reachable enemy |
 | — | `dices.js` is fully wired but its call site is commented out; `dist/` (~1 MB) loads on every page view for it | 7.9 | decide: wire it or delete it |
 | — | `xButton` is a **duplicated id**; `#tooltip` has no `pointer-events: none` and eats the click beneath it; the transfer table's row handler is on the NAME column | 6.1 / 6.3 / 6.5 | all three are worked around in `tests/support/` |
 
@@ -92,13 +94,13 @@ Real, understood, deliberately not being fixed yet.
 | Issue | Fixed by |
 |---|---|
 | Mixed tabs and spaces, inconsistent brace style, commented-out blocks left in place | per file, as each moves into `src/` — house rule 5 |
-| `//DEBUG` blocks shipped in the turn loop (`logGoldStats`, `setDebugArraysToZero`) | 5.7 |
-| ~200 `console.log` calls in the turn and battle hot path | 5.7 |
-| Magic numbers throughout — `15`, `0.7`, `8000000`, `136067649`, `1000`, and now `COUNTRY_GREYOUT_RANK`, `UNIT_MATCHUP_EFFECTIVENESS`, `armyCostPerTurn` | 5.1 — `config/balance.js` |
+| ~~`//DEBUG` blocks shipped in the turn loop (`logGoldStats`, `setDebugArraysToZero`)~~ | **DONE in 5.8** — the two arrays, both getters, the 40-line logger and its two per-turn calls are all gone |
+| ~200 `console.log` calls in the turn and battle hot path | **6.3** (was 5.7) — they are almost all in `ui.js`, `battle.js` and `aiCalculations.js`, so they come out with the files rather than in a sweep of their own |
+| ~~Magic numbers throughout~~ | **DONE in 5.1** — `src/config/balance.js`. `COUNTRY_GREYOUT_RANK`, `UNIT_MATCHUP_EFFECTIVENESS`, `armyCostPerTurn`, `PROBABILITY_THRESHOLD_FOR_SIEGE` and the battle thresholds all live there and are imported by the specs that assert them |
 | Four names for one structure: `mainGameArray` / `mainArrayOfTerritoriesAndResources` / `mainArray` / `territories` — the first is gone, the parameter name survives in `battle.js` and `transferAndAttack.js` | 5.2 / 5.3, as each function becomes pure |
 | `dataName` is the *current owner* and changes on conquest, `territoryName` is the stable identity, `originalOwner` is historical. Named as such in `state/selectors.js` (`countryOf` vs `getTerritoryByName`) but the fields keep their old names in the model | 5.2 |
 | `battle.js` still exports ~25 `let`s of per-battle scratch (`currentRound`, `attackingArmyRemaining`, …) | 5.3 — `resolveRound()` is pure and has no module state |
-| Lint baseline: **205 errors, 380 warnings** (was 214 / 394 after Phase 3) | per file, as each moves into `src/` — house rule 6 |
+| Lint baseline: recorded per phase; re-measure at the start of Phase 6, which is the phase that owns `ui.js` | per file, as each moves into `src/` — house rule 6 |
 
 ---
 
@@ -284,15 +286,17 @@ Two things are worth keeping from it:
   not to invent new expectations. Where the wrong behaviour was worth stating out loud, a
   companion spec characterised what the game did *today*, written to **fail when the defect is
   fixed** — Phase 3 deleted three of those and un-`fixme`d what they guarded.
-- **A defect without a spec is not "untested by choice".** Several areas are deferred because
-  their setup is not reachable by clicking and they need the scenario loader
-  ([04](./04-e2e-test-plan.md) §3.7, a Phase 4 deliverable): `starvation`,
-  `resource-borrowing`, `deactivated-source`, `siege-offer`, and the battle terminal
-  conditions. **D**, **E**, **F** and **K** are fixed in the code and read correctly, but
-  their assertions wait on that loader — hoping the live map produces a rout is a seed
-  lottery, not a test.
-- **No test may assert an exact combat or economy outcome across runs** until **Y** is closed
-  in Phase 5.
+- **A defect without a spec is not "untested by choice".** The areas that used to be
+  deferred on the scenario loader are delivered: `siege-offer`, the battle terminal conditions
+  and `deactivated-source` (which moved into `conquest-lifecycle/`) all have specs, and
+  **D**, **E**, **F** and **K** are asserted in the running game rather than only in the
+  rules. What is still deferred is deferred for a stated reason, written down in the README of
+  the folder that would own it — never silently.
+- **A test MAY now assert an exact combat or economy outcome across runs.** **Y** is closed
+  (Phase 5.8): cosmetic randomness lives on its own stream in `src/platform/cosmeticRng.js`,
+  so `?seed=` repeats. `battle/rout.spec.js`, `battle/outcomes.spec.js` and the AI determinism
+  spec all depend on it. The invariant style is still the right choice where the invariant is
+  the more useful thing to state — it is a choice now, not a limit.
 
 ## 6. What Phase 3 made visible
 
@@ -318,3 +322,63 @@ turn.
 Both belong to the design work in **Phase 7**, and to the GDD rather than this register. They
 are recorded here because Phase 3 is what made them observable, and because a player would feel
 them long before they would feel any of the arithmetic that Phase 3 corrected.
+
+## 7. Found during Phase 5, deliberately not fixed there
+
+Phase 5 is an extraction, and House Rule 3 says a bug fix does not travel inside a move. These
+were all found while lifting the rules out and were left exactly as they were, so that a
+regression in the extraction stays bisectable. Each is a one-commit fix on its own.
+
+| Ref | Where | What |
+|---|---|---|
+| **AM** | ~~[ui.js](../ui.js) `getHistoricWarObject()`~~ | **FIXED in Phase 5.7.** It returned the **string** `"Error - Siege not found in either array in getHistoricWarObject()"` when the siege was not in the historic array, and `removeSiegeImageFromPath()` read `.defendingTerritory.territoryName` off it — `Cannot read properties of undefined`, which escaped the `gameLoop()` promise chain and froze the game on `AI MOVING...`. The `TurnEngine` caught it on the first Phase 5.7 `turn-loop` run, which is what made it reproducible at last. The lookup was never needed: the only thing taken from the siege was the besieged territory's name, and `removeSiegeImageFromPath()` is handed that territory's path — `territory-name` is identity, so it reads it directly. `getHistoricWarObject()` now returns `null` and has no callers. |
+| **AN** | [src/rules/economy/population.js](../src/rules/economy/population.js) `planArmyStarvation()` | A famine whose losses **exactly equal** the infantry count falls into the `else` branch for all three vehicle types and destroys the entire mechanised army. `remaining === 0` is not `remaining > 0`, so the partial-loss branch is skipped. Preserved verbatim from `starveArmyInstead()` and commented at the site. Owner: **Phase 7** balance pass. |
+| **AO** | [resourceCalculations.js](../resourceCalculations.js) `calculateAllTerritoryCapacitiesForPlayerCountry()` | `playerOwnedTerritories` is appended to on conquest without a duplicate check, and the capacity/demand totals used to count a duplicated path twice for the rest of that turn. Phase 5.2 replaced the nested scan with a `Set` of unique ids, which incidentally **fixes** this — the only behaviour change in the extraction, and it is a strict improvement. Recorded so it is not mistaken for drift. |
+| **AP** | [src/rules/military/battle.js](../src/rules/military/battle.js) `classifyOutcome()` | The rout / last-push / attacker-rout thresholds are compared against each side's combined force **as it stood at the start of the round**, not after that round's casualties — a full round of lag. Preserved, and made visible as an explicit `attackForce` / `defendForce` parameter rather than left implicit. Owner: **Phase 7** balance pass. |
+| **AQ** | ~~[resourceCalculations.js](../resourceCalculations.js)~~ | **CLOSED in Phase 5.5.** The initial-data seeding computed the defence bonus as `Math.ceil(f*(f+1)*10) * dev + landlocked`, with the ceiling around the fort term rather than the whole expression — different brackets from the three other sites. It never actually diverged, because `fortsBuilt` is 0 at seeding and both forms then reduce to the land-locked bonus; a fourth copy of the formula is how the divergence would have arrived. It calls the shared `defenseBonusFor()` now. |
+| **AR** | [src/rules/military/probability.js](../src/rules/military/probability.js) `areaBonusFor()` | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the intended small-territory defence bonus does not exist: every territory at or below the threshold scores exactly 1, and every territory above it is **penalised** instead — the reverse of what the comment and `AREA_BONUS_DAMPENING` describe. Almost certainly a `min`/`max` slip, of a piece with **P** (`Math.max(x), 1` discarding the area term from gold income). Correcting it moves the odds of every attack on the map. `tests/unit/rules-military.spec.js` asserts what it does, not what it was meant to do. Owner: **Phase 7** balance pass. |
+
+## 8. Closed in Phase 5.8
+
+Phase 5 met its exit criteria at 5.7 and still left its own `fixme` list unfinished. 5.8 is
+that list, and the defects that finishing it made reachable.
+
+### Y — the one that was holding the suite back
+
+| Id | Issue | Fix |
+|---|---|---|
+| **Y** | **Cosmetic randomness shared the game's RNG stream.** `addSparklesRegularly()` re-armed a timer every 0–100 ms and burned three `Math.random()` draws per tick — interval, top, left — on the same stream the economy, combat and the AI drew from. How many cosmetic draws fell between two game draws depended on wall-clock timing, so two runs of the same seed diverged and **no spec anywhere was allowed to assert an exact combat or economy outcome** | `src/platform/cosmeticRng.js`: a self-contained mulberry32, seeded from the clock, that never touches `Math.random`. The sparkle timer and the battle's dice sound draw from it. Cosmetics are deliberately *not* reproducible — seeding them from the harness would only put the timer back on a stream game logic reads |
+
+**What Y was costing.** Not one spec — a whole class of them. With it closed,
+`bootstrap/e2e-hook.spec.js`'s "the same seed produces the same world" is green, `ai-turn/`
+has the determinism spec the e2e plan calls "the guard that makes every other AI test
+possible", and `battle/rout.spec.js` asserts an exact rout outcome twice over. Five functional
+areas that had been waiting on it now exist.
+
+### Seven found by writing the specs Y unblocked
+
+None of these was reachable before: each needed either a run that repeats or a scenario that
+sets up a situation clicking cannot reach.
+
+| Id | Issue | Fix |
+|---|---|---|
+| **AS** | **Every fresh battle debited its source territories twice.** Phase 4.7 moved the debit to INVADE! (audit §5.1 **AD**) and added the call without removing the original one in the advance button's `Begin War!` branch. A player committing a whole garrison was left holding a **negative** army — which then fed population, food consumption and defence for the rest of the game, the same shape as **AJ**. A battle resumed from a siege skipped the second debit (`hasSiegedBefore` guarded it), which is why no siege spec ever saw it | The second call is gone. `battle/outcomes.spec.js` asserts the source is charged once and never goes below zero |
+| **AT** | **An empty battle-results screen at the start of almost every turn.** `handleEndSiegeDueArrest()` called `setUpResultsOfWarExternal(true)` for *every* arrest, including AI-versus-AI sieges the player has nothing to do with — and only the `!ai` branch ever populated the screen. The AI arrests something nearly every turn, so the player was handed a results screen holding column headers and nothing else, on top of the phase button | The screen is raised only when the player was a party to the siege — besieging, or besieged. An AI siege on a *player* territory that is broken now populates properly instead of being silent |
+| **AU** | **The start-of-turn info panel never opened.** `beginTurn()` gated it on `continueSiege === true` as well as on the player's preference, so it was suppressed on any turn where a siege ended in an arrest. That was defensible when at most one siege was processed per turn; once **D** and **J** were fixed and sieges actually ticked, an arrest happened nearly every turn and the preference silently never took effect at all | The gate says what it means. The collision it was avoiding is **AT**, and **AT** is fixed |
+| **AV** | **Two siege markers per siege, with the same id.** Phase 4.5 moved marker rendering to `src/ui/siegeOverlay.js` on the `siegeChanged` event and left the imperative `addImageToPath(…, "siege.png", 1)` behind in the siege button handler — and the same again on the AI side in `aiCalculations.js`. Two `<image>` elements, one duplicated id, and only one of them ever removed | Both call sites deleted. The marker is rendered from state, which is what Phase 4.5 was for |
+| **AW** | **The siege marker swallowed the click underneath it.** It carried no `pointer-events: none`, so a hit test at the centre of a besieged territory returned the marker rather than the path — and clicking the territory is the player's only route to `VIEW SIEGE`. A besieged territory could not be opened at all | `pointer-events: none` on the overlay, and on anything `addImageToPath()` draws. Same class as `#tooltip`, which the page objects still work around |
+| **AX** | **The country-selection lock was enforced by a fill colour.** The confirm button was gated on `country.getAttribute("fill") === GREY_OUT_COLOR`, in a block *outside* the `pathIsGreyedOut()` guard that opens `selectCountry()`. The colour picker repaints, so the lock came off in three clicks — click a locked country, change the colour, click it again — and the player could start as the United States. Measured, not theorised. The five were also painted flat grey, which read as "failed to render" rather than "not available" | The gate reads the store. The picker refuses to repaint a locked country and re-applies the lock after any whole-map restore. Locked countries keep their own hue muted toward grey, and clicking one says why there is no confirm button. `country-selection/locked-countries.spec.js` |
+| **AY** | **A territory could be painted `fill="undefined"`, which renders black.** Clicking a playable country and then a locked one un-picked the first through `setColorOnMap(territory)` with no second argument — the *in-game* form, which paints `territory.countryColor`, a field not populated until `pushColorsToMainArray()` runs on confirm. Separately the colour picker's markup value (`#000000`) and the store's default player colour (white) were two facts nothing reconciled, so any `change` on the untouched input adopted black | The call site passes the country-selection form, `setColorOnMap()` refuses to paint a non-colour rather than corrupting the map, and the picker is seeded from `playerColour()` when the selection screen opens |
+
+**AS is the one worth remembering.** It is Phase 4.7's own fix, half-applied: the new debit was
+added and the old one was left. Nothing caught it for two phases because the only spec that
+looked at the source territory looked *during* the battle, where one debit had happened and
+the second had not yet. The lesson is the one **AK** and **AL** already taught — a defect
+hides wherever no assertion looks, and "the number was right when I checked" is a statement
+about *when*.
+
+### One more, in the info panel
+
+| Issue | Fix |
+|---|---|
+| **The active-tab mark never moved.** `active` was added to `summaryButton` once, at game start, and removed from the other three only by the X button — no tab click touched it. `.tab-button.active` is what `style.css` highlights, so the Summary tab looked permanently selected however many times the player switched, and the `mouseout` handler (which asks `classList.contains("active")`) reset the wrong button's colour | `markActiveTab()` — one place writes which tab is selected. Phase 6.3 turns it into `InfoTable.update(state)` |

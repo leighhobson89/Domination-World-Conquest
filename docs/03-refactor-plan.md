@@ -259,15 +259,15 @@ casually**.
 
 **Goal:** cold start in under 3 seconds, and make the game automatable.
 
-| Step | Action | Fixes |
-|---|---|---|
-| 1.1 | **Load `closestPathsData.json` exactly once** into a `Map<uniqueId, entry>` in `data/adjacency.js`. Replace `readClosestPointsJSON(i)` with a synchronous `getReachableFrom(uniqueId)`. | Audit §4.1 — removes ~6.8 GB of redundant parsing |
-| 1.2 | Convert `initialiseGame`'s per-territory `await` loop into a single synchronous pass over the pre-built map. Keep the "loading" progress display, driven by a counter instead of by I/O. | §4.1 |
-| 1.3 | Compact the adjacency data. It is 19 MB largely because of full float coordinate pairs. Emitting `uniqueId` + rounded closest-point pairs should land under 2 MB. Ship `tools/build-adjacency.mjs` to regenerate it. | §2.3 |
-| 1.4 | Precompute path areas to `data/pathAreas.json` via `tools/precompute-areas.mjs`; fall back to live computation if the SVG changes (checksum guard). Removes 359 × 80 `getPointAtLength` calls per load. | §4.2 |
-| 1.5 | Build `uniqueId → territory` and `uniqueId → path` index maps once at load. Replace the ~90 linear-scan lookup loops progressively. | §4.2 |
-| 1.6 | **Add a test harness hook.** Behind `?e2e=1`, expose `window.__game = { state, commands, ready }` and a `window.__seedRandom(seed)` that installs a seeded `Math.random` before any module runs. | Prerequisite for [04](./04-e2e-test-plan.md) |
-| 1.7 | Kill the three `setTimeout(…, 1000)` dynamic-import hacks by moving the shared state they reach for into `data/` (which imports nothing). `manualAdjacencyExceptions` becomes a plain exported table keyed by **territory name**, resolved to ids lazily. | §3.1 — removes a real race |
+| Step | Action | Fixes | Status |
+|---|---|---|---|
+| 1.1 | **Load `closestPathsData.json` exactly once** into a `Map<uniqueId, entry>` in `data/adjacency.js`. Replace `readClosestPointsJSON(i)` with a synchronous `getReachableFrom(uniqueId)`. | Audit §4.1 — removes ~6.8 GB of redundant parsing | ✅ |
+| 1.2 | Convert `initialiseGame`'s per-territory `await` loop into a single synchronous pass over the pre-built map. Keep the "loading" progress display, driven by a counter instead of by I/O. | §4.1 | ✅ |
+| 1.3 | Compact the adjacency data. It is 19 MB largely because of full float coordinate pairs. Emitting `uniqueId` + rounded closest-point pairs should land under 2 MB. Ship `tools/build-adjacency.mjs` to regenerate it. | §2.3 | ✅ |
+| 1.4 | Precompute path areas to `data/pathAreas.json` via `tools/precompute-areas.mjs`; fall back to live computation if the SVG changes (checksum guard). Removes 359 × 80 `getPointAtLength` calls per load. | §4.2 | ✅ |
+| 1.5 | Build `uniqueId → territory` and `uniqueId → path` index maps once at load. Replace the ~90 linear-scan lookup loops progressively. | §4.2 | ✅ |
+| 1.6 | **Add a test harness hook.** Behind `?e2e=1`, expose `window.__game = { state, commands, ready }` and a `window.__seedRandom(seed)` that installs a seeded `Math.random` before any module runs. | Prerequisite for [04](./04-e2e-test-plan.md) | ✅ |
+| 1.7 | Kill the three `setTimeout(…, 1000)` dynamic-import hacks by moving the shared state they reach for into `data/` (which imports nothing). `manualAdjacencyExceptions` becomes a plain exported table keyed by **territory name**, resolved to ids lazily. | §3.1 — removes a real race | ✅ |
 
 **Exit criteria:** cold start < 3 s; no `setTimeout`-gated imports remain; `window.__game` available under `?e2e=1`. — **all met.**
 
@@ -356,13 +356,13 @@ takes ~2000 ms instead of ~550 ms — contention, not regression.
 
 **Goal:** characterisation coverage before anything is moved.
 
-| Step | Action |
-|---|---|
-| 2.1 | Stand up the Playwright harness exactly as specified in [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3 — config, runner, `--slow`, worker policy, fixtures. |
-| 2.2 | Write the **P0 specs** (bootstrap, country-selection, turn-loop, map-interaction). These are the ones every other test depends on. |
-| 2.3 | Write **P1 specs** (resources-economy, buy-military, upgrade-territory, transfer, attack, battle). |
-| 2.4 | Wire `npm test` → unit + e2e, and add a CI workflow that runs headless × 8 workers. |
-| 2.5 | Snapshot current numeric behaviour where it is *wrong but known* — mark those assertions `test.fixme` with a link to the audit item, so Phase 3 flips them green rather than inventing expectations. |
+| Step | Action | Status |
+|---|---|---|
+| 2.1 | Stand up the Playwright harness exactly as specified in [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3 — config, runner, `--slow`, worker policy, fixtures. | ✅ |
+| 2.2 | Write the **P0 specs** (bootstrap, country-selection, turn-loop, map-interaction). These are the ones every other test depends on. | ✅ |
+| 2.3 | Write **P1 specs** (resources-economy, buy-military, upgrade-territory, transfer, attack, battle). | ✅ |
+| 2.4 | Wire `npm test` → unit + e2e, and add a CI workflow that runs headless × 8 workers. | ✅ |
+| 2.5 | Snapshot current numeric behaviour where it is *wrong but known* — mark those assertions `test.fixme` with a link to the audit item, so Phase 3 flips them green rather than inventing expectations. | ✅ |
 
 **Exit criteria:** P0 + P1 green (or explicitly `fixme`) on a clean checkout, repeatably, in under 5 minutes. — **met.**
 
@@ -462,26 +462,26 @@ commit with a test that fails before and passes after.
 
 Order matters — these are sequenced by blast radius.
 
-| Order | Audit ref | Fix |
-|---|---|---|
-| 3.0 | §5.1 AC | Military purchases are charged twice: `addPlayerPurchases` deducts the cost, then both `checkForMinusAndTransfer…` helpers deduct it again outside their `if (short)` branch. Move each trailing deduction inside the branch, or have the helpers transfer only. One-line class of fix, immediately felt by the player. Unblocks `buy-military/purchase.spec.js`. |
-| 3.1 | §5.1 A | Upgrade capacity bonuses: apply `+10 %` **per building purchased in this transaction** against the pre-transaction capacity, not the running total. Recompute from `buildingsBuilt` rather than mutating incrementally. |
-| 3.1a | §5.1 AA | **Do this first — it is the only defect that stops the game.** `determineResourcesAvailableForThisGoal` reassigns `refinedTurnGoals` from inside a loop indexed against its old length, throws on the last index, and the unhandled rejection kills `gameLoop()` for good. Iterate a snapshot; rebuild the goal list once, at the end. Unblocks `turn-loop/long-run.spec.js`. |
-| 3.2 | §5.1 C, B, AB | Hoist `count` out of the AI loops; guard the write-back so `"no match"` is never assigned. Replace the sentinel string with `null` and an explicit `if (!friendly \|\| !enemy) continue;`. **Also stop the write-back substituting whole elements** (`mainGameArray[i] = copy`) — assign the fields, or drop the copy entirely, so the Phase 1.5 territory index cannot be orphaned. §5.1 AB is only fully closed by Phase 4.4. |
-| 3.3 | §5.1 E | `unchangeableWarStartCombinedForceDefend = calculateCombinedForce(totalDefendingArmy)`. |
-| 3.4 | §5.1 D | `return` → `continue` in both siege-per-turn loops; push `true` on a miss. |
-| 3.5 | §5.1 F | `territoryPopulation + populationChange` in the starvation simulation. |
-| 3.6 | §5.1 G | Initialise `turnGainsArrayAi[countryName]` once per turn, outside the territory loop. |
-| 3.7 | §5.1 H | `for (const country of Object.values(turnGainsArrayAi))`. |
-| 3.8 | §5.2 I | Rename the inner loop variables (`w`, `k`). ESLint `no-shadow` prevents recurrence. |
-| 3.9 | §5.2 J | Move `changeDuringAnySiege` inside the loop, or drop it — process every besieged territory. |
-| 3.10 | §5.2 N, O | Fix the `aiTurnsDeactivatedArray[i][0]` index; **splice entries out** once reactivated in both functions. |
-| 3.11 | §5.2 L | Clear `proportionsOfAttackArray` at the top of `setupBattle`. |
-| 3.12 | §5.2 M | Remove the shadowing `let`. |
-| 3.13 | §5.1 P | Fix the `Math.max(...)` parenthesis so area contributes to gold income; re-balance if it swings the economy. |
-| 3.14 | §5.1 Q | Rename the event to `"Warehouse Fire"` in the handler (and give it a distinct effect from the oil fire). |
-| 3.15 | §5.2 K | Decide the design question: either allow cross-type skirmishes with a matchup matrix, or guarantee at least one skirmish per round so a battle always resolves. **Recommend the matchup matrix** — it makes army composition matter, which currently it barely does. |
-| 3.16 | §5.1 R | Re-enable per-turn army maintenance. Expect this to change balance significantly; tune `armyCostPerTurn` against a 20-turn playthrough. |
+| Order | Audit ref | Fix | Status |
+|---|---|---|---|
+| 3.0 | §5.1 AC | Military purchases are charged twice: `addPlayerPurchases` deducts the cost, then both `checkForMinusAndTransfer…` helpers deduct it again outside their `if (short)` branch. Move each trailing deduction inside the branch, or have the helpers transfer only. One-line class of fix, immediately felt by the player. Unblocks `buy-military/purchase.spec.js`. | ✅ |
+| 3.1 | §5.1 A | Upgrade capacity bonuses: apply `+10 %` **per building purchased in this transaction** against the pre-transaction capacity, not the running total. Recompute from `buildingsBuilt` rather than mutating incrementally. | ✅ |
+| 3.1a | §5.1 AA | **Do this first — it is the only defect that stops the game.** `determineResourcesAvailableForThisGoal` reassigns `refinedTurnGoals` from inside a loop indexed against its old length, throws on the last index, and the unhandled rejection kills `gameLoop()` for good. Iterate a snapshot; rebuild the goal list once, at the end. Unblocks `turn-loop/long-run.spec.js`. | ✅ |
+| 3.2 | §5.1 C, B, AB | Hoist `count` out of the AI loops; guard the write-back so `"no match"` is never assigned. Replace the sentinel string with `null` and an explicit `if (!friendly \|\| !enemy) continue;`. **Also stop the write-back substituting whole elements** (`mainGameArray[i] = copy`) — assign the fields, or drop the copy entirely, so the Phase 1.5 territory index cannot be orphaned. §5.1 AB is only fully closed by Phase 4.4. | ✅ |
+| 3.3 | §5.1 E | `unchangeableWarStartCombinedForceDefend = calculateCombinedForce(totalDefendingArmy)`. | ✅ |
+| 3.4 | §5.1 D | `return` → `continue` in both siege-per-turn loops; push `true` on a miss. | ✅ |
+| 3.5 | §5.1 F | `territoryPopulation + populationChange` in the starvation simulation. | ✅ |
+| 3.6 | §5.1 G | Initialise `turnGainsArrayAi[countryName]` once per turn, outside the territory loop. | ✅ |
+| 3.7 | §5.1 H | `for (const country of Object.values(turnGainsArrayAi))`. | ✅ |
+| 3.8 | §5.2 I | Rename the inner loop variables (`w`, `k`). ESLint `no-shadow` prevents recurrence. | ✅ |
+| 3.9 | §5.2 J | Move `changeDuringAnySiege` inside the loop, or drop it — process every besieged territory. | ✅ |
+| 3.10 | §5.2 N, O | Fix the `aiTurnsDeactivatedArray[i][0]` index; **splice entries out** once reactivated in both functions. | ✅ |
+| 3.11 | §5.2 L | Clear `proportionsOfAttackArray` at the top of `setupBattle`. | ✅ |
+| 3.12 | §5.2 M | Remove the shadowing `let`. | ✅ |
+| 3.13 | §5.1 P | Fix the `Math.max(...)` parenthesis so area contributes to gold income; re-balance if it swings the economy. | ✅ |
+| 3.14 | §5.1 Q | Rename the event to `"Warehouse Fire"` in the handler (and give it a distinct effect from the oil fire). | ✅ |
+| 3.15 | §5.2 K | Decide the design question: either allow cross-type skirmishes with a matchup matrix, or guarantee at least one skirmish per round so a battle always resolves. **Recommend the matchup matrix** — it makes army composition matter, which currently it barely does. | ✅ |
+| 3.16 | §5.1 R | Re-enable per-turn army maintenance. Expect this to change balance significantly; tune `armyCostPerTurn` against a 20-turn playthrough. | ✅ |
 
 **Exit criteria:** every `fixme` from 2.5 flipped green; a 20-turn scripted playthrough completes with no console errors and no `NaN` in any territory.
 
@@ -637,16 +637,16 @@ Phase 7 work, but they are what a player will feel first:
 
 **Goal:** one source of truth. This is the change everything else depends on.
 
-| Step | Action |
-|---|---|
-| 4.1 | Create `state/GameState.js` holding `territories` (a `Map`), `players`, `turn`, `phase`, `wars`, `sieges`. Seed it from the existing construction path — **do not rewrite the construction logic yet**. |
-| 4.2 | Add `state/selectors.js` (pure reads) and `state/mutations.js` (the only writer). Add a dev-mode `Object.freeze` / proxy trap that throws on direct writes from outside `mutations.js`. |
-| 4.3 | Add `state/events.js` — a 30-line emitter. `mutations.js` emits `territoryChanged`, `turnChanged`, `phaseChanged`, `warChanged`. |
-| 4.4 | **Invert the SVG relationship.** Migrate, attribute by attribute, from "the path is the truth" to "the path renders the truth": `owner`, `data-name`, `underSiege`, `deactivated`, `greyedOut`, `attackableTerritory`. Keep writing the attributes during migration (tests still assert on them), but read only from state. |
-| 4.5 | Delete `normalizeSiegeState()` — it becomes structurally impossible for the siege lists and the map to disagree. |
-| 4.6 | Collapse `turnPhase` / `currentTurnPhase` into `GameState.phase` with a `Phase` enum. |
-| 4.7 | Make siege/war objects hold a **territory id**, not a territory copy. Delete every manual sync-back (`setMainArrayToArmyRemaining` and friends). |
-| 4.8 | Remove every `export let` of game state; export functions instead. |
+| Step | Action | Status |
+|---|---|---|
+| 4.1 | Create `state/GameState.js` holding `territories` (a `Map`), `players`, `turn`, `phase`, `wars`, `sieges`. Seed it from the existing construction path — **do not rewrite the construction logic yet**. | ✅ |
+| 4.2 | Add `state/selectors.js` (pure reads) and `state/mutations.js` (the only writer). Add a dev-mode `Object.freeze` / proxy trap that throws on direct writes from outside `mutations.js`. | ✅ |
+| 4.3 | Add `state/events.js` — a 30-line emitter. `mutations.js` emits `territoryChanged`, `turnChanged`, `phaseChanged`, `warChanged`. | ✅ |
+| 4.4 | **Invert the SVG relationship.** Migrate, attribute by attribute, from "the path is the truth" to "the path renders the truth": `owner`, `data-name`, `underSiege`, `deactivated`, `greyedOut`, `attackableTerritory`. Keep writing the attributes during migration (tests still assert on them), but read only from state. | ✅ |
+| 4.5 | Delete `normalizeSiegeState()` — it becomes structurally impossible for the siege lists and the map to disagree. | ✅ |
+| 4.6 | Collapse `turnPhase` / `currentTurnPhase` into `GameState.phase` with a `Phase` enum. | ✅ |
+| 4.7 | Make siege/war objects hold a **territory id**, not a territory copy. Delete every manual sync-back (`setMainArrayToArmyRemaining` and friends). | ✅ |
+| 4.8 | Remove every `export let` of game state; export functions instead. | ✅ |
 
 **Exit criteria:** `mainGameArray` no longer exists; no game state is read from a DOM attribute; e2e suite still green.
 
@@ -766,21 +766,201 @@ all assert on state and text — `bootstrap/state-layer.spec.js` now asserts the
 
 ---
 
-### Phase 5 — Extract pure rules (4–5 days)
+### Phase 5 — Extract pure rules (4–5 days) — ✅ **COMPLETE**
 
 **Goal:** every rule runs in Node.
 
-| Step | Action |
-|---|---|
-| 5.1 | Move all tunable numbers into `config/balance.js`. Every magic number in the audit §5.4 list gets a name. |
-| 5.2 | Extract `rules/economy/*` from `resourceCalculations.js` as pure functions: `(territory, context) → deltas`. No DOM, no writes — callers apply the deltas via `mutations.js`. |
-| 5.3 | Extract `rules/military/*` from `battle.js`. `resolveRound(attackers, defenders, ctx) → { attackers, defenders, outcome }` — pure, deterministic given an injected RNG. |
-| 5.4 | Extract `rules/military/siege.js`: `tickSiege(siege, ctx, rng) → SiegeTickResult`. |
-| 5.5 | Split `ai/` out of `aiCalculations.js` along the existing seams (threat → goals → actions), injecting the seeded RNG rather than reaching for a module global. |
-| 5.6 | Write **unit tests** (Vitest) for every extracted rule. This is where the numeric coverage lives; e2e stays behavioural. Target: every function in `rules/` has a test. |
-| 5.7 | Replace `gameLoop()`'s infinite recursion with `engine/TurnEngine.js` — an explicit state machine with `start()`, `advancePhase()`, `stop()`, `reset()`. This is what makes "New Game" and "Restart" possible. |
+| Step | Action | Status |
+|---|---|---|
+| 5.1 | Move all tunable numbers into `config/balance.js`. Every magic number in the audit §5.4 list gets a name. | ✅ |
+| 5.2 | Extract `rules/economy/*` from `resourceCalculations.js` as pure functions: `(territory, context) → deltas`. No DOM, no writes — callers apply the deltas via `mutations.js`. | ✅ |
+| 5.3 | Extract `rules/military/*` from `battle.js`. `resolveRound(attackers, defenders, ctx) → { attackers, defenders, outcome }` — pure, deterministic given an injected RNG. | ✅ |
+| 5.4 | Extract `rules/military/siege.js`: `tickSiege(siege, ctx, rng) → SiegeTickResult`. | ✅ |
+| 5.5 | Split `ai/` out of `aiCalculations.js` along the existing seams (threat → goals → actions), injecting the seeded RNG rather than reaching for a module global. | ✅ |
+| 5.6 | Write **unit tests** (Vitest) for every extracted rule. This is where the numeric coverage lives; e2e stays behavioural. Target: every function in `rules/` has a test. | ✅ |
+| 5.7 | Replace `gameLoop()`'s infinite recursion with `engine/TurnEngine.js` — an explicit state machine with `start()`, `advancePhase()`, `stop()`, `reset()`. This is what makes "New Game" and "Restart" possible. | ✅ |
+| 5.8 | **Close the phase.** Take cosmetic randomness off the game RNG stream so ?seed= genuinely repeats (audit 5.3 Y), retire the last reachable test.fixme, and clear the defects that closing the RNG made visible. Added after the fact: 5.1-5.7 met the phase exit criteria but left its fixme list unfinished. | ✅ |
 
-**Exit criteria:** `rules/` and `ai/` import nothing from `ui/`; unit suite covers economy, battle, siege, AI scoring; e2e still green.
+**Exit criteria:** `rules/` and `ai/` import nothing from `ui/`; unit suite covers economy, battle, siege, AI scoring; e2e still green. ✅
+
+---
+
+### Phase 5 — what actually landed
+
+**Every rule runs in Node.** The thirteen modules under `src/rules/`, `src/ai/` and
+`src/engine/` import from `config/` and `state/selectors.js` and from nothing else. Each one
+was also imported into a bare Node process to check it, because "no `ui/` in the import list"
+and "actually loads without a DOM" are not the same claim.
+
+**5.4 — `rules/military/siege.js`.** `tickSiege(siege, rng)` reads a siege and returns what
+happened; it writes nothing. The caller turns that into a patch with `siegeDamageDeltas()`
+and applies it through `mutations.js`. Every probability in a siege turn is a band on ONE
+number — the siege score minus the territory's forts and mountains — and naming that
+(`scoreDifferenceFor()`) is most of what made the module legible.
+
+`calculatePlayerInitiatedSiegePerTurn()` and `calculateAiInitiatedSiegePerTurn()` were two
+copies of the same fifty lines, differing only in which list they walked and what they logged.
+They are one `runSiegeTurnFor(side)`. `changeDefendingTerritoryStatsBasedOnSiege()`'s four
+near-identical if/else blocks are a loop over `SIEGE_TARGETS`. And the four hand-written lines
+that built an arrested garrison — one of which indexed a four-element array by half the
+attacker's assault count and set the territory's army to `NaN` for the rest of the game
+(defect AL) — are `arrestGarrisonFor()`, which computes the total from its own four counts so
+the total cannot disagree with its parts.
+
+The RNG draw order and draw COUNT are preserved exactly: collateral roll first, then the
+destroy roll, then the destruction rolls. That is what the stream has always seen.
+
+**5.5 — `src/ai/{rng,threat,goals}.js`.** The seeded per-country stream, the threat scoring,
+and the goal pipeline. `goals.js` takes its two impure dependencies as ARGUMENTS rather than
+importing them — the seeded rng, and `calculateProbabilityPreBattle` (which lives in
+`battle.js` and caches modifiers for a mid-battle recalculation, a side effect a planner has
+no business knowing about). That injection is the whole reason the module could leave: without
+it, `goals.js` imports `battle.js`, which imports `ui.js`.
+
+`PROBABILITY_THRESHOLD_FOR_SIEGE` moved from `ui.js` to `config/balance.js` for the same
+reason. It is a balance number that happened to be declared in the UI, and it was the other
+thing tying the planner to the DOM.
+
+**What did NOT move, and why.** `doAiActions()` and the action executors stay in
+`aiCalculations.js`. They open dialogue boxes, repaint the map and add siege images — they are
+inseparable from the UI until Phase 6 decomposes it, and moving them under `src/ai/` would
+have dragged `ui.js` into the very folder the phase exists to keep clean. The plan's
+`ai/actions/*` and `ai/diplomacy.js` are a **Phase 6** deliverable, once there is a component
+to talk to instead of a `getElementById`.
+
+**5.6 — 288 unit tests, up from 168.** Every function in `rules/` has one. The numeric
+coverage lives here and e2e stays behavioural, which is the split the plan asked for. Several
+tests are named for the defect they pin (`audit 5.2 AJ`, `audit 5.1 E`, `audit 5.2 Q`,
+`defect AL`), and three assert behaviour that is known to be WRONG — the exact-match famine
+wiping out a fleet (**AN**), the round of threshold lag (**AP**), the inverted area bonus
+(**AR**) — so that correcting them in the Phase 7 balance pass is a deliberate act with a
+failing test, not a silent drift.
+
+**5.7 — `engine/TurnEngine.js`.** `gameLoop()` ran the start-of-turn block and then chained
+three promises, the last of which called itself. Three things were wrong with that:
+
+- **Nothing could stop it.** Nothing held a reference to the loop. A new game meant a reload.
+- **There was no `catch` anywhere in the chain.** A throw inside the AI turn escaped as an
+  unhandled rejection and the loop simply never continued — the phase button stuck on
+  `AI MOVING...` and the game was over, permanently, with nothing surfaced to the player.
+  Phase 3 fixed five crashes that all presented exactly this way.
+- **"Wait for the player" was three near-identical private functions**, each wrapping a
+  `#popup-confirm` listener in a Promise.
+
+The engine is a sequencer and knows nothing about this game: `beginTurn`, then each step in
+order, then `endTurn`, and round again until told to stop. Gated steps wait on a gate that
+`advancePhase()` opens — one persistent listener now, not three transient ones. A step that
+throws is reported through `onError` and the turn continues without it: one lost turn instead
+of a dead game.
+
+**That change paid for itself on its first run.** The very first `turn-loop` run against the
+engine surfaced known-issue **AM** — `getHistoricWarObject()` returning the *string*
+`"Error - Siege not found..."` and `removeSiegeImageFromPath()` dereferencing it. It had been
+logged as "observed once and not reproducible on re-run", because under the old loop it did
+not report anything: it just froze the game. It is fixed, and the lookup turned out never to
+have been needed — the only thing taken from the siege was the besieged territory's name, and
+the function is handed that territory's path.
+
+**Also closed on the way.** `handleRandomEventLikelihood()` and `selectRandomEvent()` in
+`gameTurnsLoop.js` were duplicates of the Phase 5.2 `rules/events/randomEvents.js`, which had
+only ever had its damage half wired up — so the sample size and the four event NAMES existed
+in two places, and the names are precisely what audit 5.2 Q was. And the initial-data builder
+was the fourth place the defence-bonus formula was written out, with the brackets in a
+different position (**AQ**); it calls `defenseBonusFor()` now.
+
+**Left for later, deliberately**
+
+- **The write guard stays in warn mode.** 5.2 and 5.3 made the economy and combat rules pure,
+  but the AI's action executors and `ui.js` still hold territories and assign to them. Each
+  report is a Phase 6 to-do now rather than a Phase 5 one.
+- **`battle.js` still has its ~25 `export let`s** of per-battle scratch. `resolveRound()` is
+  pure, but the legacy caller still stages its arguments through those module-level variables.
+  They go with the battle UI in Phase 6.
+- **`TurnEngine.reset()` has no `onReset` wired to it.** The engine can restart; what it
+  cannot yet do is put the world back, because there is nothing to put it back to until
+  save/load lands. That is Phase 7.2, and the hook is there waiting for it.
+
+---
+
+### Phase 5.8 — what actually landed
+
+**Phase 5 met its own exit criteria at 5.7 and still left work on the floor.** `rules/` and
+`ai/` ran in Node, the engine replaced the recursive loop, and the unit suite covered the
+extracted rules — but the suite still carried `test.fixme`s that Phase 5 was supposed to close,
+and the register still named a Phase 5 owner against audit §5.3 **Y**. 5.8 is that list, plus
+what finishing it exposed.
+
+**Y — cosmetic randomness has its own stream.** `src/platform/cosmeticRng.js` is a
+self-contained mulberry32 seeded from the clock. The sparkle timer and the battle's dice sound
+draw from it and never from `Math.random`. It is worth being precise about what was wrong: the
+sparkles were not *too random*, they were drawing from the same stream as combat, the economy
+and the AI, from a timer that re-armed every 0–100 ms — so how many cosmetic draws fell between
+two game draws depended on wall-clock timing, and two runs of the same seed diverged.
+
+**What that unlocked, immediately.** `bootstrap/e2e-hook.spec.js`'s "the same seed produces the
+same world" is green. So is the AI determinism spec — the one the e2e plan calls "the guard
+that makes every other AI test possible" — and `battle/rout.spec.js` asserts an exact rout
+outcome, twice over. **The rule that no spec may assert an exact combat or economy outcome is
+lifted.**
+
+**The last reachable `fixme` is retired.** `battle/known-broken.spec.js` held a rout standing
+in as `expect(true).toBe(false)`. It is `battle/rout.spec.js` now, and it asserts the
+arithmetic: the territory changes hands and the conqueror's garrison is its own survivors plus
+half the defenders still standing. Reaching the rout band took a piece of design rather than a
+seed — attrition cannot get there, because an attacker big enough to win takes the defender
+from ~13 % of its starting force to zero in one step, straight past the 5 % band. A defender
+made mostly of *naval* units gets there by composition instead: a ship is worth 20,000
+personnel and a rifleman one, so sinking the fleet collapses the combined force while the
+infantry are still on the field. **One `test.fixme` remains in the suite, correctly deferred:
+audit §5.2 AE, owned by Phase 6.7.**
+
+**Five defects found by writing those specs.** None was reachable before, because each needed
+either a repeatable run or a scenario:
+
+| Where | What |
+|---|---|
+| [ui.js](../ui.js) advance button | **Every fresh battle debited its source territories twice.** Phase 4.7 moved the debit to INVADE! and added the call without removing the original one in the `Begin War!` branch. Committing a whole garrison left the source holding a **negative** army, which then fed population, food consumption and defence for the rest of the game. A battle resumed from a siege skipped the second debit, which is why no siege spec ever saw it. |
+| [battle.js](../battle.js) `handleEndSiegeDueArrest()` | **An empty battle-results screen at the start of almost every turn.** `setUpResultsOfWarExternal(true)` ran for *every* arrest, including the AI-versus-AI sieges the player has nothing to do with, and only the player branch ever filled the screen in. The AI arrests something nearly every turn, so the player was handed a results screen holding column headers and nothing else — on top of the phase button, in place of the start-of-turn panel. |
+| [gameTurnsLoop.js](../gameTurnsLoop.js) `beginTurn()` | **The start-of-turn info panel never opened.** It was gated on `continueSiege === true` as well as on the player's preference — suppressed on any turn where a siege ended in an arrest. Once sieges actually ticked (§5.1 D, §5.2 J) that was nearly every turn, so the preference silently never took effect at all. The gate says what it means now, because the collision it was avoiding is gone. |
+| [src/ui/siegeOverlay.js](../src/ui/siegeOverlay.js), [ui.js](../ui.js), [aiCalculations.js](../aiCalculations.js) | **Two siege markers per siege, and they swallowed the click underneath.** Phase 4.5 moved marker rendering to `siegeOverlay.js` on the `siegeChanged` event and left the imperative `addImageToPath(…, "siege.png", 1)` behind — so a siege produced two `<image>` elements with the **same id**, only one of which was ever removed. Neither carried `pointer-events: none`, so a hit test at the centre of a besieged territory returned the marker: the player could not click their own besieged territory, which is the only route to `VIEW SIEGE`. |
+| [ui.js](../ui.js) info-panel tabs | **The active-tab mark never moved.** `active` was added to the Summary button once, at game start, and removed from the other three only by the X button. `.tab-button.active` is what the stylesheet highlights, so Summary looked permanently selected however many times the player switched. |
+
+**Two more, reported from play while the phase was open**, and both the same shape — a fact
+read from presentation rather than from state:
+
+- **The country-selection lock was enforced by a fill colour.** The confirm button was gated on
+  `country.getAttribute("fill") === GREY_OUT_COLOR`, sitting *outside* the `pathIsGreyedOut()`
+  guard that opens `selectCountry()`. The colour picker repaints, so the lock came off in three
+  clicks and the player could start as the United States — measured, not theorised. The gate
+  reads the store now, the picker refuses to repaint a locked country, and the five keep their
+  own hue muted toward grey rather than being painted flat grey, which is what made them look
+  unrendered rather than unavailable.
+- **A territory could be painted `fill="undefined"`, which renders black.** Clicking a playable
+  country and then a locked one un-picked the first through `setColorOnMap(territory)` with no
+  second argument — the *in-game* form, which paints `territory.countryColor`, a field not
+  populated until `pushColorsToMainArray()` runs on confirm. `setColorOnMap()` now refuses to
+  paint a non-colour rather than corrupting the map. Separately, the colour picker's markup
+  value (`#000000`) and the store's default player colour (white) were two facts that
+  disagreed, so any `change` event on the untouched input adopted black.
+
+**Housekeeping the phase owed.** The shipped `//DEBUG` block is gone: two calls to a 40-line
+`logGoldStats()` that sorted, averaged and took the mode of every AI country's spending, twice,
+on every AI turn, to print two lines nobody reads — together with the two module-level arrays
+that fed it, both getters, and `setDebugArraysToZero()`.
+
+**What 5.8 deliberately did NOT do.** The bootstrap-ordering item in the register
+([05](./05-known-issues.md) §2) named Phase 5.7 as its owner: CPU leaders and the AI's starting
+forts are created *after* `initialiseGame()` resolves, which is after the engine has already run
+turn 1, so turn 1 plans and earns over a world with no leaders and no forts. Moving that setup
+inside `initialiseGame()` was implemented and **measured**: the ten-turn `long-run` went from
+**6/6 green to 0/6**, with the player's country eliminated every time. Giving the AI a
+fully-formed first turn is a balance change, not a tidy-up. It was reverted, the measurement is
+recorded at the site so nobody repeats it blind, and the item is re-sequenced to the Phase 7
+balance pass alongside the AI's unbounded sieges.
+
+**Suite size.** 275 e2e tests in 49 files (from 227 in 41) and 294 unit tests (from 288). Five
+functional areas the e2e plan had listed but never had — `siege/`, `ai-turn/`,
+`conquest-lifecycle/`, `info-panels/`, `random-events/` — now exist, which completes **P2**.
 
 ---
 
@@ -826,14 +1006,14 @@ all assert on state and text — `bootstrap/state-layer.spec.js` now asserts the
 
 | Phase | Focus | Estimate | Gate |
 |---|---|---:|---|
-| 0 | Tooling & hygiene | 0.5 d | `npm run dev` works |
-| 1 | Load performance & test hooks | 1–2 d | Cold start < 3 s |
-| 2 | E2E safety net | 2–3 d | P0+P1 green |
-| 3 | Critical defect fixes | 2–3 d | 20-turn playthrough clean |
+| 0 | Tooling & hygiene | 0.5 d | ✅ `npm run dev` works |
+| 1 | Load performance & test hooks | 1–2 d | ✅ Cold start < 3 s |
+| 2 | E2E safety net | 2–3 d | ✅ P0+P1 green; P2 delivered in 5.8 |
+| 3 | Critical defect fixes | 2–3 d | ✅ 20-turn playthrough clean |
 | 4 | Single state layer | 3–4 d | ✅ `mainGameArray` gone |
-| 5 | Pure rules + engine | 4–5 d | `rules/` runs in Node |
-| 6 | UI decomposition | 5–7 d | No file > 400 lines |
-| 7 | Design gaps | 3–5 d | Game is finishable |
+| 5 | Pure rules + engine | 4–5 d | ✅ `rules/` runs in Node; seeds repeat (5.8) |
+| 6 | UI decomposition | 5–7 d | — No file > 400 lines |
+| 7 | Design gaps | 3–5 d | — Game is finishable |
 
 **Total: roughly 4–6 focused weeks.** Phases 0–3 (≈1.5 weeks) deliver most of the *felt*
 improvement — the game becomes fast, correct and testable. Phases 4–6 are what make it
@@ -855,9 +1035,16 @@ extensible. Phase 7 is where it becomes a game rather than a simulation.
 
 ## 5. Immediate next three actions
 
-1. **Phase 5.1** — move the tunable numbers into `config/balance.js`. No behavioural risk, and
-   every later rule extraction wants them named.
-2. **Phase 5.2** — `rules/economy/*` as `(territory, context) → deltas`, applied through
-   `mutations.js`. This is what lets the write guard go from warn to strict.
-3. **Phase 5.3–5.4** — `rules/military/*` with an injected RNG, which is also what finally
-   makes a combat outcome assertable in a test (see the seeding gotcha in `CLAUDE.md`).
+Phase 5 is complete, including 5.8 — every reachable `test.fixme` is retired, P2 of the e2e
+plan is delivered, and the only defect left open in the register is one Phase 6.7 owns. The
+next three are the opening of Phase 6.
+
+1. **Phase 6.1** — `ui/core/registry.js`: every element id and selector as a named constant,
+   imported by both the app and the e2e page objects. Selector drift becomes a compile error
+   rather than a flaky test, and it is the prerequisite for extracting anything else.
+2. **Phase 6.2** — `ui/core/dom.js`: `el()`, `mount()`, `on()`. The `createElement` plus
+   fifteen property assignments pattern occurs 294 times.
+3. **Phase 6.3** — extract components easiest-first, starting with `Tooltip` (which is also
+   what fixes the pointer-events bug the page objects work around today) and `TopTable`. The
+   AI's action executors come out with them: `ai/actions/*` and `ai/diplomacy.js` are blocked
+   on there being a component to talk to instead of a `getElementById`.

@@ -29,11 +29,17 @@ Under the default four workers the same page takes roughly four times as long �
 that is contention between four Chromium instances building a 359-territory model
 against one preview server, not a regression.
 
-## Known gaps
+## The gap that used to be here
 
-`the same seed produces the same world` is `test.fixme`. Seeding `Math.random`
-globally cannot make this game deterministic: `addSparklesRegularly()` in `ui.js`
-re-arms a timer every 0–100 ms and burns three `Math.random()` calls per tick on the
-same stream the economy and combat draw from. The fix is an injected RNG for game
-logic in refactor Phase 5. **Until it passes, no spec anywhere may assert an exact
-combat or economy outcome across runs.**
+`the same seed produces the same world` was `test.fixme`, and it was the canary for the whole
+suite. Seeding `Math.random` globally could not make this game deterministic:
+`addSparklesRegularly()` re-armed a timer every 0–100 ms and burned three `Math.random()` calls
+per tick on the same stream the economy and combat drew from (audit §5.3 Y).
+
+**Phase 5.8 closed it** — cosmetic randomness moved to `src/platform/cosmeticRng.js`, which
+never touches `Math.random`. The spec is green, and the rule it enforced ("no spec anywhere may
+assert an exact combat or economy outcome across runs") is lifted.
+
+Keep it that way: **nothing decorative may draw from `Math.random`**. A new sparkle, a sound
+choice or an animation delay goes through `cosmeticRandom()`, or this spec starts failing and
+takes `battle/rout.spec.js` and `ai-turn/` with it.

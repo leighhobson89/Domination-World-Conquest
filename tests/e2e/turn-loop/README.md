@@ -26,10 +26,16 @@ read a failure here before any other failure.
   leaders and forts are created *after* `initialiseGame()` resolves (audit §5.3,
   bootstrap ordering). `turn-counter.spec.js` pins this so the eventual fix to the
   ordering is a deliberate change, not an accident.
-- **`long-run.spec.js` asserts invariants, not values.** Seeding `Math.random`
-  does not make the game deterministic while `addSparklesRegularly()` shares the
-  global stream (audit §5.3 Y), so no exact economy figure is asserted anywhere in
-  this folder.
+- **`long-run.spec.js` asserts invariants, not values** — deliberately. An exact economy
+  figure over ten turns would pin one balance pass rather than the property that matters:
+  nothing goes `NaN`, the counter is right, the totals equal the sum over the territories.
+  It is a choice now rather than a limit: audit §5.3 Y is closed (Phase 5.8) and the same
+  seed does replay the same run, which is how `ai-turn/` asserts exact world state.
+- **The start-of-turn panel used to be gated on `continueSiege === true`** as well as the
+  player's preference, so it was suppressed on any turn where a siege ended in an arrest —
+  which, once sieges actually ticked, was nearly every turn. It never opened at all, and an
+  EMPTY battle-results screen appeared in its place. Both fixed in Phase 5.8; the gate now
+  says what it means.
 
 ## Out of scope here
 

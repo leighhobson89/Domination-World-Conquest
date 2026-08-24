@@ -81,9 +81,58 @@ export function installTestHooks(accessors) {
         // above it.
         countryStrengths: () => snapshot(accessors.countryStrengths()),
 
+        // The countries the selection screen has LOCKED, read from the store rather
+        // than from the grey fill. The two were allowed to disagree until Phase 5.8:
+        // the confirm button was gated on `fill === GREY_OUT_COLOR`, so repainting a
+        // locked country through the colour picker unlocked it. A spec must be able to
+        // assert the rule, not its rendering.
+        greyedOutCountries: () => snapshot(accessors.greyedOutCountries()),
+
         // Direct writes to territory state that bypassed state/mutations.js, recorded
         // only when the page is loaded with ?stateGuard=1. Always empty otherwise.
         stateGuardViolations: () => snapshot(accessors.stateGuardViolations?.() ?? []),
+
+        // The running chance of a disaster, which climbs a point every quiet turn and resets
+        // to zero when one fires.
+        randomEventProbability: () => accessors.randomEventProbability(),
+
+        // Queue a named disaster for the NEXT turn, or `null` to cancel. A random event is a
+        // band on the mean of five draws, so no seed reaches a chosen event on a chosen turn
+        // -- and the scenario loader sets up the WORLD, not the turn. This is how the four
+        // disasters become testable through the game rather than only as pure functions.
+        forceRandomEvent: (name) => accessors.forceRandomEvent(name),
+
+        // One ACTIVE siege, by the name of the territory it besieges, or null. `sieges()`
+        // above answers "which territories are besieged"; this answers "what is happening to
+        // this one" -- whose siege it is, how long it has run, and the two armies. The siege
+        // holds a live reference to the territory (Phase 4.7), so only the fields a spec can
+        // legitimately assert on are copied out.
+        siegeAt: (territoryName) => {
+            const found = accessors.siegeAt(territoryName);
+            if (!found) {
+                return null;
+            }
+            const { siege, side } = found;
+            return snapshot({
+                side: side,
+                warId: siege.warId,
+                attackingCountry: siege.attackingCountry,
+                attackingTerritory: siege.attackingTerritory,
+                turnsInSiege: siege.turnsInSiege,
+                attackingArmyRemaining: [...(siege.attackingArmyRemaining ?? [])],
+                defendingArmyRemaining: [...(siege.defendingArmyRemaining ?? [])],
+                defendingTerritory: siege.defendingTerritory?.territoryName ?? null
+            });
+        },
+
+        // The battle currently on screen: the two armies as they stand, the round, and the
+        // war id. `null` when no battle is open.
+        //
+        // The battle UI's own cells are formatted ("1.9k"), so they cannot be used to assert
+        // an outcome that is defined arithmetically -- "half the surviving defenders join the
+        // attacker" needs the surviving defenders, not a rounded label. This is the same
+        // read-only, deep-copied surface as every other accessor here.
+        battle: () => snapshot(accessors.battle()),
 
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the

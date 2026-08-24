@@ -146,6 +146,11 @@ export function isCountryGreyedOut(countryName) {
     return __store().ui.greyedOutCountries.has(countryName);
 }
 
+/** Every country the selection screen has locked, as names. */
+export function greyedOutCountryNames() {
+    return [...__store().ui.greyedOutCountries];
+}
+
 /** Are any countries greyed out at all? (The selection screen has ended if not.) */
 export function anyCountryGreyedOut() {
     return __store().ui.greyedOutCountries.size > 0;

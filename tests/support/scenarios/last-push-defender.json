@@ -1,0 +1,35 @@
+{
+  "name": "last-push-defender",
+  "description": "A defender whose combined force is mostly naval, with enough infantry left over that losing the ships puts it between the 5% rout threshold and the 15% last-push threshold. 100 naval is 2,000,000 personnel and the 200,000 infantry are 200,000, so once the ships are sunk the defender stands at about 9% of what it started with: WarOutcome.LAST_PUSH, which offers the final push at a cost of a fifth of the attacking survivors.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 0,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 600,
+        "useableNaval": 600,
+        "armyForCurrentTerritory": 12000000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 200000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 100,
+        "useableNaval": 100,
+        "armyForCurrentTerritory": 2200000,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

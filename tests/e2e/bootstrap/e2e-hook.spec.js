@@ -21,13 +21,18 @@ test.describe("?e2e=1 state hook", () => {
         expect(api).toEqual(
             [
                 "applyScenario",
+                "battle",
                 "countryStrengths",
-        "isReady",
+                "forceRandomEvent",
+                "greyedOutCountries",
+                "isReady",
                 "pathAreaComputations",
                 "phase",
+                "randomEventProbability",
                 "ready",
                 "retrievals",
                 "seed",
+                "siegeAt",
                 "sieges",
                 "stateGuardViolations",
                 "territoriesOwnedBy",
@@ -134,18 +139,13 @@ test.describe("seeded RNG", () => {
         expect(first).not.toEqual(second);
     });
 
-    // KNOWN GAP, not a broken test. Seeding Math.random globally cannot make this
-    // game deterministic, because addSparklesRegularly() in ui.js re-arms a timer
-    // every 0-100ms and burns three Math.random() calls per tick (interval, top,
-    // left) on the same global stream that the economy and combat draw from. How
-    // many cosmetic draws land between two game-logic draws depends on wall-clock
-    // timing, so two runs with the same seed diverge.
-    //
-    // The fix belongs with refactor Phase 5, which introduces an injected RNG for
-    // game logic (src/ai/rng.js and the rules layer) and leaves cosmetics on the
-    // global Math.random. Un-skip this then. Until it passes, no test may assert an
-    // exact combat or economy outcome across runs.
-    test.fixme("the same seed produces the same world", async ({ page }) => {
+    // Audit 5.3 Y, closed in refactor Phase 5.5. Cosmetic randomness moved off the
+    // global stream into `src/platform/cosmeticRng.js`, so `addSparklesRegularly()`
+    // no longer burns three timer-driven draws per tick on the stream the economy,
+    // combat and the AI draw from. Two runs of the same seed now see the same
+    // numbers in the same order, which is what makes an exact-outcome assertion
+    // legitimate anywhere in the suite.
+    test("the same seed produces the same world", async ({ page }) => {
         const worldFor = async () => {
             const driver = new GameDriver(page);
             await driver.start({ country: "Germany", seed: "world-seed" });

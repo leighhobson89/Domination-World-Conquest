@@ -9,10 +9,11 @@ import { test, expect } from "../../support/fixtures.js";
 // through `state/mutations.js`, the same path the game writes by, so it cannot produce a
 // world the game could not have produced itself.
 //
-// No exact combat outcome is asserted here and none can be: seeding Math.random does not
-// make the game reproducible while addSparklesRegularly() shares the global stream (audit
-// 5.3 Y, closed by Phase 5.5). These pin invariants -- the battle resolves, both sieges
-// tick, the survivors come home -- not survivor counts.
+// These pin invariants -- the battle resolves, both sieges tick, the survivors come home --
+// rather than survivor counts, because the invariant is the more useful thing to state for
+// each of them. That is now a choice rather than a limit: audit 5.3 Y is closed (Phase 5.5
+// moved cosmetic randomness to src/platform/cosmeticRng.js), so `?seed=` makes a run repeat
+// exactly and `rout.spec.js` next door does assert an exact outcome.
 //
 // docs/03-refactor-plan.md step 2.5 · docs/04-e2e-test-plan.md section 5.10.
 
@@ -154,20 +155,13 @@ test.describe("battle behaviour that needs a scenario", () => {
     });
 });
 
-test.describe("known-broken battle behaviour", () => {
-    test.fixme("a rout hands half the surviving defenders to the attacker", async ({
-        startedGame: game,
-    }) => {
-        // audit 5.1 E is FIXED (refactor Phase 3.3): `unchangeableWarStartCombinedForceDefend`
-        // was assigned from `totalAttackingArmy`, so "defender below 5% of its starting
-        // force" really meant "below 5% of the ATTACKER's starting force" and outcomes were
-        // wrong whenever the armies differed in size. It now reads `totalDefendingArmy`.
-        //
-        // Still `fixme`, and the reason has changed again. The scenario loader can now set
-        // up a hopeless defender, but a rout is a random outcome given that setup, and
-        // Math.random is shared with the cosmetic sparkles (audit 5.3 Y) so a seed cannot
-        // force one. Write this against the injected RNG in Phase 5.3/5.5, where
-        // `resolveRound()` is pure and deterministic given its rng.
-        expect(true).toBe(false);
-    });
-});
+// The rout used to be `test.fixme` here, with `expect(true).toBe(false)` standing in for it.
+// It is a real spec now -- `rout.spec.js` -- and it asserts the exact arithmetic: the
+// territory changes hands and the conqueror's garrison is its own survivors plus half the
+// defenders left standing. Two things had to land first. The scenario loader (Phase 4) made
+// a hopeless defender reachable, and closing audit 5.3 Y (Phase 5.5) made the outcome
+// repeatable, so "a rout is a random outcome given that setup" stopped being true.
+//
+// Nothing in this file is `fixme` any more. The one battle-adjacent defect still open is
+// audit 5.2 AE -- the attack marker surviving a cancel -- which is a MARKER problem, not a
+// battle one, and is owned by Phase 6.7. It stays `fixme` in attack/attack-window.spec.js.

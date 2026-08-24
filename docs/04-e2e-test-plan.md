@@ -32,7 +32,7 @@ These are not optional. Without them the suite is either impossible or permanent
 Cold start currently re-parses a 19 MB JSON once per territory. Every spec begins with a game
 start; at present that is minutes per test. **No e2e work should begin before this is fixed.**
 
-### 2.2 A deterministic RNG hook (Refactor Phase 1.6) ✅ delivered — but see the limit below
+### 2.2 A deterministic RNG hook (Refactor Phase 1.6) ✅ delivered — and the limit is CLOSED (Phase 5.8)
 
 The game calls `Math.random()` in battle resolution, siege hit rolls, random events, leader
 generation, starting forts, initial gold and post-conquest lockout length. Without control,
@@ -59,21 +59,27 @@ export function installSeededRandom(seed) {
 The game already ships `xfnv1a` + `mulberry32` in
 [aiCalculations.js:74](../aiCalculations.js#L74) — reuse them rather than duplicating.
 
-> **Seeding `Math.random` is necessary but NOT sufficient.** Measured during Phase 1:
-> `addSparklesRegularly()` in [ui.js](../ui.js#L6027) re-arms a timer every 0–100 ms and burns
-> **three** `Math.random()` calls per tick on the same global stream the economy and combat
-> draw from. How many cosmetic draws land between two game-logic draws depends on wall-clock
-> timing, so two runs with the same seed diverge. See audit §5.3 Y.
+> **This used to be necessary but NOT sufficient — and that is now closed.** Measured during
+> Phase 1: `addSparklesRegularly()` re-armed a timer every 0–100 ms and burned **three**
+> `Math.random()` calls per tick on the same global stream the economy and combat drew from.
+> How many cosmetic draws landed between two game-logic draws depended on wall-clock timing,
+> so two runs with the same seed diverged. That is audit §5.3 **Y**, and **Phase 5.8 closed
+> it**: cosmetic randomness moved to `src/platform/cosmeticRng.js`, a self-contained
+> mulberry32 that never touches `Math.random`.
 >
-> **Consequence for this plan:** until Phase 5 introduces an injected RNG for game logic
-> (`src/ai/rng.js` and the rules layer), **no spec may assert an exact combat or economy
-> outcome across runs.** The affected specs in §5.10 `battle/` and §5.11 `siege/` should
-> assert invariants (totals only decrease, ownership transfers, the right screen appears)
-> rather than exact survivor counts. `the same seed produces the same world` in
-> `bootstrap/e2e-hook.spec.js` is marked `test.fixme` and is the canary: when it passes,
-> exact-outcome assertions become available.
+> **Consequence for this plan:** the restriction is lifted. **A spec MAY assert an exact
+> combat or economy outcome across runs.** `the same seed produces the same world` in
+> `bootstrap/e2e-hook.spec.js` was the canary and it is green; `battle/rout.spec.js`,
+> `battle/outcomes.spec.js` and `ai-turn/ai-turn.spec.js` all assert exact outcomes now.
+>
+> The invariant style is still right wherever the invariant is the more useful statement —
+> "totals only decrease", "ownership transfers", "the right screen appears". It is a choice
+> now, not a limit.
+>
+> **Cosmetic randomness is deliberately not reproducible.** Seeding it from the harness would
+> only put the sparkle timer back on a stream game logic reads, which is the defect.
 
-### 2.3 A test-only state accessor (Refactor Phase 1.6) 🔴 blocking
+### 2.3 A test-only state accessor (Refactor Phase 1.6) ✅ delivered, and extended since
 
 Behind `?e2e=1`, expose a read-only window handle:
 
@@ -90,9 +96,31 @@ window.__game = {
   retrievals: () => [{ warId, sourceTerritoryIds, turnQueued, turnsUntilReturn }],
   stateGuardViolations: () => [{ territory, field }],  // Phase 4; empty without ?stateGuard=1
   applyScenario: (scenario) => ({ territories, sieges, errors }),  // see 3.7
-  lastError: () => Error | null,
+
+  // added in Phase 5.8, each because a spec could not otherwise be written
+  countryStrengths: () => [[countryName, normalisedStrength], ...],
+  greyedOutCountries: () => [...],          // the selection lock, as STATE not as a fill
+  siegeAt: (territoryName) => ({ side, warId, attackingCountry, turnsInSiege,
+                                 attackingArmyRemaining, defendingArmyRemaining }) | null,
+  battle: () => ({ attackers, defenders, round, warId, probability }) | null,
+  randomEventProbability: () => number,
+  forceRandomEvent: (name) => name,         // queue one of the four for the next turn
 };
 ```
+
+**Why each of the Phase 5.8 additions exists** — none of them is convenience:
+
+- `greyedOutCountries()` — the country-selection lock was enforced by comparing a path's
+  **fill** against a grey constant, which is exactly why it was bypassable. A spec that
+  asserted the same fill would have pinned the bug. It reads the store.
+- `siegeAt()` — `sieges()` answers *which* territories are besieged; this answers *what is
+  happening to this one*. `turnsInSiege` and the two armies are not reachable any other way.
+- `battle()` — the battle UI's own cells are formatted (`"1.9k"`), so an outcome defined
+  arithmetically ("half the surviving defenders join the attacker") cannot be asserted from
+  them. This is the unrounded truth, deep-copied like everything else here.
+- `forceRandomEvent()` — a random event is a band on the **mean of five draws**, so no seed
+  puts a chosen disaster on a chosen turn, and the scenario loader sets up the *world* rather
+  than the *turn*. Without it the four events could only ever be unit-tested.
 
 Rationale: the numeric truth of this game lives in the territory model, not in the DOM.
 Asserting food capacity by reading a KMB-formatted table cell (`"1.2M"`) tests the formatter,
@@ -108,8 +136,10 @@ Since refactor Phase 4 the model is `src/state/GameState.js`, and `__game` reads
   how `bootstrap/state-layer.spec.js` proves the map and the model agree — but they are no
   longer where the game keeps the fact.
 - **`?stateGuard=1` logs every territory write that bypasses `state/mutations.js`**, and
-  `?stateGuard=strict` throws on one. Phase 5 is what empties that list; until then a spec
-  that turns the guard on must not assert it is empty.
+  `?stateGuard=strict` throws on one. It is still in warn mode: Phase 5 made the economy and
+  combat rules pure, but the AI's action executors and `ui.js` still hold territories and
+  assign to them, so each report is a **Phase 6** to-do. A spec that turns the guard on must
+  not assert the list is empty.
 
 ### 2.4 Stable selectors
 
@@ -351,11 +381,23 @@ not resolve — and `loadScenario` throws on a non-empty error list. A scenario 
 nothing turns every spec built on it into a spec that asserts nothing, so the loader has its own
 coverage in `bootstrap/scenario-loader.spec.js`.
 
-**What it unblocked:** three of the four `battle/known-broken` specs — the naval-only defender
-(audit 5.2 K), two concurrent sieges (5.1 D), and the INVADE!-debit/retreat-return round trip
-(5.1 AD). The fourth, the rout threshold (5.1 E), still needs the injected RNG from Phase 5.3:
-the loader can set up a hopeless defender, but a rout is a random outcome given that setup and
-`Math.random` is shared with the cosmetic sparkles (5.3 Y), so a seed cannot force one.
+**What it unblocked:** three of the four `battle/known-broken` specs immediately — the
+naval-only defender (audit §5.2 K), two concurrent sieges (§5.1 D), and the
+INVADE!-debit/retreat-return round trip (§5.1 AD). The fourth, the rout threshold (§5.1 E),
+had to wait for Phase 5.8 to close §5.3 Y, because a rout is a random outcome given the setup
+and a seed could not force one while the sparkle timer shared the stream. It is
+`battle/rout.spec.js` now.
+
+**Nine scenarios today**, and they divide into two kinds. `two-sieges`, `weak-defender` and
+`doomed-ai-siege` set up a *situation*. `naval-only-defender`, `outright-conquest`,
+`hopeless-attacker`, `last-push-defender`, `evenly-matched` and `rout-bound-defender` set up
+an *outcome* — each is composed so that a specific `WarOutcome` is what the battle reaches.
+
+**One trap worth writing down.** `armyForCurrentTerritory` is a **stored total**, not a derived
+one. A scenario that patches the four unit counts without patching it leaves the two
+disagreeing, and the probability calculation reads the units while the bottom table reads the
+total — so the setup looks applied and the battle behaves as though it were not. Every scenario
+here patches both.
 
 ---
 
@@ -365,9 +407,9 @@ the loader can set up a hopeless defender, but a rout is a random outcome given 
 click does, and end-to-end numeric outcomes at a coarse grain.
 
 **Unit tests (Vitest) own:** the arithmetic — income formulas, capacity regeneration,
-starvation, probability, skirmish resolution, siege damage, AI threat scoring. These land in
-Refactor Phase 5 when `rules/` becomes importable, and they are where fine-grained numeric
-coverage belongs.
+starvation, probability, skirmish resolution, siege damage, AI threat scoring. Landed in
+Refactor Phase 5 when `rules/` became importable; **294 tests in 15 files**, and they are where
+fine-grained numeric coverage belongs.
 
 Do not duplicate. If an assertion is about a formula, it is a unit test.
 
@@ -378,25 +420,30 @@ Do not duplicate. If an assertion is about a formula, it is a unit test.
 Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 defect fixes ·
 **P2** before Phase 4–6 · **P3** as features land.
 
-| # | Folder | Priority | Depends on |
-|---|---|---|---|
-| 1 | `bootstrap/` | P0 | §2.1 |
-| 2 | `country-selection/` | P0 | §2.1 |
-| 3 | `turn-loop/` | P0 | §2.3 |
-| 4 | `map-interaction/` | P0 | — |
-| 5 | `resources-economy/` | P1 | §2.2, §2.3 |
-| 6 | `buy-military/` | P1 | §2.3 |
-| 7 | `upgrade-territory/` | P1 | §2.3 |
-| 8 | `transfer/` | P1 | §2.3 |
-| 9 | `attack/` | P1 | §2.2, §2.3 |
-| 10 | `battle/` | P1 | §2.2, §2.3 |
-| 11 | `siege/` | P2 | §2.2, §3.7 |
-| 12 | `ai-turn/` | P2 | §2.2, §3.7 |
-| 13 | `info-panels/` | P2 | §2.3 |
-| 14 | `random-events/` | P2 | §2.2, §3.7 |
-| 15 | `conquest-lifecycle/` | P2 | §3.7 |
-| 16 | `persistence/` | P3 | Refactor 7.3 |
-| 17 | `victory-conditions/` | P3 | Refactor 7.1 |
+| # | Folder | Priority | Depends on | Status |
+|---|---|---|---|---|
+| 1 | `bootstrap/` | P0 | §2.1 | ✅ 52 |
+| 2 | `country-selection/` | P0 | §2.1 | ✅ 30 |
+| 3 | `turn-loop/` | P0 | §2.3 | ✅ 28 |
+| 4 | `map-interaction/` | P0 | — | ✅ 24 |
+| — | `adjacency/` | P0 | — | ✅ 9 — not in the original list; guards the data pipeline and audit §3.1 |
+| 5 | `resources-economy/` | P1 | §2.2, §2.3 | ✅ 11 |
+| 6 | `buy-military/` | P1 | §2.3 | ✅ 17 |
+| 7 | `upgrade-territory/` | P1 | §2.3 | ✅ 28 |
+| 8 | `transfer/` | P1 | §2.3 | ✅ 13 |
+| 9 | `attack/` | P1 | §2.2, §2.3 | ✅ 15 |
+| 10 | `battle/` | P1 | §2.2, §2.3 | ✅ 17 |
+| 11 | `siege/` | P2 | §2.2, §3.7 | ✅ 11 — Phase 5.8 |
+| 12 | `ai-turn/` | P2 | §2.2, §3.7 | ✅ 4 — Phase 5.8 |
+| 13 | `info-panels/` | P2 | §2.3 | ✅ 5 — Phase 5.8 |
+| 14 | `random-events/` | P2 | §2.2, §3.7 | ✅ 7 — Phase 5.8 |
+| 15 | `conquest-lifecycle/` | P2 | §3.7 | ✅ 4 — Phase 5.8 |
+| 16 | `persistence/` | P3 | Refactor 7.3 | — |
+| 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
+
+**275 tests in 49 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
+Each folder's README records which rows of the tables below it delivers and which it defers,
+with the reason — a spec that is missing is missing on purpose and says so.
 
 ---
 
@@ -516,7 +563,7 @@ Coarse-grained only; formulas belong in unit tests (§4).
 | `attack-table.spec.js` | The table lists **every** player territory able to reach the target, each with its own allocation row; totals aggregate across rows; a territory can be included with 0 units and contributes nothing |
 | `probability.spec.js` | The probability bar matches `__game`'s computed value; it updates live as units are added; it accounts for the defender's fort + mountain bonus and the defender's **useable** (not owned) units |
 | `invade.spec.js` | INVADE! removes the allocated units from their source territories immediately, opens the battle UI, and closes the attack window |
-| `siege-offer.spec.js` | When probability < 15 % the Siege button is enabled; at or above it is disabled |
+| `siege-offer.spec.js` | ⚠️ **This row was written backwards, and the code is right.** The Siege button is enabled at or above `PROBABILITY_THRESHOLD_FOR_SIEGE` (15 %) and disabled below it — and so is the AI's rule: `ai/goals.js` pushes a Siege goal on `probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE`. A siege commits an army for many turns, so it is offered when there is a real chance of finishing it. Delivered as `siege/start-siege.spec.js` |
 | `cancel.spec.js` | Cancel at any stage restores the map colours, clears the attackable flags and returns no units |
 
 ---
@@ -530,12 +577,12 @@ Requires the seeded RNG (§2.2) — every assertion here is otherwise non-determ
 | `rounds.spec.js` | Advance runs one round of the 5; losses appear on both sides; the round counter and probability bar update; totals only ever decrease |
 | `attacker-wins.spec.js` | Defenders reduced to 0 → territory changes owner, survivors garrison it, the path repaints to the player colour, and the results screen offers "Accept Victory!" |
 | `defender-wins.spec.js` | Attackers reduced to 0 → ownership unchanged, results offer "Accept Defeat!", the source territories do **not** get their units back |
-| `rout.spec.js` | Defender combined force < 5 % of its **starting** force → territory captured **and half the surviving defenders join the attacker**. 🔴 Regression test for audit §5.1 E — marked `fixme` until Phase 3.3 |
+| `rout.spec.js` | ✅ Defender combined force < 5 % of its **starting** force → territory captured **and half the surviving defenders join the attacker**, asserted exactly. Delivered in Phase 5.8. Reaching the band takes composition, not attrition: a defender made mostly of naval units (20,000 personnel each) loses almost all of its combined force when the ships go down while its infantry are still standing |
 | `massive-assault.spec.js` | Defender < 15 % → the final-push option appears and costs 20 % of the attacking survivors |
 | `attacker-routed.spec.js` | Attacker < 10 % of starting force → attack fails, survivors lost |
 | `fight-again.spec.js` | No terminal condition after 5 rounds → another 5 rounds begin with the attacker 5 % smaller (desertion) |
 | `retreat.spec.js` | Retreating mid-battle returns survivors to their source territories in the sent proportions, via the retrieval array, after the expected delay |
-| `mismatched-unit-types.spec.js` | 🔴 An all-infantry attack against an all-naval defender. Documents audit §5.2 K — currently a stalled battle. Marked `fixme` until Phase 3.15 decides the design |
+| `mismatched-unit-types.spec.js` | ✅ An all-infantry attack against an all-naval defender resolves rather than stalling. audit §5.2 K, fixed in Phase 3.15 with the matchup matrix; asserted in `battle/known-broken.spec.js` |
 | `results-screen.spec.js` | Kills, losses, captured, survived, rounds and siege stats on the results screen match `__game`; accepting closes it and restores the map |
 
 ---
@@ -549,13 +596,13 @@ Needs the scenario loader (§3.7) for anything beyond a single tick.
 | `start-siege.spec.js` | Choosing Siege converts the attack into a standing siege: the siege object exists, the marker and dashed stroke appear, and the besieging army leaves its source |
 | `siege-tick.spec.js` | One turn advances `turnsInSiege`, applies collateral damage to the defender's `foodCapacity`, and may destroy a building |
 | `siege-score.spec.js` | Siege score = `Σ(units × siegeValue)` (naval 10, air 5, assault 3, infantry 0.0001); a naval-heavy siege scores far above an infantry-heavy one of equal headcount |
-| `multiple-sieges.spec.js` | 🔴 Two concurrent player sieges: **both** tick every turn. Regression test for audit §5.1 D — marked `fixme` until Phase 3.4 |
+| `multiple-sieges.spec.js` | ✅ Two concurrent sieges: **both** tick every turn. audit §5.1 D, asserted in `battle/known-broken.spec.js` against the `two-sieges` scenario |
 | `arrest.spec.js` | A besieging force far weaker than the defences is arrested; the siege ends, the marker clears and the army is lost |
 | `defender-starvation.spec.js` | Sustained siege drives the defender's food below need, starves the garrison, and can flip into a rout victory for the besieger |
 | `view-siege.spec.js` | `VIEW SIEGE (n)` opens the battle UI in siege mode with the correct turn count, siege score and probability, and offers the assault option |
 | `lift-siege.spec.js` | Withdrawing ends the siege, clears the marker and `underSiege` state, and returns the army |
 | `ai-siege.spec.js` | An AI siege on a player territory renders with the AI marker variant and ticks against the player each turn |
-| `siege-marker-reconciliation.spec.js` | After a siege ends by any route, no orphan marker remains and `underSiege` is false everywhere. This is what `normalizeSiegeState()` currently papers over |
+| `siege-marker-reconciliation.spec.js` | ✅ Delivered as `siege/markers.spec.js`, and it grew two assertions the plan did not anticipate: there is exactly **one** marker per siege (there were two, sharing an id), and the marker does not **swallow the click** on the territory it marks. `normalizeSiegeState()` is gone — the marker is rendered from `siegeChanged` |
 
 ---
 
@@ -563,8 +610,8 @@ Needs the scenario loader (§3.7) for anything beyond a single tick.
 
 | Spec | Covers |
 |---|---|
-| `ai-turn-completes.spec.js` | The AI phase completes for all countries with no console errors and no territory left holding a non-object value. 🔴 Regression test for audit §5.1 B/C — marked `fixme` until Phase 3.2 |
-| `determinism.spec.js` | Two runs with the same seed produce identical world state after 5 turns. This is the guard that makes every other AI test possible |
+| `ai-turn-completes.spec.js` | ✅ The AI phase completes for all countries with no console errors and no territory left holding a non-object or non-finite value. audit §5.1 B/C. Delivered as `ai-turn/ai-turn.spec.js` |
+| `determinism.spec.js` | ✅ Two runs with the same seed produce identical world state. **This was impossible until Phase 5.8 closed audit §5.3 Y** — it is the guard that makes every other AI test possible, and it is green |
 | `ai-economy.spec.js` | An economy-focused (pacifist) leader's territories gain buildings over 5 turns; an aggressive leader's gain army instead |
 | `ai-attack.spec.js` | Given a scenario with a weak player territory adjacent to an aggressive AI, the AI attacks and can take it; the player's territory count drops and the map repaints |
 | `ai-gold-offer.spec.js` | When the AI wants to besiege a territory the player is already besieging, the dialogue appears with the leader's flag, name and offer; **accepting** transfers the gold, lifts the player's siege and returns their army; **declining** leaves both unchanged |
@@ -597,7 +644,7 @@ Needs the seeded RNG and a scenario that forces an event.
 | `food-disaster.spec.js` | Affected territories lose half their food; unaffected ones are untouched; population change is suppressed that turn |
 | `oil-well-fire.spec.js` | Affected territories lose oil; regeneration resumes next turn |
 | `mutiny.spec.js` | Affected territories lose 25 % of their gold |
-| `warehouse-fire.spec.js` | 🔴 Should reduce construction materials. Currently does nothing — the handler tests for `"Forest Fire"`, which is never generated. Regression test for audit §5.1 Q, marked `fixme` until Phase 3.14 |
+| `warehouse-fire.spec.js` | ✅ Reduces construction materials. audit §5.1 Q, fixed in Phase 3.14 and shown working **in the running game** for the first time in Phase 5.8 — the four disasters need `__game.forceRandomEvent()`, because an event is a band on the mean of five draws and no seed reaches a chosen one on a chosen turn |
 
 ---
 
@@ -609,7 +656,7 @@ The full arc from taking a territory to using it normally.
 |---|---|
 | `ownership-transfer.spec.js` | On conquest: `owner`, `data-name`, colour, top-table totals, Territories tab row and player territory count all update together, and `originalOwner` is preserved |
 | `deactivation.spec.js` | The conquered territory is locked for 1–3 turns, shows the dashed red border and the countdown, and cannot transfer or attack |
-| `reactivation.spec.js` | 🔴 It reactivates exactly once, and stays active. Regression test for audit §5.2 N/O — marked `fixme` until Phase 3.10 |
+| `reactivation.spec.js` | ✅ It reactivates exactly once, and stays active. audit §5.2 N/O. Delivered in `conquest-lifecycle/ownership-transfer.spec.js` |
 | `army-retrieval.spec.js` | Surviving attackers not garrisoning the new territory return to their sources in the sent proportions after the expected number of turns |
 | `economy-after-conquest.spec.js` | The conquered territory contributes to player income from the next turn, keeps its buildings and forts, and its resources are added to the player totals |
 
@@ -635,8 +682,8 @@ Total conquest triggers victory; losing the last territory triggers defeat; the 
 | E3 | `turn-loop/`, `map-interaction/` | ~11 specs · **P0 complete** | ✅ |
 | E4 | `resources-economy/`, `buy-military/`, `upgrade-territory/` | ~17 specs | ✅ |
 | E5 | `transfer/`, `attack/`, `battle/` | ~22 specs · **P1 complete — refactor Phase 3 can start** | ✅ |
-| E6 | Scenario loader (Refactor 3.7) + `siege/`, `ai-turn/`, `conquest-lifecycle/` | ~22 specs | |
-| E7 | `info-panels/`, `random-events/` | ~12 specs · **P2 complete** | |
+| E6 | Scenario loader (Refactor 3.7) + `siege/`, `ai-turn/`, `conquest-lifecycle/` | 19 specs | ✅ Phase 5.8 |
+| E7 | `info-panels/`, `random-events/` | 12 specs · **P2 complete** | ✅ Phase 5.8 |
 | E8 | `persistence/`, `victory-conditions/` alongside Refactor Phase 7 | ~8 specs | |
 
 ### What E1–E5 actually produced

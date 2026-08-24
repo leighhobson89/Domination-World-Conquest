@@ -58,10 +58,17 @@ export function renderSiegeOverlay(path, territoryName, underSiege, aiSiege) {
         const image = document.createElementNS(SVG_NS, "image");
         image.setAttributeNS(XLINK_NS, "href", aiSiege ? "siegeai.png" : "siege.png");
 
+        //Phase 5.8. A marker is decoration and must never intercept a click. Without this
+        //the <image> sits over the middle of the territory it marks, and a hit test at the
+        //centre of a besieged territory returns the marker rather than the path -- so the
+        //player cannot click their own besieged territory, which is the only route to
+        //VIEW SIEGE. Same class of bug as `#tooltip` having no `pointer-events: none`.
         let size = Math.min(bounds.width * 0.7, bounds.height * 0.7);
         if (aiSiege) {
             size *= 0.6;
-            image.setAttribute("style", "opacity: 0.4");
+            image.setAttribute("style", "opacity: 0.4; pointer-events: none");
+        } else {
+            image.setAttribute("style", "pointer-events: none");
         }
 
         image.setAttribute("x", (centerX - size / 2).toString());

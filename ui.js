@@ -1,4 +1,10 @@
 import {
+    PROBABILITY_THRESHOLD_FOR_SIEGE
+} from './src/config/balance.js';
+import {
+    cosmeticRandom
+} from './src/platform/cosmeticRng.js';
+import {
     getManualAdditions,
     getManualDenials
 } from './src/data/manualAdjacencyExceptions.js';
@@ -98,7 +104,8 @@ import {
     currentTurn,
     currentPhase,
     playerCountryName,
-    playerColour
+    playerColour,
+    anyCountryGreyedOut
 } from './src/state/selectors.js';
 import {
     setPhase,
@@ -198,6 +205,12 @@ const CONTINENT_COLOR_ARRAY = [
     ["Oceania", [74, 202, 233]]
 ];
 const GREY_OUT_COLOR = 'rgb(170,170,170)';
+//How far a locked country's own colour is pulled toward GREY_OUT_COLOR. Phase 5.8: they
+//used to be painted FLAT grey, which read as "this country failed to render" rather than
+//"you may not play this one" -- and, because the confirm button was gated on that exact
+//fill string, repainting one through the colour picker made it selectable. Keeping the
+//country's hue and muting it says the same thing without the fill being load-bearing.
+const LOCKED_COUNTRY_MUTING = 0.65;
 //audit 5.2 Z. This was `COUNTRY_GREYOUT_THRESHOLD = 40000`, compared against the output of
 //calculateTerritoryStrengths() -- which min-max normalises every country into 0..10000, so
 //the strongest country in the world scores exactly 10000 and nothing could ever exceed
@@ -212,7 +225,9 @@ const GREY_OUT_COLOR = 'rgb(170,170,170)';
 //the superpowers stop: it takes the countries that would make the game trivial and leaves
 //every genuine mid-sized power -- Italy, Germany, Japan, the UK -- playable.
 const COUNTRY_GREYOUT_RANK = 5; //the N strongest countries cannot be chosen
-export const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
+//PROBABILITY_THRESHOLD_FOR_SIEGE moved to src/config/balance.js (Phase 5.5) and is
+//re-exported here, because the AI planner needed it and could not import ui.js.
+export { PROBABILITY_THRESHOLD_FOR_SIEGE };
 
 //path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -610,7 +625,14 @@ function selectCountry(country, escKeyEntry) {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && !pathIsGreyedOut(lastClickedPath) && pathIsGreyedOut(country)) {
             for (let i = 0; i < allTerritories().length; i++) {
                 if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                    setColorOnMap(allTerritories()[i]);
+                    //Phase 5.8. `true` -- the country-selection form. This called
+                    //setColorOnMap() with no second argument, which takes the IN-GAME branch
+                    //and paints `territory.countryColor`. That field is not filled in until
+                    //pushColorsToMainArray() runs on confirm, so during selection it is
+                    //undefined: clicking a playable country and then a locked one wrote
+                    //fill="undefined" onto the country you had just picked, and an invalid
+                    //fill renders BLACK. The sibling branch above always passed `true`.
+                    setColorOnMap(allTerritories()[i], true);
                     break;
                 }
             }
@@ -634,13 +656,27 @@ function selectCountry(country, escKeyEntry) {
         lastClickedPath = country; // Update the previously clicked path
 
         if (selectCountryPlayerState && !escKeyEntry) {
-            adjustTextToFit(document.getElementById('popup-body'), pathCountry(country));
-            document.getElementById('popup-confirm').classList.add("greenBackground");
-            document.getElementById('popup-confirm').style.display = "block";
-        }
-
-        if (country.getAttribute("fill") === GREY_OUT_COLOR) {
-            document.getElementById('popup-confirm').style.display = "none";
+            //Phase 5.8. This block sits OUTSIDE the `!pathIsGreyedOut(country)` guard that
+            //opens this function -- that guard closes above, at the end of the z-ordering
+            //and colouring section -- so it used to name any country the player clicked and
+            //offer the confirm button, with a separate `fill === GREY_OUT_COLOR` test after
+            //it as the only thing that took the button away again. Gating the lock on a
+            //fill string made it bypassable in three clicks: click a locked country, change
+            //the colour picker (which repaints `pathCountry(lastClickedPath)` and, via
+            //restoreMapColorState(), every other locked country too), click it again -- the
+            //fill no longer matched, so the button appeared and the player started as the
+            //United States. The lock is state; ask the state. See audit 5.2 Z.
+            if (pathIsGreyedOut(country)) {
+                adjustTextToFit(
+                    document.getElementById('popup-body'),
+                    pathCountry(country) + " - too strong to play"
+                );
+                document.getElementById('popup-confirm').style.display = "none";
+            } else {
+                adjustTextToFit(document.getElementById('popup-body'), pathCountry(country));
+                document.getElementById('popup-confirm').classList.add("greenBackground");
+                document.getElementById('popup-confirm').style.display = "block";
+            }
         }
 
         clickActionsDone = true;
@@ -691,6 +727,15 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     function resetGameState() {
+        //Phase 5.8. The picker's markup value and the store's default player colour were
+        //two separate facts and they disagreed: the input shipped `#000000` while
+        //`playerColour()` was white. Any `change` on that input -- including the one the
+        //browser fires when the player opens the native colour dialog and accepts what is
+        //already selected -- therefore adopted BLACK, and the next country they clicked was
+        //painted the same colour as the map strokes, so it read as a hole rather than a
+        //selection. Seeding the input from the store is what keeps the two in step.
+        document.getElementById("player-color-picker").value =
+            convertHexValueToRGBOrViceVersa(playerColour(), 1);
         toggleBottomTableContainer(true);
         document.getElementById("menu-container").style.display = "none";
         outsideOfMenuAndMapVisible = true;
@@ -796,10 +841,17 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("popup-color").style.color = playerColour();
         if (selectCountryPlayerState) {
             for (let i = 0; i < paths.length; i++) {
-                if (pathCountry(paths[i]) === pathCountry(lastClickedPath)) {
+                //A locked country never takes the player colour. `lastClickedPath` is set
+                //for a locked country as well as a playable one, so without this test the
+                //picker painted the player's colour straight over the lock. Phase 5.8.
+                if (pathCountry(paths[i]) === pathCountry(lastClickedPath) && !pathIsGreyedOut(paths[i])) {
                     paths[i].setAttribute("fill", playerColour());
                 }
             }
+            //restoreMapColorState() above replays the colours saved at bootstrap, which are
+            //the true country colours -- so it lifts the lock off every locked country on
+            //the map, not just the one that was clicked. Put it back.
+            paintLockedCountries();
         } else if (countrySelectedAndGameStarted) {
             paths.forEach(path => {
                 if (pathIsPlayerOwned(path)) {
@@ -1285,10 +1337,23 @@ document.addEventListener("DOMContentLoaded", function() {
     summaryButton.setAttribute("id", "summaryButton");
     summaryButton.innerHTML = "Summary";
 
+    //Phase 5.8. `active` was only ever ADDED to summaryButton, once, at game start, and only
+    //ever REMOVED by the X button -- no tab click moved it. `.tab-button.active` is what
+    //style.css highlights, so the Summary tab looked permanently selected however many times
+    //the player switched, and `mouseout` (which asks `classList.contains("active")`) reset
+    //the wrong button's colour. Which tab is selected is one fact; this is the one place
+    //that writes it. Phase 6.3 turns this into `InfoTable.update(state)`.
+    function markActiveTab(selected) {
+        for (const button of [summaryButton, territoryButton, armyButton, warsSiegesButton]) {
+            button.classList.toggle("active", button === selected);
+            button.style.backgroundColor =
+                button === selected ? "rgb(111, 151, 183)" : "rgb(81, 121, 153)";
+        }
+    }
+
     summaryButton.addEventListener("click", function() {
-        summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
         playSoundClip("click");
-        summaryButton.classList.add("tab-button");
+        markActiveTab(summaryButton);
         drawUITable(uiTable, 0);
     });
 
@@ -1308,9 +1373,8 @@ document.addEventListener("DOMContentLoaded", function() {
     territoryButton.innerHTML = "Territories";
 
     territoryButton.addEventListener("click", function() {
-        summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
-        territoryButton.classList.add("tab-button");
+        markActiveTab(territoryButton);
         drawUITable(uiTable, 1);
     });
 
@@ -1320,8 +1384,8 @@ document.addEventListener("DOMContentLoaded", function() {
     armyButton.innerHTML = "Military";
 
     armyButton.addEventListener("click", function() {
-        summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
+        markActiveTab(armyButton);
         drawUITable(uiTable, 2);
     });
 
@@ -1331,9 +1395,8 @@ document.addEventListener("DOMContentLoaded", function() {
     warsSiegesButton.innerHTML = "Wars / Sieges";
 
     warsSiegesButton.addEventListener("click", function() {
-        summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
         playSoundClip("click");
-        warsSiegesButton.classList.add("tab-button");
+        markActiveTab(warsSiegesButton);
         drawUITable(uiTable, 3);
     });
 
@@ -2627,8 +2690,12 @@ document.addEventListener("DOMContentLoaded", function() {
             //the siege in the store, and the attribute is derived from the siege lists
             //and rendered by src/ui/mapAttributeSync.js (Phase 4.4/4.5).
 
-            //set graphics for territory under siege (include defense bonus)
-            addImageToPath(territoryAboutToBeAttackedOrSieged, "siege.png", 1);
+            //Phase 5.8. `addImageToPath(..., "siege.png", 1)` stood here. Phase 4.5 moved
+            //marker rendering to src/ui/siegeOverlay.js, driven by `siegeChanged` -- which
+            //`addRemoveWarSiegeObject()` above has already emitted. This line therefore
+            //appended a SECOND <image> carrying the same `siegeImage_<name>` id: a
+            //duplicated id, two overlays stacked on one territory, and only one of them
+            //removed when the siege ended. The marker is rendered from state now.
             svgMap.getElementById("attackImage").remove();
 
             if (mapMode === 1) {
@@ -2758,9 +2825,15 @@ document.addEventListener("DOMContentLoaded", function() {
                 playSoundClip("click");
                 battleStart = false;
                 let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
-                if (!hasSiegedBefore) {
-                    transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
-                }
+                //Phase 5.8. `transferArmyOutOfTerritoryOnStartingInvasion()` was called here,
+                //under `if (!hasSiegedBefore)`. That is the ORIGINAL debit, from before Phase
+                //4.7 moved it to INVADE! (audit 5.1 AD) -- and 4.7 added the new call without
+                //removing this one, so every fresh battle debited its source territories
+                //TWICE: once when the attack was launched and again on the first "Begin War!"
+                //click. A player committing their whole garrison was left holding a NEGATIVE
+                //army, which then flowed into population, food consumption and defence for
+                //the rest of the game. A battle resumed from a siege was never affected,
+                //because `hasSiegedBefore` skipped it -- which is why no siege spec saw it.
                 setCurrentRound(currentRound + 1);
                 if (hasSiegedBefore) {
                     let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
@@ -2809,7 +2882,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         roundCounterForStats++;
                         enableDisableSiegeButton(1);
                     } else {
-                        let diceSound = Math.random() < 0.5;
+                        let diceSound = cosmeticRandom() < 0.5; //audit 5.3 Y - which sound plays is not game state
                         diceSound ? playSoundClip("dice1") : playSoundClip("dice2");
                     }
                     advanceButtonState = 1;
@@ -3851,11 +3924,49 @@ function greyOutTerritoriesForUnselectableCountries() {
     //Phase 4.4: which countries are unselectable is state, not a DOM attribute. The
     //fill stays here because it is presentation; `greyedOut` is rendered from the set.
     setGreyedOutCountries(unselectableCountries);
+    paintLockedCountries();
+}
 
+/**
+ * The muted form of a country colour, for a country the player may not choose.
+ *
+ * Falls back to flat grey only if the fill is not an `rgb(...)` triple, which no path
+ * on this map has once `colorCountriesRandomly()` has run.
+ */
+function lockedCountryFill(baseFill) {
+    const base = typeof baseFill === "string" ? baseFill.match(/\d+/g) : null;
+    if (!base || base.length < 3) {
+        return GREY_OUT_COLOR;
+    }
+    const grey = GREY_OUT_COLOR.match(/\d+/g).map(Number);
+    const muted = base.slice(0, 3).map((channel, index) => {
+        const value = Number(channel);
+        return Math.round(value + (grey[index] - value) * LOCKED_COUNTRY_MUTING);
+    });
+    return "rgb(" + muted[0] + "," + muted[1] + "," + muted[2] + ")";
+}
+
+/**
+ * Re-apply the locked treatment to every country the player may not choose.
+ *
+ * Idempotent, and it has to be called after ANY repaint that happens while the
+ * selection screen is up: `restoreMapColorState()` replays the colours saved at
+ * bootstrap by `saveMapColorState(true)`, which are the countries' TRUE colours, so
+ * a restore silently takes the lock off all five otherwise. That is half of how the
+ * lock used to be bypassable -- see the colour-picker handler.
+ */
+function paintLockedCountries() {
+    if (!anyCountryGreyedOut()) {
+        return;
+    }
     paths.forEach(path => {
-        if (unselectableCountries.has(pathCountry(path))) {
-            path.setAttribute("fill", GREY_OUT_COLOR);
+        if (!pathIsGreyedOut(path)) {
+            return;
         }
+        const saved = currentMapColorAndStrokeArray.find(
+            entry => entry[0] === path.getAttribute("uniqueid")
+        );
+        path.setAttribute("fill", lockedCountryFill(saved ? saved[1] : path.getAttribute("fill")));
     });
 }
 
@@ -4233,6 +4344,9 @@ export function addImageToPath(pathElement, imagePath, siege) {
     imageElement.setAttribute("x", imageX.toString());
     imageElement.setAttribute("y", imageY.toString());
     imageElement.setAttribute("z-index", "9999");
+    //Decoration never intercepts a click. Without this the marker covers the middle of the
+    //territory it marks and the player cannot select it. Phase 5.8.
+    imageElement.style.pointerEvents = "none";
 
     if (siege === 1) {
         imageElement.setAttribute("width", imageWidth.toString());
@@ -4277,16 +4391,30 @@ export function addImageToPath(pathElement, imagePath, siege) {
 }
 
 export function removeSiegeImageFromPath(ai, path) {
-    const siegeObjectElement = getHistoricWarObject(ai, path);
-    let imageElement;
+    //BUG FIX, known-issues AM. This used to ask getHistoricWarObject() for the siege and
+    //then read `.defendingTerritory.territoryName` off whatever came back -- but that
+    //function returns the STRING "Error - Siege not found in either array..." when the
+    //siege is not in the historic array yet, and a string has no `defendingTerritory`. The
+    //resulting `Cannot read properties of undefined` escaped the turn loop and froze the
+    //game on AI MOVING..., intermittently, depending on whether a siege ended before it had
+    //been recorded.
+    //
+    //The lookup was never needed. The only thing taken from the siege was the name of the
+    //territory being besieged, and that is the path this function was handed --
+    //`territory-name` is identity, not state, so reading it here is exactly right (see the
+    //SVG-attributes note in CLAUDE.md). No lookup, no sentinel, no failure mode.
+    const territoryName = path.getAttribute("territory-name");
+    if (!territoryName) {
+        console.log("removeSiegeImageFromPath: path carries no territory-name; nothing to remove");
+        return;
+    }
 
-    const formattedTerritoryName = siegeObjectElement.defendingTerritory.territoryName.replace(/\s+/g, "_");
     //audit 5.2 AI: getElementById, not querySelector. Six territory names carry real
     //parentheses -- "Andros Island (Bahamas)", "Grand Bahama (Bahamas)" and friends -- and
     //`#siegeImage_Andros_Island_(Bahamas)` is not a valid CSS selector, so querySelector
     //threw rather than returning null. getElementById takes the id literally.
-    imageElement = svgMap.getElementById("siegeImage_" + formattedTerritoryName);
-
+    const imageElement = svgMap.getElementById(
+        "siegeImage_" + territoryName.replace(/\s+/g, "_"));
 
     if (imageElement) {
         imageElement.remove();
@@ -5528,20 +5656,19 @@ export function getSiegeObjectFromPath(territory) {
     }
 }
 
+/**
+ * The historic war recorded against this path's territory, or null.
+ *
+ * Returns NULL when there is none. It used to return the string
+ * "Error - Siege not found in either array in getHistoricWarObject()", which is not a war
+ * and does not read like one -- its only caller dereferenced it and froze the game
+ * (known-issues AM). A missing siege is an ordinary answer here, not an error.
+ */
 export function getHistoricWarObject(ai, territory) {
     const territoryName = territory.getAttribute("territory-name");
-    let siege;
-    if (ai) {
-        siege = historicAiWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
-    } else {
-        siege = historicWars.find((siege) => siege.defendingTerritory.territoryName === territoryName);
-    }
-
-    if (siege) {
-        return siege;
-    } else {
-        return "Error - Siege not found in either array in getHistoricWarObject()";
-    }
+    const wars = ai ? historicAiWars : historicWars;
+    return wars.find((war) => war.defendingTerritory &&
+        war.defendingTerritory.territoryName === territoryName) ?? null;
 }
 
 function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
@@ -6111,8 +6238,8 @@ function createSparkle() {
     const container = document.querySelector(".sparkles-container");
     const sparkle = document.createElement("div");
     sparkle.classList.add("sparkle");
-    sparkle.style.top = `${Math.random() * 100}%`;
-    sparkle.style.left = `${Math.random() * 100}%`;
+    sparkle.style.top = `${cosmeticRandom() * 100}%`;
+    sparkle.style.left = `${cosmeticRandom() * 100}%`;
     container.appendChild(sparkle);
 
     // Remove the sparkle after 3 seconds
@@ -6127,7 +6254,9 @@ function addSparklesRegularly() {
         createSparkle();
         // Call the function again to add another sparkle after a random interval
         addSparklesRegularly();
-    }, Math.random() * 100); // Random interval up to 3 seconds
+        // audit 5.3 Y: the cosmetic stream, never `Math.random`. Three draws per tick on
+        // a timer re-armed every 0-100ms is what made a seeded run non-reproducible.
+    }, cosmeticRandom() * 100); // Random interval up to 100ms
 }
 
 // Start the process of adding sparkles
@@ -6161,6 +6290,16 @@ export function setColorOnMap(territory, selectCountryState) {
             }
         }
     } else {
+        //Phase 5.8. `countryColor` is not populated until pushColorsToMainArray() runs on
+        //confirm, so before that this wrote the string "undefined" into the fill -- which is
+        //not a colour, so the territory rendered black. Refuse to paint a non-colour rather
+        //than corrupting the map: the caller asking for the wrong form is the bug, and a
+        //silently black country is how it stayed hidden.
+        if (typeof territory.countryColor !== "string" || territory.countryColor === "") {
+            console.warn("setColorOnMap: no countryColor for " + territory.territoryName +
+                " -- refusing to paint. Use setColorOnMap(territory, true) before the game starts.");
+            return territory.countryColor;
+        }
         for (let i = 0; i < paths.length; i++) {
             if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
                 paths[i].setAttribute("fill", territory.countryColor);
