@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { containers, phaseBar, Phase, phaseButtonLabel } from "../../support/selectors.js";
+import { Phase, containers, phaseBar, phaseButtonLabel, sel } from "../../support/selectors.js";
 
 // Confirming a country runs initialisation and lands in Buy/Upgrade of turn 1.
 // docs/04-e2e-test-plan.md section 5.2.
@@ -23,7 +23,7 @@ test.describe("confirming a country", () => {
         await game.start({ country: "Germany" });
 
         await expect(page.locator(containers.topTable)).toBeVisible();
-        const flagSrc = await page.locator("#flag-top img").getAttribute("src");
+        const flagSrc = await page.locator(`${sel.flagTop} img`).getAttribute("src");
         expect(flagSrc).toContain("resources/flags/Germany.png");
     });
 

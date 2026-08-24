@@ -129,6 +129,59 @@ import {
     pathOwner,
     pathCountry
 } from './src/state/pathState.js';
+import {
+    classNames,
+    dynamicIds,
+    indexedIds,
+    ids,
+    sel
+} from './src/ui/core/registry.js';
+import {
+    el,
+    mount
+} from './src/ui/core/dom.js';
+import {
+    tooltip
+} from './src/ui/components/Tooltip.js';
+import {
+    topTable
+} from './src/ui/components/TopTable.js';
+import {
+    phaseBar
+} from './src/ui/components/PhaseBar.js';
+import {
+    mainMenu
+} from './src/ui/components/MainMenu.js';
+import {
+    countrySelect
+} from './src/ui/components/CountrySelect.js';
+import {
+    moveButton
+} from './src/ui/components/MoveButton.js';
+import {
+    aiDialogue
+} from './src/ui/components/AiDialogue.js';
+import {
+    battleResults
+} from './src/ui/components/BattleResults.js';
+import {
+    battleUI
+} from './src/ui/components/BattleUI.js';
+import {
+    infoTable
+} from './src/ui/components/InfoTable.js';
+import {
+    upgradeWindow
+} from './src/ui/components/UpgradeWindow.js';
+import {
+    buyWindow
+} from './src/ui/components/BuyWindow.js';
+import {
+    transferAttackWindow
+} from './src/ui/components/TransferAttackWindow.js';
+import {
+    bottomTable
+} from './src/ui/components/BottomTable.js';
 
 let currentlySelectedColorsArray = [];
 
@@ -323,8 +376,8 @@ export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
 export function svgMapLoaded() {
     console.log("Starting Page Load Process");
     //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
-    svg = document.getElementById('svg-map');
-    svgCoastLines = document.getElementById("svg-coast-lines");
+    svg = document.getElementById(ids.svgMap);
+    svgCoastLines = document.getElementById(ids.svgCoastLines);
     svgMap = svg.contentDocument;
     svgCoastLinesMap = svgCoastLines.contentDocument;
     svgTag = svgMap.querySelector('svg');
@@ -335,7 +388,6 @@ export function svgMapLoaded() {
     //-----------------------------------------------------------------//
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
-    const tooltip = document.getElementById("tooltip");
     svg.focus();
 
     svgMap.addEventListener("mouseover", function(e) {
@@ -360,35 +412,33 @@ export function svgMapLoaded() {
             if (element.tagName === "image") {
                 //hover over image
                 const imageId = element.getAttribute("id");
-                if (imageId.includes("siegeImage_")) { //siegeImage
+                if (dynamicIds.isSiegeOverlay(imageId)) { //siegeImage
                     const territoryName = extractTerritoryName(imageId);
                     let attackerData = findAttackerForSiege(territoryName);
-                    tooltip.innerHTML = territoryName + " is currently under siege by " + attackerData[1] + attackerData[0];
+                    tooltip.setContent(territoryName + " is currently under siege by " + attackerData[1] + attackerData[0]);
                 }
             } else {
                 // Set the content of the tooltip
-                tooltip.innerHTML = countryName;
+                tooltip.setContent(countryName);
             }
 
             // Check if the mouse pointer is less than 300px from the bottom of the screen
             if (window.innerHeight - y < 100) {
                 // Move the tooltip up by 300px
-                tooltip.style.left = x - 40 + "px";
-                tooltip.style.top = y - 30 + "px";
+                tooltip.moveTo(x - 40, y - 30);
             } else {
                 // Position the tooltip next to the mouse cursor without moving it vertically
-                tooltip.style.left = x - 40 + "px";
-                tooltip.style.top = 25 + y + "px";
+                tooltip.moveTo(x - 40, 25 + y);
             }
 
             // Show the tooltip
-            tooltip.style.display = "block";
+            tooltip.show();
         });
 
         // Add an event listener for mouseout on the element
         element.addEventListener("mouseout", function() {
             // Hide the tooltip when the mouse leaves the element
-            tooltip.style.display = "none";
+            tooltip.hide();
         });
 
         element.style.cursor = "pointer";
@@ -396,8 +446,8 @@ export function svgMapLoaded() {
 
     // Add a mouseout event listener to the SVG element
     svgMap.addEventListener("mouseout", function() {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
+        tooltip.setContent("");
+        tooltip.hide();
         if (currentPath) {
             if (!pathIsGreyedOut(currentPath)) {
                 hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
@@ -445,8 +495,8 @@ export function svgMapLoaded() {
             if (e.target.tagName === "rect" && currentPhase() === Phase.MOVE_ATTACK) {
                 restoreMapColorState(currentMapColorAndStrokeArray, false);
                 toggleTransferAttackButton(false, false);
-                if (svgMap.querySelector("#attackImage")) {
-                    svgMap.getElementById("attackImage").remove();
+                if (svgMap.querySelector(sel.attackImage)) {
+                    svgMap.getElementById(ids.attackImage).remove();
                 }
                 transferAttackButtonDisplayed = false;
                 attackTextCurrentlyDisplayed = false;
@@ -454,7 +504,7 @@ export function svgMapLoaded() {
             }
             if (e.target.tagName === "path") {
                 currentPath = e.target;
-                document.getElementById("popup-confirm").style.opacity = "1";
+                document.getElementById(ids.popupConfirm).style.opacity = "1";
                 if (allowSelectionOfCountry) {
                     selectCountry(currentPath, false);
                 }
@@ -485,7 +535,7 @@ export function svgMapLoaded() {
 
                     }
                 } else { //if on country selection screen
-                    document.getElementById("popup-color").style.display = "block";
+                    document.getElementById(ids.popupColor).style.display = "block";
                 }
             }
         }
@@ -513,10 +563,10 @@ export function svgMapLoaded() {
     });
 
     svgMap.addEventListener('mousemove', function(e) {
-        if (tooltip.innerHTML !== "") {
-            tooltip.style.display = "block";
+        if (tooltip.content() !== "") {
+            tooltip.show();
         } else {
-            tooltip.style.display = "none";
+            tooltip.hide();
         }
         panMap(e);
     });
@@ -574,10 +624,10 @@ function selectCountry(country, escKeyEntry) {
                 if (pathIsPlayerOwned(paths[i])) {
                     paths[i].setAttribute('fill', playerColour());
                     if (territoryAboutToBeAttackedOrSieged) {
-                        document.getElementById("attack-destination-container").style.display = "none";
+                        moveButton.hideDestination();
                         attackTextCurrentlyDisplayed = false;
-                        if (svgMap.querySelector("#attackImage")) {
-                            svgMap.getElementById("attackImage").remove();
+                        if (svgMap.querySelector(sel.attackImage)) {
+                            svgMap.getElementById(ids.attackImage).remove();
                         }
                     }
                 }
@@ -666,17 +716,7 @@ function selectCountry(country, escKeyEntry) {
             //restoreMapColorState(), every other locked country too), click it again -- the
             //fill no longer matched, so the button appeared and the player started as the
             //United States. The lock is state; ask the state. See audit 5.2 Z.
-            if (pathIsGreyedOut(country)) {
-                adjustTextToFit(
-                    document.getElementById('popup-body'),
-                    pathCountry(country) + " - too strong to play"
-                );
-                document.getElementById('popup-confirm').style.display = "none";
-            } else {
-                adjustTextToFit(document.getElementById('popup-body'), pathCountry(country));
-                document.getElementById('popup-confirm').classList.add("greenBackground");
-                document.getElementById('popup-confirm').style.display = "block";
-            }
+            countrySelect.nameCountry(pathCountry(country), { locked: pathIsGreyedOut(country) });
         }
 
         clickActionsDone = true;
@@ -685,45 +725,18 @@ function selectCountry(country, escKeyEntry) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    //Phase 6.3. The tooltip owns its own element now -- it is no longer a <div> in
+    //index.html reached through named window access. Created first because every
+    //other component's hover handlers push content into it.
+    tooltip.create();
+
     //MENU CONTAINER
-    // create the menu container
-    const menuContainer = document.createElement("div");
-    menuContainer.classList.add("menu-container");
-
-    // create the menu options
-    const title = document.createElement("td");
-    title.innerText = "Domination:";
-    title.classList.add("menu-option");
-    title.classList.add("title");
-
-    const subTitle = document.createElement("td");
-    subTitle.innerText = "World Conquest";
-    subTitle.classList.add("menu-option");
-    subTitle.classList.add("subTitle");
-
-    const newGameButton = document.createElement("button");
-    newGameButton.innerText = "New Game";
-    newGameButton.classList.add("menu-option");
-    newGameButton.classList.add("option-3");
-    newGameButton.setAttribute("id", "new-game-btn");
-    newGameButton.disabled = true;
-
-    const toggleMusicButton = document.createElement("button");
-    toggleMusicButton.innerText = "Toggle Music";
-    toggleMusicButton.classList.add("menu-option");
-    toggleMusicButton.classList.add("option-4");
-    toggleMusicButton.setAttribute("id", "toggle-music-btn");
-
-    const helpButton = document.createElement("button");
-    helpButton.innerText = "Help";
-    helpButton.classList.add("menu-option");
-    helpButton.classList.add("option-5");
-
-    // add event listener to New Game button
-    newGameButton.addEventListener("click", function() {
-        playSoundClip("click");
-        resetGameState();
-        greyOutTerritoriesForUnselectableCountries();
+    mainMenu.create({
+        onNewGame() {
+            playSoundClip("click");
+            resetGameState();
+            greyOutTerritoriesForUnselectableCountries();
+        },
     });
 
     function resetGameState() {
@@ -734,10 +747,9 @@ document.addEventListener("DOMContentLoaded", function() {
         //already selected -- therefore adopted BLACK, and the next country they clicked was
         //painted the same colour as the map strokes, so it read as a hole rather than a
         //selection. Seeding the input from the store is what keeps the two in step.
-        document.getElementById("player-color-picker").value =
-            convertHexValueToRGBOrViceVersa(playerColour(), 1);
+        countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
         toggleBottomTableContainer(true);
-        document.getElementById("menu-container").style.display = "none";
+        mainMenu.hide();
         outsideOfMenuAndMapVisible = true;
         menuState = false;
         countrySelectedAndGameStarted = false;
@@ -746,159 +758,119 @@ document.addEventListener("DOMContentLoaded", function() {
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
     }
 
-    // add the menu options to the menu container
-    menuContainer.appendChild(title);
-    menuContainer.appendChild(subTitle);
-    menuContainer.appendChild(newGameButton);
-    menuContainer.appendChild(toggleMusicButton);
-    menuContainer.appendChild(helpButton);
-
-    // add the menu container to the HTML body
-    document.getElementById("menu-container").appendChild(menuContainer);
-
     //MAP POPUP WITH CONFIRM BUTTON
-    // create the menu container
-    const popupWithConfirmContainer = document.createElement("div");
-    popupWithConfirmContainer.classList.add("popup-with-confirm-container");
-
-    // create the menu options
-    const popupTitle = document.createElement("td");
-    popupTitle.innerText = "Select a Country..."; //set in required function
-    popupTitle.classList.add("popup-option");
-    popupTitle.classList.add("popup-option-title");
-    popupTitle.setAttribute("id", "popup-title");
-
-    const colorPicker = document.createElement("label");
-    colorPicker.innerText = "Select Player Color";
-    colorPicker.classList.add("popup-option");
-    colorPicker.classList.add("popup-option-color");
-    colorPicker.setAttribute("id", "popup-color");
-    colorPicker.setAttribute("for", "player-color-picker");
-
-    const popupSubTitle = document.createElement("td");
-    popupSubTitle.innerText = "- - - -";
-    popupSubTitle.classList.add("popup-option");
-    popupSubTitle.classList.add("popup-option-subtitle");
-    popupSubTitle.setAttribute("id", "popup-body");
-
-    const popupConfirm = document.createElement("button");
-    popupConfirm.innerText = "CONFIRM";
-    popupConfirm.classList.add("popup-option");
-    popupConfirm.classList.add("popup-option-confirm");
-    popupConfirm.setAttribute("id", "popup-confirm");
-
-    const mapModeButton = document.createElement("img");
-    mapModeButton.src = "resources/mapMode1.png"; // Set the image source URL
-    mapModeButton.classList.add("mapMode");
-    mapModeButton.setAttribute("id", "mapModeButton");
-
-    mapModeButton.addEventListener("click", function() {
-        flipMapMode();
+    //Phase 6.3. The bar builds itself and derives its own title and button label
+    //from the phase, so setPhase() is now the only call a phase transition makes.
+    const popupWithConfirmContainer = phaseBar.create({
+        onColourLabelClick() {
+            playSoundClip("click");
+            countrySelect.showPicker();
+        },
     });
+    const popupConfirm = phaseBar.buttonElement();
 
-    const strokeHighlightButton = document.createElement("img");
-    strokeHighlightButton.src = "resources/strokeToggle2.png"; // Set the image source URL
-    strokeHighlightButton.classList.add("mapMode");
-    strokeHighlightButton.setAttribute("id", "strokeHighlightButton");
+    mount(
+        ids.mapModeContainer,
+        el("img", {
+            id: ids.mapModeButton,
+            class: "mapMode",
+            src: "resources/mapMode1.png",
+            on: { click: () => flipMapMode() },
+        }),
+        el("img", {
+            id: ids.strokeHighlightButton,
+            class: "mapMode",
+            src: "resources/strokeToggle2.png",
+            on: { click: () => toggleContinentColorsStroke() },
+        })
+    );
 
-    strokeHighlightButton.addEventListener("click", function() {
-        toggleContinentColorsStroke();
-    });
+    mount(
+        ids.uiButtonContainer,
+        el("img", {
+            id: ids.uiToggleButton,
+            class: "UI-option",
+            src: "resources/globeNoStandButtonUI.png",
+            on: {
+                click() {
+                    playSoundClip("click");
+                    if (uiCurrentlyOnScreen) {
+                        toggleUIMenu(false);
+                    } else {
+                        toggleUIMenu(true);
+                        infoTable.setActiveTab("summary");
+                    }
+                },
+            },
+        })
+    );
 
-
-    document.getElementById("mapModeContainer").appendChild(mapModeButton);
-    document.getElementById("mapModeContainer").appendChild(strokeHighlightButton);
-
-    const UIToggleButton = document.createElement("img");
-    UIToggleButton.src = "resources/globeNoStandButtonUI.png"; // Set the image source URL
-    UIToggleButton.classList.add("UI-option");
-    UIToggleButton.setAttribute("id", "UIToggleButton");
-
-    UIToggleButton.addEventListener("click", function() {
-        playSoundClip("click");
-        if (uiCurrentlyOnScreen) {
-            toggleUIMenu(false);
-        } else {
-            toggleUIMenu(true);
-            summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
-            summaryButton.classList.add("active");
-        }
-    });
-
-    document.getElementById("UIButtonContainer").appendChild(UIToggleButton);
-
-    colorPicker.addEventListener("click", function() {
-        playSoundClip("click");
-        document.getElementById("player-color-picker").style.display = "block";
-    });
-
-    document.getElementById("player-color-picker").addEventListener('change', function() {
-        if (mapMode === 2) {
-            flipMapMode();
-        }
-        setPlayerColour(convertHexValueToRGBOrViceVersa(document.getElementById("player-color-picker").value, 0));
-        restoreMapColorState(currentMapColorAndStrokeArray, false);
-        document.getElementById("popup-color").style.color = playerColour();
-        if (selectCountryPlayerState) {
-            for (let i = 0; i < paths.length; i++) {
-                //A locked country never takes the player colour. `lastClickedPath` is set
-                //for a locked country as well as a playable one, so without this test the
-                //picker painted the player's colour straight over the lock. Phase 5.8.
-                if (pathCountry(paths[i]) === pathCountry(lastClickedPath) && !pathIsGreyedOut(paths[i])) {
-                    paths[i].setAttribute("fill", playerColour());
-                }
+    countrySelect.create({
+        onColourChange() {
+            if (mapMode === 2) {
+                flipMapMode();
             }
-            //restoreMapColorState() above replays the colours saved at bootstrap, which are
-            //the true country colours -- so it lifts the lock off every locked country on
-            //the map, not just the one that was clicked. Put it back.
-            paintLockedCountries();
-        } else if (countrySelectedAndGameStarted) {
-            paths.forEach(path => {
-                if (pathIsPlayerOwned(path)) {
-                    path.setAttribute("fill", playerColour());
+            setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
+            restoreMapColorState(currentMapColorAndStrokeArray, false);
+            phaseBar.colourLabelElement().style.color = playerColour();
+            if (selectCountryPlayerState) {
+                for (let i = 0; i < paths.length; i++) {
+                    //A locked country never takes the player colour. `lastClickedPath` is set
+                    //for a locked country as well as a playable one, so without this test the
+                    //picker painted the player's colour straight over the lock. Phase 5.8.
+                    if (pathCountry(paths[i]) === pathCountry(lastClickedPath) && !pathIsGreyedOut(paths[i])) {
+                        paths[i].setAttribute("fill", playerColour());
+                    }
                 }
-            });
-            currentMapColorAndStrokeArray = saveMapColorState(false);
-        }
+                //restoreMapColorState() above replays the colours saved at bootstrap, which are
+                //the true country colours -- so it lifts the lock off every locked country on
+                //the map, not just the one that was clicked. Put it back.
+                paintLockedCountries();
+            } else if (countrySelectedAndGameStarted) {
+                paths.forEach(path => {
+                    if (pathIsPlayerOwned(path)) {
+                        path.setAttribute("fill", playerColour());
+                    }
+                });
+                currentMapColorAndStrokeArray = saveMapColorState(false);
+            }
+        },
     });
 
     // add event listener to popup confirm button
     popupConfirm.addEventListener("click", async function() {
         playSoundClip("click");
         if (selectCountryPlayerState) {
-            document.getElementById("popup-color").style.display = "none";
+            document.getElementById(ids.popupColor).style.display = "none";
             setAllGreyedOutAttributesToFalseOnGameStart();
             selectCountryPlayerState = false;
             countrySelectedAndGameStarted = true;
-            document.getElementById("popup-color").style.color = playerColour();
-            popupSubTitle.style.opacity = "0.5";
-            setPlayerCountry(document.getElementById("popup-body").innerHTML);
+            document.getElementById(ids.popupColor).style.color = playerColour();
+            phaseBar.dimBody();
+            setPlayerCountry(phaseBar.bodyText());
             setPlayerFlag(playerCountryName());
             setFlag(playerCountryName(), 1); //set player flag in top table
             setFlag(playerCountryName(), 3); //set player flag in ui info panel
             restoreMapColorState(currentMapColorAndStrokeArray, true);
-            popupTitle.innerText = "LOADING...";
-            popupSubTitle.innerText = "";
-            popupConfirm.innerText = "INITIAL SETUP";
+            phaseBar.setMode(phaseBar.Mode.INITIALISING);
             pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
             await initialiseGame();
-            topTableTotalResourcesString.innerHTML = "Total Player Resources:";
-            document.getElementById("popup-color").style.display = "block";
-            document.getElementById("popup-with-confirm-container").style.display = "block";
+            topTable.setHeading("Total Player Resources:");
+            document.getElementById(ids.popupColor).style.display = "block";
+            document.getElementById(ids.popupWithConfirmContainer).style.display = "block";
             uiButtonCurrentlyOnScreen = true;
             toggleUIButton(true);
             mapModeButtonCurrentlyOnScreen = true;
             toggleMapModeButton(true);
             createCpuPlayerObjectAndAddToMainArray();
             addRandomFortsToAllNonPlayerTerritories();
-            popupTitle.innerText = "Buy / Upgrade Phase";
-            popupSubTitle.innerText = "";
-            popupConfirm.innerText = "MILITARY";
             //Phase 4.6. This button used to walk its own counter, `turnPhase`, one step
             //AHEAD of the `currentTurnPhase` the rest of the game read, and push the old
             //value across on each click. Two counters for one fact, only ever in step by
-            //convention. The button now reads and writes the single phase in GameState.
+            //convention. The button now reads and writes the single phase in GameState,
+            //and since Phase 6.3 the bar's own text follows from that one write.
+            phaseBar.setMode(phaseBar.Mode.PLAYING);
             setPhase(Phase.BUY_UPGRADE);
             if (mapMode === 1) {
                 currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -907,8 +879,6 @@ document.addEventListener("DOMContentLoaded", function() {
             if (mapMode === 1) {
                 currentMapColorAndStrokeArray = saveMapColorState(false);
             }
-            popupTitle.innerText = "Military Phase";
-            popupConfirm.innerText = "END TURN";
             setPhase(Phase.MOVE_ATTACK);
         }
         else if (countrySelectedAndGameStarted && currentPhase() === Phase.MOVE_ATTACK) {
@@ -926,1702 +896,144 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // add the menu options to the menu container
-    popupWithConfirmContainer.appendChild(popupTitle);
-    popupWithConfirmContainer.appendChild(colorPicker);
-    popupWithConfirmContainer.appendChild(popupSubTitle);
-    popupWithConfirmContainer.appendChild(popupConfirm);
-
-    document.getElementById("popup-with-confirm-container").appendChild(popupWithConfirmContainer);
+    mount(ids.popupWithConfirmContainer, popupWithConfirmContainer);
 
     //TOP TABLE
-    const topTableTable = document.createElement("table");
-    topTableTable.setAttribute("id", "top-table");
-
-    const topTableRow = document.createElement("tr");
-    topTableRow.classList.add("top-row");
-
-    const topTableFlag = document.createElement("td");
-    topTableFlag.classList.add("iconCell");
-    topTableFlag.setAttribute("id", "flag-top");
-    topTableFlag.addEventListener("mouseover", () => {
-        tooltip.innerHTML = playerCountryName();
-        tooltip.style.display = "block";
+    //Phase 6.3. Two hundred lines of createElement moved to
+    //src/ui/components/TopTable.js. The capacity and demand figures its hover text
+    //needs are injected rather than imported, so the component does not pull the
+    //economy into the UI layer.
+    topTable.create({
+        playerCountryName,
+        capacities: () => capacityArray,
+        demands: () => demandArray,
+        formatNumber: formatNumbersToKMB,
     });
-    topTableFlag.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const topTableTotalResourcesString = document.createElement("td");
-    topTableTotalResourcesString.innerHTML = "Please wait, initialising game...";
-
-    const topTableGold = document.createElement("td");
-    topTableGold.classList.add("iconCell");
-
-    const goldImg = document.createElement("img");
-    goldImg.classList.add("sizingIcons");
-    goldImg.alt = "Gold";
-    goldImg.src = "resources/gold.png";
-
-    const topTableGoldValue = document.createElement("td");
-    topTableGoldValue.classList.add("resourceFields");
-
-    const topTableOil = document.createElement("td");
-    topTableOil.classList.add("iconCell");
-    topTableOil.addEventListener("mouseover", () => {
-        let totalOilDemandCountry = demandArray.totalOilDemand;
-
-        tooltip.innerHTML = `
-    <div><span style="color: rgb(235,235,0)">Oil:</span></div>
-    <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
-    <div>Total Oil Demand: ${totalOilDemandCountry}</div>
-  `;
-        tooltip.style.display = "block";
-    });
-    topTableOil.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const oilImg = document.createElement("img");
-    oilImg.classList.add("sizingIcons");
-    oilImg.alt = "Oil";
-    oilImg.src = "resources/oil.png";
-
-    const topTableOilValue = document.createElement("td");
-    topTableOilValue.classList.add("resourceFields");
-    topTableOilValue.addEventListener("mouseover", () => {
-        let totalOilDemandCountry = demandArray.totalOilDemand;
-        tooltip.innerHTML = `
-    <div><span style="color: rgb(235,235,0)">Oil:</span></div>
-    <div>Total Oil Capacity: ${Math.ceil(capacityArray.totalOilCapacity)}</div>
-    <div>Total Oil Demand: ${totalOilDemandCountry}</div>
-  `;
-        tooltip.style.display = "block";
-    });
-    topTableOilValue.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const topTableFood = document.createElement("td");
-    topTableFood.classList.add("iconCell");
-    topTableFood.addEventListener("mouseover", () => {
-        let tooltipContent = `
-    <div><span style="color: rgb(235,235,0)">Food:</span></div>
-    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity, 0)}</div>
-  `;
-        tooltip.innerHTML = tooltipContent;
-        tooltip.style.display = "block";
-    });
-    topTableFood.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const foodImg = document.createElement("img");
-    foodImg.classList.add("sizingIcons");
-    foodImg.alt = "Food";
-    foodImg.src = "resources/food.png";
-
-    const topTableFoodValue = document.createElement("td");
-    topTableFoodValue.classList.add("resourceFields");
-    topTableFoodValue.addEventListener("mouseover", () => {
-        let tooltipContent = `
-    <div><span style="color: rgb(235,235,0)">Food:</span></div>
-    <div>Total Food Capacity: ${formatNumbersToKMB(capacityArray.totalFoodCapacity, 0)}</div>
-  `;
-        tooltip.innerHTML = tooltipContent;
-        tooltip.style.display = "block";
-    });
-    topTableFoodValue.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const topTableConsMats = document.createElement("td");
-    topTableConsMats.classList.add("iconCell");
-    topTableConsMats.addEventListener("mouseover", () => {
-        let tooltipContent = `
-    <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
-    <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
-  `;
-        tooltip.innerHTML = tooltipContent;
-        tooltip.style.display = "block";
-    });
-    topTableConsMats.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const consMatsImg = document.createElement("img");
-    consMatsImg.classList.add("sizingIcons");
-    consMatsImg.alt = "Construction Materials";
-    consMatsImg.src = "resources/consMats.png";
-
-    const topTableConsMatsValue = document.createElement("td");
-    topTableConsMatsValue.classList.add("resourceFields");
-    topTableConsMatsValue.addEventListener("mouseover", () => {
-        let tooltipContent = `
-    <div><span style="color: rgb(235,235,0)">Cons Mats.:</span></div>
-    <div>Total Cons. Mats. Capacity: ${Math.ceil(capacityArray.totalConsMatsCapacity)}</div>
-  `;
-        tooltip.innerHTML = tooltipContent;
-        tooltip.style.display = "block";
-    });
-    topTableConsMatsValue.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    const topTableProdPopulation = document.createElement("td");
-    topTableProdPopulation.classList.add("iconCell");
-
-    const prodPopulationImg = document.createElement("img");
-    prodPopulationImg.classList.add("sizingIcons");
-    prodPopulationImg.alt = "Population";
-    prodPopulationImg.src = "resources/prodPopulation.png";
-
-    const topTableProdPopulationValue = document.createElement("td");
-    topTableProdPopulationValue.classList.add("population");
-
-    const topTablelandArea = document.createElement("td");
-    topTablelandArea.classList.add("iconCell");
-
-    const landAreaImg = document.createElement("img");
-    landAreaImg.classList.add("sizingIcons");
-    landAreaImg.alt = "Land Area";
-    landAreaImg.src = "resources/landArea.png";
-
-    const topTablelandAreaValue = document.createElement("td");
-    topTablelandAreaValue.classList.add("resourceFields");
-
-    const topTableArmy = document.createElement("td");
-    topTableArmy.classList.add("iconCell");
-
-    const armyImg = document.createElement("img");
-    armyImg.classList.add("sizingIcons");
-    armyImg.alt = "Military";
-    armyImg.src = "resources/army.png";
-
-    const topTableArmyValue = document.createElement("td");
-    topTableArmyValue.classList.add("resourceFields");
-
-    topTableTable.appendChild(topTableRow);
-    topTableRow.appendChild(topTableFlag);
-    topTableRow.appendChild(topTableTotalResourcesString);
-    topTableRow.appendChild(topTableGold);
-    topTableGold.appendChild(goldImg);
-    topTableRow.appendChild(topTableGoldValue);
-    topTableRow.appendChild(topTableOil);
-    topTableOil.appendChild(oilImg);
-    topTableRow.appendChild(topTableOilValue);
-    topTableRow.appendChild(topTableFood);
-    topTableFood.appendChild(foodImg);
-    topTableRow.appendChild(topTableFoodValue);
-    topTableRow.appendChild(topTableConsMats);
-    topTableConsMats.appendChild(consMatsImg);
-    topTableRow.appendChild(topTableConsMatsValue);
-    topTableRow.appendChild(topTableProdPopulation);
-    topTableProdPopulation.appendChild(prodPopulationImg);
-    topTableRow.appendChild(topTableProdPopulationValue);
-    topTableRow.appendChild(topTablelandArea);
-    topTablelandArea.appendChild(landAreaImg);
-    topTableRow.appendChild(topTablelandAreaValue);
-    topTableRow.appendChild(topTableArmy);
-    topTableArmy.appendChild(armyImg);
-    topTableRow.appendChild(topTableArmyValue);
-
-    document.getElementById("top-table-container").appendChild(topTableTable);
 
     //------------------------------------------AI DIALOGUE-----------------------------------------------//
-
-    const aiDialogueContainer = document.createElement("div");
-    aiDialogueContainer.classList.add("blur-background");
-
-    const aiTitleRow = document.createElement("div");
-    aiTitleRow.classList.add("aiTitleRow");
-    aiTitleRow.setAttribute("id", "aiTitleRow");
-
-    const aiDialogueTitleFlagCol1 = document.createElement("div");
-    aiDialogueTitleFlagCol1.classList.add("aiDialogueTitleFlagCol1");
-    aiDialogueTitleFlagCol1.setAttribute("id", "aiDialogueTitleFlagCol1");
-
-    const aiDialogueTitleText = document.createElement("div");
-    aiDialogueTitleText.classList.add("aiDialogueTitleText");
-    aiDialogueTitleText.setAttribute("id", "aiDialogueTitleText");
-
-    const aiDialogueTitleFlagCol2 = document.createElement("div");
-    aiDialogueTitleFlagCol2.classList.add("aiDialogueTitleFlagCol2");
-    aiDialogueTitleFlagCol2.setAttribute("id", "aiDialogueTitleFlagCol2");
-
-    const aiDialogueBody = document.createElement("div");
-    aiDialogueBody.classList.add("aiDialogueBody");
-    aiDialogueBody.setAttribute("id", "aiDialogueBody");
-
-    const aiDialogueBodySubHeading = document.createElement("div");
-    aiDialogueBodySubHeading.classList.add("aiDialogueBodySubHeading");
-    aiDialogueBodySubHeading.setAttribute("id", "aiDialogueBodySubHeading");
-
-    const aiDialogueBodyBottomContent = document.createElement("div");
-    aiDialogueBodyBottomContent.classList.add("aiDialogueBodyBottomContent");
-    aiDialogueBodyBottomContent.setAttribute("id", "aiDialogueBodyBottomContent");
-
-    const aiDialogueBodyBottomContentLeft = document.createElement("div");
-    aiDialogueBodyBottomContentLeft.classList.add("aiDialogueBodyBottomContentLeft");
-    aiDialogueBodyBottomContentLeft.setAttribute("id", "aiDialogueBodyBottomContentLeft");
-
-    const aiDialogueBodyBottomContentLeftLarge = document.createElement("div");
-    aiDialogueBodyBottomContentLeftLarge.classList.add("aiDialogueBodyBottomContentLarge");
-    aiDialogueBodyBottomContentLeftLarge.setAttribute("id", "aiDialogueBodyBottomContentLeftLarge");
-
-    const aiDialogueBodyBottomContentLeftRow1 = document.createElement("div");
-    aiDialogueBodyBottomContentLeftRow1.classList.add("aiDialogueBodyBottomContentLeftRow");
-    aiDialogueBodyBottomContentLeftRow1.setAttribute("id", "aiDialogueBodyBottomContentLeftRow1");
-
-    const aiDialogueBodyBottomContentLeftRow2 = document.createElement("div");
-    aiDialogueBodyBottomContentLeftRow2.classList.add("aiDialogueBodyBottomContentLeftRow");
-    aiDialogueBodyBottomContentLeftRow2.setAttribute("id", "aiDialogueBodyBottomContentLeftRow2");
-
-    const aiDialogueBodyBottomContentLeftRow3 = document.createElement("div");
-    aiDialogueBodyBottomContentLeftRow3.classList.add("aiDialogueBodyBottomContentLeftRow");
-    aiDialogueBodyBottomContentLeftRow3.setAttribute("id", "aiDialogueBodyBottomContentLeftRow3");
-
-    const aiDialogueBodyBottomContentLeftRow4 = document.createElement("div");
-    aiDialogueBodyBottomContentLeftRow4.classList.add("aiDialogueBodyBottomContentLeftRow");
-    aiDialogueBodyBottomContentLeftRow4.setAttribute("id", "aiDialogueBodyBottomContentLeftRow4");
-
-    const aiDialogueBodyBottomContentRight = document.createElement("div");
-    aiDialogueBodyBottomContentRight.classList.add("aiDialogueBodyBottomContentRight");
-    aiDialogueBodyBottomContentRight.setAttribute("id", "aiDialogueBodyBottomContentRight");
-
-    const aiDialogueBodyBottomContentRightLarge = document.createElement("div");
-    aiDialogueBodyBottomContentRightLarge.classList.add("aiDialogueBodyBottomContentLarge");
-    aiDialogueBodyBottomContentRightLarge.setAttribute("id", "aiDialogueBodyBottomContentRightLarge");
-
-    const aiDialogueBodyBottomContentRightRow1 = document.createElement("div");
-    aiDialogueBodyBottomContentRightRow1.classList.add("aiDialogueBodyBottomContentRightRow");
-    aiDialogueBodyBottomContentRightRow1.setAttribute("id", "aiDialogueBodyBottomContentRightRow1");
-
-    const aiDialogueBodyBottomContentRightRow2 = document.createElement("div");
-    aiDialogueBodyBottomContentRightRow2.classList.add("aiDialogueBodyBottomContentRightRow");
-    aiDialogueBodyBottomContentRightRow2.setAttribute("id", "aiDialogueBodyBottomContentRightRow2");
-
-    const aiDialogueBodyBottomContentRightRow3 = document.createElement("div");
-    aiDialogueBodyBottomContentRightRow3.classList.add("aiDialogueBodyBottomContentRightRow");
-    aiDialogueBodyBottomContentRightRow3.setAttribute("id", "aiDialogueBodyBottomContentRightRow3");
-
-    const aiDialogueBodyBottomContentRightRow4 = document.createElement("div");
-    aiDialogueBodyBottomContentRightRow4.classList.add("aiDialogueBodyBottomContentRightRow");
-    aiDialogueBodyBottomContentRightRow4.setAttribute("id", "aiDialogueBodyBottomContentRightRow4");
-
-    const aiDialogueBoxBottomSummaryRow = document.createElement("div");
-    aiDialogueBoxBottomSummaryRow.classList.add("aiDialogueBoxBottomSummaryRow");
-    aiDialogueBoxBottomSummaryRow.setAttribute("id", "aiDialogueBoxBottomSummaryRow");
-
-    const aiDialogueBoxBottomSummaryRowCol1 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol1.classList.add("aiDialogueBoxBottomSummaryRowColImg");
-    aiDialogueBoxBottomSummaryRowCol1.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol1");
-
-    const aiDialogueBoxBottomSummaryRowCol2 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol2.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
-    aiDialogueBoxBottomSummaryRowCol2.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol2");
-
-    const aiDialogueBoxBottomSummaryRowCol3 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol3.classList.add("aiDialogueBoxBottomSummaryRowColImg");
-    aiDialogueBoxBottomSummaryRowCol3.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol3");
-
-    const aiDialogueBoxBottomSummaryRowCol4 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol4.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
-    aiDialogueBoxBottomSummaryRowCol4.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol4");
-
-    const aiDialogueBoxBottomSummaryRowCol5 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol5.classList.add("aiDialogueBoxBottomSummaryRowColImg");
-    aiDialogueBoxBottomSummaryRowCol5.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol5");
-
-    const aiDialogueBoxBottomSummaryRowCol6 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol6.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
-    aiDialogueBoxBottomSummaryRowCol6.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol6");
-
-    const aiDialogueBoxBottomSummaryRowCol7 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol7.classList.add("aiDialogueBoxBottomSummaryRowColImg");
-    aiDialogueBoxBottomSummaryRowCol7.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol7");
-
-    const aiDialogueBoxBottomSummaryRowCol8 = document.createElement("div");
-    aiDialogueBoxBottomSummaryRowCol8.classList.add("aiDialogueBoxBottomSummaryRowColTxt");
-    aiDialogueBoxBottomSummaryRowCol8.setAttribute("id", "aiDialogueBoxBottomSummaryRowCol8");
-
-    const aiButtonRow = document.createElement("div");
-    aiButtonRow.classList.add("aiButtonRow");
-    aiButtonRow.setAttribute("id", "aiButtonRow");
-
-    const aiButtonLeft = document.createElement("div");
-    aiButtonLeft.classList.add("aiButtonLeft");
-    aiButtonLeft.setAttribute("id", "aiButtonLeft");
-
-    const aiButtonRight = document.createElement("div");
-    aiButtonRight.classList.add("aiButtonRight");
-    aiButtonRight.setAttribute("id", "aiButtonRight");
-
-    const aiButtonAllRow = document.createElement("div");
-    aiButtonAllRow.classList.add("aiButtonAllRow");
-    aiButtonAllRow.setAttribute("id", "aiButtonAllRow");
-
-    aiTitleRow.appendChild(aiDialogueTitleFlagCol1);
-    aiTitleRow.appendChild(aiDialogueTitleText);
-    aiTitleRow.appendChild(aiDialogueTitleFlagCol2);
-
-    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftLarge);
-    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow1);
-    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow2);
-    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow3);
-    aiDialogueBodyBottomContentLeft.appendChild(aiDialogueBodyBottomContentLeftRow4);
-
-    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightLarge);
-    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow1);
-    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow2);
-    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow3);
-    aiDialogueBodyBottomContentRight.appendChild(aiDialogueBodyBottomContentRightRow4);
-
-    aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentLeft);
-    aiDialogueBodyBottomContent.appendChild(aiDialogueBodyBottomContentRight);
-
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol1);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol2);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol3);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol4);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol5);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol6);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol7);
-    aiDialogueBoxBottomSummaryRow.appendChild(aiDialogueBoxBottomSummaryRowCol8);
-
-    aiDialogueBody.appendChild(aiDialogueBodySubHeading);
-    aiDialogueBody.appendChild(aiDialogueBodyBottomContent);
-    aiDialogueBody.appendChild(aiDialogueBoxBottomSummaryRow);
-
-    aiButtonRow.appendChild(aiButtonLeft);
-    aiButtonRow.appendChild(aiButtonRight);
-    aiButtonRow.appendChild(aiButtonAllRow);
-
-    aiDialogueContainer.appendChild(aiTitleRow);
-    aiDialogueContainer.appendChild(aiDialogueBody);
-    aiDialogueContainer.appendChild(aiButtonRow);
-
-    document.getElementById("ai-dialogue-container").appendChild(aiDialogueContainer);
-
-    aiButtonLeft.addEventListener("click", function() {
-        setAiResponseFlag(0);
-    });
-
-    aiButtonRight.addEventListener("click", function() {
-        setAiResponseFlag(1);
-    });
-
-    aiButtonAllRow.addEventListener("click", function() {
-        setAiResponseFlag(9);
-    });
+    //Phase 6.3. Moved to src/ui/components/AiDialogue.js. The three response
+    //buttons all call the same handler with a different number: 0 accept,
+    //1 refuse, 9 accept every remaining row.
+    aiDialogue.create({ onResponse: setAiResponseFlag });
 
     //------------------------------------------------------------------------------------------------//
 
     //MAIN UI
-    const mainUIContainer = document.createElement("div");
-    mainUIContainer.classList.add("blur-background");
-
-    const tabButtons = document.createElement("div");
-    tabButtons.classList.add("tab-buttons");
-    tabButtons.setAttribute("id", "tab-buttons");
-
-    const summaryButton = document.createElement("button");
-    summaryButton.classList.add("tab-button");
-    summaryButton.setAttribute("id", "summaryButton");
-    summaryButton.innerHTML = "Summary";
-
-    //Phase 5.8. `active` was only ever ADDED to summaryButton, once, at game start, and only
-    //ever REMOVED by the X button -- no tab click moved it. `.tab-button.active` is what
-    //style.css highlights, so the Summary tab looked permanently selected however many times
-    //the player switched, and `mouseout` (which asks `classList.contains("active")`) reset
-    //the wrong button's colour. Which tab is selected is one fact; this is the one place
-    //that writes it. Phase 6.3 turns this into `InfoTable.update(state)`.
-    function markActiveTab(selected) {
-        for (const button of [summaryButton, territoryButton, armyButton, warsSiegesButton]) {
-            button.classList.toggle("active", button === selected);
-            button.style.backgroundColor =
-                button === selected ? "rgb(111, 151, 183)" : "rgb(81, 121, 153)";
-        }
-    }
-
-    summaryButton.addEventListener("click", function() {
-        playSoundClip("click");
-        markActiveTab(summaryButton);
-        drawUITable(uiTable, 0);
+    //Phase 6.3. The panel chrome -- tab strip, checkbox, close button, the panel
+    //around the table -- moved to src/ui/components/InfoTable.js. What goes IN
+    //the table is still drawUITable(), which Phase 6.4 breaks up; the component
+    //calls it with the tab index the player clicked.
+    infoTable.create({
+        drawTable: drawUITable,
+        onTabClick: () => playSoundClip("click"),
+        onClose() {
+            playSoundClip("click");
+            toggleUIMenu(false);
+            uiCurrentlyOnScreen = false;
+        },
+        onToggleStartOfTurn() {
+            playSoundClip("click");
+            uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(
+                infoTable.checkBoxElement(),
+                uiAppearsAtStartOfTurn
+            );
+        },
     });
-
-    summaryButton.addEventListener("mouseover", function() {
-        summaryButton.style.backgroundColor = "rgb(111, 151, 183)";
-    });
-
-    summaryButton.addEventListener("mouseout", function() {
-        if (!summaryButton.classList.contains("active")) {
-            summaryButton.style.backgroundColor = "rgb(81, 121, 153)";
-        }
-    });
-
-    const territoryButton = document.createElement("button");
-    territoryButton.classList.add("tab-button");
-    territoryButton.setAttribute("id", "territoryButton");
-    territoryButton.innerHTML = "Territories";
-
-    territoryButton.addEventListener("click", function() {
-        playSoundClip("click");
-        markActiveTab(territoryButton);
-        drawUITable(uiTable, 1);
-    });
-
-    const armyButton = document.createElement("button");
-    armyButton.classList.add("tab-button");
-    armyButton.setAttribute("id", "armyButton");
-    armyButton.innerHTML = "Military";
-
-    armyButton.addEventListener("click", function() {
-        playSoundClip("click");
-        markActiveTab(armyButton);
-        drawUITable(uiTable, 2);
-    });
-
-    const warsSiegesButton = document.createElement("button");
-    warsSiegesButton.classList.add("tab-button");
-    warsSiegesButton.setAttribute("id", "warsSiegesButton");
-    warsSiegesButton.innerHTML = "Wars / Sieges";
-
-    warsSiegesButton.addEventListener("click", function() {
-        playSoundClip("click");
-        markActiveTab(warsSiegesButton);
-        drawUITable(uiTable, 3);
-    });
-
-    const checkBox = document.createElement("button");
-    checkBox.classList.add("checkBox-appear-start-of-turn");
-    checkBox.setAttribute("id", "checkBox-appear-start-of-turn");
-    checkBox.innerHTML = "✔";
-
-    checkBox.addEventListener("mouseover", (e) => {
-        const x = e.clientX;
-        const y = e.clientY;
-
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = 25 + y + "px";
-        tooltip.innerHTML = "Check to display UI at start of turn!";
-        tooltip.style.display = "block";
-    });
-
-    checkBox.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
-    });
-
-    checkBox.addEventListener("click", function() {
-        playSoundClip("click");
-        uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn);
-    });
-
-    const xButton = document.createElement("button");
-    xButton.classList.add("x-button");
-    xButton.setAttribute("id", "xButton");
-    xButton.innerHTML = "X";
-
-    xButton.addEventListener("click", function() {
-        playSoundClip("click");
-        toggleUIMenu(false);
-        uiCurrentlyOnScreen = false;
-        territoryButton.classList.remove("active");
-        armyButton.classList.remove("active");
-        warsSiegesButton.classList.remove("active");
-        uiTable.style.display = "none";
-    });
-
-    const contentWindow = document.createElement("div");
-    contentWindow.classList.add("content-window");
-    contentWindow.setAttribute("id", "content-window");
-
-    const beforeInfoPanel = document.createElement("div");
-    beforeInfoPanel.classList.add("info-panel::before");
-    beforeInfoPanel.setAttribute("id", "beforeInfoPanel");
-
-    const infoPanel = document.createElement("div");
-    infoPanel.classList.add("info-panel");
-    infoPanel.setAttribute("id", "info-panel");
-
-    const uiTable = document.createElement("div");
-    uiTable.classList.add("ui-table");
-    uiTable.setAttribute("id", "uiTable");
-
-    const selectionPanel = document.createElement("div");
-    selectionPanel.classList.add("selection-panel");
-    selectionPanel.setAttribute("id", "selection-panel");
-
-    mainUIContainer.appendChild(tabButtons);
-    tabButtons.appendChild(summaryButton);
-    tabButtons.appendChild(territoryButton);
-    tabButtons.appendChild(armyButton);
-    tabButtons.appendChild(warsSiegesButton);
-    tabButtons.appendChild(checkBox);
-    tabButtons.appendChild(xButton);
-    mainUIContainer.appendChild(contentWindow);
-    contentWindow.appendChild(infoPanel);
-    contentWindow.appendChild(selectionPanel);
-    infoPanel.appendChild(uiTable);
-    infoPanel.insertBefore(beforeInfoPanel, infoPanel.firstChild);
-
-    document.getElementById("main-ui-container").appendChild(mainUIContainer);
-
-    //UPGRADE WINDOW
-    const upgradeContainer = document.createElement("div");
-    upgradeContainer.classList.add("blur-background");
-
-    const navBarUpgradeWindow = document.createElement("div");
-    navBarUpgradeWindow.classList.add("navbar-upgrade-window");
-    navBarUpgradeWindow.setAttribute("id", "navbar-upgrade-window");
-
-    const navBarLeftColumn = document.createElement("div");
-    navBarLeftColumn.classList.add("left-column");
-    navBarLeftColumn.innerHTML = "";
-
-    const navBarCenterColumn = document.createElement("div");
-    navBarCenterColumn.classList.add("center-column");
-    navBarCenterColumn.innerHTML = "Upgrade Territory";
-
-    const navBarRightColumn = document.createElement("div");
-    navBarRightColumn.classList.add("right-column");
-    navBarRightColumn.innerHTML = "";
-
-    const subtitleUpgradeWindow = document.createElement("div");
-    subtitleUpgradeWindow.classList.add("subtitle-upgrade-window");
-    subtitleUpgradeWindow.setAttribute("id", "subtitle-upgrade-window");
-
-    const keyBarUpgradeWindow = document.createElement("div");
-    keyBarUpgradeWindow.classList.add("key-bar-upgrade-window");
-    keyBarUpgradeWindow.setAttribute("id", "key-bar-upgrade-window");
-
-    const keyBarColumn0 = document.createElement("div");
-    keyBarColumn0.classList.add("key-bar-column0");
-    keyBarColumn0.innerHTML = "";
-
-    const keyBarColumn1 = document.createElement("div");
-    keyBarColumn1.classList.add("key-bar-column1");
-    keyBarColumn1.innerHTML = "Type";
-
-    const keyBarColumn2 = document.createElement("div");
-    keyBarColumn2.classList.add("key-bar-column2");
-    keyBarColumn2.innerHTML = "Effect";
-
-    const keyBarColumn3 = document.createElement("div");
-    keyBarColumn3.classList.add("key-bar-column3");
-    let imageSource = "resources/gold.png";
-    let imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = "Gold";
-    imageElement.classList.add("sizingIcons");
-    keyBarColumn3.appendChild(imageElement);
-
-    const keyBarColumn4 = document.createElement("div");
-    keyBarColumn4.classList.add("key-bar-column4");
-    imageSource = "resources/consMats.png";
-    imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = "Construction Materials";
-    imageElement.classList.add("sizingIcons");
-    keyBarColumn4.appendChild(imageElement);
-
-    const keyBarColumn5 = document.createElement("div");
-    keyBarColumn5.classList.add("key-bar-column5");
-    imageSource = "resources/upgrade.png";
-    imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = "Upgrade";
-    imageElement.classList.add("sizingIcons");
-    keyBarColumn5.appendChild(imageElement);
-
-    const xButtonUpgrade = document.createElement("button");
-    xButtonUpgrade.classList.add("x-button");
-    xButtonUpgrade.setAttribute("id", "xButton");
-    xButtonUpgrade.innerHTML = "X";
-
-    xButtonUpgrade.addEventListener("click", function() {
-        playSoundClip("click");
-        toggleUpgradeMenu(false);
-        upgradeWindowCurrentlyOnScreen = false;
-    });
-
-    const contentWindowUpgrade = document.createElement("div");
-    contentWindowUpgrade.classList.add("content-window-upgrade");
-    contentWindowUpgrade.setAttribute("id", "content-window-upgrade");
-
-    const beforeInfoPanelUpgradeWindow = document.createElement("div");
-    beforeInfoPanelUpgradeWindow.classList.add("info-panel-upgrade::before");
-    beforeInfoPanelUpgradeWindow.setAttribute("id", "beforeInfoPanelUpgradeWindow");
-
-    const infoPanelUpgradeWindow = document.createElement("div");
-    infoPanelUpgradeWindow.classList.add("info-panel-upgrade");
-    infoPanelUpgradeWindow.setAttribute("id", "info-panel-upgrade");
-
-    const upgradeTable = document.createElement("div");
-    upgradeTable.classList.add("upgrade-table");
-    upgradeTable.setAttribute("id", "upgrade-table");
-
-    const bottomBarUpgradeWindow = document.createElement("div");
-    bottomBarUpgradeWindow.classList.add("bottom-bar-upgrade-window");
-    bottomBarUpgradeWindow.setAttribute("id", "bottom-bar-upgrade-window");
-
-    const pricesInfoWindow = document.createElement("div");
-    pricesInfoWindow.classList.add("prices-info-window");
-    pricesInfoWindow.setAttribute("id", "prices-info-window");
-
-    const pricesInfoCol0 = document.createElement("div");
-    pricesInfoCol0.classList.add("prices-info-column");
-    pricesInfoCol0.classList.add("prices-info-col0-padding");
-    pricesInfoCol0.setAttribute("id", "prices-info-column0");
-    pricesInfoCol0.innerHTML = "Total:";
-
-    const pricesInfoCol1 = document.createElement("div");
-    pricesInfoCol1.classList.add("prices-info-column");
-    pricesInfoCol1.classList.add("prices-info-icon-justification");
-    pricesInfoCol1.setAttribute("id", "prices-info-column1");
-    imageSource = "resources/gold.png";
-    imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = "Gold";
-    imageElement.classList.add("sizingIcons");
-    pricesInfoCol1.appendChild(imageElement);
-
-    const pricesInfoCol2 = document.createElement("div");
-    pricesInfoCol2.classList.add("prices-info-column");
-    pricesInfoCol2.classList.add("prices-info-total-justification");
-    pricesInfoCol2.setAttribute("id", "prices-info-column2");
-    pricesInfoCol2.innerHTML = "0";
-
-    const pricesInfoCol3 = document.createElement("div");
-    pricesInfoCol3.classList.add("prices-info-column");
-    pricesInfoCol3.classList.add("prices-info-icon-justification");
-    pricesInfoCol3.setAttribute("id", "prices-info-column3");
-    imageSource = "resources/consMats.png";
-    imageElement = document.createElement("img");
-    imageElement.src = imageSource;
-    imageElement.alt = "Construction Materials";
-    imageElement.classList.add("sizingIcons");
-    pricesInfoCol3.appendChild(imageElement);
-
-    const pricesInfoCol4 = document.createElement("div");
-    pricesInfoCol4.classList.add("prices-info-column");
-    pricesInfoCol4.classList.add("prices-info-total-justification");
-    pricesInfoCol4.setAttribute("id", "prices-info-column4");
-    pricesInfoCol4.innerHTML = "0";
-
-    const bottomBarConfirmButton = document.createElement("button");
-    bottomBarConfirmButton.classList.add("bottom-bar-confirm-button");
-    bottomBarConfirmButton.setAttribute("id", "bottom-bar-confirm-button");
-    bottomBarConfirmButton.innerHTML = "Cancel";
-
-    bottomBarConfirmButton.addEventListener("click", function() {
-        playSoundClip("click");
-        if (bottomBarConfirmButton.innerHTML === "Cancel") {
+    //UPGRADE WINDOW / BUY MENU
+    //Phase 6.3. Both were 190 lines of createElement differing only in class
+    //prefixes, ids, title and icons. They are one builder now --
+    //src/ui/components/ResourceWindow.js -- configured by two specs. The bottom
+    //button still asks its own label what it means; making that a derived state
+    //is Phase 6.6's shape of problem, not this one's.
+    upgradeWindow.create({
+        onClose() {
+            playSoundClip("click");
             toggleUpgradeMenu(false);
             upgradeWindowCurrentlyOnScreen = false;
-        } else if (bottomBarConfirmButton.innerHTML === "Confirm") {
-            addPlayerUpgrades(document.getElementById("upgrade-table"), currentlySelectedTerritoryForUpgrades, totalGoldPrice, totalConsMats);
+        },
+        onConfirm() {
+            playSoundClip("click");
+            if (upgradeWindow.confirmButton().innerHTML === "Confirm") {
+                addPlayerUpgrades(
+                    upgradeWindow.tableElement(),
+                    currentlySelectedTerritoryForUpgrades,
+                    totalGoldPrice,
+                    totalConsMats
+                );
+            }
             toggleUpgradeMenu(false);
             upgradeWindowCurrentlyOnScreen = false;
-        }
+        },
     });
 
-
-    upgradeContainer.appendChild(navBarUpgradeWindow);
-    navBarUpgradeWindow.appendChild(navBarLeftColumn);
-    navBarUpgradeWindow.appendChild(navBarCenterColumn);
-    navBarUpgradeWindow.appendChild(navBarRightColumn);
-    navBarRightColumn.appendChild(xButtonUpgrade);
-    upgradeContainer.appendChild(subtitleUpgradeWindow);
-    upgradeContainer.appendChild(keyBarUpgradeWindow);
-    keyBarUpgradeWindow.appendChild(keyBarColumn0);
-    keyBarUpgradeWindow.appendChild(keyBarColumn1);
-    keyBarUpgradeWindow.appendChild(keyBarColumn2);
-    keyBarUpgradeWindow.appendChild(keyBarColumn3);
-    keyBarUpgradeWindow.appendChild(keyBarColumn4);
-    keyBarUpgradeWindow.appendChild(keyBarColumn5);
-    upgradeContainer.appendChild(contentWindowUpgrade);
-    contentWindowUpgrade.appendChild(infoPanelUpgradeWindow);
-    infoPanelUpgradeWindow.appendChild(upgradeTable);
-    infoPanelUpgradeWindow.insertBefore(beforeInfoPanelUpgradeWindow, infoPanelUpgradeWindow.firstChild);
-    infoPanelUpgradeWindow.appendChild(bottomBarUpgradeWindow);
-    bottomBarUpgradeWindow.appendChild(pricesInfoWindow);
-    pricesInfoWindow.appendChild(pricesInfoCol0);
-    pricesInfoWindow.appendChild(pricesInfoCol1);
-    pricesInfoWindow.appendChild(pricesInfoCol2);
-    pricesInfoWindow.appendChild(pricesInfoCol3);
-    pricesInfoWindow.appendChild(pricesInfoCol4);
-    bottomBarUpgradeWindow.appendChild(bottomBarConfirmButton);
-
-    document.getElementById("upgrade-container").appendChild(upgradeContainer);
-
-    //BUY MENU
-    const buyContainer = document.createElement("div");
-    buyContainer.classList.add("blur-background");
-
-    const navBarBuyWindow = document.createElement("div");
-    navBarBuyWindow.classList.add("navbar-buy-window");
-    navBarBuyWindow.setAttribute("id", "navbar-buy-window");
-
-    const navBarBuyLeftColumn = document.createElement("div");
-    navBarBuyLeftColumn.classList.add("left-column-buy");
-    navBarBuyLeftColumn.innerHTML = "";
-
-    const navBarBuyCenterColumn = document.createElement("div");
-    navBarBuyCenterColumn.classList.add("center-column-buy");
-    navBarBuyCenterColumn.innerHTML = "Buy Military";
-
-    const navBarBuyRightColumn = document.createElement("div");
-    navBarBuyRightColumn.classList.add("right-column-buy");
-    navBarBuyRightColumn.innerHTML = "";
-
-    const subtitleBuyWindow = document.createElement("div");
-    subtitleBuyWindow.classList.add("subtitle-buy-window");
-    subtitleBuyWindow.setAttribute("id", "subtitle-buy-window");
-
-    const keyBarBuyWindow = document.createElement("div");
-    keyBarBuyWindow.classList.add("key-bar-buy-window");
-    keyBarBuyWindow.setAttribute("id", "key-bar-buy-window");
-
-    const keyBarBuyColumn0 = document.createElement("div");
-    keyBarBuyColumn0.classList.add("key-bar-buy-column0");
-    keyBarBuyColumn0.innerHTML = "";
-
-    const keyBarBuyColumn1 = document.createElement("div");
-    keyBarBuyColumn1.classList.add("key-bar-buy-column1");
-    keyBarBuyColumn1.innerHTML = "Type";
-
-    const keyBarBuyColumn2 = document.createElement("div");
-    keyBarBuyColumn2.classList.add("key-bar-buy-column2");
-    keyBarBuyColumn2.innerHTML = "Effect";
-
-    const keyBarBuyColumn3 = document.createElement("div");
-    keyBarBuyColumn3.classList.add("key-bar-buy-column3");
-    let imageSourceBuy = "resources/gold.png";
-    let imageElementBuy = document.createElement("img");
-    imageElementBuy.src = imageSourceBuy;
-    imageElementBuy.alt = "Gold";
-    imageElementBuy.classList.add("sizingIcons");
-    keyBarBuyColumn3.appendChild(imageElementBuy);
-
-    const keyBarBuyColumn4 = document.createElement("div");
-    keyBarBuyColumn4.classList.add("key-bar-buy-column4");
-    imageSourceBuy = "resources/prodPopulation.png";
-    imageElementBuy = document.createElement("img");
-    imageElementBuy.src = imageSourceBuy;
-    imageElementBuy.alt = "Productive Population";
-    imageElementBuy.classList.add("sizingIcons");
-    keyBarBuyColumn4.appendChild(imageElementBuy);
-
-    const keyBarBuyColumn5 = document.createElement("div");
-    keyBarBuyColumn5.classList.add("key-bar-buy-column5");
-    imageSourceBuy = "resources/buy.png";
-    imageElementBuy = document.createElement("img");
-    imageElementBuy.src = imageSourceBuy;
-    imageElementBuy.alt = "Buy";
-    imageElementBuy.classList.add("sizingIcons");
-    keyBarBuyColumn5.appendChild(imageElementBuy);
-
-    const xButtonBuy = document.createElement("button");
-    xButtonBuy.classList.add("x-button-buy");
-    xButtonBuy.setAttribute("id", "xButtonBuy");
-    xButtonBuy.innerHTML = "X";
-
-    xButtonBuy.addEventListener("click", function() {
-        playSoundClip("click");
-        toggleBuyMenu(false);
-        buyWindowCurrentlyOnScreen = false;
-    });
-
-    const contentWindowBuy = document.createElement("div");
-    contentWindowBuy.classList.add("content-window-buy");
-    contentWindowBuy.setAttribute("id", "content-window-buy");
-
-    const beforeInfoPanelBuyWindow = document.createElement("div");
-    beforeInfoPanelBuyWindow.classList.add("info-panel-buy::before");
-    beforeInfoPanelBuyWindow.setAttribute("id", "beforeInfoPanelBuyWindow");
-
-    const infoPanelBuyWindow = document.createElement("div");
-    infoPanelBuyWindow.classList.add("info-panel-buy");
-    infoPanelBuyWindow.setAttribute("id", "info-panel-buy");
-
-    const buyTable = document.createElement("div");
-    buyTable.classList.add("buy-table");
-    buyTable.setAttribute("id", "buy-table");
-
-    const bottomBarBuyWindow = document.createElement("div");
-    bottomBarBuyWindow.classList.add("bottom-bar-buy-window");
-    bottomBarBuyWindow.setAttribute("id", "bottom-bar-buy-window");
-
-    const pricesBuyInfoWindow = document.createElement("div");
-    pricesBuyInfoWindow.classList.add("prices-buy-info-window");
-    pricesBuyInfoWindow.setAttribute("id", "prices-buy-info-window");
-
-    const pricesBuyInfoCol0 = document.createElement("div");
-    pricesBuyInfoCol0.classList.add("prices-buy-info-column");
-    pricesBuyInfoCol0.classList.add("prices-buy-info-col0-padding");
-    pricesBuyInfoCol0.setAttribute("id", "prices-buy-info-column0");
-    pricesBuyInfoCol0.innerHTML = "Total:";
-
-    const pricesBuyInfoCol1 = document.createElement("div");
-    pricesBuyInfoCol1.classList.add("prices-buy-info-column");
-    pricesBuyInfoCol1.classList.add("prices-buy-info-icon-justification");
-    pricesBuyInfoCol1.setAttribute("id", "prices-buy-info-column1");
-    imageSourceBuy = "resources/gold.png";
-    imageElementBuy = document.createElement("img");
-    imageElementBuy.src = imageSourceBuy;
-    imageElementBuy.alt = "Gold";
-    imageElementBuy.classList.add("sizingIcons");
-    pricesBuyInfoCol1.appendChild(imageElementBuy);
-
-    const pricesBuyInfoCol2 = document.createElement("div");
-    pricesBuyInfoCol2.classList.add("prices-buy-info-column");
-    pricesBuyInfoCol2.classList.add("prices-buy-info-total-justification");
-    pricesBuyInfoCol2.setAttribute("id", "prices-buy-info-column2");
-    pricesBuyInfoCol2.innerHTML = "0";
-
-    const pricesBuyInfoCol3 = document.createElement("div");
-    pricesBuyInfoCol3.classList.add("prices-buy-info-column");
-    pricesBuyInfoCol3.classList.add("prices-buy-info-icon-justification");
-    pricesBuyInfoCol3.setAttribute("id", "prices-buy-info-column3");
-    imageSourceBuy = "resources/prodPopulation.png";
-    imageElementBuy = document.createElement("img");
-    imageElementBuy.src = imageSourceBuy;
-    imageElementBuy.alt = "Productive Population";
-    imageElementBuy.classList.add("sizingIcons");
-    pricesBuyInfoCol3.appendChild(imageElementBuy);
-
-    const pricesBuyInfoCol4 = document.createElement("div");
-    pricesBuyInfoCol4.classList.add("prices-buy-info-column");
-    pricesBuyInfoCol4.classList.add("prices-buy-info-total-justification");
-    pricesBuyInfoCol4.setAttribute("id", "prices-buy-info-column4");
-    pricesBuyInfoCol4.innerHTML = "0";
-
-    const bottomBarBuyConfirmButton = document.createElement("button");
-    bottomBarBuyConfirmButton.classList.add("bottom-bar-buy-confirm-button");
-    bottomBarBuyConfirmButton.setAttribute("id", "bottom-bar-buy-confirm-button");
-    bottomBarBuyConfirmButton.innerHTML = "Cancel";
-
-    bottomBarBuyConfirmButton.addEventListener("click", function() {
-        playSoundClip("click");
-        if (bottomBarBuyConfirmButton.innerHTML === "Cancel") {
+    buyWindow.create({
+        onClose() {
+            playSoundClip("click");
             toggleBuyMenu(false);
             buyWindowCurrentlyOnScreen = false;
-        } else if (bottomBarBuyConfirmButton.innerHTML === "Confirm") {
-            addPlayerPurchases(document.getElementById("buy-table"), currentlySelectedTerritoryForPurchases, totalPurchaseGoldPrice, totalPopulationCost);
+        },
+        onConfirm() {
+            playSoundClip("click");
+            if (buyWindow.confirmButton().innerHTML === "Confirm") {
+                addPlayerPurchases(
+                    buyWindow.tableElement(),
+                    currentlySelectedTerritoryForPurchases,
+                    totalPurchaseGoldPrice,
+                    totalPopulationCost
+                );
+            }
             toggleBuyMenu(false);
             buyWindowCurrentlyOnScreen = false;
-        }
+        },
     });
-
-
-    buyContainer.appendChild(navBarBuyWindow);
-    navBarBuyWindow.appendChild(navBarBuyLeftColumn);
-    navBarBuyWindow.appendChild(navBarBuyCenterColumn);
-    navBarBuyWindow.appendChild(navBarBuyRightColumn);
-    navBarBuyRightColumn.appendChild(xButtonBuy);
-    buyContainer.appendChild(subtitleBuyWindow);
-    buyContainer.appendChild(keyBarBuyWindow);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn0);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn1);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn2);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn3);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn4);
-    keyBarBuyWindow.appendChild(keyBarBuyColumn5);
-    buyContainer.appendChild(contentWindowBuy);
-    contentWindowBuy.appendChild(infoPanelBuyWindow);
-    infoPanelBuyWindow.appendChild(buyTable);
-    infoPanelBuyWindow.insertBefore(beforeInfoPanelBuyWindow, infoPanelBuyWindow.firstChild);
-    infoPanelBuyWindow.appendChild(bottomBarBuyWindow);
-    bottomBarBuyWindow.appendChild(pricesBuyInfoWindow);
-    pricesBuyInfoWindow.appendChild(pricesBuyInfoCol0);
-    pricesBuyInfoWindow.appendChild(pricesBuyInfoCol1);
-    pricesBuyInfoWindow.appendChild(pricesBuyInfoCol2);
-    pricesBuyInfoWindow.appendChild(pricesBuyInfoCol3);
-    pricesBuyInfoWindow.appendChild(pricesBuyInfoCol4);
-    bottomBarBuyWindow.appendChild(bottomBarBuyConfirmButton);
-
-    document.getElementById("buy-container").appendChild(buyContainer);
 
     // MOVE PHASE BUTTON
-    const attackDestinationTextContainer = document.createElement("div");
-    attackDestinationTextContainer.classList.add("attack-destination-container");
-    attackDestinationTextContainer.setAttribute("id", "attack-destination-container");
-
-    const leftImage = document.createElement("img");
-    leftImage.classList.add("left-attack-image");
-    leftImage.classList.add("sizingIcons");
-    leftImage.setAttribute("id", "leftBattleImage");
-
-    const centeredText = document.createElement("div");
-    centeredText.setAttribute("id", "attack-destination-text");
-    centeredText.classList.add("attack-destination-text");
-
-    const rightImage = document.createElement("img");
-    rightImage.classList.add("right-attack-image");
-    rightImage.classList.add("sizingIcons");
-    rightImage.setAttribute("id", "rightBattleImage");
-
-    const transferAttackButtonContainer = document.createElement("div");
-    transferAttackButtonContainer.classList.add("move-phase-buttons-container");
-
-    const transferAttackButton = document.createElement("button");
-    transferAttackButton.classList.add("move-phase-button");
-    transferAttackButton.setAttribute("id", "move-phase-button");
-    transferAttackButton.innerHTML = "TRANSFER";
-
-    attackDestinationTextContainer.appendChild(leftImage);
-    attackDestinationTextContainer.appendChild(centeredText);
-    attackDestinationTextContainer.appendChild(rightImage);
-    transferAttackButtonContainer.appendChild(transferAttackButton);
-
-    document.getElementById("attack-destination-containers").appendChild(attackDestinationTextContainer);
-    document.getElementById("move-phase-buttons-container").appendChild(transferAttackButtonContainer);
+    //Phase 6.3. The button and its destination strip are one component. What the
+    //button SAYS is still decided by handleMovePhaseTransferAttackButton() below;
+    //Phase 6.6 replaces that with deriveMoveButtonState().
+    const transferAttackButton = moveButton.create();
 
     // TRANSFER / ATTACK WINDOW
-    const transferAttackWindowContainer = document.createElement("div");
-    transferAttackWindowContainer.classList.add("blur-background");
-
-    const titleTransferAttackWindow = document.createElement("div");
-    titleTransferAttackWindow.classList.add("title-transfer-attack-window");
-    titleTransferAttackWindow.setAttribute("id", "title-transfer-attack-window");
-
-    const colorBarAttackUnderlayRed = document.createElement("div");
-    colorBarAttackUnderlayRed.classList.add("color-bar-attack-underlay-red");
-    colorBarAttackUnderlayRed.setAttribute("id", "colorBarAttackUnderlayRed");
-
-    const colorBarAttackOverlayGreen = document.createElement("div");
-    colorBarAttackOverlayGreen.classList.add("color-bar-attack-overlay-green");
-    colorBarAttackOverlayGreen.setAttribute("id", "colorBarAttackOverlayGreen");
-
-    const titleTransferAttackRow1 = document.createElement("div");
-    titleTransferAttackRow1.classList.add("title-transfer-window-title-row");
-    titleTransferAttackRow1.setAttribute("id", "title-transfer-window-title-row");
-
-    const titleTransferAttackRow2 = document.createElement("div");
-    titleTransferAttackRow2.classList.add("title-transfer-window-title-row");
-    titleTransferAttackRow2.setAttribute("id", "title-transfer-window-title-row");
-
-    const attackOrTransferString = document.createElement("div");
-    attackOrTransferString.classList.add("attackOrTransferHeading");
-    attackOrTransferString.setAttribute("id", "attackOrTransferString");
-
-    const fromHeadingString = document.createElement("div");
-    fromHeadingString.classList.add("fromHeading");
-    fromHeadingString.setAttribute("id", "fromHeadingString");
-
-    const territoryTextString = document.createElement("div");
-    territoryTextString.classList.add("territoryText");
-    territoryTextString.setAttribute("id", "territoryTextString");
-
-    const attackingFromTerritoryTextString = document.createElement("div");
-    attackingFromTerritoryTextString.classList.add("attackingFromTerritoryTextString");
-    attackingFromTerritoryTextString.setAttribute("id", "attackingFromTerritoryTextString");
-
-    const xButtonTransferAttack = document.createElement("div");
-    xButtonTransferAttack.classList.add("x-button-transfer-attack");
-    xButtonTransferAttack.setAttribute("id", "xButtonTransferAttack");
-    xButtonTransferAttack.innerHTML = "X";
-
-    const percentChanceAttack = document.createElement("div");
-    percentChanceAttack.classList.add("percentage-attack");
-    percentChanceAttack.setAttribute("id", "percentageAttack");
-    percentChanceAttack.innerHTML = "0 %";
-
-    const contentTransferAttackWindow = document.createElement("div");
-    contentTransferAttackWindow.classList.add("content-transfer-attack-window");
-    contentTransferAttackWindow.setAttribute("id", "contentTransferAttackWindow");
-
-    const contentTransferHeaderRow = document.createElement("div");
-    contentTransferHeaderRow.classList.add("content-transfer-header-row");
-    contentTransferHeaderRow.setAttribute("id", "contentTransferHeaderRow");
-
-    const TransferTableContainer = document.createElement("div");
-    TransferTableContainer.classList.add("transfer-table-container");
-    TransferTableContainer.setAttribute("id", "transferTableContainer");
-
-    const contentTransferHeaderColumn1 = document.createElement("div");
-    contentTransferHeaderColumn1.classList.add("content-transfer-header-column");
-    contentTransferHeaderColumn1.setAttribute("id", "contentTransferHeaderColumn1");
-
-    const contentTransferHeaderColumn2 = document.createElement("div");
-    contentTransferHeaderColumn2.classList.add("content-transfer-header-column");
-    contentTransferHeaderColumn2.setAttribute("id", "contentTransferHeaderColumn2");
-
-    const contentTransferHeaderImageColumn1 = document.createElement("div");
-    contentTransferHeaderImageColumn1.classList.add("content-transfer-header-image-column");
-    contentTransferHeaderImageColumn1.setAttribute("id", "contentTransferHeaderImageColumn1");
-
-    const contentTransferHeaderImageColumn2 = document.createElement("div");
-    contentTransferHeaderImageColumn2.classList.add("content-transfer-header-image-column");
-    contentTransferHeaderImageColumn2.setAttribute("id", "contentTransferHeaderImageColumn2");
-
-    const contentTransferHeaderImageColumn3 = document.createElement("div");
-    contentTransferHeaderImageColumn3.classList.add("content-transfer-header-image-column");
-    contentTransferHeaderImageColumn3.setAttribute("id", "contentTransferHeaderImageColumn3");
-
-    const contentTransferHeaderImageColumn4 = document.createElement("div");
-    contentTransferHeaderImageColumn4.classList.add("content-transfer-header-image-column");
-    contentTransferHeaderImageColumn4.setAttribute("id", "contentTransferHeaderImageColumn4");
-
-    const transferTable = document.createElement("div");
-    transferTable.classList.add("transfer-table");
-    transferTable.setAttribute("id", "transferTable");
-
-    transferAttackWindowContainer.appendChild(colorBarAttackUnderlayRed);
-    transferAttackWindowContainer.appendChild(colorBarAttackOverlayGreen);
-    transferAttackWindowContainer.appendChild(titleTransferAttackWindow);
-
-    titleTransferAttackWindow.appendChild(titleTransferAttackRow1);
-    titleTransferAttackRow1.appendChild(attackOrTransferString);
-    titleTransferAttackRow1.appendChild(territoryTextString);
-    titleTransferAttackRow1.appendChild(xButtonTransferAttack);
-
-    titleTransferAttackWindow.appendChild(titleTransferAttackRow2);
-    titleTransferAttackRow2.appendChild(fromHeadingString);
-    titleTransferAttackRow2.appendChild(attackingFromTerritoryTextString);
-    titleTransferAttackRow2.appendChild(percentChanceAttack);
-
-    transferAttackWindowContainer.appendChild(contentTransferHeaderRow);
-    transferAttackWindowContainer.appendChild(contentTransferAttackWindow);
-
-    contentTransferHeaderRow.appendChild(contentTransferHeaderColumn1);
-    contentTransferHeaderRow.appendChild(contentTransferHeaderColumn2);
-    contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn1);
-    contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn2);
-    contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn3);
-    contentTransferHeaderColumn2.appendChild(contentTransferHeaderImageColumn4);
-
-    contentTransferAttackWindow.appendChild(TransferTableContainer);
-    TransferTableContainer.appendChild(transferTable);
-
-    document.getElementById("transfer-attack-window-container").appendChild(transferAttackWindowContainer);
-
-    xButtonTransferAttack.addEventListener("click", function() {
-        if ((transferAttackButtonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackButtonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
-            transferAttackButton.style.fontWeight = "normal";
-            transferAttackButton.style.color = "white";
-            if (transferAttackButtonState === 1) {
-                setAttackProbabilityOnUI(0, 0);
-                territoryUniqueIds.length = 0;
+    //Phase 6.3. The shell moved to src/ui/components/TransferAttackWindow.js.
+    //What goes IN the table is still drawAndHandleTransferAttackTable(), which
+    //Phase 6.5 splits into a transfer renderer and an attack renderer.
+    transferAttackWindow.create({
+        onClose() {
+            if ((transferAttackButtonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackButtonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
+                transferAttackButton.style.fontWeight = "normal";
+                transferAttackButton.style.color = "white";
+                if (transferAttackButtonState === 1) {
+                    setAttackProbabilityOnUI(0, 0);
+                    territoryUniqueIds.length = 0;
+                }
             }
-        }
-        playSoundClip("click");
-        toggleTransferAttackWindow(false);
-        transferAttackWindowOnScreen = false;
-        toggleUIButton(true);
-        uiButtonCurrentlyOnScreen = true;
-        toggleMapModeButton(true);
-        mapModeButtonCurrentlyOnScreen = true;
-        toggleBottomLeftPaneWithTurnAdvance(true);
-        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-        handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackButtonState);
+            playSoundClip("click");
+            toggleTransferAttackWindow(false);
+            transferAttackWindowOnScreen = false;
+            toggleUIButton(true);
+            uiButtonCurrentlyOnScreen = true;
+            toggleMapModeButton(true);
+            mapModeButtonCurrentlyOnScreen = true;
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+            handleMovePhaseTransferAttackButton("xButtonClicked", lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, lastClickedPath, true, transferAttackButtonState);
+        },
     });
 
     //BATTLE UI
-    const battleUIContainer = document.createElement("div");
-    battleUIContainer.classList.add("battleContainer");
-    battleUIContainer.classList.add("blur-background");
-
-    const battleUIRow1 = document.createElement("div");
-    battleUIRow1.classList.add("battleUIRow");
-    battleUIRow1.classList.add("battleUIRow1");
-    battleUIRow1.setAttribute("id", "battleUIRow1");
-
-    const battleUIRow1FlagCol1 = document.createElement("div");
-    battleUIRow1FlagCol1.classList.add("battleUITitleFlagCol1");
-    battleUIRow1FlagCol1.setAttribute("id", "battleUITitleFlagCol1");
-    battleUIRow1FlagCol1.innerHTML = "Flag Attacker";
-
-    const battleUITitleTitleCol = document.createElement("div");
-    battleUITitleTitleCol.classList.add("battleUITitleTitleCol");
-    battleUITitleTitleCol.setAttribute("id", "battleUITitleTitleCol");
-
-    const battleUITitleTitleLeft = document.createElement("div");
-    battleUITitleTitleLeft.classList.add("leftHalfTitleBattle");
-    battleUITitleTitleLeft.setAttribute("id", "battleUITitleTitleLeft");
-
-    const battleUITitleTitleCenter = document.createElement("div");
-    battleUITitleTitleCenter.classList.add("centerTitleBattle");
-    battleUITitleTitleCenter.setAttribute("id", "battleUITitleTitleCenter");
-
-    const battleUITitleTitleRight = document.createElement("div");
-    battleUITitleTitleRight.classList.add("rightHalfTitleBattle");
-    battleUITitleTitleRight.setAttribute("id", "battleUITitleTitleRight");
-
-    const battleUIRow1FlagCol2 = document.createElement("div");
-    battleUIRow1FlagCol2.classList.add("battleUITitleFlagCol2");
-    battleUIRow1FlagCol2.setAttribute("id", "battleUITitleFlagCol2");
-
-    const battleUIRow2 = document.createElement("div");
-    battleUIRow2.classList.add("battleUIRow");
-    battleUIRow2.classList.add("battleUIRow2");
-    battleUIRow2.classList.add("battleUIRow2AttackBg");
-    battleUIRow2.setAttribute("id", "battleUIRow2");
-
-    const probabilityColumnBox = document.createElement("div");
-    probabilityColumnBox.classList.add("probabilityColumnBox");
-    probabilityColumnBox.classList.add("probabilityColumnBox");
-    probabilityColumnBox.setAttribute("id", "probabilityColumnBox");
-
-    const battleUIRow3 = document.createElement("div");
-    battleUIRow3.classList.add("battleUIRow");
-    battleUIRow3.classList.add("battleUIRow3");
-    battleUIRow3.setAttribute("id", "battleUIRow3");
-
-    const armyRowRow1 = document.createElement("div");
-    armyRowRow1.classList.add("armyRowRow1");
-    armyRowRow1.setAttribute("id", "armyRowRow1");
-
-    const armyRowRow1Icon1 = document.createElement("div");
-    armyRowRow1Icon1.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon1.setAttribute("id", "armyRowRow1Icon1");
-    armyRowRow1Icon1.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
-
-    const armyRowRow1Icon2 = document.createElement("div");
-    armyRowRow1Icon2.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon2.setAttribute("id", "armyRowRow1Icon2");
-    armyRowRow1Icon2.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
-
-    const armyRowRow1Icon3 = document.createElement("div");
-    armyRowRow1Icon3.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon3.setAttribute("id", "armyRowRow1Icon3");
-    armyRowRow1Icon3.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
-
-    const armyRowRow1Icon4 = document.createElement("div");
-    armyRowRow1Icon4.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon4.setAttribute("id", "armyRowRow1Icon4");
-    armyRowRow1Icon4.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
-
-    const armyRowRow1Icon5 = document.createElement("div");
-    armyRowRow1Icon5.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon5.classList.add("armyIconColumnBattleUIDivider");
-    armyRowRow1Icon5.setAttribute("id", "armyRowRow1Icon5");
-    armyRowRow1Icon5.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
-
-    const armyRowRow1Icon6 = document.createElement("div");
-    armyRowRow1Icon6.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon6.setAttribute("id", "armyRowRow1Icon6");
-    armyRowRow1Icon6.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
-
-    const armyRowRow1Icon7 = document.createElement("div");
-    armyRowRow1Icon7.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon7.setAttribute("id", "armyRowRow1Icon7");
-    armyRowRow1Icon7.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
-
-    const armyRowRow1Icon8 = document.createElement("div");
-    armyRowRow1Icon8.classList.add("armyIconColumnBattleUI");
-    armyRowRow1Icon8.setAttribute("id", "armyRowRow1Icon8");
-    armyRowRow1Icon8.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
-
-    const armyRowRow2 = document.createElement("div");
-    armyRowRow2.classList.add("armyRowRow2");
-    armyRowRow2.setAttribute("id", "armyRowRow2");
-
-    const armyRowRow2Quantity1 = document.createElement("div");
-    armyRowRow2Quantity1.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity1.setAttribute("id", "armyRowRow2Quantity1");
-
-    const armyRowRow2Quantity2 = document.createElement("div");
-    armyRowRow2Quantity2.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity2.setAttribute("id", "armyRowRow2Quantity2");
-
-    const armyRowRow2Quantity3 = document.createElement("div");
-    armyRowRow2Quantity3.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity3.setAttribute("id", "armyRowRow2Quantity3");
-
-    const armyRowRow2Quantity4 = document.createElement("div");
-    armyRowRow2Quantity4.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity4.setAttribute("id", "armyRowRow2Quantity4");
-
-    const armyRowRow2Quantity5 = document.createElement("div");
-    armyRowRow2Quantity5.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity5.classList.add("armyIconColumnBattleUIDivider");
-    armyRowRow2Quantity5.setAttribute("id", "armyRowRow2Quantity5");
-
-    const armyRowRow2Quantity6 = document.createElement("div");
-    armyRowRow2Quantity6.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity6.setAttribute("id", "armyRowRow2Quantity6");
-
-    const armyRowRow2Quantity7 = document.createElement("div");
-    armyRowRow2Quantity7.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity7.setAttribute("id", "armyRowRow2Quantity7");
-
-    const armyRowRow2Quantity8 = document.createElement("div");
-    armyRowRow2Quantity8.classList.add("armyRowRow2Quantity");
-    armyRowRow2Quantity8.setAttribute("id", "armyRowRow2Quantity8");
-
-    const battleUIRow4 = document.createElement("div");
-    battleUIRow4.classList.add("battleUIRow");
-    battleUIRow4.classList.add("battleUIRow4");
-    battleUIRow4.setAttribute("id", "battleUIRow4");
-
-    const battleUIRow4Col1 = document.createElement("div");
-    battleUIRow4Col1.classList.add("battleUIRow4Col1");
-    battleUIRow4Col1.setAttribute("id", "battleUIRow4Col1");
-
-    const battleUIRow4Col1IconProbabilityTurnsSiege = document.createElement("div");
-    battleUIRow4Col1IconProbabilityTurnsSiege.classList.add("battleUIRow4Col1IconProbabilityTurnsSiege");
-    battleUIRow4Col1IconProbabilityTurnsSiege.setAttribute("id", "battleUIRow4Col1IconProbabilityTurnsSiege");
-
-    const battleUIRow4Col1TextProbabilityTurnsSiege = document.createElement("div");
-    battleUIRow4Col1TextProbabilityTurnsSiege.classList.add("battleUIRow4Col1");
-    battleUIRow4Col1TextProbabilityTurnsSiege.setAttribute("id", "battleUIRow4Col1TextProbabilityTurnsSiege");
-
-    const battleUIRow4Col1IconSiegeScore = document.createElement("div");
-    battleUIRow4Col1IconSiegeScore.classList.add("battleUIRow4Col1IconProbabilityTurnsSiege");
-    battleUIRow4Col1IconSiegeScore.setAttribute("id", "battleUIRow4Col1IconSiegeScore");
-
-    const battleUIRow4Col1TextSiegeScore = document.createElement("div");
-    battleUIRow4Col1TextSiegeScore.classList.add("battleUIRow4Col1");
-    battleUIRow4Col1TextSiegeScore.classList.add("battleUIRow4Col1TextWidth");
-    battleUIRow4Col1TextSiegeScore.setAttribute("id", "battleUIRow4Col1TextSiegeScore");
-
-    const battleUIRow4Col2 = document.createElement("div");
-    battleUIRow4Col2.classList.add("battleUIRow4Col2");
-    battleUIRow4Col2.setAttribute("id", "battleUIRow4Col2");
-
-    const battleUIRow4Col2A = document.createElement("div");
-    battleUIRow4Col2A.classList.add("battleUIRow4Col2A");
-    battleUIRow4Col2A.setAttribute("id", "battleUIRow4Col2A");
-
-    const battleUIRow4Col2B = document.createElement("div");
-    battleUIRow4Col2B.classList.add("battleUIRow4Col2B");
-    battleUIRow4Col2B.setAttribute("id", "battleUIRow4Col2B");
-
-    const battleUIRow4Col2C = document.createElement("div");
-    battleUIRow4Col2C.classList.add("battleUIRow4Col2C");
-    battleUIRow4Col2C.setAttribute("id", "battleUIRow4Col2C");
-
-    const battleUIRow4Col2D = document.createElement("div");
-    battleUIRow4Col2D.classList.add("battleUIRow4Col2D");
-    battleUIRow4Col2D.setAttribute("id", "battleUIRow4Col2D");
-
-    const battleUIRow4Col2E = document.createElement("div");
-    battleUIRow4Col2E.classList.add("battleUIRow4Col2E");
-    battleUIRow4Col2E.setAttribute("id", "battleUIRow4Col2E");
-
-    const battleUIRow4Col2F = document.createElement("div");
-    battleUIRow4Col2F.classList.add("battleUIRow4Col2F");
-    battleUIRow4Col2F.setAttribute("id", "battleUIRow4Col2F");
-
-    const battleUIRow4Col2G = document.createElement("div");
-    battleUIRow4Col2G.classList.add("battleUIRow4Col2G");
-    battleUIRow4Col2G.setAttribute("id", "battleUIRow4Col2G");
-
-    const battleUIRow4Col2H = document.createElement("div");
-    battleUIRow4Col2H.classList.add("battleUIRow4Col2H");
-    battleUIRow4Col2H.setAttribute("id", "battleUIRow4Col2H");
-
-    const siegeButton = document.createElement("button");
-    siegeButton.classList.add("siegeButton");
-    siegeButton.setAttribute("id", "siegeButton");
-    siegeButton.innerHTML = "Siege Territory";
-
-    const prodPopIcon = document.createElement("div");
-    prodPopIcon.classList.add("battleRow4Icon");
-    prodPopIcon.setAttribute("id", "prodPopIcon");
-    prodPopIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/prodPopulation.png'>";
-
-    const foodIcon = document.createElement("div");
-    foodIcon.classList.add("battleRow4Icon");
-    foodIcon.setAttribute("id", "foodIcon");
-    foodIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/foodCap.png'>";
-
-    const defenseIcon = document.createElement("div");
-    defenseIcon.classList.add("battleRow4Icon");
-    defenseIcon.style.display = "flex";
-    defenseIcon.setAttribute("id", "defenseIcon");
-    defenseIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
-
-    const mountainDefenseIcon = document.createElement("div");
-    mountainDefenseIcon.classList.add("battleRow4Icon");
-    mountainDefenseIcon.style.display = "flex";
-    mountainDefenseIcon.setAttribute("id", "mountainDefenseIcon");
-    mountainDefenseIcon.innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/mountainDefenseIcon.png'>";
-
-    const prodPopText = document.createElement("div");
-    prodPopText.classList.add("battleRow4IconText");
-    prodPopText.setAttribute("id", "prodPopText");
-
-    const foodText = document.createElement("div");
-    foodText.classList.add("battleRow4IconText");
-    foodText.setAttribute("id", "foodText");
-
-    const defenseBonusText = document.createElement("div");
-    defenseBonusText.classList.add("battleRow4IconText");
-    defenseBonusText.setAttribute("id", "defenseBonusText");
-
-    const mountainDefenseText = document.createElement("div");
-    mountainDefenseText.classList.add("battleRow4IconText");
-    mountainDefenseText.classList.add("mountainDefenseText");
-    mountainDefenseText.setAttribute("id", "mountainDefenseText");
-
-    const battleUIRow5 = document.createElement("div");
-    battleUIRow5.classList.add("battleUIRow");
-    battleUIRow5.classList.add("battleUIRow5");
-    battleUIRow5.setAttribute("id", "battleUIRow5");
-
-    const retreatButton = document.createElement("button");
-    retreatButton.classList.add("retreatButton");
-    retreatButton.setAttribute("id", "retreatButton");
-
-    const advanceButton = document.createElement("button");
-    advanceButton.classList.add("advanceButton");
-    advanceButton.setAttribute("id", "advanceButton");
-
-    const siegeBottomBarButton = document.createElement("button");
-    siegeBottomBarButton.classList.add("siegeBottomBarButton");
-    siegeBottomBarButton.setAttribute("id", "siegeBottomBarButton");
-    siegeBottomBarButton.innerHTML = "Assault!";
-
-    battleUITitleTitleCol.appendChild(battleUITitleTitleLeft);
-    battleUITitleTitleCol.appendChild(battleUITitleTitleCenter);
-    battleUITitleTitleCol.appendChild(battleUITitleTitleRight);
-
-    battleUIRow1.appendChild(battleUIRow1FlagCol1);
-    battleUIRow1.appendChild(battleUITitleTitleCol);
-    battleUIRow1.appendChild(battleUIRow1FlagCol2);
-
-    battleUIRow2.appendChild(probabilityColumnBox);
-
-    armyRowRow1.appendChild(armyRowRow1Icon1);
-    armyRowRow1.appendChild(armyRowRow1Icon2);
-    armyRowRow1.appendChild(armyRowRow1Icon3);
-    armyRowRow1.appendChild(armyRowRow1Icon4);
-    armyRowRow1.appendChild(armyRowRow1Icon5);
-    armyRowRow1.appendChild(armyRowRow1Icon6);
-    armyRowRow1.appendChild(armyRowRow1Icon7);
-    armyRowRow1.appendChild(armyRowRow1Icon8);
-
-    armyRowRow2.appendChild(armyRowRow2Quantity1);
-    armyRowRow2.appendChild(armyRowRow2Quantity2);
-    armyRowRow2.appendChild(armyRowRow2Quantity3);
-    armyRowRow2.appendChild(armyRowRow2Quantity4);
-    armyRowRow2.appendChild(armyRowRow2Quantity5);
-    armyRowRow2.appendChild(armyRowRow2Quantity6);
-    armyRowRow2.appendChild(armyRowRow2Quantity7);
-    armyRowRow2.appendChild(armyRowRow2Quantity8);
-
-    battleUIRow3.appendChild(armyRowRow1);
-    battleUIRow3.appendChild(armyRowRow2);
-
-    battleUIRow4Col2A.appendChild(siegeButton);
-    battleUIRow4Col2A.appendChild(prodPopIcon);
-    battleUIRow4Col2B.appendChild(prodPopText);
-    battleUIRow4Col2C.appendChild(foodIcon);
-    battleUIRow4Col2D.appendChild(foodText);
-    battleUIRow4Col2E.appendChild(defenseIcon);
-    battleUIRow4Col2F.appendChild(defenseBonusText);
-    battleUIRow4Col2G.appendChild(mountainDefenseIcon);
-    battleUIRow4Col2H.appendChild(mountainDefenseText);
-
-    battleUIRow4Col1.appendChild(battleUIRow4Col1IconProbabilityTurnsSiege);
-    battleUIRow4Col1.appendChild(battleUIRow4Col1TextProbabilityTurnsSiege);
-    battleUIRow4Col1.appendChild(battleUIRow4Col1IconSiegeScore);
-    battleUIRow4Col1.appendChild(battleUIRow4Col1TextSiegeScore);
-
-    battleUIRow4Col2.appendChild(battleUIRow4Col2A);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2B);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2C);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2D);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2E);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2F);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2G);
-    battleUIRow4Col2.appendChild(battleUIRow4Col2H);
-
-    battleUIRow4.appendChild(battleUIRow4Col1);
-    battleUIRow4.appendChild(battleUIRow4Col2);
-
-    battleUIRow5.appendChild(retreatButton);
-    battleUIRow5.appendChild(advanceButton);
-    battleUIRow5.appendChild(siegeBottomBarButton);
-
-    battleUIContainer.appendChild(battleUIRow1);
-    battleUIContainer.appendChild(battleUIRow2);
-    battleUIContainer.appendChild(battleUIRow3);
-    battleUIContainer.appendChild(battleUIRow4);
-    battleUIContainer.appendChild(battleUIRow5);
-
-    document.getElementById("battleContainer").appendChild(battleUIContainer);
+    //Phase 6.3. Moved to src/ui/components/BattleUI.js. The buttons' listeners
+    //stay here -- Advance walks a state machine over rounds, sieges and routs,
+    //and moving that would mean moving the battle itself.
+    battleUI.create();
+    const { retreat: retreatButton, advance: advanceButton, assault: siegeBottomBarButton, siege: siegeButton } =
+        battleUI.buttons();
 
     //BATTLE RESULTS WINDOW
-    const battleResultsContainer = document.createElement("div");
-    battleResultsContainer.classList.add("blur-background");
-
-    const battleResultsRow1 = document.createElement("div");
-    battleResultsRow1.classList.add("battleResultsRow");
-    battleResultsRow1.classList.add("battleResultsRow1");
-    battleResultsRow1.setAttribute("id", "battleResultsRow1");
-
-    const battleResultsRow1FlagCol1 = document.createElement("div");
-    battleResultsRow1FlagCol1.classList.add("battleResultsRow1FlagCol1");
-    battleResultsRow1FlagCol1.setAttribute("id", "battleResultsRow1FlagCol1");
-
-    const battleResultsTitleTitleCol = document.createElement("div");
-    battleResultsTitleTitleCol.classList.add("battleResultsTitleTitleCol");
-    battleResultsTitleTitleCol.setAttribute("id", "battleResultsTitleTitleCol");
-
-    const battleResultsTitleTitleLeft = document.createElement("div");
-    battleResultsTitleTitleLeft.classList.add("battleResultsTitleTitleLeft");
-    battleResultsTitleTitleLeft.setAttribute("id", "battleResultsTitleTitleLeft");
-
-    const battleResultsTitleTitleCenter = document.createElement("div");
-    battleResultsTitleTitleCenter.classList.add("battleResultsTitleTitleCenter");
-    battleResultsTitleTitleCenter.setAttribute("id", "battleResultsTitleTitleCenter");
-
-    const battleResultsTitleTitleRight = document.createElement("div");
-    battleResultsTitleTitleRight.classList.add("battleResultsTitleTitleRight");
-    battleResultsTitleTitleRight.setAttribute("id", "battleResultsTitleTitleRight");
-
-    const battleResultsRow1FlagCol2 = document.createElement("div");
-    battleResultsRow1FlagCol2.classList.add("battleResultsRow1FlagCol2");
-    battleResultsRow1FlagCol2.setAttribute("id", "battleResultsRow1FlagCol2");
-
-    const battleResultsRow2 = document.createElement("div");
-    battleResultsRow2.classList.add("battleResultsRow");
-    battleResultsRow2.classList.add("battleResultsRow2");
-    battleResultsRow2.setAttribute("id", "battleResultsRow2");
-
-    const battleResultsRow2Row1 = document.createElement("div");
-    battleResultsRow2Row1.classList.add("battleResultsRow2Row1");
-    battleResultsRow2Row1.setAttribute("id", "battleResultsRow2Row1");
-
-    const battleResultsRow2Row1Icon1 = document.createElement("div");
-    battleResultsRow2Row1Icon1.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon1.setAttribute("id", "battleResultsRow2Row1Icon1");
-    battleResultsRow2Row1Icon1.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
-
-    const battleResultsRow2Row1Icon2 = document.createElement("div");
-    battleResultsRow2Row1Icon2.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon2.setAttribute("id", "battleResultsRow2Row1Icon2");
-    battleResultsRow2Row1Icon2.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
-
-    const battleResultsRow2Row1Icon3 = document.createElement("div");
-    battleResultsRow2Row1Icon3.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon3.setAttribute("id", "battleResultsRow2Row1Icon3");
-    battleResultsRow2Row1Icon3.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
-
-    const battleResultsRow2Row1Icon4 = document.createElement("div");
-    battleResultsRow2Row1Icon4.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon4.setAttribute("id", "battleResultsRow2Row1Icon4");
-    battleResultsRow2Row1Icon4.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
-
-    const battleResultsRow2Row1Icon5 = document.createElement("div");
-    battleResultsRow2Row1Icon5.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon5.setAttribute("id", "battleResultsRow2Row1Icon5");
-    battleResultsRow2Row1Icon5.classList.add("battleResultsRowDivider");
-    battleResultsRow2Row1Icon5.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/infantry.png'>";
-
-    const battleResultsRow2Row1Icon6 = document.createElement("div");
-    battleResultsRow2Row1Icon6.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon6.setAttribute("id", "battleResultsRow2Row1Icon6");
-    battleResultsRow2Row1Icon6.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/assault.png'>";
-
-    const battleResultsRow2Row1Icon7 = document.createElement("div");
-    battleResultsRow2Row1Icon7.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon7.setAttribute("id", "battleResultsRow2Row1Icon7");
-    battleResultsRow2Row1Icon7.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/air.png'>";
-
-    const battleResultsRow2Row1Icon8 = document.createElement("div");
-    battleResultsRow2Row1Icon8.classList.add("battleResultsRow2Row1Icon");
-    battleResultsRow2Row1Icon8.setAttribute("id", "battleResultsRow2Row1Icon8");
-    battleResultsRow2Row1Icon8.innerHTML = "<img class='sizingPositionArmyIconsBattleUI' src='./resources/naval.png'>";
-
-    const battleResultsRow2Row2 = document.createElement("div");
-    battleResultsRow2Row2.classList.add("battleResultsRow2Row2");
-    battleResultsRow2Row2.setAttribute("id", "battleResultsRow2Row2");
-
-    const battleResultsRow2Row2Quantity1 = document.createElement("div");
-    battleResultsRow2Row2Quantity1.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity1.setAttribute("id", "battleResultsRow2Row2Quantity1");
-
-    const battleResultsRow2Row2Quantity2 = document.createElement("div");
-    battleResultsRow2Row2Quantity2.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity2.setAttribute("id", "battleResultsRow2Row2Quantity2");
-
-    const battleResultsRow2Row2Quantity3 = document.createElement("div");
-    battleResultsRow2Row2Quantity3.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity3.setAttribute("id", "battleResultsRow2Row2Quantity3");
-
-    const battleResultsRow2Row2Quantity4 = document.createElement("div");
-    battleResultsRow2Row2Quantity4.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity4.setAttribute("id", "battleResultsRow2Row2Quantity4");
-
-    const battleResultsRow2Row2Quantity5 = document.createElement("div");
-    battleResultsRow2Row2Quantity5.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity5.classList.add("battleResultsRowDivider");
-    battleResultsRow2Row2Quantity5.setAttribute("id", "battleResultsRow2Row2Quantity5");
-
-    const battleResultsRow2Row2Quantity6 = document.createElement("div");
-    battleResultsRow2Row2Quantity6.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity6.setAttribute("id", "battleResultsRow2Row2Quantity6");
-
-    const battleResultsRow2Row2Quantity7 = document.createElement("div");
-    battleResultsRow2Row2Quantity7.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity7.setAttribute("id", "battleResultsRow2Row2Quantity7");
-
-    const battleResultsRow2Row2Quantity8 = document.createElement("div");
-    battleResultsRow2Row2Quantity8.classList.add("battleResultsRow2Row2Quantity");
-    battleResultsRow2Row2Quantity8.setAttribute("id", "battleResultsRow2Row2Quantity8");
-
-    const battleResultsRow2Row3 = document.createElement("div");
-    battleResultsRow2Row3.classList.add("battleResultsRow2Row3");
-    battleResultsRow2Row3.setAttribute("id", "battleResultsRow2Row3");
-
-    const battleResultsRow2Row3Losses = document.createElement("div");
-    battleResultsRow2Row3Losses.classList.add("battleResultsRow2Row3Column");
-    battleResultsRow2Row3Losses.setAttribute("id", "battleResultsRow2Row3Losses");
-    battleResultsRow2Row3Losses.innerHTML = "Losses";
-
-    const battleResultsRow2Row3Kills = document.createElement("div");
-    battleResultsRow2Row3Kills.classList.add("battleResultsRow2Row3Column");
-    battleResultsRow2Row3Kills.classList.add("battleResultsRowDivider");
-    battleResultsRow2Row3Kills.setAttribute("id", "battleResultsRow2Row3Kills");
-    battleResultsRow2Row3Kills.innerHTML = "Kills";
-
-    const battleResultsRow3 = document.createElement("div");
-    battleResultsRow3.classList.add("battleResultsRow");
-    battleResultsRow3.classList.add("battleResultsRow3");
-    battleResultsRow3.setAttribute("id", "battleResultsRow3");
-
-    const battleResultsRow3Row1 = document.createElement("div");
-    battleResultsRow3Row1.classList.add("battleResultsRow3Row1");
-    battleResultsRow3Row1.setAttribute("id", "battleResultsRow3Row1");
-
-    const battleResultsRow3Row1Quantity1 = document.createElement("div");
-    battleResultsRow3Row1Quantity1.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity1.setAttribute("id", "battleResultsRow3Row1Quantity1");
-
-    const battleResultsRow3Row1Quantity2 = document.createElement("div");
-    battleResultsRow3Row1Quantity2.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity2.setAttribute("id", "battleResultsRow3Row1Quantity2");
-
-    const battleResultsRow3Row1Quantity3 = document.createElement("div");
-    battleResultsRow3Row1Quantity3.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity3.setAttribute("id", "battleResultsRow3Row1Quantity3");
-
-    const battleResultsRow3Row1Quantity4 = document.createElement("div");
-    battleResultsRow3Row1Quantity4.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity4.setAttribute("id", "battleResultsRow3Row1Quantity4");
-
-    const battleResultsRow3Row1Quantity5 = document.createElement("div");
-    battleResultsRow3Row1Quantity5.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity5.classList.add("battleResultsRowDivider");
-    battleResultsRow3Row1Quantity5.setAttribute("id", "battleResultsRow3Row1Quantity5");
-
-    const battleResultsRow3Row1Quantity6 = document.createElement("div");
-    battleResultsRow3Row1Quantity6.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity6.setAttribute("id", "battleResultsRow3Row1Quantity6");
-
-    const battleResultsRow3Row1Quantity7 = document.createElement("div");
-    battleResultsRow3Row1Quantity7.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity7.setAttribute("id", "battleResultsRow3Row1Quantity7");
-
-    const battleResultsRow3Row1Quantity8 = document.createElement("div");
-    battleResultsRow3Row1Quantity8.classList.add("battleResultsRow3Row1Quantity");
-    battleResultsRow3Row1Quantity8.setAttribute("id", "battleResultsRow3Row1Quantity8");
-
-    const battleResultsRow3Row2 = document.createElement("div");
-    battleResultsRow3Row2.classList.add("battleResultsRow3Row2");
-    battleResultsRow3Row2.setAttribute("id", "battleResultsRow3Row2");
-
-    const battleResultsRow3Row2Survived = document.createElement("div");
-    battleResultsRow3Row2Survived.classList.add("battleResultsRow3Row2Column");
-    battleResultsRow3Row2Survived.setAttribute("id", "battleResultsRow3Row2Survived");
-    battleResultsRow3Row2Survived.innerHTML = "Survived";
-
-    const battleResultsRow3Row2Captured = document.createElement("div");
-    battleResultsRow3Row2Captured.classList.add("battleResultsRow3Row2Column");
-    battleResultsRow3Row2Captured.classList.add("battleResultsRowDivider");
-    battleResultsRow3Row2Captured.setAttribute("id", "battleResultsRow3Row2Captured");
-    battleResultsRow3Row2Captured.innerHTML = "Captured";
-
-    const battleResultsRow3Row3 = document.createElement("div");
-    battleResultsRow3Row3.classList.add("battleResultsRow3Row3");
-    battleResultsRow3Row3.setAttribute("id", "battleResultsRow3Row3");
-
-    const battleResultsRow3Row3RoundsCount = document.createElement("div");
-    battleResultsRow3Row3RoundsCount.classList.add("battleResultsRow3Row3Column");
-    battleResultsRow3Row3RoundsCount.setAttribute("id", "battleResultsRow3Row3RoundsCount");
-
-    const battleResultsRow3Row3SiegeStats = document.createElement("div");
-    battleResultsRow3Row3SiegeStats.classList.add("battleResultsRow3Row3ColumnSiege");
-    battleResultsRow3Row3SiegeStats.classList.add("battleResultsRowDivider");
-    battleResultsRow3Row3SiegeStats.setAttribute("id", "battleResultsRow3Row3SiegeStats");
-    battleResultsRow3Row3SiegeStats.innerHTML = "Sieged: "; ///remove when doing siege stuff
-
-    const battleResultsRow4 = document.createElement("button");
-    battleResultsRow4.classList.add("battleResultsRow");
-    battleResultsRow4.classList.add("battleResultsRow4");
-    battleResultsRow4.setAttribute("id", "battleResultsRow4");
-
-    battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleLeft);
-    battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleCenter);
-    battleResultsTitleTitleCol.appendChild(battleResultsTitleTitleRight);
-
-    battleResultsRow1.appendChild(battleResultsRow1FlagCol1);
-    battleResultsRow1.appendChild(battleResultsTitleTitleCol);
-    battleResultsRow1.appendChild(battleResultsRow1FlagCol2);
-
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon1);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon2);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon3);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon4);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon5);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon6);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon7);
-    battleResultsRow2Row1.appendChild(battleResultsRow2Row1Icon8);
-
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity1);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity2);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity3);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity4);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity5);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity6);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity7);
-    battleResultsRow2Row2.appendChild(battleResultsRow2Row2Quantity8);
-
-    battleResultsRow2Row3.appendChild(battleResultsRow2Row3Losses);
-    battleResultsRow2Row3.appendChild(battleResultsRow2Row3Kills);
-
-    battleResultsRow2.appendChild(battleResultsRow2Row1);
-    battleResultsRow2.appendChild(battleResultsRow2Row2);
-    battleResultsRow2.appendChild(battleResultsRow2Row3);
-
-    battleResultsRow3Row3.appendChild(battleResultsRow3Row3RoundsCount);
-    battleResultsRow3Row3.appendChild(battleResultsRow3Row3SiegeStats);
-
-    battleResultsRow3Row2.appendChild(battleResultsRow3Row2Survived);
-    battleResultsRow3Row2.appendChild(battleResultsRow3Row2Captured);
-
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity1);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity2);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity3);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity4);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity5);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity6);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity7);
-    battleResultsRow3Row1.appendChild(battleResultsRow3Row1Quantity8);
-
-    battleResultsRow3.appendChild(battleResultsRow3Row1);
-    battleResultsRow3.appendChild(battleResultsRow3Row2);
-    battleResultsRow3.appendChild(battleResultsRow3Row3);
-
-    battleResultsContainer.appendChild(battleResultsRow1);
-    battleResultsContainer.appendChild(battleResultsRow2);
-    battleResultsContainer.appendChild(battleResultsRow3);
-    battleResultsContainer.appendChild(battleResultsRow4);
-
-    document.getElementById("battleResultsContainer").appendChild(battleResultsContainer);
+    //Phase 6.3. Moved to src/ui/components/BattleResults.js, where the three
+    //rows of eight index-named cells are three loops rather than seventy-two
+    //statements. The confirm button's handlers stay here -- what "accept" means
+    //depends on whether the battle was won.
+    battleResults.create();
 
     retreatButton.addEventListener('mouseover', function() {
         if (!retreatButton.disabled) {
@@ -2696,7 +1108,7 @@ document.addEventListener("DOMContentLoaded", function() {
             //appended a SECOND <image> carrying the same `siegeImage_<name>` id: a
             //duplicated id, two overlays stacked on one territory, and only one of them
             //removed when the siege ended. The marker is rendered from state now.
-            svgMap.getElementById("attackImage").remove();
+            svgMap.getElementById(ids.attackImage).remove();
 
             if (mapMode === 1) {
                 currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -2757,7 +1169,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 }
                 //update bottom table for defender
-                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
+                bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
             case 1: //scatter during round of 5, 30% penalty
                 defeatType = "scatter";
@@ -2773,7 +1185,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                 defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
-                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
+                bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
             case 2: //defeat
                 if (defendingArmyRemaining[4] === 0) { //all out defeat
@@ -2784,7 +1196,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
                     defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
                     //update bottom table for defender
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0);
+                    bottomTable.update({ army: formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0) });
                 } else if (defendingArmyRemaining[4] === 1) { //routing defeat
                     defeatType = "defeat";
                     defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
@@ -2793,7 +1205,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
                     defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
                     //update bottom table for defender
-                    document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0);
+                    bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 }
                 break;
         }
@@ -2967,7 +1379,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }, 200);
     });
 
-    let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
+    let confirmButtonBattleResults = battleResults.confirmButton();
 
     confirmButtonBattleResults.addEventListener('mouseover', function() {
         confirmButtonBattleResults.style.cursor = "pointer";
@@ -3006,8 +1418,8 @@ document.addEventListener("DOMContentLoaded", function() {
         toggleMapModeButton(true);
         mapModeButtonCurrentlyOnScreen = true;
 
-        if (svgMap.getElementById("attackImage")) {
-            svgMap.getElementById("attackImage").remove();
+        if (svgMap.getElementById(ids.attackImage)) {
+            svgMap.getElementById(ids.attackImage).remove();
         }
         if (mapMode === 1) {
             currentMapColorAndStrokeArray = saveMapColorState(false);
@@ -3024,70 +1436,6 @@ document.addEventListener("keydown", function(e) {
         setUnsetMenuOnEscape(e);
     }
 });
-
-function adjustTextToFit(elementId, text) {
-    const element = elementId;
-    const maxWidth = element.offsetWidth;
-    const maxHeight = element.offsetHeight;
-    let fontSize = 35; // starting font size
-    let words = text.split(' ');
-
-    while (fontSize > 12) {
-        const lines = [];
-        let currentLine = '';
-        let lineCount = 0;
-
-        // loop through words and distribute them over lines
-        for (let i = 0; i < words.length; i++) {
-            const word = words[i];
-            const testLine = currentLine + ' ' + word;
-            const testWidth = getTextWidth(testLine, fontSize);
-
-            if (testWidth > maxWidth && i > 0) {
-                lines.push(currentLine.trim());
-                currentLine = word;
-                lineCount++;
-            } else {
-                currentLine = testLine;
-            }
-
-            // if we've reached the maximum number of lines, break out of loop
-            if (lineCount === 3) {
-                break;
-            }
-        }
-
-        lines.push(currentLine.trim());
-
-        // if the text fits within the maximum height and the number of lines is within the range we want, break out of loop
-        if (getTextHeight(lines, fontSize) <= maxHeight && (lines.length === 1 || lines.length === 2 || lines.length === 3)) {
-            break;
-        } else {
-            fontSize--;
-        }
-    }
-
-    // set the font size and text content
-    element.style.fontSize = fontSize + 'px';
-    element.textContent = words.join(' ');
-}
-
-// helper function to calculate the width of a given text at a given font size
-function getTextWidth(text, fontSize) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    context.font = fontSize + 'px Arial';
-    return context.measureText(text).width;
-}
-
-// helper function to calculate the height of a given text at a given font size
-function getTextHeight(lines, fontSize) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    context.font = fontSize + 'px Arial';
-    const lineHeight = fontSize * 1.2;
-    return lines.length * lineHeight;
-}
 
 export function findClosestPaths(targetPath) {
     if (!targetPath) {
@@ -3406,7 +1754,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
 
         // create a new pattern element
         const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
-        pattern.setAttribute('id', 'diagonal-lines' + count);
+        pattern.setAttribute("id", dynamicIds.diagonalLines(count));
         pattern.setAttribute('width', '20');
         pattern.setAttribute('height', '20');
         pattern.setAttribute('patternUnits', 'userSpaceOnUse');
@@ -3472,33 +1820,33 @@ export function setFlag(flag, place) {
 
     img.src = `./resources/flags/${flag}.png`;
 
-    let popupBodyElement = document.getElementById("popup-body");
+    let popupBodyElement = document.getElementById(ids.popupBody);
     if (place === 1) { //top table
-        flagElement = document.getElementById("flag-top");
+        flagElement = document.getElementById(ids.flagTop);
     } else if (place === 2) { //bottom table
-        flagElement = document.getElementById("flag-bottom");
+        flagElement = document.getElementById(ids.flagBottom);
     } else if (place === 3) { //UI info panel
-        flagElement = document.getElementById("info-panel");
+        flagElement = document.getElementById(ids.infoPanel);
         document.querySelector(".info-panel").style.setProperty('--bg-image', `url(${img.src})`);
         document.querySelector(".info-panel-upgrade").style.setProperty('--bg-image', `url(${img.src})`);
     } else if (place === 4) { //Battle UI attacker
-        flagElement = document.getElementById("battleUITitleFlagCol1");
+        flagElement = document.getElementById(ids.battleUITitleFlagCol1);
         img.style.width = "100%";
     } else if (place === 5) { //Battle UI defender
-        flagElement = document.getElementById("battleUITitleFlagCol2");
+        flagElement = document.getElementById(ids.battleUITitleFlagCol2);
         img.style.width = "100%";
     } else if (place === 6) { //Battle Results UI attacker
-        flagElement = document.getElementById("battleResultsRow1FlagCol1");
+        flagElement = document.getElementById(ids.battleResultsRow1FlagCol1);
         img.style.width = "100%";
     } else if (place === 7) { //Battle Results UI defender
-        flagElement = document.getElementById("battleResultsRow1FlagCol2");
+        flagElement = document.getElementById(ids.battleResultsRow1FlagCol2);
         img.style.width = "100%";
         img.src = `./resources/flags/${currentWarFlagString}.png`; //workaround for battle results screen defender flag issue
     } else if (place === 8) { //Battle Results UI defender
-        flagElement = document.getElementById("aiDialogueTitleFlagCol1");
+        flagElement = document.getElementById(ids.aiDialogueTitleFlagCol1);
         img.style.width = "100%";
     } else if (place === 9) { //Battle Results UI defender
-        flagElement = document.getElementById("aiDialogueTitleFlagCol2");
+        flagElement = document.getElementById(ids.aiDialogueTitleFlagCol2);
         img.style.width = "100%";
     } else if (place === 0) {
         return img.src;
@@ -3910,7 +2258,7 @@ function setStrokeWidth(path, stroke) {
 }
 
 export function enableNewGameButton() {
-    document.getElementById("new-game-btn").disabled = false;
+    mainMenu.setNewGameEnabled(true);
 }
 
 function greyOutTerritoriesForUnselectableCountries() {
@@ -3975,7 +2323,7 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
 }
 
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
-    let button = document.getElementById("move-phase-button");
+    let button = moveButton.element();
     button.style.display = "none";
     transferAttackButtonDisplayed = false;
 
@@ -4084,8 +2432,8 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     button.addEventListener("click", transferAttackClickHandler);
 
     function transferAttackClickHandler() {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
+        tooltip.setContent("");
+        tooltip.hide();
         playSoundClip("click");
         if (transferAttackButtonState === 0) {
             territoryComingFrom = lastClickedPath;
@@ -4116,7 +2464,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         button.classList.add("move-phase-button-blue-background");
                         button.innerHTML = "CANCEL";
                         drawAndHandleTransferAttackTable(
-                            document.getElementById("transferTable"),
+                            document.getElementById(ids.transferTable),
                             allTerritories(),
                             playerOwnedTerritories,
                             territoriesAbleToAttackTarget,
@@ -4246,49 +2594,47 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         const y = e.clientY;
 
         if (window.innerHeight - y < 100) {
-            tooltip.style.left = x - 40 + "px";
-            tooltip.style.top = y - 50 + "px";
+            tooltip.moveTo(x - 40, y - 50);
         } else {
-            tooltip.style.left = x - 40 + "px";
-            tooltip.style.top = 25 + y + "px";
+            tooltip.moveTo(x - 40, 25 + y);
         }
 
         if (button.disabled) {
             if (button.innerHTML === "DEACTIVATED") {
-                tooltip.innerHTML = "You cannot transfer or attack from this territory until next turn!";
+                tooltip.setContent("You cannot transfer or attack from this territory until next turn!");
             } else if (button.innerHTML === "TRANSFER") {
-                tooltip.innerHTML = "You have no other territories to transfer military to!";
+                tooltip.setContent("You have no other territories to transfer military to!");
             }
         } else if (!button.disabled && playerOwnedTerritories.length > 1 && button.innerHTML === "TRANSFER") {
-            tooltip.innerHTML = "Click to transfer military to one of your other territories...";
+            tooltip.setContent("Click to transfer military to one of your other territories...");
         } else if (!button.disabled && validDestinationsArray.length > 0 && button.innerHTML === "ATTACK") {
-            tooltip.innerHTML = "Click to send military to attack selected territory from the last selected territory...";
+            tooltip.setContent("Click to send military to attack selected territory from the last selected territory...");
         } else if (!button.disabled && button.innerHTML === "CANCEL") {
-            tooltip.innerHTML = "Click to cancel with no changes and close transfer/attack window...";
+            tooltip.setContent("Click to cancel with no changes and close transfer/attack window...");
         } else if (!button.disabled && button.innerHTML === "CONFIRM") {
-            tooltip.innerHTML = "Click to confirm the transfer and move the selected units to the destination territory!";
+            tooltip.setContent("Click to confirm the transfer and move the selected units to the destination territory!");
         } else if (!button.disabled && button.innerHTML === "INVADE!") {
-            tooltip.innerHTML = "Click to launch your attack!";
+            tooltip.setContent("Click to launch your attack!");
         } else if (!button.disabled && button.innerHTML.includes("VIEW SIEGE")) {
-            tooltip.innerHTML = "Click to view the war and options to lift the siege!";
+            tooltip.setContent("Click to view the war and options to lift the siege!");
         }
 
-        tooltip.style.display = "block";
+        tooltip.show();
 
     });
 
     button.addEventListener("mouseout", () => {
-        tooltip.innerHTML = "";
-        tooltip.style.display = "none";
+        tooltip.setContent("");
+        tooltip.hide();
     });
 }
 
 function setTerritoryForAttack(territoryToAttack) {
     territoryAboutToBeAttackedOrSieged = territoryToAttack;
-    document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
-    document.getElementById("leftBattleImage").src = setFlag(pathCountry(territoryToAttack), 0);
-    document.getElementById("rightBattleImage").src = setFlag(pathCountry(territoryToAttack), 0);
-    document.getElementById("attack-destination-container").style.display = "flex";
+    moveButton.showDestination(
+        territoryAboutToBeAttackedOrSieged.getAttribute("territory-name"),
+        setFlag(pathCountry(territoryToAttack), 0)
+    );
     attackTextCurrentlyDisplayed = true;
     if (pathIsUnderSiege(territoryToAttack)) {
         const territoryName = territoryToAttack.getAttribute("territory-name");
@@ -4309,10 +2655,10 @@ function setTerritoryForAttack(territoryToAttack) {
 
 function setTerritoryForSiege(territoryToSiege) {
     territoryAboutToBeAttackedOrSieged = territoryToSiege;
-    document.getElementById("attack-destination-text").innerHTML = territoryAboutToBeAttackedOrSieged.getAttribute("territory-name");
-    document.getElementById("leftBattleImage").src = setFlag(pathCountry(territoryToSiege), 0);
-    document.getElementById("rightBattleImage").src = setFlag(pathCountry(territoryToSiege), 0);
-    document.getElementById("attack-destination-container").style.display = "flex";
+    moveButton.showDestination(
+        territoryAboutToBeAttackedOrSieged.getAttribute("territory-name"),
+        setFlag(pathCountry(territoryToSiege), 0)
+    );
     attackTextCurrentlyDisplayed = true;
 
     const territoryName = territoryToSiege.getAttribute("territory-name");
@@ -4355,9 +2701,9 @@ export function addImageToPath(pathElement, imagePath, siege) {
             if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === getCurrentWarId()) {
                 for (let i = 0; i < paths.length; i++) {
                     if (paths[i].getAttribute("territory-name") === playerSiegeWarsList[key].defendingTerritory.territoryName) {
-                        const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+                        const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName;
                         pathElement.parentNode.appendChild(imageElement);
-                        imageElement.setAttribute("id", `siegeImage_${territoryName}`);
+                        imageElement.setAttribute("id", dynamicIds.siegeOverlay(territoryName));
                         break;
                     }
                 }
@@ -4372,10 +2718,10 @@ export function addImageToPath(pathElement, imagePath, siege) {
             if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === currentAiWarId) {
                 for (let i = 0; i < paths.length; i++) {
                     if (paths[i].getAttribute("territory-name") === aiSiegeWarsList[key].defendingTerritory.territoryName) {
-                        const territoryName = aiSiegeWarsList[key].defendingTerritory.territoryName.replace(/\s+/g, "_");
+                        const territoryName = aiSiegeWarsList[key].defendingTerritory.territoryName;
                         imageElement.setAttribute("style", "opacity: 0.4");
                         pathElement.parentNode.appendChild(imageElement);
-                        imageElement.setAttribute("id", `siegeImage_${territoryName}`);
+                        imageElement.setAttribute("id", dynamicIds.siegeOverlay(territoryName));
                         break;
                     }
                 }
@@ -4385,7 +2731,7 @@ export function addImageToPath(pathElement, imagePath, siege) {
     } else {
         imageElement.setAttribute("width", imageWidth.toString());
         imageElement.setAttribute("height", imageHeight.toString());
-        imageElement.setAttribute("id", "attackImage");
+        imageElement.setAttribute("id", ids.attackImage);
         pathElement.parentNode.appendChild(imageElement);
     }
 }
@@ -4413,8 +2759,7 @@ export function removeSiegeImageFromPath(ai, path) {
     //parentheses -- "Andros Island (Bahamas)", "Grand Bahama (Bahamas)" and friends -- and
     //`#siegeImage_Andros_Island_(Bahamas)` is not a valid CSS selector, so querySelector
     //threw rather than returning null. getElementById takes the id literally.
-    const imageElement = svgMap.getElementById(
-        "siegeImage_" + territoryName.replace(/\s+/g, "_"));
+    const imageElement = svgMap.getElementById(dynamicIds.siegeOverlay(territoryName));
 
     if (imageElement) {
         imageElement.remove();
@@ -4437,8 +2782,7 @@ export function removeSiegeImageFromPath(ai, path) {
 }
 
 export function removeSiegeImageByTerritoryName(territoryName) {
-    const formattedTerritoryName = territoryName.replace(/\s+/g, "_");
-    const imageElement = svgMap.getElementById("siegeImage_" + formattedTerritoryName); //audit 5.2 AI
+    const imageElement = svgMap.getElementById(dynamicIds.siegeOverlay(territoryName)); //audit 5.2 AI
     if (imageElement) {
         imageElement.remove();
     }
@@ -4473,71 +2817,69 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
     let attackingOrTransferring = "";
 
-    document.getElementById("contentTransferHeaderRow").style.display = "flex";
+    document.getElementById(ids.contentTransferHeaderRow).style.display = "flex";
     let imageElement;
     let imageSrc;
 
     if (buttonState === 0) {
-        document.getElementById("contentTransferHeaderColumn1").innerHTML = "";
-        document.getElementById("percentageAttack").style.display = "none";
-        document.getElementById("colorBarAttackUnderlayRed").style.display = "none";
-        document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
-        document.getElementById("xButtonTransferAttack").style.marginLeft = "0px";
+        document.getElementById(ids.contentTransferHeaderColumn1).innerHTML = "";
+        document.getElementById(ids.percentageAttack).style.display = "none";
+        document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "none";
+        document.getElementById(ids.colorBarAttackOverlayGreen).style.display = "none";
+        document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "0px";
 
         attackingOrTransferring = "Transferring to:";
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn1);
         imageSrc = "resources/infantry.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.infantryForCurrentTerritory, 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn2);
         imageSrc = "resources/assault.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.assaultForCurrentTerritory, 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn3);
         imageSrc = "resources/air.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.airForCurrentTerritory, 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn4);
         imageSrc = "resources/naval.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(elementInMainArray.navalForCurrentTerritory, 0)}</span>`;
 
     } else if (buttonState === 1) {
-        document.getElementById("percentageAttack").style.display = "flex";
-        document.getElementById("colorBarAttackUnderlayRed").style.display = "flex";
-        document.getElementById("xButtonTransferAttack").style.marginLeft = "47px";
+        document.getElementById(ids.percentageAttack).style.display = "flex";
+        document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "flex";
+        document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "47px";
         attackingOrTransferring = "Attacking:";
 
-        document.getElementById("contentTransferHeaderColumn1").innerHTML = "Total Military Force In Range:";
+        document.getElementById(ids.contentTransferHeaderColumn1).innerHTML = "Total Military Force In Range:";
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn1");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn1);
         imageSrc = "resources/infantry.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Infantry" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[0], 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn2");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn2);
         imageSrc = "resources/assault.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Assault" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[1], 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn3");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn3);
         imageSrc = "resources/air.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Air" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[2], 0)}</span>`;
 
-        imageElement = document.getElementById("contentTransferHeaderImageColumn4");
+        imageElement = document.getElementById(ids.contentTransferHeaderImageColumn4);
         imageSrc = "resources/naval.png";
         imageElement.innerHTML = `<img src="${imageSrc}" alt="Naval" class="sizingIcons" /><span class="whiteSpace">   ${formatNumbersToKMB(totalAttackAmountArray[3], 0)}</span>`;
 
-        const headerRow = document.getElementById("contentTransferHeaderRow");
+        const headerRow = document.getElementById(ids.contentTransferHeaderRow);
 
         headerRow.addEventListener("mouseover", (e) => {
             const x = e.clientX;
             const y = e.clientY;
 
             if (window.innerHeight - y < 100) {
-                tooltip.style.left = x - 40 + "px";
-                tooltip.style.top = y - 50 + "px";
+                tooltip.moveTo(x - 40, y - 50);
             } else {
-                tooltip.style.left = x - 40 + "px";
-                tooltip.style.top = 25 + y + "px";
+                tooltip.moveTo(x - 40, 25 + y);
             }
 
             let tooltipContent = `
@@ -4589,19 +2931,19 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
             </div>
         `;
 
-            tooltip.innerHTML = tooltipContent;
+            tooltip.setContent(tooltipContent);
 
-            tooltip.style.display = "block";
+            tooltip.show();
         });
         headerRow.addEventListener("mouseout", () => {
-            tooltip.innerHTML = "";
-            tooltip.style.display = "none";
+            tooltip.setContent("");
+            tooltip.hide();
         });
     }
 
-    const transferToAttackHeading = document.getElementById("attackOrTransferString");
-    const fromHeading = document.getElementById("fromHeadingString");
-    const territoryTextString = document.getElementById("territoryTextString");
+    const transferToAttackHeading = document.getElementById(ids.attackOrTransferString);
+    const fromHeading = document.getElementById(ids.fromHeadingString);
+    const territoryTextString = document.getElementById(ids.territoryTextString);
 
     // Check if territory is "transferring" and set the text color accordingly
     if (territory === "transferring") {
@@ -4614,8 +2956,8 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         territoryTextString.style.color = "white";
     }
 
-    const attackingFromTerritory = document.getElementById("attackingFromTerritoryTextString");
-    const titleTransferAttackWindow = document.getElementById("title-transfer-attack-window");
+    const attackingFromTerritory = document.getElementById(ids.attackingFromTerritoryTextString);
+    const titleTransferAttackWindow = document.getElementById(ids.titleTransferAttackWindow);
 
     if (!transferToAttackHeading || !fromHeading || !territoryTextString || !attackingFromTerritory || !titleTransferAttackWindow) {
         console.error("One or more required elements are null.");
@@ -4649,9 +2991,9 @@ function setTransferToTerritory(listOfTerritories) {
             transferToTerritory = playerOwnedTerritories.find(territory => territory.getAttribute("territory-name") === clickedTerritoryName);
 
             if (transferToTerritory) {
-                document.getElementById("territoryTextString").innerHTML = clickedTerritoryName;
+                document.getElementById(ids.territoryTextString).innerHTML = clickedTerritoryName;
             } else {
-                document.getElementById("territoryTextString").innerHTML = "please select an option...";
+                document.getElementById(ids.territoryTextString).innerHTML = "please select an option...";
             }
         });
     });
@@ -4666,18 +3008,18 @@ export function setAttackProbabilityOnUI(probability, situation) {
     const displayProbability = roundedProbability >= 100 ? 100 : roundedProbability;
 
     if (situation === 0) { //attackUI
-        document.getElementById("percentageAttack").innerHTML = displayProbability + "%";
+        document.getElementById(ids.percentageAttack).innerHTML = displayProbability + "%";
         if (displayProbability >= 1) {
-            document.getElementById("colorBarAttackOverlayGreen").style.display = "flex";
+            document.getElementById(ids.colorBarAttackOverlayGreen).style.display = "flex";
         } else {
-            document.getElementById("colorBarAttackOverlayGreen").style.display = "none";
+            document.getElementById(ids.colorBarAttackOverlayGreen).style.display = "none";
         }
-        document.getElementById("colorBarAttackOverlayGreen").style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
+        document.getElementById(ids.colorBarAttackOverlayGreen).style.width = displayProbability >= 99 ? "100%" : displayProbability + "%";
     } else if (situation === 1) { //battleUI
-        let probabilityColumnBox = document.getElementById("probabilityColumnBox");
+        let probabilityColumnBox = document.getElementById(ids.probabilityColumnBox);
 
-        let battleUIRow4Col1IconProbabilityTurnsSiege = document.getElementById("battleUIRow4Col1IconProbabilityTurnsSiege");
-        let battleUIRow4Col1TextProbabilityTurnsSiege = document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege");
+        let battleUIRow4Col1IconProbabilityTurnsSiege = document.getElementById(ids.battleUIRow4Col1IconProbabilityTurnsSiege);
+        let battleUIRow4Col1TextProbabilityTurnsSiege = document.getElementById(ids.battleUIRow4Col1TextProbabilityTurnsSiege);
         battleUIRow4Col1IconProbabilityTurnsSiege.innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/probability.png'>";
         battleUIRow4Col1TextProbabilityTurnsSiege.innerHTML = displayProbability + "%";
 
@@ -4716,40 +3058,36 @@ function removeDeniedDestinations(destinationPathObjectArray, manualDenialArray)
 
 function toggleUIButton(makeVisible) {
     if (makeVisible) {
-        document.getElementById("UIButtonContainer").style.display = "block";
+        document.getElementById(ids.uiButtonContainer).style.display = "block";
     } else {
-        document.getElementById("UIButtonContainer").style.display = "none";
+        document.getElementById(ids.uiButtonContainer).style.display = "none";
     }
 }
 
 function toggleMapModeButton(makeVisible) {
     if (makeVisible) {
-        document.getElementById("mapModeContainer").style.display = "block";
+        document.getElementById(ids.mapModeContainer).style.display = "block";
     } else {
-        document.getElementById("mapModeContainer").style.display = "none";
+        document.getElementById(ids.mapModeContainer).style.display = "none";
     }
 }
 
 export function toggleAiDialogue(makeVisible) {
-    if (makeVisible) {
-        document.getElementById("ai-dialogue-container").style.display = "flex";
-    } else {
-        document.getElementById("ai-dialogue-container").style.display = "none";
-    }
+    makeVisible ? aiDialogue.show() : aiDialogue.hide();
 }
 function toggleBottomLeftPaneWithTurnAdvance(makeVisible) {
     if (makeVisible) {
-        document.getElementById("popup-with-confirm-container").style.display = "block";
+        document.getElementById(ids.popupWithConfirmContainer).style.display = "block";
     } else {
-        document.getElementById("popup-with-confirm-container").style.display = "none";
+        document.getElementById(ids.popupWithConfirmContainer).style.display = "none";
     }
 }
 
 export function toggleUIMenu(makeVisible) {
     if (makeVisible) {
-        document.getElementById("move-phase-buttons-container").style.pointerEvents = "none";
-        document.getElementById("main-ui-container").style.display = "block";
-        drawUITable(uiTable, 0);
+        document.getElementById(ids.movePhaseButtonsContainer).style.pointerEvents = "none";
+        document.getElementById(ids.mainUiContainer).style.display = "block";
+        drawUITable(infoTable.tableElement(), 0);
         svg.style.pointerEvents = 'none';
         uiCurrentlyOnScreen = true;
         toggleUIButton(false);
@@ -4760,8 +3098,8 @@ export function toggleUIMenu(makeVisible) {
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
         toggleTransferAttackButton(false, false);
     } else {
-        document.getElementById("move-phase-buttons-container").style.pointerEvents = "auto";
-        document.getElementById("main-ui-container").style.display = "none";
+        document.getElementById(ids.movePhaseButtonsContainer).style.pointerEvents = "auto";
+        document.getElementById(ids.mainUiContainer).style.display = "none";
         svg.style.pointerEvents = 'auto';
         uiCurrentlyOnScreen = false;
         toggleUIButton(true);
@@ -4777,69 +3115,56 @@ export function toggleUIMenu(makeVisible) {
 }
 
 export function toggleUpgradeMenu(makeVisible) {
-    if (makeVisible) {
-        document.getElementById("upgrade-container").style.display = "block";
-        document.getElementById("main-ui-container").style.pointerEvents = 'none';
-    } else {
-        document.getElementById("upgrade-container").style.display = "none";
-        document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-    }
+    makeVisible ? upgradeWindow.show() : upgradeWindow.hide();
+    document.getElementById(ids.mainUiContainer).style.pointerEvents = makeVisible ? 'none' : 'auto';
 }
 
 export function toggleBuyMenu(makeVisible) {
-    if (makeVisible) {
-        document.getElementById("buy-container").style.display = "block";
-        document.getElementById("main-ui-container").style.pointerEvents = 'none';
-    } else {
-        document.getElementById("buy-container").style.display = "none";
-        document.getElementById("main-ui-container").style.pointerEvents = 'auto';
-    }
+    makeVisible ? buyWindow.show() : buyWindow.hide();
+    document.getElementById(ids.mainUiContainer).style.pointerEvents = makeVisible ? 'none' : 'auto';
 }
 
 function toggleBattleUI(turnOnBattleUI, enterSiege) {
-    let battleUI = document.getElementById("battleContainer");
     if (enterSiege) {
-        battleUI.style.display = 'none';
+        battleUI.hide();
         svg.style.pointerEvents = 'auto';
-        document.getElementById("move-phase-buttons-container").style.display = "flex";
+        document.getElementById(ids.movePhaseButtonsContainer).style.display = "flex";
     } else {
         if (turnOnBattleUI) {
-            battleUI.style.display = "block";
+            battleUI.show();
             svg.style.pointerEvents = 'none';
-            document.getElementById("move-phase-buttons-container").style.display = "none";
+            document.getElementById(ids.movePhaseButtonsContainer).style.display = "none";
         } else if (!turnOnBattleUI) {
-            battleUI.style.display = 'none';
-            document.getElementById("move-phase-buttons-container").style.display = "flex";
+            battleUI.hide();
+            document.getElementById(ids.movePhaseButtonsContainer).style.display = "flex";
         }
     }
 }
 
 function toggleBattleResults(turnOnBattleResults) {
-    let battleResults = document.getElementById("battleResultsContainer");
     if (turnOnBattleResults) {
-        battleResults.style.display = "block";
-        document.getElementById("move-phase-buttons-container").style.display = "none";
+        battleResults.show();
+        document.getElementById(ids.movePhaseButtonsContainer).style.display = "none";
     } else if (!turnOnBattleResults) {
-        document.getElementById("move-phase-buttons-container").style.display = "flex";
-        battleResults.style.display = 'none';
+        document.getElementById(ids.movePhaseButtonsContainer).style.display = "flex";
+        battleResults.hide();
         svg.style.pointerEvents = 'auto';
     }
 }
 
 function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
-    let transferAttackWindow = document.getElementById("transfer-attack-window-container");
     if (turnOnTransferAttackWindow) {
-        transferAttackWindow.style.display = "block";
+        transferAttackWindow.show();
         transferAttackWindowOnScreen = true;
         svg.style.pointerEvents = 'none';
     } else if (!turnOnTransferAttackWindow) {
-        transferAttackWindow.style.display = "none";
+        transferAttackWindow.hide();
         svg.style.pointerEvents = 'auto';
     }
     //set height of colorBars for attack
-    const sourceElement = document.getElementById('title-transfer-attack-window');
-    const redBar = document.getElementById('colorBarAttackUnderlayRed');
-    const greenBar = document.getElementById('colorBarAttackOverlayGreen');
+    const sourceElement = document.getElementById(ids.titleTransferAttackWindow);
+    const redBar = document.getElementById(ids.colorBarAttackUnderlayRed);
+    const greenBar = document.getElementById(ids.colorBarAttackOverlayGreen);
 
     const computedStyle = window.getComputedStyle(sourceElement);
     const sourceHeight = computedStyle.getPropertyValue('height');
@@ -4848,7 +3173,7 @@ function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
 }
 
 function toggleBottomTableContainer(turnOnTable) {
-    let tableContainer = document.getElementById("bottom-table-container");
+    let tableContainer = document.getElementById(ids.bottomTableContainer);
     if (turnOnTable) {
         tableContainer.style.display = "block";
     } else if (!turnOnTable) {
@@ -4857,7 +3182,7 @@ function toggleBottomTableContainer(turnOnTable) {
 }
 
 function toggleTopTableContainer(turnOnTable) {
-    let tableContainer = document.getElementById("top-table-container");
+    let tableContainer = document.getElementById(ids.topTableContainer);
     if (turnOnTable) {
         tableContainer.style.display = "block";
     } else if (!turnOnTable) {
@@ -4866,8 +3191,8 @@ function toggleTopTableContainer(turnOnTable) {
 }
 
 export function toggleTransferAttackButton(turnOnButton, aiTurn) {
-    let transferAttackButton = document.getElementById("move-phase-button");
-    let attackText = document.getElementById("attack-destination-container");
+    let transferAttackButton = moveButton.element();
+    let attackText = moveButton.destinationElement();
     let transferAttackContainer = document.getElementsByClassName("move-phase-buttons-container");
     let popupWithConfirmContainer = document.getElementsByClassName("popup-with-confirm-container");
     if (turnOnButton) {
@@ -4884,11 +3209,7 @@ export function toggleTransferAttackButton(turnOnButton, aiTurn) {
             attackText.style.display = "none";
             transferAttackButtonDisplayed = true;
             attackTextCurrentlyDisplayed = false;
-            transferAttackButton.classList.remove("move-phase-button-green-background");
-            transferAttackButton.classList.remove("move-phase-button-brown-background");
-            transferAttackButton.classList.remove("move-phase-button-blue-background");
-            transferAttackButton.classList.remove("move-phase-button-grey-background");
-            transferAttackButton.classList.add("move-phase-button-red-background");
+            moveButton.setVariant("attack");
             transferAttackButton.style.color = "yellow";
             transferAttackButton.disabled = true;
             for (const popup of popupWithConfirmContainer) {
@@ -4930,9 +3251,9 @@ function setupSiegeUI(territory) {
     battleUIState = 1;
     const siegeObjectElement = getSiegeObjectFromPath(territory);
 
-    const retreatButton = document.getElementById("retreatButton");
-    const advanceButton = document.getElementById("advanceButton");
-    const siegeBottomBarButton = document.getElementById("siegeBottomBarButton");
+    const retreatButton = document.getElementById(ids.retreatButton);
+    const advanceButton = document.getElementById(ids.advanceButton);
+    const siegeBottomBarButton = document.getElementById(ids.siegeBottomBarButton);
 
     const attackerCountry = playerCountryName();
     const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
@@ -4946,7 +3267,7 @@ function setupSiegeUI(territory) {
     //SET TITLE TEXT
     setTitleTextBattleUI(attackerCountry, defenderTerritory, 1);
 
-    document.getElementById("battleUITitleTitleCenter").innerHTML = "Sieges";
+    document.getElementById(ids.battleUITitleTitleCenter).innerHTML = "Sieges";
 
     prepareProbabilityBar(1, probBarAdded);
 
@@ -4954,11 +3275,11 @@ function setupSiegeUI(territory) {
     setArmyTextValues(siegeObjectElement, 2, siegeObjectElement.defendingTerritory.uniqueId);
 
     //SET DEFENSE BONUS VALUE
-    document.getElementById("mountainDefenseText").innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
-    document.getElementById("defenseBonusText").innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
+    document.getElementById(ids.mountainDefenseText).innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
+    document.getElementById(ids.defenseBonusText).innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
     //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
-    document.getElementById("prodPopText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop, 0);
-    document.getElementById("foodText").innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity, 0);
+    document.getElementById(ids.prodPopText).innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop, 0);
+    document.getElementById(ids.foodText).innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity, 0);
 
 
     //SET SIEGE TURNS TEXT
@@ -4967,14 +3288,14 @@ function setupSiegeUI(territory) {
     //SET SIEGE ROW 4
     let siegeScore = calculateSiegeScore(siegeObjectElement);
     setSiegeScoreText(siegeScore, 0);
-    document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege").style.color = "rgb(255,255,255)";
+    document.getElementById(ids.battleUIRow4Col1TextProbabilityTurnsSiege).style.color = "rgb(255,255,255)";
     let difference = siegeScore - (siegeObjectElement.defendingTerritory.defenseBonus + siegeObjectElement.defendingTerritory.mountainDefenseBonus);
     if (difference <= 0) {
-        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(245,128,128)";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.color = "rgb(245,128,128)";
     } else if (difference > 0 && difference < 50) {
-        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(255, 255, 0)";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.color = "rgb(255, 255, 0)";
     } else {
-        document.getElementById("battleUIRow4Col1TextSiegeScore").style.color = "rgb(0, 255, 0)";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.color = "rgb(0, 255, 0)";
     }
 
     setRow4(1);
@@ -5006,8 +3327,8 @@ function setupBattleUI(attackArray) {
     }
     setCurrentRound(0);
 
-    const retreatButton = document.getElementById("retreatButton");
-    const advanceButton = document.getElementById("advanceButton");
+    const retreatButton = document.getElementById(ids.retreatButton);
+    const advanceButton = document.getElementById(ids.advanceButton);
 
     retreatButton.classList.remove("battleUIRowButtonsGreyBg");
     advanceButton.classList.remove("battleUIRowButtonsGreyBg");
@@ -5045,20 +3366,20 @@ function setupBattleUI(attackArray) {
     //SET TITLE TEXT
     setTitleTextBattleUI(attackerCountry, defenderTerritory, 0);
 
-    document.getElementById("battleUITitleTitleCenter").innerHTML = "vs";
+    document.getElementById(ids.battleUITitleTitleCenter).innerHTML = "vs";
 
     let probBarAdded = false;
 
-    if (document.getElementById("probabilityColumnBox")) {
-        document.getElementById("probabilityColumnBox").style.display = "flex";
+    if (document.getElementById(ids.probabilityColumnBox)) {
+        document.getElementById(ids.probabilityColumnBox).style.display = "flex";
     } else {
         probBarAdded = true;
-        const battleUIRow2 = document.getElementById("battleUIRow2");
+        const battleUIRow2 = document.getElementById(ids.battleUIRow2);
         battleUIRow2.innerHTML = "";
         const probabilityColumnBox = document.createElement("div");
         probabilityColumnBox.classList.add("probabilityColumnBox");
         probabilityColumnBox.classList.add("probabilityColumnBox");
-        probabilityColumnBox.setAttribute("id", "probabilityColumnBox");
+        probabilityColumnBox.setAttribute("id", ids.probabilityColumnBox);
         battleUIRow2.appendChild(probabilityColumnBox);
     }
     prepareProbabilityBar(0, probBarAdded);
@@ -5076,15 +3397,15 @@ function setupBattleUI(attackArray) {
     if (!hasSiegedBefore) {
         for (let i = 0; i < allTerritories().length; i++) {
             if (defenderTerritory.getAttribute("uniqueid") === allTerritories()[i].uniqueId) {
-                document.getElementById("defenseBonusText").innerHTML = allTerritories()[i].defenseBonus;
-                document.getElementById("mountainDefenseText").innerHTML = allTerritories()[i].mountainDefenseBonus;
+                document.getElementById(ids.defenseBonusText).innerHTML = allTerritories()[i].defenseBonus;
+                document.getElementById(ids.mountainDefenseText).innerHTML = allTerritories()[i].mountainDefenseBonus;
             }
         }
     } else {
         for (const key in playerSiegeWarsList) {
             if (playerSiegeWarsList[key].defendingTerritory.territoryName === defenderTerritory.getAttribute("territory-name")) {
-                document.getElementById("defenseBonusText").innerHTML = playerSiegeWarsList[key].defendingTerritory.defenseBonus;
-                document.getElementById("mountainDefenseText").innerHTML = playerSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
+                document.getElementById(ids.defenseBonusText).innerHTML = playerSiegeWarsList[key].defendingTerritory.defenseBonus;
+                document.getElementById(ids.mountainDefenseText).innerHTML = playerSiegeWarsList[key].defendingTerritory.mountainDefenseBonus;
                 break;
             }
         }
@@ -5097,7 +3418,7 @@ function setupBattleUI(attackArray) {
     //INITIALISE BUTTONS
     retreatButton.style.display = "flex";
     advanceButton.style.display = "flex";
-    document.getElementById("siegeBottomBarButton").style.display = "none";
+    document.getElementById(ids.siegeBottomBarButton).style.display = "none";
 
     retreatButton.style.width = "50%";
     advanceButton.style.width = "50%";
@@ -5118,8 +3439,8 @@ function setupBattleUI(attackArray) {
 }
 
 function setTitleTextBattleUI(attacker, defender, attackSiege) {
-    let attackerContainer = document.getElementById("battleUITitleTitleLeft");
-    let defenderContainer = document.getElementById("battleUITitleTitleRight");
+    let attackerContainer = document.getElementById(ids.battleUITitleTitleLeft);
+    let defenderContainer = document.getElementById(ids.battleUITitleTitleRight);
 
     if (attackSiege === 0) { //attack
         let attackerCountry = pathCountry(attacker);
@@ -5216,19 +3537,19 @@ export function setArmyTextValues(attackArray, situation, defendingUniqueId) {
         startingNaval = attackArray.startingDef[3];
     }
 
-    document.getElementById("armyRowRow2Quantity1").innerHTML = formatNumbersToKMB(totalAttackingArmy[0], 0);
-    document.getElementById("armyRowRow2Quantity2").innerHTML = formatNumbersToKMB(totalAttackingArmy[1], 0);
-    document.getElementById("armyRowRow2Quantity3").innerHTML = formatNumbersToKMB(totalAttackingArmy[2], 0);
-    document.getElementById("armyRowRow2Quantity4").innerHTML = formatNumbersToKMB(totalAttackingArmy[3], 0);
-    document.getElementById("armyRowRow2Quantity5").innerHTML = formatNumbersToKMB(totalDefendingArmy[0], 0);
+    document.getElementById(indexedIds.armyRowQuantity(1)).innerHTML = formatNumbersToKMB(totalAttackingArmy[0], 0);
+    document.getElementById(indexedIds.armyRowQuantity(2)).innerHTML = formatNumbersToKMB(totalAttackingArmy[1], 0);
+    document.getElementById(indexedIds.armyRowQuantity(3)).innerHTML = formatNumbersToKMB(totalAttackingArmy[2], 0);
+    document.getElementById(indexedIds.armyRowQuantity(4)).innerHTML = formatNumbersToKMB(totalAttackingArmy[3], 0);
+    document.getElementById(indexedIds.armyRowQuantity(5)).innerHTML = formatNumbersToKMB(totalDefendingArmy[0], 0);
     if (situation === 2) {
-        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0) + " / " + startingAssault;
-        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0) + " / " + startingAir;
-        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0) + " / " + startingNaval;
+        document.getElementById(indexedIds.armyRowQuantity(6)).innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0) + " / " + startingAssault;
+        document.getElementById(indexedIds.armyRowQuantity(7)).innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0) + " / " + startingAir;
+        document.getElementById(indexedIds.armyRowQuantity(8)).innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0) + " / " + startingNaval;
     } else {
-        document.getElementById("armyRowRow2Quantity6").innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0);
-        document.getElementById("armyRowRow2Quantity7").innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0);
-        document.getElementById("armyRowRow2Quantity8").innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0);
+        document.getElementById(indexedIds.armyRowQuantity(6)).innerHTML = formatNumbersToKMB(totalDefendingArmy[1], 0);
+        document.getElementById(indexedIds.armyRowQuantity(7)).innerHTML = formatNumbersToKMB(totalDefendingArmy[2], 0);
+        document.getElementById(indexedIds.armyRowQuantity(8)).innerHTML = formatNumbersToKMB(totalDefendingArmy[3], 0);
     }
 
     setDefendingTerritoryCopyEnd(totalDefendingArmy);
@@ -5334,16 +3655,16 @@ export function populateWarResultPopup(situation, flagStringAttacker, territoryD
     setFlag(flagStringDefender, 7);
 
     //SET TITLE COUNTRY NAMES
-    document.getElementById("battleResultsTitleTitleLeft").innerHTML = flagStringAttacker;
-    document.getElementById("battleResultsTitleTitleRight").innerHTML = territoryStringDefender;
+    document.getElementById(ids.battleResultsTitleTitleLeft).innerHTML = flagStringAttacker;
+    document.getElementById(ids.battleResultsTitleTitleRight).innerHTML = territoryStringDefender;
 
-    let confirmButtonBattleResults = document.getElementById("battleResultsRow4");
+    let confirmButtonBattleResults = battleResults.confirmButton();
 
     if (situation === 0) { //won
         confirmButtonBattleResults.classList.remove("battleResultsRow4Lost");
         confirmButtonBattleResults.classList.add("battleResultsRow4Won");
         confirmButtonBattleResults.style.backgroundColor = "rgb(0, 128, 0)";
-        document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Conquers";
+        document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         territoryPath.setAttribute("fill", playerColour());
         if (mapMode === 1) {
@@ -5354,16 +3675,16 @@ export function populateWarResultPopup(situation, flagStringAttacker, territoryD
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
         confirmButtonBattleResults.style.backgroundColor = "rgb(131, 38, 38)";
         if (defeatType === "retreat") {
-            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Pulls  Out  Of";
+            document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Pulls  Out  Of";
             confirmButtonBattleResults.innerHTML = "Accept Retreat!";
         } else if (defeatType === "scatter") {
-            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Scatters From";
+            document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Scatters From";
             confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         } else if (defeatType === "arrest") {
-            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Arrested By";
+            document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Arrested By";
             confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         } else {
-            document.getElementById("battleResultsTitleTitleCenter").innerHTML = "Defeated  By";
+            document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Defeated  By";
             confirmButtonBattleResults.innerHTML = "Accept Defeat!";
         }
     }
@@ -5378,19 +3699,19 @@ export function populateWarResultPopup(situation, flagStringAttacker, territoryD
     //ROUND COLUMN
     if (situation === 0) {
         setResolution("Victory");
-        document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Victory:  " + roundCounterForStats;
+        document.getElementById(ids.battleResultsRow3Row3RoundsCount).innerHTML = "Rounds To Victory:  " + roundCounterForStats;
     } else if (situation === 1) {
         if (defeatType === "retreat") {
             setResolution("Retreat");
-            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Respectful Retreat";
+            document.getElementById(ids.battleResultsRow3Row3RoundsCount).innerHTML = "Respectful Retreat";
         } else if (defeatType === "scatter") {
             setResolution("Retreat");
-            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Troops Scatter";
+            document.getElementById(ids.battleResultsRow3Row3RoundsCount).innerHTML = "Troops Scatter";
         } else if (defeatType === "arrest") {
-            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Siege Troops Arrested";
+            document.getElementById(ids.battleResultsRow3Row3RoundsCount).innerHTML = "Siege Troops Arrested";
         } else {
             setResolution("Defeat");
-            document.getElementById("battleResultsRow3Row3RoundsCount").innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
+            document.getElementById(ids.battleResultsRow3Row3RoundsCount).innerHTML = "Rounds To Defeat:  " + roundCounterForStats;
         }
     }
 
@@ -5521,7 +3842,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
 
     //LOSSES
     for (let i = 0; i < attackingLosses.length; i++) {
-        const element = document.getElementById(`battleResultsRow2Row2Quantity${i+1}`);
+        const element = document.getElementById(indexedIds.battleResultsLostQuantity(i+1));
         let formattedValue;
         if (attackingLosses[i] !== "-") {
             formattedValue = formatNumbersToKMB(attackingLosses[i], 0);
@@ -5544,7 +3865,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
 
     //KILLS
     for (let i = 0; i < defendingLosses.length; i++) {
-        const element = document.getElementById(`battleResultsRow2Row2Quantity${i+5}`);
+        const element = document.getElementById(indexedIds.battleResultsLostQuantity(i+5));
         let formattedValue;
         if (defendingLosses[i] !== "-" && defendingLosses[i] !== "None") {
             formattedValue = formatNumbersToKMB(defendingLosses[i], 0);
@@ -5569,7 +3890,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
 
     //SURVIVALS
     for (let i = 0; i < attackingSurvived.length; i++) {
-        const element = document.getElementById(`battleResultsRow3Row1Quantity${i+1}`);
+        const element = document.getElementById(indexedIds.battleResultsRemainingQuantity(i+1));
         if (massiveAssault && attackingSurvived[i] !== "-") {
             attackingSurvived[i] = Math.floor(attackingSurvived[i] * 0.8);
         }
@@ -5598,7 +3919,7 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
 
     //CAPTURED
     for (let i = 0; i < capturedArray.length; i++) {
-        const element = document.getElementById(`battleResultsRow3Row1Quantity${i+5}`);
+        const element = document.getElementById(indexedIds.battleResultsRemainingQuantity(i+5));
         let formattedValue;
 
         if (rout && totalDefendingArmy[i] > 0) {
@@ -5636,7 +3957,7 @@ export function setDefendingTerritoryCopyEnd(array) {
 }
 
 export function enableDisableSiegeButton(enableOrDisable) {
-    let siegeButton = document.getElementById("siegeButton");
+    let siegeButton = document.getElementById(ids.siegeButton);
     if (enableOrDisable === 0) { //enable
         siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
         siegeButton.disabled = false;
@@ -5672,8 +3993,8 @@ export function getHistoricWarObject(ai, territory) {
 }
 
 function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
-    const battleUIRow2 = document.getElementById("battleUIRow2");
-    const probabilityColumnBox = document.getElementById("probabilityColumnBox");
+    const battleUIRow2 = document.getElementById(ids.battleUIRow2);
+    const probabilityColumnBox = document.getElementById(ids.probabilityColumnBox);
 
     if (siegeOrAttack === 0) { // Attack
         probabilityColumnBox.style.display = "flex";
@@ -5703,24 +4024,24 @@ function setSiegeTurnsText(siegeObject) {
     const {
         turnsInSiege
     } = siegeObject;
-    document.getElementById("battleUIRow4Col1IconProbabilityTurnsSiege").innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/turnsIcon.png'>";
-    document.getElementById("battleUIRow4Col1TextProbabilityTurnsSiege").innerHTML = turnsInSiege;
+    document.getElementById(ids.battleUIRow4Col1IconProbabilityTurnsSiege).innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/turnsIcon.png'>";
+    document.getElementById(ids.battleUIRow4Col1TextProbabilityTurnsSiege).innerHTML = turnsInSiege;
 }
 
 
 
 function setRow4(siegeOrAttack) {
     //get appropriate columns
-    const row4RightColumnA = document.getElementById("battleUIRow4Col2A");
-    const row4RightColumnB = document.getElementById("battleUIRow4Col2B");
-    const row4RightColumnC = document.getElementById("battleUIRow4Col2C");
-    const row4RightColumnD = document.getElementById("battleUIRow4Col2D");
-    const row4RightColumnE = document.getElementById("battleUIRow4Col2E");
+    const row4RightColumnA = document.getElementById(ids.battleUIRow4Col2A);
+    const row4RightColumnB = document.getElementById(ids.battleUIRow4Col2B);
+    const row4RightColumnC = document.getElementById(ids.battleUIRow4Col2C);
+    const row4RightColumnD = document.getElementById(ids.battleUIRow4Col2D);
+    const row4RightColumnE = document.getElementById(ids.battleUIRow4Col2E);
 
-    const prodPopIcon = document.getElementById("prodPopIcon");
-    const foodIcon = document.getElementById("foodIcon");
+    const prodPopIcon = document.getElementById(ids.prodPopIcon);
+    const foodIcon = document.getElementById(ids.foodIcon);
 
-    const siegeButton = document.getElementById("siegeButton");
+    const siegeButton = document.getElementById(ids.siegeButton);
 
     if (siegeOrAttack === 0) { //attack
 
@@ -5762,9 +4083,9 @@ function setRow4(siegeOrAttack) {
 
 function setUnsetMenuOnEscape(e) {
     if (e.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
-        document.getElementById("menu-container").style.display = "block";
-        document.getElementById("main-ui-container").style.display = "none";
-        document.getElementById("upgrade-container").style.display = "none";
+        mainMenu.show();
+        document.getElementById(ids.mainUiContainer).style.display = "none";
+        document.getElementById(ids.upgradeContainer).style.display = "none";
         toggleBottomTableContainer(false);
         toggleTopTableContainer(false);
         menuState = true;
@@ -5784,7 +4105,7 @@ function setUnsetMenuOnEscape(e) {
 
     } else if (e.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
         if (uiCurrentlyOnScreen) {
-            document.getElementById("main-ui-container").style.display = "flex";
+            document.getElementById(ids.mainUiContainer).style.display = "flex";
             uiButtonCurrentlyOnScreen = false;
             mapModeButtonCurrentlyOnScreen = false;
             bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
@@ -5840,13 +4161,13 @@ function setUnsetMenuOnEscape(e) {
             toggleAiDialogue(true);
         }
         toggleBottomTableContainer(true);
-        document.getElementById("menu-container").style.display = "none";
+        mainMenu.hide();
 
         if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
             selectCountry(lastClickedPath, true);
             if (territoryAboutToBeAttackedOrSieged) {
-                if (svgMap.getElementById("attackImage")) { //if battle image on screen then removes and reads it, so it is on top of the svg path
-                    svgMap.getElementById("attackImage").remove();
+                if (svgMap.getElementById(ids.attackImage)) { //if battle image on screen then removes and reads it, so it is on top of the svg path
+                    svgMap.getElementById(ids.attackImage).remove();
                     addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", 0);
                 }
             }
@@ -5929,16 +4250,16 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
         // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
         if (defenseBonusPercentage <= 25) {
-            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
+            document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
             defendingTerritory.defenseBonusColor = colorRed;
         } else if (defenseBonusPercentage > 25 && defenseBonusPercentage <= 50) {
-            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
+            document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon50.png'>";
             defendingTerritory.defenseBonusColor = colorOrange;
         } else if (defenseBonusPercentage > 50 && defenseBonusPercentage <= 75) {
-            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
+            document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon75.png'>";
             defendingTerritory.defenseBonusColor = colorYellow;
         } else {
-            document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+            document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
             defendingTerritory.defenseBonusColor = colorGreen;
         }
 
@@ -5965,20 +4286,20 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
         applyColorsToArmyQuantityText(0, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
 
-        document.getElementById("defenseBonusText").style.color = defendingTerritory.defenseBonusColor;
-        document.getElementById("foodText").style.color = defendingTerritory.foodCapacityColor;
-        document.getElementById("prodPopText").style.color = defendingTerritory.productiveTerritoryPopColor;
+        document.getElementById(ids.defenseBonusText).style.color = defendingTerritory.defenseBonusColor;
+        document.getElementById(ids.foodText).style.color = defendingTerritory.foodCapacityColor;
+        document.getElementById(ids.prodPopText).style.color = defendingTerritory.productiveTerritoryPopColor;
     } else if (situation === 1) { //click assault
         remainingPercentages = "";
         applyColorsToArmyQuantityText(1, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
     } else if (situation === 2) { //click invade
         remainingPercentages = "";
         applyColorsToArmyQuantityText(1, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite);
-        document.getElementById("defenseBonusText").style.color = colorGreen;
-        document.getElementById("defenseIcon").innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
+        document.getElementById(ids.defenseBonusText).style.color = colorGreen;
+        document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon.png'>";
     }
 
-    let mountainDefenseText = document.getElementById("mountainDefenseText");
+    let mountainDefenseText = document.getElementById(ids.mountainDefenseText);
     if (parseInt(mountainDefenseText.innerHTML) >= 50) {
         mountainDefenseText.style.color = colorRed;
     } else if (parseInt(mountainDefenseText.innerHTML) >= 30) {
@@ -5992,10 +4313,10 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
 function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGreen, colorYellow, colorOrange, colorRed, colorWhite) {
     const elements = [
-        document.getElementById("armyRowRow2Quantity5"),
-        document.getElementById("armyRowRow2Quantity6"),
-        document.getElementById("armyRowRow2Quantity7"),
-        document.getElementById("armyRowRow2Quantity8"),
+        document.getElementById(indexedIds.armyRowQuantity(5)),
+        document.getElementById(indexedIds.armyRowQuantity(6)),
+        document.getElementById(indexedIds.armyRowQuantity(7)),
+        document.getElementById(indexedIds.armyRowQuantity(8)),
     ];
 
     for (let i = 0; i < elements.length; i++) {
@@ -6020,21 +4341,21 @@ function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGre
 
 function setSiegeScoreText(siegeScore, situation) {
     if (situation === 0) {
-        document.getElementById("battleUIRow4Col1TextSiegeScore").innerHTML = siegeScore;
-        document.getElementById("battleUIRow4Col1IconSiegeScore").innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/sword.png'>";
-        document.getElementById("battleUIRow4Col1TextSiegeScore").style.display = "flex";
-        document.getElementById("battleUIRow4Col1IconSiegeScore").style.display = "flex";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).innerHTML = siegeScore;
+        document.getElementById(ids.battleUIRow4Col1IconSiegeScore).innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/sword.png'>";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.display = "flex";
+        document.getElementById(ids.battleUIRow4Col1IconSiegeScore).style.display = "flex";
     } else if (situation === 1) {
-        document.getElementById("battleUIRow4Col1TextSiegeScore").style.display = "none";
-        document.getElementById("battleUIRow4Col1IconSiegeScore").style.display = "none";
+        document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.display = "none";
+        document.getElementById(ids.battleUIRow4Col1IconSiegeScore).style.display = "none";
     }
 }
 
 export function toggleDiceCanvas(value) {
     if (value) {
-        document.getElementById("threeCanvasForDice").style.display = "block";
+        document.getElementById(ids.threeCanvasForDice).style.display = "block";
     } else {
-        document.getElementById("threeCanvasForDice").style.display = "none";
+        document.getElementById(ids.threeCanvasForDice).style.display = "none";
     }
 }
 
@@ -6052,7 +4373,7 @@ export function routeSiegeUIProcesses() {
 }
 
 function enableDisableAssaultButton(enableDisable) {
-    const siegeButton = document.getElementById("siegeBottomBarButton")
+    const siegeButton = document.getElementById(ids.siegeBottomBarButton)
     switch (enableDisable) {
         case 0: //enable
             siegeButton.disabled = false;
@@ -6121,7 +4442,7 @@ function flipMapMode() {
     let continentColor;
     switch (mapMode) {
         case 1:
-            document.getElementById("mapModeButton").src = "resources/mapMode2.png";
+            document.getElementById(ids.mapModeButton).src = "resources/mapMode2.png";
             currentMapColorAndStrokeArray = saveMapColorState(false);
             mapMode = 2;
             svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
@@ -6143,7 +4464,7 @@ function flipMapMode() {
             }
             break;
         case 2:
-            document.getElementById("mapModeButton").src = "resources/mapMode1.png";
+            document.getElementById(ids.mapModeButton).src = "resources/mapMode1.png";
             mapMode = 1;
             for (let i = 0; i < paths.length; i++) {
                 paths[i].style.stroke = "black";
@@ -6165,7 +4486,7 @@ function toggleContinentColorsStroke() {
     for (let i = 0; i < pathsCoastLines.length; i++) {
         if (pathsCoastLines[i].style.stroke === "rgb(103, 124, 160)") {
             //toggle on
-            document.getElementById("strokeHighlightButton").src = "resources/strokeToggle1.png";
+            document.getElementById(ids.strokeHighlightButton).src = "resources/strokeToggle1.png";
             continentColor = pathsCoastLines[i].getAttribute("shadow");
             pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
             if (mapMode === 1) {
@@ -6174,7 +4495,7 @@ function toggleContinentColorsStroke() {
                 pathsCoastLines[i].style.strokeWidth = "5px";
             }
         } else { // toggle off
-            document.getElementById("strokeHighlightButton").src = "resources/strokeToggle2.png";
+            document.getElementById(ids.strokeHighlightButton).src = "resources/strokeToggle2.png";
             pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
             if (pathsCoastLines[i].getAttribute("isisland") === "true") {
                 pathsCoastLines[i].style.strokeWidth = "2px";
@@ -6195,24 +4516,40 @@ export function endPlayerTurn() {
             paths[i].setAttribute("stroke-width", "1");
             paths[i].style.strokeDasharray = "none";
         } else {
-            paths[i].setAttribute("fill", playerColour());
+            //A besieged or freshly-conquered territory keeps its stroke decoration, so its
+            //FILL has to be re-asserted here instead. This used to paint playerColour() on
+            //every path that reached this branch, whoever owned it -- so every AI territory
+            //besieged by another AI took the player's colour, with the player nowhere near
+            //the war. With the picker left on its default white that produced a growing
+            //patch of blank territories (45 after four turns, 55 after eight); with any
+            //other colour picked it produced something worse, AI land painted as if the
+            //player held it. Worse still, saveMapColorState() three lines below captures
+            //the result, so the wrong colour was replayed by every later
+            //restoreMapColorState() and never washed out.
+            //Ask the owner. This also repairs a path that a previous turn mis-painted.
+            if (pathIsPlayerOwned(paths[i])) {
+                paths[i].setAttribute("fill", playerColour());
+            } else {
+                const territory = getTerritory(paths[i].getAttribute("uniqueid"));
+                if (typeof territory?.countryColor === "string" && territory.countryColor !== "") {
+                    paths[i].setAttribute("fill", territory.countryColor);
+                }
+            }
         }
     }
-    if (svgMap.querySelector("#attackImage")) {
-        svgMap.getElementById("attackImage").remove();
+    if (svgMap.querySelector(sel.attackImage)) {
+        svgMap.getElementById(ids.attackImage).remove();
     }
     currentMapColorAndStrokeArray = saveMapColorState(false);
     toggleTransferAttackButton(false, false);
     transferAttackButtonDisplayed = false;
     restoreMapColorState(currentMapColorAndStrokeArray, false);
-    document.getElementById("popup-title").innerText = "AI turn";
-    document.getElementById("popup-confirm").innerText = "AI MOVING...";
     setPhase(Phase.AI);
 }
 
 export function initialiseNewPlayerTurn() {
     populateBottomTableWhenSelectingACountry(getLastClickedPath());
-    document.getElementById("popup-confirm").disabled = false;
+    phaseBar.setButtonEnabled(true);
     if (playerSiegeWarsList) {
         for (const key in playerSiegeWarsList) {
             for (let i = 0; i < allTerritories().length; i++) {
@@ -6225,8 +4562,6 @@ export function initialiseNewPlayerTurn() {
     if (mapMode === 1) {
         currentMapColorAndStrokeArray = saveMapColorState(false);
     }
-    document.getElementById("popup-title").innerText = "Buy / Upgrade Phase";
-    document.getElementById("popup-confirm").innerText = "MILITARY";
     setPhase(Phase.BUY_UPGRADE);
 }
 
@@ -6331,17 +4666,17 @@ export async function populateAiDialogueBox(situation, attacker, defender, param
     convertAiDialogueButtonRow(1);
     switch (situation) {
         case "goldForSiege":
-            document.getElementById("aiDialogueTitleText").innerHTML = reduceKeywords(attacker.dataName) + " Requests Pullout";
-            document.getElementById("aiDialogueBodySubHeading").innerHTML = attacker.dataName + " requests you to kindly retreat from the siege on " + defender.territoryName + ", and in return they will grant you:"
+            document.getElementById(ids.aiDialogueTitleText).innerHTML = reduceKeywords(attacker.dataName) + " Requests Pullout";
+            document.getElementById(ids.aiDialogueBodySubHeading).innerHTML = attacker.dataName + " requests you to kindly retreat from the siege on " + defender.territoryName + ", and in return they will grant you:"
 
-            document.getElementById("aiDialogueBodyBottomContentLeftLarge").innerHTML = ""; //clear old image
+            document.getElementById(ids.aiDialogueBodyBottomContentLeftLarge).innerHTML = ""; //clear old image
             const imageElement = document.createElement("img");
             imageElement.classList.add("largeAiDialogImage");
             imageElement.src = "./resources/gold.png";
-            document.getElementById("aiDialogueBodyBottomContentLeftLarge").appendChild(imageElement);
-            document.getElementById("aiDialogueBodyBottomContentRightLarge").innerHTML = formatNumbersToKMB(parameter);
-            document.getElementById("aiButtonLeft").innerHTML = "Refuse";
-            document.getElementById("aiButtonRight").innerHTML = "Accept";
+            document.getElementById(ids.aiDialogueBodyBottomContentLeftLarge).appendChild(imageElement);
+            document.getElementById(ids.aiDialogueBodyBottomContentRightLarge).innerHTML = formatNumbersToKMB(parameter);
+            document.getElementById(ids.aiButtonLeft).innerHTML = "Refuse";
+            document.getElementById(ids.aiButtonRight).innerHTML = "Accept";
             break;
     }
 }
@@ -6353,14 +4688,14 @@ export function setAiDialogueContainerCurrentlyOnScreen(value) {
 export function convertAiDialogueButtonRow(direction) {
     switch(direction) {
         case 0:
-            document.getElementById("aiButtonLeft").style.display = "none";
-            document.getElementById("aiButtonRight").style.display = "none";
-            document.getElementById("aiButtonAllRow").style.display = "flex";
+            document.getElementById(ids.aiButtonLeft).style.display = "none";
+            document.getElementById(ids.aiButtonRight).style.display = "none";
+            document.getElementById(ids.aiButtonAllRow).style.display = "flex";
             break;
         case 1:
-            document.getElementById("aiButtonLeft").style.display = "flex";
-            document.getElementById("aiButtonRight").style.display = "flex";
-            document.getElementById("aiButtonAllRow").style.display = "none";
+            document.getElementById(ids.aiButtonLeft).style.display = "flex";
+            document.getElementById(ids.aiButtonRight).style.display = "flex";
+            document.getElementById(ids.aiButtonAllRow).style.display = "none";
             break;
     }
 }
@@ -6368,22 +4703,22 @@ export function convertAiDialogueButtonRow(direction) {
 export function setAiDialogueBodyBottomContentState(state) {
     switch(state) {
         case 0:
-            document.getElementById("aiDialogueBoxBottomSummaryRow").style.display = "none";
-            document.getElementById("aiDialogueBodyBottomContent").style.display = "flex";
+            document.getElementById(ids.aiDialogueBoxBottomSummaryRow).style.display = "none";
+            document.getElementById(ids.aiDialogueBodyBottomContent).style.display = "flex";
             break;
         case 1:
-            document.getElementById("aiDialogueBoxBottomSummaryRow").style.display = "flex";
-            document.getElementById("aiDialogueBodyBottomContent").style.display = "none";
+            document.getElementById(ids.aiDialogueBoxBottomSummaryRow).style.display = "flex";
+            document.getElementById(ids.aiDialogueBodyBottomContent).style.display = "none";
            break;
     }
 }
 
 export function populateArmyDataFields(returnArmyData) {
 
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol1").innerHTML = "";
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol3").innerHTML = "";
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol5").innerHTML = "";
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol7").innerHTML = "";
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(1)).innerHTML = "";
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(3)).innerHTML = "";
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(5)).innerHTML = "";
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(7)).innerHTML = "";
 
     //SET IMAGES
     const imageElementInf = document.createElement("img");
@@ -6408,20 +4743,20 @@ export function populateArmyDataFields(returnArmyData) {
     imageElementAir.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
     imageElementNav.classList.add("imgForAiDialogueBoxBottomSummaryRowColImg");
 
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol1").appendChild(imageElementInf);
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol3").appendChild(imageElementAss);
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol5").appendChild(imageElementAir);
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol7").appendChild(imageElementNav);
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(1)).appendChild(imageElementInf);
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(3)).appendChild(imageElementAss);
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(5)).appendChild(imageElementAir);
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(7)).appendChild(imageElementNav);
 
     //SET ARMY DATA
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol2").innerHTML = formatNumbersToKMB(returnArmyData[0]);
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol4").innerHTML = returnArmyData[1];
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol6").innerHTML = returnArmyData[2];
-    document.getElementById("aiDialogueBoxBottomSummaryRowCol8").innerHTML = returnArmyData[3];
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(2)).innerHTML = formatNumbersToKMB(returnArmyData[0]);
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(4)).innerHTML = returnArmyData[1];
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(6)).innerHTML = returnArmyData[2];
+    document.getElementById(indexedIds.aiDialogueSummaryColumn(8)).innerHTML = returnArmyData[3];
 }
 
 function extractTerritoryName(imageId) {
-    const underscoreIndex = imageId.indexOf('_'); // Find the first underscore
+    const underscoreIndex = imageId.indexOf('_'); // the one SIEGE_OVERLAY_PREFIX ends with
     if (underscoreIndex !== -1) {
         const territoryPart = imageId.substring(underscoreIndex + 1); // Extract the part after underscore
         const territoryWords = territoryPart.split('_'); // Split by underscores

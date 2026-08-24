@@ -19,7 +19,7 @@ import {
 } from "./pages/index.js";
 import { readFile } from "node:fs/promises";
 
-import { Phase, phaseButtonLabel, phaseBar as phaseBarSelectors } from "./selectors.js";
+import { Phase, phaseButtonLabel, phaseBar as phaseBarSelectors, ids } from "./selectors.js";
 
 export class GameDriver {
     constructor(page) {
@@ -244,16 +244,15 @@ export class GameDriver {
         await this.selectOnMap(from);
         await this.selectOnMap(to);
         await this.page.waitForFunction(
-            () => document.getElementById("move-phase-button")?.innerHTML === "ATTACK",
-            null,
+            (buttonId) => document.getElementById(buttonId)?.innerHTML === "ATTACK",
+            ids.movePhaseButton,
             { timeout: 30_000 }
         );
         await this.moveButton.click();
         await this.page.waitForFunction(
-            () =>
-                getComputedStyle(document.getElementById("transfer-attack-window-container"))
-                    .display !== "none",
-            null,
+            (containerId) =>
+                getComputedStyle(document.getElementById(containerId)).display !== "none",
+            ids.transferAttackWindowContainer,
             { timeout: 30_000 }
         );
 
@@ -261,8 +260,8 @@ export class GameDriver {
         const committed = await this.transferAttack.quantity(from, unit);
 
         await this.page.waitForFunction(
-            () => document.getElementById("move-phase-button")?.innerHTML === "INVADE!",
-            null,
+            (buttonId) => document.getElementById(buttonId)?.innerHTML === "INVADE!",
+            ids.movePhaseButton,
             { timeout: 30_000 }
         );
         const deadline = Date.now() + 30_000;
@@ -294,10 +293,10 @@ export class GameDriver {
             if (await this.battle.resultsShown()) {
                 return { ending: "results", live };
             }
-            const state = await this.page.evaluate(() => ({
-                label: document.getElementById("advanceButton")?.innerText ?? "",
-                disabled: !!document.getElementById("advanceButton")?.disabled,
-            }));
+            const state = await this.page.evaluate((buttonId) => ({
+                label: document.getElementById(buttonId)?.innerText ?? "",
+                disabled: !!document.getElementById(buttonId)?.disabled,
+            }), ids.advanceButton);
             const snapshot = await this.page.evaluate(() => window.__game.battle());
             if (snapshot) {
                 live = snapshot;

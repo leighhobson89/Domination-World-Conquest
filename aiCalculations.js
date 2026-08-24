@@ -80,6 +80,9 @@ import {
     calculateTurnGoals as planTurnGoals,
     prioritiseTurnGoalsBasedOnPersonality as prioritiseTurnGoals
 } from './src/ai/goals.js';
+import {
+    ids
+} from './src/ui/core/registry.js';
 
 //Balance numbers live in src/config/balance.js (Phase 5.1); imported above.
 
@@ -1140,14 +1143,14 @@ async function populateAiResponse(situation, response, parameter, returnArmyData
     switch(situation) {
         case "goldForSiege":
             if (response === 0) {
-                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We will not be so lenient next time! Ok proceed with your siege, but it might be you being sieged soon!";
+                document.getElementById(ids.aiDialogueBodySubHeading).innerHTML = "We will not be so lenient next time! Ok proceed with your siege, but it might be you being sieged soon!";
             } else if (response === 1 && returnArmyData !== null) {
-                document.getElementById("aiDialogueBodySubHeading").innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!<br/>Shipping out to " + returnArmyData[4] + "!";
+                document.getElementById(ids.aiDialogueBodySubHeading).innerHTML = "We thank you graciously; we shall enjoy conquering the worthless territory of " + parameter.territoryName + "!<br/>Shipping out to " + returnArmyData[4] + "!";
                 setAiDialogueBodyBottomContentState(1);
                 populateArmyDataFields(returnArmyData);
             }
             convertAiDialogueButtonRow(0);
-            document.getElementById("aiButtonAllRow").innerHTML = "Proceed";
+            document.getElementById(ids.aiButtonAllRow).innerHTML = "Proceed";
             break;
     }
 

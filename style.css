@@ -16,9 +16,13 @@
   background-image: url("./resources/sea.png");
 }
 
+/* The element itself is built by src/ui/components/Tooltip.js, which also sets
+   pointer-events: none inline -- a box that deliberately sits under the pointer
+   must never be what the pointer hits. Phase 6.3. */
 #tooltip {
   position: absolute;
   display: none;
+  pointer-events: none;
   padding: 5px;
   font-family: sans-serif;
   font-size: 14px;

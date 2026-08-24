@@ -1,4 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
+import { containers } from "../../support/selectors.js";
 
 // The attack window: which of the player's territories can join the attack, how
 // units are allocated, the probability bar, and what INVADE! actually does.
@@ -179,7 +180,7 @@ test.describe("launching the attack", () => {
         await game.moveButton.click();
         await expect.poll(async () => game.battle.isOpen()).toBe(true);
 
-        const title = await page.locator("#battleContainer").innerText();
+        const title = await page.locator(containers.battle).innerText();
         expect(title).toContain(target);
         expect(await game.wars()).toEqual([]);
     });

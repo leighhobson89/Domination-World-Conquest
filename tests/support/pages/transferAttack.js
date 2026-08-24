@@ -1,4 +1,4 @@
-import { transferAttack, containers } from "../selectors.js";
+import { cls, containers, transferAttack } from "../selectors.js";
 
 /** Army column order inside a row, fixed by drawAndHandleTransferAttackTable. */
 export const UNIT_COLUMN = { infantry: 0, assault: 1, air: 2, naval: 3 };
@@ -54,48 +54,49 @@ export class TransferAttackPage {
      * onto the row where it belongs.
      */
     async select(territoryName) {
-        await this.rowFor(territoryName).locator(".transfer-table-outer-column").first().click();
-        await this.page.waitForSelector(".selectedRow");
+        await this.rowFor(territoryName).locator(cls.transferTableOuterColumn).first().click();
+        await this.page.waitForSelector(cls.selectedRow);
     }
 
     async selectedRowName() {
         return this.page.evaluate(
-            () => document.querySelector(".selectedRow")?.children[0]?.textContent ?? null
+            (selector) => document.querySelector(selector)?.children[0]?.textContent ?? null,
+            cls.selectedRow
         );
     }
 
     unitColumn(territoryName, unit) {
-        return this.rowFor(territoryName).locator(".army-type-column").nth(UNIT_COLUMN[unit]);
+        return this.rowFor(territoryName).locator(cls.armyTypeColumn).nth(UNIT_COLUMN[unit]);
     }
 
     async quantity(territoryName, unit) {
         return Number(
-            await this.unitColumn(territoryName, unit).locator(".quantityTextField").inputValue()
+            await this.unitColumn(territoryName, unit).locator(cls.quantityTextField).inputValue()
         );
     }
 
     async plus(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(".transferPlusButton").click();
+            await column.locator(cls.transferPlusButton).click();
         }
     }
 
     async minus(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(".transferMinusButton").click();
+            await column.locator(cls.transferMinusButton).click();
         }
     }
 
     async multiplier(territoryName, unit) {
-        return this.unitColumn(territoryName, unit).locator(".multipleTextField").inputValue();
+        return this.unitColumn(territoryName, unit).locator(cls.multipleTextField).inputValue();
     }
 
     async cycleMultiplier(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(".multipleIncrementerButton").click();
+            await column.locator(cls.multipleIncrementerButton).click();
         }
         return this.multiplier(territoryName, unit);
     }

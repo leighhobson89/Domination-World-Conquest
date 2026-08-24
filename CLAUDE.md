@@ -77,11 +77,23 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   `"resources/flags/" + country + ".png"` at runtime. No bundler rewrites those, which is why
   `vite.config.mjs` copies `resources/` into the build verbatim. Moving `resources/` means
   editing every one of those strings.
-- **Some bare identifiers resolve via named window access.** `tooltip` (59 sites in `ui.js`)
-  and `uiTable` are never declared in scope — they resolve to `window.tooltip` /
-  `window.uiTable` because elements with those `id`s exist. It works, ESLint flags it as
-  `no-undef`, and it breaks the moment the element is renamed or the code moves into a scope
-  with a local of the same name.
+- **Every element id and selector lives in `src/ui/core/registry.js`** (Phase 6.1), and both
+  the app and the e2e page objects import it — `tests/support/selectors.js` is a derived view
+  of it and holds no literal selector. Never hand-write an id or a `#selector`: add it there.
+  Element construction goes through `src/ui/core/dom.js` — `el()`, `mount()`, `on()` — whose
+  `on()` returns its own remover, which is what lets a component undo itself in `destroy()`.
+- **The UI is components now** (Phase 6.3): fourteen files under `src/ui/components/`, each
+  `create()` + `destroy()` and, where it follows store state, `update()`. The
+  `DOMContentLoaded` block in `ui.js` is the list of `create()` calls plus the handlers that
+  belong to the turn loop. `PhaseBar` is the one that subscribes to `state/events.js` today
+  (`PHASE_CHANGED` drives its title and button label, so `setPhase()` is the only call a
+  phase transition makes); the others carry a note saying what has to become state first.
+  `BuyWindow` and `UpgradeWindow` are two specs over one `ResourceWindow` builder.
+- **The bare-identifier gotcha is closed.** `tooltip` and `uiTable` used to resolve to
+  `window.tooltip` / `window.uiTable` because elements with those ids existed. `tooltip` is
+  now an imported handle from `src/ui/components/Tooltip.js` (which creates the element —
+  it is no longer in index.html), and `uiTable` is reached through the registry. Do not
+  reintroduce the pattern; ESLint flagged every one of those sites as `no-undef`.
 - **The module graph is still circular**, but the three `setTimeout(..., 1000)` races that
   used to paper over it are gone (Phase 1.7). Static imports work because the symbols involved
   are hoisted function declarations. Do not add more module coupling, and never reintroduce a
@@ -146,6 +158,15 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   the UI and sets `pageLoaded`; `svgMapLoaded()` runs later on window `load` and is what
   populates `paths`. Anything needing territory geometry must await `whenPageLoaded()`, which
   waits for both.
+- **Playwright reuses a preview server it did not build.** `playwright.config.js` sets
+  `reuseExistingServer: !process.env.CI`, and its `webServer.command` is
+  `npm run build && npm run preview`. So the FIRST e2e run of a session builds and serves
+  `build/`, and every run after it reuses that server — against the build as it was at the
+  first run. Edit a source file, re-run a spec, and you are testing the old code with no
+  warning. It shows up as a spec that passes when it should fail, or fails when the fix is
+  already in. Kill whatever is listening on 4173 (`netstat -ano | grep :4173`, and check
+  both the IPv4 and the IPv6 listener) before trusting an e2e result taken after an edit.
+  `npm run dev` is unaffected — Vite serves from source.
 - **The map is an `<object>`, not an `<iframe>`.** `page.frameLocator("#svg-map")` does not
   work in Playwright; use `page.frame({ name: "svg-map" })`.
 - **One phase counter, and it is an enum.** `Phase` in `src/state/phases.js`, read with
@@ -203,7 +224,7 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
 - **A marker is decoration and must never intercept a click.** Siege overlays and the attack
   image carry `pointer-events: none`. Without it the marker sits over the middle of the
   territory it marks and swallows the click, and clicking a besieged territory is the only route
-  to VIEW SIEGE. Same class as `#tooltip`, which is still outstanding.
+  to VIEW SIEGE. `#tooltip` was the same class of bug and is fixed (Phase 6.3).
 - **Siege markers are rendered from state**, by `src/ui/siegeOverlay.js` on the `siegeChanged`
   event. Do not also draw one imperatively where a siege is created — that produced two
   `<image>` elements sharing one id, of which only one was ever removed.
@@ -214,11 +235,14 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   `querySelector("#siegeImage_" + name)` throws rather than returning null (audit §5.2 AI). Use
   `getElementById` for anything keyed by a territory name.
 - **`xButton` is a duplicated id** — the info panel's close button and the upgrade window's
-  both use it, so a bare `#xButton` selector is ambiguous the moment both exist.
-- **`#tooltip` follows the pointer and has no `pointer-events: none`**, so it sits on top of
-  whatever you are about to click and eats the click. It is also the only thing that clears
-  `clickActionsDone`, the latch that gates the bottom table updating. The page objects park
-  the pointer before interacting; production code should not have to.
+  both use it, so a bare `#xButton` selector is ambiguous the moment both exist. Recorded as
+  such in `registry.js`; Phase 6.8 gives them separate semantic ids.
+- **`#tooltip` follows the pointer and now carries `pointer-events: none`** (Phase 6.3). It
+  used to sit on top of whatever you were about to click and eat the click. It is still the
+  only thing that clears `clickActionsDone`, the latch that gates the bottom table updating,
+  so the page objects still park the pointer — that is belt-and-braces now rather than a
+  workaround. Push content into it with `tooltip.setContent()` / `show()` / `clear()`, never
+  by reaching for the element.
 - **The transfer table's row click handler is on the row's NAME column**, not on the row.
   The attack mode of the same renderer has no row selection at all.
 

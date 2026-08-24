@@ -1,4 +1,4 @@
-import { tables, topTableCells, bottomTableCells } from "../selectors.js";
+import { bottomTableCells, sel, tables, topTableCells } from "../selectors.js";
 
 // Both tables are one <tr> of alternating icon/value cells addressed by index.
 // The values are KMB-formatted ("1.2M"), so these page objects exist to assert
@@ -41,7 +41,7 @@ class CellTable {
 export class TopTablePage extends CellTable {
     constructor(page) {
         super(page, tables.top, topTableCells);
-        this.flag = page.locator("#flag-top img");
+        this.flag = page.locator(`${sel.flagTop} img`);
     }
 }
 

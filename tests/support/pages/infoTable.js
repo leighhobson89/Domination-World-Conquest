@@ -1,4 +1,4 @@
-import { infoTable, containers } from "../selectors.js";
+import { cls, containers, infoTable, tables } from "../selectors.js";
 
 /**
  * The main info panel: Summary / Territories / Army / Wars & Sieges.
@@ -10,7 +10,7 @@ export class InfoTablePage {
     constructor(page) {
         this.page = page;
         this.container = page.locator(containers.mainUi);
-        this.table = page.locator("#uiTable");
+        this.table = page.locator(tables.ui);
         this.startOfTurnCheckbox = page.locator(infoTable.appearsAtStartOfTurn);
     }
 
@@ -56,7 +56,10 @@ export class InfoTablePage {
 
     /** The active tab's id, or null when none is marked active. */
     async activeTab() {
-        return this.page.evaluate(() => document.querySelector(".tab-button.active")?.id ?? null);
+        return this.page.evaluate(
+            (selector) => document.querySelector(selector)?.id ?? null,
+            `${cls.tabButton}${cls.tabButtonActive}`
+        );
     }
 
     /** Territory names listed in the current tab, in row order. */

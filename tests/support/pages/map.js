@@ -1,4 +1,4 @@
-import { map, containers } from "../selectors.js";
+import { containers, ids, map, territorySelectors } from "../selectors.js";
 
 /**
  * The world map. It is an <object>, not an <iframe>, so
@@ -68,34 +68,36 @@ export class MapPage {
 
     /** Attribute values for every path at once -- one round trip, not 359. */
     async attributeCounts(attribute) {
-        return this.page.evaluate((attr) => {
-            const doc = document.getElementById("svg-map").contentDocument;
+        return this.page.evaluate(({ attr, mapId, allPaths }) => {
+            const doc = document.getElementById(mapId).contentDocument;
             const counts = {};
-            for (const path of doc.querySelectorAll("path[uniqueid]")) {
+            for (const path of doc.querySelectorAll(allPaths)) {
                 const value = path.getAttribute(attr);
                 counts[String(value)] = (counts[String(value)] ?? 0) + 1;
             }
             return counts;
-        }, attribute);
+        }, { attr: attribute, mapId: ids.svgMap, allPaths: territorySelectors.all });
     }
 
     async territoryCount() {
         return this.page.evaluate(
-            () =>
-                document
-                    .getElementById("svg-map")
-                    .contentDocument.querySelectorAll("path[uniqueid]").length
+            ({ mapId, allPaths }) =>
+                document.getElementById(mapId).contentDocument.querySelectorAll(allPaths).length,
+            { mapId: ids.svgMap, allPaths: territorySelectors.all }
         );
     }
 
     /** Territory names currently flagged reachable from the current selection. */
     async attackableTerritories() {
-        return this.page.evaluate(() => {
-            const doc = document.getElementById("svg-map").contentDocument;
-            return [...doc.querySelectorAll('path[attackableTerritory="true"]')].map((p) =>
-                p.getAttribute("territory-name")
-            );
-        });
+        return this.page.evaluate(
+            ({ mapId, attackable }) => {
+                const doc = document.getElementById(mapId).contentDocument;
+                return [...doc.querySelectorAll(attackable)].map((p) =>
+                    p.getAttribute("territory-name")
+                );
+            },
+            { mapId: ids.svgMap, attackable: territorySelectors.attackable }
+        );
     }
 
     async zoom(deltaY, { steps = 1 } = {}) {

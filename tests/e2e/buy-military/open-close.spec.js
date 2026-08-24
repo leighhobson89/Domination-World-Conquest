@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { containers } from "../../support/selectors.js";
+import { buyWindow, containers } from "../../support/selectors.js";
 
 // The buy window: how it opens, and that closing it spends nothing.
 // docs/04-e2e-test-plan.md section 5.6.
@@ -18,7 +18,7 @@ test.describe("the buy window", () => {
     }) => {
         await game.openBuy("Germany");
 
-        const rows = page.locator(".buy-row");
+        const rows = page.locator(buyWindow.row);
         await expect(rows).toHaveCount(4);
         const labels = await rows.evaluateAll((els) => els.map((el) => el.children[1].textContent));
         expect(labels).toEqual(["Infantry", "Assault", "Air", "Naval"]);

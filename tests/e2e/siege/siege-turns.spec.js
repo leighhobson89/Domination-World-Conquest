@@ -1,4 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
+import { battle } from "../../support/selectors.js";
 
 // What a turn does to a siege, and what a siege does to the territory under it.
 // docs/04-e2e-test-plan.md section 5.11.
@@ -7,7 +8,7 @@ import { test, expect } from "../../support/fixtures.js";
 async function besiegeFrance(game, page) {
     await game.loadScenario("evenly-matched");
     await game.launchWholeGarrison({ from: "Germany", to: "France" });
-    await page.locator("#siegeButton").click();
+    await page.locator(battle.siege).click();
     await expect.poll(async () => (await game.sieges()).player).toContain("France");
 }
 

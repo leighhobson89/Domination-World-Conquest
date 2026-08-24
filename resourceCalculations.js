@@ -1,4 +1,8 @@
 import {
+    compound,
+    ids
+} from './src/ui/core/registry.js';
+import {
     whenPageLoaded,
     removeSiegeImageFromPath,
     setCurrentWarFlagString,
@@ -118,6 +122,15 @@ import {
     pathOwner,
     pathCountry
 } from './src/state/pathState.js';
+import {
+    tooltip
+} from './src/ui/components/Tooltip.js';
+import {
+    topTable
+} from './src/ui/components/TopTable.js';
+import {
+    bottomTable
+} from './src/ui/components/BottomTable.js';
 
 export let allowSelectionOfCountry = false;
 export const playerOwnedTerritories = [];
@@ -224,7 +237,6 @@ const dummyAttackerObject = { //for a use case where need to split types of sieg
 export const totalPlayerResources = [];
 export const countryResourceTotals = {};
 let continentModifier;
-let tooltip = document.getElementById("tooltip");
 let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
 let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infantry, armyGoldPrices.assault, armyProdPopPrices.assault, armyGoldPrices.air, armyProdPopPrices.air, armyGoldPrices.naval, armyProdPopPrices.naval];
 
@@ -272,7 +284,7 @@ export function getPlayerTerritories() {
 
 export function populateBottomTableWhenSelectingACountry(countryPath) {
     // Update the table with the response data
-    document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
+    bottomTable.create();
     setFlag(pathCountry(countryPath), 2); //set flag for territory clicked on (bottom table)
 
     for (let i = 0; i < allTerritories().length; i++) {
@@ -1153,14 +1165,15 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
     });
 
     //write new data to top table
-    document.getElementById("top-table").rows[0].cells[0].style.whiteSpace = "pre";
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
-    document.getElementById("top-table").rows[0].cells[5].innerHTML = Math.ceil(totalPlayerResources[0].totalOil).toString();
-    document.getElementById("top-table").rows[0].cells[7].innerHTML = Math.ceil(totalPlayerResources[0].totalFood).toString();
-    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats).toString();
-    document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop, 0) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop, 0) + ")";
-    document.getElementById("top-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArea, 0) + " (km²)";
-    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy, 0);
+    topTable.update({
+        gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
+        oil: Math.ceil(totalPlayerResources[0].totalOil).toString(),
+        food: Math.ceil(totalPlayerResources[0].totalFood).toString(),
+        consMats: Math.ceil(totalPlayerResources[0].totalConsMats).toString(),
+        population: formatNumbersToKMB(totalPlayerResources[0].totalProdPop, 0) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop, 0) + ")",
+        area: formatNumbersToKMB(totalPlayerResources[0].totalArea, 0) + " (km²)",
+        army: formatNumbersToKMB(totalPlayerResources[0].totalArmy, 0),
+    });
 
     // console.log ("player:");
     // console.log(totalPlayerResources);
@@ -1170,27 +1183,31 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
 
 export function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
     if (userClickingANewTerritory) {
-        colourTableText(document.getElementById("bottom-table"), territory);
-        document.getElementById("bottom-table").rows[0].cells[0].style.whiteSpace = "pre";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop, 0) + " (" + formatNumbersToKMB(territory.territoryPopulation, 0) + ")";
-        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.area, 0) + " (km²)";
-        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory, 0);
+        colourTableText(bottomTable.element(), territory);
+        bottomTable.create();
+        bottomTable.update({
+            mountainDefence: territory.mountainDefenseBonus.toString(),
+            gold: Math.ceil(territory.goldForCurrentTerritory).toString(),
+            oil: Math.ceil(territory.oilForCurrentTerritory).toString(),
+            food: Math.ceil(territory.foodForCurrentTerritory).toString(),
+            consMats: Math.ceil(territory.consMatsForCurrentTerritory).toString(),
+            population: formatNumbersToKMB(territory.productiveTerritoryPop, 0) + " (" + formatNumbersToKMB(territory.territoryPopulation, 0) + ")",
+            area: formatNumbersToKMB(territory.area, 0) + " (km²)",
+            army: formatNumbersToKMB(territory.armyForCurrentTerritory, 0),
+        });
     } else { //turn update resources for selected territory
-        colourTableText(document.getElementById("bottom-table"), territory);
-        document.getElementById("bottom-table").rows[0].cells[1].innerHTML = reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + reduceKeywords(territory.continent) + ")";
-        document.getElementById("bottom-table").rows[0].cells[3].innerHTML = territory.mountainDefenseBonus.toString();
-        document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[7].innerHTML = Math.ceil(territory.oilForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[9].innerHTML = Math.ceil(territory.foodForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
-        document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop, 0) + " (" + formatNumbersToKMB(territory.territoryPopulation, 0) + ")";
-        document.getElementById("bottom-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(territory.area, 0) + " (km²)";
-        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory, 0);
+        colourTableText(bottomTable.element(), territory);
+        bottomTable.update({
+            name: reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + reduceKeywords(territory.continent) + ")",
+            mountainDefence: territory.mountainDefenseBonus.toString(),
+            gold: Math.ceil(territory.goldForCurrentTerritory).toString(),
+            oil: Math.ceil(territory.oilForCurrentTerritory).toString(),
+            food: Math.ceil(territory.foodForCurrentTerritory).toString(),
+            consMats: Math.ceil(territory.consMatsForCurrentTerritory).toString(),
+            population: formatNumbersToKMB(territory.productiveTerritoryPop, 0) + " (" + formatNumbersToKMB(territory.territoryPopulation, 0) + ")",
+            area: formatNumbersToKMB(territory.area, 0) + " (km²)",
+            army: formatNumbersToKMB(territory.armyForCurrentTerritory, 0),
+        });
     }
 }
 
@@ -1289,18 +1306,15 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             const x = e.clientX;
             const y = e.clientY;
 
-            tooltip.style.left = x - 60 + "px";
-            tooltip.style.top = 25 + y + "px";
+            tooltip.moveTo(x - 60, 25 + y);
 
-            tooltip.innerHTML = countryGainsHeaderColumns[j];
-            tooltip.style.display = "block";
-
-            document.body.appendChild(tooltip);
+            tooltip.setContent(countryGainsHeaderColumns[j]);
+            tooltip.show();
         });
 
         countryGainsHeaderColumn.addEventListener("mouseout", (e) => {
-            tooltip.innerHTML = "";
-            tooltip.style.display = "none";
+            tooltip.setContent("");
+            tooltip.hide();
         });
 
         // Create an <img> tag with the image source
@@ -1468,19 +1482,15 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
             const x = e.clientX;
             const y = e.clientY;
 
-            tooltip.style.left = x - 60 + "px";
-            tooltip.style.top = 25 + y + "px";
+            tooltip.moveTo(x - 60, 25 + y);
 
-            tooltip.innerHTML = countrySummaryHeaderColumns[j];
-            tooltip.style.display = "block";
-
-            // Add the tooltip to the document body
-            document.body.appendChild(tooltip);
+            tooltip.setContent(countrySummaryHeaderColumns[j]);
+            tooltip.show();
         });
 
         countrySummaryHeaderColumn.addEventListener("mouseout", (e) => {
-            tooltip.innerHTML = "";
-            tooltip.style.display = "none";
+            tooltip.setContent("");
+            tooltip.hide();
         });
 
         // Create an <img> tag with the image source
@@ -1602,19 +1612,15 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                 const x = e.clientX;
                 const y = e.clientY;
 
-                tooltip.style.left = x - 60 + "px";
-                tooltip.style.top = 25 + y + "px";
+                tooltip.moveTo(x - 60, 25 + y);
 
-                tooltip.innerHTML = territorySummaryHeaderColumns[j];
-                tooltip.style.display = "block";
-
-                // Add the tooltip to the document body
-                document.body.appendChild(tooltip);
+                tooltip.setContent(territorySummaryHeaderColumns[j]);
+                tooltip.show();
             });
 
             territorySummaryHeaderColumn.addEventListener("mouseout", (e) => {
-                tooltip.innerHTML = "";
-                tooltip.style.display = "none";
+                tooltip.setContent("");
+                tooltip.hide();
             });
 
             if (j === 0) {
@@ -1804,7 +1810,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         tooltipUITerritoryRow(territorySummaryRow, territoryData, e);
                     });
                     territorySummaryRow.addEventListener("mouseout", () => {
-                        tooltip.style.display = "none";
+                        tooltip.hide();
                         territorySummaryRow.style.cursor = "default";
                     });
                     territorySummaryRow.appendChild(column);
@@ -1890,7 +1896,7 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
                         tooltipUIArmyRow(territorySummaryRow, territoryData, e);
                     });
                     territorySummaryRow.addEventListener("mouseout", () => {
-                        tooltip.style.display = "none";
+                        tooltip.hide();
                         territorySummaryRow.style.cursor = "default";
                     });
                     territorySummaryRow.appendChild(column);
@@ -2278,28 +2284,26 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
       <div><span style="${buildAvailabilityStyle}">${purchase.condition}</span></div>
     `;
 
-    tooltip.innerHTML = tooltipContent;
+    tooltip.setContent(tooltipContent);
 
     // Temporarily show the tooltip to calculate its height
-    tooltip.style.display = 'block';
+    tooltip.show();
 
-    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
     const windowHeight = window.innerHeight;
 
     // Hide the tooltip again
-    tooltip.style.display = 'none';
+    tooltip.hide();
 
     if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y - verticalThreshold + "px";
+        tooltip.moveTo(x - 40, y - verticalThreshold);
     } else {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y + 25 + "px";
+        tooltip.moveTo(x - 40, y + 25);
     }
 
     // Show the tooltip
-    tooltip.style.display = "block";
+    tooltip.show();
 }
 
 function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
@@ -2414,28 +2418,26 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
       <div><span style="${buildAvailabilityStyle}">${upgrade.condition}</span></div>
     `;
 
-    tooltip.innerHTML = tooltipContent;
+    tooltip.setContent(tooltipContent);
 
     // Temporarily show the tooltip to calculate its height
-    tooltip.style.display = 'block';
+    tooltip.show();
 
-    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
     const windowHeight = window.innerHeight;
 
     // Hide the tooltip again
-    tooltip.style.display = 'none';
+    tooltip.hide();
 
     if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y - verticalThreshold + "px";
+        tooltip.moveTo(x - 40, y - verticalThreshold);
     } else {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y + 25 + "px";
+        tooltip.moveTo(x - 40, y + 25);
     }
 
     // Show the tooltip
-    tooltip.style.display = "block";
+    tooltip.show();
 }
 
 function tooltipUIArmyRow(row, territoryData, event) {
@@ -2514,9 +2516,9 @@ function tooltipUIArmyRow(row, territoryData, event) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (pathIsDeactivated(paths[i])) {
-                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                        tooltip.setContent("Territory deactivated for rebuilding!");
                     } else {
-                        tooltip.innerHTML = "Click To Buy Military!";
+                        tooltip.setContent("Click To Buy Military!");
                     }
                 }
             }
@@ -2524,34 +2526,32 @@ function tooltipUIArmyRow(row, territoryData, event) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (pathIsDeactivated(paths[i])) {
-                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                        tooltip.setContent("Territory deactivated for rebuilding!");
                     } else {
-                        tooltip.innerHTML = "Wrong Turn Phase To Buy";
+                        tooltip.setContent("Wrong Turn Phase To Buy");
                     }
                 }
             }
         }
     } else {
         // Set the content of the tooltip based on the territory data
-        tooltip.innerHTML = tooltipContent;
+        tooltip.setContent(tooltipContent);
     }
 
     //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
-    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
 
     if (window.innerHeight - y < verticalThreshold) {
 
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y - tooltipHeight + "px";
+        tooltip.moveTo(x - 40, y - tooltipHeight);
     } else {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = 25 + y + "px";
+        tooltip.moveTo(x - 40, 25 + y);
     }
 
     // Show the tooltip
-    tooltip.style.display = "block";
+    tooltip.show();
 
     row.style.cursor = "pointer";
 }
@@ -2657,9 +2657,9 @@ function tooltipUITerritoryRow(row, territoryData, event) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (pathIsDeactivated(paths[i])) {
-                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                        tooltip.setContent("Territory deactivated for rebuilding!");
                     } else {
-                        tooltip.innerHTML = "Click To Upgrade!";
+                        tooltip.setContent("Click To Upgrade!");
                     }
                 }
             }
@@ -2667,35 +2667,33 @@ function tooltipUITerritoryRow(row, territoryData, event) {
             for (let i = 0; i < paths.length; i++) {
                 if (paths[i].getAttribute("uniqueid") === territoryData.uniqueId) {
                     if (pathIsDeactivated(paths[i])) {
-                        tooltip.innerHTML = "Territory deactivated for rebuilding!";
+                        tooltip.setContent("Territory deactivated for rebuilding!");
                     } else {
-                        tooltip.innerHTML = "Wrong Turn Phase To Upgrade";
+                        tooltip.setContent("Wrong Turn Phase To Upgrade");
                     }
                 }
             }
         }
     } else {
         // Set the content of the tooltip based on the territory data
-        tooltip.innerHTML = tooltipContent;
+        tooltip.setContent(tooltipContent);
     }
 
     //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
-    const tooltipHeight = tooltip.offsetHeight;
+    const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
 
     if (window.innerHeight - y < verticalThreshold) {
 
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = y - tooltipHeight + "px";
+        tooltip.moveTo(x - 40, y - tooltipHeight);
     } else {
-        tooltip.style.left = x - 40 + "px";
-        tooltip.style.top = 25 + y + "px";
+        tooltip.moveTo(x - 40, 25 + y);
     }
 
 
     // Show the tooltip
-    tooltip.style.display = "block";
+    tooltip.show();
 
     row.style.cursor = "pointer";
 }
@@ -2719,7 +2717,7 @@ export function colourTableText(table, territory) {
     foodCell.style.color = "white";
     consMatsCell.style.color = "white";
 
-    if (table === document.getElementById("bottom-table")) {
+    if (bottomTable.is(table)) {
         if (changePop < -1) {
             popCell.style.color = "rgb(235,160,160)";
         } else if (changePop > 1) {
@@ -3042,20 +3040,20 @@ function populateBuyTable(territory) {
     const multiplierValues = ["x1", "x10", "x100", "x1k"];
 
     //reset confirm button status and totals when opening upgrade window
-    document.getElementById("subtitle-buy-window").innerHTML = territory.territoryName;
-    document.getElementById("prices-buy-info-column2").innerHTML = "0";
-    document.getElementById("prices-buy-info-column4").innerHTML = "0";
-    document.getElementById("bottom-bar-buy-confirm-button").innerHTML = "Cancel";
-    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+    document.getElementById(ids.subtitleBuyWindow).innerHTML = territory.territoryName;
+    document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = "0";
+    document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = "0";
+    document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Cancel";
+    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
         this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
     });
-    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
         this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
     });
 
     let simulatedPurchaseCosts;
-    const buyTable = document.getElementById("buy-table");
+    const buyTable = document.getElementById(ids.buyTable);
     let totalSimulatedPurchaseGoldPrice = 0;
     let totalSimulatedProdPopPrice = 0;
 
@@ -3170,7 +3168,7 @@ function populateBuyTable(territory) {
             tooltipPurchaseMilitaryRow(territory, availablePurchases, e);
         });
         buyRow.addEventListener("mouseout", () => {
-            tooltip.style.display = "none";
+            tooltip.hide();
         });
 
         const goldCost = purchaseRow.goldCost || 0;
@@ -3230,27 +3228,27 @@ function populateBuyTable(territory) {
                     totalPurchaseGoldPrice = calculateTotalPurchaseGoldPrice(buyTable);
                     totalPopulationCost = calculateTotalPopulationCost(buyTable);
 
-                    document.getElementById("prices-buy-info-column2").innerHTML = totalPurchaseGoldPrice;
-                    document.getElementById("prices-buy-info-column4").innerHTML = totalPopulationCost;
+                    document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = totalPurchaseGoldPrice;
+                    document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = totalPopulationCost;
 
                     //code to check greying out here
                     checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "minus");
 
                     if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
-                        document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                        document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
                             this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
                         });
-                        document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
                             this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                         });
                     } else if (allRowsWithValueZeroForPurchases(buyTable)) {
-                        document.getElementById("bottom-bar-buy-confirm-button").innerHTML = "Cancel";
-                        document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                        document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Cancel";
+                        document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
                             this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
                         });
-                        document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
                             this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                         });
                     }
@@ -3295,8 +3293,8 @@ function populateBuyTable(territory) {
                 totalPurchaseGoldPrice = calculateTotalPurchaseGoldPrice(buyTable);
                 totalPopulationCost = calculateTotalPopulationCost(buyTable);
 
-                document.getElementById("prices-buy-info-column2").innerHTML = totalPurchaseGoldPrice;
-                document.getElementById("prices-buy-info-column4").innerHTML = totalPopulationCost;
+                document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = totalPurchaseGoldPrice;
+                document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = totalPopulationCost;
 
                 totalSimulatedPurchaseGoldPrice = simulatedCostsAllMilitary[0] + simulatedCostsAllMilitary[2] + simulatedCostsAllMilitary[4] + simulatedCostsAllMilitary[6];
                 totalSimulatedProdPopPrice = simulatedCostsAllMilitary[1] + simulatedCostsAllMilitary[3] + simulatedCostsAllMilitary[5] + simulatedCostsAllMilitary[7];
@@ -3311,20 +3309,20 @@ function populateBuyTable(territory) {
                 checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "plus");
 
                 if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
-                    document.getElementById("bottom-bar-buy-confirm-button").innerHTML = "Confirm";
-                    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                    document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Confirm";
+                    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
                     });
-                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     });
                 } else if (allRowsWithValueZeroForPurchases(buyTable)) {
-                    document.getElementById("bottom-bar-buy-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseover", function() {
+                    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
                     });
-                    document.getElementById("bottom-bar-buy-confirm-button").addEventListener("mouseout", function() {
+                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                     });
                 }
@@ -3335,20 +3333,20 @@ function populateBuyTable(territory) {
 
 function populateUpgradeTable(territory) {
     //reset confirm button status and totals when opening upgrade window
-    document.getElementById("subtitle-upgrade-window").innerHTML = territory.territoryName;
-    document.getElementById("prices-info-column2").innerHTML = "0";
-    document.getElementById("prices-info-column4").innerHTML = "0";
-    document.getElementById("bottom-bar-confirm-button").innerHTML = "Cancel";
-    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+    document.getElementById(ids.subtitleUpgradeWindow).innerHTML = territory.territoryName;
+    document.getElementById(ids.pricesInfoColumn2).innerHTML = "0";
+    document.getElementById(ids.pricesInfoColumn4).innerHTML = "0";
+    document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Cancel";
+    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
         this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
     });
-    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
         this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
     });
 
     let simulatedCosts;
-    const upgradeTable = document.getElementById("upgrade-table");
+    const upgradeTable = document.getElementById(ids.upgradeTable);
     let totalSimulatedGoldPrice = 0;
     let totalSimulatedConsMatsPrice = 0;
 
@@ -3444,7 +3442,7 @@ function populateUpgradeTable(territory) {
             tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
         });
         row.addEventListener("mouseout", () => {
-            tooltip.style.display = "none";
+            tooltip.hide();
         });
 
         const goldCost = upgradeRow.goldCost || 0;
@@ -3501,27 +3499,27 @@ function populateUpgradeTable(territory) {
                     totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
                     totalConsMats = calculateTotalConsMats(upgradeTable);
 
-                    document.getElementById("prices-info-column2").innerHTML = totalGoldPrice;
-                    document.getElementById("prices-info-column4").innerHTML = totalConsMats;
+                    document.getElementById(ids.pricesInfoColumn2).innerHTML = totalGoldPrice;
+                    document.getElementById(ids.pricesInfoColumn4).innerHTML = totalConsMats;
 
                     //code to check greying out here
                     checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
                     if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
-                        document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                        document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
                             this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
                         });
-                        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
                             this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                         });
                     } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
-                        document.getElementById("bottom-bar-confirm-button").innerHTML = "Cancel";
-                        document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                        document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Cancel";
+                        document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
                             this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
                         });
-                        document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
                             this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                         });
                     }
@@ -3555,8 +3553,8 @@ function populateUpgradeTable(territory) {
                 totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
                 totalConsMats = calculateTotalConsMats(upgradeTable);
 
-                document.getElementById("prices-info-column2").innerHTML = totalGoldPrice;
-                document.getElementById("prices-info-column4").innerHTML = totalConsMats;
+                document.getElementById(ids.pricesInfoColumn2).innerHTML = totalGoldPrice;
+                document.getElementById(ids.pricesInfoColumn4).innerHTML = totalConsMats;
 
                 totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
                 totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
@@ -3571,20 +3569,20 @@ function populateUpgradeTable(territory) {
                 checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
 
                 if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
-                    document.getElementById("bottom-bar-confirm-button").innerHTML = "Confirm";
-                    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                    document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Confirm";
+                    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
+                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
                     });
-                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
                     });
                 } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
-                    document.getElementById("bottom-bar-confirm-button").style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseover", function() {
+                    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
+                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
                         this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
                     });
-                    document.getElementById("bottom-bar-confirm-button").addEventListener("mouseout", function() {
+                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
                         this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
                     });
                 }
@@ -3602,8 +3600,8 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
     }
 
     if (!simOnly) {
-        let topTableGold = document.querySelector("#top-table .resourceFields:nth-child(4)").innerHTML;
-        let topTableProdPop = document.querySelector("#top-table .population").innerHTML;
+        let topTableGold = document.querySelector(compound.topTableGold).innerHTML;
+        let topTableProdPop = document.querySelector(compound.topTablePopulation).innerHTML;
         topTableProdPop = stripProdPopFromTopTable(topTableProdPop);
         let rowChildIndex = findBuyRowPosition(buyTextField);
         const unitType = rowChildIndex === 1
@@ -3614,12 +3612,12 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
                     ? 'air'
                     : 'naval';
         let totalGoldSpentSoFar =
-            ((document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyGoldPrices.infantry) +
-            (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyGoldPrices.assault) +
-            (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyGoldPrices.air) +
-            (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyGoldPrices.naval)) -
-            (document.querySelector(`#buy-table .buy-row:nth-child(${rowChildIndex}) .buyColumn5B input`).value * armyGoldPrices[unitType]);
-        let totalProdPopSpentSoFar = (document.querySelector("#buy-table .buy-row:nth-child(1) .buyColumn5B input").value * armyProdPopPrices.infantry) + (document.querySelector("#buy-table .buy-row:nth-child(2) .buyColumn5B input").value * armyProdPopPrices.assault) + (document.querySelector("#buy-table .buy-row:nth-child(3) .buyColumn5B input").value * armyProdPopPrices.air) + (document.querySelector("#buy-table .buy-row:nth-child(4) .buyColumn5B input").value * armyProdPopPrices.naval);
+            ((document.querySelector(compound.buyRowQuantityInput(1)).value * armyGoldPrices.infantry) +
+            (document.querySelector(compound.buyRowQuantityInput(2)).value * armyGoldPrices.assault) +
+            (document.querySelector(compound.buyRowQuantityInput(3)).value * armyGoldPrices.air) +
+            (document.querySelector(compound.buyRowQuantityInput(4)).value * armyGoldPrices.naval)) -
+            (document.querySelector(compound.buyRowQuantityInput(rowChildIndex)).value * armyGoldPrices[unitType]);
+        let totalProdPopSpentSoFar = (document.querySelector(compound.buyRowQuantityInput(1)).value * armyProdPopPrices.infantry) + (document.querySelector(compound.buyRowQuantityInput(2)).value * armyProdPopPrices.assault) + (document.querySelector(compound.buyRowQuantityInput(3)).value * armyProdPopPrices.air) + (document.querySelector(compound.buyRowQuantityInput(4)).value * armyProdPopPrices.naval);
 
         currentValueQuantity = adjustValueIfOverMax(topTableGold, topTableProdPop, rowChildIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar);
 
@@ -4273,18 +4271,22 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
             if (allTerritories()[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
                 //update bottom table for selected territory
-                document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-                document.getElementById("bottom-table").rows[0].cells[13].innerHTML = formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")";
-                document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(territory.armyForCurrentTerritory);
+                bottomTable.update({
+                    gold: Math.ceil(territory.goldForCurrentTerritory).toString(),
+                    population: formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")",
+                    army: formatNumbersToKMB(territory.armyForCurrentTerritory),
+                });
                 break;
             }
         }
     }
 
     //update top table for selected territory
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
-    document.getElementById("top-table").rows[0].cells[11].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")";
-    document.getElementById("top-table").rows[0].cells[15].innerHTML = formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+    topTable.update({
+        gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
+        population: formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")",
+        army: formatNumbersToKMB(totalPlayerResources[0].totalArmy),
+    });
 
     totalGoldPrice = 0;
     totalConsMats = 0;
@@ -4294,7 +4296,7 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalPlayerResources[0].totalUseableNaval = 0;
     setPlayerUseableNotUseableWeaponsDueToOilDemand(allTerritories(), currentlySelectedTerritoryForPurchases);
 
-    drawUITable(document.getElementById("uiTable"), 2);
+    drawUITable(document.getElementById(ids.uiTable), 2);
 }
 
 export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalConsMatsCost) {
@@ -4362,22 +4364,26 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
             if (allTerritories()[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                document.getElementById("bottom-table").rows[0].cells[5].innerHTML = Math.ceil(territory.goldForCurrentTerritory).toString();
-                document.getElementById("bottom-table").rows[0].cells[11].innerHTML = Math.ceil(territory.consMatsForCurrentTerritory).toString();
+                bottomTable.update({
+                    gold: Math.ceil(territory.goldForCurrentTerritory).toString(),
+                    consMats: Math.ceil(territory.consMatsForCurrentTerritory).toString(),
+                });
                 break;
             }
         }
     }
 
     //update top table for selected territory
-    document.getElementById("top-table").rows[0].cells[3].innerHTML = Math.ceil(totalPlayerResources[0].totalGold).toString();
-    document.getElementById("top-table").rows[0].cells[9].innerHTML = Math.ceil(totalPlayerResources[0].totalConsMats).toString();
+    topTable.update({
+        gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
+        consMats: Math.ceil(totalPlayerResources[0].totalConsMats).toString(),
+    });
 
     //close upgrade window for selected territory
     totalGoldPrice = 0;
     totalConsMats = 0;
 
-    drawUITable(document.getElementById("uiTable"), 1);
+    drawUITable(document.getElementById(ids.uiTable), 1);
 }
 
 function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory, territory) {
@@ -4463,8 +4469,7 @@ export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, terri
     target.armyForCurrentTerritory = useable.armyForCurrentTerritory;
 
     if (currentSelectedPath && target.uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-        document.getElementById("bottom-table").rows[0].cells[17].innerHTML =
-            formatNumbersToKMB(territory.armyForCurrentTerritory);
+        bottomTable.update({ army: formatNumbersToKMB(territory.armyForCurrentTerritory) });
     }
 
     let totalArmy = 0;
@@ -4485,8 +4490,7 @@ export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, terri
     totalPlayerResources[0].totalUseableAir = totalUseableAir;
     totalPlayerResources[0].totalUseableNaval = totalUseableNaval;
 
-    document.getElementById("top-table").rows[0].cells[15].innerHTML =
-        formatNumbersToKMB(totalPlayerResources[0].totalArmy);
+    topTable.update({ army: formatNumbersToKMB(totalPlayerResources[0].totalArmy) });
 }
 
 function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldCost) {
@@ -4679,7 +4683,7 @@ export function addRandomFortsToAllNonPlayerTerritories() {
 }
 
 function allWorkaroundOnSiegeTable() {
-    const warTable = document.getElementById("uiTable"); // Assuming you have a reference to the warTable element
+    const warTable = document.getElementById(ids.uiTable); // Assuming you have a reference to the warTable element
 
     // Iterate through each warRow element
     const warRows = warTable.getElementsByClassName("ui-table-row-war");

@@ -1,5 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 import { PROBABILITY_THRESHOLD_FOR_SIEGE } from "../../../src/config/balance.js";
+import { battle } from "../../support/selectors.js";
 
 // Turning an attack into a standing siege, and when the game lets you.
 // docs/04-e2e-test-plan.md sections 5.9 and 5.11.
@@ -24,8 +25,8 @@ test.describe("laying a siege", () => {
 
         const odds = await game.battle.probability();
         expect(odds).toBeGreaterThanOrEqual(PROBABILITY_THRESHOLD_FOR_SIEGE);
-        await expect(page.locator("#siegeButton")).toBeEnabled();
-        await expect(page.locator("#siegeButton")).toHaveText("Siege Territory");
+        await expect(page.locator(battle.siege)).toBeEnabled();
+        await expect(page.locator(battle.siege)).toHaveText("Siege Territory");
     });
 
     test("withholds it when the attack is hopeless", async ({ game, page }) => {
@@ -35,7 +36,7 @@ test.describe("laying a siege", () => {
 
         const odds = await game.battle.probability();
         expect(odds).toBeLessThan(PROBABILITY_THRESHOLD_FOR_SIEGE);
-        await expect(page.locator("#siegeButton")).toBeDisabled();
+        await expect(page.locator(battle.siege)).toBeDisabled();
     });
 
     test("converts the attack into a standing siege", async ({ game, page }) => {
@@ -49,7 +50,7 @@ test.describe("laying a siege", () => {
             ai: [],
         });
 
-        await page.locator("#siegeButton").click();
+        await page.locator(battle.siege).click();
         await expect.poll(async () => (await game.sieges()).player).toContain("France");
 
         // The battle UI closes and the map comes back.

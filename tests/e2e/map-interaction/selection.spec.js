@@ -1,4 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
+import { sel } from "../../support/selectors.js";
 
 // Clicking a territory fills the bottom table from that territory's model entry.
 // The table is KMB-formatted, so the numbers are checked against __game rather
@@ -56,7 +57,7 @@ test.describe("selecting a territory", () => {
     test("sets the territory flag in the bottom table", async ({ startedGame: game, page }) => {
         await game.map.click("France");
         await expect
-            .poll(async () => page.locator("#flag-bottom img").getAttribute("src"))
+            .poll(async () => page.locator(`${sel.flagBottom} img`).getAttribute("src"))
             .toContain("resources/flags/France.png");
     });
 

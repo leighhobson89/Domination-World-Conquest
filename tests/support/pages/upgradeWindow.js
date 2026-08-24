@@ -1,4 +1,4 @@
-import { upgradeWindow, upgradeRows, containers } from "../selectors.js";
+import { cls, containers, upgradeRows, upgradeWindow } from "../selectors.js";
 
 /**
  * Upgrade Territory. Reached from the info panel's Territories tab.
@@ -50,7 +50,7 @@ export class UpgradeWindowPage {
 
     /** The row's condition text -- "Can Build", "Max Farms Reached", "Not enough gold"... */
     async conditionText(building) {
-        return (await this.row(building).locator(".upgrade-column").nth(1).innerText()).trim();
+        return (await this.row(building).locator(cls.upgradeColumn).nth(1).innerText()).trim();
     }
 
     async rowText(building) {

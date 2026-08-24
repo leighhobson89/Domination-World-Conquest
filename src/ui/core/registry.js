@@ -1,0 +1,413 @@
+// The single inventory of every element id, class and selector the UI uses.
+//
+// Refactor Phase 6.1. Both sides of the fence import this file: the application
+// (which creates the elements and looks them up) and the e2e page objects
+// (`tests/support/selectors.js`, which is now a re-export of it). A rename is
+// therefore a one-line change here that fails loudly at both ends, rather than
+// a literal string edited in fourteen places and a flaky spec three days later.
+//
+// Nothing in here imports anything, and it must stay that way -- the page
+// objects run in Node under Playwright, so a DOM reference or a pull on `ui.js`
+// would take the whole e2e harness with it.
+//
+// The ids are recorded AS THEY ARE TODAY, positional warts and all
+// (`battleUIRow4Col2A`...`H`, `xButton` used twice). Phase 6.8 replaces them
+// with semantic ones plus `data-testid`; the point of doing 6.1 first is that
+// 6.8 then only has to edit this file.
+
+/**
+ * Every element id in the document, as a bare id string (no `#`).
+ *
+ * Keys are the camelCase form of the id, so the mapping stays mechanical.
+ * Grouped by the component that owns the element -- that grouping is what
+ * Phase 6.3 extracts, so read a section heading as a future file name.
+ */
+export const ids = Object.freeze({
+    // --- Top-level containers -------------------------------------------------
+    // All but `attackDestinationContainer` are bare <div>s declared in
+    // index.html that a component mounts itself into.
+    menuContainer: "menu-container",
+    popupWithConfirmContainer: "popup-with-confirm-container",
+    topTableContainer: "top-table-container",
+    bottomTableContainer: "bottom-table-container",
+    mainUiContainer: "main-ui-container",
+    upgradeContainer: "upgrade-container",
+    buyContainer: "buy-container",
+    transferAttackWindowContainer: "transfer-attack-window-container",
+    battleContainer: "battleContainer",
+    battleResultsContainer: "battleResultsContainer",
+    aiDialogueContainer: "ai-dialogue-container",
+    attackDestinationContainers: "attack-destination-containers",
+    movePhaseButtonsContainer: "move-phase-buttons-container",
+    uiButtonContainer: "UIButtonContainer",
+    mapModeContainer: "mapModeContainer",
+    tooltip: "tooltip",
+    threeCanvasForDice: "threeCanvasForDice",
+    canvas: "canvas",
+
+    // --- Main menu ------------------------------------------------------------
+    newGameBtn: "new-game-btn",
+    toggleMusicBtn: "toggle-music-btn",
+
+    // --- Phase bar ------------------------------------------------------------
+    // One popup doing two jobs: the country-select confirm before the game
+    // starts, and the phase-advance button for the rest of it.
+    popupTitle: "popup-title",
+    popupBody: "popup-body",
+    popupConfirm: "popup-confirm",
+    popupColor: "popup-color",
+    playerColorPicker: "player-color-picker",
+
+    // --- Map ------------------------------------------------------------------
+    // `svgMap` is an <object>, not an <iframe>. In Playwright it is reached with
+    // `page.frame({ name: "svg-map" })`, never `frameLocator`.
+    svgMap: "svg-map",
+    svgCoastLines: "svg-coast-lines",
+    mapModeButton: "mapModeButton",
+    strokeHighlightButton: "strokeHighlightButton",
+    uiToggleButton: "UIToggleButton",
+    // Lives INSIDE the SVG document, not the host document.
+    attackImage: "attackImage",
+
+    // --- Top table (the player's totals) --------------------------------------
+    topTable: "top-table",
+    flagTop: "flag-top",
+
+    // --- Bottom table (the selected territory) --------------------------------
+    // Declared in index.html rather than built in JS, unlike the top table.
+    bottomTable: "bottom-table",
+    flagBottom: "flag-bottom",
+
+    // --- Info table (Summary / Territories / Army / Wars & Sieges) -------------
+    tabButtons: "tab-buttons",
+    summaryButton: "summaryButton",
+    territoryButton: "territoryButton",
+    armyButton: "armyButton",
+    warsSiegesButton: "warsSiegesButton",
+    checkBoxAppearStartOfTurn: "checkBox-appear-start-of-turn",
+    // DUPLICATED id: the upgrade window's close button carries it too, so a bare
+    // "#xButton" is ambiguous the moment both exist. Always scope it to a
+    // container. Phase 6.8 gives the two of them separate ids.
+    xButton: "xButton",
+    contentWindow: "content-window",
+    beforeInfoPanel: "beforeInfoPanel",
+    infoPanel: "info-panel",
+    uiTable: "uiTable",
+    selectionPanel: "selection-panel",
+
+    // --- Upgrade window -------------------------------------------------------
+    navbarUpgradeWindow: "navbar-upgrade-window",
+    subtitleUpgradeWindow: "subtitle-upgrade-window",
+    keyBarUpgradeWindow: "key-bar-upgrade-window",
+    contentWindowUpgrade: "content-window-upgrade",
+    beforeInfoPanelUpgradeWindow: "beforeInfoPanelUpgradeWindow",
+    infoPanelUpgrade: "info-panel-upgrade",
+    upgradeTable: "upgrade-table",
+    bottomBarUpgradeWindow: "bottom-bar-upgrade-window",
+    pricesInfoWindow: "prices-info-window",
+    pricesInfoColumn0: "prices-info-column0",
+    pricesInfoColumn1: "prices-info-column1",
+    pricesInfoColumn2: "prices-info-column2",
+    pricesInfoColumn3: "prices-info-column3",
+    pricesInfoColumn4: "prices-info-column4",
+    bottomBarConfirmButton: "bottom-bar-confirm-button",
+
+    // --- Buy window -----------------------------------------------------------
+    navbarBuyWindow: "navbar-buy-window",
+    subtitleBuyWindow: "subtitle-buy-window",
+    keyBarBuyWindow: "key-bar-buy-window",
+    contentWindowBuy: "content-window-buy",
+    beforeInfoPanelBuyWindow: "beforeInfoPanelBuyWindow",
+    infoPanelBuy: "info-panel-buy",
+    buyTable: "buy-table",
+    bottomBarBuyWindow: "bottom-bar-buy-window",
+    pricesBuyInfoWindow: "prices-buy-info-window",
+    pricesBuyInfoColumn0: "prices-buy-info-column0",
+    pricesBuyInfoColumn1: "prices-buy-info-column1",
+    pricesBuyInfoColumn2: "prices-buy-info-column2",
+    pricesBuyInfoColumn3: "prices-buy-info-column3",
+    pricesBuyInfoColumn4: "prices-buy-info-column4",
+    bottomBarBuyConfirmButton: "bottom-bar-buy-confirm-button",
+    xButtonBuy: "xButtonBuy",
+
+    // --- Buy / upgrade row controls -------------------------------------------
+    // Written once per row by `drawUITable`'s row builders, so these ids are NOT
+    // unique in the document -- they are only ever reached from within a row.
+    multipleIncrementCycler: "multipleIncrementCycler",
+    multipleTextBox: "multipleTextBox",
+    minusButton: "minusButton",
+    quantityTextBox: "quantityTextBox",
+    plusButton: "plusButton",
+
+    // --- Move-phase button ----------------------------------------------------
+    movePhaseButton: "move-phase-button",
+    attackDestinationContainer: "attack-destination-container",
+    attackDestinationText: "attack-destination-text",
+
+    // --- Transfer / attack window ---------------------------------------------
+    titleTransferAttackWindow: "title-transfer-attack-window",
+    titleTransferWindowTitleRow: "title-transfer-window-title-row",
+    colorBarAttackUnderlayRed: "colorBarAttackUnderlayRed",
+    colorBarAttackOverlayGreen: "colorBarAttackOverlayGreen",
+    attackOrTransferString: "attackOrTransferString",
+    fromHeadingString: "fromHeadingString",
+    territoryTextString: "territoryTextString",
+    attackingFromTerritoryTextString: "attackingFromTerritoryTextString",
+    xButtonTransferAttack: "xButtonTransferAttack",
+    // The ATTACK WINDOW's probability bar. The battle UI has its own, below --
+    // they are different elements and only one of them is live at a time, which
+    // is why reading this one from inside a battle returns a stale figure.
+    percentageAttack: "percentageAttack",
+    contentTransferAttackWindow: "contentTransferAttackWindow",
+    contentTransferHeaderRow: "contentTransferHeaderRow",
+    contentTransferHeaderColumn1: "contentTransferHeaderColumn1",
+    contentTransferHeaderColumn2: "contentTransferHeaderColumn2",
+    contentTransferHeaderImageColumn1: "contentTransferHeaderImageColumn1",
+    contentTransferHeaderImageColumn2: "contentTransferHeaderImageColumn2",
+    contentTransferHeaderImageColumn3: "contentTransferHeaderImageColumn3",
+    contentTransferHeaderImageColumn4: "contentTransferHeaderImageColumn4",
+    transferTableContainer: "transferTableContainer",
+    transferTable: "transferTable",
+    siegeBottomBarButton: "siegeBottomBarButton",
+
+    // --- Battle UI ------------------------------------------------------------
+    battleUITitleTitleCol: "battleUITitleTitleCol",
+    battleUITitleTitleLeft: "battleUITitleTitleLeft",
+    battleUITitleTitleCenter: "battleUITitleTitleCenter",
+    battleUITitleTitleRight: "battleUITitleTitleRight",
+    battleUITitleFlagCol1: "battleUITitleFlagCol1",
+    battleUITitleFlagCol2: "battleUITitleFlagCol2",
+    battleUIRow1: "battleUIRow1",
+    battleUIRow2: "battleUIRow2",
+    battleUIRow3: "battleUIRow3",
+    battleUIRow4: "battleUIRow4",
+    battleUIRow5: "battleUIRow5",
+    battleUIRow4Col1: "battleUIRow4Col1",
+    battleUIRow4Col1IconProbabilityTurnsSiege: "battleUIRow4Col1IconProbabilityTurnsSiege",
+    // The BATTLE UI's probability / siege-turns readout. See `percentageAttack`.
+    battleUIRow4Col1TextProbabilityTurnsSiege: "battleUIRow4Col1TextProbabilityTurnsSiege",
+    battleUIRow4Col1IconSiegeScore: "battleUIRow4Col1IconSiegeScore",
+    battleUIRow4Col1TextSiegeScore: "battleUIRow4Col1TextSiegeScore",
+    battleUIRow4Col2: "battleUIRow4Col2",
+    battleUIRow4Col2A: "battleUIRow4Col2A",
+    battleUIRow4Col2B: "battleUIRow4Col2B",
+    battleUIRow4Col2C: "battleUIRow4Col2C",
+    battleUIRow4Col2D: "battleUIRow4Col2D",
+    battleUIRow4Col2E: "battleUIRow4Col2E",
+    battleUIRow4Col2F: "battleUIRow4Col2F",
+    battleUIRow4Col2G: "battleUIRow4Col2G",
+    battleUIRow4Col2H: "battleUIRow4Col2H",
+    leftBattleImage: "leftBattleImage",
+    rightBattleImage: "rightBattleImage",
+    probabilityColumnBox: "probabilityColumnBox",
+    advanceButton: "advanceButton",
+    retreatButton: "retreatButton",
+    siegeButton: "siegeButton",
+    armyRowRow1: "armyRowRow1",
+    armyRowRow2: "armyRowRow2",
+    defenseIcon: "defenseIcon",
+    defenseBonusText: "defenseBonusText",
+    mountainDefenseIcon: "mountainDefenseIcon",
+    mountainDefenseText: "mountainDefenseText",
+    foodIcon: "foodIcon",
+    foodText: "foodText",
+    prodPopIcon: "prodPopIcon",
+    prodPopText: "prodPopText",
+
+    // --- Battle results -------------------------------------------------------
+    battleResultsTitleTitleCol: "battleResultsTitleTitleCol",
+    battleResultsTitleTitleLeft: "battleResultsTitleTitleLeft",
+    battleResultsTitleTitleCenter: "battleResultsTitleTitleCenter",
+    battleResultsTitleTitleRight: "battleResultsTitleTitleRight",
+    battleResultsRow1: "battleResultsRow1",
+    battleResultsRow1FlagCol1: "battleResultsRow1FlagCol1",
+    battleResultsRow1FlagCol2: "battleResultsRow1FlagCol2",
+    battleResultsRow2: "battleResultsRow2",
+    battleResultsRow2Row1: "battleResultsRow2Row1",
+    battleResultsRow2Row2: "battleResultsRow2Row2",
+    battleResultsRow2Row3: "battleResultsRow2Row3",
+    battleResultsRow2Row3Kills: "battleResultsRow2Row3Kills",
+    battleResultsRow2Row3Losses: "battleResultsRow2Row3Losses",
+    battleResultsRow3: "battleResultsRow3",
+    battleResultsRow3Row1: "battleResultsRow3Row1",
+    battleResultsRow3Row2: "battleResultsRow3Row2",
+    battleResultsRow3Row2Captured: "battleResultsRow3Row2Captured",
+    battleResultsRow3Row2Survived: "battleResultsRow3Row2Survived",
+    battleResultsRow3Row3: "battleResultsRow3Row3",
+    battleResultsRow3Row3RoundsCount: "battleResultsRow3Row3RoundsCount",
+    battleResultsRow3Row3SiegeStats: "battleResultsRow3Row3SiegeStats",
+    battleResultsRow4: "battleResultsRow4",
+
+    // --- AI dialogue ----------------------------------------------------------
+    aiTitleRow: "aiTitleRow",
+    aiDialogueTitleFlagCol1: "aiDialogueTitleFlagCol1",
+    aiDialogueTitleFlagCol2: "aiDialogueTitleFlagCol2",
+    aiDialogueTitleText: "aiDialogueTitleText",
+    aiDialogueBody: "aiDialogueBody",
+    aiDialogueBodySubHeading: "aiDialogueBodySubHeading",
+    aiDialogueBodyBottomContent: "aiDialogueBodyBottomContent",
+    aiDialogueBodyBottomContentLeft: "aiDialogueBodyBottomContentLeft",
+    aiDialogueBodyBottomContentLeftLarge: "aiDialogueBodyBottomContentLeftLarge",
+    aiDialogueBodyBottomContentRight: "aiDialogueBodyBottomContentRight",
+    aiDialogueBodyBottomContentRightLarge: "aiDialogueBodyBottomContentRightLarge",
+    aiDialogueBoxBottomSummaryRow: "aiDialogueBoxBottomSummaryRow",
+    aiButtonRow: "aiButtonRow",
+    aiButtonLeft: "aiButtonLeft",
+    aiButtonRight: "aiButtonRight",
+    aiButtonAllRow: "aiButtonAllRow",
+});
+
+/**
+ * The numbered ids. Each family is a row of N sibling cells that differ only by
+ * index, which is why they exist as forty-odd hand-written strings today.
+ * Building them from a function is the step that makes Phase 6.8 able to delete
+ * them.
+ */
+export const indexedIds = Object.freeze({
+    /** Battle UI army icons, 1..8. */
+    armyRowIcon: (n) => `armyRowRow1Icon${n}`,
+    /** Battle UI army quantities, 1..8 (1-4 attacker, 5-8 defender). */
+    armyRowQuantity: (n) => `armyRowRow2Quantity${n}`,
+    /** Battle results attacker icons, 1..8. */
+    battleResultsIcon: (n) => `battleResultsRow2Row1Icon${n}`,
+    /** Battle results "lost" quantities, 1..8. */
+    battleResultsLostQuantity: (n) => `battleResultsRow2Row2Quantity${n}`,
+    /** Battle results "remaining" quantities, 1..8. */
+    battleResultsRemainingQuantity: (n) => `battleResultsRow3Row1Quantity${n}`,
+    /** AI dialogue summary columns, 1..8. */
+    aiDialogueSummaryColumn: (n) => `aiDialogueBoxBottomSummaryRowCol${n}`,
+    /** AI dialogue left/right body rows, 1..4. */
+    aiDialogueLeftRow: (n) => `aiDialogueBodyBottomContentLeftRow${n}`,
+    aiDialogueRightRow: (n) => `aiDialogueBodyBottomContentRightRow${n}`,
+});
+
+/**
+ * Ids built from game data rather than written out. Both of these live inside
+ * the SVG document, not the host document.
+ *
+ * Territory names are NOT selector-safe -- six of them carry real parentheses
+ * ("Andros Island (Bahamas)"), so `#siegeImage_Andros_Island_(Bahamas)` throws
+ * rather than returning null (audit 5.2 AI). Anything keyed by a territory name
+ * must be reached with `getElementById`, never `querySelector`.
+ */
+export const SIEGE_OVERLAY_PREFIX = "siegeImage_";
+
+export const dynamicIds = Object.freeze({
+    siegeOverlay: (territoryName) => SIEGE_OVERLAY_PREFIX + territoryName.replace(/\s+/g, "_"),
+    isSiegeOverlay: (id) => typeof id === "string" && id.startsWith(SIEGE_OVERLAY_PREFIX),
+    diagonalLines: (n) => `diagonal-lines${n}`,
+});
+
+/**
+ * Class names, without the leading dot. Only classes used as a SELECTOR by the
+ * app or by a page object belong here; purely cosmetic classes stay in
+ * style.css and out of this file.
+ */
+export const classNames = Object.freeze({
+    // Info table
+    tabButton: "tab-button",
+    tabButtonActive: "active",
+    uiTableColumn: "ui-table-column",
+    uiTableRowHoverable: "ui-table-row-hoverable",
+    uiTableRowSiege: "ui-table-row-siege",
+    uiTableRowWar: "ui-table-row-war",
+    upgradeButton: "upgrade-button",
+    buyButton: "buy-button",
+    infoPanel: "info-panel",
+    infoPanelUpgrade: "info-panel-upgrade",
+
+    // Upgrade window rows
+    upgradeRow: "upgrade-row",
+    upgradeColumn: "upgrade-column",
+    upgradeQuantity: "column5B",
+    upgradePlus: "column5C",
+
+    // Buy window rows
+    buyRow: "buy-row",
+    buyColumn: "buy-column",
+    buyMultiplier: "buyColumn5Multiplier",
+    buyQuantity: "buyColumn5B",
+    buyPlus: "buyColumn5C",
+    // The minus column is the ONE control the two windows share a class for --
+    // `column5A` is on both the upgrade row and the buy row, while every other
+    // buy control carries a `buyColumn5*` class of its own.
+    minusColumn: "column5A",
+    multipleIncrementerButton: "multipleIncrementerButton",
+    multipleTextField: "multipleTextField",
+    quantityTextField: "quantityTextField",
+    armyTypeColumn: "army-type-column",
+
+    // Transfer / attack table
+    transferTableRow: "transfer-table-row",
+    transferTableRowHoverable: "transfer-table-row-hoverable",
+    transferTableOuterColumn: "transfer-table-outer-column",
+    transferMinusButton: "transferMinusButton",
+    transferPlusButton: "transferPlusButton",
+    selectedRow: "selectedRow",
+
+    // Cells of the two tables declared in index.html
+    resourceFields: "resourceFields",
+    population: "population",
+    area: "area",
+
+    // Map furniture
+    sparklesContainer: "sparkles-container",
+});
+
+/**
+ * The move button carries its state in its background class rather than in a
+ * data attribute. Phase 6.6 replaces the reads with `deriveMoveButtonState()`;
+ * until then this is what both the app and the page objects compare against.
+ */
+export const moveButtonClass = Object.freeze({
+    transfer: "move-phase-button-green-background",
+    attack: "move-phase-button-red-background",
+    viewSiege: "move-phase-button-brown-background",
+    disabled: "move-phase-button-grey-background",
+    open: "move-phase-button-blue-background",
+});
+
+/**
+ * Territory paths, addressed inside the SVG document.
+ *
+ * `territory-name` is the stable identity; `data-name` is the CURRENT owner and
+ * changes on conquest. Mixing them up is a recurring source of bugs. Note these
+ * attributes are OUTPUT -- they are written only by `src/ui/mapAttributeSync.js`
+ * from store events, so read territory state through `src/state/selectors.js`
+ * or `src/state/pathState.js`, never by matching one of these back.
+ */
+export const territorySelectors = Object.freeze({
+    /** Chromium exposes an <object> as a frame named after the element id. */
+    mapFrameName: ids.svgMap,
+    all: "path[uniqueid]",
+    byName: (territoryName) => `path[territory-name="${territoryName}"]`,
+    byCountry: (dataName) => `path[data-name="${dataName}"]`,
+    byUniqueId: (uniqueId) => `path[uniqueid="${uniqueId}"]`,
+    owned: "path[data-name]",
+    attackable: 'path[attackableTerritory="true"]',
+});
+
+/** `#id` for every entry in `ids`, so no lookup hand-writes the hash. */
+export const sel = Object.freeze(
+    Object.fromEntries(Object.entries(ids).map(([key, id]) => [key, "#" + id]))
+);
+
+/** `.name` for every entry in `classNames`. */
+export const cls = Object.freeze(
+    Object.fromEntries(Object.entries(classNames).map(([key, name]) => [key, "." + name]))
+);
+
+/**
+ * The handful of selectors that address a cell by its position inside another
+ * element. Every one of these is a Phase 6.8 to-do -- a `data-testid` on the
+ * cell makes the whole family go away -- but while they exist they belong here
+ * rather than spelled out at four call sites each.
+ */
+export const compound = Object.freeze({
+    /** The top table is one <tr> of alternating icon/value cells. */
+    topTableGold: `${sel.topTable} ${cls.resourceFields}:nth-child(4)`,
+    topTablePopulation: `${sel.topTable} ${cls.population}`,
+    /** `rowIndex` is 1-based, in the order `calculateAvailablePurchases()` emits. */
+    buyRowQuantityInput: (rowIndex) =>
+        `${sel.buyTable} ${cls.buyRow}:nth-child(${rowIndex}) ${cls.buyQuantity} input`,
+});

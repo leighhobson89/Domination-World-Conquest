@@ -85,8 +85,8 @@ test.describe("locked countries", () => {
 
         await expect(page.locator(phaseBar.confirm)).toBeHidden();
         // It names the country AND the reason, instead of naming it as if it were choosable.
-        await expect(page.locator("#popup-body")).toContainText(locked[0]);
-        await expect(page.locator("#popup-body")).toContainText("too strong to play");
+        await expect(page.locator(phaseBar.body)).toContainText(locked[0]);
+        await expect(page.locator(phaseBar.body)).toContainText("too strong to play");
     });
 
     test("cannot be unlocked by changing the player colour", async ({ game, page }) => {

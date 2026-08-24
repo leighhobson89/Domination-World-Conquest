@@ -4,8 +4,12 @@ import {
 import {
     playerColour
 } from './src/state/selectors.js';
+import {
+    ids,
+    sel
+} from './src/ui/core/registry.js';
 
-let canvasElement = document.querySelector('#canvas');
+let canvasElement = document.querySelector(sel.canvas);
 let scoreResultArray = [];
 
 const params = {
@@ -24,7 +28,7 @@ const wallBodyMaterial = new CANNON.Material("wallMaterial");
 
 export function callDice(enemyColor) {
 
-    document.getElementById("battleContainer").style.pointerEvents = "none"; //disable all UI until dice run
+    document.getElementById(ids.battleContainer).style.pointerEvents = "none"; //disable all UI until dice run
 
     removeCanvasIfExist();
     createCanvas();
@@ -78,7 +82,7 @@ export function callDice(enemyColor) {
         const checkAnimationComplete = () => {
             if (diceAnimationFinished) {
                 diceArray.length = 0;
-                document.getElementById("battleContainer").style.pointerEvents = "auto";
+                document.getElementById(ids.battleContainer).style.pointerEvents = "auto";
                 resolve(scoreResultArray);
             } else {
                 setTimeout(checkAnimationComplete, 100);
@@ -470,17 +474,17 @@ export function pickContrastingColor(rgbColor) {
 }
 
 export function removeCanvasIfExist() {
-    const canvasContainer = document.getElementById("threeCanvasForDice");
-    const canvasElement = document.getElementById("canvas");
+    const canvasContainer = document.getElementById(ids.threeCanvasForDice);
+    const canvasElement = document.getElementById(ids.canvas);
     if (canvasElement) {
         canvasContainer.removeChild(canvasElement);
     }
 }
 
 function createCanvas() {
-    const canvasContainer = document.getElementById("threeCanvasForDice");
+    const canvasContainer = document.getElementById(ids.threeCanvasForDice);
     const newCanvas = document.createElement("canvas");
-    newCanvas.id = "canvas";
+    newCanvas.id = ids.canvas;
     canvasContainer.appendChild(newCanvas);
     canvasElement = newCanvas;
 }

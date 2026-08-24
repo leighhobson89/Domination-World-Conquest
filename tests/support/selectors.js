@@ -1,70 +1,86 @@
-// The canonical selector inventory for the e2e suite.
+// The e2e suite's view of the selector inventory.
 //
-// Today's ids are positional and hand-written (`battleUIRow4Col2A`...`H`, table
-// cells addressed by index). Refactor Phase 6.1 replaces this file with a
-// re-export of `ui/core/registry.js`, so that the app and the page objects share
-// one definition and selector drift becomes a build error rather than a flaky
-// test. Until then this is the single place a rename has to be applied.
+// Phase 6.1: this file no longer HOLDS any selector. Every string below is
+// derived from `src/ui/core/registry.js`, which is the same module the
+// application imports when it creates the elements. Rename an id there and both
+// ends move together; get one wrong and this file throws on import, which fails
+// the whole run loudly instead of one spec flakily three days later.
 //
-// See docs/04-e2e-test-plan.md section 7 for the full recorded inventory.
+// What stays here is the suite's own knowledge -- column indices, phase labels,
+// row orderings -- because those are facts about the assertions, not about the
+// DOM. See docs/04-e2e-test-plan.md section 7.
+
+import {
+    cls,
+    compound,
+    dynamicIds,
+    ids as registryIds,
+    indexedIds,
+    moveButtonClass,
+    sel,
+    territorySelectors,
+} from "../../src/ui/core/registry.js";
+
+/** Re-exported so a spec can reach anything the registry knows without a second import. */
+export { registryIds as ids, sel, cls, compound, indexedIds, dynamicIds, territorySelectors };
 
 /** Containers, in the order they appear in index.html. */
 export const containers = {
-    menu: "#menu-container",
-    popupWithConfirm: "#popup-with-confirm-container",
-    topTable: "#top-table-container",
-    bottomTable: "#bottom-table-container",
-    mainUi: "#main-ui-container",
-    upgrade: "#upgrade-container",
-    buy: "#buy-container",
-    transferAttack: "#transfer-attack-window-container",
-    battle: "#battleContainer",
-    battleResults: "#battleResultsContainer",
-    aiDialogue: "#ai-dialogue-container",
-    attackDestination: "#attack-destination-containers",
-    movePhaseButtons: "#move-phase-buttons-container",
-    uiButton: "#UIButtonContainer",
-    mapMode: "#mapModeContainer",
-    tooltip: "#tooltip",
+    menu: sel.menuContainer,
+    popupWithConfirm: sel.popupWithConfirmContainer,
+    topTable: sel.topTableContainer,
+    bottomTable: sel.bottomTableContainer,
+    mainUi: sel.mainUiContainer,
+    upgrade: sel.upgradeContainer,
+    buy: sel.buyContainer,
+    transferAttack: sel.transferAttackWindowContainer,
+    battle: sel.battleContainer,
+    battleResults: sel.battleResultsContainer,
+    aiDialogue: sel.aiDialogueContainer,
+    attackDestination: sel.attackDestinationContainers,
+    movePhaseButtons: sel.movePhaseButtonsContainer,
+    uiButton: sel.uiButtonContainer,
+    mapMode: sel.mapModeContainer,
+    tooltip: sel.tooltip,
 };
 
 export const menu = {
-    newGame: "#new-game-btn",
-    toggleMusic: "#toggle-music-btn",
+    newGame: sel.newGameBtn,
+    toggleMusic: sel.toggleMusicBtn,
 };
 
 /** The popup that is both the country-select confirm AND the phase-advance button. */
 export const phaseBar = {
-    title: "#popup-title",
-    body: "#popup-body",
-    confirm: "#popup-confirm",
-    colourLabel: "#popup-color",
-    colourPicker: "#player-color-picker",
+    title: sel.popupTitle,
+    body: sel.popupBody,
+    confirm: sel.popupConfirm,
+    colourLabel: sel.popupColor,
+    colourPicker: sel.playerColorPicker,
 };
 
 export const map = {
-    object: "#svg-map",
+    object: sel.svgMap,
     /** Chromium exposes an <object> as a frame named after the element id. */
-    frameName: "svg-map",
-    coastLines: "#svg-coast-lines",
-    mapModeButton: "#mapModeButton",
-    strokeHighlightButton: "#strokeHighlightButton",
-    uiToggleButton: "#UIToggleButton",
+    frameName: territorySelectors.mapFrameName,
+    coastLines: sel.svgCoastLines,
+    mapModeButton: sel.mapModeButton,
+    strokeHighlightButton: sel.strokeHighlightButton,
+    uiToggleButton: sel.uiToggleButton,
     /** A territory path, addressed by its stable identity. */
-    territory: (territoryName) => `path[territory-name="${territoryName}"]`,
+    territory: territorySelectors.byName,
     /** Every path of a country -- `data-name` is the CURRENT owner, not identity. */
-    country: (dataName) => `path[data-name="${dataName}"]`,
-    byUniqueId: (uniqueId) => `path[uniqueid="${uniqueId}"]`,
-    allTerritories: "path[uniqueid]",
+    country: territorySelectors.byCountry,
+    byUniqueId: territorySelectors.byUniqueId,
+    allTerritories: territorySelectors.all,
 };
 
 export const tables = {
-    top: "#top-table",
-    bottom: "#bottom-table",
-    ui: "#uiTable",
-    buy: "#buy-table",
-    upgrade: "#upgrade-table",
-    transfer: "#transferTable",
+    top: sel.topTable,
+    bottom: sel.bottomTable,
+    ui: sel.uiTable,
+    buy: sel.buyTable,
+    upgrade: sel.upgradeTable,
+    transfer: sel.transferTable,
 };
 
 // Both tables are a single <tr> of alternating icon/value cells, so a value's
@@ -92,39 +108,39 @@ export const bottomTableCells = {
 };
 
 export const infoTable = {
-    toggle: "#UIToggleButton",
+    toggle: sel.uiToggleButton,
     // `xButton` is a DUPLICATED id: the info panel's close button and the upgrade
     // window's both carry it, so a bare "#xButton" is a strict-mode violation the
     // moment both exist. Scope it to the container. Refactor Phase 6.8 gives them
     // semantic ids.
-    close: "#main-ui-container #xButton",
-    tabs: "#tab-buttons",
-    summaryTab: "#summaryButton",
-    territoriesTab: "#territoryButton",
-    armyTab: "#armyButton",
-    warsSiegesTab: "#warsSiegesButton",
-    appearsAtStartOfTurn: "#checkBox-appear-start-of-turn",
-    territoryRow: ".ui-table-row-hoverable",
-    siegeRow: ".ui-table-row-siege",
-    warRow: ".ui-table-row-war",
+    close: `${sel.mainUiContainer} ${sel.xButton}`,
+    tabs: sel.tabButtons,
+    summaryTab: sel.summaryButton,
+    territoriesTab: sel.territoryButton,
+    armyTab: sel.armyButton,
+    warsSiegesTab: sel.warsSiegesButton,
+    appearsAtStartOfTurn: sel.checkBoxAppearStartOfTurn,
+    territoryRow: cls.uiTableRowHoverable,
+    siegeRow: cls.uiTableRowSiege,
+    warRow: cls.uiTableRowWar,
     /** The last column of a Territories-tab row. */
-    upgradeButton: ".upgrade-button",
+    upgradeButton: cls.upgradeButton,
     /** The last column of an Army-tab row. */
-    buyButton: ".buy-button",
+    buyButton: cls.buyButton,
 };
 
 export const buyWindow = {
-    close: "#xButtonBuy",
-    confirm: "#bottom-bar-buy-confirm-button",
-    subtitle: "#subtitle-buy-window",
-    totalGold: "#prices-buy-info-column2",
-    totalProdPop: "#prices-buy-info-column4",
-    row: ".buy-row",
-    rowMultiplier: ".buyColumn5Multiplier img",
-    rowMultiplierText: ".buyColumn5Multiplier .buy-column",
-    rowMinus: ".column5A img",
-    rowQuantity: ".buyColumn5B input",
-    rowPlus: ".buyColumn5C img",
+    close: sel.xButtonBuy,
+    confirm: sel.bottomBarBuyConfirmButton,
+    subtitle: sel.subtitleBuyWindow,
+    totalGold: sel.pricesBuyInfoColumn2,
+    totalProdPop: sel.pricesBuyInfoColumn4,
+    row: cls.buyRow,
+    rowMultiplier: `${cls.buyMultiplier} img`,
+    rowMultiplierText: `${cls.buyMultiplier} ${cls.buyColumn}`,
+    rowMinus: `${cls.minusColumn} img`,
+    rowQuantity: `${cls.buyQuantity} input`,
+    rowPlus: `${cls.buyPlus} img`,
 };
 
 // Row order is fixed by calculateAvailablePurchases().
@@ -132,61 +148,54 @@ export const buyRows = { infantry: 0, assault: 1, air: 2, naval: 3 };
 
 export const upgradeWindow = {
     // See the note on infoTable.close -- `xButton` is used twice in the document.
-    close: "#upgrade-container #xButton",
-    confirm: "#bottom-bar-confirm-button",
-    subtitle: "#subtitle-upgrade-window",
-    totalGold: "#prices-info-column2",
-    totalConsMats: "#prices-info-column4",
-    row: ".upgrade-row",
-    rowMinus: ".column5A img",
-    rowQuantity: ".column5B input",
-    rowPlus: ".column5C img",
+    close: `${sel.upgradeContainer} ${sel.xButton}`,
+    confirm: sel.bottomBarConfirmButton,
+    subtitle: sel.subtitleUpgradeWindow,
+    totalGold: sel.pricesInfoColumn2,
+    totalConsMats: sel.pricesInfoColumn4,
+    row: cls.upgradeRow,
+    rowMinus: `${cls.minusColumn} img`,
+    rowQuantity: `${cls.upgradeQuantity} input`,
+    rowPlus: `${cls.upgradePlus} img`,
 };
 
 // Row order is fixed by calculateAvailableUpgrades().
 export const upgradeRows = { farm: 0, forest: 1, oilWell: 2, fort: 3 };
 
 export const moveButton = {
-    button: "#move-phase-button",
-    destinationText: "#attack-destination-text",
+    button: sel.movePhaseButton,
+    destinationText: sel.attackDestinationText,
     /** The button's state is carried by its background class, not a data attribute. */
-    classFor: {
-        transfer: "move-phase-button-green-background",
-        attack: "move-phase-button-red-background",
-        viewSiege: "move-phase-button-brown-background",
-        disabled: "move-phase-button-grey-background",
-        open: "move-phase-button-blue-background",
-    },
+    classFor: moveButtonClass,
 };
 
 export const transferAttack = {
-    close: "#xButtonTransferAttack",
-    table: "#transferTable",
-    tableContainer: "#transferTableContainer",
-    row: ".transfer-table-row-hoverable",
-    confirm: "#transferAttackConfirmButton",
-    siegeButton: "#siegeBottomBarButton",
+    close: sel.xButtonTransferAttack,
+    table: sel.transferTable,
+    tableContainer: sel.transferTableContainer,
+    row: cls.transferTableRowHoverable,
+    siegeButton: sel.siegeBottomBarButton,
 };
 
 export const battle = {
-    advance: "#advanceButton",
-    retreat: "#retreatButton",
-    siege: "#siegeButton",
+    advance: sel.advanceButton,
+    retreat: sel.retreatButton,
+    siege: sel.siegeButton,
     // TWO probabilities, written by the same `setAttackProbabilityOnUI(probability,
     // situation)`: situation 0 is the ATTACK WINDOW's bar, situation 1 is the BATTLE UI's.
     // They are different elements and only one of them is live at a time -- the attack
     // window's is left holding whatever it last showed once the window closes, which is why
     // reading it from inside a battle returned a stale 0.
-    attackWindowPercentage: "#percentageAttack",
-    percentage: "#battleUIRow4Col1TextProbabilityTurnsSiege",
-    probabilityBox: "#probabilityColumnBox",
+    attackWindowPercentage: sel.percentageAttack,
+    percentage: sel.battleUIRow4Col1TextProbabilityTurnsSiege,
+    probabilityBox: sel.probabilityColumnBox,
     resultsRow: (n) => `#battleResultsRow${n}`,
-    kills: "#battleResultsRow2Row3Kills",
-    losses: "#battleResultsRow2Row3Losses",
-    captured: "#battleResultsRow3Row2Captured",
-    survived: "#battleResultsRow3Row2Survived",
-    rounds: "#battleResultsRow3Row3RoundsCount",
-    siegeStats: "#battleResultsRow3Row3SiegeStats",
+    kills: sel.battleResultsRow2Row3Kills,
+    losses: sel.battleResultsRow2Row3Losses,
+    captured: sel.battleResultsRow3Row2Captured,
+    survived: sel.battleResultsRow3Row2Survived,
+    rounds: sel.battleResultsRow3Row3RoundsCount,
+    siegeStats: sel.battleResultsRow3Row3SiegeStats,
 };
 
 /** Phase indices, as `currentTurnPhase` / `window.__game.phase()` reports them. */

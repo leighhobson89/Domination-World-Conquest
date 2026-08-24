@@ -112,6 +112,12 @@ import {
 import {
     pathCountry
 } from './src/state/pathState.js';
+import {
+    ids
+} from './src/ui/core/registry.js';
+import {
+    moveButton
+} from './src/ui/components/MoveButton.js';
 
 // Read-only accessors for the ?e2e=1 harness. Lazy closures, so this runs safely
 // at module-evaluation time even though the model is not built yet.
@@ -249,7 +255,7 @@ export async function initialiseGame() {
     svg.style.pointerEvents = 'none';
     gameInitialisation = true;
     console.log("Welcome to new game! Your country is " + playerCountryName() + "!");
-    const svgMap = document.getElementById('svg-map').contentDocument;
+    const svgMap = document.getElementById(ids.svgMap).contentDocument;
     const paths = Array.from(svgMap.querySelectorAll('path'));
 
     //Two loops for one fact: the path attribute and then the model field, each over its
@@ -277,10 +283,10 @@ export async function initialiseGame() {
     //once here rather than every turn.
     pruneSiegesForMissingTerritories(name => getTerritoryByName(name) !== null);
     setCurrentMapColorAndStrokeArray(saveMapColorState(false));
-    document.getElementById("top-table-container").style.display = "block";
+    document.getElementById(ids.topTableContainer).style.display = "block";
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
-    document.getElementById("move-phase-button").innerHTML = "LOADING...";
+    moveButton.setLabel("LOADING...");
 
     // Attack options for every territory. This used to be an awaited loop that
     // re-fetched and re-parsed the 19 MB closestPathsData.json once per territory
@@ -311,7 +317,7 @@ export async function initialiseGame() {
     }
     toggleTransferAttackButton(false, true);
     setCurrentMapColorAndStrokeArray(saveMapColorState("true"));
-    document.getElementById("popup-color").disabled = true;
+    document.getElementById(ids.popupColor).disabled = true;
     gameInitialisation = false;
     svg.style.pointerEvents = 'auto';
 
@@ -396,7 +402,7 @@ function beginTurn() {
     //when the player was a party to it, so the gate can say what it means.
     if (uiAppearsAtStartOfTurn && currentTurn() !== 1) {
         toggleUIMenu(true);
-        drawUITable(document.getElementById("uiTable"), 0);
+        drawUITable(document.getElementById(ids.uiTable), 0);
     }
     randomEventHappening = false;
     randomEvent = "";
@@ -456,7 +462,7 @@ export function getTurnEngine() {
  * turn, or between turns -- is ignored, exactly as it was when the listener did not exist.
  */
 function installPhaseButton() {
-    const popupConfirmButton = document.getElementById("popup-confirm");
+    const popupConfirmButton = document.getElementById(ids.popupConfirm);
     if (popupConfirmButton) {
         popupConfirmButton.addEventListener("click", () => turnEngine.advancePhase());
     }
@@ -464,7 +470,7 @@ function installPhaseButton() {
 
 async function handleAITurn() {
     console.log("Handling AI Turn...");
-    document.getElementById("popup-confirm").disabled = true; // Stop the user from clicking the button during the AI turn
+    document.getElementById(ids.popupConfirm).disabled = true; // Stop the user from clicking the button during the AI turn
     endPlayerTurn();
     updateArrayOfLeadersAndCountries();
     arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();

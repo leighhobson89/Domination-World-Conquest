@@ -1,4 +1,4 @@
-import { battle, containers } from "../selectors.js";
+import { battle, containers, ids, indexedIds } from "../selectors.js";
 
 /**
  * The battle UI and its results screen.
@@ -58,15 +58,16 @@ export class BattlePage {
      * on "/". Refactor Phase 6.8 replaces these numeric ids with semantic ones.
      */
     async armyRow(side) {
-        return this.page.evaluate((which) => {
-            const first = which === 1 ? 1 : 5;
-            const values = [];
-            for (let i = first; i < first + 4; i += 1) {
-                const cell = document.getElementById(`armyRowRow2Quantity${i}`);
-                values.push(cell ? cell.innerText.trim().split("/")[0].trim() : null);
-            }
-            return values;
-        }, side);
+        const first = side === 1 ? 1 : 5;
+        const cellIds = [0, 1, 2, 3].map((offset) => indexedIds.armyRowQuantity(first + offset));
+        return this.page.evaluate(
+            (idList) =>
+                idList.map((id) => {
+                    const cell = document.getElementById(id);
+                    return cell ? cell.innerText.trim().split("/")[0].trim() : null;
+                }),
+            cellIds
+        );
     }
 
     async advanceRound() {
@@ -74,16 +75,23 @@ export class BattlePage {
     }
 
     async resultsSummary() {
-        return this.page.evaluate(() => {
+        return this.page.evaluate((cellIds) => {
             const read = (id) => document.getElementById(id)?.innerText.trim() ?? null;
             return {
-                kills: read("battleResultsRow2Row3Kills"),
-                losses: read("battleResultsRow2Row3Losses"),
-                captured: read("battleResultsRow3Row2Captured"),
-                survived: read("battleResultsRow3Row2Survived"),
-                rounds: read("battleResultsRow3Row3RoundsCount"),
-                siegeStats: read("battleResultsRow3Row3SiegeStats"),
+                kills: read(cellIds.kills),
+                losses: read(cellIds.losses),
+                captured: read(cellIds.captured),
+                survived: read(cellIds.survived),
+                rounds: read(cellIds.rounds),
+                siegeStats: read(cellIds.siegeStats),
             };
+        }, {
+            kills: ids.battleResultsRow2Row3Kills,
+            losses: ids.battleResultsRow2Row3Losses,
+            captured: ids.battleResultsRow3Row2Captured,
+            survived: ids.battleResultsRow3Row2Survived,
+            rounds: ids.battleResultsRow3Row3RoundsCount,
+            siegeStats: ids.battleResultsRow3Row3SiegeStats,
         });
     }
 

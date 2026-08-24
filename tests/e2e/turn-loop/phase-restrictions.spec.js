@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { containers } from "../../support/selectors.js";
+import { containers, moveButton } from "../../support/selectors.js";
 
 // Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
 // selection strength gate actually fires (audit 5.2 Z), and the United States is above
@@ -36,7 +36,7 @@ test.describe("phase restrictions", () => {
         await game.selectOnMap("Germany");
         // handleMovePhaseTransferAttackButton only runs for currentTurnPhase === 1,
         // so in Buy/Upgrade clicking a territory must leave the button hidden.
-        await expect(page.locator("#move-phase-button")).toBeHidden();
+        await expect(page.locator(moveButton.button)).toBeHidden();
     });
 
     test("offers a live TRANSFER once the Military phase begins", async ({ game }) => {

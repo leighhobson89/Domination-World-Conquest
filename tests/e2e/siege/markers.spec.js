@@ -1,4 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
+import { battle } from "../../support/selectors.js";
 
 // The siege marker on the map: that there is exactly one, that it does not intercept the
 // click it sits on top of, and that it goes away with the siege.
@@ -46,7 +47,7 @@ test.describe("siege markers", () => {
 
         await game.loadScenario("evenly-matched");
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
-        await page.locator("#siegeButton").click();
+        await page.locator(battle.siege).click();
         await expect.poll(async () => (await game.sieges()).player).toContain("France");
 
         expect(await overlayIds(page)).toEqual(["siegeImage_France"]);
@@ -60,7 +61,7 @@ test.describe("siege markers", () => {
         await game.start({ country: "Germany", seed: "marker-click" });
         await game.loadScenario("evenly-matched");
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
-        await page.locator("#siegeButton").click();
+        await page.locator(battle.siege).click();
         await expect.poll(async () => (await game.sieges()).player).toContain("France");
 
         const hit = await hitTestCentre(page, "France");

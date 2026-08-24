@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { containers } from "../../support/selectors.js";
+import { containers, sel } from "../../support/selectors.js";
 
 // The info panel auto-opens at the start of each turn while the checkbox is on.
 // docs/04-e2e-test-plan.md section 5.3.
@@ -65,7 +65,7 @@ test.describe("the start-of-turn info panel", () => {
             if (await page.locator(containers.battleResults).isVisible()) {
                 // A results screen is legitimate ONLY if it describes a war the player was
                 // actually in, which means it names one.
-                const attacker = await page.locator("#battleResultsTitleTitleLeft").innerText();
+                const attacker = await page.locator(sel.battleResultsTitleTitleLeft).innerText();
                 expect(
                     attacker.trim(),
                     "a visible results screen must name the war it is reporting"

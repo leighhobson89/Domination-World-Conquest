@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { containers } from "../../support/selectors.js";
+import { containers, upgradeWindow } from "../../support/selectors.js";
 
 // The upgrade window: how it opens, and that closing it spends nothing.
 // docs/04-e2e-test-plan.md section 5.7.
@@ -19,7 +19,7 @@ test.describe("the upgrade window", () => {
     test("offers exactly four buildings, in a fixed order", async ({ startedGame: game, page }) => {
         await game.openUpgrade("Germany");
 
-        const rows = page.locator(".upgrade-row");
+        const rows = page.locator(upgradeWindow.row);
         await expect(rows).toHaveCount(4);
         const labels = await rows.evaluateAll((els) => els.map((el) => el.children[1].textContent));
         expect(labels).toEqual(["Farm", "Forest", "Oil Well", "Fort"]);

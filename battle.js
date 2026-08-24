@@ -103,6 +103,15 @@ import {
     setNextWarId as storeNextWarId,
     setNextAiWarId as storeNextAiWarId
 } from './src/state/mutations.js';
+import {
+    ids
+} from './src/ui/core/registry.js';
+import {
+    bottomTable
+} from './src/ui/components/BottomTable.js';
+import {
+    moveButton
+} from './src/ui/components/MoveButton.js';
 
 export let finalAttackArray = [];
 export const proportionsOfAttackArray = [];
@@ -388,9 +397,9 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     if (!ai) {
         let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
         setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
-        retreatButton = document.getElementById("retreatButton");
-        advanceButton = document.getElementById("advanceButton");
-        siegeButton = document.getElementById("siegeButton");
+        retreatButton = document.getElementById(ids.retreatButton);
+        advanceButton = document.getElementById(ids.advanceButton);
+        siegeButton = document.getElementById(ids.siegeButton);
     }
 
     let contestedPath;
@@ -561,13 +570,10 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
         }
     }
 
-    document.getElementById("attack-destination-container").style.display = "none";
-    document.getElementById("move-phase-button").innerHTML = "DEACTIVATED";
-    document.getElementById("move-phase-button").disabled = true;
-    document.getElementById("move-phase-button").classList.remove("move-phase-button-red-background");
-    document.getElementById("move-phase-button").classList.remove("move-phase-button-blue-background");
-    document.getElementById("move-phase-button").classList.remove("move-phase-button-green-background");
-    document.getElementById("move-phase-button").classList.add("move-phase-button-grey-background");
+    moveButton.hideDestination();
+    moveButton.setLabel("DEACTIVATED");
+    moveButton.setEnabled(false);
+    moveButton.setVariant("disabled");
 
     contestedPath.style.stroke = "red";
     contestedPath.style.strokeDasharray = "10, 5";
@@ -728,8 +734,8 @@ export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUni
             skirmishesPerType = likeForLikeSkirmishes(attackArmyRemaining, defendingArmyRemaining);
             totalSkirmishes = countPossibleSkirmishes(attackArmyRemaining, defendingArmyRemaining); //audit 5.2 K
 
-            const retreatButton = document.getElementById("retreatButton");
-            const advanceButton = document.getElementById("advanceButton");
+            const retreatButton = document.getElementById(ids.retreatButton);
+            const advanceButton = document.getElementById(ids.advanceButton);
 
             retreatButton.disabled = true;
             retreatButton.style.backgroundColor = "rgb(128,128,128)";
@@ -1135,7 +1141,7 @@ export function handleEndSiegeDueArrest(ai, siege) {
         //four counts, so the total can no longer disagree with its parts.
         patchTerritory(defendingTerritory.uniqueId,
             arrestGarrisonFor(siege.defendingArmyRemaining, siege.attackingArmyRemaining));
-        document.getElementById("bottom-table").rows[0].cells[17].innerHTML = formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0);
+        bottomTable.update({ army: formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0) });
 
         siege.attackingArmyRemaining = [0, 0, 0, 0];
         siege.resolution = "Arrested";

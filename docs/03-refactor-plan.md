@@ -970,9 +970,9 @@ functional areas the e2e plan had listed but never had — `siege/`, `ai-turn/`,
 
 | Step | Action |
 |---|---|
-| 6.1 | Create `ui/core/registry.js` — every element id and selector as a named constant, **imported by both the app and the e2e page objects**. Selector drift then becomes a compile error rather than a flaky test. |
-| 6.2 | Add `ui/core/dom.js`: `el(tag, props, children)`, `mount()`, `on()`. Replaces the `createElement` + 15 property assignments pattern (294 occurrences). |
-| 6.3 | Extract components one at a time from the `DOMContentLoaded` block, easiest first: `Tooltip` → `TopTable` → `BottomTable` → `PhaseBar` → `MainMenu` → `CountrySelect` → `MoveButton` → `AiDialogue` → `BattleResults` → `BattleUI` → `InfoTable` → `BuyWindow` → `UpgradeWindow` → `TransferAttackWindow`. Each becomes `create()` + `update(state)` + `destroy()`, subscribing to `state/events.js`. |
+| 6.1 | ✅ `src/ui/core/registry.js` — 186 element ids, the classes used as selectors, the indexed id families as builders, and the territory path selectors, all as named constants. Imported by the app (every `getElementById`, `setAttribute("id", …)` and `#id` selector across the eight root modules now goes through it) and by `tests/support/selectors.js`, which holds no literal selector any more. |
+| 6.2 | ✅ `src/ui/core/dom.js` — `el()`, `svgEl()`, `mount()`, `clear()`, `on()` and `listenerGroup()`. `on()` returns its own remover, which is what makes a component's `destroy()` possible. |
+| 6.3 | ✅ All fourteen extracted to `src/ui/components/`, in that order, plus a shared `ResourceWindow` behind `BuyWindow` and `UpgradeWindow`. The `DOMContentLoaded` block went from 2,332 lines to 704, and `ui.js` from 6,446 to 4,763. `PhaseBar` is the one that genuinely subscribes to `state/events.js` (`PHASE_CHANGED`); the rest carry a note saying what has to become state before they can. |
 | 6.4 | Break up `drawUITable` (920 lines / 4 modes) into `InfoTable` + one renderer per tab, sharing a column-definition table instead of a repeated 16-case `switch`. |
 | 6.5 | Break up `drawAndHandleTransferAttackTable` (710 lines / 2 modes) into `TransferTable` and `AttackTable` over a shared `ArmyAllocationRow`. |
 | 6.6 | Break up `handleMovePhaseTransferAttackButton` into a declarative state machine: `deriveMoveButtonState(state, selection) → { label, variant, enabled, action }`. The nested click handler and the `setTimeout(…, 200)` debounce both disappear. |
@@ -1035,16 +1035,36 @@ extensible. Phase 7 is where it becomes a game rather than a simulation.
 
 ## 5. Immediate next three actions
 
-Phase 5 is complete, including 5.8 — every reachable `test.fixme` is retired, P2 of the e2e
-plan is delivered, and the only defect left open in the register is one Phase 6.7 owns. The
-next three are the opening of Phase 6.
+Phase 6.1, 6.2 and 6.3 are complete. The order the rest of Phase 6 runs in is
+6.7 → 6.4 → 6.5 → 6.6 → 6.8: the map extraction is independent of the
+`DOMContentLoaded` block and closes the last open defect in the register, 6.4–6.6 are
+deepenings of three components 6.3 has now created, and 6.8 renames ids, which is only cheap
+once the registry exists.
 
-1. **Phase 6.1** — `ui/core/registry.js`: every element id and selector as a named constant,
-   imported by both the app and the e2e page objects. Selector drift becomes a compile error
-   rather than a flaky test, and it is the prerequisite for extracting anything else.
-2. **Phase 6.2** — `ui/core/dom.js`: `el()`, `mount()`, `on()`. The `createElement` plus
-   fifteen property assignments pattern occurs 294 times.
-3. **Phase 6.3** — extract components easiest-first, starting with `Tooltip` (which is also
-   what fixes the pointer-events bug the page objects work around today) and `TopTable`. The
-   AI's action executors come out with them: `ai/actions/*` and `ai/diplomacy.js` are blocked
-   on there being a component to talk to instead of a `getElementById`.
+1. **Phase 6.7** — `ui/map/*`: `MapView`, `colouring`, `camera`, `markers`. Deletes the
+   `currentMapColorAndStrokeArray` save/restore machinery and closes audit §5.2 AE (the
+   attack marker surviving a cancel), the only defect left open in
+   [05-known-issues.md](./05-known-issues.md).
+2. **Phase 6.4** — break `drawUITable()` (920 lines, a sixteen-case switch over four modes)
+   into one renderer per tab behind the `InfoTable` component, sharing a column-definition
+   table. `InfoTable` already takes the renderer as a `drawTable` callback, so this is a
+   swap rather than a rewire.
+3. **Phase 6.5** — break `drawAndHandleTransferAttackTable()` (710 lines, two modes) into
+   `TransferTable` and `AttackTable` over a shared `ArmyAllocationRow`, behind the
+   `TransferAttackWindow` shell 6.3 extracted.
+
+### What 6.1–6.3 delivered
+
+- `src/ui/core/registry.js` (413 lines) and `src/ui/core/dom.js` (191 lines).
+- Fourteen components in `src/ui/components/`, 2,400 lines in total, each `create()` +
+  `destroy()` and, where it has store state to follow, `update()`.
+- `ui.js` 6,446 → 4,763 lines; the `DOMContentLoaded` block 2,332 → 704, of which most of
+  what is left is the phase-confirm and battle-button handlers that belong to the turn loop
+  rather than to any component.
+- Two long-standing problems closed along the way: `#tooltip` now carries
+  `pointer-events: none` (it was the only thing in the document that sat under the pointer
+  and ate the click the player was making), and the 128 bare `tooltip` identifiers that
+  resolved through named window access are gone.
+- One behaviour deliberately changed: `MoveButton.setVariant()` removes all five background
+  classes before adding one. Two of the six call sites it replaced removed only three or
+  four, so a button could carry two backgrounds at once.
