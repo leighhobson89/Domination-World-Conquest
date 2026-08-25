@@ -474,7 +474,7 @@ td {
      to `auto`: the row shrank to its (empty) text and the player's flag became a
      four-pixel stripe. `vh` keeps it proportional to the screen the way the old
      percentage did, with a floor for short windows. */
-  height: 13.2vh;
+  height: 18.1vh;
   min-height: 92px;
   flex: 0 0 auto;
   display: flex;
@@ -3184,6 +3184,385 @@ td {
 .options-button-primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+}
+
+/* ============================================================================
+   DOMINAPEDIA (Phase 7.6)
+   ----------------------------------------------------------------------------
+   The manual, opened from the main menu where an inert "Help" button used to sit.
+
+   It shares `.options-scrim`, `.options-button` and the two button modifiers with
+   the Options and Save / Load panels, deliberately: three screens that open from
+   one menu should not be three designs. What it does not share is the SHAPE.
+   Options is a dialog -- a few settings, read top to bottom, dismissed. This is a
+   book, so it is a full-screen window: a title bar, a contents column down the
+   left at about a fifth of the width, and a content pane filling the rest with a
+   Previous / Next footer under it.
+
+   The layout rule that matters is that THE PANEL NEVER SCROLLS. It is a fixed
+   height with `overflow: hidden`, and the two columns each own their own
+   overflow. That is what keeps the title bar and the two navigation buttons on
+   screen while a long page is being read, and it is the same mistake the Upgrade
+   window made for months in reverse -- there, three fixed heights that had to
+   agree; here, one height and everything else measured from it.
+
+   Every colour, radius, border and face is a token, so a theme reaches the manual
+   the way it reaches the menu that opens it.
+   ========================================================================= */
+.dominapedia-panel {
+  display: flex;
+  flex-direction: column;
+  /* Wide, because two columns of prose at a readable measure need the room, and
+     capped so the content pane does not become a 1600px line length. */
+  width: min(1180px, 94vw);
+  height: min(860px, 92vh);
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  /* The panel clips its columns at the corners and never scrolls itself. */
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- the main bar --- */
+/* `.window-title-bar` is the furniture every other window in the game wears; this
+   only makes it read at the size of a full-screen window rather than a floating
+   one. It is NOT draggable -- the panel fills the screen, so there is nowhere to
+   drag it to, which is why it carries no `.window-drag-handle`. */
+.dominapedia-titlebar {
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.dominapedia-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.dominapedia-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.dominapedia-close:hover {
+  color: var(--text-primary);
+  background: var(--surface-control);
+  border-color: var(--border-strong);
+}
+
+.dominapedia-close:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------- the two columns --- */
+/* `min-height: 0` on the row and on each pane is what actually makes the scrolling
+   work: a flex item defaults to `min-height: auto`, so without it a long page
+   stretches the panel instead of overflowing inside it, and the footer walks off
+   the bottom of the screen. */
+.dominapedia-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dominapedia-nav {
+  /* About a fifth of the panel, with a floor so the topic titles do not wrap to
+     three lines on a narrow window and a ceiling so it does not swallow the
+     reading column on a wide one. */
+  flex: 0 0 clamp(190px, 20%, 300px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: var(--surface-raised);
+  border-right: var(--border-width) solid var(--border-color);
+}
+
+.dominapedia-reader {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dominapedia-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 34px 34px;
+}
+
+/* The pane is what scrolls, so it is focusable, so it needs a focus ring that
+   does not look like a control has been selected. Inset, and only on the keyboard. */
+.dominapedia-content:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* --------------------------------------------------- a main topic and its subs --- */
+/* A collapsible section, built the same way the activity feed's per-turn groups
+   are: the header is a real button so it is reachable by keyboard and can carry
+   `aria-expanded`, and a shut section is `display: none` rather than a collapsed
+   height -- an animated max-height needs a number, and the number is different for
+   every section. */
+.dominapedia-section + .dominapedia-section {
+  margin-top: 6px;
+}
+
+.dominapedia-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background-color: var(--surface-control);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dominapedia-section-header:hover {
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+}
+
+.dominapedia-section-header:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dominapedia-section-header .chrome-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--accent);
+  transition: transform 0.15s ease;
+}
+
+.dominapedia-section.is-open .dominapedia-section-header .chrome-icon {
+  transform: rotate(90deg);
+}
+
+.dominapedia-section-label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* How many pages are inside. Small and muted, so a shut section is scannable
+   without being read. */
+.dominapedia-section-count {
+  flex: 0 0 auto;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: normal;
+  letter-spacing: normal;
+  color: var(--text-muted);
+}
+
+.dominapedia-section-topics {
+  display: none;
+  padding: 4px 0 6px 10px;
+}
+
+.dominapedia-section.is-open .dominapedia-section-topics {
+  display: block;
+}
+
+/* One sub-topic. The whole row is the target -- a link that is only its text is a
+   row of dead space beside a hit area a third of its width. */
+.dominapedia-topic-link {
+  display: block;
+  width: 100%;
+  padding: 6px 9px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  /* The rail the current page's marker is drawn on, transparent until it is the
+     current page. Reserving it here rather than adding a border when selected is
+     what stops every other row shifting 3px sideways as the selection moves. */
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dominapedia-topic-link:hover {
+  color: var(--text-primary);
+  background-color: var(--surface-control);
+}
+
+.dominapedia-topic-link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.dominapedia-topic-link.is-current {
+  color: var(--text-primary);
+  background-color: var(--surface-control);
+  border-left-color: var(--accent);
+}
+
+/* --------------------------------------------------------------- the page --- */
+.dominapedia-breadcrumb {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dominapedia-content-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+.dominapedia-content-summary {
+  margin: 0 0 20px;
+  padding-bottom: 16px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+/* A measure, not the full width of a 1180px panel. Prose set across the whole of
+   a window this wide is the one thing that would make the manual harder to read
+   than the game it documents. */
+.dominapedia-content-body {
+  max-width: 68ch;
+}
+
+.dominapedia-body-heading {
+  margin: 22px 0 8px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.dominapedia-body-text {
+  margin: 0 0 14px;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.dominapedia-body-list {
+  margin: 0 0 14px;
+  padding-left: 22px;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.dominapedia-body-list li {
+  margin-bottom: 6px;
+}
+
+/* A page that is not written yet says so, in the one token that means "neither
+   won nor lost" everywhere else in this game. A help system whose unwritten pages
+   look like written ones is worse than one with gaps in it. */
+.dominapedia-body-todo {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background-color: var(--surface-raised);
+  border-left: 3px solid var(--siege-amber);
+  border-radius: var(--radius-sm);
+}
+
+/* -------------------------------------------------------- previous / next --- */
+/* Neither button is ever disabled: the walk wraps at both ends of the book, so
+   there is no state in which one of them has nothing to do. */
+.dominapedia-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  background-color: var(--surface-raised);
+  border-top: var(--border-width) solid var(--border-color);
+}
+
+.dominapedia-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dominapedia-step .chrome-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+/* The same chevron the sections use, turned round. One icon, two directions. */
+#dominapedia-prev-btn .chrome-icon {
+  transform: rotate(180deg);
+}
+
+/* "4 of 19". The player is being told where they are in a book, and a book has
+   numbered pages -- a progress bar would imply the pages have to be read in order. */
+.dominapedia-position {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* On a short window the contents column is the part that can afford to give way:
+   the reading pane is the point of the screen. */
+@media (max-height: 620px) {
+  .dominapedia-panel {
+    height: 96vh;
+  }
+
+  .dominapedia-content {
+    padding: 18px 22px 24px;
+  }
 }
 
 /* ============================================================================

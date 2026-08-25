@@ -204,6 +204,9 @@ import {
     optionsPanel
 } from './src/ui/components/OptionsPanel.js';
 import {
+    dominapedia
+} from './src/ui/components/Dominapedia.js';
+import {
     initTheme
 } from './src/ui/theme/theme.js';
 import {
@@ -822,6 +825,13 @@ document.addEventListener("DOMContentLoaded", function() {
     //for them and destroying one leaves no orphan <div>.
     confirmDialog.create();
     saveIndicator.create();
+    //THE DOMINAPEDIA (Phase 7.6)
+    //The manual, and the last main-menu button to be wired -- it was an inert
+    //"Help" until now. Created here rather than on first open for the same reason
+    //the Options panel is: the panel it builds is themed, and building it under
+    //the player's stored theme costs nothing at bootstrap and avoids a first open
+    //that paints in the default palette and then corrects itself.
+    dominapedia.create({ onSound: () => playSoundClip("button") });
     saveLoadPanel.create({
         captureSave() {
             const save = captureGame();
@@ -898,6 +908,10 @@ document.addEventListener("DOMContentLoaded", function() {
         onSaveLoad() {
             playSoundClip("button");
             saveLoadPanel.open();
+        },
+        onDominapedia() {
+            playSoundClip("button");
+            dominapedia.open();
         },
     });
 
@@ -4225,6 +4239,7 @@ async function applyLoadedGame(save) {
 
     saveLoadPanel.close();
     optionsPanel.close(false);
+    dominapedia.close();
     mainMenu.hide();
 
     resetTransientUiState();

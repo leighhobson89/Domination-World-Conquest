@@ -459,10 +459,11 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | — | `options/` | P2 | — | ✅ 21 — Phase 7.10; not in the original list, added with the theme system and grown with the audio work |
 | — | `ui-layout/` | P2 | — | ✅ 42 — Phase 7.11 and 7.4. Not in the original list: it exists because two of its faults have no textual signature at all, so no unit test can hold them — a window that clips its own last row, and a focus order that never reorders anything |
 | — | `activity-feed/` | P2 | Refactor 7.4 | ✅ 25 — Phase 7.4 |
+| — | `dominapedia/` | P2 | Refactor 7.6 | ✅ 11 — Phase 7.6. Not in the original list: the manual is the first screen in the game that is a document rather than a control surface, and its catalogue is pure so the unit suite owns the content and the page order. What is here is the window — opening and three ways of closing, the collapsible contents, Previous / Next wrapping at both ends of the book, and the panel that must never scroll |
 | 16 | `save-load/` | P3 | Refactor 7.2/7.3 | ✅ 16 — Phase 7.2/7.3. This is row 16, `persistence/`, delivered under the name of the feature rather than of the mechanism |
 | 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
 
-**397 tests in 61 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
+**408 tests in 62 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
 Each folder's README records which rows of the tables below it delivers and which it defers,
 with the reason — a spec that is missing is missing on purpose and says so.
 

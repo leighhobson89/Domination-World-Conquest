@@ -128,13 +128,26 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   of it and holds no literal selector. Never hand-write an id or a `#selector`: add it there.
   Element construction goes through `src/ui/core/dom.js` — `el()`, `mount()`, `on()` — whose
   `on()` returns its own remover, which is what lets a component undo itself in `destroy()`.
-- **The UI is components now** (Phase 6.3): fourteen files under `src/ui/components/`, each
+- **The UI is components now** (Phase 6.3): the files under `src/ui/components/`, each
   `create()` + `destroy()` and, where it follows store state, `update()`. The
   `DOMContentLoaded` block in `ui.js` is the list of `create()` calls plus the handlers that
   belong to the turn loop. `PhaseBar` is the one that subscribes to `state/events.js` today
   (`PHASE_CHANGED` drives its title and button label, so `setPhase()` is the only call a
   phase transition makes); the others carry a note saying what has to become state first.
   `BuyWindow` and `UpgradeWindow` are two specs over one `ResourceWindow` builder.
+- **The Dominapedia is the manual, and its catalogue is data** (Phase 7.6). The main menu's
+  Help button is gone: it is `dominapediaBtn` now, and it opens a full-screen window built by
+  `src/ui/components/Dominapedia.js` from `src/ui/dominapedia/topics.js` — six main topics,
+  twenty-three sub-topics, all frozen, importing nothing and touching no DOM. Writing a page
+  is one entry in `topics.js` and no change to the component. **A body is BLOCKS**
+  (`{ kind: "p" | "h" | "ul" | "todo" }`), never markup — content that carried HTML would carry
+  the panel's styling decisions with it. **Previous / Next walk sub-topics and WRAP**, so
+  neither is ever disabled; the walk is pure and `tests/unit/ui-dominapedia-topics.spec.js`
+  owns it, which is why nothing in `tests/e2e/dominapedia/` asserts what a page says or what
+  order the pages are in. **The panel itself must never scroll** — it is a fixed height with
+  `overflow: hidden` and the two columns each own their overflow, which is what keeps the
+  title bar and the two navigation buttons on screen; an e2e spec fails if that changes.
+
 - **The bare-identifier gotcha is closed.** `tooltip` and `uiTable` used to resolve to
   `window.tooltip` / `window.uiTable` because elements with those ids existed. `tooltip` is
   now an imported handle from `src/ui/components/Tooltip.js` (which creates the element —

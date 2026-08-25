@@ -1,5 +1,5 @@
 // The start menu: title, subtitle, Resume Game, New Game, Save / Load, Options,
-// Help.
+// Dominapedia.
 //
 // Refactor Phase 6.3. Small, and the last component with no store state at all
 // -- the menu is either up or it is not, and that is a fact about the UI rather
@@ -37,9 +37,12 @@
 //     back (that is what Escape has always done, now with a button on it);
 //   * on a cold start with an autosave in localStorage, it loads that autosave.
 //
-// The Help button has no handler. It is inert today and stays inert; wiring it
-// is Phase 7.6, which is also where there will be something for it to say. It
-// now carries an id so that Phase can find it without a positional selector.
+// Phase 7.6 wired the last button and renamed it. What was Help -- an item in the
+// menu with no handler on it -- is the DOMINAPEDIA, which is what this game calls
+// its manual: a full-screen window with a contents column and a content pane, in
+// `src/ui/components/Dominapedia.js`. The button is named for the screen it opens
+// rather than for the category it falls into, which is also why the id moved from
+// `helpBtn` to `dominapediaBtn` rather than keeping a name nothing on screen says.
 //
 // Music is no longer here at all. "Toggle Music" was a menu item that could only
 // be reached by leaving the game, and all it could do was start or stop one
@@ -57,7 +60,14 @@ let newGameButton = null;
 let resumeButton = null;
 let saveLoadButton = null;
 
-export function create({ onNewGame, onOptions, onResume, onSaveLoad, onSound } = {}) {
+export function create({
+    onNewGame,
+    onOptions,
+    onResume,
+    onSaveLoad,
+    onDominapedia,
+    onSound,
+} = {}) {
     if (root) return root;
 
     resumeButton = el("button", {
@@ -113,7 +123,12 @@ export function create({ onNewGame, onOptions, onResume, onSaveLoad, onSound } =
                 text: "Options",
                 on: { click: onOptions ?? (() => optionsPanel.open()) },
             }),
-            el("button", { id: ids.helpBtn, class: "menu-button", text: "Help" }),
+            el("button", {
+                id: ids.dominapediaBtn,
+                class: "menu-button",
+                text: "Dominapedia",
+                on: { click: onDominapedia },
+            }),
         ]),
     ]);
 

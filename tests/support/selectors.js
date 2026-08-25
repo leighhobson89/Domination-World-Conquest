@@ -51,7 +51,8 @@ export const menu = {
     newGame: sel.newGameBtn,
     saveLoad: sel.saveLoadBtn,
     options: sel.optionsBtn,
-    help: sel.helpBtn,
+    /** Phase 7.6. This was `help`, and until then the button did nothing. */
+    dominapedia: sel.dominapediaBtn,
     /** The hamburger over the map. The same door as Escape (Phase 7.2). */
     hamburger: sel.menuButton,
 };
@@ -99,6 +100,56 @@ export const options = {
     sfxToggle: sel.optionsSfxToggle,
     done: sel.optionsCloseBtn,
     cancel: sel.optionsCancelBtn,
+};
+
+/**
+ * The Dominapedia: the manual, opened from the main menu (Phase 7.6).
+ *
+ * A full-screen window rather than a dialog -- a collapsible contents column on
+ * the left and a content pane on the right, with Previous and Next walking every
+ * sub-topic in the book and WRAPPING at both ends, so neither button is ever
+ * disabled.
+ *
+ * Which page is showing is asked through `aria-current="page"` on its link, not
+ * through the `.is-current` class: the class is cosmetic and the attribute is the
+ * fact. The order of the pages is `allTopics()` in
+ * `src/ui/dominapedia/topics.js`, which the unit suite already pins -- a spec here
+ * should ask whether the BUTTONS move through that order, never what the order is.
+ */
+export const dominapedia = {
+    container: sel.dominapediaContainer,
+    panel: sel.dominapediaPanel,
+    title: sel.dominapediaTitle,
+    close: sel.dominapediaCloseBtn,
+    nav: sel.dominapediaNav,
+    content: sel.dominapediaContent,
+    breadcrumb: sel.dominapediaBreadcrumb,
+    contentTitle: sel.dominapediaContentTitle,
+    contentSummary: sel.dominapediaContentSummary,
+    contentBody: sel.dominapediaContentBody,
+    previous: sel.dominapediaPrevBtn,
+    next: sel.dominapediaNextBtn,
+    position: sel.dominapediaPosition,
+    section: cls.dominapediaSection,
+    sectionHeader: cls.dominapediaSectionHeader,
+    sectionTopics: cls.dominapediaSectionTopics,
+    topicLink: cls.dominapediaTopicLink,
+    isOpen: cls.dominapediaIsOpen,
+    isCurrent: cls.dominapediaIsCurrent,
+    /** The link for one page, by its topic id. */
+    linkFor: (topicId) => `${sel.dominapediaNav} [data-topic="${topicId}"]`,
+    // `data-section` is on the group AND on its header -- the group so a spec can
+    // ask whether the section is open, the header so it can click it -- so both of
+    // these say which of the two they mean. A bare `[data-section=...]` matches
+    // two elements and Playwright refuses it.
+    /** The clickable header of one main topic. */
+    sectionFor: (sectionId) =>
+        `${sel.dominapediaNav} ${cls.dominapediaSectionHeader}[data-section="${sectionId}"]`,
+    /** The whole group, which carries `.is-open` when it is expanded. */
+    sectionGroupFor: (sectionId) =>
+        `${sel.dominapediaNav} ${cls.dominapediaSection}[data-section="${sectionId}"]`,
+    /** Whichever page is currently showing. */
+    currentLink: `${sel.dominapediaNav} [aria-current="page"]`,
 };
 
 /** The popup that is both the country-select confirm AND the phase-advance button. */

@@ -53,7 +53,11 @@ export const ids = Object.freeze({
     newGameBtn: "new-game-btn",
     saveLoadBtn: "save-load-btn",
     optionsBtn: "options-btn",
-    helpBtn: "help-btn",
+    // Phase 7.6. This was `helpBtn` / `help-btn` and it was inert -- a button in
+    // the menu with no handler on it. It is the Dominapedia now, which is what
+    // this game calls its manual, and the id says so: a menu item and the screen
+    // it opens should not be two names.
+    dominapediaBtn: "dominapedia-btn",
 
     // --- Audio ----------------------------------------------------------------
     // `toggle-music-btn` used to live in the main menu and was the whole of the
@@ -122,6 +126,30 @@ export const ids = Object.freeze({
     // by `.options-button-ghost` -- which stopped being unique the moment the
     // confirm dialog and the save/load panel started sharing that class.
     optionsCancelBtn: "options-cancel-btn",
+
+    // --- Dominapedia (Phase 7.6) ----------------------------------------------
+    // The manual. It opens from the main menu the way Options does, but it is a
+    // full-screen window rather than a dialog: a contents column on the left and a
+    // content pane on the right, with Previous / Next walking every sub-topic in
+    // the book. Like the Options and Save / Load panels it creates its own
+    // container, so there is nothing for it in index.html.
+    dominapediaContainer: "dominapedia-container",
+    dominapediaPanel: "dominapedia-panel",
+    dominapediaTitle: "dominapedia-title",
+    dominapediaCloseBtn: "dominapedia-close-btn",
+    // The two scrolling columns. Both are addressed by the e2e suite, which asks
+    // whether each can scroll independently of the other.
+    dominapediaNav: "dominapedia-nav",
+    dominapediaContent: "dominapedia-content",
+    dominapediaBreadcrumb: "dominapedia-breadcrumb",
+    dominapediaContentTitle: "dominapedia-content-title",
+    dominapediaContentSummary: "dominapedia-content-summary",
+    dominapediaContentBody: "dominapedia-content-body",
+    // Previous / Next cycle through every sub-topic and wrap at both ends, so
+    // neither is ever disabled -- see `src/ui/dominapedia/topics.js`.
+    dominapediaPrevBtn: "dominapedia-prev-btn",
+    dominapediaNextBtn: "dominapedia-next-btn",
+    dominapediaPosition: "dominapedia-position",
 
     // --- Phase bar ------------------------------------------------------------
     // One popup doing two jobs: the country-select confirm before the game
@@ -503,6 +531,19 @@ export const classNames = Object.freeze({
     activityToneVictory: "tone-victory",
     activityToneLoss: "tone-loss",
     activityToneSiege: "tone-siege",
+
+    // Dominapedia (Phase 7.6). The contents column is a list of collapsible
+    // sections, each holding sub-topic links; the two state classes are the same
+    // two the activity feed uses, and deliberately -- one collapsible in this game
+    // should look and behave like every other. `dominapediaIsOpen` and
+    // `activityIsOpen` are the same string for that reason; each component names
+    // it for itself so that neither has to import the other's vocabulary.
+    dominapediaSection: "dominapedia-section",
+    dominapediaSectionHeader: "dominapedia-section-header",
+    dominapediaSectionTopics: "dominapedia-section-topics",
+    dominapediaTopicLink: "dominapedia-topic-link",
+    dominapediaIsOpen: "is-open",
+    dominapediaIsCurrent: "is-current",
 
     stepperButton: "stepper-button",
     stepperPlus: "stepper-plus",

@@ -1130,7 +1130,7 @@ over 400 lines.
 | 7.3 | ✅ **Save / load** (`platform/storage.js`) | Done. `GameState` really was a `JSON.stringify` away, as Phase 4 predicted. Autosave to `localStorage` on a timer, plus a compressed code the player can copy and paste. See below. |
 | 7.4 | ✅ **AI activity feed** | Done. A military log grouped by turn, in a draggable window of its own, plus a developer-facing console report of what each AI is planning at three horizons. See below. |
 | 7.5 | **Continent control bonuses** | Continents already exist as data; give holding one a real reward. |
-| 7.6 | **Help / tutorial** | Wire the inert Help button. Oil demand, useable units and sieges all need in-game explanation. |
+| 7.6 | ◐ **Help / tutorial — the Dominapedia** | UI done. The inert Help button is now **Dominapedia**, and it opens a full-screen manual: a collapsible contents column, a content pane, and Previous / Next walking every sub-topic and wrapping at both ends. Twenty-three pages are stubbed with a note saying what each will cover. Oil demand, useable units and sieges have pages waiting for them; writing the content is what is left. See below. |
 | 7.7 | **Consolidate AI powers** | Reduce 206 independent AI countries to 8–16 *powers* owning multiple countries (GDD §12.1). Makes the AI turn fast, the world legible, and diplomacy possible. |
 | 7.8 | **Long-term AI goals** | The TODOs in `gameTurnsLoop.js`, now implementable against `ai/goals.js`. |
 | 7.9 | **Re-enable or remove the 3D dice** | Decide. If keeping, wire it into `BattleUI` behind a setting; if not, delete `dices.js` and the three `dist/` bundles and drop `three` + `cannon-es`. |
@@ -1478,6 +1478,50 @@ intentions would be a cheat.
 phase-bar specs in `ui-layout/`. The wording and every colour rule are unit-tested
 because they are pure; the e2e specs assert what the wording hides — which turn an
 entry lands in, whether it was recorded at all, and the player-involvement flags.
+
+#### Phase 7.6 — what landed (the UI half)
+
+The menu has carried a Help button with no handler on it since 7.10 rebuilt the
+menu. It is **Dominapedia** now — the button is named for the screen it opens
+rather than for the category it falls into, which is why the id moved from
+`helpBtn` to `dominapediaBtn` rather than keeping a name nothing on screen says.
+
+**The catalogue is data, and it is pure.** `src/ui/dominapedia/topics.js` holds six
+main topics and twenty-three sub-topics as frozen objects, imports nothing and
+touches no DOM. `src/ui/components/Dominapedia.js` renders whatever that file says
+and has no opinion about the content, so writing a page is one entry there and no
+change to the component — the same arrangement `infoTable/columns.js` records for
+the info panel's tabs and `theme/themes.js` for the palettes.
+
+**A body is BLOCKS, not markup.** `{ kind: "p" | "h" | "ul" | "todo" }` is the whole
+vocabulary. Prose written as HTML would put the panel's styling decisions inside the
+content, and every later change to how a page looks would be a hundred content
+edits. The fourth kind is the standing note that a page is not written yet: an
+unwritten page says so, in `--siege-amber`, because a help system whose gaps look
+like content is worse than one with visible gaps in it.
+
+**Previous / Next walk sub-topics and wrap at both ends**, so neither button is ever
+disabled and the whole manual can be read by pressing one key. That walk is a
+function from a topic id to a topic id, which is why it lives in the pure module
+and is pinned by `tests/unit/ui-dominapedia-topics.spec.js` — "Next from the last
+page" and "Previous from the first" are the two cases nobody exercises by hand.
+
+**The panel never scrolls; its two columns do.** It is a fixed-height grid with
+`overflow: hidden`, the contents column and the reading pane each own their
+overflow, and the e2e suite asserts all three. That is what keeps the title bar and
+the two navigation buttons on screen while a long page is read — the same class of
+fault as the Upgrade window's three disagreeing fixed heights, caught before it
+shipped rather than after.
+
+It shares `.options-scrim`, `.options-button` and its two modifiers with the Options
+and Save / Load panels, deliberately: three screens opened from one menu should not
+be three designs. Every colour, radius and face is an existing token, so no theme
+needed touching and none of the five is incomplete.
+
+**Eleven unit tests and a new `dominapedia/` e2e area of eleven specs.** Nothing in
+the e2e folder asserts what a page SAYS or what order the pages are in — that is the
+unit suite's, and a spec that named a topic would fail the day the content is
+written, which is the next thing to happen here.
 
 ---
 
