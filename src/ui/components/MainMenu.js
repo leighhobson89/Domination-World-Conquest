@@ -1,4 +1,5 @@
-// The start menu: title, subtitle, New Game, Options, Toggle Music, Help.
+// The start menu: title, subtitle, Resume Game, New Game, Save / Load, Options,
+// Toggle Music, Help.
 //
 // Refactor Phase 6.3. Small, and the last component with no store state at all
 // -- the menu is either up or it is not, and that is a fact about the UI rather
@@ -23,6 +24,19 @@
 // and font comes from a design token, so a theme restyles the menu without
 // touching this file.
 //
+// Phase 7.2 added Resume Game and Phase 7.3 added Save / Load, and both are
+// disabled rather than hidden when they have nothing to do. Hiding them would move
+// every button below them, so the menu would be a different shape before and
+// during a game and muscle memory would land on the wrong item; a greyed-out row
+// also says the feature exists and what would make it available.
+//
+// Resume means one of two things depending on where it is pressed, and the caller
+// decides which -- this component only reports the click:
+//
+//   * with a game running behind the menu, it closes the menu and hands the map
+//     back (that is what Escape has always done, now with a button on it);
+//   * on a cold start with an autosave in localStorage, it loads that autosave.
+//
 // The Help button has no handler. It is inert today and stays inert; wiring it
 // is Phase 7.6, which is also where there will be something for it to say. It
 // now carries an id so that Phase can find it without a positional selector.
@@ -38,18 +52,39 @@ import { optionsPanel } from "./OptionsPanel.js";
 
 let root = null;
 let newGameButton = null;
+let resumeButton = null;
+let saveLoadButton = null;
 
-export function create({ onNewGame, onOptions } = {}) {
+export function create({ onNewGame, onOptions, onResume, onSaveLoad } = {}) {
     if (root) return root;
+
+    resumeButton = el("button", {
+        id: ids.resumeGameBtn,
+        class: ["menu-button", "menu-button-primary"],
+        text: "Resume Game",
+        // Nothing to resume until either a game is running or an autosave is found.
+        disabled: true,
+        on: { click: onResume },
+    });
 
     newGameButton = el("button", {
         id: ids.newGameBtn,
-        class: ["menu-button", "menu-button-primary"],
+        class: "menu-button",
         text: "New Game",
         // Nothing can be started until the territory model exists; the bootstrap
         // enables it through `setNewGameEnabled()`.
         disabled: true,
         on: { click: onNewGame },
+    });
+
+    saveLoadButton = el("button", {
+        id: ids.saveLoadBtn,
+        class: "menu-button",
+        text: "Save / Load",
+        // A load needs the territory model, exactly as New Game does, so this is
+        // enabled by the same bootstrap call.
+        disabled: true,
+        on: { click: onSaveLoad },
     });
 
     // The panel creates itself on first open, but creating it here means the
@@ -62,7 +97,9 @@ export function create({ onNewGame, onOptions } = {}) {
             el("p", { class: "menu-subtitle", text: "World Conquest" }),
         ]),
         el("nav", { class: "menu-actions" }, [
+            resumeButton,
             newGameButton,
+            saveLoadButton,
             el("button", {
                 id: ids.optionsBtn,
                 class: "menu-button",
@@ -82,8 +119,35 @@ export function create({ onNewGame, onOptions } = {}) {
     return root;
 }
 
+/**
+ * Enable the two buttons that need the territory model to exist.
+ *
+ * Save / Load moves with New Game rather than with Resume, because a load has the
+ * same prerequisite a new game does -- `restoreState()` patches the seeded
+ * territories, so there must be territories to patch.
+ */
 export function setNewGameEnabled(enabled) {
     if (newGameButton) newGameButton.disabled = !enabled;
+    if (saveLoadButton) saveLoadButton.disabled = !enabled;
+}
+
+/** Enable or grey out Resume Game. */
+export function setResumeEnabled(enabled) {
+    if (resumeButton) resumeButton.disabled = !enabled;
+}
+
+export function isResumeEnabled() {
+    return Boolean(resumeButton) && !resumeButton.disabled;
+}
+
+/**
+ * What Resume offers right now. "Resume Game" while a game is running behind the
+ * menu; "Continue Saved Game" when the only thing to go back to is the autosave
+ * found at page load, because those are two different promises and a button that
+ * says the wrong one is worse than a button that says nothing.
+ */
+export function setResumeLabel(label) {
+    if (resumeButton) resumeButton.textContent = label;
 }
 
 /** The container, not the inner menu -- that is what the CSS blurs. */
@@ -110,6 +174,18 @@ export function destroy() {
     root?.remove();
     root = null;
     newGameButton = null;
+    resumeButton = null;
+    saveLoadButton = null;
 }
 
-export const mainMenu = { create, setNewGameEnabled, show, hide, isVisible, destroy };
+export const mainMenu = {
+    create,
+    setNewGameEnabled,
+    setResumeEnabled,
+    isResumeEnabled,
+    setResumeLabel,
+    show,
+    hide,
+    isVisible,
+    destroy,
+};

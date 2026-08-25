@@ -10,11 +10,20 @@ import {
 } from './src/data/manualAdjacencyExceptions.js';
 import {
     buildPathIndex,
-    getPathByName
+    getPathByName,
+    getPathByUniqueId
 } from './src/state/indexes.js';
 import {
+    renderAllTerritories
+} from './src/ui/mapAttributeSync.js';
+import {
+    installSaveTestHooks
+} from './src/platform/testHooks.js';
+import {
     getGameInitialisation,
-    initialiseGame
+    getTurnEngine,
+    initialiseGame,
+    resumeSavedGame
 } from './gameTurnsLoop.js';
 import {
     addPlayerPurchases,
@@ -104,6 +113,7 @@ import {
     currentPhase,
     playerCountryName,
     playerColour,
+    playerTerritories,
 } from './src/state/selectors.js';
 import {
     setPhase,
@@ -171,6 +181,12 @@ import {
     mount
 } from './src/ui/core/dom.js';
 import {
+    globeIcon,
+    mapSheetIcon,
+    mountainIcon,
+    continentIcon
+} from './src/ui/icons.js';
+import {
     tooltip
 } from './src/ui/components/Tooltip.js';
 import {
@@ -218,6 +234,32 @@ import {
 import {
     bottomTable
 } from './src/ui/components/BottomTable.js';
+import {
+    menuButton
+} from './src/ui/components/MenuButton.js';
+import {
+    confirmDialog
+} from './src/ui/components/ConfirmDialog.js';
+import {
+    saveLoadPanel
+} from './src/ui/components/SaveLoadPanel.js';
+import {
+    saveIndicator
+} from './src/ui/components/SaveIndicator.js';
+import {
+    applyGame,
+    autosaveSummary,
+    captureGame,
+    clearAutosave,
+    decodeSave,
+    encodeSave,
+    hasAutosave,
+    newGameBaseline,
+    readAutosave,
+    startAutosave,
+    stopAutosave,
+    writeAutosave
+} from './src/platform/storage.js';
 
 let currentlySelectedColorsArray = [];
 
@@ -487,7 +529,7 @@ export function svgMapLoaded() {
         e.target.dispatchEvent(newEvent);
 
         if (mapMode === 2) {
-            flipMapMode();
+            exitPhysicalMap();
             for (let i = 0; i < allTerritories().length; i++) {
                 if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
                     setColorOnMap(allTerritories()[i]);
@@ -648,7 +690,7 @@ function selectCountry(country, escKeyEntry) {
                             }
                         }
                     } else if (mapMode === 2) {
-                        flipMapMode();
+                        exitPhysicalMap();
                         for (let j = 0; j < allTerritories().length; j++) {
                             if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
                                 setColorOnMap(allTerritories()[j]);
@@ -738,37 +780,57 @@ document.addEventListener("DOMContentLoaded", function() {
     //other component's hover handlers push content into it.
     tooltip.create();
 
+    //Phase 7.2/7.3. Four components that all belong to the menu rather than to the
+    //turn loop. They create their own containers, so there is nothing in index.html
+    //for them and destroying one leaves no orphan <div>.
+    confirmDialog.create();
+    saveIndicator.create();
+    saveLoadPanel.create({
+        captureSave() {
+            const save = captureGame();
+            return save ? encodeSave(save) : null;
+        },
+        applySave: loadGameFromCode,
+        //"In progress" means the player is past the main menu, which includes the
+        //country-selection screen -- backing out of that is a decision too.
+        isGameInProgress: () => outsideOfMenuAndMapVisible,
+    });
+    //The hamburger is the same door Escape has always opened, with a handle on it.
+    menuButton.create({ onOpen: openInGameMenu });
+
     //MENU CONTAINER
     mainMenu.create({
-        onNewGame() {
+        async onNewGame() {
             playSoundClip("click");
-            resetGameState();
-            greyOutTerritoriesForUnselectableCountries();
+            //Restart is New Game, exactly as before -- what is new is that it now
+            //asks first, because from inside a running game it destroys that game.
+            if (outsideOfMenuAndMapVisible) {
+                const proceed = await confirmDialog.open({
+                    title: "Start a new game?",
+                    message:
+                        "Your current game will be lost. If you want to keep it, cancel " +
+                        "and take a save code from Save / Load first.",
+                    confirmLabel: "New Game",
+                });
+                if (!proceed) {
+                    return;
+                }
+            }
+            await startNewGame();
         },
         onOptions() {
             playSoundClip("click");
             optionsPanel.open();
         },
+        onResume() {
+            playSoundClip("click");
+            resumeFromMenu();
+        },
+        onSaveLoad() {
+            playSoundClip("click");
+            saveLoadPanel.open();
+        },
     });
-
-    function resetGameState() {
-        //Phase 5.8. The picker's markup value and the store's default player colour were
-        //two separate facts and they disagreed: the input shipped `#000000` while
-        //`playerColour()` was white. Any `change` on that input -- including the one the
-        //browser fires when the player opens the native colour dialog and accepts what is
-        //already selected -- therefore adopted BLACK, and the next country they clicked was
-        //painted the same colour as the map strokes, so it read as a hole rather than a
-        //selection. Seeding the input from the store is what keeps the two in step.
-        countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
-        toggleBottomTableContainer(true);
-        mainMenu.hide();
-        outsideOfMenuAndMapVisible = true;
-        menuState = false;
-        countrySelectedAndGameStarted = false;
-        selectCountryPlayerState = true;
-        popupWithConfirmContainer.style.display = "flex";
-        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-    }
 
     //MAP POPUP WITH CONFIRM BUTTON
     //Phase 6.3. The bar builds itself and derives its own title and button label
@@ -781,46 +843,62 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     const popupConfirm = phaseBar.buttonElement();
 
+    //MAP CHROME
+    //Phase 7.4. Three PNG buttons became two drawn ones. Both take the hamburger's
+    //box (`.chrome-button`) so the furniture over the map is one design rather than
+    //three, and both are SVG inside, so a theme reaches them -- which no PNG did.
+    //
+    //The continent-view button carries all three icons and shows one, chosen by
+    //`data-view`; swapping a `src` was what made the old pair impossible to assert
+    //on without naming a file. `updateContinentViewButton()` is the only writer.
     mount(
         ids.mapModeContainer,
-        el("img", {
-            id: ids.mapModeButton,
-            class: "mapMode",
-            src: "resources/mapMode1.png",
-            on: { click: () => flipMapMode() },
-        }),
-        el("img", {
-            id: ids.strokeHighlightButton,
-            class: "mapMode",
-            src: "resources/strokeToggle2.png",
-            on: { click: () => toggleContinentColorsStroke() },
-        })
+        el(
+            "button",
+            {
+                id: ids.continentViewButton,
+                class: "chrome-button continent-view-button",
+                attrs: { type: "button", "aria-label": "Continent view" },
+                on: {
+                    click() {
+                        playSoundClip("click");
+                        cycleContinentView();
+                    },
+                },
+            },
+            [mapSheetIcon(), mountainIcon(), continentIcon()]
+        )
     );
+    updateContinentViewButton();
 
     mount(
         ids.uiButtonContainer,
-        el("img", {
-            id: ids.uiToggleButton,
-            class: "UI-option",
-            src: "resources/globeNoStandButtonUI.png",
-            on: {
-                click() {
-                    playSoundClip("click");
-                    if (uiCurrentlyOnScreen) {
-                        toggleUIMenu(false);
-                    } else {
-                        toggleUIMenu(true);
-                        infoTable.setActiveTab("summary");
-                    }
+        el(
+            "button",
+            {
+                id: ids.uiToggleButton,
+                class: "chrome-button info-panel-button",
+                attrs: { type: "button", "aria-label": "Territories and upgrades", title: "Territories, army and wars" },
+                on: {
+                    click() {
+                        playSoundClip("click");
+                        if (uiCurrentlyOnScreen) {
+                            toggleUIMenu(false);
+                        } else {
+                            toggleUIMenu(true);
+                            infoTable.setActiveTab("summary");
+                        }
+                    },
                 },
             },
-        })
+            globeIcon()
+        )
     );
 
     countrySelect.create({
         onColourChange() {
             if (mapMode === 2) {
-                flipMapMode();
+                exitPhysicalMap();
             }
             setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
             phaseBar.colourLabelElement().style.color = playerColour();
@@ -881,6 +959,10 @@ document.addEventListener("DOMContentLoaded", function() {
             //and since Phase 6.3 the bar's own text follows from that one write.
             phaseBar.setMode(phaseBar.Mode.PLAYING);
             setPhase(Phase.BUY_UPGRADE);
+            //Phase 7.3. From here the game autosaves on a timer. A loaded game starts
+            //it from applyLoadedGame() for the same reason -- both are "a game is now
+            //running", and nothing else in the file is.
+            beginAutosaving();
         } else if (countrySelectedAndGameStarted && currentPhase() === Phase.BUY_UPGRADE) {
             setPhase(Phase.MOVE_ATTACK);
         }
@@ -1896,7 +1978,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
             }
         } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
             if (mapMode === 2) {
-                flipMapMode();
+                exitPhysicalMap();
                 //reset colours
 
             }
@@ -1924,6 +2006,9 @@ function setStrokeWidth(path, stroke) {
 
 export function enableNewGameButton() {
     mainMenu.setNewGameEnabled(true);
+    //Phase 7.3. The same prerequisite: a load patches the seeded territories, so an
+    //autosave can only be offered once there are territories to patch.
+    offerStoredAutosave();
 }
 
 function greyOutTerritoriesForUnselectableCountries() {
@@ -3648,99 +3733,473 @@ function setRow4(siegeOrAttack) {
     }
 }
 
-function setUnsetMenuOnEscape(e) {
-    if (e.code === "Escape" && outsideOfMenuAndMapVisible && !menuState) { //in game
-        mainMenu.show();
-        document.getElementById(ids.mainUiContainer).style.display = "none";
-        document.getElementById(ids.upgradeContainer).style.display = "none";
-        toggleBottomTableContainer(false);
-        toggleTopTableContainer(false);
-        menuState = true;
-        toggleBottomLeftPaneWithTurnAdvance(false);
-        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-        toggleUIButton(false);
-        uiButtonCurrentlyOnScreen = false;
-        toggleMapModeButton(false);
-        mapModeButtonCurrentlyOnScreen = false;
-        toggleUpgradeMenu(false);
-        toggleBuyMenu(false);
-        toggleTransferAttackButton(false, false);
-        toggleTransferAttackWindow(false);
-        toggleBattleUI(false, false);
-        toggleBattleResults(false);
-        toggleAiDialogue(false);
+/**
+ * Leave the menu for the country-selection screen.
+ *
+ * Phase 7.2 moved this out of the `DOMContentLoaded` closure: New Game is no longer
+ * the only caller, because a restart from inside a running game has to come back
+ * through here after the world has been reset. The one line that stopped it moving
+ * was a write to the phase bar's element, which the closure happened to have a
+ * reference to; the bar owns that now (`phaseBar.setVisible`).
+ */
+function resetGameState() {
+    //Phase 5.8. The picker's markup value and the store's default player colour were
+    //two separate facts and they disagreed: the input shipped `#000000` while
+    //`playerColour()` was white. Any `change` on that input -- including the one the
+    //browser fires when the player opens the native colour dialog and accepts what is
+    //already selected -- therefore adopted BLACK, and the next country they clicked was
+    //painted the same colour as the map strokes, so it read as a hole rather than a
+    //selection. Seeding the input from the store is what keeps the two in step.
+    countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
+    toggleBottomTableContainer(true);
+    mainMenu.hide();
+    outsideOfMenuAndMapVisible = true;
+    menuState = false;
+    countrySelectedAndGameStarted = false;
+    selectCountryPlayerState = true;
+    phaseBar.setVisible(true);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+    menuButton.show();
+}
 
-    } else if (e.code === "Escape" && outsideOfMenuAndMapVisible && menuState) { // in menu
-        if (uiCurrentlyOnScreen) {
-            document.getElementById(ids.mainUiContainer).style.display = "flex";
-            uiButtonCurrentlyOnScreen = false;
-            mapModeButtonCurrentlyOnScreen = false;
-            bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-        } else {
-            if (countrySelectedAndGameStarted) {
-                uiButtonCurrentlyOnScreen = true;
-                mapModeButtonCurrentlyOnScreen = true;
-            }
+/**
+ * Is there a game (or a country selection) behind the menu to go back to?
+ *
+ * Phase 7.2. `outsideOfMenuAndMapVisible` has always meant this; it now has a name
+ * that says so, because three things ask the question -- Escape, the hamburger and
+ * the Resume button.
+ */
+export function inGameMenuAvailable() {
+    return outsideOfMenuAndMapVisible;
+}
+
+/**
+ * Put the main menu up over a running game.
+ *
+ * Phase 7.2 split this out of `setUnsetMenuOnEscape()`, which was one function
+ * containing both halves of a toggle behind a keycode test. Escape, the hamburger
+ * button and (in the other direction) Resume Game are three ways to make the same
+ * two transitions, and a keycode is not one of the things they have in common.
+ */
+export function openInGameMenu() {
+    if (!outsideOfMenuAndMapVisible || menuState) {
+        return;
+    }
+    //Resume means "go back to what is behind this menu", so it is available exactly
+    //when there is something behind it -- which there is, or we would have returned.
+    mainMenu.setResumeLabel("Resume Game");
+    mainMenu.setResumeEnabled(true);
+    menuButton.hide();
+    mainMenu.show();
+    document.getElementById(ids.mainUiContainer).style.display = "none";
+    document.getElementById(ids.upgradeContainer).style.display = "none";
+    toggleBottomTableContainer(false);
+    toggleTopTableContainer(false);
+    menuState = true;
+    toggleBottomLeftPaneWithTurnAdvance(false);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    toggleUIButton(false);
+    uiButtonCurrentlyOnScreen = false;
+    toggleMapModeButton(false);
+    mapModeButtonCurrentlyOnScreen = false;
+    toggleUpgradeMenu(false);
+    toggleBuyMenu(false);
+    toggleTransferAttackButton(false, false);
+    toggleTransferAttackWindow(false);
+    toggleBattleUI(false, false);
+    toggleBattleResults(false);
+    toggleAiDialogue(false);
+}
+
+/** Take the menu down and hand the map back. Resume Game and Escape both call it. */
+export function closeInGameMenu() {
+    if (!outsideOfMenuAndMapVisible || !menuState) {
+        return;
+    }
+    menuButton.show();
+    if (uiCurrentlyOnScreen) {
+        document.getElementById(ids.mainUiContainer).style.display = "flex";
+        uiButtonCurrentlyOnScreen = false;
+        mapModeButtonCurrentlyOnScreen = false;
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    } else {
+        if (countrySelectedAndGameStarted) {
+            uiButtonCurrentlyOnScreen = true;
+            mapModeButtonCurrentlyOnScreen = true;
+        }
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+    }
+    if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
+        if (transferAttackWindowOnScreen) {
+            toggleTransferAttackWindow(true);
+        } else if (battleUIDisplayed) {
+            toggleBattleUI(true, false);
+        } else if (battleResultsDisplayed) {
+            toggleBattleResults(true);
+        }
+        uiButtonCurrentlyOnScreen = false;
+        bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+        mapModeButtonCurrentlyOnScreen = false;
+    } else {
+        if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
+            uiButtonCurrentlyOnScreen = true;
+            mapModeButtonCurrentlyOnScreen = true;
+        }
+        if (!uiCurrentlyOnScreen) {
             bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
         }
-        if (transferAttackWindowOnScreen || battleUIDisplayed || battleResultsDisplayed) {
-            if (transferAttackWindowOnScreen) {
-                toggleTransferAttackWindow(true);
-            } else if (battleUIDisplayed) {
-                toggleBattleUI(true, false);
-            } else if (battleResultsDisplayed) {
-                toggleBattleResults(true);
-            }
-            uiButtonCurrentlyOnScreen = false;
-            bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
-            mapModeButtonCurrentlyOnScreen = false;
-        } else {
-            if (countrySelectedAndGameStarted && !uiCurrentlyOnScreen) {
-                uiButtonCurrentlyOnScreen = true;
-                mapModeButtonCurrentlyOnScreen = true;
-            }
-            if (!uiCurrentlyOnScreen) {
-                bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
-            }
-        }
-        if (upgradeWindowCurrentlyOnScreen) {
-            toggleUpgradeMenu(true);
-        }
-        if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
-            toggleBottomLeftPaneWithTurnAdvance(true);
-        }
-        if (uiButtonCurrentlyOnScreen) {
-            toggleUIButton(true);
-        }
-        if (mapModeButtonCurrentlyOnScreen) {
-            toggleMapModeButton(true);
-        }
-        if (buyWindowCurrentlyOnScreen) {
-            toggleBuyMenu(true);
-        }
-        if (countrySelectedAndGameStarted) {
-            toggleTopTableContainer(true);
-        }
-        if (transferAttackButtonDisplayed) {
-            toggleTransferAttackButton(true, false);
-        }
-        if (aiDialogueContainerCurrentlyOnScreen) {
-            toggleAiDialogue(true);
-        }
-        toggleBottomTableContainer(true);
-        mainMenu.hide();
+    }
+    if (upgradeWindowCurrentlyOnScreen) {
+        toggleUpgradeMenu(true);
+    }
+    if (bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen) {
+        toggleBottomLeftPaneWithTurnAdvance(true);
+    }
+    if (uiButtonCurrentlyOnScreen) {
+        toggleUIButton(true);
+    }
+    if (mapModeButtonCurrentlyOnScreen) {
+        toggleMapModeButton(true);
+    }
+    if (buyWindowCurrentlyOnScreen) {
+        toggleBuyMenu(true);
+    }
+    if (countrySelectedAndGameStarted) {
+        toggleTopTableContainer(true);
+    }
+    if (transferAttackButtonDisplayed) {
+        toggleTransferAttackButton(true, false);
+    }
+    if (aiDialogueContainerCurrentlyOnScreen) {
+        toggleAiDialogue(true);
+    }
+    toggleBottomTableContainer(true);
+    mainMenu.hide();
 
-        if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
-            selectCountry(lastClickedPath, true);
-            //Re-appending the path puts it over the marker, so the marker is drawn again.
-            raiseAttackMarker();
-        }
-
-        //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
-
-        menuState = false;
+    if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
+        selectCountry(lastClickedPath, true);
+        //Re-appending the path puts it over the marker, so the marker is drawn again.
+        raiseAttackMarker();
     }
 
+    //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
+
+    menuState = false;
+}
+
+function setUnsetMenuOnEscape(e) {
+    if (e.code !== "Escape" || !outsideOfMenuAndMapVisible) {
+        return;
+    }
+    if (menuState) {
+        closeInGameMenu();
+    } else {
+        openInGameMenu();
+    }
+}
+
+//--- New Game, Resume and Save / Load (Phase 7.2 / 7.3) ---------------------
+//
+//The four transitions the menu can make, in one place. Everything below is
+//sequencing -- what the world does is src/platform/storage.js, what the map does is
+//src/ui/map/, and what a turn does is the engine.
+//
+//The reason these are not four one-liners is `outsideOfMenuAndMapVisible`: the menu
+//is the same menu before and during a game, so every one of them has to ask which
+//it is. That flag is the answer, and `inGameMenuAvailable()` is its name.
+
+/**
+ * Start over.
+ *
+ * From the title screen this is what it always was -- show the country-selection
+ * screen. From inside a running game it is a restart, and there is no separate
+ * Restart button because there does not need to be: the two differ only in whether
+ * there is a world to throw away first.
+ *
+ * Throwing it away is three things in a fixed order. The engine stops FIRST, so no
+ * step is part-way through a turn while the store changes underneath it; then the
+ * pristine baseline captured at bootstrap is loaded, which is what makes Restart a
+ * load rather than a re-run of the 359-path bootstrap; then the map is repainted
+ * from the restored store. Reversing any two of those leaves a half-reset world on
+ * screen.
+ */
+async function startNewGame() {
+    if (outsideOfMenuAndMapVisible) {
+        stopAutosave();
+        await getTurnEngine().reset();
+
+        const baseline = newGameBaseline();
+        if (baseline) {
+            applyGame(baseline);
+            //restoreState() deliberately emits no per-territory events; this is the
+            //one repaint that replaces all 359 of them.
+            renderAllTerritories();
+        } else {
+            //Only reachable if New Game is somehow pressed before the bootstrap
+            //Promise resolved, which is also what keeps the button disabled.
+            console.warn("New Game: no pristine baseline was captured; the previous " +
+                "game's world is still loaded.");
+        }
+        resetTransientUiState();
+        resetChromeForCountrySelection();
+    }
+
+    resetGameState();
+    greyOutTerritoriesForUnselectableCountries();
+    //Back to the bootstrap palette with the five locked countries muted. On a first
+    //New Game the map is already in that state and this is a no-op; after a restart
+    //it is what takes the player's colour and every conquest back off the map.
+    repaintCountrySelection(null);
+}
+
+/**
+ * Put the chrome back to how the country-selection screen looks on a cold start.
+ *
+ * Everything here is something a restart would otherwise inherit from the game it
+ * replaced: a phase bar still reading "Military Phase" over an END TURN button, the
+ * previous country in the bottom table, the globe and map-mode buttons that only
+ * appear once a game is running, and a `lastClickedPath` pointing at a territory the
+ * player no longer owns.
+ */
+function resetChromeForCountrySelection() {
+    phaseBar.setMode(phaseBar.Mode.SELECTING);
+    bottomTable.reset();
+    toggleUIButton(false);
+    toggleMapModeButton(false);
+    toggleTopTableContainer(false);
+    topTable.setHeading("Select a Country");
+    //The colour label and the confirm button are put back by phaseBar.setMode()
+    //above -- both are the bar's own elements and both are hidden until a country is
+    //clicked, which is a fact about the bar rather than about the game.
+    //The placeholder `d` is what `closeInGameMenu()` tests to decide whether there is
+    //a selection to restore, so it has to be exactly this one.
+    lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    lastClickedPath.setAttribute("d", "M0 0 L50 50");
+    currentSelectedPath = undefined;
+}
+
+/**
+ * Put every "is this panel on screen" flag back to false.
+ *
+ * These are the module-level booleans that `closeInGameMenu()` reads to decide what
+ * to put back. After a restart or a load they describe the game that is being
+ * replaced, so leaving them alone is how a battle results screen from the previous
+ * game reappears the first time the player presses Escape in the new one.
+ */
+function resetTransientUiState() {
+    resetContinentView();
+    uiCurrentlyOnScreen = false;
+    uiButtonCurrentlyOnScreen = false;
+    mapModeButtonCurrentlyOnScreen = false;
+    upgradeWindowCurrentlyOnScreen = false;
+    buyWindowCurrentlyOnScreen = false;
+    transferAttackWindowOnScreen = false;
+    transferAttackButtonDisplayed = false;
+    battleUIDisplayed = false;
+    battleResultsDisplayed = false;
+    aiDialogueContainerCurrentlyOnScreen = false;
+    attackTextCurrentlyDisplayed = false;
+    clearAttackTarget();
+    toggleUIMenu(false);
+    toggleUpgradeMenu(false);
+    toggleBuyMenu(false);
+    toggleTransferAttackWindow(false);
+    toggleBattleUI(false, false);
+    toggleBattleResults(false);
+    toggleAiDialogue(false);
+    toggleTransferAttackButton(false, false);
+}
+
+/**
+ * Resume Game.
+ *
+ * The button means two different things and this is where they part company. With a
+ * game behind the menu it is the other half of Escape. On a cold start it is the
+ * autosave found at page load -- which is the only reason the button is enabled at
+ * all before anything has been clicked.
+ */
+async function resumeFromMenu() {
+    if (outsideOfMenuAndMapVisible) {
+        closeInGameMenu();
+        return;
+    }
+
+    const save = readAutosave();
+    if (!save) {
+        //The slot was cleared or went bad between page load and the click.
+        mainMenu.setResumeEnabled(false);
+        return;
+    }
+    try {
+        await applyLoadedGame(save);
+    } catch (error) {
+        console.error("Resume: the stored autosave could not be loaded.", error);
+        //Say so where there is somewhere to say it, rather than failing silently
+        //against a menu that still offers the button.
+        saveLoadPanel.open();
+        saveLoadPanel.setStatus(
+            error?.message ?? "The stored game could not be loaded.", "bad");
+    }
+}
+
+/**
+ * Enable Resume for an autosave from a previous visit.
+ *
+ * Called from `enableNewGameButton()` rather than from the bootstrap block, and that
+ * is not incidental: a load patches the seeded territories, so offering it before
+ * the territory model exists offers a button that cannot work. The two become
+ * available at the same moment because they have the same prerequisite.
+ */
+function offerStoredAutosave() {
+    const summary = autosaveSummary();
+    if (!summary) {
+        return;
+    }
+    //A different promise from "resume the game you are playing", so a different
+    //label. Naming the turn is what makes it a decision rather than a leap.
+    mainMenu.setResumeLabel("Continue Turn " + summary.turn);
+    mainMenu.setResumeEnabled(true);
+}
+
+/**
+ * Load a pasted save code. The Save / Load panel's `applySave`.
+ *
+ * `decodeSave()` throws with a message written for the player, and the panel shows
+ * whatever comes out of here, so nothing is caught in between.
+ */
+async function loadGameFromCode(code) {
+    await applyLoadedGame(decodeSave(code));
+}
+
+/**
+ * Restore a decoded save and hand the player a playable turn.
+ *
+ * This is the country-selection confirm handler with the country selection taken
+ * out: the same UI transitions, but the world arrives from the save instead of from
+ * `initialiseGame()`, and nothing here may draw from `Math.random` -- the AI
+ * leaders, the starting forts and the initial gold are all IN the save, and
+ * regenerating any of them would silently replace part of the loaded game.
+ */
+async function applyLoadedGame(save) {
+    stopAutosave();
+    await getTurnEngine().reset();
+
+    const loaded = applyGame(save);
+
+    saveLoadPanel.close();
+    optionsPanel.close(false);
+    mainMenu.hide();
+
+    resetTransientUiState();
+    outsideOfMenuAndMapVisible = true;
+    menuState = false;
+    selectCountryPlayerState = false;
+    countrySelectedAndGameStarted = true;
+
+    //`initialiseNewPlayerTurn()` populates the bottom table from the last clicked
+    //path at the end of every AI turn, and a freshly loaded game has never had a
+    //click. Pointing it at one of the player's own territories is what stops the
+    //first AI turn ending on a lookup against the placeholder path.
+    const firstPlayerTerritory = playerTerritories()[0];
+    const firstPlayerPath = firstPlayerTerritory
+        ? getPathByUniqueId(firstPlayerTerritory.uniqueId)
+        : null;
+    if (firstPlayerPath) {
+        lastClickedPath = firstPlayerPath;
+    }
+
+    countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
+    phaseBar.colourLabelElement().style.color = playerColour();
+    phaseBar.dimBody();
+    setFlag(playerCountryName(), 1); //top table
+    setFlag(playerCountryName(), 3); //info panel
+    //Place 0 returns the URL without writing it anywhere. The bar's own flag is
+    //normally a side effect of the selection screen, which a loaded game never sees.
+    phaseBar.setBrandFlag(setFlag(playerCountryName(), 0));
+    topTable.setHeading("Total Player Resources:");
+    phaseBar.setMode(phaseBar.Mode.INITIALISING);
+
+    toggleBottomTableContainer(true);
+    toggleTopTableContainer(true);
+    phaseBar.setVisible(true);
+    toggleBottomLeftPaneWithTurnAdvance(true);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
+
+    await resumeSavedGame(loaded.phase);
+
+    document.getElementById(ids.popupWithConfirmContainer).style.display = "block";
+    //The colour label stays on screen during play in a game started from the menu,
+    //so a loaded game shows it too -- a difference here would be a difference the
+    //player can see between the two ways of arriving at the same turn.
+    document.getElementById(ids.popupColor).style.display = "block";
+    uiButtonCurrentlyOnScreen = true;
+    toggleUIButton(true);
+    mapModeButtonCurrentlyOnScreen = true;
+    toggleMapModeButton(true);
+    menuButton.show();
+
+    //The phase is already in the store, so the bar derives its own labels -- there
+    //is deliberately no setPhase() here, which would announce a transition that did
+    //not happen.
+    phaseBar.setMode(phaseBar.Mode.PLAYING);
+    populateBottomTableWhenSelectingACountry(getLastClickedPath());
+
+    beginAutosaving();
+    return loaded;
+}
+
+/**
+ * Start the one-minute autosave.
+ *
+ * The `shouldSave` gate is the interesting part. A save is a picture of the store
+ * plus the registered slices, and neither carries what a battle is holding in
+ * battle.js's module-level variables mid-resolution -- so a tick that landed inside
+ * a battle would store a world that cannot be resumed to the screen the player is
+ * looking at. The AI turn is excluded for the same reason: the engine has no way to
+ * re-enter a step half-way through, so `resumeSavedGame()` puts an AI-turn save back
+ * into the player's move phase, which is a worse answer than not taking that save at
+ * all.
+ */
+function beginAutosaving() {
+    installSaveTestHooks({
+        //The timer's tick, minus the timer. See installSaveTestHooks.
+        saveNow() {
+            const save = captureGame();
+            if (!save) {
+                return false;
+            }
+            const stored = writeAutosave(save);
+            saveIndicator.flash(stored ? "Saving" : "Save failed");
+            if (stored) {
+                mainMenu.setResumeEnabled(true);
+            }
+            return stored;
+        },
+        saveCode() {
+            const save = captureGame();
+            return save ? encodeSave(save) : null;
+        },
+        loadCode: (code) => loadGameFromCode(code),
+        hasStoredSave: () => hasAutosave(),
+        clearStoredSave: () => clearAutosave(),
+    });
+    startAutosave({
+        shouldSave: () =>
+            countrySelectedAndGameStarted &&
+            getTurnEngine().isAwaitingPlayer() &&
+            !battleUIDisplayed &&
+            !battleResultsDisplayed &&
+            !transferAttackWindowOnScreen,
+        onSaved(_save, stored) {
+            if (stored) {
+                saveIndicator.flash();
+                mainMenu.setResumeEnabled(true);
+            } else {
+                //writeAutosave() has already logged why. The player keeps playing.
+                saveIndicator.flash("Save failed");
+            }
+        },
+    });
 }
 
 export function getOriginalDefendingTerritory() {
@@ -4001,76 +4460,151 @@ function modifyFill(pathElement, mousedown) {
     }
 }
 
-function flipMapMode() {
-    let continentColor;
-    switch (mapMode) {
-        case 1:
-            document.getElementById(ids.mapModeButton).src = "resources/mapMode2.png";
-            mapMode = 2;
-            svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
-            for (let i = 0; i < pathsCoastLines.length; i++) {
-                pathsCoastLines[i].setAttribute("fill-opacity", "0.20");
-                continentColor = pathsCoastLines[i].getAttribute("shadow");
-                pathsCoastLines[i].setAttribute("fill", `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`);
-            }
-            for (let i = 0; i < paths.length; i++) {
-                paths[i].setAttribute("fill-opacity", "0.01");
-                for (let j = 0; j < allTerritories().length; j++) {
-                    if (allTerritories()[j].unique === paths[i].getAttribute("uniqueid")) {
-                        setStrokeOnMap(allTerritories()[j]);
-                        break;
-                    }
-                }
-                paths[i].setAttribute("stroke-width", "1px");
-                pathIsPlayerOwned(paths[i]) ? (paths[i].setAttribute("fill", playerColour()), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
-            }
-            break;
-        case 2:
-            document.getElementById(ids.mapModeButton).src = "resources/mapMode1.png";
-            mapMode = 1;
-            for (let i = 0; i < paths.length; i++) {
-                paths[i].style.stroke = "black";
-                paths[i].setAttribute("stroke-width", "1px");
-                paths[i].setAttribute("fill-opacity", "1");
-            }
-            repaintMap();
-            svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
-            for (let i = 0; i < pathsCoastLines.length; i++) {
-                pathsCoastLines[i].setAttribute("fill", "rgb(134, 133, 104)");
-                pathsCoastLines[i].setAttribute("fill", "none");
-            }
-            break;
-    }
-}
+//----------------------------------------CONTINENT VIEW--------------------------------------------
 
-function toggleContinentColorsStroke() {
+// Phase 7.4. Two buttons became one.
+//
+// `mapModeButton` flipped the relief map on and off and `strokeHighlightButton`
+// drew the continent boundaries, independently -- four combinations, of which one
+// (relief with no boundaries over it) is close to unreadable, because the physical
+// map drops every territory fill to 1% opacity and the boundaries are then the
+// only thing saying where anything is. The button walks the three that are worth
+// looking at, in this order:
+//
+//     normal     political map, no boundaries          folded-map icon
+//     physical   relief map + continent boundaries     mountain icon
+//     continent  political map + continent boundaries  Africa icon
+//
+// The icon shows the view you are IN, not the one the next click gives you.
+//
+// The two halves stay separate functions because leaving the relief map is
+// something the map click, the colour picker and the end of the player's turn each
+// do on their own. They call `exitPhysicalMap()`, which lands on `continent` -- the
+// same place the second click of the cycle goes -- and re-syncs the icon. Nothing
+// outside this section may write `mapMode`.
+
+const CONTINENT_VIEW_CYCLE = ["normal", "physical", "continent"];
+
+const CONTINENT_VIEW_TITLE = {
+    normal: "Continent view (political map)",
+    physical: "Continent view (relief and boundaries)",
+    continent: "Continent view (boundaries)",
+};
+
+let continentView = "normal";
+
+/** The relief layer, and the near-transparent territory fills that go with it. */
+function setPhysicalMap(on) {
+    if (on === (mapMode === 2)) {
+        return;
+    }
     let continentColor;
-    for (let i = 0; i < pathsCoastLines.length; i++) {
-        if (pathsCoastLines[i].style.stroke === "rgb(103, 124, 160)") {
-            //toggle on
-            document.getElementById(ids.strokeHighlightButton).src = "resources/strokeToggle1.png";
+    if (on) {
+        mapMode = 2;
+        svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
+        for (let i = 0; i < pathsCoastLines.length; i++) {
+            pathsCoastLines[i].setAttribute("fill-opacity", "0.20");
             continentColor = pathsCoastLines[i].getAttribute("shadow");
-            pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
-            if (mapMode === 1) {
-                pathsCoastLines[i].style.strokeWidth = "6px";
-            } else if (mapMode === 2) {
-                pathsCoastLines[i].style.strokeWidth = "5px";
+            pathsCoastLines[i].setAttribute("fill", `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`);
+        }
+        for (let i = 0; i < paths.length; i++) {
+            paths[i].setAttribute("fill-opacity", "0.01");
+            for (let j = 0; j < allTerritories().length; j++) {
+                if (allTerritories()[j].unique === paths[i].getAttribute("uniqueid")) {
+                    setStrokeOnMap(allTerritories()[j]);
+                    break;
+                }
             }
-        } else { // toggle off
-            document.getElementById(ids.strokeHighlightButton).src = "resources/strokeToggle2.png";
-            pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
-            if (pathsCoastLines[i].getAttribute("isisland") === "true") {
-                pathsCoastLines[i].style.strokeWidth = "2px";
-            } else {
-                pathsCoastLines[i].style.strokeWidth = "5px";
-            }
+            paths[i].setAttribute("stroke-width", "1px");
+            pathIsPlayerOwned(paths[i]) ? (paths[i].setAttribute("fill", playerColour()), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
+        }
+    } else {
+        mapMode = 1;
+        for (let i = 0; i < paths.length; i++) {
+            paths[i].style.stroke = "black";
+            paths[i].setAttribute("stroke-width", "1px");
+            paths[i].setAttribute("fill-opacity", "1");
+        }
+        repaintMap();
+        svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
+        for (let i = 0; i < pathsCoastLines.length; i++) {
+            pathsCoastLines[i].setAttribute("fill", "none");
         }
     }
 }
 
+/**
+ * The continent boundaries. Directed rather than toggled: this used to read the
+ * stroke back off each coast-line path to decide which way to go, which meant the
+ * button and the map could disagree the moment anything else touched a stroke. The
+ * boundary width depends on the map mode, so this runs AFTER `setPhysicalMap()`,
+ * never before -- 6px reads as a boundary over flat colour and as a smear over the
+ * relief.
+ */
+function setContinentStrokes(on) {
+    let continentColor;
+    for (let i = 0; i < pathsCoastLines.length; i++) {
+        if (on) {
+            continentColor = pathsCoastLines[i].getAttribute("shadow");
+            pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
+            pathsCoastLines[i].style.strokeWidth = mapMode === 2 ? "5px" : "6px";
+        } else {
+            pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
+            pathsCoastLines[i].style.strokeWidth =
+                pathsCoastLines[i].getAttribute("isisland") === "true" ? "2px" : "5px";
+        }
+    }
+}
+
+/** `data-view` is what the CSS picks an icon by, and what the e2e specs read. */
+function updateContinentViewButton() {
+    const button = document.getElementById(ids.continentViewButton);
+    if (!button) {
+        return;
+    }
+    button.setAttribute("data-view", continentView);
+    button.setAttribute("title", CONTINENT_VIEW_TITLE[continentView]);
+}
+
+function applyContinentView(view) {
+    setPhysicalMap(view === "physical");
+    setContinentStrokes(view !== "normal");
+    continentView = view;
+    updateContinentViewButton();
+}
+
+function cycleContinentView() {
+    const next =
+        CONTINENT_VIEW_CYCLE[
+            (CONTINENT_VIEW_CYCLE.indexOf(continentView) + 1) % CONTINENT_VIEW_CYCLE.length
+        ];
+    applyContinentView(next);
+}
+
+/**
+ * Drop the relief layer and keep the boundaries, which is the second stop of the
+ * cycle. Called wherever the map has to be legible again whether the player asked
+ * for it or not: a territory click, a colour change, the end of the turn.
+ */
+function exitPhysicalMap() {
+    if (mapMode !== 2) {
+        return;
+    }
+    applyContinentView("continent");
+}
+
+/** Back to the plain political map. A restart or a load starts there. */
+function resetContinentView() {
+    if (continentView === "normal") {
+        updateContinentViewButton();
+        return;
+    }
+    applyContinentView("normal");
+}
+
 export function endPlayerTurn() {
     if (mapMode === 2) {
-        flipMapMode();
+        exitPhysicalMap();
     }
 
     //Phase 6.7. Forty lines of hand-rolled repaint stood here -- reset the stroke on

@@ -69,9 +69,33 @@ export function update(values = {}) {
     }
 }
 
+/**
+ * Back to the empty row index.html ships with.
+ *
+ * Phase 7.2. New Game from inside a running game leaves the row describing a
+ * territory of the game that has just been thrown away -- the previous country's
+ * flag, its name and its figures, one of them still coloured red by
+ * `colourTableText()` from a shortfall that no longer exists. The colours are
+ * cleared as well as the text, because they are inline styles: writing "-" over a
+ * red cell leaves a red dash.
+ */
+export function reset() {
+    const cells = row()?.cells;
+    if (!cells) return;
+    for (const cell of cells) {
+        cell.style.color = "";
+    }
+    cells[COLUMN.flag].innerHTML = "";
+    cells[COLUMN.name].innerHTML = "Select a Country";
+    for (const key of ["mountainDefence", "gold", "oil", "food", "consMats", "population",
+        "area", "army"]) {
+        cells[COLUMN[key]].innerHTML = "-";
+    }
+}
+
 /** True when `table` is this one -- `colourTableText()` treats it specially. */
 export function is(table) {
     return table === element();
 }
 
-export const bottomTable = { create, update, element, is, COLUMN };
+export const bottomTable = { create, update, reset, element, is, COLUMN };

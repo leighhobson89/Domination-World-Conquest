@@ -13,6 +13,7 @@ import {
     zoomMap
 } from './src/ui/map/camera.js';
 import {
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
     getPlayerTerritories,
     getPathAreaComputations,
     newTurnResources,
@@ -108,8 +109,15 @@ import {
     setNextAiWarId
 } from './src/state/mutations.js';
 import {
+    Phase,
     phaseName
 } from './src/state/phases.js';
+import {
+    renderAllTerritories
+} from './src/ui/mapAttributeSync.js';
+import {
+    registerSaveSlice
+} from './src/platform/saveSlices.js';
 import {
     pathCountry
 } from './src/state/pathState.js';
@@ -256,8 +264,9 @@ export async function initialiseGame() {
     svg.style.pointerEvents = 'none';
     gameInitialisation = true;
     console.log("Welcome to new game! Your country is " + playerCountryName() + "!");
-    const svgMap = document.getElementById(ids.svgMap).contentDocument;
-    const paths = Array.from(svgMap.querySelectorAll('path'));
+    //A local `const paths = Array.from(svgMap.querySelectorAll("path"))` stood here,
+    //shadowing the module-level import of the same list. It went with the extraction of
+    //paintWholeMapFromModel() in Phase 7.3 -- there is one `paths` in this file now.
 
     //Two loops for one fact: the path attribute and then the model field, each over its
     //own collection. One write now, and src/ui/mapAttributeSync.js renders the attribute
@@ -288,11 +297,34 @@ export async function initialiseGame() {
     changeAllPathsToWhite();
     moveButton.setLabel("LOADING...");
 
-    // Attack options for every territory. This used to be an awaited loop that
-    // re-fetched and re-parsed the 19 MB closestPathsData.json once per territory
-    // -- 359 fetches and roughly 6.8 GB of JSON.parse before turn 1 could start.
-    // It is now one 77 KB load and a synchronous pass. See docs/01-codebase-audit.md
-    // section 4.1 and docs/03-refactor-plan.md Phase 1.1-1.2.
+    await buildAttackOptions();
+    paintWholeMapFromModel();
+
+    toggleTransferAttackButton(false, true);
+    document.getElementById(ids.popupColor).disabled = true;
+    gameInitialisation = false;
+    svg.style.pointerEvents = 'auto';
+
+    installAdjacencyHooks();
+    signalReady();
+
+    installPhaseButton();
+    turnEngine.start();
+}
+
+/**
+ * Attack options for every territory.
+ *
+ * This used to be an awaited loop that re-fetched and re-parsed the 19 MB
+ * closestPathsData.json once per territory -- 359 fetches and roughly 6.8 GB of
+ * JSON.parse before turn 1 could start. It is now one 77 KB load and a synchronous
+ * pass. See docs/01-codebase-audit.md section 4.1 and docs/03-refactor-plan.md
+ * Phase 1.1-1.2.
+ *
+ * Purely a function of the map, so a loaded game rebuilds it rather than carrying
+ * 359 adjacency lists around inside every save.
+ */
+async function buildAttackOptions() {
     await loadAdjacency();
     for (const territory of allTerritories()) {
         // Indexed BY uniqueId, not by push order. The old code pushed in
@@ -303,23 +335,26 @@ export async function initialiseGame() {
             getInteractableFrom(territory.uniqueId, territory.territoryName).map(name => [name])
         ];
     }
+}
 
-    // Colouring used to be a side effect of the loop above, one territory at a
-    // time, which is what produced the visible "loading" sweep across the map.
+/**
+ * Paint every territory from the model, then the player's own countries on top.
+ *
+ * Colouring used to be a side effect of the adjacency loop, one territory at a time,
+ * which is what produced the visible "loading" sweep across the map.
+ */
+function paintWholeMapFromModel() {
     for (const territory of allTerritories()) {
         setColorOnMap(territory);
     }
-
     for (const path of paths) {
         if (pathCountry(path) === playerCountryName()) {
-            path.setAttribute("fill", playerColour()); //set player as the owner of the territory they select
+            path.setAttribute("fill", playerColour()); //the player's own colour wins
         }
     }
-    toggleTransferAttackButton(false, true);
-    document.getElementById(ids.popupColor).disabled = true;
-    gameInitialisation = false;
-    svg.style.pointerEvents = 'auto';
+}
 
+function installAdjacencyHooks() {
     installAdjacencyTestHooks({
         interactableFrom: (territoryName) => {
             const territory = getTerritoryByName(territoryName);
@@ -336,10 +371,73 @@ export async function initialiseGame() {
                     getInteractableFrom(territory.uniqueId, territory.territoryName).length === 0)
                 .map(territory => territory.territoryName)
     });
+}
+
+/**
+ * Bring a loaded save up to a playable turn. The load-side counterpart of
+ * `initialiseGame()`.
+ *
+ * The store and the legacy modules have already been restored by the time this runs
+ * (`src/platform/storage.js`); what is left is everything `initialiseGame()` does
+ * that is a function of the map rather than of a die roll. Three things it
+ * deliberately does NOT do, and each of them would corrupt the loaded game:
+ *
+ *   * it does not assign ownership from `playerCountryName()`. The save already says
+ *     who owns what, and re-running that loop would hand the player back every
+ *     territory of their starting country that they have since lost;
+ *   * it does not create CPU leaders or starting forts. Both draw from `Math.random`
+ *     and both are already in the save -- generating them again would replace every
+ *     AI personality mid-game and re-fortify the world;
+ *   * it does not run `beginTurn`. The saved turn has already had its income, its
+ *     siege tick and its disaster roll; the engine resumes INSIDE that turn.
+ *
+ * @param {number} phase  the `Phase` the save was taken in
+ */
+export async function resumeSavedGame(phase) {
+    setZoomLevel(1);
+    zoomMap("init");
+    svg.style.pointerEvents = 'none';
+    gameInitialisation = true;
+
+    //Rebuilt, not saved: it is an index over the territory model, and the model has
+    //just been restored.
+    updateArrayOfLeadersAndCountries();
+    arrayOfLeadersAndCountries = getArrayOfLeadersAndCountries();
+    pruneSiegesForMissingTerritories(name => getTerritoryByName(name) !== null);
+
+    document.getElementById(ids.topTableContainer).style.display = "block";
+    toggleTransferAttackButton(true, true);
+    moveButton.setLabel("LOADING...");
+
+    await buildAttackOptions();
+
+    //The six rendered path attributes and the siege overlays, from the restored store.
+    //`restoreState()` deliberately does not emit 359 territory events to get here.
+    renderAllTerritories();
+    paintWholeMapFromModel();
+
+    //The top table is written, not derived -- nothing repaints it on a state change,
+    //so without this it goes on showing the totals of the game that was abandoned.
+    //This is a pure sum over the restored territories: it grants no income, which is
+    //why the load calls it rather than newTurnResources().
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(true);
+
+    toggleTransferAttackButton(false, true);
+    document.getElementById(ids.popupColor).disabled = true;
+    gameInitialisation = false;
+    svg.style.pointerEvents = 'auto';
+
+    installAdjacencyHooks();
     signalReady();
 
     installPhaseButton();
-    turnEngine.start();
+    //The AI turn is not a resumable position -- it runs to completion without ever
+    //waiting for the player, so a save taken during one has no click to come back to.
+    //Resuming into the player's move phase is the nearest playable point.
+    const step = STEP_FOR_PHASE[phase] === "ai"
+        ? "military"
+        : STEP_FOR_PHASE[phase] ?? "buyUpgrade";
+    turnEngine.start({ resumeAt: { skipBeginTurn: true, step: step } });
 }
 
 /**
@@ -448,10 +546,29 @@ const turnEngine = createTurnEngine({
     }
 });
 
-/** The engine, for the test hooks and for whatever offers "New Game" in Phase 7. */
+/** The engine, for the test hooks and for the menu's New Game / Resume. */
 export function getTurnEngine() {
     return turnEngine;
 }
+
+/** The engine's step names, in order, indexed by the `Phase` the player is in. */
+const STEP_FOR_PHASE = Object.freeze({
+    [Phase.BUY_UPGRADE]: "buyUpgrade",
+    [Phase.MOVE_ATTACK]: "military",
+    [Phase.AI]: "ai"
+});
+
+//Phase 7.3. The running chance of a disaster climbs on every turn one does not fire,
+//so it is a fact about the game rather than about this turn -- a save that dropped it
+//would quietly reset the player's luck. `attackOptionsArray` and
+//`arrayOfLeadersAndCountries` are deliberately NOT saved: both are derived from the
+//adjacency data and the territory model, and resumeSavedGame() rebuilds them.
+registerSaveSlice("turnLoop", {
+    capture: () => ({ randomEventProbability: probability }),
+    restore: (data) => {
+        probability = Number(data?.randomEventProbability) || 0;
+    }
+});
 
 /**
  * Let the waiting phase proceed.
@@ -460,10 +577,19 @@ export function getTurnEngine() {
  * phase functions used to add and remove. A click when no phase is waiting -- during the AI
  * turn, or between turns -- is ignored, exactly as it was when the listener did not exist.
  */
+let phaseButtonInstalled = false;
+
 function installPhaseButton() {
+    //Idempotent since Phase 7.3: initialiseGame() and resumeSavedGame() are two ways
+    //into the same game, and a second listener on this button would advance two phases
+    //per click.
+    if (phaseButtonInstalled) {
+        return;
+    }
     const popupConfirmButton = document.getElementById(ids.popupConfirm);
     if (popupConfirmButton) {
         popupConfirmButton.addEventListener("click", () => turnEngine.advancePhase());
+        phaseButtonInstalled = true;
     }
 }
 

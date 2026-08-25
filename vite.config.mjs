@@ -49,6 +49,12 @@ export default defineConfig({
     sourcemap: true,
   },
 
+  // There are deliberately no `optimizeDeps` and no bare-specifier imports anywhere
+  // in the game. `index.html` loads the entry modules as plain `<script
+  // type="module">` tags against the SOURCE files, so anything the browser cannot
+  // resolve on its own breaks the page outside Vite -- see
+  // `src/platform/vendor/lz-string.js`, which is vendored for exactly that reason.
+
   server: {
     port: 3000,
     strictPort: false,

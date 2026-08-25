@@ -45,10 +45,39 @@ export const containers = {
 };
 
 export const menu = {
+    resume: sel.resumeGameBtn,
     newGame: sel.newGameBtn,
+    saveLoad: sel.saveLoadBtn,
     toggleMusic: sel.toggleMusicBtn,
     options: sel.optionsBtn,
     help: sel.helpBtn,
+    /** The hamburger over the map. The same door as Escape (Phase 7.2). */
+    hamburger: sel.menuButton,
+};
+
+/** The reusable yes/no modal. New Game and a load over a live game both ask here. */
+export const confirmDialog = {
+    container: sel.confirmDialogContainer,
+    panel: sel.confirmDialog,
+    title: sel.confirmDialogTitle,
+    message: sel.confirmDialogMessage,
+    confirm: sel.confirmDialogConfirm,
+    cancel: sel.confirmDialogCancel,
+};
+
+/** Save / Load: the whole game as a string, in and out (Phase 7.3). */
+export const saveLoad = {
+    container: sel.saveLoadContainer,
+    panel: sel.saveLoadPanel,
+    saveField: sel.saveCodeField,
+    refresh: sel.saveCodeGenerateBtn,
+    copy: sel.saveCodeCopyBtn,
+    loadField: sel.loadCodeField,
+    load: sel.loadCodeBtn,
+    status: sel.saveLoadStatus,
+    close: sel.saveLoadCloseBtn,
+    /** The autosave spinner. `.is-visible` is what puts it on screen. */
+    indicator: sel.saveIndicator,
 };
 
 /** The Options panel, opened from the main menu. Holds the theme picker. */
@@ -59,6 +88,7 @@ export const options = {
     themePreview: sel.themePreview,
     themeDescription: sel.themeDescription,
     done: sel.optionsCloseBtn,
+    cancel: sel.optionsCancelBtn,
 };
 
 /** The popup that is both the country-select confirm AND the phase-advance button. */
@@ -75,8 +105,12 @@ export const map = {
     /** Chromium exposes an <object> as a frame named after the element id. */
     frameName: territorySelectors.mapFrameName,
     coastLines: sel.svgCoastLines,
-    mapModeButton: sel.mapModeButton,
-    strokeHighlightButton: sel.strokeHighlightButton,
+    /**
+     * One button, three views (Phase 7.4). Read `data-view` -- "normal",
+     * "physical" or "continent" -- rather than the icon; the icons are inline SVG
+     * and there is no `src` to assert on any more.
+     */
+    continentViewButton: sel.continentViewButton,
     uiToggleButton: sel.uiToggleButton,
     /** A territory path, addressed by its stable identity. */
     territory: territorySelectors.byName,

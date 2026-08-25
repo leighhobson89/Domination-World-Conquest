@@ -76,6 +76,7 @@ export function create() {
 
         el("div", { class: "options-actions" }, [
             el("button", {
+                id: ids.optionsCancelBtn,
                 class: ["options-button", "options-button-ghost"],
                 text: "Cancel",
                 on: { click: cancel },

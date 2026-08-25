@@ -1126,8 +1126,8 @@ over 400 lines.
 | Step | Feature | Notes |
 |---|---|---|
 | 7.1 | **Win / lose conditions** (`rules/victory.js`) | Check after each turn: total conquest, player elimination, and a configurable objective (N territories / a continent / turn limit). Add a victory/defeat screen. |
-| 7.2 | **New game / restart** | Now trivial given `TurnEngine.reset()`. |
-| 7.3 | **Save / load** (`platform/storage.js`) | `GameState` is now a plain serialisable object. Autosave each turn to `localStorage`, plus export/import JSON. |
+| 7.2 | ✅ **New game / restart, and a menu you can reach** | Done. `TurnEngine.reset()` made the restart part small; the rest was the menu itself. See below. |
+| 7.3 | ✅ **Save / load** (`platform/storage.js`) | Done. `GameState` really was a `JSON.stringify` away, as Phase 4 predicted. Autosave to `localStorage` on a timer, plus a compressed code the player can copy and paste. See below. |
 | 7.4 | **AI activity feed** | The single biggest "feel" gap. Surface AI conquests, sieges and declarations in a turn-summary panel instead of `console.log`. |
 | 7.5 | **Continent control bonuses** | Continents already exist as data; give holding one a real reward. |
 | 7.6 | **Help / tutorial** | Wire the inert Help button. Oil demand, useable units and sieges all need in-game explanation. |
@@ -1135,6 +1135,133 @@ over 400 lines.
 | 7.8 | **Long-term AI goals** | The TODOs in `gameTurnsLoop.js`, now implementable against `ai/goals.js`. |
 | 7.9 | **Re-enable or remove the 3D dice** | Decide. If keeping, wire it into `BattleUI` behind a setting; if not, delete `dices.js` and the three `dist/` bundles and drop `three` + `cannon-es`. |
 | 7.10 | ✅ **Theme system and menu redesign** | Done out of order, at the developer's request. `src/ui/theme/` — a token vocabulary, a catalogue of six themes as data, and an applier that writes tokens onto the root element as CSS custom properties. A new Options panel (`src/ui/components/OptionsPanel.js`) holds the picker; the main menu was rebuilt around it. See below. |
+
+#### Phase 7.2 / 7.3 — what landed
+
+Taken together, because they are one set of state transitions: New Game, Restart, Resume, Save
+and Load all answer "replace the world with a different one, and put the screen back". Doing
+7.2 without 7.3 would have meant writing that machinery twice.
+
+**The menu is reachable mid-game, and now says so.** Escape has opened the main menu during
+play since long before the refactor, and nothing on screen advertised it — it was a feature
+only someone who had read `setUnsetMenuOnEscape()` knew about. There is a hamburger button at
+the top of the map now (`src/ui/components/MenuButton.js`), drawn from theme tokens rather than
+shipped as a PNG like `mapModeButton` and `UIToggleButton` beside it, which is exactly why
+those two were the only chrome a theme could not reach — until 7.4 redrew them the same way.
+
+`setUnsetMenuOnEscape()` itself is gone as a unit: it was one function holding both halves of a
+toggle behind a keycode test, and there are now three ways to make those two transitions. It is
+`openInGameMenu()` and `closeInGameMenu()`, and the Escape handler is six lines that pick one.
+
+**The menu grew two rows, and both are disabled rather than hidden when they have nothing to
+do.** Hiding them would move every button below them, so the menu would be a different shape
+before and during a game; a greyed row also says the feature exists and what would make it
+available. *Resume Game* means one of two things and the caller decides which — with a game
+behind the menu it is the other half of Escape, and on a cold start with an autosave in
+`localStorage` it loads that autosave and says so ("Continue Turn 7"). *Save / Load* is enabled
+with New Game, because a load patches the seeded territories and so has the same prerequisite.
+
+**Restart is New Game, and New Game asks first.** There is no separate Restart button because
+there does not need to be: the two differ only in whether there is a world to throw away. What
+is new is `ConfirmDialog` — the first reusable yes/no modal in the game, and New Game is the
+reason it exists, because until now it was the only button that destroyed something on a single
+click with no way back.
+
+**How Restart puts the world back is worth recording.** The territory model is built once, at
+page load, by a pipeline that measures 359 SVG path areas and then randomises the starting
+gold; re-running it would take seconds and would need the bootstrap Promise chain re-entered.
+So a pristine snapshot is captured the moment the model exists — `captureNewGameBaseline()`,
+called from the bootstrap block in `resourceCalculations.js` — and **Restart is a load**. The
+one property that costs: two new games in the same browser session share the same randomised
+starting gold, because the roll happened before the capture. Everything the player would
+notice as a different game — the AI leaders and their personalities, the starting forts, every
+roll thereafter — is generated *after* the game starts and is therefore re-rolled.
+
+**Save/load is three files and no new coupling.** `src/state/snapshot.js` turns the store into
+plain JSON and back; `src/platform/saveSlices.js` is a register that the three legacy modules
+holding durable state outside the store write themselves into; `src/platform/storage.js` is the
+envelope, the compression, the `localStorage` slot and the timer. None of them imports the UI,
+so the data path is unit-tested in Node (`tests/unit/state-snapshot.spec.js`, 24 tests).
+
+Four things about the store are not `JSON.stringify`-safe and each is handled in `snapshot.js`
+rather than by callers. A siege's `defendingTerritory` is a live getter onto the real territory
+(Phase 4.7), enumerable so a snapshot can see it — serialising it would put a whole territory
+inside every siege and restore it as a *dead copy*, so writing through the siege would stop
+writing the world. The two selection sets are `Set`s, which stringify to `{}`. And several
+collections are aliased by module-level `const`s: `battle.js` does
+`export const playerSiegeWarsList = playerSieges()` at module load, a reference held for the
+life of the page by ~60 read sites — so a restore **refills those objects in place** and never
+replaces them. Territories are patched in place for the same reason.
+
+**Why there is a slice register rather than three imports.** `retrievalArray` (army in transit,
+the credit half of audit §5.1 AD), the two `turnsDeactivatedArray`s (a conquest lockout
+mid-sentence), the per-turn economy tables and the running random-event probability all outlive
+the turn that created them and none is in the store. Having the saver import `battle.js` and
+`resourceCalculations.js` to reach them would pull `ui.js` into `platform/` through the back
+door. Each module registers its own capture/restore instead, which also keeps the knowledge of
+what a slice contains in the module that will be moved in Phase 6.9B.
+
+**lz-string is the one new runtime dependency.** The envelope is around 460 KB of very
+repetitive JSON and compresses to a code of roughly 140 KB — long, but pasteable, and it fits
+`localStorage` comfortably. It is compression, not encryption, and the format says so: anyone
+who wants to decode a save and edit their gold can, and in a single-player game that is their
+business. What the format *does* do is fail legibly — a `DWC1:` prefix outside the compressed
+payload is what lets a decode tell "this is not one of our codes" from "this is one of ours and
+the paste clipped the end", and those need different messages.
+
+A leader-deduplication pass was measured and rejected: 207 distinct leaders across 359
+territories, and folding them saved 7% of the compressed size (138 KB → 128 KB). Not worth the
+identity subtlety it would introduce.
+
+**Resuming lands *inside* the saved turn.** `TurnEngine.start()` takes a `resumeAt` option now
+— the only caller is the load — because a loaded save is a world already standing in the middle
+of a turn, with that turn's income granted, its sieges ticked and its disaster rolled. Running
+`beginTurn` over it would do all of that a second time. `resumeSavedGame()` in
+`gameTurnsLoop.js` is the load-side counterpart of `initialiseGame()` and deliberately does
+none of three things: it does not assign ownership from `playerCountryName()` (the save already
+says who owns what, and re-running that loop would hand the player back every territory of
+their starting country they had since lost), it does not create CPU leaders or starting forts
+(both draw from `Math.random` and both are already in the save), and it does not run
+`beginTurn`.
+
+**The autosave is gated, not merely timed.** A tick is skipped unless the engine is waiting for
+the player and no battle, battle-results or transfer window is open. A save taken mid-battle
+would store a world that cannot be resumed to the screen the player is looking at, because
+`battle.js` holds the resolution in module-level variables; the AI turn is excluded because the
+engine has no way to re-enter a step half-way through, so an AI-turn save resumes into the
+player's move phase, which is a worse answer than not taking that save.
+
+**Three latent problems were found by making a loaded game arrive without the selection
+screen**, and all three are the same species — an element made visible or correct as a *side
+effect* of a screen the load never sees:
+
+- the phase button ships at `opacity: 0` and `selectCountry()` wrote 1 over it, so a loaded
+  game had a phase bar with no button and no way to advance the turn;
+- `setFlag()` paints the player's flag behind the phase-bar subtitle only while the selection
+  screen is up;
+- the top table is *written*, not derived — nothing repaints it on a state change, so a loaded
+  game showed the abandoned game's totals beside the restored game's map.
+
+The first two are fixed in `PhaseBar` (`setMode(PLAYING)` now makes the button visible, and
+`setBrandFlag()` makes the flag an addressed write rather than an incidental one); the third by
+calling `addUpAllTerritoryResourcesForCountryAndWriteToTopTable(true)` from `resumeSavedGame()`
+— a pure sum over the restored territories, which grants no income. Restart surfaced the mirror
+image: `phaseBar.setMode(SELECTING)` and `bottomTable.reset()` exist because SELECTING used to
+be a starting value nothing ever went back to.
+
+**What is deliberately not done.** The save is a single slot; named slots and a slot list are a
+bigger UI than this game needs today, and the pasteable code is the escape hatch in the
+meantime. There is no "save on quit" — the tab closing is not a reliable event and the
+one-minute autosave already bounds the loss.
+
+**Sixteen new e2e specs** in a new `save-load/` functional area — which is the plan's
+`persistence/` row, delivered under the name of the feature rather than of the mechanism — and
+24 new unit tests. The division of labour is written up in `tests/e2e/save-load/README.md`: the
+unit suite owns what a snapshot contains, and the e2e suite owns whether a loaded game is
+*wired up*, because a restore can put every number back correctly and still hand the player a
+dead screen.
+
+---
 
 #### Phase 7.10 — what landed
 
@@ -1232,12 +1359,23 @@ correctness one — whereas victory conditions are the one feature the plan fenc
 7, because without them a full playthrough cannot be tested at all. Part A takes out only the
 two blocks Phase 7 would otherwise grow back.
 
+**7.2 and 7.3 were taken first, out of that order, at the developer's request** — the same
+call as 7.10. They are done; see "Phase 7.2 / 7.3 — what landed" above. What that changes for
+the list below: 6.9.1 and 6.9.2 are now *more* worth doing, not less, because 7.2 added the
+seventeenth panel-visibility toggle the step was written to prevent (`resetTransientUiState()`
+in `ui.js` calls eight of them) and put the New Game / Resume / Load orchestration in the same
+file. Neither is a regression — both are the cost of not having done Part A first, and both are
+one move each.
+
 1. **Phase 6.9 Part A** — 6.9.0 (the `generateDistinctRGBs()` measurement, its own change),
-   6.9.1 (the sixteen `toggleX()` functions → `src/ui/visibility.js`) and 6.9.2 (the turn-loop
-   glue out of the `DOMContentLoaded` block). Roughly 1,150 lines out of `ui.js`.
+   6.9.1 (the sixteen `toggleX()` functions → `src/ui/visibility.js`, plus the three that
+   Phase 7.2 added around them) and 6.9.2 (the turn-loop glue out of the `DOMContentLoaded`
+   block). Roughly 1,150 lines out of `ui.js`.
 2. **Phase 7.1** — win / lose conditions (`rules/victory.js`) plus a victory/defeat screen.
-3. **Phase 7.2 / 7.3** — New Game and save/load. `TurnEngine.reset()` exists and `GameState`
-   is a plain serialisable object, so both are now small.
+   `TurnEngine.reset()` and the pristine baseline both exist now, so the "play again" button
+   on that screen is one call to `startNewGame()`.
+3. ~~**Phase 7.2 / 7.3** — New Game and save/load.~~ **Done.** `TurnEngine.reset()` and a
+   serialisable `GameState` were exactly the two things that made them small, as predicted.
 
 Then **Phase 6.9 Part B** (6.9.3–6.9.7) closes the exit criteria: the battle and siege UI, the
 geometry helpers, bootstrap, `resourceCalculations.js`, and the styling sweep.

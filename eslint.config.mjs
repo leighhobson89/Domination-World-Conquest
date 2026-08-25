@@ -11,6 +11,10 @@ export default [
       "dist/**",
       // Game assets, plus one vendored library (SVGPathData.cjs). Not our source.
       "resources/**",
+      // lz-string, copied in byte-for-byte so the browser can load it without a
+      // bundler (Phase 7.3). Not our source, and linting it would only report the
+      // upstream author's style.
+      "src/platform/vendor/**",
       "test-reports/**",
       "playwright-report/**",
     ],

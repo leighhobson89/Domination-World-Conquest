@@ -70,6 +70,27 @@ function warColumnStyle(index) {
     return undefined;
 }
 
+/**
+ * Which country was defending.
+ *
+ * BUG FIX. This column used to be `war.defendingTerritory.dataName`, and `dataName`
+ * is the CURRENT owner of a territory -- it changes on conquest. So for any war the
+ * attacker WON, the defending-country column showed the attacker's own flag, because
+ * by the time the row was drawn the attacker owned the place. It looked right for
+ * every ongoing siege and for every war the attacker lost, which is why it survived:
+ * the only rows it was wrong on were the ones where the territory had changed hands.
+ *
+ * `defendingCountry` is now recorded on the war when it is created, from the
+ * defending territory as it was at that moment (`battle.js`). The fallback is for
+ * war objects that predate the field -- a siege that was already in progress when
+ * this shipped, and any save taken before it. Those are all UNRESOLVED wars, and an
+ * unresolved war's territory has not changed hands, so the old expression is still
+ * the right answer for exactly the cases that can reach it.
+ */
+function defendingCountryOf(ctx) {
+    return ctx.war.defendingCountry ?? ctx.war.defendingTerritory.dataName;
+}
+
 function flagCell(pickCountry) {
     return (cell, ctx) => {
         const image = document.createElement("img");
@@ -140,7 +161,7 @@ export function warColumns(kind) {
             armySlotCell("attack", 1, { allForAll: historic }),
             armySlotCell("attack", 2, { allForAll: historic }),
             armySlotCell("attack", 3, { allForAll: historic }),
-            flagCell(ctx => ctx.war.defendingTerritory.dataName),
+            flagCell(defendingCountryOf),
             armySlotCell("defend", 0),
             armySlotCell("defend", 1),
             armySlotCell("defend", 2),

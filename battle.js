@@ -109,6 +109,9 @@ import {
 import {
     moveButton
 } from './src/ui/components/MoveButton.js';
+import {
+    registerSaveSlice
+} from './src/platform/saveSlices.js';
 
 export let finalAttackArray = [];
 export const proportionsOfAttackArray = [];
@@ -834,6 +837,14 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
         //they are what the siege panel compares the live values against.
         const siege = referenceDefendingTerritory({
             warId: warId,
+            //BUG FIX. Who was DEFENDING, recorded now rather than derived later. The
+            //Wars & Sieges tab used to read `defendingTerritory.dataName` for this
+            //column, and `dataName` is the CURRENT owner: the moment the attacker won
+            //and took the territory, the defending-country column started showing the
+            //attacker's own flag. `defendingTerritoryCopy` is the snapshot taken when
+            //the battle opened (see originalDefendingTerritory in ui.js), so this is
+            //the defender as they were, and it cannot drift afterwards.
+            defendingCountry: defendingTerritoryCopy.dataName,
             proportionsAttackers: proportionsAttackers,
             defendingArmyRemaining: defendingArmyRemaining,
             attackingArmyRemaining: attackingArmyRemaining,
@@ -888,6 +899,10 @@ export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker
             warId: warId,
             attackingCountry: attackingCountry,
             attackingTerritory: attackingTerritory,
+            //As above: `defender` is the live territory and this siege is created
+            //before any conquest, so its country is the defender's. Recorded rather
+            //than read back later, when it may have changed hands.
+            defendingCountry: defender.dataName,
             defendingArmyRemaining: startingDef,
             attackingArmyRemaining: startingAtt,
             turnsInSiege: 0,
@@ -956,6 +971,10 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
     //and the two army arrays, which are already snapshots.
     recordHistoricWar(referenceDefendingTerritory({
         warId: warId,
+        //The one-battle path, and the one the bug was most visible on: a war won
+        //outright records straight into the historic list, by which time the store
+        //already says the ATTACKER owns the territory.
+        defendingCountry: defendingTerritoryCopy.dataName,
         proportionsAttackers: proportionsAttackers,
         defendingArmyRemaining: defendingArmyRemaining,
         attackingArmyRemaining: attackingArmyRemaining,
@@ -1283,5 +1302,40 @@ export function getSiegeObjectFromAiSiegeList(territory) {
         return aiSiegeWarsList[territory.territoryName];
     } else {
         return false;
+    }
+}
+
+//--- save/load ------------------------------------------------------------
+//
+//Phase 7.3. Three of the arrays above outlive the turn that created them and are
+//not in the store, so a save that omitted them would load a world that is subtly
+//wrong rather than obviously broken:
+//
+//  * `retrievalArray` is the credit half of audit 5.1 AD -- army debited from a
+//    source territory on INVADE! and due back a turn later. Drop it and the army
+//    is simply destroyed by loading.
+//  * the two deactivated arrays are the conquest lockout mid-sentence. Drop them
+//    and the territory stays deactivated for the rest of the game, because the
+//    only thing that reactivates it is its own entry counting up.
+//
+//All three are `export const` and are imported by reference elsewhere, so restore
+//refills them IN PLACE. Reassigning would leave every importer on the old array.
+registerSaveSlice("battle", {
+    capture: () => ({
+        retrievals: retrievalArray.map(entry => [entry[0], entry[1], entry[2], entry[3]]),
+        playerDeactivated: playerTurnsDeactivatedArray.map(entry => [...entry]),
+        aiDeactivated: aiTurnsDeactivatedArray.map(entry => [...entry])
+    }),
+    restore: (data) => {
+        refillInPlace(retrievalArray, data?.retrievals);
+        refillInPlace(playerTurnsDeactivatedArray, data?.playerDeactivated);
+        refillInPlace(aiTurnsDeactivatedArray, data?.aiDeactivated);
+    }
+});
+
+function refillInPlace(target, source) {
+    target.length = 0;
+    for (const entry of source ?? []) {
+        target.push(entry);
     }
 }

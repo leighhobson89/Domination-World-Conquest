@@ -146,14 +146,28 @@ export function createTurnEngine(options) {
         return status === EngineStatus.STOPPING || status === EngineStatus.STOPPED;
     }
 
+    // Set by `start({ resumeAt })` and consumed by the first pass of the loop below.
+    // See the `resumeAt` note on `start()`.
+    let resumeSkipBeginTurn = false;
+    let resumeFromStep = 0;
+
     async function loop() {
+        let skipBeginTurn = resumeSkipBeginTurn;
+        let firstStepIndex = resumeFromStep;
+        resumeSkipBeginTurn = false;
+        resumeFromStep = 0;
+
         while (!isStopping()) {
-            await runGuarded(beginTurn, { step: null, stage: "beginTurn" });
+            if (skipBeginTurn) {
+                skipBeginTurn = false;
+            } else {
+                await runGuarded(beginTurn, { step: null, stage: "beginTurn" });
+            }
             if (isStopping()) {
                 break;
             }
 
-            for (let index = 0; index < steps.length; index++) {
+            for (let index = firstStepIndex; index < steps.length; index++) {
                 const step = steps[index];
                 currentStepIndex = index;
 
@@ -183,6 +197,7 @@ export function createTurnEngine(options) {
             }
 
             currentStepIndex = -1;
+            firstStepIndex = 0;
             if (isStopping()) {
                 break;
             }
@@ -202,11 +217,36 @@ export function createTurnEngine(options) {
          * Idempotent while running: a second call returns the same promise rather than
          * starting a second loop over the same world.
          *
+         * @param {object} [options]
+         * @param {{step?: string, skipBeginTurn?: boolean}} [options.resumeAt]
+         *        Start the FIRST turn part-way through instead of at the beginning.
+         *        This is what Phase 7.3 needs and nothing else does: a loaded save is
+         *        a world already standing in the middle of a turn, with that turn's
+         *        income already granted, its sieges already ticked and its disaster
+         *        already rolled. Running `beginTurn` over it would do all of that a
+         *        second time -- so the load says `skipBeginTurn: true` and names the
+         *        step the save was taken in.
+         *
+         *        An unknown step name is ignored (the turn starts at the first step)
+         *        rather than throwing, because the alternative is a save from an older
+         *        build taking the game down instead of costing the player one phase.
          * @returns {Promise<void>} resolves when the loop ends
          */
-        start() {
+        start(startOptions = {}) {
             if (running && (status === EngineStatus.RUNNING || status === EngineStatus.STOPPING)) {
                 return running;
+            }
+            const resumeAt = startOptions.resumeAt ?? null;
+            resumeSkipBeginTurn = Boolean(resumeAt?.skipBeginTurn);
+            resumeFromStep = 0;
+            if (resumeAt?.step) {
+                const index = steps.findIndex((step) => step.name === resumeAt.step);
+                if (index === -1) {
+                    console.warn("TurnEngine.start: no step named \"" + resumeAt.step +
+                        "\"; starting the turn from the beginning");
+                } else {
+                    resumeFromStep = index;
+                }
             }
             turnsRun = 0;
             setStatus(EngineStatus.RUNNING);

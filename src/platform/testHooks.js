@@ -156,6 +156,31 @@ export function installAdjacencyTestHooks(accessors) {
     });
 }
 
+/**
+ * Save/load hooks (Phase 7.3).
+ *
+ * `saveNow()` exists because the autosave interval is sixty seconds and a spec
+ * cannot wait sixty seconds -- and shortening the interval for the harness would
+ * mean the suite testing a timing the game never uses. It takes the same save the
+ * timer takes, through the same code path, and returns whether it was stored.
+ *
+ * `saveCode()` and `loadCode()` are the panel's two buttons without the panel, so a
+ * spec can assert that a round trip preserves the world without driving a textarea
+ * and the clipboard.
+ */
+export function installSaveTestHooks(accessors) {
+    if (!ENABLED || !window.__game) {
+        return;
+    }
+    Object.assign(window.__game, {
+        saveNow: () => accessors.saveNow(),
+        saveCode: () => accessors.saveCode(),
+        loadCode: (code) => accessors.loadCode(code),
+        hasStoredSave: () => accessors.hasStoredSave(),
+        clearStoredSave: () => accessors.clearStoredSave(),
+    });
+}
+
 /** Signal that initialisation has finished. */
 export function signalReady() {
     if (!ENABLED) {

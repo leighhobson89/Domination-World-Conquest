@@ -5,6 +5,7 @@ The main info panel: Summary / Territories / Military / Wars & Sieges.
 | Spec | Covers |
 |---|---|
 | `tabs.spec.js` | The panel opens and closes; exactly one tab is marked active and the mark follows the selection; the choice survives a redraw; the Territories tab lists one row per owned territory and gains a row on conquest; the Wars & Sieges tab names a siege the player is running |
+| `wars-tab.spec.js` | A war the attacker WON shows the defender's flag in the Defending Country column, not the flag of whoever owns the territory now (known-issues **AS**) |
 
 ## The defect this folder was written against
 
@@ -15,6 +16,20 @@ selected however many times the player switched, and the `mouseout` handler (whi
 `classList.contains("active")`) reset the wrong button's colour. Which tab is selected is one
 fact, and `markActiveTab()` is now the one place that writes it. Phase 6.3 turns that into
 `InfoTable.update(state)`.
+
+## The second defect, found later
+
+**`wars-tab.spec.js` exists because of one bug and is shaped by it.** The Defending Country
+column was `war.defendingTerritory.dataName`, and `dataName` is the CURRENT owner of a
+territory — it changes on conquest. So a war the attacker won showed the attacker's own flag in
+the defender's column.
+
+What let it survive is that it was correct everywhere else: an ongoing siege has not changed
+hands, and neither has a war the attacker lost. The only rows it was ever wrong on were the
+ones where the territory changed hands, which is also the only outcome worth looking back at.
+That is why the spec **conquers** rather than besieging or losing — an assertion on any other
+outcome would have passed against the bug, which is the failure mode this whole folder exists
+to avoid. The war now records `defendingCountry` when it is created; see known-issues **AS**.
 
 ## Notes
 

@@ -14,6 +14,10 @@ package-lock.json
 # Generated lookup data, not hand-edited.
 tests/uniqueIdLookup.json
 
+# Vendored third-party source, kept byte-for-byte identical to upstream so it can
+# be re-copied from a newer release without a diff. See its header.
+src/platform/vendor/
+
 # Binary / generated assets
 resources/
 *.svg

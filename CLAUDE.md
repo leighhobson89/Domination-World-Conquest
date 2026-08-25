@@ -32,8 +32,8 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 306 tests, ~1s
-npm run test:e2e       # Playwright, 281 tests, 4 workers headless, ~8-14 min
+npm run test:unit      # Vitest, 341 tests, ~1s
+npm run test:e2e       # Playwright, 306 tests, 4 workers headless, ~7-14 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -182,7 +182,14 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   will report plenty until Phase 5 makes the rules pure — each report is a Phase 5 to-do,
   not a regression.
 - **`dataName` is the *current* owner and changes on conquest**; `territoryName` is the stable
-  identity; `originalOwner` is historical. Mixing them up is a recurring source of bugs.
+  identity; `originalOwner` is historical. Mixing them up is a recurring source of bugs, and
+  the most recent one shows the shape to watch for: the Wars & Sieges tab drew the *Defending
+  Country* flag from `war.defendingTerritory.dataName`, so a war the attacker WON showed the
+  attacker's own flag on both sides (known-issues **AS**). It looked right on every row where
+  the territory had not changed hands — every ongoing siege, every war the attacker lost — and
+  wrong only on the outcome anybody would look back at. **If a record describes something that
+  happened, record who it happened to; do not read it back off the world later.** A war now
+  carries `defendingCountry`, set at construction in `battle.js`.
 - **`resources/svgMaster.svg` is the authoritative source of territory names.**
   `tests/uniqueIdLookup.json` is a convenience map and has drifted before: it says
   `"Grand Bahama"` / `"Andros Island"` where the SVG says `"Grand Bahama (Bahamas)"` /
@@ -231,6 +238,61 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   rather than three transient ones added and removed per phase; and **`stop()` / `reset()`
   exist**, which is what makes New Game possible in Phase 7. Do not reintroduce a phase that
   waits by attaching its own listener — add a step with `waitsForPlayer`.
+- **No bare-specifier imports. Ever.** `index.html` loads the game's entry modules as plain
+  `<script type="module" src="ui.js">` tags against the SOURCE files, so every import in the
+  codebase is a relative path and the browser resolves them itself. `import x from "some-pkg"`
+  is something only a bundler can resolve; outside Vite the browser rejects it with
+  *"Failed to resolve module specifier"*, at module-evaluation time inside the bootstrap chain
+  — so the symptom is a page that never reaches the main menu, not "that one feature is
+  broken". Vite hides it completely, which is what makes it dangerous. A runtime library goes
+  in `src/platform/vendor/` (lz-string is there, byte-for-byte from upstream with the UMD tail
+  swapped for an `export`), the same decision `dist/` records for three.js and cannon-es.
+- **Save/load is three files and none of them imports the UI.** `src/state/snapshot.js` turns
+  the store into JSON and back, `src/platform/saveSlices.js` is a register that modules holding
+  durable state *outside* the store write themselves into, and `src/platform/storage.js` is the
+  envelope, the compression, the `localStorage` slot and the timer. Three rules follow.
+  **A restore refills the aliased collections in place and never replaces them** — `battle.js`
+  does `export const playerSiegeWarsList = playerSieges()` at module load, a reference held for
+  the life of the page by ~60 read sites, and the same goes for `wars.historic`; territories
+  are patched in place for the same reason. **A siege's `defendingTerritory` getter must not be
+  serialised** — it is enumerable so a snapshot can see it, but storing it would put a whole
+  territory inside every siege and restore it as a dead copy; `captureState` drops it and keeps
+  `defendingTerritoryId`. And **new durable state outside the store needs a slice**: add
+  `registerSaveSlice()` in the module that owns it rather than importing that module from
+  `platform/`, which would drag `ui.js` in through the back door.
+- **A loaded game resumes INSIDE the saved turn**, via `TurnEngine.start({ resumeAt })` — the
+  only caller. The saved turn has already had its income, its siege tick and its disaster roll,
+  so running `beginTurn` over it would do all three a second time. `resumeSavedGame()` in
+  `gameTurnsLoop.js` is the load-side counterpart of `initialiseGame()` and deliberately does
+  NOT assign ownership from `playerCountryName()`, create CPU leaders or add starting forts:
+  the save already says who owns what, and the other two draw from `Math.random`. Anything new
+  that `initialiseGame()` grows has to be classified as map-derived (belongs in both) or
+  world-generating (belongs only in the new-game path).
+- **"New Game" from inside a running game is a LOAD.** The pristine world is captured once at
+  bootstrap (`captureNewGameBaseline()`, called from the block in `resourceCalculations.js`
+  that seeds the model) and Restart restores it, because re-running the real pipeline means
+  re-measuring 359 SVG path areas. The one cost: two new games in a session share the same
+  randomised starting gold. Do not "fix" that by moving the capture earlier — there is nothing
+  earlier; the roll is part of building the model.
+- **Anything made correct as a side effect of the country-selection screen breaks a loaded
+  game**, because a load never sees that screen. Three were found this way and all three are
+  now addressed writes: the phase button ships at `opacity: 0` and `selectCountry()` used to be
+  what revealed it (`phaseBar.setMode(PLAYING)` does it now), `setFlag()` paints the player's
+  flag behind the phase-bar subtitle only while selecting (`phaseBar.setBrandFlag()`), and the
+  top table is *written* rather than derived so nothing repaints it on a state change
+  (`resumeSavedGame()` calls `addUpAllTerritoryResourcesForCountryAndWriteToTopTable(true)`,
+  which is a pure sum and grants no income). Restart surfaced the mirror image, which is why
+  `phaseBar.setMode(SELECTING)` and `bottomTable.reset()` exist.
+- **The autosave is gated, not merely timed.** A tick is skipped unless the engine is awaiting
+  the player and no battle, battle-results or transfer window is open — a save taken mid-battle
+  stores a world that cannot be resumed to the screen the player is looking at, because
+  `battle.js` holds the resolution in module-level variables. The interval is 60s, so specs use
+  `window.__game.saveNow()`; do not shorten the interval for the harness.
+- **`.options-button`, `.options-button-ghost` and `.options-scrim` are shared** by the Options
+  panel, the confirm dialog and the save/load panel — deliberately, because three modals that
+  open from the same menu should not be three designs. The consequence is that a bare
+  `.options-button-ghost` selector is ambiguous, which is exactly how the theme spec broke when
+  the second modal landed. Address these buttons by id from `registry.js`, never by class.
 - **`window.__game` has grown, and each accessor exists because a spec could not be written
   without it.** Beyond the readers: `greyedOutCountries()` (the selection lock as state, not as
   a fill), `siegeAt(name)` (one live siege — `sieges()` only says *which* territories are

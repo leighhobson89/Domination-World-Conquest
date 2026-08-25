@@ -149,11 +149,25 @@ export class MapPage {
         }, ids.svgMap);
     }
 
-    async toggleMapMode() {
-        await this.page.locator(map.mapModeButton).click();
+    /**
+     * One click of the continent-view button, which walks
+     * normal -> physical -> continent -> normal (Phase 7.4).
+     */
+    async cycleContinentView() {
+        await this.page.locator(map.continentViewButton).click();
     }
 
-    async toggleContinentStroke() {
-        await this.page.locator(map.strokeHighlightButton).click();
+    /** Which of the three views the button says it is in. */
+    async continentView() {
+        return this.page.locator(map.continentViewButton).getAttribute("data-view");
+    }
+
+    /** Walk the cycle until it reaches `view`, and no further than one full lap. */
+    async setContinentView(view) {
+        for (let i = 0; i < 3; i++) {
+            if ((await this.continentView()) === view) return;
+            await this.cycleContinentView();
+        }
+        throw new Error(`setContinentView: never reached "${view}"`);
     }
 }

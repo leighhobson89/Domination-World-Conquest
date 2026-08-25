@@ -122,6 +122,37 @@ export function update() {
  */
 export function setMode(next) {
     mode = next;
+    if (next === Mode.SELECTING) {
+        //Phase 7.2. SELECTING used to be a starting value that nothing ever went back
+        //to, so it needed no strings of its own -- the markup was already right the
+        //first time. New Game from inside a running game DOES go back to it, and
+        //without this the bar keeps the phase it was on: "Military Phase" over an END
+        //TURN button, on the country-selection screen.
+        //
+        //Everything below is an inline style or a class that something else wrote
+        //while the last game was running, and each has its own visible failure if it
+        //is left behind: the previous country's flag stays behind the subtitle
+        //(`setFlag` paints it there whenever the selection screen is up), the subtitle
+        //keeps the font size `adjustTextToFit` chose for that country's name, the
+        //confirm button stays green and offered before anything has been clicked, and
+        //the colour label stays visible, which on a cold start it is not.
+        titleCell.innerText = "Select a Country...";
+        bodyCell.innerText = "- - - -";
+        bodyCell.style.opacity = "";
+        bodyCell.style.fontSize = "";
+        bodyCell.style.backgroundImage = "";
+        button.innerText = "CONFIRM";
+        button.disabled = false;
+        button.classList.remove("greenBackground");
+        button.style.display = "";
+        //`.popup-option-confirm` ships at `opacity: 0` and selectCountry() writes 1
+        //over it. Clearing the class alone leaves a grey CONFIRM button offered on a
+        //screen where nothing has been selected.
+        button.style.opacity = "";
+        colourLabel.style.display = "";
+        colourLabel.style.color = "";
+        return;
+    }
     if (next === Mode.INITIALISING) {
         titleCell.innerText = "LOADING...";
         bodyCell.innerText = "";
@@ -130,8 +161,34 @@ export function setMode(next) {
     }
     if (next === Mode.PLAYING) {
         bodyCell.innerText = "";
+        //Phase 7.3. The button is invisible until something makes it visible:
+        //`.popup-option-confirm` ships at `opacity: 0`, and in a game that was played
+        //from the menu it was `selectCountry()` that wrote 1 over it and
+        //`nameCountry()` that made it green. A LOADED game never passes through the
+        //selection screen, so without this the phase bar has a title and no button --
+        //and the phase cannot be advanced at all.
+        button.style.opacity = "1";
+        button.style.display = "block";
+        button.classList.add("greenBackground");
         update();
     }
+}
+
+/**
+ * The flag behind the subtitle.
+ *
+ * `setFlag()` in ui.js paints this as a side effect, but only while the selection
+ * screen is up -- so a game that arrives from a save, which never sees that screen,
+ * gets a blank bar where every other game has the player's flag. This is the same
+ * write, addressed rather than incidental.
+ *
+ * @param {string} src  an image URL, or null to clear it
+ */
+export function setBrandFlag(src) {
+    if (!bodyCell) return;
+    bodyCell.style.backgroundImage = src ? `url(${src})` : "";
+    bodyCell.style.backgroundSize = "100% 100%";
+    bodyCell.style.backgroundPosition = "center";
 }
 
 export function currentMode() {
@@ -153,6 +210,22 @@ export function buttonElement() {
 
 export function colourLabelElement() {
     return colourLabel;
+}
+
+/**
+ * Show or hide the bar itself.
+ *
+ * Phase 7.2. `resetGameState()` in ui.js used to reach for the element this
+ * component builds and write `style.display` on it directly -- it could, because
+ * `create()` hands the element back and the bootstrap kept the reference in scope.
+ * Moving that function out of the `DOMContentLoaded` closure so New Game could call
+ * it took the reference away, and the right answer to that is not a
+ * `querySelector` on a class name: a component owns its own element's visibility.
+ *
+ * `flex`, not `block` -- the bar is a column of four children.
+ */
+export function setVisible(visible) {
+    if (root) root.style.display = visible ? "flex" : "none";
 }
 
 export function setButtonEnabled(enabled) {
@@ -183,6 +256,8 @@ export const phaseBar = {
     bodyText,
     buttonElement,
     colourLabelElement,
+    setBrandFlag,
+    setVisible,
     setButtonEnabled,
     dimBody,
     destroy,

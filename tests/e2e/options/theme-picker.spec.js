@@ -102,7 +102,7 @@ test.describe("options panel", () => {
         await page.selectOption(options.themeSelect, "arctic");
         await expect(page.locator("html")).toHaveAttribute("data-theme", "arctic");
 
-        await page.click(".options-button-ghost");
+        await page.click(options.cancel);
         await expect(page.locator("html")).toHaveAttribute("data-theme", "crimson");
     });
 

@@ -207,67 +207,29 @@ td {
 }
 
 
+/* The two chrome buttons over the map. Each container is a positioner and
+   nothing else -- the button inside is a fixed 44px square, the same as the
+   hamburger, so the three of them line up on a 44px grid at the two top corners.
+   `toggleUIButton()` / `toggleMapModeButton()` still switch these between `block`
+   and `none`, which is why the button is not positioned directly. Until Phase 7.4
+   both held a 7% x 14% <img>, so the click target grew with the window and the
+   art -- a photograph of a map, and a globe on a stand -- ignored the theme. */
 #UIButtonContainer {
-  width: 7%;
-  height: 14%;
   position: fixed;
-  top: 45px;
+  /* Directly under the hamburger: 36px + its 44px + an 8px gap. */
+  top: 88px;
   left: 10px;
   display: none;
-  flex-direction: column;
-  justify-content: center;
-  z-index: 9999;
+  z-index: 9000;
 }
 
 #mapModeContainer {
-  width: 7%;
-  height: 14%;
   position: fixed;
-  top: 45px;
+  /* Level with the hamburger, at the other corner. */
+  top: 36px;
   right: 10px;
   display: none;
-  flex-direction: column;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.UI-option {
-  padding-top: 5px;
-  padding-bottom: 5px;
-  fill-opacity: 0;
-  opacity: 0.6;
-  color: var(--text-primary);
-  font-size: 1.5rem;
-  font-weight: normal;
-  transition: all 0.3s ease;
-  width: 100%;
-  height: 100%;
-}
-
-.mapMode {
-  padding-top: 5px;
-  padding-bottom: 5px;
-  fill-opacity: 0;
-  opacity: 0.6;
-  color: var(--text-primary);
-  font-size: 1.5rem;
-  font-weight: normal;
-  transition: all 0.3s ease;
-  width: 100%;
-  height: 100%;
-}
-
-
-.UI-option:hover {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  opacity: 1;
-}
-
-.mapMode:hover {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  opacity: 1;
+  z-index: 9000;
 }
 
 .popup-with-confirm-container {
@@ -3032,4 +2994,296 @@ td {
 .options-button-primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+}
+
+/* ============================================================================
+   MAP CHROME (Phase 7.2, generalised in 7.4)
+   ----------------------------------------------------------------------------
+   Three buttons float over the map: the hamburger (Escape has always opened the
+   menu mid-game and nothing said so -- this is the same door with a handle on
+   it), the globe that opens the territories/army/wars panel, and the continent
+   view. They are one design, so they are one class plus the art inside.
+
+   All three are drawn from tokens rather than shipped as PNGs. The globe and the
+   map-mode pair WERE images until 7.4, which made them the only chrome in the
+   game a theme could not reach: a photograph of a map is the same colour
+   whichever palette is applied. Paths stroked with `currentColor` restyle
+   themselves.
+   ========================================================================= */
+.chrome-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--accent);
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    color 0.18s ease, transform 0.18s ease;
+}
+
+.chrome-button:hover {
+  color: var(--text-primary);
+  background: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.chrome-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* `currentColor` on every stroke and fill is what makes one `color` above repaint
+   the whole icon, hover included. */
+.chrome-icon {
+  display: block;
+  pointer-events: none; /* the button takes the click, never the artwork */
+}
+
+.hamburger-button {
+  position: fixed;
+  /* Below the 30px top table, which is full-width and `table-layout: fixed`, so
+     there is no spare column at either end of it to sit in. The globe and map-mode
+     columns below were moved down by the same amount rather than only the left one
+     -- they are a matched pair at either edge and unpicking that to make room would
+     have been visible. */
+  top: 36px;
+  left: 10px;
+  z-index: 9000;
+  display: none; /* `flex` while in game; MenuButton.js owns the switch. */
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+}
+
+.hamburger-bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+/* The continent-view button carries all three icons and shows the one that names
+   the view it is in. Swapping a `src` was what made the old pair impossible to
+   assert on without naming a PNG; `data-view` says the same thing in the language
+   the rest of the state layer uses. */
+.continent-view-button .chrome-icon {
+  display: none;
+}
+
+.continent-view-button[data-view="normal"] .chrome-icon-map,
+.continent-view-button[data-view="physical"] .chrome-icon-mountain,
+.continent-view-button[data-view="continent"] .chrome-icon-continent {
+  display: block;
+}
+
+/* ============================================================================
+   CONFIRM DIALOG (Phase 7.2)
+   ----------------------------------------------------------------------------
+   Reuses `.options-scrim`, `.options-actions` and `.options-button` -- it opens
+   from the same menu and behaves the same way, so it is the Options panel with a
+   different body rather than a second design.
+   ========================================================================= */
+.confirm-scrim {
+  /* Above the Options and Save/Load panels (10000): it can open on top of the
+     Save/Load panel to confirm a load. */
+  z-index: 10001;
+}
+
+.confirm-panel {
+  width: min(440px, 88vw);
+  padding: 26px 30px 22px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.confirm-title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+.confirm-message {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The one button in the game that destroys something. `--negative` is already
+   the token for "no" (the music button uses it), so this is not a new colour. */
+.options-button-danger {
+  color: var(--text-on-accent);
+  background: var(--negative);
+  border-color: var(--negative);
+}
+
+.options-button-danger:hover {
+  filter: brightness(1.15);
+}
+
+/* ============================================================================
+   SAVE / LOAD PANEL (Phase 7.3)
+   ========================================================================= */
+.save-load-panel {
+  width: min(620px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.save-load-section {
+  margin-bottom: 22px;
+}
+
+.save-load-heading {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.save-load-hint {
+  min-height: 0;
+  margin: 0 0 10px;
+}
+
+/* Monospace on purpose: a save code is one long run of base64, and a
+   proportional font makes "l1I" and "0O" indistinguishable at exactly the moment
+   the player is checking a paste. `--font-body` deliberately does not apply. */
+.save-code-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.save-code-field:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.save-code-field:disabled {
+  opacity: 0.5;
+}
+
+.save-load-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* A fixed minimum so the panel does not jump as a message appears. Same reason
+   `.options-description` has one. */
+.save-load-status {
+  min-height: 2.6em;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.save-load-status[data-tone="good"] {
+  color: var(--positive);
+}
+
+.save-load-status[data-tone="bad"] {
+  color: var(--negative);
+}
+
+.save-load-status[data-tone="warn"] {
+  color: var(--accent);
+}
+
+/* ============================================================================
+   AUTOSAVE INDICATOR (Phase 7.3)
+   ----------------------------------------------------------------------------
+   Appears when the autosave fires, holds for about two seconds, then fades to
+   transparent. The two-class dance -- `is-visible` for presence, `is-fading` for
+   opacity -- is what lets the fade run before the element leaves the layout.
+   The transition duration here and FADE_MS in SaveIndicator.js are one number in
+   two places; changing one alone leaves the element visible or cuts the fade.
+   ========================================================================= */
+.save-indicator {
+  position: fixed;
+  /* Below the 30px top table, mirroring the hamburger on the other side, and above
+     the map-mode column at 88px. At 14px it sat on top of the army total. */
+  top: 40px;
+  right: 12px;
+  z-index: 9500;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  opacity: 1;
+  pointer-events: none; /* it must never eat a click meant for the map */
+  transition: opacity 0.5s ease;
+}
+
+.save-indicator.is-visible {
+  display: flex;
+}
+
+.save-indicator.is-fading {
+  opacity: 0;
+}
+
+.save-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: save-spinner-rotate 0.8s linear infinite;
+}
+
+@keyframes save-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A spinner is decoration; a player who has asked for less motion should get a
+   static ring rather than nothing at all, so the border stays and only the spin
+   goes. */
+@media (prefers-reduced-motion: reduce) {
+  .save-spinner {
+    animation: none;
+  }
 }

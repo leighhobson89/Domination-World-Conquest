@@ -28,7 +28,10 @@ It is *Risk-shaped* (territory adjacency, dice-like odds, conquest) but the econ
 per-territory resource management and siege mechanics take it much closer to a light 4X.
 
 **Platform:** desktop web browser. **Players:** 1 human vs. up to 206 AI countries.
-**Session model:** one continuous session; there is no save, no end and no victory screen.
+**Session model:** ~~one continuous session; there is no save~~ — the game autosaves to
+`localStorage` every minute and can be saved to and loaded from a copyable code (refactor Phase
+7.3), and can be restarted from the menu without reloading the page (7.2). There is still no
+end and no victory screen; that is Phase 7.1.
 
 ---
 
@@ -407,7 +410,10 @@ implemented — the AI is purely turn-local.
 
 | Element | Purpose |
 |---|---|
-| **Main menu** | New Game, Toggle Music, Help ❌ (Help does nothing) |
+| **Main menu** | Resume Game, New Game, Save / Load, Options, Toggle Music, Help ❌ (Help does nothing). Reachable during play by Escape or by the hamburger button at the top of the map |
+| **Confirm dialog** | One reusable yes/no modal. New Game and a load over a running game both ask through it, because both destroy a game with no undo |
+| **Save / Load panel** | The whole game as a copyable code, and a box to paste one back into |
+| **Autosave indicator** | A spinner at the top right while the autosave writes; holds ~2 s, then fades |
 | **Country selection** | Countries above a strength threshold (40,000) are greyed out and unpickable; player picks a colour |
 | **Top table** | Player-wide totals: gold, oil, food, cons. mats, productive population, land area, army |
 | **Bottom table** | Selected territory: flag, name, mountain defence, gold, oil, food, cons. mats, population, area, military |
@@ -464,8 +470,8 @@ Things the game needs but does not have. Ordered roughly by how badly they are m
 | # | Feature | Notes |
 |---|---|---|
 | ❌ 1 | **Win / lose conditions** | Nothing checks total conquest or player elimination. The game literally cannot end. |
-| ❌ 2 | **Save / load** | No `localStorage`, no serialisation. A refresh destroys the session. |
-| ❌ 3 | **New game / restart** | `gameLoop()` recurses forever with no teardown. "New Game" only works from a fresh page load. |
+| ✅ 2 | ~~**Save / load**~~ | **Done, refactor Phase 7.3.** Autosave to `localStorage` on a one-minute timer, restored through Resume Game on the next visit, plus an lz-string-compressed code the player can copy out and paste back. `src/state/snapshot.js`, `src/platform/storage.js`. Still a single slot — named slots are a bigger UI than this game needs, and the code is the escape hatch. |
+| ✅ 3 | ~~**New game / restart**~~ | **Done, refactor Phase 7.2.** `TurnEngine.reset()` (Phase 5.7) made the teardown possible; the world is put back by loading a pristine snapshot captured at bootstrap. Restart is New Game, and New Game asks first when there is a game to lose. |
 | ❌ 4 | **Per-turn army maintenance** | Implemented but the call site is commented out (§3.4). Removing the main economic brake on militarisation. |
 | ❌ 5 | **Multiplayer / online** | Despite the repo name. No sockets, no server logic. |
 | ❌ 6 | **Long-term AI goals** | TODOs only (§8.5). |

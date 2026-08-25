@@ -46,10 +46,44 @@ export const ids = Object.freeze({
     canvas: "canvas",
 
     // --- Main menu ------------------------------------------------------------
+    // Phase 7.2 added `resumeGameBtn` and `saveLoadBtn`. Resume is FIRST in the
+    // menu and disabled until there is something to resume -- either a game
+    // already in progress behind the menu, or an autosave found at page load.
+    resumeGameBtn: "resume-game-btn",
     newGameBtn: "new-game-btn",
+    saveLoadBtn: "save-load-btn",
     toggleMusicBtn: "toggle-music-btn",
     optionsBtn: "options-btn",
     helpBtn: "help-btn",
+
+    // --- In-game menu button (Phase 7.2) --------------------------------------
+    // The hamburger at the top of the screen. Escape has always opened the menu
+    // mid-game; nothing on screen said so, which is the whole reason this exists.
+    menuButton: "menu-button-hamburger",
+
+    // --- Confirm dialog (Phase 7.2) -------------------------------------------
+    // One reusable yes/no modal. New Game asks through it, because starting one
+    // over a game in progress destroys that game with no undo.
+    confirmDialogContainer: "confirm-dialog-container",
+    confirmDialog: "confirm-dialog",
+    confirmDialogTitle: "confirm-dialog-title",
+    confirmDialogMessage: "confirm-dialog-message",
+    confirmDialogConfirm: "confirm-dialog-confirm",
+    confirmDialogCancel: "confirm-dialog-cancel",
+
+    // --- Save / load panel (Phase 7.3) ----------------------------------------
+    saveLoadContainer: "save-load-container",
+    saveLoadPanel: "save-load-panel",
+    saveCodeField: "save-code-field",
+    saveCodeCopyBtn: "save-code-copy-btn",
+    saveCodeGenerateBtn: "save-code-generate-btn",
+    loadCodeField: "load-code-field",
+    loadCodeBtn: "load-code-btn",
+    saveLoadStatus: "save-load-status",
+    saveLoadCloseBtn: "save-load-close-btn",
+
+    // --- Autosave indicator (Phase 7.3) ---------------------------------------
+    saveIndicator: "save-indicator",
 
     // --- Options panel --------------------------------------------------------
     // Opened from the main menu. The container is created by the component
@@ -61,6 +95,10 @@ export const ids = Object.freeze({
     themePreview: "theme-preview",
     themeDescription: "theme-description",
     optionsCloseBtn: "options-close-btn",
+    // Phase 7.3 gave Cancel an id. It never had one, and the theme spec reached it
+    // by `.options-button-ghost` -- which stopped being unique the moment the
+    // confirm dialog and the save/load panel started sharing that class.
+    optionsCancelBtn: "options-cancel-btn",
 
     // --- Phase bar ------------------------------------------------------------
     // One popup doing two jobs: the country-select confirm before the game
@@ -76,8 +114,12 @@ export const ids = Object.freeze({
     // `page.frame({ name: "svg-map" })`, never `frameLocator`.
     svgMap: "svg-map",
     svgCoastLines: "svg-coast-lines",
-    mapModeButton: "mapModeButton",
-    strokeHighlightButton: "strokeHighlightButton",
+    // Phase 7.4. `mapModeButton` (flip to the physical map) and
+    // `strokeHighlightButton` (draw the continent boundaries) were two PNG
+    // buttons offering four combinations, of which one -- relief with no
+    // boundaries on it -- nobody wants to look at. They are one button walking
+    // three states now; `data-view` on it says which.
+    continentViewButton: "continentViewButton",
     uiToggleButton: "UIToggleButton",
     // Lives INSIDE the SVG document, not the host document.
     attackImage: "attackImage",
@@ -367,6 +409,12 @@ export const classNames = Object.freeze({
 
     // Map furniture
     sparklesContainer: "sparkles-container",
+
+    // Map chrome (Phase 7.4). The hamburger, the info-panel globe and the
+    // continent-view button are one design in three sizes of nothing -- same
+    // box, same tokens, different art inside.
+    chromeButton: "chrome-button",
+    chromeIcon: "chrome-icon",
 });
 
 /**

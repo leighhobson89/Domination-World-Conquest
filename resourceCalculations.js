@@ -133,6 +133,12 @@ import {
 import {
     bottomTable
 } from './src/ui/components/BottomTable.js';
+import {
+    registerSaveSlice
+} from './src/platform/saveSlices.js';
+import {
+    captureNewGameBaseline
+} from './src/platform/storage.js';
 
 export let allowSelectionOfCountry = false;
 export const playerOwnedTerritories = [];
@@ -266,6 +272,10 @@ let pathAreaComputations = 0;
             //territory model was seeded by createArrayOfInitialData(). See Phase 4.4.
             startMapAttributeSync();
             enableNewGameButton();
+            //Phase 7.2. The pristine world, captured the moment it exists and before
+            //anybody has played it. "New Game" from inside a running game restores it
+            //-- Restart is a load. See src/platform/storage.js.
+            captureNewGameBaseline();
         })
         .catch(error => {
             console.log(error);
@@ -4059,3 +4069,53 @@ function adjustValueIfOverMax(topTableGold, topTableProdPop, rowIndex, currentVa
     }
     return currentValueQuantity;
 }
+//--- save/load ------------------------------------------------------------
+//
+//Phase 7.3. Everything below is derived -- it is what newTurnResources() and
+//calculateTerritoryStrengths() compute at the top of a turn -- but a load does not
+//re-run the top of a turn. Re-running it would grant the turn's income a second
+//time, which is the whole reason a restored game resumes INSIDE the saved turn
+//rather than by replaying it. So the derived tables are saved rather than
+//recalculated.
+//
+//`totalPlayerResources` and `countryResourceTotals` are `export const`, imported by
+//reference in five files, so they are refilled in place. The rest are `export let`,
+//so an assignment here reaches every importer through its live binding.
+//
+//`playerOwnedTerritories` is deliberately NOT saved: it holds SVG path elements,
+//which do not serialise, and getPlayerTerritories() rebuilds it from the map in a
+//single pass.
+registerSaveSlice("economy", {
+    capture: () => ({
+        capacities: capacityArray ?? null,
+        demands: demandArray ?? null,
+        countryStrengths: countryStrengthsArray ?? null,
+        turnGainsLastTurn: turnGainsArrayLastTurn,
+        turnGainsPlayer: turnGainsArrayPlayer,
+        turnGainsAi: turnGainsArrayAi,
+        totals: totalPlayerResources[0] ?? null,
+        countryTotals: countryResourceTotals,
+        allowSelectionOfCountry: allowSelectionOfCountry
+    }),
+    restore: (data) => {
+        capacityArray = data?.capacities ?? undefined;
+        demandArray = data?.demands ?? undefined;
+        countryStrengthsArray = data?.countryStrengths ?? undefined;
+        turnGainsArrayLastTurn = data?.turnGainsLastTurn ?? createEmptyTurnGains();
+        turnGainsArrayPlayer = data?.turnGainsPlayer ?? createEmptyTurnGains();
+        turnGainsArrayAi = data?.turnGainsAi ?? {};
+        allowSelectionOfCountry = data?.allowSelectionOfCountry ?? false;
+
+        totalPlayerResources.length = 0;
+        if (data?.totals) {
+            totalPlayerResources.push(data.totals);
+        }
+
+        for (const key of Object.keys(countryResourceTotals)) {
+            delete countryResourceTotals[key];
+        }
+        Object.assign(countryResourceTotals, data?.countryTotals ?? {});
+
+        getPlayerTerritories();
+    }
+});

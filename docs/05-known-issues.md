@@ -22,7 +22,8 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: end of refactor Phase 6, revised at the Phase 6.9 planning review and again after 7.10 (themes).**
+**Last updated: after refactor Phase 7.2 / 7.3 (menu access, new game, save/load).** Earlier
+revisions: end of Phase 6, the Phase 6.9 planning review, and 7.10 (themes).
 
 ## Currently open
 
@@ -34,7 +35,6 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 |---|---|---|
 | — | Bootstrap ordering is timing-luck: CPU leaders and the AI's starting forts are created after `initialiseGame()` resolves, so turn 1 runs over a world with no leaders and no forts | 7.x balance |
 | — | No win or lose condition — the game cannot be finished | 7.1 |
-| — | No save or load — a refresh destroys everything | 7.3 |
 | — | Unpaid army upkeep has no consequence; a broke territory keeps its army for free | 7.x balance |
 | — | AI sieges accumulate without bound (17 → 67 over 14 turns), and a besieged territory earns nothing | 7.7 / 7.8 |
 | — | The AI can eliminate a single-territory player in ten turns once it plans its first turn with full information | 7.7 / 7.x |
@@ -496,6 +496,43 @@ structural — a shape that made a class of bug possible, rather than one bug.~~
 | ~~`xButton` was one id on two elements — the info panel's close button and the upgrade window's~~ | ~~`xButtonInfoPanel` and `xButtonUpgrade`. `tests/support/selectors.js` addresses each directly instead of scoping a bare `#xButton` to a container~~ |
 | ~~The battle UI's defender-stat strip was eight cells named `battleUIRow4Col2A` through `H` — where they sat, not what they showed~~ | ~~`battleStatsProdPopIcon` / `Value`, `battleStatsFoodIcon` / `Value`, `battleStatsDefenseIcon` / `Value`, `battleStatsMountainIcon` / `Value`. The id, the CSS class and the entry in `BattleUI.js` are one string, so it was one edit in `registry.js` plus the classes in `style.css`~~ |
 | ~~The transfer spinner's buttons set `height`/`width` to 20px inline, over a stylesheet that already said 20px — at a higher specificity, so the stylesheet would have looked broken the first time anyone changed it~~ | ~~Inline pair removed; the classes are authoritative~~ |
+
+## 10. Closed in Phase 7.2 / 7.3
+
+| Issue | Fix |
+|---|---|
+| ~~No save or load — a refresh destroys everything~~ | ~~`src/state/snapshot.js` + `src/platform/storage.js`. A one-minute autosave to `localStorage`, offered as Resume Game on the next visit, and an lz-string-compressed code the player can copy out and paste back~~ |
+| ~~No new game or restart without reloading the page — `gameLoop()` recursed forever with no teardown~~ | ~~`TurnEngine.reset()` (Phase 5.7) plus a pristine snapshot captured at bootstrap: Restart is a load. New Game asks first when there is a game to lose~~ |
+| ~~The main menu was unreachable once a game started, unless you happened to know Escape opened it~~ | ~~A hamburger button over the map (`src/ui/components/MenuButton.js`), and `setUnsetMenuOnEscape()` split into `openInGameMenu()` / `closeInGameMenu()` so three callers share two transitions~~ |
+
+### AS — the Wars & Sieges tab showed the ATTACKER's flag in the defending-country column
+
+**Reported by the developer during 7.3, fixed in the same pass.**
+
+`src/ui/infoTable/warColumns.js` rendered the *Defending Country* flag from
+`war.defendingTerritory.dataName`. `dataName` is the **current owner** of a territory and
+changes on conquest — so as soon as the attacker won and took the place, the row describing
+that war showed the attacker's own flag on both sides.
+
+This is the `dataName` / `territoryName` / `originalOwner` confusion that CLAUDE.md warns about,
+in its most easily missed form: the expression was correct for every row where the territory
+had **not** changed hands — every ongoing siege, and every war the attacker lost — and wrong
+only on the outcome anybody would actually look back at.
+
+**The fix is to record rather than derive.** A war now carries `defendingCountry`, set when it
+is created from the defending territory as it stood at that moment. All three construction
+sites in `battle.js` set it: the player-initiated siege and the one-battle historic war both
+take it from `getOriginalDefendingTerritory()` — which is a snapshot taken when the battle UI
+opens, so it predates any conquest — and the AI siege takes it from the defender, which cannot
+have changed hands yet. The column falls back to the old expression for war objects that
+predate the field (a siege already in progress, or an older save); those are all *unresolved*
+wars, whose territory has not changed hands, so the fallback is right for exactly the cases
+that can reach it.
+
+Covered by `tests/e2e/info-panels/wars-tab.spec.js`, which conquers rather than besieging —
+asserting the flag on any other outcome would have passed against the bug.
+
+---
 
 ### One found during Phase 6 and deliberately NOT fixed
 

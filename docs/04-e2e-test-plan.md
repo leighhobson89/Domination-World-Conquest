@@ -107,8 +107,24 @@ window.__game = {
   battle: () => ({ attackers, defenders, round, warId, probability }) | null,
   randomEventProbability: () => number,
   forceRandomEvent: (name) => name,         // queue one of the four for the next turn
+
+  // added in Phase 7.3, installed once a game is running (see below)
+  saveNow: () => boolean,                   // the autosave tick, minus the sixty-second wait
+  saveCode: () => string | null,            // the Save panel's field, without the panel
+  loadCode: (code) => Promise<void>,        // its Load button, without the panel
+  hasStoredSave: () => boolean,
+  clearStoredSave: () => void,
 };
 ```
+
+**Why the Phase 7.3 additions exist.** `saveNow()` is the whole reason: the autosave interval
+is sixty seconds, and a spec cannot wait sixty seconds. Shortening the interval when `?e2e=1`
+is set would mean the suite exercising a timing the game never uses, so the hook takes the same
+save through the same code path and raises the same spinner instead. `saveCode()` and
+`loadCode()` are the panel's two buttons without the panel, for the specs that are about the
+round trip rather than about a textarea and the clipboard. All five are installed by
+`beginAutosaving()`, so they exist from the moment a game starts and not before — which is also
+when there is anything for them to do.
 
 ~~**Why each of the Phase 5.8 additions exists** — none of them is convenience:
 
@@ -441,10 +457,10 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 14 | `random-events/` | P2 | §2.2, §3.7 | ✅ 7 — Phase 5.8 |
 | 15 | `conquest-lifecycle/` | P2 | §3.7 | ✅ 4 — Phase 5.8 |
 | — | `options/` | P2 | — | ✅ 8 — Phase 7.10; not in the original list, added with the theme system |
-| 16 | `persistence/` | P3 | Refactor 7.3 | — |
+| 16 | `save-load/` | P3 | Refactor 7.2/7.3 | ✅ 16 — Phase 7.2/7.3. This is row 16, `persistence/`, delivered under the name of the feature rather than of the mechanism |
 | 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
 
-**275 tests in 49 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
+**291 tests in 51 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
 Each folder's README records which rows of the tables below it delivers and which it defers,
 with the reason — a spec that is missing is missing on purpose and says so.
 
@@ -681,9 +697,28 @@ The full arc from taking a territory to using it normally.
 
 ---
 
-### 5.16 `persistence/` — P3 *(after Refactor 7.3)*
+### 5.16 `save-load/` — P3 — ✅ delivered (Refactor 7.2/7.3)
 
-Save on every turn; load restores territories, wars, sieges, turn and phase exactly; export/import round-trips; a corrupt save is rejected with a message rather than a crash.
+Planned as `persistence/`; delivered as `save-load/`, because what it covers is two menu
+features rather than a storage mechanism — reaching the menu mid-game and restarting belong
+with saving and loading, and all four are the same set of state transitions.
+
+| Spec | Covers |
+|---|---|
+| `menu-access.spec.js` | The hamburger appears with the game and disappears with the menu; it and Escape make the same two transitions; Resume is greyed out until there is something to resume; New Game asks before destroying a game in progress and does not ask when there is none; confirming really resets the world; the restarted game is playable |
+| `save-load.spec.js` | The panel offers a code as soon as it opens; a code taken before a turn restores the game to before that turn; a loaded game is wired up rather than merely restored; a foreign code and a damaged one give different messages; the autosave writes to `localStorage` and raises the spinner; a stored save offers Resume on the next visit |
+
+The division of labour with the unit suite is the point of this folder, and it is written up in
+`tests/e2e/save-load/README.md`. `tests/unit/state-snapshot.spec.js` (24 tests) owns the data
+path — what a snapshot contains and what a restore puts back. What only a browser can catch is
+whether a loaded game is **wired up**: the phase button is invisible until something writes
+`opacity: 1` over it, the top table is written rather than derived so nothing repaints it on a
+state change, and the turn engine has to be stopped and started again. Each of those failures
+passes every unit test and hands the player a dead screen.
+
+Two hooks were added to `window.__game` for it — `saveNow()`, because the autosave interval is
+sixty seconds and shortening it for the harness would mean testing a timing the game never
+uses, and `saveCode()` / `loadCode()`, which are the panel's two buttons without the panel.
 
 ### 5.17 `victory-conditions/` — P3 *(after Refactor 7.1)*
 
@@ -790,8 +825,8 @@ harness share, and a parallel attribute would be a second thing to keep in step.
 **Menu & start:** `new-game-btn` · `toggle-music-btn` · `popup-title` · `popup-body` ·
 `popup-confirm` · `popup-color` · `player-color-picker`
 
-**Map:** `svg-map` (object → `contentDocument`) · `svg-coast-lines` · `mapModeButton` ·
-`strokeHighlightButton` · `UIToggleButton`
+**Map:** `svg-map` (object → `contentDocument`) · `svg-coast-lines` · `continentViewButton`
+(read its `data-view`: `normal` / `physical` / `continent`) · `UIToggleButton`
 Territory paths: `path[uniqueid]`, `path[territory-name]`, `path[data-name]`, `path[owner]`,
 `path[underSiege]`, `path[deactivated]`, `path[greyedOut]`, `path[attackableTerritory]`
 
