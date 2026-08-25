@@ -45,6 +45,7 @@ import {
     isCountryGreyedOut,
     isDeactivated,
     isUnderSiege,
+    besiegerOf,
     ownerOf
 } from "./selectors.js";
 
@@ -103,6 +104,20 @@ export function pathIsUnderSiege(path) {
     }
     const territory = territoryForPath(path);
     return territory ? isUnderSiege(territory.territoryName) : false;
+}
+
+/**
+ * The country besieging the territory this path draws, or null.
+ *
+ * Answers null during the bootstrap window: no siege can exist before the store does,
+ * and the `underSiege` attribute records only THAT a siege exists, never whose.
+ */
+export function pathBesieger(path) {
+    if (!modelReady()) {
+        return null;
+    }
+    const territory = territoryForPath(path);
+    return territory ? besiegerOf(territory.territoryName) : null;
 }
 
 /** Replaces `path.getAttribute("greyedOut") === "true"`. */

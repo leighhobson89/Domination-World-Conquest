@@ -109,11 +109,7 @@ export const bottomTableCells = {
 
 export const infoTable = {
     toggle: sel.uiToggleButton,
-    // `xButton` is a DUPLICATED id: the info panel's close button and the upgrade
-    // window's both carry it, so a bare "#xButton" is a strict-mode violation the
-    // moment both exist. Scope it to the container. Refactor Phase 6.8 gives them
-    // semantic ids.
-    close: `${sel.mainUiContainer} ${sel.xButton}`,
+    close: sel.xButtonInfoPanel,
     tabs: sel.tabButtons,
     summaryTab: sel.summaryButton,
     territoriesTab: sel.territoryButton,
@@ -147,8 +143,7 @@ export const buyWindow = {
 export const buyRows = { infantry: 0, assault: 1, air: 2, naval: 3 };
 
 export const upgradeWindow = {
-    // See the note on infoTable.close -- `xButton` is used twice in the document.
-    close: `${sel.upgradeContainer} ${sel.xButton}`,
+    close: sel.xButtonUpgrade,
     confirm: sel.bottomBarConfirmButton,
     subtitle: sel.subtitleUpgradeWindow,
     totalGold: sel.pricesInfoColumn2,

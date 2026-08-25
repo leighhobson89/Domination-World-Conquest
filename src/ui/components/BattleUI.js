@@ -9,7 +9,7 @@
 // the divider class.
 //
 // Row 4 column 2 is the part worth reading carefully. It is eight cells named
-// `battleUIRow4Col2A` through `H`, alternating icon and text: production
+// `battleStatsProdPopIcon` through `H`, alternating icon and text: production
 // population, food, fort defence, mountain defence. `A` also holds the Siege
 // Territory button, which is why the first icon shares a cell with it. Those
 // ids are meaningless and Phase 6.8 replaces them; the `STAT_CELLS` table here
@@ -29,18 +29,23 @@ const UNIT_ICONS = ["infantry", "assault", "air", "naval", "infantry", "assault"
 const DIVIDER_COLUMN = 5;
 
 /**
- * Row 4's right-hand strip, in order. Each entry is an icon cell followed by
- * a text cell, so `A`/`B` are population, `C`/`D` food, and so on.
+ * Row 4's right-hand strip, in order: an icon cell then a value cell, four times
+ * over -- productive population, food capacity, defence bonus, mountain defence.
+ *
+ * Phase 6.8 renamed these from `battleUIRow4Col2A` through `H`, which named where
+ * they sat rather than what they showed, so the strip could not be read without
+ * counting. The id, the CSS class and the entry here are one string, so a rename is
+ * one edit in `registry.js` plus its class in `style.css`.
  */
 const STAT_CELLS = [
-    { cell: "battleUIRow4Col2A", icon: ids.prodPopIcon, image: "prodPopulation" },
-    { cell: "battleUIRow4Col2B", text: ids.prodPopText },
-    { cell: "battleUIRow4Col2C", icon: ids.foodIcon, image: "foodCap" },
-    { cell: "battleUIRow4Col2D", text: ids.foodText },
-    { cell: "battleUIRow4Col2E", icon: ids.defenseIcon, image: "fortIcon", flex: true },
-    { cell: "battleUIRow4Col2F", text: ids.defenseBonusText },
-    { cell: "battleUIRow4Col2G", icon: ids.mountainDefenseIcon, image: "mountainDefenseIcon", flex: true },
-    { cell: "battleUIRow4Col2H", text: ids.mountainDefenseText, extraClass: "mountainDefenseText" },
+    { cell: "battleStatsProdPopIcon", icon: ids.prodPopIcon, image: "prodPopulation" },
+    { cell: "battleStatsProdPopValue", text: ids.prodPopText },
+    { cell: "battleStatsFoodIcon", icon: ids.foodIcon, image: "foodCap" },
+    { cell: "battleStatsFoodValue", text: ids.foodText },
+    { cell: "battleStatsDefenseIcon", icon: ids.defenseIcon, image: "fortIcon", flex: true },
+    { cell: "battleStatsDefenseValue", text: ids.defenseBonusText },
+    { cell: "battleStatsMountainIcon", icon: ids.mountainDefenseIcon, image: "mountainDefenseIcon", flex: true },
+    { cell: "battleStatsMountainValue", text: ids.mountainDefenseText, extraClass: "mountainDefenseText" },
 ];
 
 let root = null;
@@ -127,7 +132,7 @@ export function create() {
 
     const statCells = STAT_CELLS.map((spec) => {
         const children = [];
-        if (spec.cell === "battleUIRow4Col2A") children.push(siegeButton);
+        if (spec.cell === "battleStatsProdPopIcon") children.push(siegeButton);
         if (spec.icon) {
             children.push(
                 el("div", {

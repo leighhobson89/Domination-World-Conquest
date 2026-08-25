@@ -22,7 +22,36 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: end of refactor Phase 5, including 5.8.**
+**Last updated: end of refactor Phase 6.**
+
+## Currently open
+
+**One line per issue that is still open. An issue is deleted from this list the moment
+it is closed** — the detail of what it was and how it was fixed stays in the section
+below that owns it, struck through. If this list is empty, nothing is outstanding.
+
+| Id | Issue | Owner |
+|---|---|---|
+| — | Bootstrap ordering is timing-luck: CPU leaders and the AI's starting forts are created after `initialiseGame()` resolves, so turn 1 runs over a world with no leaders and no forts | 7.x balance |
+| — | No win or lose condition — the game cannot be finished | 7.1 |
+| — | No save or load — a refresh destroys everything | 7.3 |
+| — | Unpaid army upkeep has no consequence; a broke territory keeps its army for free | 7.x balance |
+| — | AI sieges accumulate without bound (17 → 67 over 14 turns), and a besieged territory earns nothing | 7.7 / 7.8 |
+| — | The AI can eliminate a single-territory player in ten turns once it plans its first turn with full information | 7.7 / 7.x |
+| — | `dices.js` is fully wired but its call site is commented out; `dist/` (~1 MB) loads on every page view for it | 7.9 |
+| — | The transfer table's row-selection handler is on the row's NAME column, not on the row | 7.x |
+| — | Mixed tabs and spaces, inconsistent brace style, commented-out blocks in the legacy root sources | per file, as each moves into `src/` |
+| — | ~200 `console.log` calls in the turn and battle hot path, almost all in `ui.js`, `battle.js` and `aiCalculations.js` | per file, as each moves into `src/` |
+| — | Four names for one structure: the `mainArrayOfTerritoriesAndResources` / `mainArray` parameter names survive in `battle.js` and `transferAndAttack.js` | per file |
+| — | `dataName` / `territoryName` / `originalOwner` are named correctly in the selectors but keep their old names in the model | per file |
+| — | `battle.js` still exports ~25 `let`s of per-battle scratch | per file |
+| — | `ui.js` is still ~4,000 lines and `resourceCalculations.js` ~4,000; Phase 6's "no file over 400 lines" is not met | 7.x / a Phase 6.9 |
+| **AN** | A famine whose losses exactly equal the infantry count destroys the entire mechanised army — `remaining === 0` is not `remaining > 0` | 7 balance |
+| **AP** | Battle rout / last-push thresholds compare against each side's force as it stood at the START of the round — a full round of lag | 7 balance |
+| **AR** | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the small-territory defence bonus does not exist and large territories are penalised instead | 7 balance |
+| — | The bootstrap colour palette (`generateDistinctRGBs()` in `src/ui/map/colouring.js`) is dead code that is still CALLED, because its `Math.random` draws are on the game's stream and removing them moves every seeded outcome | 7 balance |
+
+---
 
 ## Status legend
 
@@ -37,9 +66,9 @@ symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
 | | Critical | High | Medium | Low |
 |---|---:|---:|---:|---:|
-| 🟢 Fixed | 14 | 16 | 16 | 1 |
-| 🔴 Open | 0 | 0 | 1 | — |
-| 🟡 / ⚪ | 0 | 0 | 6 | 4 |
+| 🟢 Fixed | 14 | 16 | 17 | 2 |
+| 🔴 Open | 0 | 0 | 0 | — |
+| 🟡 / ⚪ | 0 | 0 | 5 | 4 |
 
 ~~Phase 3 closed every critical and every high-severity defect in the register, plus five
 (**AF** through **AJ**) that only became reachable once the others were fixed. Every one of
@@ -49,23 +78,41 @@ those five was found by the same spec: the ten-turn `long-run`.~~
 found while doing it (§4b).~~
 
 ~~Phase 5.8 closed **Y** — the one that had held back the whole suite — and seven defects that
-closing it made reachable (§8).~~ **One defect is left open: AE, which Phase 6.7 owns.**
+closing it made reachable (§8).~~
+
+**Phase 6 closed the last one: AE. There is no 🔴 left in the register, and no `test.fixme`
+left in the suite.** What remains is the 🟡 / ⚪ list in §2 and the balance items in §7, all of
+which are sequenced into Phase 7 — see **Currently open** at the top.
 
 ---
 
-## 1. Still open
+## 1. ~~Still open~~ — closed in Phase 6
 
-One defect, structural rather than arithmetic, already sequenced.
+~~One defect, structural rather than arithmetic, already sequenced.~~
 
 | Id | Issue | Status | Now at | Fixed by | Covered by |
 |---|---|---|---|---|---|
-| **AE** | **The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL | 🔴 Open | [transferAndAttack.js](../transferAndAttack.js), [ui.js](../ui.js) | 6.7 | `attack/attack-window.spec.js` — **the only `test.fixme` left in the suite** |
+| **AE** | ~~**The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL~~ | 🟢 Fixed | [src/ui/map/markers.js](../src/ui/map/markers.js) | **6.7 — DONE** | `attack/attack-window.spec.js`, two specs — one per cancel route |
 
-It is not a patch. **AE** is the marker half of the map-state desync, and Phase 6.7 removes
-the whole class by making markers a pure function of state rather than something pushed onto
-the SVG from ~30 call sites. ~~Phase 4 did the same thing to the six *attribute* halves of that
+~~It is not a patch.~~ **AE** was the marker half of the map-state desync, and Phase 6.7 removed
+the whole class by making the marker a function of state rather than something pushed onto the
+SVG from ~30 call sites. ~~Phase 4 did the same thing to the six *attribute* halves of that
 desync, which is why the attribute specs in `bootstrap/state-layer.spec.js` can now assert
 map-equals-model outright.~~
+
+**How it was closed, because the shape of the fix is the point.** The marker was an `<image>`
+that six call sites removed by hand, while the fact it was drawing —
+`territoryAboutToBeAttackedOrSieged` — was a plain `let` that a seventh site set to `null`
+without touching the DOM. Two representations of one fact, and the cancel path only ever
+updated one of them. `src/ui/map/markers.js` owns both: `setAttackTarget(path)` draws the
+marker and `clearAttackTarget()` removes it, and there is no way to do one without the other.
+
+**One behaviour was decided rather than restored.** The audit says cancelling should not leave
+the marker, but not what the move button should then say. Cancelling now un-arms the attack
+completely — the target is cleared, `repaintMap()` puts the target territory's fill and stroke
+back, and the button goes away. The player clicks the territory again to arm a fresh attack.
+The alternative, keeping the button on ATTACK, would mean keeping a target the marker says is
+not there, which is the state this defect was about.
 
 ---
 
@@ -76,10 +123,10 @@ Real, understood, deliberately not being fixed yet.
 | Id | Issue | Fixed by | Notes |
 |---|---|---|---|
 | **S** | ~~~60 bare `tooltip` / `uiTable` identifiers resolve **only via named window access**~~ | **DONE in 6.3** | ~~`tooltip` (128 sites across `ui.js` and `resourceCalculations.js`) is now an imported handle from `src/ui/components/Tooltip.js`, which also creates the element — it is no longer a `<div>` in index.html. `uiTable` went with `InfoTable`; the remaining lookups take `ids.uiTable` from the registry~~ |
-| — | Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path | 6.7 | the same root cause as **AE** |
+| — | ~~Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path~~ | **DONE in 6.7** | ~~The snapshot is gone. `repaintMap()` in [src/ui/map/MapView.js](../src/ui/map/MapView.js) computes every path's fill and stroke from the store, so restoring the map after a selection, a cancel or a battle is the same call as painting it — there is no clean moment to miss and no flag to pass. `saveMapColorState()`, `restoreMapColorState()`, `setCurrentMapColorAndStrokeArray()` and `currentMapColorAndStrokeArrayFromExternal()` are all deleted, across `ui.js`, `battle.js`, `aiCalculations.js`, `gameTurnsLoop.js` and `resourceCalculations.js`~~ |
 | — | ~~**Every besieged or freshly-conquered territory was painted the PLAYER's colour**, whoever owned it. `endPlayerTurn()` re-asserts the fill on paths that keep their stroke decoration, and its `else` branch wrote `playerColour()` unconditionally — so an AI territory besieged by another AI took the player's colour with the player nowhere near the war. `saveMapColorState()` three lines later captured the result, so every later `restoreMapColorState()` replayed it and it never washed out: 45 mis-painted territories by turn 4, 55 by turn 8, monotonically increasing. With the picker on its default white it read as blank land; with any colour picked it read as player-held land~~ | **DONE** (found during Phase 6.3) | ~~Ask the owner: `playerColour()` only when `pathIsPlayerOwned()`, otherwise the territory's own `countryColor`. That also repairs a path an earlier turn mis-painted. Guarded by `tests/e2e/siege/besieged-colouring.spec.js`~~ |
 | — | **Bootstrap ordering is timing-luck**: CPU leaders and the AI's starting forts are created *after* `initialiseGame()` resolves, which is after the engine has run turn 1 — so turn 1 plans and earns over a world with no leaders and no forts, and `newTurnResources()` skips the income pass on turn 1 to hide it | **7.x — balance pass** (was 5.7) | ~~Re-sequenced in 5.8, with a measurement. Moving the setup inside `initialiseGame()` was implemented and tried: the ten-turn `long-run` went from **6/6 green to 0/6**, the player eliminated every time.~~ A fully-formed AI first turn is a balance change, not a tidy-up. The finding is recorded at the site in `gameTurnsLoop.js` so nobody repeats it blind |
-| — | `eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state | 6.6 | |
+| — | ~~`eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state~~ | **DONE in 6.6** | ~~It was suppressing a real defect, not debouncing a fast finger: the move button's click handler was re-created and re-attached on every territory selection, and `removeEventListener` could never remove the previous one because each call built a new function object. Listeners accumulated, so one click fired once per selection made since the window opened. There is one listener now, installed once from bootstrap, reading the current state — so there is nothing to de-bounce and the latch and all four timers are gone~~ |
 | — | ~~Essentially **no error handling** — two `try/catch` in 19,800 lines, one of them empty~~ | **DONE in 5.7** | ~~`src/engine/TurnEngine.js` reports a thrown step through `onError` and carries on: one lost turn instead of a dead game. It is why every defect in §3 froze the *whole game* rather than one turn, and why a crash is now a failing e2e spec instead of a stuck phase button~~ |
 | — | **No win or lose condition.** The game cannot be finished | 7.1 | |
 | — | **No save or load.** A refresh destroys everything | 7.3 | |
@@ -88,7 +135,7 @@ Real, understood, deliberately not being fixed yet.
 | — | **AI sieges accumulate without bound, and a besieged territory earns nothing.** Measured over 14 turns: 17 → 67 concurrent AI sieges, and a player besieged on turn 3 was still besieged on turn 14 with its income suspended throughout | 7.7 / 7.8 | See §5 — the single most player-visible consequence of Phase 3, and a design problem rather than a defect |
 | — | **The AI can eliminate a single-territory player in ten turns** once it plans its first turn with full information. Not reachable today — it is what the bootstrap-ordering item above turns on — but it is the measurement that sequences both | 7.7 / 7.x | Same root as the unbounded sieges: 206 independent actors, each evaluating every reachable enemy |
 | — | `dices.js` is fully wired but its call site is commented out; `dist/` (~1 MB) loads on every page view for it | 7.9 | decide: wire it or delete it |
-| — | `xButton` is a **duplicated id**; ~~`#tooltip` has no `pointer-events: none` and eats the click beneath it~~; the transfer table's row handler is on the NAME column | 6.8 / **6.3 DONE** / 6.5 | ~~The tooltip is fixed: `Tooltip.create()` sets `pointer-events: none` inline and style.css records why. The page objects still park the pointer, which is now belt-and-braces rather than a workaround.~~ `xButton` is recorded in `registry.js` with the duplication called out and is renamed in 6.8; the transfer row handler is worked around in `tests/support/` |
+| — | ~~`xButton` is a **duplicated id**~~; ~~`#tooltip` has no `pointer-events: none` and eats the click beneath it~~; the transfer table's row handler is on the NAME column | **6.8 DONE** / **6.3 DONE** / open | ~~The tooltip is fixed: `Tooltip.create()` sets `pointer-events: none` inline and style.css records why.~~ ~~`xButton` was on two elements — the info panel's close button and the upgrade window's — so a bare `#xButton` was ambiguous the moment both existed and every call site had to scope it to a container. They are `xButtonInfoPanel` and `xButtonUpgrade` now, and `tests/support/selectors.js` addresses each directly.~~ The transfer row handler is still on the NAME column and is still worked around in `tests/support/`; it is listed under **Currently open** |
 
 ### Low — hygiene
 
@@ -96,12 +143,12 @@ Real, understood, deliberately not being fixed yet.
 |---|---|
 | Mixed tabs and spaces, inconsistent brace style, commented-out blocks left in place | per file, as each moves into `src/` — house rule 5 |
 | ~~`//DEBUG` blocks shipped in the turn loop (`logGoldStats`, `setDebugArraysToZero`)~~ | **DONE in 5.8** — ~~the two arrays, both getters, the 40-line logger and its two per-turn calls are all gone~~ |
-| ~200 `console.log` calls in the turn and battle hot path | **6.3** (was 5.7) — they are almost all in `ui.js`, `battle.js` and `aiCalculations.js`, so they come out with the files rather than in a sweep of their own |
+| ~200 `console.log` calls in the turn and battle hot path | **still open** — they are almost all in `ui.js`, `battle.js` and `aiCalculations.js`, so they come out with the files rather than in a sweep of their own. Phase 6 removed the two in the attack table's per-click path, which ran on every plus and minus press |
 | ~~Magic numbers throughout~~ | **DONE in 5.1** — ~~`src/config/balance.js`. `COUNTRY_GREYOUT_RANK`, `UNIT_MATCHUP_EFFECTIVENESS`, `armyCostPerTurn`, `PROBABILITY_THRESHOLD_FOR_SIEGE` and the battle thresholds all live there and are imported by the specs that assert them~~ |
 | Four names for one structure: `mainGameArray` / `mainArrayOfTerritoriesAndResources` / `mainArray` / `territories` — the first is gone, the parameter name survives in `battle.js` and `transferAndAttack.js` | 5.2 / 5.3, as each function becomes pure |
 | `dataName` is the *current owner* and changes on conquest, `territoryName` is the stable identity, `originalOwner` is historical. Named as such in `state/selectors.js` (`countryOf` vs `getTerritoryByName`) but the fields keep their old names in the model | 5.2 |
 | `battle.js` still exports ~25 `let`s of per-battle scratch (`currentRound`, `attackingArmyRemaining`, …) | 5.3 — `resolveRound()` is pure and has no module state |
-| Lint baseline: recorded per phase; re-measure at the start of Phase 6, which is the phase that owns `ui.js` | per file, as each moves into `src/` — house rule 6 |
+| Lint baseline: **86 errors / 294 warnings at the end of Phase 6**, from 226/405 at Phase 0 and 188/332 at the start of Phase 6. The fall is a by-product of extraction, not a sweep — house rule 6 still stands | per file, as each moves into `src/` |
 
 ---
 
@@ -279,7 +326,28 @@ Two things are worth keeping from it:
 
 ---
 
-## 5. How the register is used
+## 5. How the register is used, and how it is kept
+
+### Maintaining this document
+
+- **Keep the `Currently open` list at the top accurate, and keep it to one line per issue.**
+  It is the index: a reader who wants to know what is outstanding should not have to read the
+  register to find out. Every entry names the issue and the phase that owns it, and nothing
+  else — the detail belongs in the section below that owns it.
+- **When an issue is closed, DELETE its line from `Currently open`.** Do not strike it through
+  there and do not leave it with a "done" marker; the list is only useful if its length is the
+  number of open issues. The record of what it was survives in its own section.
+- **When an issue is closed, strike through its description in the section that owns it**
+  (`~~like this~~`) and say in plain text what closed it and where the code is now. Strike the
+  *description of the broken behaviour*, not the explanation of the fix — a reader skimming for
+  what is still true should be able to read the un-struck text and get only the present tense.
+  The same convention applies to [04-e2e-test-plan.md](./04-e2e-test-plan.md).
+- **Add a new issue to both places at once**: a line in `Currently open`, and an entry with its
+  detail in the section that will own it.
+- **Never renumber an id.** They are cited by the e2e specs and by the refactor plan.
+- **Update `Last updated` and the scoreboard** when a phase closes.
+
+### Using the register
 
 - **Before "fixing" something odd, look here first.** If it has an id it is understood and
   sequenced, and fixing it out of order breaks the bisect guarantee (house rule 3).
@@ -298,6 +366,12 @@ Two things are worth keeping from it:
   so `?seed=` repeats. `battle/rout.spec.js`, `battle/outcomes.spec.js` and the AI determinism
   spec all depend on it.~~ The invariant style is still the right choice where the invariant is
   the more useful thing to state — it is a choice now, not a limit.
+- **Those exact-outcome specs pin the whole `Math.random` stream, not just the rule under
+  test.** Phase 6 found this the hard way: deleting `generateDistinctRGBs()` — dead decorative
+  code, never read — changed how the whole-garrison attack on France resolves, because it drew
+  from the game's stream at module load. Four specs moved. **Anything that removes or adds a
+  `Math.random` draw anywhere in bootstrap re-baselines those specs**, so it is its own change
+  with its own commit, never a tidy-up inside another one. See the `Currently open` entry.
 
 ## 6. What Phase 3 made visible
 
@@ -383,3 +457,46 @@ about *when*.~~
 | Issue | Fix |
 |---|---|
 | **The active-tab mark never moved.** ~~`active` was added to `summaryButton` once, at game start, and removed from the other three only by the X button — no tab click touched it. `.tab-button.active` is what `style.css` highlights, so the Summary tab looked permanently selected however many times the player switched, and the `mouseout` handler (which asks `classList.contains("active")`) reset the wrong button's colour~~ | ~~`markActiveTab()` — one place writes which tab is selected.~~ Phase 6.3 turns it into `InfoTable.update(state)` |
+
+---
+
+## 9. Closed in Phase 6
+
+~~Phase 6 is a decomposition, not a defect phase, so most of what it closed is
+structural — a shape that made a class of bug possible, rather than one bug.~~
+
+### The last 🔴
+
+| Id | Issue | Fix |
+|---|---|---|
+| **AE** | ~~The attack marker survived a cancel by either route~~ | ~~`src/ui/map/markers.js` owns the target and the marker as one fact. See §1~~ |
+
+### Structural, closed by 6.7
+
+| Issue | Fix |
+|---|---|
+| ~~Map colour is a **snapshot**, saved and restored from ~30 call sites across five files, with `false` and `"true"` both passed as the same flag~~ | ~~`repaintMap()` derives every path's fill and stroke from `GameState`. `currentMapColorAndStrokeArray` and its four accessors are deleted~~ |
+| ~~The country-selection restore lifted the lock off all five locked countries, so `paintLockedCountries()` had to be called after every repaint or the lock came off~~ | ~~`repaintCountrySelection()` states each country's colour as a fact about that country — base colour, muted if locked, player colour if picked — so there is no exception to re-apply~~ |
+| ~~`deactivateTerritory()` patched the colour snapshot by hand so a conquered territory would be replayed in the player's colour~~ | ~~Deleted. `setTerritoryOwner()` is what makes the repaint answer "the player"~~ |
+| ~~`addImageToPath()`'s `siege === 1` and `siege === 2` branches were dead from Phase 5.8 and still pulled `battle.js` into the marker code~~ | ~~Deleted with the function~~ |
+
+### Structural, closed by 6.6
+
+| Issue | Fix |
+|---|---|
+| ~~The move button's click handler was **re-created and re-attached on every territory selection**, and `removeEventListener("click", transferAttackClickHandler)` could never remove the previous one because each call built a new function object. Listeners accumulated: one click fired once per selection made since the window opened. `eventHandlerExecuted` plus four `setTimeout(…, 200)` calls were suppressing the symptom~~ | ~~One listener, installed once from bootstrap. The latch and all four timers are gone~~ |
+| ~~What the button showed was decided in five blocks that each removed four of five background classes and added a fifth — and no two removed the same set, so the button could carry two backgrounds at once~~ | ~~`deriveMoveButtonState()` is pure and has no DOM in it; `tests/unit/ui-move-button.spec.js` states the whole table of outcomes in Node~~ |
+
+### Structural, closed by 6.8
+
+| Issue | Fix |
+|---|---|
+| ~~`xButton` was one id on two elements — the info panel's close button and the upgrade window's~~ | ~~`xButtonInfoPanel` and `xButtonUpgrade`. `tests/support/selectors.js` addresses each directly instead of scoping a bare `#xButton` to a container~~ |
+| ~~The battle UI's defender-stat strip was eight cells named `battleUIRow4Col2A` through `H` — where they sat, not what they showed~~ | ~~`battleStatsProdPopIcon` / `Value`, `battleStatsFoodIcon` / `Value`, `battleStatsDefenseIcon` / `Value`, `battleStatsMountainIcon` / `Value`. The id, the CSS class and the entry in `BattleUI.js` are one string, so it was one edit in `registry.js` plus the classes in `style.css`~~ |
+| ~~The transfer spinner's buttons set `height`/`width` to 20px inline, over a stylesheet that already said 20px — at a higher specificity, so the stylesheet would have looked broken the first time anyone changed it~~ | ~~Inline pair removed; the classes are authoritative~~ |
+
+### One found during Phase 6 and deliberately NOT fixed
+
+| Issue | Why not |
+|---|---|
+| `generateDistinctRGBs()` in [src/ui/map/colouring.js](../src/ui/map/colouring.js) is **dead code that is still called**. `ui.js` assigned its result to `colorArray` at module load and never read it — dead since before the refactor began. It cannot simply be deleted: it draws from `Math.random` at module load, on the same stream the economy, combat and the AI read from, so removing it shifts every seeded outcome in the game | **Measured, not assumed.** With the call gone, the whole-garrison attack on France in `conquest-lifecycle/ownership-transfer.spec.js` resolves as a last push rather than an outright victory, and three more exact-outcome specs move with it. That is a balance change, and Phase 6 is a decomposition — behaviour is preserved unless a defect is being fixed deliberately. The draws stay, isolated in one function with the reason written at the site. Removing them and re-baselining the four specs is one Phase 7 change, and doing both together is the only way it stays bisectable. Same species as audit 5.3 **Y**, with the difference that this one IS reproducible, which is why it can wait |

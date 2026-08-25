@@ -27,10 +27,12 @@ stability — see §3.5) and **`--slow` defaults to 500 ms**.
 
 These are not optional. Without them the suite is either impossible or permanently flaky.
 
-### 2.1 Fast initialisation (Refactor Phase 1.1–1.2) 🔴 blocking
+### 2.1 Fast initialisation (Refactor Phase 1.1–1.2) ✅ delivered
 
-Cold start currently re-parses a 19 MB JSON once per territory. Every spec begins with a game
-start; at present that is minutes per test. **No e2e work should begin before this is fixed.**
+~~Cold start currently re-parses a 19 MB JSON once per territory. Every spec begins with a game
+start; at present that is minutes per test. **No e2e work should begin before this is fixed.**~~
+Closed in Phase 1: the adjacency data is loaded and indexed once, and a spec's game start is
+now a second or two.
 
 ### 2.2 A deterministic RNG hook (Refactor Phase 1.6) ✅ delivered — and the limit is CLOSED (Phase 5.8)
 
@@ -512,7 +514,7 @@ Coarse-grained only; formulas belong in unit tests (§4).
 | `top-table-totals.spec.js` | Top-table figures equal the sum over `__game.territoriesOwnedBy("Player")` for every resource, and update after a purchase without a phase change |
 | `oil-demand-gating.spec.js` | Buying naval units past the territory's oil supply leaves them owned but **not useable**; the Army tab shows `owned (useable)` correctly; useable counts are what feed defence strength |
 | `population.spec.js` | Population grows when food supports it; falls when it does not; productive population = `(pop × 0.45) × devIndex − army` |
-| `starvation.spec.js` | A territory driven below its food need loses population at a rate scaled by `(1 − devIndex)`; **marked `fixme` with a link to audit §5.1 F** until the army-starvation branch is fixed |
+| `starvation.spec.js` | A territory driven below its food need loses population at a rate scaled by `(1 − devIndex)`; ~~**marked `fixme` with a link to audit §5.1 F** until the army-starvation branch is fixed~~ — **F is closed** (Phase 3) and the spec asserts it |
 | `resource-borrowing.spec.js` | A purchase a territory cannot fund alone draws gold/manpower from the player's other territories, and fails cleanly when the player as a whole cannot afford it |
 
 ---
@@ -536,7 +538,7 @@ Coarse-grained only; formulas belong in unit tests (§4).
 | `open-close.spec.js` | Upgrade window opens for an owned territory in Buy/Upgrade only; X and Cancel close without spending |
 | `costs.spec.js` | Cost = `base × modifier × (devIndex / 4)` for each building; a high-`devIndex` territory pays less than a low one for the same building |
 | `caps.spec.js` | Each building caps at 5; at the cap the row reads `Max <Building>s Reached` and cannot be incremented |
-| `capacity-effects.spec.js` | 🔴 **The audit §5.1 A regression test.** Buying exactly one farm raises `foodCapacity` by exactly 10 % of its pre-purchase value — not by `farmsBuilt × 10 %`, and not compounding. Same for forest → cons. mats and oil well → oil. Buying a *fort* must leave all three capacities untouched. Marked `fixme` until Phase 3.1 |
+| `capacity-effects.spec.js` | ✅ **The audit §5.1 A regression test.** Buying exactly one farm raises `foodCapacity` by exactly 10 % of its pre-purchase value — not by `farmsBuilt × 10 %`, and not compounding. Same for forest → cons. mats and oil well → oil. Buying a *fort* must leave all three capacities untouched. ~~Marked `fixme` until Phase 3.1~~ — green since Phase 3.1 |
 | `fort-defence.spec.js` | Defence bonus = `ceil(forts × (forts + 1) × 10) × devIndex + landlockedBonus`; a landlocked territory gets +10; the bottom table's defence figure matches |
 | `insufficient-resources.spec.js` | Rows grey with `Not enough gold` / `Not enough Cons. Mats.` and the reason matches which resource is short |
 
@@ -615,7 +617,7 @@ Needs the scenario loader (§3.7) for anything beyond a single tick.
 | `ai-economy.spec.js` | An economy-focused (pacifist) leader's territories gain buildings over 5 turns; an aggressive leader's gain army instead |
 | `ai-attack.spec.js` | Given a scenario with a weak player territory adjacent to an aggressive AI, the AI attacks and can take it; the player's territory count drops and the map repaints |
 | `ai-gold-offer.spec.js` | When the AI wants to besiege a territory the player is already besieging, the dialogue appears with the leader's flag, name and offer; **accepting** transfers the gold, lifts the player's siege and returns their army; **declining** leaves both unchanged |
-| `ai-turn-gains.spec.js` | Each AI country's per-turn resource gains aggregate across **all** its territories. 🔴 Regression test for audit §5.1 G — marked `fixme` until Phase 3.6 |
+| `ai-turn-gains.spec.js` | Each AI country's per-turn resource gains aggregate across **all** its territories. ✅ Regression test for audit §5.1 G — ~~marked `fixme` until Phase 3.6~~ green since Phase 3.6 |
 | `ai-respects-sieges.spec.js` | The AI does not attack or siege a territory that is already under siege, and does not act from a territory that is itself besieged (the behaviour added in commits `a3a3e3c` / `ef689fb`) |
 
 ---
@@ -686,13 +688,29 @@ Total conquest triggers victory; losing the last territory triggers defeat; the 
 | E7 | `info-panels/`, `random-events/` | 12 specs · **P2 complete** | ✅ Phase 5.8 |
 | E8 | `persistence/`, `victory-conditions/` alongside Refactor Phase 7 | ~8 specs | |
 
-### What E1–E5 actually produced
+### Where the suite stands at the end of Phase 6
 
-**215 tests in 36 spec files across 11 areas** — 190 passing, 0 failing, 24 `test.fixme`,
+**281 tests in 49 spec files across 15 areas, and 306 Vitest unit tests in 16 files.**
+**There is no `test.fixme` left anywhere in the suite** — the last one was `attack-window`'s
+marker assertion for audit §5.2 **AE**, which Phase 6.7 closed and which is now two specs, one
+per cancel route.
+
+~~**215 tests in 36 spec files across 11 areas** — 190 passing, 0 failing, 24 `test.fixme`,
 plus the one wall-clock budget spec that skips outside a single-worker run — and 82 Vitest
-unit tests. Full headless suite at four workers: **2 m 30 s**. Each folder's `README.md`
+unit tests. Full headless suite at four workers: **2 m 30 s**.~~ Each folder's `README.md`
 carries its own spec table and its own out-of-scope note; the phase write-up is in
 [03-refactor-plan.md](./03-refactor-plan.md#phase-2--land-the-safety-net-23-days--complete).
+
+**Phase 6 added and changed these:**
+
+- `map-interaction/zoom-pan.spec.js` was rewritten. Zoom is instant and cursor-anchored now
+  (see [03-refactor-plan.md](./03-refactor-plan.md) §6.7), so the helper that polled for the
+  500 ms animation to settle is gone, and three specs are new: every wheel event is applied,
+  the zoom anchors on the pointer, and nothing outside the world is ever shown.
+- `attack/attack-window.spec.js` gained the two **AE** specs.
+- `map-interaction/hover.spec.js` gained the two tooltip specs for the siege wording.
+- `tests/unit/ui-move-button.spec.js` is new: twelve specs stating the whole table of
+  move-button outcomes, which used to be reachable only by clicking a live map.
 
 **Two numbers in this document are wrong**, and the specs follow the code instead:
 
@@ -706,28 +724,45 @@ carries its own spec table and its own out-of-scope note; the phase write-up is 
   pays **more**. The second farm costs four times the first. Both are settled properly at
   refactor Phase 5.1, when the numbers move into `config/balance.js`.
 
-**Six specs listed here were deferred to E6**, because their setup is not reachable by
+~~**Six specs listed here were deferred to E6**~~ — all delivered in Phase 5.8 — because their setup is not reachable by
 clicking and hoping the live map produces the right condition is a seed lottery rather than a
 test: `starvation`, `resource-borrowing`, `deactivated-source`, `siege-offer`, and the battle
 terminal conditions (`attacker-wins`, `defender-wins`, `rout`, `massive-assault`,
 `fight-again`, `results-screen`). They all want the scenario loader in §3.7.
 
-**Multi-turn coverage is blocked**, not missing. Audit §5.1 AA — found by
+~~**Multi-turn coverage is blocked**, not missing. Audit §5.1 AA — found by
 `turn-loop/long-run.spec.js` — freezes the game permanently from the second or third AI
 phase, so every spec needing more than one full turn is `test.fixme` against it. That
 includes the ten-turn `long-run` spec §5.3 calls the single highest-value spec in the suite.
-Refactor Phase 3.1a is the unblock, and the `fixme`s are the checklist.
+Refactor Phase 3.1a is the unblock, and the `fixme`s are the checklist.~~ **Closed in Phase 3.**
+The ten-turn `long-run` runs clean, and it is what found audit §5.1 **AF**–**AJ**.
 
-**Roughly 105 specs across 17 areas.** Target wall clock for the full headless suite at 8
-workers: **under 6 minutes**. If it exceeds that, the cause is almost always game
-initialisation — measure before parallelising further.
+~~**Roughly 105 specs across 17 areas.**~~ **281 specs across 15 areas as of Phase 6.** Target
+wall clock for the full headless suite at 8 workers: **under 6 minutes**. It does not meet
+that at four workers — it runs in eight to fourteen minutes — and the cause is almost always
+game initialisation, so measure before parallelising further.
 
 ---
 
-## 7. Selector inventory (current state)
+## 7. Selector inventory ~~(current state)~~ — superseded
 
-Recorded here so the page objects can be written before Refactor Phase 6 renames anything.
-Replace with `data-testid` progressively; keep this table as the migration checklist.
+~~Recorded here so the page objects can be written before Refactor Phase 6 renames anything.
+Replace with `data-testid` progressively; keep this table as the migration checklist.~~
+
+**This table is history, not the source of truth.** Refactor Phase 6.1 put every element id,
+class and selector in [src/ui/core/registry.js](../src/ui/core/registry.js), which both the app
+and `tests/support/selectors.js` import — the page objects hold no literal selector at all.
+**Never add a selector here or hand-write one in a spec: add it to the registry.**
+
+Two entries below are already out of date, which is the point:
+
+- `xButton` was one id on two elements. Phase 6.8 split it into `xButtonInfoPanel` and
+  `xButtonUpgrade`.
+- `battleUIRow4Col2A…H` are `battleStatsProdPopIcon` / `Value`, `battleStatsFoodIcon` /
+  `Value`, `battleStatsDefenseIcon` / `Value` and `battleStatsMountainIcon` / `Value`.
+
+**No `data-testid` was introduced.** The registry already is the one name the app and the
+harness share, and a parallel attribute would be a second thing to keep in step.
 
 **Containers:** `menu-container` · `popup-with-confirm-container` · `top-table-container` ·
 `bottom-table-container` · `main-ui-container` · `upgrade-container` · `buy-container` ·
@@ -795,7 +830,10 @@ Territory paths: `path[uniqueid]`, `path[territory-name]`, `path[data-name]`, `p
 4. **One behaviour per test**, titled as a sentence describing the behaviour, not the mechanic:
    *"buying one farm raises food capacity by exactly ten percent"*, not *"farm test"*.
 5. **Known-broken behaviour is `test.fixme` with a link to the audit item**, never asserted as
-   correct. Phase 3 flips these green; a `fixme` that starts passing is a signal, not noise.
+   correct. ~~Phase 3 flips these green~~; a `fixme` that starts passing is a signal, not noise.
+   **There are none left as of Phase 6** — the last, `attack-window`'s marker assertion for
+   audit §5.2 **AE**, went green in 6.7. A new one is written the moment a defect is found that
+   a phase other than the current one owns.
 6. **No arbitrary waits.** Wait on `__game.ready`, on state predicates via `page.waitForFunction`,
    or on Playwright's auto-waiting. `--slow` exists for watching, never for stabilising.
 7. **Seeds are derived from the test title** so they are stable per test and distinct between

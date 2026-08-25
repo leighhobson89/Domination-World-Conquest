@@ -11,7 +11,7 @@
 // would take the whole e2e harness with it.
 //
 // The ids are recorded AS THEY ARE TODAY, positional warts and all
-// (`battleUIRow4Col2A`...`H`, `xButton` used twice). Phase 6.8 replaces them
+// (`battleStatsProdPopIcon`...`H`, `xButton` used twice). Phase 6.8 replaces them
 // with semantic ones plus `data-testid`; the point of doing 6.1 first is that
 // 6.8 then only has to edit this file.
 
@@ -85,10 +85,12 @@ export const ids = Object.freeze({
     armyButton: "armyButton",
     warsSiegesButton: "warsSiegesButton",
     checkBoxAppearStartOfTurn: "checkBox-appear-start-of-turn",
-    // DUPLICATED id: the upgrade window's close button carries it too, so a bare
-    // "#xButton" is ambiguous the moment both exist. Always scope it to a
-    // container. Phase 6.8 gives the two of them separate ids.
-    xButton: "xButton",
+    // Phase 6.8. These two were ONE id, `xButton`, on two elements: the info
+    // panel's close button and the upgrade window's. A bare "#xButton" selector was
+    // ambiguous the moment both existed, so every call site and every page object had
+    // to scope it to a container and say why. They are named for what they close now.
+    xButtonInfoPanel: "xButtonInfoPanel",
+    xButtonUpgrade: "xButtonUpgrade",
     contentWindow: "content-window",
     beforeInfoPanel: "beforeInfoPanel",
     infoPanel: "info-panel",
@@ -189,14 +191,14 @@ export const ids = Object.freeze({
     battleUIRow4Col1IconSiegeScore: "battleUIRow4Col1IconSiegeScore",
     battleUIRow4Col1TextSiegeScore: "battleUIRow4Col1TextSiegeScore",
     battleUIRow4Col2: "battleUIRow4Col2",
-    battleUIRow4Col2A: "battleUIRow4Col2A",
-    battleUIRow4Col2B: "battleUIRow4Col2B",
-    battleUIRow4Col2C: "battleUIRow4Col2C",
-    battleUIRow4Col2D: "battleUIRow4Col2D",
-    battleUIRow4Col2E: "battleUIRow4Col2E",
-    battleUIRow4Col2F: "battleUIRow4Col2F",
-    battleUIRow4Col2G: "battleUIRow4Col2G",
-    battleUIRow4Col2H: "battleUIRow4Col2H",
+    battleStatsProdPopIcon: "battleStatsProdPopIcon",
+    battleStatsProdPopValue: "battleStatsProdPopValue",
+    battleStatsFoodIcon: "battleStatsFoodIcon",
+    battleStatsFoodValue: "battleStatsFoodValue",
+    battleStatsDefenseIcon: "battleStatsDefenseIcon",
+    battleStatsDefenseValue: "battleStatsDefenseValue",
+    battleStatsMountainIcon: "battleStatsMountainIcon",
+    battleStatsMountainValue: "battleStatsMountainValue",
     leftBattleImage: "leftBattleImage",
     rightBattleImage: "rightBattleImage",
     probabilityColumnBox: "probabilityColumnBox",

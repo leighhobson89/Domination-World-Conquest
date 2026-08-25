@@ -4,13 +4,14 @@ import {
     endPlayerTurn,
     initialiseNewPlayerTurn,
     toggleTransferAttackButton,
-    setCurrentMapColorAndStrokeArray,
-    saveMapColorState,
     paths,
     svg,
-    setZoomLevel,
-    zoomMap, setColorOnMap
+    setColorOnMap
 } from './ui.js';
+import {
+    setZoomLevel,
+    zoomMap
+} from './src/ui/map/camera.js';
 import {
     getPlayerTerritories,
     getPathAreaComputations,
@@ -282,7 +283,6 @@ export async function initialiseGame() {
     //map does not have can only happen if the map changed under us, so it is checked
     //once here rather than every turn.
     pruneSiegesForMissingTerritories(name => getTerritoryByName(name) !== null);
-    setCurrentMapColorAndStrokeArray(saveMapColorState(false));
     document.getElementById(ids.topTableContainer).style.display = "block";
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
@@ -316,7 +316,6 @@ export async function initialiseGame() {
         }
     }
     toggleTransferAttackButton(false, true);
-    setCurrentMapColorAndStrokeArray(saveMapColorState("true"));
     document.getElementById(ids.popupColor).disabled = true;
     gameInitialisation = false;
     svg.style.pointerEvents = 'auto';

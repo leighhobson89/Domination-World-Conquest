@@ -59,6 +59,44 @@ test.describe("hovering a territory", () => {
         await expect(tooltip).toHaveText("Player");
     });
 
+    test("names the besieger in the tooltip of a besieged territory", async ({
+        startedGame: game,
+        page,
+    }) => {
+        // Phase 6. The siege MARKER used to carry a tooltip of its own -- and then
+        // stopped showing one, because audit 5.3 AW gave every marker
+        // `pointer-events: none`, so the hit test at the centre of a besieged
+        // territory returns the path underneath and the marker never sees a
+        // mousemove. Rather than give the marker its events back (which would put
+        // the swallowed-click bug straight back), the siege is stated in the
+        // territory's own tooltip. The player then gets the same fact wherever in
+        // the territory they hover, rather than only over the icon.
+        const tooltip = page.locator(containers.tooltip);
+        await game.loadScenario("two-sieges");
+
+        const box = await game.map.territory("France").boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2 + 2);
+
+        await expect(tooltip).toHaveText("France (under siege by Spain)");
+    });
+
+    test("says only the country when the territory is not besieged", async ({
+        startedGame: game,
+        page,
+    }) => {
+        // The other half of the same rule: the parenthetical appears only for a
+        // territory a siege actually names.
+        const tooltip = page.locator(containers.tooltip);
+        await game.loadScenario("two-sieges");
+
+        const box = await game.map.territory("Italy").boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2 + 2);
+
+        await expect(tooltip).toHaveText("Italy");
+    });
+
     test("does not lighten a greyed-out path", async ({ game }) => {
         // hoverOverTerritory is gated on greyedOut === "false". With audit 5.2 Z
         // unfixed nothing is ever greyed, so this asserts the gate from the other

@@ -1,6 +1,6 @@
 import {
     convertHexValueToRGBOrViceVersa
-} from './ui.js';
+} from './src/ui/map/colouring.js';
 import {
     playerColour
 } from './src/state/selectors.js';

@@ -30,10 +30,10 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 188 errors, 332 warnings)
+npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 294 tests, ~1s
-npm run test:e2e       # Playwright, 275 tests, 4 workers headless, ~8-14 min
+npm run test:unit      # Vitest, 306 tests, ~1s
+npm run test:e2e       # Playwright, 281 tests, 4 workers headless, ~8-14 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -77,6 +77,31 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   `"resources/flags/" + country + ".png"` at runtime. No bundler rewrites those, which is why
   `vite.config.mjs` copies `resources/` into the build verbatim. Moving `resources/` means
   editing every one of those strings.
+- **The map is three modules under `src/ui/map/`** (Phase 6.7). `camera.js` owns zoom and pan:
+  zoom is **instant** (no animation, so no latch that drops a fast second wheel event),
+  anchored on the pointer in user coordinates, and clamped to the world bounds so nothing off
+  the edge of the map can be shown. `colouring.js` owns the bootstrap palette and the
+  locked-country muting. `MapView.js` renders the map from the store — `repaintMap()`,
+  `repaintCountrySelection()`, `paintLockedCountries()`. **`currentMapColorAndStrokeArray` and
+  the `saveMapColorState()` / `restoreMapColorState()` pair are gone**: colour is derived, so
+  restoring the map is the same call as painting it. Never reintroduce a colour snapshot.
+- **The attack marker and its target are one fact**, in `src/ui/map/markers.js` (Phase 6.7,
+  closes audit §5.2 AE). `setAttackTarget(path)` draws the marker, `clearAttackTarget()`
+  removes it, and there is no way to do one without the other. `territoryAboutToBeAttackedOrSieged`
+  is gone; read it with `attackTargetPath()`. Cancelling an attack un-arms it completely — the
+  target, the marker, the highlight and the button all go.
+- **The move button's label is derived, not written.** `deriveMoveButtonState(selection)` in
+  `src/ui/moveButton/` is pure and unit-tested; `applyMoveButtonState()` is the only thing that
+  touches the element. Its click, mouseover and mouseout listeners are installed **once**, from
+  bootstrap — they used to be re-attached on every territory selection, and
+  `removeEventListener` could not remove the previous one because each call built a new
+  function object, so a click fired once per selection made. That is what `eventHandlerExecuted`
+  and the four `setTimeout(…, 200)` calls were hiding, and all of it is gone.
+- **`generateDistinctRGBs()` in `src/ui/map/colouring.js` is dead code that is still called on
+  purpose.** Its `Math.random` draws at module load are on the game's stream, so deleting it
+  shifts every seeded outcome — measured: four exact-outcome specs change. Removing it and
+  re-baselining those specs is one Phase 7 change. The same warning applies to anything else
+  that adds or removes a `Math.random` draw during bootstrap.
 - **Every element id and selector lives in `src/ui/core/registry.js`** (Phase 6.1), and both
   the app and the e2e page objects import it — `tests/support/selectors.js` is a derived view
   of it and holds no literal selector. Never hand-write an id or a `#selector`: add it there.
@@ -234,9 +259,11 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
 - **Territory names are not selector-safe.** Six carry real parentheses, so
   `querySelector("#siegeImage_" + name)` throws rather than returning null (audit §5.2 AI). Use
   `getElementById` for anything keyed by a territory name.
-- **`xButton` is a duplicated id** — the info panel's close button and the upgrade window's
-  both use it, so a bare `#xButton` selector is ambiguous the moment both exist. Recorded as
-  such in `registry.js`; Phase 6.8 gives them separate semantic ids.
+- **`xButton` is gone** — Phase 6.8 split it into `xButtonInfoPanel` and `xButtonUpgrade`, so
+  all three close buttons (with `xButtonBuy`) are unique. The battle UI's stat strip was
+  renamed at the same time: `battleUIRow4Col2A`…`H` are now
+  `battleStats{ProdPop,Food,Defense,Mountain}{Icon,Value}`. The id, the CSS class and the entry
+  in `BattleUI.js` are one string, so a rename is `registry.js` plus `style.css`.
 - **`#tooltip` follows the pointer and now carries `pointer-events: none`** (Phase 6.3). It
   used to sit on top of whatever you were about to click and eat the click. It is still the
   only thing that clears `clickActionsDone`, the latch that gates the bottom table updating,
@@ -244,7 +271,15 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   workaround. Push content into it with `tooltip.setContent()` / `show()` / `clear()`, never
   by reaching for the element.
 - **The transfer table's row click handler is on the row's NAME column**, not on the row.
-  The attack mode of the same renderer has no row selection at all.
+  The attack mode of the same renderer has no row selection at all. Both live in
+  `src/ui/transferAttack/` since Phase 6.5 — `TransferTable.js`, `AttackTable.js` and the
+  shared `ArmyAllocationRow.js`, with the step multiplier as one table in `multiples.js`
+  rather than six `if` chains.
+- **The info panel's four tabs are column definitions, not code.** `src/ui/infoTable/columns.js`
+  and `warColumns.js` say what each tab shows; `tableDom.js` builds a header row and a data
+  row; `renderInfoTable.js` is four small functions and a dispatcher (Phase 6.4). Adding a
+  column is one entry in a list. The numbers are INJECTED by `resourceCalculations.js`, so
+  `src/ui/infoTable/` imports nothing from the economy.
 
 ## Conventions
 

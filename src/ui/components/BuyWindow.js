@@ -6,9 +6,10 @@
 // Territory", and productive population where the upgrade window shows
 // construction materials.
 //
-// The one genuine asymmetry is the close button. The buy window's carries
-// `xButtonBuy`, which is unique; the upgrade window's carries `xButton`, which
-// is not -- the info panel uses it too. Phase 6.8 makes both semantic.
+// The close buttons were the one genuine asymmetry: this one has always carried
+// `xButtonBuy`, while the upgrade window's shared a single `xButton` with the info
+// panel. Phase 6.8 gave those two `xButtonUpgrade` and `xButtonInfoPanel`, so all
+// three are unique and named for what they close.
 
 import { ids } from "../core/registry.js";
 import { buildResourceWindow, windowVisibility } from "./ResourceWindow.js";

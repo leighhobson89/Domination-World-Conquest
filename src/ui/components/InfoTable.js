@@ -100,11 +100,8 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
         },
     });
 
-    // `xButton` is a duplicated id -- the upgrade window's close button carries
-    // it too. Phase 6.8 separates them; until then a bare "#xButton" selector is
-    // ambiguous and everything scopes it to a container.
     const closeButton = el("button", {
-        id: ids.xButton,
+        id: ids.xButtonInfoPanel,
         class: "x-button",
         html: "X",
         on: {

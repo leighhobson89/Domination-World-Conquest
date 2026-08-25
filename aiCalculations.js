@@ -2,9 +2,7 @@
 
 import {
     paths,
-    saveMapColorState,
     setColorOnMap,
-    setCurrentMapColorAndStrokeArrayFromExternal,
     populateAiDialogueBox,
     setAiDialogueContainerCurrentlyOnScreen,
     toggleAiDialogue,
@@ -13,7 +11,6 @@ import {
     findClosestPaths,
     setAiDialogueBodyBottomContentState,
     populateArmyDataFields,
-    mapMode,
 } from "./ui.js";
 import {
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable,
@@ -1066,7 +1063,6 @@ function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerrito
         mainArrayFriendlyTerritoryCopy.dataName
     );
     deactivateTerritoryAi(territory);
-    setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
     updateArrayOfLeadersAndCountries();
     summaryWarsArray.push(territory.territoryName + " conquered by " + mainArrayFriendlyTerritoryCopy.dataName);
     return territory;
@@ -1350,9 +1346,6 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
             //src/ui/siegeOverlay.js has already drawn the AI variant. Drawing it again
             //produced a second <image> with a duplicated id.
             console.log("Should now be an image over the territory of " + siegeTargetPath.getAttribute("territory-name"));
-            if (mapMode === 1) {
-                setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
-            }
         }
     }
 }

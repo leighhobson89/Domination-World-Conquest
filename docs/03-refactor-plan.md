@@ -973,13 +973,82 @@ functional areas the e2e plan had listed but never had — `siege/`, `ai-turn/`,
 | 6.1 | ✅ `src/ui/core/registry.js` — 186 element ids, the classes used as selectors, the indexed id families as builders, and the territory path selectors, all as named constants. Imported by the app (every `getElementById`, `setAttribute("id", …)` and `#id` selector across the eight root modules now goes through it) and by `tests/support/selectors.js`, which holds no literal selector any more. |
 | 6.2 | ✅ `src/ui/core/dom.js` — `el()`, `svgEl()`, `mount()`, `clear()`, `on()` and `listenerGroup()`. `on()` returns its own remover, which is what makes a component's `destroy()` possible. |
 | 6.3 | ✅ All fourteen extracted to `src/ui/components/`, in that order, plus a shared `ResourceWindow` behind `BuyWindow` and `UpgradeWindow`. The `DOMContentLoaded` block went from 2,332 lines to 704, and `ui.js` from 6,446 to 4,763. `PhaseBar` is the one that genuinely subscribes to `state/events.js` (`PHASE_CHANGED`); the rest carry a note saying what has to become state before they can. |
-| 6.4 | Break up `drawUITable` (920 lines / 4 modes) into `InfoTable` + one renderer per tab, sharing a column-definition table instead of a repeated 16-case `switch`. |
-| 6.5 | Break up `drawAndHandleTransferAttackTable` (710 lines / 2 modes) into `TransferTable` and `AttackTable` over a shared `ArmyAllocationRow`. |
-| 6.6 | Break up `handleMovePhaseTransferAttackButton` into a declarative state machine: `deriveMoveButtonState(state, selection) → { label, variant, enabled, action }`. The nested click handler and the `setTimeout(…, 200)` debounce both disappear. |
-| 6.7 | Extract `ui/map/*`: `MapView` (render state → SVG), `colouring`, `camera` (zoom/pan), `markers`. Delete the `currentMapColorAndStrokeArray` save/restore machinery — colour becomes a pure function of state. |
-| 6.8 | Move inline JS styling into `style.css` (or split CSS per component). Replace numeric ids (`battleUIRow4Col2A`…`H`) with semantic ones and `data-testid` attributes. |
+| 6.4 | ✅ Broke up `drawUITable` (920 lines / 4 modes) into `src/ui/infoTable/`: `columns.js` (what each tab shows, as data), `tableDom.js` (header row, data row, spacer) and `renderInfoTable.js` (four small functions and a dispatcher). The sixteen-case `switch`es and the ~30 `if (summaryTerritoryArmySiegesTable === n)` tests are gone. `resourceCalculations.js` 4,846 → 4,057 lines. |
+| 6.5 | ✅ Broke up `drawAndHandleTransferAttackTable` (710 lines / 2 modes) into `src/ui/transferAttack/`: `TransferTable.js`, `AttackTable.js`, a shared `ArmyAllocationRow.js`, and `multiples.js` for the step multiplier. `transferAndAttack.js` 1,131 → 473 lines. |
+| 6.6 | ✅ `deriveMoveButtonState(selection) → { visible, label, variant, enabled, mode, target }` — pure, no DOM, twelve unit tests. The re-attached click handler is now installed once from bootstrap, and `eventHandlerExecuted` plus all four `setTimeout(…, 200)` calls are gone. |
+| 6.7 | ✅ `src/ui/map/`: `MapView.js` (render state → SVG), `colouring.js`, `camera.js` (zoom/pan), `markers.js`. The `currentMapColorAndStrokeArray` save/restore machinery is deleted across five files — colour is a pure function of state. Closes audit §5.2 **AE**. |
+| 6.8 | ◐ Semantic ids done: `xButton` → `xButtonInfoPanel` / `xButtonUpgrade`, and `battleUIRow4Col2A…H` → `battleStats{ProdPop,Food,Defense,Mountain}{Icon,Value}`. No `data-testid` — see below. The inline-styling sweep is **not** done. |
 
-**Exit criteria:** `ui.js` no longer exists; no file over 400 lines; the map renders purely from state.
+**Exit criteria:** `ui.js` no longer exists; no file over 400 lines; the map renders purely from state. — **the third is met; the first two are not.** See below.
+
+#### What Phase 6 delivered
+
+Nineteen files under `src/ui/`, and five root modules shrunk:
+
+| File | Before | After |
+|---|---:|---:|
+| `ui.js` | 4,763 | 4,290 |
+| `resourceCalculations.js` | 4,846 | 4,057 |
+| `transferAndAttack.js` | 1,131 | 474 |
+
+New in 6.4–6.8, every one of them under 300 lines: `src/ui/map/{MapView,camera,colouring,markers}.js`,
+`src/ui/infoTable/{columns,warColumns,tableDom,renderInfoTable}.js`,
+`src/ui/transferAttack/{TransferTable,AttackTable,ArmyAllocationRow,multiples}.js`,
+`src/ui/moveButton/deriveMoveButtonState.js`.
+
+**Four defects closed, all structural rather than arithmetic** — recorded in
+[05-known-issues.md](./05-known-issues.md) §9:
+
+- audit §5.2 **AE**, the attack marker surviving a cancel — the last 🔴 in the register, and
+  the last `test.fixme` in the suite;
+- the colour snapshot (`saveMapColorState` / `restoreMapColorState`, ~30 call sites across
+  five files), replaced by `repaintMap()` deriving colour from the store;
+- the move button's click handler accumulating one listener per territory selection, which
+  `eventHandlerExecuted` and four `setTimeout(…, 200)` calls were suppressing;
+- the duplicated `xButton` id.
+
+**Two behaviour changes were made deliberately**, both at the developer's request or as the
+only coherent reading of a defect, and both are stated where they were made:
+
+- **Zoom is instant and cursor-anchored.** The 500 ms viewBox animation is gone, and with it
+  the `isAnimating` latch that DROPPED any wheel event arriving mid-flight — a quick
+  double-scroll used to move one level, not two. Zoom now converts the pointer to user
+  coordinates properly (honouring `preserveAspectRatio` letterboxing, rather than the two
+  hard-coded `+280` / `+150` fudge offsets) and clamps to the world bounds, so nothing outside
+  the map can be brought on screen by zoom or by pan.
+- **Cancelling an attack un-arms it.** The audit says the marker must go; it does not say what
+  the move button should then read. It now goes away with the marker and the target
+  highlight, and the player re-arms by clicking the territory again — because keeping the
+  button on ATTACK would mean keeping a target the map says is not there.
+
+**One thing the phase found and deliberately did not fix.** `generateDistinctRGBs()` is dead
+decorative code that is still *called*, because its `Math.random` draws at module load are on
+the game's stream: removing them moves every seeded outcome, which was measured (four
+exact-outcome specs change). It is isolated in `src/ui/map/colouring.js` with the reason at the
+site, and logged for Phase 7.
+
+#### What Phase 6 did NOT deliver
+
+Stated plainly so nobody reads the table above as "done":
+
+- **`ui.js` still exists, at 4,290 lines**, and `resourceCalculations.js` at 4,057. What came
+  out of them was the four functions the phase named. What is left in `ui.js` is the
+  `DOMContentLoaded` block, the battle and siege UI, the map event handlers and the
+  turn-loop glue; in `resourceCalculations.js` it is the economy, which is not UI at all and
+  arguably belongs in `src/rules/`.
+- **"No file over 400 lines" is not met**, and will not be until those two are finished. Every
+  file Phase 6 *created* is under 300.
+- **6.8's inline-styling sweep is not done.** `ui.js` still makes 218 `.style.` writes. The
+  ones the phase touched were removed where the stylesheet already said the same thing, and
+  one was deliberately left with a note explaining that moving it would lose a specificity
+  fight and change the layout. A sweep of the remaining 218 is its own piece of work and
+  should be measured against a screenshot comparison, not done blind.
+- **No `data-testid` attributes were added.** `registry.js` already is the single name the app
+  and the harness share; a parallel attribute would be a second thing to keep in step.
+
+A **Phase 6.9** finishing `ui.js`, `resourceCalculations.js` and the styling sweep is the
+honest way to close the exit criteria, and it is listed under *Currently open* in
+[05-known-issues.md](./05-known-issues.md).
 
 ---
 
@@ -1012,7 +1081,7 @@ functional areas the e2e plan had listed but never had — `siege/`, `ai-turn/`,
 | 3 | Critical defect fixes | 2–3 d | ✅ 20-turn playthrough clean |
 | 4 | Single state layer | 3–4 d | ✅ `mainGameArray` gone |
 | 5 | Pure rules + engine | 4–5 d | ✅ `rules/` runs in Node; seeds repeat (5.8) |
-| 6 | UI decomposition | 5–7 d | — No file > 400 lines |
+| 6 | UI decomposition | 5–7 d | ◐ 6.1–6.8 done; `ui.js` and `resourceCalculations.js` remain |
 | 7 | Design gaps | 3–5 d | — Game is finishable |
 
 **Total: roughly 4–6 focused weeks.** Phases 0–3 (≈1.5 weeks) deliver most of the *felt*
@@ -1035,23 +1104,29 @@ extensible. Phase 7 is where it becomes a game rather than a simulation.
 
 ## 5. Immediate next three actions
 
-Phase 6.1, 6.2 and 6.3 are complete. The order the rest of Phase 6 runs in is
-6.7 → 6.4 → 6.5 → 6.6 → 6.8: the map extraction is independent of the
-`DOMContentLoaded` block and closes the last open defect in the register, 6.4–6.6 are
-deepenings of three components 6.3 has now created, and 6.8 renames ids, which is only cheap
-once the registry exists.
+~~Phase 6.1, 6.2 and 6.3 are complete. The order the rest of Phase 6 runs in is
+6.7 → 6.4 → 6.5 → 6.6 → 6.8~~ — **all of 6.1–6.8 are done.** The order they ran in was
+6.7 → 6.4 → 6.5 → 6.6 → 6.8, for the reasons given at the time: the map extraction is
+independent of the `DOMContentLoaded` block and closed the last open defect in the register,
+6.4–6.6 are deepenings of three components 6.3 created, and 6.8 renames ids, which is only
+cheap once the registry exists.
 
-1. **Phase 6.7** — `ui/map/*`: `MapView`, `colouring`, `camera`, `markers`. Deletes the
-   `currentMapColorAndStrokeArray` save/restore machinery and closes audit §5.2 AE (the
-   attack marker surviving a cancel), the only defect left open in
-   [05-known-issues.md](./05-known-issues.md).
-2. **Phase 6.4** — break `drawUITable()` (920 lines, a sixteen-case switch over four modes)
-   into one renderer per tab behind the `InfoTable` component, sharing a column-definition
-   table. `InfoTable` already takes the renderer as a `drawTable` callback, so this is a
-   swap rather than a rewire.
-3. **Phase 6.5** — break `drawAndHandleTransferAttackTable()` (710 lines, two modes) into
-   `TransferTable` and `AttackTable` over a shared `ArmyAllocationRow`, behind the
-   `TransferAttackWindow` shell 6.3 extracted.
+1. **Phase 6.9** — finish what 6.8's exit criteria ask for and Phase 6 did not deliver:
+   `ui.js` (4,290 lines) and `resourceCalculations.js` (4,057) still exist, and the
+   inline-styling sweep is untouched. The largest remaining pieces of `ui.js` are the battle
+   and siege UI setup, the map event handlers, and the `DOMContentLoaded` block's turn-loop
+   glue; `resourceCalculations.js` is mostly economy and arguably belongs in `src/rules/`
+   rather than in `src/ui/`. Do the styling sweep against a screenshot comparison, not blind.
+2. **Phase 7.1** — win / lose conditions (`rules/victory.js`) plus a victory/defeat screen.
+   Without them a full playthrough still cannot be tested, which is the one feature the plan
+   fences *out* of Phase 7's "feature work waits" rule.
+3. **Phase 7.2 / 7.3** — New Game and save/load. `TurnEngine.reset()` exists and `GameState`
+   is a plain serialisable object, so both are now small.
+
+Before starting 7, take the one measurement Phase 6 deferred: delete the
+`generateDistinctRGBs()` call in `src/ui/map/colouring.js`, re-baseline the four exact-outcome
+specs it moves, and do both in one change. It is dead code held in place only by its RNG
+draws, and every later phase pays interest on it.
 
 ### What 6.1–6.3 delivered
 

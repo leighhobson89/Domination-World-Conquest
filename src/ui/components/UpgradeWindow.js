@@ -18,8 +18,7 @@ const SPEC = {
         navBar: ids.navbarUpgradeWindow,
         subtitle: ids.subtitleUpgradeWindow,
         keyBar: ids.keyBarUpgradeWindow,
-        // DUPLICATED id: the info panel's close button carries `xButton` too.
-        close: ids.xButton,
+        close: ids.xButtonUpgrade,
         contentWindow: ids.contentWindowUpgrade,
         beforeInfoPanel: ids.beforeInfoPanelUpgradeWindow,
         infoPanel: ids.infoPanelUpgrade,

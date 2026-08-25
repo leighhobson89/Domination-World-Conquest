@@ -9,7 +9,7 @@ and 5 is the one to check first if you only read one.
 | 1 | [Codebase Audit](./01-codebase-audit.md) | What is here, how it is put together, and everything that is wrong with it — every catalogued defect with file and line references, and the analysis behind each one |
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
 | 3 | [Refactor Plan](./03-refactor-plan.md) | Target architecture and an eight-phase sequence to get there without ever breaking the build |
-| 4 | [E2E Test Plan](./04-e2e-test-plan.md) | 17 functional areas and the Playwright harness that runs them. P0, P1 and P2 are delivered: **275 specs in 49 files**, plus 294 unit tests |
+| 4 | [E2E Test Plan](./04-e2e-test-plan.md) | 15 functional areas and the Playwright harness that runs them. P0, P1 and P2 are delivered: **281 specs in 49 files**, plus 306 unit tests, and **no `test.fixme` left** |
 | 5 | [Known Issues](./05-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
 
 ---
@@ -28,8 +28,11 @@ hacks, a 2,300-line `DOMContentLoaded` block building the entire UI, and territo
 duplicated across three representations reconciled by hand. Phases 0–5 have dealt with all of
 that except the last item on the list. There is **one** territory state
 (`src/state/GameState.js`), every game rule runs in Node (`src/rules/`, `src/ai/`,
-`src/engine/`), the timers are gone, and the SVG renders the model rather than being it. What
-is left is `ui.js`, which Phase 6 decomposes.
+`src/engine/`), the timers are gone, and the SVG renders the model rather than being it.
+Phase 6 decomposed the UI into nineteen modules under `src/ui/`, and the map now renders
+purely from state — but **`ui.js` still exists at 4,290 lines** and `resourceCalculations.js`
+at 4,057, so Phase 6's "no file over 400 lines" is not met. A **Phase 6.9** finishing those two
+is the honest next step; see [Refactor §2](./03-refactor-plan.md).
 
 **The three things that were blocking all progress** — all three are fixed:
 
@@ -60,7 +63,7 @@ fast, correct and testable — that is where nearly all of the felt improvement 
 4–6 make it extensible. Phase 7 adds what the game is missing to actually be a game:
 win conditions, save/load, restart, and a way for the player to see what the AI did.
 
-**Phases 0–5 are complete.** The game loads in under a second, survives a 20-turn playthrough
+**Phases 0–6 are complete**, with the caveat above about Phase 6's exit criteria. The game loads in under a second, survives a 20-turn playthrough
 with no console errors and no `NaN` anywhere, every critical and high-severity defect in the
 register is closed, there is one territory state, and every game rule runs in Node.
 
@@ -72,9 +75,16 @@ now. That single change let five whole functional areas be written — `siege/`,
 defects, including a battle debiting its source territory **twice** and an empty battle-results
 screen appearing at the start of almost every turn ([Known Issues §8](./05-known-issues.md)).
 
-**One defect is open in the whole register**: audit §5.2 AE, the attack marker surviving a
-cancel, which Phase 6.7 removes structurally. It is also the only `test.fixme` left in the
-suite.
+**There is no 🔴 left in the register.** Phase 6.7 closed the last one — audit §5.2 AE, the
+attack marker surviving a cancel — by making the marker and the target it draws one fact, and
+with it went the last `test.fixme` in the suite. Phase 6 also deleted the colour snapshot the
+map had been restored from at ~30 call sites, so map colour is now derived from the store, and
+removed the accumulating click listener on the move button that `eventHandlerExecuted` and four
+`setTimeout(…, 200)` calls had been suppressing ([Known Issues §9](./05-known-issues.md)).
+
+**What is outstanding is now one list**, at the top of
+[Known Issues](./05-known-issues.md#currently-open) — one line per open issue, deleted when it
+closes. Everything on it is Phase 7 or Phase 6.9.
 
 What Phase 3 started — sieges, famine, AI conquest actually running — surfaced two *design*
 problems that are now the most player-visible things left: the AI besieges far more than it can
@@ -83,13 +93,16 @@ finish, and a besieged territory earns nothing indefinitely. Both are Phase 7 wo
 the AI a fully-formed first turn eliminates a single-territory player within ten turns, which
 is why the bootstrap-ordering fix was measured, reverted and re-sequenced there.
 
-**Immediate next three actions** — Phase 6, decomposing the UI
-([Refactor §2](./03-refactor-plan.md)):
+**Immediate next three actions** ([Refactor §5](./03-refactor-plan.md)):
 
-1. **6.1** — `ui/core/registry.js`: every element id and selector as a named constant, imported
-   by both the app and the e2e page objects, so selector drift is a build error rather than a
-   flaky test.
-2. **6.2** — `ui/core/dom.js`: `el()`, `mount()`, `on()`. The `createElement` plus fifteen
-   property assignments pattern occurs 294 times.
-3. **6.3** — extract components easiest-first, starting with `Tooltip` — which is also what
-   fixes the pointer-events bug the page objects still work around.
+1. **Phase 6.9** — finish `ui.js` and `resourceCalculations.js`, and do the inline-styling
+   sweep 6.8 left. Measure the styling work against screenshots, not blind.
+2. **Phase 7.1** — win / lose conditions and a victory/defeat screen. Without them a full
+   playthrough still cannot be tested.
+3. **Phase 7.2 / 7.3** — New Game and save/load. `TurnEngine.reset()` exists and `GameState`
+   is a plain serialisable object, so both are now small.
+
+Before any of them, take the measurement Phase 6 deferred: `generateDistinctRGBs()` in
+`src/ui/map/colouring.js` is dead code held in place only by the `Math.random` draws it makes
+on the game's stream. Deleting it moves four exact-outcome specs, so it and the re-baseline
+are one change.

@@ -141,6 +141,26 @@ export function isUnderSiegeById(uniqueId) {
     return isUnderSiege(getTerritory(uniqueId)?.territoryName);
 }
 
+/**
+ * The name of the country conducting the siege on this territory, or `null` when it
+ * is not besieged.
+ *
+ * A player siege object carries no `attackingCountry` -- the besieger is always the
+ * player -- so it is answered from `players.country`. An AI siege records the
+ * attacking territory's `dataName`, which is its owner at the moment the siege began.
+ */
+export function besiegerOf(territoryName) {
+    if (!territoryName) {
+        return null;
+    }
+    const { sieges } = __store();
+    if (Object.prototype.hasOwnProperty.call(sieges.player, territoryName)) {
+        return playerCountryName();
+    }
+    const aiSiege = sieges.ai[territoryName];
+    return aiSiege ? (aiSiege.attackingCountry ?? null) : null;
+}
+
 /** The `greyedOut` attribute's replacement: a country the player may not choose. */
 export function isCountryGreyedOut(countryName) {
     return __store().ui.greyedOutCountries.has(countryName);

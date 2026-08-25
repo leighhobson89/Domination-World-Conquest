@@ -100,12 +100,53 @@ export class MapPage {
         );
     }
 
-    async zoom(deltaY, { steps = 1 } = {}) {
+    /**
+     * Wheel over the map. `at` is a fraction of the map element in each axis and
+     * defaults to its centre; pass one to test that zoom anchors on the pointer.
+     */
+    async zoom(deltaY, { steps = 1, at = { x: 0.5, y: 0.5 } } = {}) {
         const box = await this.page.locator(map.object).boundingBox();
-        await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await this.page.mouse.move(box.x + box.width * at.x, box.y + box.height * at.y);
         for (let i = 0; i < steps; i += 1) {
             await this.page.mouse.wheel(0, deltaY);
+            await this.settle();
         }
+    }
+
+    /**
+     * Wait until the map document has processed whatever was just dispatched to it.
+     *
+     * `page.mouse.wheel()` resolves once the event has been SENT, not once it has
+     * been handled -- and the map is an embedded document, so a `page.evaluate()`
+     * straight afterwards can read the viewBox a frame early and see the value from
+     * before the wheel. That is what it did: the reads in `zoom-pan.spec.js` came
+     * back one step behind, consistently, and looked like the camera ignoring the
+     * pointer. Two frames INSIDE the map document is enough, and it is a wait on a
+     * real signal rather than an arbitrary sleep.
+     *
+     * This was not needed before Phase 6.7 only because zoom animated for 500 ms and
+     * the specs polled for the motion to stop, which absorbed it by accident.
+     */
+    async settle() {
+        await this.page.evaluate((mapId) => {
+            const view = document.getElementById(mapId).contentDocument.defaultView;
+            return new Promise((resolve) => {
+                view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+            });
+        }, ids.svgMap);
+    }
+
+    /** The viewBox of the territory layer, as four numbers. */
+    async viewBox() {
+        return this.page.evaluate((mapId) => {
+            const doc = document.getElementById(mapId).contentDocument;
+            const [x, y, width, height] = doc
+                .querySelector("svg")
+                .getAttribute("viewBox")
+                .split(/\s+/)
+                .map(Number);
+            return { x, y, width, height };
+        }, ids.svgMap);
     }
 
     async toggleMapMode() {

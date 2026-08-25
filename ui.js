@@ -58,7 +58,6 @@ import {
     defendingArmyRemaining,
     defendingTerritory,
     getAttackingArmyRemaining,
-    getCurrentAiWarId,
     getCurrentRound,
     getCurrentWarId,
     getNextWarId,
@@ -105,7 +104,6 @@ import {
     currentPhase,
     playerCountryName,
     playerColour,
-    anyCountryGreyedOut
 } from './src/state/selectors.js';
 import {
     setPhase,
@@ -121,20 +119,52 @@ import {
     Phase
 } from './src/state/phases.js';
 import {
+    deriveMoveButtonState,
+    stateAfterWindowClosed,
+    MoveMode
+} from './src/ui/moveButton/deriveMoveButtonState.js';
+import {
+    attachMapView,
+    repaintMap,
+    repaintCountrySelection,
+    paintLockedCountries
+} from './src/ui/map/MapView.js';
+import {
+    CONTINENT_COLOR_ARRAY,
+    assignStartingColours,
+    convertHexValueToRGBOrViceVersa,
+    startingColourForCountry
+} from './src/ui/map/colouring.js';
+import {
+    attachMarkerLayer,
+    attackTargetPath,
+    setAttackTarget,
+    clearAttackTarget,
+    raiseAttackMarker,
+    removeSiegeMarker
+} from './src/ui/map/markers.js';
+import {
+    attachCamera,
+    zoomMap,
+    panMap,
+    beginDrag,
+    endDrag,
+    isDragging,
+} from './src/ui/map/camera.js';
+import {
     pathIsGreyedOut,
     pathIsUnderSiege,
     pathIsDeactivated,
     pathIsAttackable,
     pathIsPlayerOwned,
     pathOwner,
-    pathCountry
+    pathCountry,
+    pathBesieger
 } from './src/state/pathState.js';
 import {
-    classNames,
     dynamicIds,
     indexedIds,
-    ids,
-    sel
+    ids
 } from './src/ui/core/registry.js';
 import {
     el,
@@ -226,7 +256,10 @@ function markBootstrapStage(stage) {
 export function whenPageLoaded() {
     return bootstrapReadyPromise;
 }
-let eventHandlerExecuted = false;
+//`eventHandlerExecuted` and its four `setTimeout(..., 200)` companions are gone
+//(Phase 6.6). They were a de-bounce over a listener that was re-installed on every
+//territory selection and never removed, so a click fired once per selection made
+//since the window opened. There is one listener now, so there is nothing to de-bounce.
 
 export let svg = [];
 export let svgCoastLines = [];
@@ -246,24 +279,10 @@ export let patterns = [];
 //playerColour(). `flag` is gone entirely -- it was only ever a second name for
 //playerCountryName(), assigned on the line after it and never anything else.
 
-export let currentMapColorAndStrokeArray = []; //current state of map at start of new turn
-let listOfStartingCountryColorsArray = [];
-
-const CONTINENT_COLOR_ARRAY = [
-    ["Africa", [233, 234, 20]],
-    ["Asia", [203, 58, 22]],
-    ["Europe", [186, 218, 85]],
-    ["North America", [83, 107, 205]],
-    ["South America", [193, 83, 205]],
-    ["Oceania", [74, 202, 233]]
-];
-const GREY_OUT_COLOR = 'rgb(170,170,170)';
-//How far a locked country's own colour is pulled toward GREY_OUT_COLOR. Phase 5.8: they
-//used to be painted FLAT grey, which read as "this country failed to render" rather than
-//"you may not play this one" -- and, because the confirm button was gated on that exact
-//fill string, repainting one through the colour picker made it selectable. Keeping the
-//country's hue and muting it says the same thing without the fill being load-bearing.
-const LOCKED_COUNTRY_MUTING = 0.65;
+//Phase 6.7. `currentMapColorAndStrokeArray` and the save/restore pair that maintained
+//it are gone. Colour is a pure function of the store now -- see src/ui/map/MapView.js
+//for what that replaced and why. The country palette and the locked-country muting
+//moved to src/ui/map/colouring.js with it.
 //audit 5.2 Z. This was `COUNTRY_GREYOUT_THRESHOLD = 40000`, compared against the output of
 //calculateTerritoryStrengths() -- which min-max normalises every country into 0..10000, so
 //the strongest country in the world scores exactly 10000 and nothing could ever exceed
@@ -293,7 +312,9 @@ let validDestinationsArray;
 let lastPlayerOwnedValidDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
-let colorArray;
+//`colorArray = generateDistinctRGBs()` stood here. It was assigned at module load and
+//never read -- dead since before the refactor began. Removed with the rest of the
+//colour machinery in Phase 6.7.
 let territoriesAbleToAttackTarget;
 let originalDefendingTerritory;
 
@@ -318,7 +339,11 @@ export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
 export let battleResultsDisplayed = false;
 export let battleUIDisplayed = false;
-export let territoryAboutToBeAttackedOrSieged = null;
+//Phase 6.7. `territoryAboutToBeAttackedOrSieged` was a module-level `let`, and the
+//attack marker was a separate <image> that six call sites removed by hand -- which is
+//audit 5.2 AE, the marker surviving a cancel. They are one fact now, owned by
+//src/ui/map/markers.js: setting the target draws the marker, clearing it removes it,
+//and there is no way to do one without the other. Read it with `attackTargetPath()`.
 export let transferToTerritory;
 export let battleUIState = 0;
 
@@ -342,28 +367,9 @@ const multiplierForScatterLoss = 0.7;
 export let mapMode = 1; // 1 - normal 2 - physical
 
 //Zoom variables
-let zoomLevel = 1;
-const maxZoomLevel = 6;
-let originalViewBoxXMain = 312;
-let originalViewBoxYMain = -207;
-let originalViewBoxXCoastLine = 1072;
-let originalViewBoxYCoastLine = 158;
-let originalViewBoxWidthMain = 1947;
-let originalViewBoxHeightMain = 1040;
-let originalViewBoxWidthCoastLine = 1947;
-let originalViewBoxHeightCoastLine = 1040;
-let viewBoxWidthMain = originalViewBoxWidthMain;
-let viewBoxHeightMain = originalViewBoxHeightMain;
-let viewBoxWidthCoastLine = originalViewBoxWidthCoastLine;
-let viewBoxHeightCoastLine = originalViewBoxHeightCoastLine;
-let lastMouseX = 0;
-let lastMouseY = 0;
-let isDragging = false;
+//Zoom, pan and the viewBox animation moved to src/ui/map/camera.js in Phase 6.7.
+//`shiftedPath` stays here: it is the click-feedback nudge, not a camera concern.
 let shiftedPath;
-let isAnimating = false;
-let animationStartTime;
-let animationStartViewBoxMain;
-let animationStartViewBoxCoastLine;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
     if (upgradeOrBuyParameter === 1) { //upgrade window
@@ -385,6 +391,10 @@ export function svgMapLoaded() {
     paths = Array.from(svgMap.querySelectorAll('path'));
     pathsCoastLines = Array.from(svgCoastLinesMap.querySelectorAll('path'));
     buildPathIndex(paths); //O(1) uniqueId/name -> path lookups, replaces linear scans
+    //Phase 6.7: the map's three concerns each have a module now.
+    attachCamera(svgTag, svgCoastLinesTag);
+    attachMapView(paths);
+    attachMarkerLayer(svgMap);
     //-----------------------------------------------------------------//
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
@@ -409,18 +419,12 @@ export function svgMapLoaded() {
             const x = e.clientX;
             const y = e.clientY;
 
-            if (element.tagName === "image") {
-                //hover over image
-                const imageId = element.getAttribute("id");
-                if (dynamicIds.isSiegeOverlay(imageId)) { //siegeImage
-                    const territoryName = extractTerritoryName(imageId);
-                    let attackerData = findAttackerForSiege(territoryName);
-                    tooltip.setContent(territoryName + " is currently under siege by " + attackerData[1] + attackerData[0]);
-                }
-            } else {
-                // Set the content of the tooltip
-                tooltip.setContent(countryName);
-            }
+            //Markers carry `pointer-events: none` (audit 5.3 AW), so the hit test at the
+            //centre of a besieged territory returns the PATH, never the siege overlay
+            //drawn on top of it. There is deliberately no separate tooltip for the
+            //marker: the siege is stated in the territory's own tooltip instead, so the
+            //player gets the same fact wherever in the territory they hover.
+            tooltip.setContent(territoryTooltipLabel(element, countryName));
 
             // Check if the mouse pointer is less than 300px from the bottom of the screen
             if (window.innerHeight - y < 100) {
@@ -491,13 +495,11 @@ export function svgMapLoaded() {
                 }
             }
         }
-        if (!isDragging) {
+        if (!isDragging()) {
             if (e.target.tagName === "rect" && currentPhase() === Phase.MOVE_ATTACK) {
-                restoreMapColorState(currentMapColorAndStrokeArray, false);
+                repaintMap();
                 toggleTransferAttackButton(false, false);
-                if (svgMap.querySelector(sel.attackImage)) {
-                    svgMap.getElementById(ids.attackImage).remove();
-                }
+                clearAttackTarget();
                 transferAttackButtonDisplayed = false;
                 attackTextCurrentlyDisplayed = false;
                 //remove army image
@@ -544,7 +546,7 @@ export function svgMapLoaded() {
     svgMap.addEventListener("wheel", zoomMap);
 
     svgMap.addEventListener('mousedown', function(e) {
-        if (!isDragging) {
+        if (!isDragging()) {
             if (e.target.tagName === "path") {
                 shiftedPath = e.target;
                 shiftPath(shiftedPath, 2, 2);
@@ -554,12 +556,7 @@ export function svgMapLoaded() {
             }
         }
 
-        if (e.button === 0 && zoomLevel > 1) {
-            isDragging = true;
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
-            e.preventDefault();
-        }
+        beginDrag(e);
     });
 
     svgMap.addEventListener('mousemove', function(e) {
@@ -572,16 +569,16 @@ export function svgMapLoaded() {
     });
 
     svgMap.addEventListener('mouseup', function(e) {
-        if (e.button === 0 && isDragging) {
-            isDragging = false;
-        }
-        if (!isDragging) {
+        endDrag(e);
+        if (!isDragging()) {
             shiftPath(shiftedPath, -2, -2);
             modifyFill(shiftedPath, false);
         }
     });
 
-    colorByStandardColoring();
+    //Phase 6.7. Runs inside the bootstrap window, so it groups by `pathCountry()`,
+    //which reads the attribute while the store is still empty. See CLAUDE.md.
+    assignStartingColours(paths, pathCountry);
 
     markBootstrapStage("map"); //`paths` is now populated; see whenPageLoaded()
 
@@ -623,12 +620,10 @@ function selectCountry(country, escKeyEntry) {
             for (let i = 0; i < paths.length; i++) {
                 if (pathIsPlayerOwned(paths[i])) {
                     paths[i].setAttribute('fill', playerColour());
-                    if (territoryAboutToBeAttackedOrSieged) {
+                    if (attackTargetPath()) {
                         moveButton.hideDestination();
                         attackTextCurrentlyDisplayed = false;
-                        if (svgMap.querySelector(sel.attackImage)) {
-                            svgMap.getElementById(ids.attackImage).remove();
-                        }
+                        clearAttackTarget();
                     }
                 }
             }
@@ -811,28 +806,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 flipMapMode();
             }
             setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
-            restoreMapColorState(currentMapColorAndStrokeArray, false);
             phaseBar.colourLabelElement().style.color = playerColour();
+
             if (selectCountryPlayerState) {
-                for (let i = 0; i < paths.length; i++) {
-                    //A locked country never takes the player colour. `lastClickedPath` is set
-                    //for a locked country as well as a playable one, so without this test the
-                    //picker painted the player's colour straight over the lock. Phase 5.8.
-                    if (pathCountry(paths[i]) === pathCountry(lastClickedPath) && !pathIsGreyedOut(paths[i])) {
-                        paths[i].setAttribute("fill", playerColour());
-                    }
-                }
-                //restoreMapColorState() above replays the colours saved at bootstrap, which are
-                //the true country colours -- so it lifts the lock off every locked country on
-                //the map, not just the one that was clicked. Put it back.
-                paintLockedCountries();
+                //Phase 6.7. This was a restore, then a loop painting the new colour onto
+                //the clicked country, then paintLockedCountries() to put back the lock the
+                //restore had just lifted off all five locked countries. One pass says the
+                //same thing: each country takes its base colour, a locked one takes the
+                //muted form of it, and the picked one takes the player's colour. A locked
+                //country is never the picked one, which is what audit 5.3 AX turned on.
+                repaintCountrySelection(
+                    pathIsGreyedOut(lastClickedPath) ? null : pathCountry(lastClickedPath)
+                );
             } else if (countrySelectedAndGameStarted) {
-                paths.forEach(path => {
-                    if (pathIsPlayerOwned(path)) {
-                        path.setAttribute("fill", playerColour());
-                    }
-                });
-                currentMapColorAndStrokeArray = saveMapColorState(false);
+                repaintMap();
             }
         },
     });
@@ -851,7 +838,12 @@ document.addEventListener("DOMContentLoaded", function() {
             setPlayerFlag(playerCountryName());
             setFlag(playerCountryName(), 1); //set player flag in top table
             setFlag(playerCountryName(), 3); //set player flag in ui info panel
-            restoreMapColorState(currentMapColorAndStrokeArray, true);
+            //Phase 6.7. Was `restoreMapColorState(currentMapColorAndStrokeArray, true)`:
+            //replay the bootstrap snapshot over every country EXCEPT the selected one.
+            //Stated as a fact about each country instead -- and the locks have just been
+            //cleared by setAllGreyedOutAttributesToFalseOnGameStart(), so this is the
+            //first repaint where nothing is muted.
+            repaintCountrySelection(playerCountryName());
             phaseBar.setMode(phaseBar.Mode.INITIALISING);
             pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
@@ -872,13 +864,7 @@ document.addEventListener("DOMContentLoaded", function() {
             //and since Phase 6.3 the bar's own text follows from that one write.
             phaseBar.setMode(phaseBar.Mode.PLAYING);
             setPhase(Phase.BUY_UPGRADE);
-            if (mapMode === 1) {
-                currentMapColorAndStrokeArray = saveMapColorState(false);
-            }
         } else if (countrySelectedAndGameStarted && currentPhase() === Phase.BUY_UPGRADE) {
-            if (mapMode === 1) {
-                currentMapColorAndStrokeArray = saveMapColorState(false);
-            }
             setPhase(Phase.MOVE_ATTACK);
         }
         else if (countrySelectedAndGameStarted && currentPhase() === Phase.MOVE_ATTACK) {
@@ -892,7 +878,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 }
             }
-            currentMapColorAndStrokeArray = saveMapColorState(false);
         }
     });
 
@@ -989,9 +974,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // MOVE PHASE BUTTON
     //Phase 6.3. The button and its destination strip are one component. What the
-    //button SAYS is still decided by handleMovePhaseTransferAttackButton() below;
-    //Phase 6.6 replaces that with deriveMoveButtonState().
+    //button SAYS is decided by deriveMoveButtonState() since Phase 6.6, which also
+    //made its click, mouseover and mouseout listeners install ONCE, here, rather than
+    //being re-attached on every territory selection.
     const transferAttackButton = moveButton.create();
+    installMoveButtonHandlers();
 
     // TRANSFER / ATTACK WINDOW
     //Phase 6.3. The shell moved to src/ui/components/TransferAttackWindow.js.
@@ -1108,11 +1095,8 @@ document.addEventListener("DOMContentLoaded", function() {
             //appended a SECOND <image> carrying the same `siegeImage_<name>` id: a
             //duplicated id, two overlays stacked on one territory, and only one of them
             //removed when the siege ended. The marker is rendered from state now.
-            svgMap.getElementById(ids.attackImage).remove();
+            clearAttackTarget();
 
-            if (mapMode === 1) {
-                currentMapColorAndStrokeArray = saveMapColorState(false);
-            }
         }
     });
 
@@ -1129,7 +1113,7 @@ document.addEventListener("DOMContentLoaded", function() {
     lastClickedPath.style.strokeDasharray = "none";
         let defendingTerritoryRetreatClick;
         for (let i = 0; i < allTerritories().length; i++) {
-            if (allTerritories()[i].uniqueId === territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid")) {
+            if (allTerritories()[i].uniqueId === attackTargetPath().getAttribute("uniqueid")) {
                 defendingTerritoryRetreatClick = allTerritories()[i];
             }
         }
@@ -1160,10 +1144,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
 
                 if (battleUIState === 1) { //removing a siege
-                    let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
+                    let war = getSiegeObjectFromPath(attackTargetPath());
                     if (war) { //handle case where retreat after coming back from a siege
                         addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
-                        removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
+                        removeSiegeImageFromPath(attackTargetPath());
                         //siege removed from the store above; `underSiege` follows (Phase 4.4)
                         //army is restored already by assignProportionsToTerritories in case "0"
                     }
@@ -1218,8 +1202,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!defeatType) {
             defeatType = "retreat";
         }
-        if (territoryAboutToBeAttackedOrSieged) {
-            currentWarFlagString = pathCountry(territoryAboutToBeAttackedOrSieged);
+        if (attackTargetPath()) {
+            currentWarFlagString = pathCountry(attackTargetPath());
         }
         populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
         addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
@@ -1250,7 +1234,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (hasSiegedBefore) {
                     let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
                     let siegeAttackArray = [];
-                    siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+                    siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
                     siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
                     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
                         siegeAttackArray.push(war.attackingArmyRemaining[i]);
@@ -1305,7 +1289,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (hasSiegedBefore) {
                         let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
                         let siegeAttackArray = [];
-                        siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+                        siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
                         siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
                         for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
                             siegeAttackArray.push(war.attackingArmyRemaining[i]);
@@ -1348,8 +1332,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 break;
 
         }
-        if (territoryAboutToBeAttackedOrSieged) {
-            currentWarFlagString = pathCountry(territoryAboutToBeAttackedOrSieged);
+        if (attackTargetPath()) {
+            currentWarFlagString = pathCountry(attackTargetPath());
         }
     });
 
@@ -1357,26 +1341,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
         //"assault" i.e. return to battle state
         //remove siege status
-        let war = getSiegeObjectFromPath(territoryAboutToBeAttackedOrSieged);
+        let war = getSiegeObjectFromPath(attackTargetPath());
         setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 1);
-        setArmyTextValues(war, 3, territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+        setArmyTextValues(war, 3, attackTargetPath().getAttribute("uniqueid"));
         setCurrentWarId(war.warId);
         addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
-        removeSiegeImageFromPath(territoryAboutToBeAttackedOrSieged);
+        removeSiegeImageFromPath(attackTargetPath());
         //siege removed from the store above; `underSiege` follows (Phase 4.4)
         //setup  battle to conquer territory
         enableDisableSiegeButton(1); //disable siege button at start
         let siegeAttackArray = [];
-        siegeAttackArray.push(territoryAboutToBeAttackedOrSieged.getAttribute("uniqueid"));
+        siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
         siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of playerSiegeWarsList
         for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
             siegeAttackArray.push(war.attackingArmyRemaining[i]);
         }
 
         setupBattleUI(siegeAttackArray);
-        setTimeout(function() {
-            eventHandlerExecuted = false;
-        }, 200);
     });
 
     let confirmButtonBattleResults = battleResults.confirmButton();
@@ -1418,12 +1399,7 @@ document.addEventListener("DOMContentLoaded", function() {
         toggleMapModeButton(true);
         mapModeButtonCurrentlyOnScreen = true;
 
-        if (svgMap.getElementById(ids.attackImage)) {
-            svgMap.getElementById(ids.attackImage).remove();
-        }
-        if (mapMode === 1) {
-            currentMapColorAndStrokeArray = saveMapColorState(false);
-        }
+        clearAttackTarget();
     });
 
     pageLoaded = true;
@@ -1920,338 +1896,10 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
     }
 }
 
-export function saveMapColorState(gameInit) {
-    const stateArray = [];
-
-    for (let i = 0; i < paths.length; i++) {
-        const uniqueId = paths[i].getAttribute('uniqueid');
-        const fillValue = paths[i].getAttribute('fill');
-        const strokeWidthValue = paths[i].getAttribute('stroke-width');
-
-        if (uniqueId && fillValue && strokeWidthValue) {
-            stateArray.push([uniqueId, fillValue, strokeWidthValue]);
-        }
-    }
-
-    if (gameInit) {
-        currentMapColorAndStrokeArray = stateArray;
-    } else {
-        return stateArray;
-    }
-}
-
-export function restoreMapColorState(array, countrySelectionState) {
-    if (validDestinationsArray !== undefined) {
-        validDestinationsArray.length = 0;
-    }
-
-    currentlySelectedColorsArray.length = 0;
-
-    paths.forEach(path => {
-        for (let i = 0; i < array.length; i++) {
-            if (array[i][0] === path.getAttribute("uniqueid")) {
-                if (countrySelectionState) {
-                    if (pathCountry(path) !== pathCountry(currentSelectedPath)) {
-                        path.setAttribute("fill", array[i][1]);
-                        path.setAttribute("stroke-width", array[i][2]);
-                    }
-                } else {
-                    path.setAttribute("fill", array[i][1]);
-                    path.setAttribute("stroke-width", array[i][2]);
-                }
-                break;
-            }
-        }
-    });
-}
-
-function colorByStandardColoring() {
-    paths.forEach(path => {
-        const uniqueId = path.getAttribute("uniqueid");
-        const dataName = pathCountry(path);
-        const matchingElement = listOfStartingCountryColorsArray.find(i => i[1] === dataName);
-        let pathInfo;
-        let randomRgbValue;
-
-        if (matchingElement) {
-            randomRgbValue = matchingElement[2];
-        } else {
-            randomRgbValue = generateRandomRGB();
-        }
-        pathInfo = [uniqueId, dataName, randomRgbValue];
-        listOfStartingCountryColorsArray.push(pathInfo);
-        path.setAttribute("fill", `rgb(${randomRgbValue[0]}, ${randomRgbValue[1]}, ${randomRgbValue[2]})`);
-    });
-}
-
-
-function generateRandomRGB() {
-    const r = Math.floor(Math.random() * 150) + 50;
-    const g = Math.floor(Math.random() * 150) + 50;
-    const b = Math.floor(Math.random() * 150) + 50;
-    return [r, g, b];
-}
-
-export function convertHexValueToRGBOrViceVersa(value, direction) {
-    if (direction === 0) {
-        // Convert from hex to RGB
-        const hex = value.replace(/^#/, "");
-        const intValue = parseInt(hex, 16);
-        const red = (intValue >> 16) & 0xff;
-        const green = (intValue >> 8) & 0xff;
-        const blue = intValue & 0xff;
-        return `rgb(${red},${green},${blue})`;
-    } else if (direction === 1) {
-        // Convert from RGB to hex
-        const rgb = value.slice(4, -1).split(",");
-        const red = parseInt(rgb[0]);
-        const green = parseInt(rgb[1]);
-        const blue = parseInt(rgb[2]);
-        const hexValue = ((red << 16) | (green << 8) | blue).toString(16);
-        return `#${hexValue.padStart(6, "0")}`;
-    }
-}
-
-colorArray = generateDistinctRGBs();
-
-function generateDistinctRGBs() {
-    const result = [];
-    for (let i = 0; i < 16; i++) {
-        let val1, val2, val3;
-        do {
-            val1 = Math.floor(Math.random() * 235) + 1;
-            val2 = Math.floor(Math.random() * 235) + 1;
-            val3 = Math.floor(Math.random() * 235) + 1;
-        } while (result.some(color => (
-            Math.abs(val1 - color[0]) < 60 &&
-            Math.abs(val2 - color[1]) < 60 &&
-            Math.abs(val3 - color[2]) < 60
-        )));
-        result.push([val1, val2, val3]);
-    }
-    return result.map(color => `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
-}
-
-export function zoomMap(event) {
-    if (isAnimating) return;
-
-    isAnimating = true;
-    animationStartTime = performance.now();
-    animationStartViewBoxMain = svgTag.getAttribute("viewBox");
-    animationStartViewBoxCoastLine = svgCoastLinesTag.getAttribute("viewBox");
-
-    if (event !== "init") {
-        const delta = Math.sign(event.deltaY);
-
-        if (delta < 0 && zoomLevel < maxZoomLevel) {
-            zoomLevel++;
-        } else if (delta > 0 && zoomLevel > 1) {
-            zoomLevel--;
-        } else {
-            isAnimating = false;
-            return;
-        }
-    } else {
-        isAnimating = false;
-    }
-
-    let mouseX;
-    let mouseY;
-
-    if (event !== "init") {
-        mouseX = event.clientX - svgTag.getBoundingClientRect().left + 280;
-        mouseY = event.clientY - svgTag.getBoundingClientRect().top + 150;
-    } else {
-        mouseX = svgTag.getBoundingClientRect().right / 2;
-        mouseY = svgTag.getBoundingClientRect().bottom / 2;
-    }
-
-    let newWidthMain, newHeightMain, newWidthCoastLine, newHeightCoastLine;
-    if (event === "init") {
-        newWidthMain = originalViewBoxWidthMain;
-        newHeightMain = originalViewBoxHeightMain;
-        newWidthCoastLine = originalViewBoxWidthCoastLine;
-        newHeightCoastLine = originalViewBoxHeightCoastLine;
-    } else if (zoomLevel === 1) {
-        newWidthMain = originalViewBoxWidthMain;
-        newHeightMain = originalViewBoxHeightMain;
-        newWidthCoastLine = originalViewBoxWidthCoastLine;
-        newHeightCoastLine = originalViewBoxHeightCoastLine;
-    } else if (zoomLevel === 2) {
-        newWidthMain = originalViewBoxWidthMain * 0.80;
-        newHeightMain = originalViewBoxHeightMain * 0.80;
-        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.80;
-        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.80;
-    } else if (zoomLevel === 3) {
-        newWidthMain = originalViewBoxWidthMain * 0.60;
-        newHeightMain = originalViewBoxHeightMain * 0.60;
-        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.60;
-        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.60;
-    } else if (zoomLevel === 4) {
-        newWidthMain = originalViewBoxWidthMain * 0.40;
-        newHeightMain = originalViewBoxHeightMain * 0.40;
-        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.40;
-        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.40;
-    }else if (zoomLevel === 5) {
-        newWidthMain = originalViewBoxWidthMain * 0.30;
-        newHeightMain = originalViewBoxHeightMain * 0.30;
-        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.30;
-        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.30;
-    }else if (zoomLevel === 6) {
-        newWidthMain = originalViewBoxWidthMain * 0.20;
-        newHeightMain = originalViewBoxHeightMain * 0.20;
-        newWidthCoastLine = originalViewBoxWidthCoastLine * 0.20;
-        newHeightCoastLine = originalViewBoxHeightCoastLine * 0.20;
-    }
-    // console.log(zoomLevel);
-
-    const maxLeftMain = originalViewBoxXMain + originalViewBoxWidthMain - newWidthMain;
-    const minLeftMain = originalViewBoxXMain;
-    let newLeftMain = originalViewBoxXMain + ((mouseX / viewBoxWidthMain) * originalViewBoxWidthMain) - (newWidthMain / 2);
-    newLeftMain = Math.max(minLeftMain, Math.min(maxLeftMain, newLeftMain));
-
-    const maxLeftCoastLine = originalViewBoxXCoastLine + originalViewBoxWidthCoastLine - newWidthCoastLine;
-    const minLeftCoastLine = originalViewBoxXCoastLine;
-    let newLeftCoastLine = originalViewBoxXCoastLine + ((mouseX / viewBoxWidthCoastLine) * originalViewBoxWidthCoastLine) - (newWidthCoastLine / 2);
-    newLeftCoastLine = Math.max(minLeftCoastLine, Math.min(maxLeftCoastLine, newLeftCoastLine));
-
-    const maxTopMain = originalViewBoxYMain + originalViewBoxHeightMain - newHeightMain;
-    const minTopMain = originalViewBoxYMain;
-    const maxTopCoastLine = originalViewBoxYCoastLine + originalViewBoxHeightCoastLine - newHeightCoastLine;
-    const minTopCoastLine = originalViewBoxYCoastLine;
-
-    let newTopMain = originalViewBoxYMain + ((mouseY / viewBoxHeightMain) * originalViewBoxHeightMain) - (newHeightMain / 2);
-    newTopMain = Math.max(minTopMain, Math.min(maxTopMain, newTopMain));
-
-    let newTopCoastLine = originalViewBoxYCoastLine + ((mouseY / viewBoxHeightCoastLine) * originalViewBoxHeightCoastLine) - (newHeightCoastLine / 2);
-    newTopCoastLine = Math.max(minTopCoastLine, Math.min(maxTopCoastLine, newTopCoastLine));
-
-    const newViewBoxMain = `${newLeftMain} ${newTopMain} ${newWidthMain} ${newHeightMain}`;
-    const newViewBoxCoastLine = `${newLeftCoastLine} ${newTopCoastLine} ${newWidthCoastLine} ${newHeightCoastLine}`;
-
-    function updateViewBox(timestamp) {
-        const timeElapsed = timestamp - animationStartTime;
-        const progress = Math.min(1, timeElapsed / animationDuration);
-
-        const [startLeftMain, startTopMain, startWidthMain, startHeightMain] = animationStartViewBoxMain.split(" ").map(parseFloat);
-        const [startLeftCoastLine, startTopCoastLine, startWidthCoastLine, startHeightCoastLine] = animationStartViewBoxCoastLine.split(" ").map(parseFloat);
-
-        const updatedLeftMain = startLeftMain + (newLeftMain - startLeftMain) * progress;
-        const updatedTopMain = startTopMain + (newTopMain - startTopMain) * progress;
-        const updatedWidthMain = startWidthMain + (newWidthMain - startWidthMain) * progress;
-        const updatedHeightMain = startHeightMain + (newHeightMain - startHeightMain) * progress;
-
-        const updatedLeftCoastLine = startLeftCoastLine + (newLeftCoastLine - startLeftCoastLine) * progress;
-        const updatedTopCoastLine = startTopCoastLine + (newTopCoastLine - startTopCoastLine) * progress;
-        const updatedWidthCoastLine = startWidthCoastLine + (newWidthCoastLine - startWidthCoastLine) * progress;
-        const updatedHeightCoastLine = startHeightCoastLine + (newHeightCoastLine - startHeightCoastLine) * progress;
-
-        svgTag.setAttribute("viewBox", `${updatedLeftMain} ${updatedTopMain} ${updatedWidthMain} ${updatedHeightMain}`);
-        svgCoastLinesTag.setAttribute("viewBox", `${updatedLeftCoastLine} ${updatedTopCoastLine} ${updatedWidthCoastLine} ${updatedHeightCoastLine}`);
-
-        if (timeElapsed < animationDuration) {
-            requestAnimationFrame(updateViewBox);
-        } else {
-            isAnimating = false;
-            svgTag.setAttribute("viewBox", newViewBoxMain);
-            svgCoastLinesTag.setAttribute("viewBox", newViewBoxCoastLine);
-        }
-    }
-
-    const animationDuration = 500; // You can adjust this value as needed
-    requestAnimationFrame(updateViewBox);
-}
-
-
-function panMap(event) {
-    if (zoomLevel > 1 && event.buttons === 1) {
-        event.preventDefault();
-        const mouseX = event.clientX;
-        const mouseY = event.clientY;
-        const dx = (mouseX - lastMouseX) * 2;
-        const dy = (mouseY - lastMouseY) * 2;
-
-        const viewBoxValuesMain = svgTag.getAttribute("viewBox").split(" ");
-        const viewBoxValuesCoastLine = svgCoastLinesTag.getAttribute("viewBox").split(" ");
-
-        const currentViewBoxXMain = parseFloat(viewBoxValuesMain[0]);
-        const currentViewBoxYMain = parseFloat(viewBoxValuesMain[1]);
-        const currentViewBoxWidthMain = parseFloat(viewBoxValuesMain[2]);
-        const currentViewBoxHeightMain = parseFloat(viewBoxValuesMain[3]);
-        const originalViewBoxXMain = parseFloat(svgTag.getAttribute("data-original-x"));
-        const originalViewBoxYMain = parseFloat(svgTag.getAttribute("data-original-y"));
-        const originalViewBoxWidthMain = parseFloat(svgTag.getAttribute("data-original-width"));
-
-        const currentViewBoxXCoastLine = parseFloat(viewBoxValuesCoastLine[0]);
-        const currentViewBoxYCoastLine = parseFloat(viewBoxValuesCoastLine[1]);
-        const currentViewBoxWidthCoastLine = parseFloat(viewBoxValuesCoastLine[2]);
-        const currentViewBoxHeightCoastLine = parseFloat(viewBoxValuesCoastLine[3]);
-        const originalViewBoxXCoastLine = parseFloat(svgCoastLinesTag.getAttribute("data-original-x"));
-        const originalViewBoxYCoastLine = parseFloat(svgCoastLinesTag.getAttribute("data-original-y"));
-        const originalViewBoxWidthCoastLine = parseFloat(svgCoastLinesTag.getAttribute("data-original-width"));
-
-        const newWidthMain = currentViewBoxWidthMain / zoomLevel;
-        const newHeightMain = currentViewBoxHeightMain / zoomLevel;
-        let newLeftMain = currentViewBoxXMain - dx / zoomLevel;
-        let newTopMain = currentViewBoxYMain - dy / zoomLevel;
-
-        const newWidthCoastLine = currentViewBoxWidthCoastLine / zoomLevel;
-        const newHeightCoastLine = currentViewBoxHeightCoastLine / zoomLevel;
-        let newLeftCoastLine = currentViewBoxXCoastLine - dx / zoomLevel;
-        let newTopCoastLine = currentViewBoxYCoastLine - dy / zoomLevel;
-
-        const maxLeftMain = originalViewBoxXMain + originalViewBoxWidthMain - newWidthMain;
-        const minLeftMain = originalViewBoxXMain;
-
-        const maxLeftCoastLine = originalViewBoxXCoastLine + originalViewBoxWidthCoastLine - newWidthCoastLine;
-        const minLeftCoastLine = originalViewBoxXCoastLine;
-
-        if (newLeftMain < minLeftMain) {
-            newLeftMain = minLeftMain;
-        } else if (newLeftMain > maxLeftMain) {
-            newLeftMain = maxLeftMain;
-        }
-
-        if (newLeftCoastLine < minLeftCoastLine) {
-            newLeftCoastLine = minLeftCoastLine;
-        } else if (newLeftCoastLine > maxLeftCoastLine) {
-            newLeftCoastLine = maxLeftCoastLine;
-        }
-
-        const maxTopMain = originalViewBoxYMain + originalViewBoxHeightMain - newHeightMain;
-        const minTopMain = originalViewBoxYMain;
-        if (newTopMain < minTopMain) {
-            newTopMain = minTopMain;
-        } else if (newTopMain > maxTopMain) {
-            newTopMain = maxTopMain;
-        }
-
-        const maxTopCoastLine = originalViewBoxYCoastLine + originalViewBoxHeightCoastLine - newHeightCoastLine;
-        const minTopCoastLine = originalViewBoxYCoastLine;
-        if (newTopCoastLine < minTopCoastLine) {
-            newTopCoastLine = minTopCoastLine;
-        } else if (newTopCoastLine > maxTopCoastLine) {
-            newTopCoastLine = maxTopCoastLine;
-        }
-
-        if (newLeftMain !== currentViewBoxXMain || newTopMain !== currentViewBoxYMain) {
-            const newViewBoxMain = `${newLeftMain} ${newTopMain} ${currentViewBoxWidthMain} ${currentViewBoxHeightMain}`;
-            svgTag.setAttribute("viewBox", newViewBoxMain);
-        }
-
-        if (newLeftCoastLine !== currentViewBoxXCoastLine || newTopCoastLine !== currentViewBoxYCoastLine) {
-            const newViewBoxCoastLine = `${newLeftCoastLine} ${newTopCoastLine} ${currentViewBoxWidthCoastLine} ${currentViewBoxHeightCoastLine}`;
-            svgCoastLinesTag.setAttribute("viewBox", newViewBoxCoastLine);
-        }
-
-        // Disable scrollbar functionality
-        document.body.style.overflow = "hidden";
-
-        // Update last mouse position
-        lastMouseX = mouseX;
-        lastMouseY = mouseY;
-    }
-}
+//Phase 6.7. saveMapColorState(), restoreMapColorState(), colorByStandardColoring(),
+//generateRandomRGB(), convertHexValueToRGBOrViceVersa() and generateDistinctRGBs() all
+//stood here. The first two are replaced by repaintMap() -- see src/ui/map/MapView.js --
+//and the rest moved to src/ui/map/colouring.js unchanged.
 
 function setStrokeWidth(path, stroke) {
     path.setAttribute("stroke-width", stroke)
@@ -2275,171 +1923,141 @@ function greyOutTerritoriesForUnselectableCountries() {
     paintLockedCountries();
 }
 
-/**
- * The muted form of a country colour, for a country the player may not choose.
- *
- * Falls back to flat grey only if the fill is not an `rgb(...)` triple, which no path
- * on this map has once `colorCountriesRandomly()` has run.
- */
-function lockedCountryFill(baseFill) {
-    const base = typeof baseFill === "string" ? baseFill.match(/\d+/g) : null;
-    if (!base || base.length < 3) {
-        return GREY_OUT_COLOR;
-    }
-    const grey = GREY_OUT_COLOR.match(/\d+/g).map(Number);
-    const muted = base.slice(0, 3).map((channel, index) => {
-        const value = Number(channel);
-        return Math.round(value + (grey[index] - value) * LOCKED_COUNTRY_MUTING);
-    });
-    return "rgb(" + muted[0] + "," + muted[1] + "," + muted[2] + ")";
-}
-
-/**
- * Re-apply the locked treatment to every country the player may not choose.
- *
- * Idempotent, and it has to be called after ANY repaint that happens while the
- * selection screen is up: `restoreMapColorState()` replays the colours saved at
- * bootstrap by `saveMapColorState(true)`, which are the countries' TRUE colours, so
- * a restore silently takes the lock off all five otherwise. That is half of how the
- * lock used to be bypassable -- see the colour-picker handler.
- */
-function paintLockedCountries() {
-    if (!anyCountryGreyedOut()) {
-        return;
-    }
-    paths.forEach(path => {
-        if (!pathIsGreyedOut(path)) {
-            return;
-        }
-        const saved = currentMapColorAndStrokeArray.find(
-            entry => entry[0] === path.getAttribute("uniqueid")
-        );
-        path.setAttribute("fill", lockedCountryFill(saved ? saved[1] : path.getAttribute("fill")));
-    });
-}
+//lockedCountryFill() and paintLockedCountries() moved to src/ui/map/ in Phase 6.7 --
+//the muting to colouring.js, the pass over the map to MapView.js. paintLockedCountries()
+//no longer needs a colour snapshot to find a country's true colour: colouring.js keeps
+//the palette it painted at bootstrap.
 
 function setAllGreyedOutAttributesToFalseOnGameStart() {
     clearGreyedOutCountries();
 }
 
+/**
+ * Set the move-phase button from the territory the player just clicked.
+ *
+ * Phase 6.6. The first hundred lines of this function were five blocks that each
+ * wrote a label, removed four of the five background classes, added a fifth, set
+ * `disabled` and set `display` -- with the decision and the writing interleaved. The
+ * decision is `deriveMoveButtonState()` now, which is pure and unit-tested; this
+ * applies the result and performs the one side effect it cannot: arming the clicked
+ * territory as an attack or a siege target.
+ *
+ * `xButtonClicked` means the transfer/attack window was dismissed rather than a
+ * territory selected. It is still a parameter rather than a second function because
+ * every call site passes it, and splitting them is a rename this phase does not need.
+ */
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
-    let button = moveButton.element();
-    button.style.display = "none";
+    moveButton.hide();
     transferAttackButtonDisplayed = false;
 
-    if (!xButtonClicked) {
-        //if clicked territory is not owned by the player and is not a valid destination then return
-        //if not a player owned territory and the lastPlayerOwned array does not contain the path
-        if (lastPlayerOwnedValidDestinationsArray && !pathIsPlayerOwned(path) && !lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid"))) {
-            return;
-        } else if (pathIsPlayerOwned(path)) {
-            territoryAboutToBeAttackedOrSieged = null;
-
-            //if territory is deactivated, then get how many turns are left
-            let deactivatedTurnsLeft;
-            for (let i = 0; i < playerTurnsDeactivatedArray.length; i++) {
-                if (path.getAttribute("uniqueid") === playerTurnsDeactivatedArray[i][0]) {
-                    deactivatedTurnsLeft = (playerTurnsDeactivatedArray[i][1] - playerTurnsDeactivatedArray[i][2]) + 1;
-                }
-            }
-            // if clicks on a player-owned territory then show button in transfer state
-            if (pathIsDeactivated(path)) {
-                button.innerHTML = "DEACTIVATED (" + deactivatedTurnsLeft + ")";
-                button.classList.remove("move-phase-button-red-background");
-                button.classList.remove("move-phase-button-green-background");
-                button.classList.remove("move-phase-button-brown-background");
-                button.classList.remove("move-phase-button-blue-background");
-                button.classList.add("move-phase-button-grey-background");
-                button.disabled = true;
-                button.style.display = "flex";
-                transferAttackButtonDisplayed = true;
-            } else {
-                button.innerHTML = "TRANSFER";
-                if (playerOwnedTerritories.length <= 1) {
-                    button.classList.remove("move-phase-button-red-background");
-                    button.classList.remove("move-phase-button-green-background");
-                    button.classList.remove("move-phase-button-brown-background");
-                    button.classList.remove("move-phase-button-blue-background");
-                    button.classList.add("move-phase-button-grey-background");
-                    button.disabled = true;
-                } else {
-                    button.classList.remove("move-phase-button-red-background");
-                    button.classList.remove("move-phase-button-grey-background");
-                    button.classList.remove("move-phase-button-brown-background");
-                    button.classList.remove("move-phase-button-blue-background");
-                    button.classList.add("move-phase-button-green-background");
-                    button.disabled = false;
-                    transferAttackButtonState = 0; //transfer
-                }
-                button.style.display = "flex";
-                transferAttackButtonDisplayed = true;
-            }
-        } else if (pathIsPlayerOwned(lastClickedPathExternal) && pathIsAttackable(path) && !pathIsPlayerOwned(path) && lastPlayerOwnedValidDestinationsArray.some(destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")) && !pathIsUnderSiege(path)) {
-            // if clicks on an enemy territory that is within reach then show attack state
-            button.innerHTML = "ATTACK";
-            button.classList.remove("move-phase-button-green-background");
-            button.classList.remove("move-phase-button-grey-background");
-            button.classList.remove("move-phase-button-brown-background");
-            button.classList.remove("move-phase-button-blue-background");
-            button.classList.add("move-phase-button-red-background");
-            button.style.display = "flex";
-            transferAttackButtonDisplayed = true;
-            button.disabled = false;
-            transferAttackButtonState = 1; //attack
-            setTerritoryForAttack(path);
-        } else if (pathIsUnderSiege(path)) {
-            // if clicks on an enemy territory that is within reach but under siege then set it up for that
-            const territoryName = path.getAttribute("territory-name");
-            const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
-            button.innerHTML = "VIEW SIEGE (" + (siege ? siege.turnsInSiege : "?") + ")";
-            button.classList.remove("move-phase-button-green-background");
-            button.classList.remove("move-phase-button-grey-background");
-            button.classList.remove("move-phase-button-red-background");
-            button.classList.remove("move-phase-button-blue-background");
-            button.classList.add("move-phase-button-brown-background");
-            button.style.display = "flex";
-            transferAttackButtonDisplayed = true;
-            button.disabled = false;
-            transferAttackButtonState = 2; //lift siege
-            setTerritoryForSiege(path);
+    if (xButtonClicked) {
+        if (xButtonFromWhere === MoveMode.TRANSFER) {
+            applyMoveButtonState(stateAfterWindowClosed(MoveMode.TRANSFER));
+        } else if (xButtonFromWhere === MoveMode.ATTACK) {
+            //audit 5.2 AE. Cancelling un-arms the target, so there is no button.
+            cancelAttackSelection();
         }
-    } else {
-        if (xButtonFromWhere === 0) { //transfer
-            button.style.display = "flex";
-            button.innerHTML = "TRANSFER";
-            button.classList.remove("move-phase-button-blue-background");
-            button.classList.remove("move-phase-button-red-background");
-            button.classList.remove("move-phase-button-grey-background");
-            button.classList.remove("move-phase-button-brown-background");
-            button.classList.add("move-phase-button-green-background");
-            transferAttackButtonState = 0;
-            return;
-        } else if (xButtonFromWhere === 1) { //attack
-            button.style.display = "flex";
-            button.innerHTML = "ATTACK";
-            button.classList.remove("move-phase-button-blue-background");
-            button.classList.remove("move-phase-button-green-background");
-            button.classList.remove("move-phase-button-grey-background");
-            button.classList.remove("move-phase-button-brown-background");
-            button.classList.add("move-phase-button-red-background");
-            transferAttackButtonState = 1;
-            return;
-        }
+        return;
     }
 
-    button.removeEventListener("click", transferAttackClickHandler); // Remove the existing event listener if any
+    //An enemy territory that is not a valid destination is not a selection at all.
+    const inRange = Boolean(
+        lastPlayerOwnedValidDestinationsArray?.some(
+            destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")
+        )
+    );
+    if (lastPlayerOwnedValidDestinationsArray && !pathIsPlayerOwned(path) && !inRange) {
+        return;
+    }
 
-    button.addEventListener("click", transferAttackClickHandler);
+    if (pathIsPlayerOwned(path)) {
+        //Selecting one of your own territories abandons any attack being composed.
+        clearAttackTarget();
+    }
 
-    function transferAttackClickHandler() {
+    const territoryName = path.getAttribute("territory-name");
+    const siege = playerSiegeWarsList[territoryName] || aiSiegeWarsList[territoryName];
+
+    const state = deriveMoveButtonState({
+        isPlayerOwned: pathIsPlayerOwned(path),
+        isDeactivated: pathIsDeactivated(path),
+        deactivatedTurnsLeft: lockoutTurnsRemaining(path),
+        isUnderSiege: pathIsUnderSiege(path),
+        isAttackable: pathIsAttackable(path),
+        isInRange: inRange,
+        sourceIsPlayerOwned: pathIsPlayerOwned(lastClickedPathExternal),
+        ownedTerritoryCount: playerOwnedTerritories.length,
+        siegeTurns: siege ? siege.turnsInSiege : undefined
+    });
+
+    applyMoveButtonState(state);
+
+    if (state.target === "attack") {
+        setTerritoryForAttack(path);
+    } else if (state.target === "siege") {
+        setTerritoryForSiege(path);
+    }
+
+    recordMoveButtonContext(playerOwnedTerritories, territoryComingFrom);
+}
+
+/** How many turns of its post-conquest lockout this territory still has to serve. */
+function lockoutTurnsRemaining(path) {
+    const uniqueId = path.getAttribute("uniqueid");
+    for (const entry of playerTurnsDeactivatedArray) {
+        if (entry[0] === uniqueId) {
+            return (entry[1] - entry[2]) + 1;
+        }
+    }
+    return undefined;
+}
+
+/** Write a derived state onto the button. Nothing else touches its classes. */
+function applyMoveButtonState(state) {
+    if (!state || !state.visible) {
+        moveButton.hide();
+        transferAttackButtonDisplayed = false;
+        return;
+    }
+    moveButton.setLabel(state.label);
+    moveButton.setVariant(state.variant);
+    moveButton.setEnabled(state.enabled);
+    moveButton.show();
+    transferAttackButtonDisplayed = true;
+    if (state.mode !== null) {
+        transferAttackButtonState = state.mode;
+    }
+}
+
+//The context the button's click handler needs, recorded when the selection is made.
+//Phase 6.6: these were closed over by a handler that was RE-CREATED on every
+//selection, and `button.removeEventListener("click", transferAttackClickHandler)`
+//could never remove the previous one -- each call built a new function object, so the
+//listeners accumulated and one click fired all of them. That is what
+//`eventHandlerExecuted` and the four `setTimeout(..., 200)` calls were suppressing.
+//One listener, installed once, reading these. The latch and the timers are gone.
+let moveButtonOwnedTerritories = [];
+let moveButtonSource = null;
+
+function recordMoveButtonContext(ownedTerritories, source) {
+    moveButtonOwnedTerritories = ownedTerritories;
+    moveButtonSource = source;
+}
+
+/**
+ * Install the move-phase button's listeners. Called once, from bootstrap.
+ */
+function installMoveButtonHandlers() {
+    const button = moveButton.element();
+
+    button.addEventListener("click", function transferAttackClickHandler() {
         tooltip.setContent("");
         tooltip.hide();
         playSoundClip("click");
         if (transferAttackButtonState === 0) {
-            territoryComingFrom = lastClickedPath;
+            moveButtonSource = lastClickedPath;
         }
-        if (!eventHandlerExecuted) {
-            eventHandlerExecuted = true;
+        {
             if (!button.disabled) {
                 if (!transferAttackWindowOnScreen) {
                     toggleUIButton(false);
@@ -2450,11 +2068,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                     if (transferAttackButtonState === 0 || transferAttackButtonState === 1) {
                         toggleTransferAttackWindow(true);
                         setTransferAttackWindowTitleText(
-                            territoryAboutToBeAttackedOrSieged && territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") !== null ?
-                                territoryAboutToBeAttackedOrSieged.getAttribute("territory-name") :
+                            attackTargetPath() && attackTargetPath().getAttribute("territory-name") !== null ?
+                                attackTargetPath().getAttribute("territory-name") :
                                 "transferring",
-                            territoryAboutToBeAttackedOrSieged ? pathCountry(territoryAboutToBeAttackedOrSieged) : null,
-                            territoryComingFrom,
+                            attackTargetPath() ? pathCountry(attackTargetPath()) : null,
+                            moveButtonSource,
                             transferAttackButtonState,
                             allTerritories()
                         );
@@ -2477,9 +2095,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         if (transferAttackButtonState === 1) {
                             clearAttackableTerritories();
                         }
-                        setTimeout(function() {
-                            eventHandlerExecuted = false;
-                        }, 200);
                         return;
 
                     } else if (transferAttackButtonState === 2) { //click view siege button //button says VIEW SIEGE
@@ -2490,13 +2105,10 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleTransferAttackButton(false, false);
                         transferAttackButtonDisplayed = false;
 
-                        setupSiegeUI(territoryAboutToBeAttackedOrSieged);
+                        setupSiegeUI(attackTargetPath());
 
                         setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 0);
 
-                        setTimeout(function() {
-                            eventHandlerExecuted = false;
-                        }, 200);
                     }
                 } else if (transferAttackWindowOnScreen) {
                     if (button.innerHTML === "CONFIRM" || button.innerHTML === "INVADE!") {
@@ -2517,9 +2129,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                         toggleBottomLeftPaneWithTurnAdvance(true);
                         toggleMapModeButton(true);
                         mapModeButtonCurrentlyOnScreen = true;
-                        setTimeout(function() {
-                            eventHandlerExecuted = false;
-                        }, 200);
                         return;
                     } else if (transferAttackButtonState === 1) {
                         if (button.innerHTML === "INVADE!") {
@@ -2547,9 +2156,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
                             setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);
                             battleUIDisplayed = true;
-                            setTimeout(function() {
-                                eventHandlerExecuted = false;
-                            }, 200);
                         } else if (button.innerHTML === "CANCEL") {
                             setAttackProbabilityOnUI(0, 0);
                             toggleTransferAttackWindow(false);
@@ -2560,6 +2166,9 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             uiButtonCurrentlyOnScreen = true;
                             toggleMapModeButton(true);
                             mapModeButtonCurrentlyOnScreen = true;
+                            territoryUniqueIds.length = 0;
+                            cancelAttackSelection();
+                            return;
                         }
                         territoryUniqueIds.length = 0;
 
@@ -2576,18 +2185,12 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
                             toggleMapModeButton(true);
                             mapModeButtonCurrentlyOnScreen = true;
                         }
-                        setTimeout(function() {
-                            eventHandlerExecuted = false;
-                        }, 200);
                         return;
                     }
                 }
             }
-            setTimeout(function() {
-                eventHandlerExecuted = false;
-            }, 200);
         }
-    }
+    });
 
     button.addEventListener("mouseover", (e) => {
         const x = e.clientX;
@@ -2605,7 +2208,7 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
             } else if (button.innerHTML === "TRANSFER") {
                 tooltip.setContent("You have no other territories to transfer military to!");
             }
-        } else if (!button.disabled && playerOwnedTerritories.length > 1 && button.innerHTML === "TRANSFER") {
+        } else if (!button.disabled && moveButtonOwnedTerritories.length > 1 && button.innerHTML === "TRANSFER") {
             tooltip.setContent("Click to transfer military to one of your other territories...");
         } else if (!button.disabled && validDestinationsArray.length > 0 && button.innerHTML === "ATTACK") {
             tooltip.setContent("Click to send military to attack selected territory from the last selected territory...");
@@ -2629,10 +2232,36 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     });
 }
 
+/**
+ * Un-arm the attack the player was composing.
+ *
+ * audit 5.2 AE, closed in Phase 6.7. Cancelling used to close the window, put the
+ * move button back to ATTACK and leave the target exactly as it was: still filled in
+ * the player's colour, still dashed, and still carrying the battle marker -- a map
+ * saying an attack was under way when none was. The marker was the visible half; the
+ * fill and the stroke were the other two.
+ *
+ * Cancel now means what it says. The target is cleared -- which removes the marker,
+ * because markers.js owns both as one fact -- and `repaintMap()` puts the fill and the
+ * stroke back from the store. The move button goes away with them: the player clicks
+ * the territory again to arm a fresh attack, which is one click and an honest map
+ * rather than no click and a lying one.
+ */
+function cancelAttackSelection() {
+    clearAttackTarget();
+    attackTextCurrentlyDisplayed = false;
+    moveButton.hideDestination();
+    repaintMap();
+
+    moveButton.hide();
+    transferAttackButtonDisplayed = false;
+    transferAttackButtonState = 1;
+}
+
 function setTerritoryForAttack(territoryToAttack) {
-    territoryAboutToBeAttackedOrSieged = territoryToAttack;
+    setAttackTarget(territoryToAttack, { marker: !pathIsUnderSiege(territoryToAttack) });
     moveButton.showDestination(
-        territoryAboutToBeAttackedOrSieged.getAttribute("territory-name"),
+        attackTargetPath().getAttribute("territory-name"),
         setFlag(pathCountry(territoryToAttack), 0)
     );
     attackTextCurrentlyDisplayed = true;
@@ -2649,14 +2278,15 @@ function setTerritoryForAttack(territoryToAttack) {
         territoryToAttack.setAttribute("fill", playerColour());
         territoryToAttack.setAttribute("stroke-width", "5px");
         territoryToAttack.style.strokeDasharray = "10, 5";
-        addImageToPath(territoryToAttack, "battle.png", 0);
     }
 }
 
 function setTerritoryForSiege(territoryToSiege) {
-    territoryAboutToBeAttackedOrSieged = territoryToSiege;
+    //A siege target carries a siege overlay already; a second image on the same
+    //territory is what audit 5.3 AV was.
+    setAttackTarget(territoryToSiege, { marker: false });
     moveButton.showDestination(
-        territoryAboutToBeAttackedOrSieged.getAttribute("territory-name"),
+        attackTargetPath().getAttribute("territory-name"),
         setFlag(pathCountry(territoryToSiege), 0)
     );
     attackTextCurrentlyDisplayed = true;
@@ -2671,70 +2301,10 @@ function setTerritoryForSiege(territoryToSiege) {
     territoryToSiege.style.strokeDasharray = "10, 5";
 }
 
-export function addImageToPath(pathElement, imagePath, siege) {
-    const pathBounds = pathElement.getBBox();
-
-    const centerX = pathBounds.x + pathBounds.width / 2;
-    const centerY = pathBounds.y + pathBounds.height / 2;
-
-    const maxImageWidth = pathBounds.width * 0.7;
-    const maxImageHeight = pathBounds.height * 0.7;
-
-    const imageElement = document.createElementNS("http://www.w3.org/2000/svg", "image");
-    imageElement.setAttributeNS("http://www.w3.org/1999/xlink", "href", imagePath);
-
-    let imageWidth = Math.min(maxImageWidth, maxImageHeight);
-    let imageHeight = Math.min(maxImageWidth, maxImageHeight);
-    const imageX = centerX - imageWidth / 2;
-    const imageY = centerY - imageHeight / 2;
-    imageElement.setAttribute("x", imageX.toString());
-    imageElement.setAttribute("y", imageY.toString());
-    imageElement.setAttribute("z-index", "9999");
-    //Decoration never intercepts a click. Without this the marker covers the middle of the
-    //territory it marks and the player cannot select it. Phase 5.8.
-    imageElement.style.pointerEvents = "none";
-
-    if (siege === 1) {
-        imageElement.setAttribute("width", imageWidth.toString());
-        imageElement.setAttribute("height", imageHeight.toString());
-        for (const key in playerSiegeWarsList) {
-            if (playerSiegeWarsList.hasOwnProperty(key) && playerSiegeWarsList[key].warId === getCurrentWarId()) {
-                for (let i = 0; i < paths.length; i++) {
-                    if (paths[i].getAttribute("territory-name") === playerSiegeWarsList[key].defendingTerritory.territoryName) {
-                        const territoryName = playerSiegeWarsList[key].defendingTerritory.territoryName;
-                        pathElement.parentNode.appendChild(imageElement);
-                        imageElement.setAttribute("id", dynamicIds.siegeOverlay(territoryName));
-                        break;
-                    }
-                }
-                break;
-            }
-        }
-    } else if (siege === 2) {
-        imageElement.setAttribute("width", (imageWidth * 0.6).toString());
-        imageElement.setAttribute("height", (imageHeight * 0.6).toString());
-        for (const key in aiSiegeWarsList) {
-            let currentAiWarId = getCurrentAiWarId();
-            if (aiSiegeWarsList.hasOwnProperty(key) && aiSiegeWarsList[key].warId === currentAiWarId) {
-                for (let i = 0; i < paths.length; i++) {
-                    if (paths[i].getAttribute("territory-name") === aiSiegeWarsList[key].defendingTerritory.territoryName) {
-                        const territoryName = aiSiegeWarsList[key].defendingTerritory.territoryName;
-                        imageElement.setAttribute("style", "opacity: 0.4");
-                        pathElement.parentNode.appendChild(imageElement);
-                        imageElement.setAttribute("id", dynamicIds.siegeOverlay(territoryName));
-                        break;
-                    }
-                }
-                break;
-            }
-        }
-    } else {
-        imageElement.setAttribute("width", imageWidth.toString());
-        imageElement.setAttribute("height", imageHeight.toString());
-        imageElement.setAttribute("id", ids.attackImage);
-        pathElement.parentNode.appendChild(imageElement);
-    }
-}
+//addImageToPath() stood here. Its `siege === 1` and `siege === 2` branches were dead
+//from Phase 5.8, when marker rendering moved to src/ui/siegeOverlay.js; what was left
+//was the attack marker, which src/ui/map/markers.js now draws from the one target it
+//owns. Phase 6.7.
 
 export function removeSiegeImageFromPath(ai, path) {
     //BUG FIX, known-issues AM. This used to ask getHistoricWarObject() for the siege and
@@ -2755,15 +2325,7 @@ export function removeSiegeImageFromPath(ai, path) {
         return;
     }
 
-    //audit 5.2 AI: getElementById, not querySelector. Six territory names carry real
-    //parentheses -- "Andros Island (Bahamas)", "Grand Bahama (Bahamas)" and friends -- and
-    //`#siegeImage_Andros_Island_(Bahamas)` is not a valid CSS selector, so querySelector
-    //threw rather than returning null. getElementById takes the id literally.
-    const imageElement = svgMap.getElementById(dynamicIds.siegeOverlay(territoryName));
-
-    if (imageElement) {
-        imageElement.remove();
-    }
+    removeSiegeMarker(territoryName);
 
     if (mapMode === 1) {
         for (let i = 0; i < allTerritories().length; i++) {
@@ -2778,13 +2340,6 @@ export function removeSiegeImageFromPath(ai, path) {
         path.style.stroke = "rgb(0,0,0)";
         path.style.strokeDasharray = "none";
         path.setAttribute("stroke-width", "1");
-    }
-}
-
-export function removeSiegeImageByTerritoryName(territoryName) {
-    const imageElement = svgMap.getElementById(dynamicIds.siegeOverlay(territoryName)); //audit 5.2 AI
-    if (imageElement) {
-        imageElement.remove();
     }
 }
 
@@ -3035,12 +2590,10 @@ export function setAttackProbabilityOnUI(probability, situation) {
     }
 }
 
-export function setCurrentMapColorAndStrokeArrayFromExternal(changesArray) {
-    currentMapColorAndStrokeArray = changesArray;
-}
+//setCurrentMapColorAndStrokeArrayFromExternal() is gone with the snapshot (Phase 6.7).
 
 export function setTerritoryAboutToBeAttackedFromExternal(value) {
-    territoryAboutToBeAttackedOrSieged = value;
+    setAttackTarget(value);
 }
 
 function removeDeniedDestinations(destinationPathObjectArray, manualDenialArray) {
@@ -3667,9 +3220,6 @@ export function populateWarResultPopup(situation, flagStringAttacker, territoryD
         document.getElementById(ids.battleResultsTitleTitleCenter).innerHTML = "Conquers";
         confirmButtonBattleResults.innerHTML = "Accept Victory!";
         territoryPath.setAttribute("fill", playerColour());
-        if (mapMode === 1) {
-            currentMapColorAndStrokeArray = saveMapColorState(false);
-        }
     } else if (situation === 1) { //lost
         confirmButtonBattleResults.classList.remove("battleResultsRow4Won");
         confirmButtonBattleResults.classList.add("battleResultsRow4Lost");
@@ -4032,11 +3582,11 @@ function setSiegeTurnsText(siegeObject) {
 
 function setRow4(siegeOrAttack) {
     //get appropriate columns
-    const row4RightColumnA = document.getElementById(ids.battleUIRow4Col2A);
-    const row4RightColumnB = document.getElementById(ids.battleUIRow4Col2B);
-    const row4RightColumnC = document.getElementById(ids.battleUIRow4Col2C);
-    const row4RightColumnD = document.getElementById(ids.battleUIRow4Col2D);
-    const row4RightColumnE = document.getElementById(ids.battleUIRow4Col2E);
+    const row4RightColumnA = document.getElementById(ids.battleStatsProdPopIcon);
+    const row4RightColumnB = document.getElementById(ids.battleStatsProdPopValue);
+    const row4RightColumnC = document.getElementById(ids.battleStatsFoodIcon);
+    const row4RightColumnD = document.getElementById(ids.battleStatsFoodValue);
+    const row4RightColumnE = document.getElementById(ids.battleStatsDefenseIcon);
 
     const prodPopIcon = document.getElementById(ids.prodPopIcon);
     const foodIcon = document.getElementById(ids.foodIcon);
@@ -4165,12 +3715,8 @@ function setUnsetMenuOnEscape(e) {
 
         if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
             selectCountry(lastClickedPath, true);
-            if (territoryAboutToBeAttackedOrSieged) {
-                if (svgMap.getElementById(ids.attackImage)) { //if battle image on screen then removes and reads it, so it is on top of the svg path
-                    svgMap.getElementById(ids.attackImage).remove();
-                    addImageToPath(territoryAboutToBeAttackedOrSieged, "battle.png", 0);
-                }
-            }
+            //Re-appending the path puts it over the marker, so the marker is drawn again.
+            raiseAttackMarker();
         }
 
         //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
@@ -4443,7 +3989,6 @@ function flipMapMode() {
     switch (mapMode) {
         case 1:
             document.getElementById(ids.mapModeButton).src = "resources/mapMode2.png";
-            currentMapColorAndStrokeArray = saveMapColorState(false);
             mapMode = 2;
             svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
             for (let i = 0; i < pathsCoastLines.length; i++) {
@@ -4471,7 +4016,7 @@ function flipMapMode() {
                 paths[i].setAttribute("stroke-width", "1px");
                 paths[i].setAttribute("fill-opacity", "1");
             }
-            restoreMapColorState(currentMapColorAndStrokeArray, false);
+            repaintMap();
             svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
             for (let i = 0; i < pathsCoastLines.length; i++) {
                 pathsCoastLines[i].setAttribute("fill", "rgb(134, 133, 104)");
@@ -4510,40 +4055,24 @@ export function endPlayerTurn() {
     if (mapMode === 2) {
         flipMapMode();
     }
-    for (let i = 0; i < paths.length; i++) {
-        if (!pathIsUnderSiege(paths[i]) && !pathIsDeactivated(paths[i])) {
-            paths[i].style.stroke = "rgb(0,0,0)";
-            paths[i].setAttribute("stroke-width", "1");
-            paths[i].style.strokeDasharray = "none";
-        } else {
-            //A besieged or freshly-conquered territory keeps its stroke decoration, so its
-            //FILL has to be re-asserted here instead. This used to paint playerColour() on
-            //every path that reached this branch, whoever owned it -- so every AI territory
-            //besieged by another AI took the player's colour, with the player nowhere near
-            //the war. With the picker left on its default white that produced a growing
-            //patch of blank territories (45 after four turns, 55 after eight); with any
-            //other colour picked it produced something worse, AI land painted as if the
-            //player held it. Worse still, saveMapColorState() three lines below captures
-            //the result, so the wrong colour was replayed by every later
-            //restoreMapColorState() and never washed out.
-            //Ask the owner. This also repairs a path that a previous turn mis-painted.
-            if (pathIsPlayerOwned(paths[i])) {
-                paths[i].setAttribute("fill", playerColour());
-            } else {
-                const territory = getTerritory(paths[i].getAttribute("uniqueid"));
-                if (typeof territory?.countryColor === "string" && territory.countryColor !== "") {
-                    paths[i].setAttribute("fill", territory.countryColor);
-                }
-            }
-        }
-    }
-    if (svgMap.querySelector(sel.attackImage)) {
-        svgMap.getElementById(ids.attackImage).remove();
-    }
-    currentMapColorAndStrokeArray = saveMapColorState(false);
+
+    //Phase 6.7. Forty lines of hand-rolled repaint stood here -- reset the stroke on
+    //everything that is not besieged or deactivated, re-assert the fill on everything
+    //that is -- followed by a snapshot and a restore of that same snapshot. That is
+    //exactly what repaintMap() does, from the store, for every path.
+    //
+    //The comment this replaced is worth keeping, because it records the defect the
+    //shape caused: the else-branch used to write playerColour() unconditionally, so
+    //an AI territory besieged by another AI took the PLAYER's colour with the player
+    //nowhere near the war -- 45 mis-painted territories by turn 4, 55 by turn 8. The
+    //snapshot taken three lines later captured the result, so every later restore
+    //replayed it and it never washed out. Asking the owner is what fixed it, and
+    //deriving the colour rather than replaying one is what makes it unrepeatable.
+    repaintMap();
+
+    clearAttackTarget();
     toggleTransferAttackButton(false, false);
     transferAttackButtonDisplayed = false;
-    restoreMapColorState(currentMapColorAndStrokeArray, false);
     setPhase(Phase.AI);
 }
 
@@ -4559,14 +4088,7 @@ export function initialiseNewPlayerTurn() {
             }
         }
     }
-    if (mapMode === 1) {
-        currentMapColorAndStrokeArray = saveMapColorState(false);
-    }
     setPhase(Phase.BUY_UPGRADE);
-}
-
-export function setCurrentMapColorAndStrokeArray(value) {
-    return currentMapColorAndStrokeArray = value;
 }
 
 function createSparkle() {
@@ -4597,9 +4119,7 @@ function addSparklesRegularly() {
 // Start the process of adding sparkles
 addSparklesRegularly();
 
-export function setZoomLevel(value) {
-    return zoomLevel = value;
-}
+
 
 function pushColorsToMainArray() {
     for (let i = 0; i < paths.length; i++) {
@@ -4613,16 +4133,15 @@ function pushColorsToMainArray() {
 
 export function setColorOnMap(territory, selectCountryState) {
     if (selectCountryState) {
-        for (let i = 0; i < paths.length; i++) {
-            if (pathCountry(paths[i]) === territory.dataName) {
-                for (let j = 0; j < listOfStartingCountryColorsArray.length; j++) {
-                    if (listOfStartingCountryColorsArray[j][0] === paths[i].getAttribute("uniqueid")) {
-                        console.log("rgb(" + listOfStartingCountryColorsArray[j][2][0].toString() + "," + listOfStartingCountryColorsArray[j][2][1].toString() + "," + listOfStartingCountryColorsArray[j][2][2].toString() + ");");
-                        paths[i].setAttribute("fill", "rgb(" + listOfStartingCountryColorsArray[j][2][0].toString() + "," + listOfStartingCountryColorsArray[j][2][1].toString() + "," + listOfStartingCountryColorsArray[j][2][2].toString() + ")");
-                        break;
-                    }
+        //Phase 6.7. The bootstrap palette is keyed by country in colouring.js, so this
+        //is one lookup rather than a scan of a 359-entry list per path.
+        const startingColour = startingColourForCountry(territory.dataName);
+        if (startingColour) {
+            paths.forEach(path => {
+                if (pathCountry(path) === territory.dataName) {
+                    path.setAttribute("fill", startingColour);
                 }
-            }
+            });
         }
     } else {
         //Phase 5.8. `countryColor` is not populated until pushColorsToMainArray() runs on
@@ -4755,28 +4274,17 @@ export function populateArmyDataFields(returnArmyData) {
     document.getElementById(indexedIds.aiDialogueSummaryColumn(8)).innerHTML = returnArmyData[3];
 }
 
-function extractTerritoryName(imageId) {
-    const underscoreIndex = imageId.indexOf('_'); // the one SIEGE_OVERLAY_PREFIX ends with
-    if (underscoreIndex !== -1) {
-        const territoryPart = imageId.substring(underscoreIndex + 1); // Extract the part after underscore
-        const territoryWords = territoryPart.split('_'); // Split by underscores
-        const capitalizedWords = territoryWords.map(word => word.charAt(0).toUpperCase() + word.slice(1)); // Capitalize each word
-        const territoryName = capitalizedWords.join(' '); // Join the words with spaces
-        return territoryName;
-    } else {
-        return ""; // Return empty string if underscore is not found
+/**
+ * What the map tooltip says for one path.
+ *
+ * The owning country's name, plus who is besieging the territory when it is under
+ * siege: `"France (under siege by Germany)"`. Phase 6 replaced the siege marker's own
+ * tooltip with this -- see the mousemove handler in `svgMapLoaded()`.
+ */
+function territoryTooltipLabel(path, countryName) {
+    if (!countryName || !pathIsUnderSiege(path)) {
+        return countryName;
     }
-}
-
-function findAttackerForSiege(territoryName) {
-    let attackerCountry;
-    let attackerTerritory;
-    if (aiSiegeWarsList.hasOwnProperty(territoryName)) {
-        attackerCountry = aiSiegeWarsList[territoryName].attackingCountry;
-        attackerTerritory = aiSiegeWarsList[territoryName].attackingTerritory + ", ";
-    } else if (playerSiegeWarsList.hasOwnProperty(territoryName)) {
-        attackerCountry = "";
-        attackerTerritory = "Player"
-    }
-    return [attackerCountry, attackerTerritory];
+    const besieger = pathBesieger(path);
+    return besieger ? countryName + " (under siege by " + besieger + ")" : countryName;
 }

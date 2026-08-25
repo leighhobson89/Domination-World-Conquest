@@ -6,7 +6,6 @@ import {
     turnGainsArrayPlayer
 } from './resourceCalculations.js';
 import {
-    currentMapColorAndStrokeArray,
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
     mapMode,
@@ -14,12 +13,10 @@ import {
     populateWarResultPopup,
     removeSiegeImageFromPath,
     retreatButtonState,
-    saveMapColorState,
     setAdvanceButtonState,
     setAdvanceButtonText,
     setArmyTextValues,
     setAttackProbabilityOnUI,
-    setCurrentMapColorAndStrokeArrayFromExternal,
     setCurrentWarFlagString,
     setDefendingTerritoryCopyStart,
     setFirstSetOfRounds,
@@ -563,12 +560,11 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     const turnsToDeactivate = Math.floor(Math.random() * (conquestLockout.maxTurns - conquestLockout.minTurns + 1)) + conquestLockout.minTurns;
     playerTurnsDeactivatedArray.push([contestedPath.getAttribute("uniqueid"), turnsToDeactivate, 0]);
 
-    let tempArray = currentMapColorAndStrokeArray;
-    for (let i = 0; i < currentMapColorAndStrokeArray.length; i++) {
-        if (currentMapColorAndStrokeArray[i][0] === contestedPath.getAttribute("uniqueid")) {
-            tempArray[i] = [contestedPath.getAttribute("uniqueid"), playerColour(), 3];
-        }
-    }
+    //Phase 6.7. A patch of the colour SNAPSHOT stood here, forcing this territory's
+    //entry to [uniqueId, playerColour(), 3] so a later restore would paint the newly
+    //conquered land in the player's colour. There is no snapshot: repaintMap() asks
+    //the store who owns the territory, and setTerritoryOwner() below is what makes
+    //that answer "the player".
 
     moveButton.hideDestination();
     moveButton.setLabel("DEACTIVATED");
@@ -579,8 +575,7 @@ function deactivateTerritory(contestedPath) { //cant use a territory if just con
     contestedPath.style.strokeDasharray = "10, 5";
     contestedPath.setAttribute("stroke-width", "3");
 
-    setTerritoryAboutToBeAttackedFromExternal(null); //for filling color to work properly
-    setCurrentMapColorAndStrokeArrayFromExternal(tempArray);
+    setTerritoryAboutToBeAttackedFromExternal(null); //also clears the attack marker
 
     //One write, one render. The `deactivated` attribute and this flag used to be set
     //separately -- the attribute here, the flag in a scan of the whole territory list a
@@ -624,9 +619,6 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
                     paths[j].style.strokeDasharray = "none";
                     paths[j].setAttribute("stroke-width", "1");
                     setTerritoryDeactivated(paths[j].getAttribute("uniqueid"), false);
-                    if (mapMode === 1) {
-                        setCurrentMapColorAndStrokeArrayFromExternal(saveMapColorState(false));
-                    }
                     break;
                 }
             }

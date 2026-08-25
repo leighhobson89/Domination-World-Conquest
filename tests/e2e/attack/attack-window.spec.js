@@ -86,36 +86,55 @@ test.describe("the attack window", () => {
         expect(after.armyForCurrentTerritory).toBe(before.armyForCurrentTerritory);
     });
 
-    test.fixme("cancelling clears the attack marker from the map", async ({
+    test("cancelling clears the attack marker from the map", async ({
         startedGame: game,
         page,
     }) => {
-        // 🔴 The battle image stays on the target after a cancel, by either route
-        // -- the window's X or the move button's CANCEL. It is the marker half of
-        // the map-state desync recorded in audit section 5.3 ("colour is
-        // snapshotted into currentMapColorAndStrokeArray and restored from ~30
-        // call sites"). Phase 6.7 removes the class of bug by making every marker
-        // a pure function of state; un-fixme then.
-        await openAttackFrom(game, "Germany");
+        // audit 5.2 AE, closed in Phase 6.7. The battle image used to stay on the
+        // target after a cancel by either route -- the window's X or the move
+        // button's CANCEL -- because the marker was an <image> that six call sites
+        // removed by hand while the fact it was drawing,
+        // `territoryAboutToBeAttackedOrSieged`, was a separate `let` that the
+        // cancel path nulled without touching the DOM. src/ui/map/markers.js owns
+        // both as one fact now: clearing the target removes the marker.
+        const markerPresent = () =>
+            page.evaluate(
+                () =>
+                    !!document
+                        .getElementById("svg-map")
+                        .contentDocument.getElementById("attackImage")
+            );
 
-        // Cancel through the move button, which is the path that runs the cleanup.
-        // The window's own X (#xButtonTransferAttack) closes the panel but leaves
-        // the marker on the map -- a colour/marker desync of the kind audit 5.3
-        // records, and one that Phase 6.7's MapView removes structurally by making
-        // the marker a function of state.
+        await openAttackFrom(game, "Germany");
+        expect(await markerPresent()).toBe(true);
+
         expect(await game.moveButton.label()).toBe("CANCEL");
         await game.moveButton.click();
 
-        await expect
-            .poll(async () =>
-                page.evaluate(
-                    () =>
-                        !!document
-                            .getElementById("svg-map")
-                            .contentDocument.getElementById("attackImage")
-                )
-            )
-            .toBe(false);
+        await expect.poll(markerPresent).toBe(false);
+    });
+
+    test("closing the attack window with its X clears the marker too", async ({
+        startedGame: game,
+        page,
+    }) => {
+        // The other half of audit 5.2 AE. This route never ran the marker cleanup
+        // at all, so it is the one that proves the fix is structural rather than a
+        // patch on the one path that happened to be tested.
+        const markerPresent = () =>
+            page.evaluate(
+                () =>
+                    !!document
+                        .getElementById("svg-map")
+                        .contentDocument.getElementById("attackImage")
+            );
+
+        await openAttackFrom(game, "Germany");
+        expect(await markerPresent()).toBe(true);
+
+        await game.transferAttack.close();
+
+        await expect.poll(markerPresent).toBe(false);
     });
 });
 
