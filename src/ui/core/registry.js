@@ -48,6 +48,19 @@ export const ids = Object.freeze({
     // --- Main menu ------------------------------------------------------------
     newGameBtn: "new-game-btn",
     toggleMusicBtn: "toggle-music-btn",
+    optionsBtn: "options-btn",
+    helpBtn: "help-btn",
+
+    // --- Options panel --------------------------------------------------------
+    // Opened from the main menu. The container is created by the component
+    // rather than declared in index.html -- it is the first one that is, and
+    // it is the pattern the rest should move to.
+    optionsContainer: "options-container",
+    optionsPanel: "options-panel",
+    themeSelect: "theme-select",
+    themePreview: "theme-preview",
+    themeDescription: "theme-description",
+    optionsCloseBtn: "options-close-btn",
 
     // --- Phase bar ------------------------------------------------------------
     // One popup doing two jobs: the country-select confirm before the game

@@ -102,6 +102,26 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   shifts every seeded outcome — measured: four exact-outcome specs change. Removing it and
   re-baselining those specs is one Phase 7 change. The same warning applies to anything else
   that adds or removes a `Math.random` draw during bootstrap.
+- **Themes are data, and the stylesheet never learns their names.** `src/ui/theme/` holds the
+  token vocabulary (`tokens.js`), the catalogue (`themes.js`) and the applier (`theme.js`).
+  Applying a theme writes its tokens onto the root element as inline CSS custom properties,
+  so `style.css` only ever reads `var(--surface-panel)` and adding a theme is one entry in
+  `themes.js` and **no CSS at all**. Three rules follow from that: the `:root` block in
+  `style.css` IS the default theme, which is why `command` is deliberately given no tokens —
+  never write a second copy of those values in JS; every OTHER theme must define every token,
+  because a half-filled palette inherits the previous theme's colours and produces things
+  like white text on a cream panel (`tests/unit/ui-theme.spec.js` fails the build if one is
+  incomplete); and a token is not only a colour — `--radius`, `--border-width`,
+  `--font-display`, `--display-tracking` and `--display-transform` are what stop five themes
+  looking like one design in five hues. `data-theme` on `<html>` is for e2e assertions and
+  for the rare rule a token cannot express; never read it to decide a colour.
+- **The main menu's classes are semantic, not positional.** `.option-3` / `.option-4` /
+  `.option-5` are gone — they were named for where they sat, so adding Options as a sixth item
+  meant renaming rules. It is `.menu-panel` / `.menu-brand` / `.menu-title` / `.menu-button`
+  now, `#menu-container` centres with flex (so `mainMenu.show()` sets `display: flex`, not
+  `block`), and the title and subtitle are an `<h1>` and a `<p>` rather than two `<td>`
+  elements outside any table. `isPlaying` / `isNotPlaying` on `#toggle-music-btn` are
+  untouched: `music.js` owns the audio element and writes them itself.
 - **Every element id and selector lives in `src/ui/core/registry.js`** (Phase 6.1), and both
   the app and the e2e page objects import it — `tests/support/selectors.js` is a derived view
   of it and holds no literal selector. Never hand-write an id or a `#selector`: add it there.

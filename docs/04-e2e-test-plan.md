@@ -440,6 +440,7 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 13 | `info-panels/` | P2 | §2.3 | ✅ 5 — Phase 5.8 |
 | 14 | `random-events/` | P2 | §2.2, §3.7 | ✅ 7 — Phase 5.8 |
 | 15 | `conquest-lifecycle/` | P2 | §3.7 | ✅ 4 — Phase 5.8 |
+| — | `options/` | P2 | — | ✅ 8 — Phase 7.10; not in the original list, added with the theme system |
 | 16 | `persistence/` | P3 | Refactor 7.3 | — |
 | 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
 
@@ -633,6 +634,22 @@ Needs the scenario loader (§3.7) for anything beyond a single tick.
 | `wars-tab.spec.js` | Active sieges and concluded wars listed with the right victory/defeat icon and turn counts |
 | `tooltips.spec.js` | Every header icon, every disabled button and every table row has its tooltip, positioned inside the viewport near the bottom edge |
 | `formatting.spec.js` | `formatNumbersToKMB` boundaries: 999 → `999`, 1,000 → `1K`, 1,500,000 → `1.5M`, 0 → `0`, negatives keep their sign |
+
+---
+
+### 5.15 `options/` — P2
+
+Added with the theme system (refactor 7.10). The catalogue itself is a unit test
+(`tests/unit/ui-theme.spec.js`); what needs a browser is the three paths below, which are one
+bug away from each other — a preview that persisted would leave Cancel closing the panel and
+changing nothing, with no error anywhere.
+
+| Spec | Covers |
+|---|---|
+| `theme-picker.spec.js` | Opens from the menu; closes on Done, on Escape and on a click outside; lists every theme with the default selected; changing the dropdown repaints immediately; the description follows the selection; Done survives a reload; Cancel restores the theme in force when the panel opened; the theme survives starting a game |
+
+Assertions go through `data-theme` on `<html>` and one computed background colour. Pinning a
+specific hex value is deliberately avoided — it would break every time a theme was tuned.
 
 ---
 

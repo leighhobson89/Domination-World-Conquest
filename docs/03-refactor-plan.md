@@ -979,7 +979,18 @@ functional areas the e2e plan had listed but never had — `siege/`, `ai-turn/`,
 | 6.7 | ✅ `src/ui/map/`: `MapView.js` (render state → SVG), `colouring.js`, `camera.js` (zoom/pan), `markers.js`. The `currentMapColorAndStrokeArray` save/restore machinery is deleted across five files — colour is a pure function of state. Closes audit §5.2 **AE**. |
 | 6.8 | ◐ Semantic ids done: `xButton` → `xButtonInfoPanel` / `xButtonUpgrade`, and `battleUIRow4Col2A…H` → `battleStats{ProdPop,Food,Defense,Mountain}{Icon,Value}`. No `data-testid` — see below. The inline-styling sweep is **not** done. |
 
-**Exit criteria:** `ui.js` no longer exists; no file over 400 lines; the map renders purely from state. — **the third is met; the first two are not.** See below.
+**Exit criteria (restated).** As originally written they were `ui.js` no longer exists; no file
+over 400 lines; the map renders purely from state. The third is met; the first two are not, and
+the second was never achievable as phrased — `src/ui/core/registry.js` (415) and
+`src/config/balance.js` (426) are declarative tables of ids and tunable numbers, where a line
+count measures nothing. The criterion the remaining work is held to is therefore:
+
+> No **behavioural** module over 400 lines. Declarative data tables — `registry.js`,
+> `balance.js`, `infoTable/columns.js`, `manualAdjacencyExceptions.js` — are exempt, because
+> splitting a list in half to satisfy a threshold makes it harder to read, not easier.
+
+Against that, every behavioural file in `src/` passes today. The two that fail are `ui.js`
+(4,290) and `resourceCalculations.js` (4,060), and Phase 6.9 below is what closes them.
 
 #### What Phase 6 delivered
 
@@ -1034,8 +1045,11 @@ Stated plainly so nobody reads the table above as "done":
 - **`ui.js` still exists, at 4,290 lines**, and `resourceCalculations.js` at 4,057. What came
   out of them was the four functions the phase named. What is left in `ui.js` is the
   `DOMContentLoaded` block, the battle and siege UI, the map event handlers and the
-  turn-loop glue; in `resourceCalculations.js` it is the economy, which is not UI at all and
-  arguably belongs in `src/rules/`.
+  turn-loop glue. `resourceCalculations.js` is **not** what an earlier draft of this plan
+  called it: the economy proper — income, population, capacity, maintenance — came out in
+  Phase 5 and lives in `src/rules/economy/`. What remains is a caller of those rules wrapped
+  in roughly 80% UI (the buy and upgrade tables, four tooltip builders, the purchase-validation
+  and greying-out pass). It is correctly a Phase 6 file, not a Phase 5 leftover.
 - **"No file over 400 lines" is not met**, and will not be until those two are finished. Every
   file Phase 6 *created* is under 300.
 - **6.8's inline-styling sweep is not done.** `ui.js` still makes 218 `.style.` writes. The
@@ -1046,9 +1060,61 @@ Stated plainly so nobody reads the table above as "done":
 - **No `data-testid` attributes were added.** `registry.js` already is the single name the app
   and the harness share; a parallel attribute would be a second thing to keep in step.
 
-A **Phase 6.9** finishing `ui.js`, `resourceCalculations.js` and the styling sweep is the
-honest way to close the exit criteria, and it is listed under *Currently open* in
-[05-known-issues.md](./05-known-issues.md).
+---
+
+### Phase 6.9 — Finish the two files Phase 6 left (2–3 days, split either side of Phase 7)
+
+**Goal:** close Phase 6's restated exit criteria. This is the tail Phase 6 did not budget for,
+written down here as steps so it does not go unscoped a second time.
+
+**It runs in two parts, and Phase 7.1–7.3 sits between them.** The reasoning: the
+architectural goals that carried risk — the state layer, the pure rules, the engine, seeded
+determinism — are all done, and the suite is green. A 4,290-line `ui.js` is ugly, not
+dangerous. Meanwhile 7.1 (victory) is fenced *into* Phase 7 precisely because without it a
+full playthrough cannot be tested. So 6.9 does first only the blocks Phase 7 will collide
+with, and the rest waits until after 7.3 rather than holding a finishable game hostage to a
+move-only refactor with no player-felt gain.
+
+#### Where `ui.js`'s 4,290 lines are
+
+Measured at the end of Phase 6, so a step can be picked by what it costs:
+
+| Lines | Block | Size |
+|---|---|---:|
+| 2803–3933, plus the battle handlers inside the `DOMContentLoaded` block | Battle & siege UI | ~1,480 |
+| 722–1415 | `DOMContentLoaded` — now mostly `create()` calls plus the battle state machine | 694 |
+| 1845–2345 | Hover, grey-out, move-button glue, attack target | 501 |
+| 244–721 | Bootstrap and `selectCountry` | 478 |
+| 2346–2802 | Transfer-window title text, and the sixteen `toggleX()` visibility functions | 457 |
+| 1416–1787 | Geometry and adjacency (`findClosestPaths` and the five helpers under it) | 372 |
+
+And `resourceCalculations.js`'s 4,060: buy/upgrade tables and their increment-decrement
+handlers (803), four tooltip builders (517), purchase validation and greying-out (547),
+bootstrap data seeding (447), turn-economy orchestration over `src/rules/economy/` (373),
+territory strengths and starting army (458).
+
+#### Part A — before Phase 7
+
+| Step | Action | Why it goes first |
+|---|---|---|
+| 6.9.0 | Delete the `generateDistinctRGBs()` call in `src/ui/map/colouring.js` and re-baseline the four exact-outcome specs its `Math.random` draws move, **in one change**. | Standalone, small, and every phase after it pays interest on the shifted stream. Same species as audit 5.3 **Y**. |
+| 6.9.1 | Extract the sixteen `toggleX()` visibility functions (`ui.js` 2612–2800) into `src/ui/visibility.js`. | A victory screen (7.1) and New Game (7.2) both drive panel visibility. Leave these in `ui.js` and Phase 7 adds a seventeenth to it. |
+| 6.9.2 | Move the turn-loop glue out of the `DOMContentLoaded` block — the `#popup-confirm` handler and the battle-button state machine — into `src/ui/turnLoopBindings.js`, called from bootstrap. | 7.2's `TurnEngine.reset()` has to tear these down and re-install them. Today they are anonymous closures in a 694-line block. |
+
+**Part A exit:** `ui.js` under ~3,100 lines; the four exact-outcome specs re-baselined; suite green.
+
+#### Part B — after Phase 7.3
+
+| Step | Action |
+|---|---|
+| 6.9.3 | Battle & siege UI (~1,480 lines) → `src/ui/battle/`. The largest single block and the highest regression risk relative to reward, which is exactly why it waits: nothing in Phase 7 touches it. |
+| 6.9.4 | Geometry and adjacency (372) → `src/geometry/`. Pure functions over path elements; unit-testable the moment they move. |
+| 6.9.5 | Bootstrap and `selectCountry` (478) → `src/bootstrap/`. Mind the window in which the SVG *is* the truth (see CLAUDE.md). |
+| 6.9.6 | `resourceCalculations.js` → `src/ui/purchases/` (buy/upgrade tables, tooltips, validation), `src/economy/turnPass.js` (the orchestration over `src/rules/economy/`) and `src/bootstrap/seedResources.js` (initial data). |
+| 6.9.7 | The inline-styling sweep: 218 `.style.` writes in `ui.js`, 55 in `resourceCalculations.js`. **Against a screenshot comparison, not blind** — Phase 6 hit one that would have lost a specificity fight and silently changed the layout. |
+
+**Part B exit:** `ui.js` and `resourceCalculations.js` no longer exist; no behavioural module
+over 400 lines.
 
 ---
 
@@ -1068,6 +1134,51 @@ honest way to close the exit criteria, and it is listed under *Currently open* i
 | 7.7 | **Consolidate AI powers** | Reduce 206 independent AI countries to 8–16 *powers* owning multiple countries (GDD §12.1). Makes the AI turn fast, the world legible, and diplomacy possible. |
 | 7.8 | **Long-term AI goals** | The TODOs in `gameTurnsLoop.js`, now implementable against `ai/goals.js`. |
 | 7.9 | **Re-enable or remove the 3D dice** | Decide. If keeping, wire it into `BattleUI` behind a setting; if not, delete `dices.js` and the three `dist/` bundles and drop `three` + `cannon-es`. |
+| 7.10 | ✅ **Theme system and menu redesign** | Done out of order, at the developer's request. `src/ui/theme/` — a token vocabulary, a catalogue of six themes as data, and an applier that writes tokens onto the root element as CSS custom properties. A new Options panel (`src/ui/components/OptionsPanel.js`) holds the picker; the main menu was rebuilt around it. See below. |
+
+#### Phase 7.10 — what landed
+
+Asked for mid-phase and taken then rather than deferred, because it touches the same two files
+Phase 6.9 is about to move and doing it twice would be worse than doing it early.
+
+**The mechanism.** A theme is a map of CSS custom properties. `src/ui/theme/tokens.js` fixes the
+vocabulary, `themes.js` is the catalogue, and `theme.js` writes the chosen theme's tokens onto
+the root element inline. The stylesheet never learns a theme's name — it reads
+`var(--surface-panel)` and friends — so adding a theme is one entry in `themes.js` and no CSS.
+
+**Six themes:** Command (the default, a modernised form of the existing steel blue), Parchment,
+Midnight, Crimson, Arctic and Terminal. They differ in more than hue: `--radius`,
+`--border-width`, `--font-display`, `--display-tracking` and `--display-transform` are tokens
+too, which is what stops six themes reading as one dated design recoloured six times.
+
+**Two invariants, both enforced by `tests/unit/ui-theme.spec.js`:**
+
+- the default theme carries NO tokens of its own, so the `:root` block in `style.css` is the
+  single definition of the default look rather than one of two that can drift;
+- every other theme defines every token, because inheriting half a palette is how a light theme
+  ends up with white text on a cream panel — a failure that looks like nothing in particular
+  until someone selects it.
+
+**The stylesheet.** Six colour literals accounted for about 90 of the colour declarations in
+`style.css`; all of them, and all 24 hard-coded `border-radius` values, are now tokens. That is
+what makes a theme reach the whole UI and not only the menu. No specification changed: every one
+of those literals was a background or a border, none is read back by JS, and no spec asserts a
+computed colour (the suite asserts `display`, `opacity` and `pointer-events`).
+
+**The menu was rebuilt** rather than recoloured. What was there was five `.menu-option` elements
+at `height: 25%` — 125% in total, relying on flex to shrink them back — two of which were `<td>`
+elements outside any table, with POSITIONAL class names (`.option-3`, `.option-4`, `.option-5`)
+that would have forced a rename to add a sixth item. It is now semantic classes, an `<h1>` and a
+`<p>`, and a `clamp()`ed title that no longer overflows its panel on a laptop screen.
+
+**Eight new e2e specs** in a new `options/` functional area, and eight unit tests. The e2e ones
+cover what a unit test cannot: that selecting a theme repaints immediately, that Done survives a
+reload, and that Cancel restores what was in force when the panel opened — three paths that are
+one bug away from each other, since a preview that persisted would make Cancel meaningless.
+
+**Left undone deliberately.** The Options panel holds only the theme picker. Music is still a
+main-menu button because `music.js` owns it and finds it by id; moving it into Options is a
+small change that belongs with 7.6, when Help gets wired and the panel has more than one row.
 
 ---
 
@@ -1082,7 +1193,9 @@ honest way to close the exit criteria, and it is listed under *Currently open* i
 | 4 | Single state layer | 3–4 d | ✅ `mainGameArray` gone |
 | 5 | Pure rules + engine | 4–5 d | ✅ `rules/` runs in Node; seeds repeat (5.8) |
 | 6 | UI decomposition | 5–7 d | ◐ 6.1–6.8 done; `ui.js` and `resourceCalculations.js` remain |
+| 6.9A | Toggles + turn-loop glue + the RNG measurement | 0.5–1 d | — `ui.js` under ~3,100 lines |
 | 7 | Design gaps | 3–5 d | — Game is finishable |
+| 6.9B | Battle UI, geometry, bootstrap, `resourceCalculations.js`, styling sweep | 2 d | — No behavioural module over 400 lines |
 
 **Total: roughly 4–6 focused weeks.** Phases 0–3 (≈1.5 weeks) deliver most of the *felt*
 improvement — the game becomes fast, correct and testable. Phases 4–6 are what make it
@@ -1111,22 +1224,28 @@ independent of the `DOMContentLoaded` block and closed the last open defect in t
 6.4–6.6 are deepenings of three components 6.3 created, and 6.8 renames ids, which is only
 cheap once the registry exists.
 
-1. **Phase 6.9** — finish what 6.8's exit criteria ask for and Phase 6 did not deliver:
-   `ui.js` (4,290 lines) and `resourceCalculations.js` (4,057) still exist, and the
-   inline-styling sweep is untouched. The largest remaining pieces of `ui.js` are the battle
-   and siege UI setup, the map event handlers, and the `DOMContentLoaded` block's turn-loop
-   glue; `resourceCalculations.js` is mostly economy and arguably belongs in `src/rules/`
-   rather than in `src/ui/`. Do the styling sweep against a screenshot comparison, not blind.
+**The order from here is 6.9 Part A → 7.1 → 7.2 / 7.3 → 6.9 Part B.** That interleave is a
+deliberate departure from strict phase order, decided after Phase 6 and recorded here so it
+is not mistaken for drift. The case for it: everything in the refactor that carried real risk
+is finished and green, so what is left of `ui.js` is a readability problem rather than a
+correctness one — whereas victory conditions are the one feature the plan fences *into* Phase
+7, because without them a full playthrough cannot be tested at all. Part A takes out only the
+two blocks Phase 7 would otherwise grow back.
+
+1. **Phase 6.9 Part A** — 6.9.0 (the `generateDistinctRGBs()` measurement, its own change),
+   6.9.1 (the sixteen `toggleX()` functions → `src/ui/visibility.js`) and 6.9.2 (the turn-loop
+   glue out of the `DOMContentLoaded` block). Roughly 1,150 lines out of `ui.js`.
 2. **Phase 7.1** — win / lose conditions (`rules/victory.js`) plus a victory/defeat screen.
-   Without them a full playthrough still cannot be tested, which is the one feature the plan
-   fences *out* of Phase 7's "feature work waits" rule.
 3. **Phase 7.2 / 7.3** — New Game and save/load. `TurnEngine.reset()` exists and `GameState`
    is a plain serialisable object, so both are now small.
 
-Before starting 7, take the one measurement Phase 6 deferred: delete the
-`generateDistinctRGBs()` call in `src/ui/map/colouring.js`, re-baseline the four exact-outcome
-specs it moves, and do both in one change. It is dead code held in place only by its RNG
-draws, and every later phase pays interest on it.
+Then **Phase 6.9 Part B** (6.9.3–6.9.7) closes the exit criteria: the battle and siege UI, the
+geometry helpers, bootstrap, `resourceCalculations.js`, and the styling sweep.
+
+6.9.0 comes first within Part A and must be its own change. `generateDistinctRGBs()` is dead
+code held in place only by its `Math.random` draws at module load, which sit on the game's
+stream; deleting it moves four exact-outcome specs, and every later phase pays interest on it.
+Re-baseline those four specs in the same change, and nothing else in it.
 
 ### What 6.1–6.3 delivered
 

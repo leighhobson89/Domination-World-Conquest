@@ -47,6 +47,18 @@ export const containers = {
 export const menu = {
     newGame: sel.newGameBtn,
     toggleMusic: sel.toggleMusicBtn,
+    options: sel.optionsBtn,
+    help: sel.helpBtn,
+};
+
+/** The Options panel, opened from the main menu. Holds the theme picker. */
+export const options = {
+    container: sel.optionsContainer,
+    panel: sel.optionsPanel,
+    themeSelect: sel.themeSelect,
+    themePreview: sel.themePreview,
+    themeDescription: sel.themeDescription,
+    done: sel.optionsCloseBtn,
 };
 
 /** The popup that is both the country-select confirm AND the phase-advance button. */

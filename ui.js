@@ -183,6 +183,12 @@ import {
     mainMenu
 } from './src/ui/components/MainMenu.js';
 import {
+    optionsPanel
+} from './src/ui/components/OptionsPanel.js';
+import {
+    initTheme
+} from './src/ui/theme/theme.js';
+import {
     countrySelect
 } from './src/ui/components/CountrySelect.js';
 import {
@@ -720,6 +726,13 @@ function selectCountry(country, escKeyEntry) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    //The player's remembered theme, applied BEFORE any component is built. The
+    //tokens all have defaults in style.css so there is no unstyled flash either
+    //way, but applying first means the menu is painted once rather than twice.
+    //A theme is a map of CSS custom properties written onto the root element;
+    //nothing below knows which theme is in force.
+    initTheme();
+
     //Phase 6.3. The tooltip owns its own element now -- it is no longer a <div> in
     //index.html reached through named window access. Created first because every
     //other component's hover handlers push content into it.
@@ -731,6 +744,10 @@ document.addEventListener("DOMContentLoaded", function() {
             playSoundClip("click");
             resetGameState();
             greyOutTerritoriesForUnselectableCountries();
+        },
+        onOptions() {
+            playSoundClip("click");
+            optionsPanel.open();
         },
     });
 

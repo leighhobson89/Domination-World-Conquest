@@ -22,7 +22,7 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: end of refactor Phase 6.**
+**Last updated: end of refactor Phase 6, revised at the Phase 6.9 planning review and again after 7.10 (themes).**
 
 ## Currently open
 
@@ -41,15 +41,17 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 | — | `dices.js` is fully wired but its call site is commented out; `dist/` (~1 MB) loads on every page view for it | 7.9 |
 | — | The transfer table's row-selection handler is on the row's NAME column, not on the row | 7.x |
 | — | Mixed tabs and spaces, inconsistent brace style, commented-out blocks in the legacy root sources | per file, as each moves into `src/` |
-| — | ~200 `console.log` calls in the turn and battle hot path, almost all in `ui.js`, `battle.js` and `aiCalculations.js` | per file, as each moves into `src/` |
+| — | 166 `console.log` calls in the turn and battle hot path — `aiCalculations.js` 57, `battle.js` 49, `resourceCalculations.js` 36, `gameTurnsLoop.js` 15, `ui.js` 5 | per file, as each moves into `src/` |
 | — | Four names for one structure: the `mainArrayOfTerritoriesAndResources` / `mainArray` parameter names survive in `battle.js` and `transferAndAttack.js` | per file |
 | — | `dataName` / `territoryName` / `originalOwner` are named correctly in the selectors but keep their old names in the model | per file |
 | — | `battle.js` still exports ~25 `let`s of per-battle scratch | per file |
-| — | `ui.js` is still ~4,000 lines and `resourceCalculations.js` ~4,000; Phase 6's "no file over 400 lines" is not met | 7.x / a Phase 6.9 |
+| — | `ui.js` is 4,290 lines and `resourceCalculations.js` 4,060; Phase 6's "no behavioural module over 400 lines" is not met | 6.9 Part A (before Phase 7), Part B (after 7.3) |
+| — | The 218 inline `.style.` writes in `ui.js` and 55 in `resourceCalculations.js` do not follow the theme — they set literal colours from JS, so a themed page has a handful of elements still painted in the old steel blue | 6.9.7 |
+| — | The data tables keep `font-family: Arial, Helvetica, sans-serif` rather than `var(--font-body)`. Deliberate for now: the rows are a fixed 30px and Terminal's monospace face would reflow them. Revisit if the tables stop being fixed-height | 7.x |
 | **AN** | A famine whose losses exactly equal the infantry count destroys the entire mechanised army — `remaining === 0` is not `remaining > 0` | 7 balance |
 | **AP** | Battle rout / last-push thresholds compare against each side's force as it stood at the START of the round — a full round of lag | 7 balance |
 | **AR** | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the small-territory defence bonus does not exist and large territories are penalised instead | 7 balance |
-| — | The bootstrap colour palette (`generateDistinctRGBs()` in `src/ui/map/colouring.js`) is dead code that is still CALLED, because its `Math.random` draws are on the game's stream and removing them moves every seeded outcome | 7 balance |
+| — | The bootstrap colour palette (`generateDistinctRGBs()` in `src/ui/map/colouring.js`) is dead code that is still CALLED, because its `Math.random` draws are on the game's stream and removing them moves every seeded outcome | 6.9.0 — the next change |
 
 ---
 
@@ -143,7 +145,7 @@ Real, understood, deliberately not being fixed yet.
 |---|---|
 | Mixed tabs and spaces, inconsistent brace style, commented-out blocks left in place | per file, as each moves into `src/` — house rule 5 |
 | ~~`//DEBUG` blocks shipped in the turn loop (`logGoldStats`, `setDebugArraysToZero`)~~ | **DONE in 5.8** — ~~the two arrays, both getters, the 40-line logger and its two per-turn calls are all gone~~ |
-| ~200 `console.log` calls in the turn and battle hot path | **still open** — they are almost all in `ui.js`, `battle.js` and `aiCalculations.js`, so they come out with the files rather than in a sweep of their own. Phase 6 removed the two in the attack table's per-click path, which ran on every plus and minus press |
+| ~200 `console.log` calls in the turn and battle hot path | **still open, but no longer where the audit found them** — 166 remain, and Phase 6 moved the concentration rather than reducing it much: `aiCalculations.js` 57, `battle.js` 49, `resourceCalculations.js` 36, `gameTurnsLoop.js` 15, and `ui.js` down to 5. They come out with the files rather than in a sweep of their own, which now means the AI and battle modules own the bulk of it, not the UI. Phase 6 removed the two in the attack table's per-click path, which ran on every plus and minus press |
 | ~~Magic numbers throughout~~ | **DONE in 5.1** — ~~`src/config/balance.js`. `COUNTRY_GREYOUT_RANK`, `UNIT_MATCHUP_EFFECTIVENESS`, `armyCostPerTurn`, `PROBABILITY_THRESHOLD_FOR_SIEGE` and the battle thresholds all live there and are imported by the specs that assert them~~ |
 | Four names for one structure: `mainGameArray` / `mainArrayOfTerritoriesAndResources` / `mainArray` / `territories` — the first is gone, the parameter name survives in `battle.js` and `transferAndAttack.js` | 5.2 / 5.3, as each function becomes pure |
 | `dataName` is the *current owner* and changes on conquest, `territoryName` is the stable identity, `originalOwner` is historical. Named as such in `state/selectors.js` (`countryOf` vs `getTerritoryByName`) but the fields keep their old names in the model | 5.2 |
