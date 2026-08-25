@@ -15,6 +15,7 @@
 // what `style.css` lays the row out from, so they are named rather than indexed.
 
 import { ids } from "../core/registry.js";
+import { stepperButton } from "../controls/steppers.js";
 
 /** Infantry, assault, air, naval -- in the order every array in the game uses. */
 export const UNIT_SLOTS = 4;
@@ -28,18 +29,12 @@ const INNER_COLUMN_IDS = [
     "quantityPlusContainer"
 ];
 
-function image(id, className, src) {
-    const element = document.createElement("img");
-    element.id = id;
-    element.classList.add(className);
-    element.src = src;
-    //Phase 6.8. `element.style.height = "20px"` and the matching width stood here.
-    //`.multipleIncrementerButton`, `.transferMinusButton` and `.transferPlusButton`
-    //in style.css each already set 20px by 20px, so the inline pair only ever
-    //restated the stylesheet -- at a higher specificity, which is what would have
-    //made the stylesheet look broken the first time someone tried to change it.
-    return element;
-}
+//Phase 7.11. `image(id, className, src)` stood here and built an `<img>` whose
+//SOURCE was its state -- `plusButton.png` for live, `plusButtonGrey.png` for
+//inert -- which is why `setColumnEnabled()` in TransferTable.js used to swap file
+//paths to disable a control. The three spinner controls are `stepperButton()`s
+//now; the old positional class names are kept on them because `style.css` lays
+//the row out from those, and the enabled flag lives on the element.
 
 function textBox(id, className, value, extraClass) {
     const element = document.createElement("input");
@@ -64,14 +59,31 @@ export function armyTypeColumn({ enabled, textClass } = {}) {
     const column = document.createElement("div");
     column.classList.add("army-type-column");
 
-    const suffix = enabled ? ".png" : "Grey.png";
+    if (!enabled) {
+        column.classList.add("is-disabled");
+    }
 
     const contents = [
-        image(ids.multipleIncrementCycler, "multipleIncrementerButton", "resources/multipleIncrementerButton" + suffix),
+        stepperButton({
+            kind: "cycle",
+            id: ids.multipleIncrementCycler,
+            className: "multipleIncrementerButton",
+            enabled
+        }),
         textBox(ids.multipleTextBox, "multipleTextField", "All", textClass),
-        image(ids.minusButton, "transferMinusButton", "resources/minusButton" + suffix),
+        stepperButton({
+            kind: "minus",
+            id: ids.minusButton,
+            className: "transferMinusButton",
+            enabled
+        }),
         textBox(ids.quantityTextBox, "quantityTextField", "0", textClass),
-        image(ids.plusButton, "transferPlusButton", "resources/plusButton" + suffix)
+        stepperButton({
+            kind: "plus",
+            id: ids.plusButton,
+            className: "transferPlusButton",
+            enabled
+        })
     ];
 
     INNER_COLUMN_IDS.forEach((containerId, index) => {

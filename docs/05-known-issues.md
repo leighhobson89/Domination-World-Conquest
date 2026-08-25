@@ -46,7 +46,7 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 | — | `dataName` / `territoryName` / `originalOwner` are named correctly in the selectors but keep their old names in the model | per file |
 | — | `battle.js` still exports ~25 `let`s of per-battle scratch | per file |
 | — | `ui.js` is 4,290 lines and `resourceCalculations.js` 4,060; Phase 6's "no behavioural module over 400 lines" is not met | 6.9 Part A (before Phase 7), Part B (after 7.3) |
-| — | The 218 inline `.style.` writes in `ui.js` and 55 in `resourceCalculations.js` do not follow the theme — they set literal colours from JS, so a themed page has a handful of elements still painted in the old steel blue | 6.9.7 |
+| — | Inline `.style.` writes that set a literal colour from JS do not follow the theme, so a themed page has a handful of elements still painted in the old steel blue. Phase 7.11 took `resourceCalculations.js` from 55 to 15 (13 of them colours) by making the confirm button's armed state a class and the info panel's tab selection a class; `ui.js` is still 214 writes, 60 of them colours, and `battle.js` 18 / 11 | 6.9.7 |
 | — | The data tables keep `font-family: Arial, Helvetica, sans-serif` rather than `var(--font-body)`. Deliberate for now: the rows are a fixed 30px and Terminal's monospace face would reflow them. Revisit if the tables stop being fixed-height | 7.x |
 | **AN** | A famine whose losses exactly equal the infantry count destroys the entire mechanised army — `remaining === 0` is not `remaining > 0` | 7 balance |
 | **AP** | Battle rout / last-push thresholds compare against each side's force as it stood at the START of the round — a full round of lag | 7 balance |

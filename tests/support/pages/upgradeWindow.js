@@ -34,17 +34,29 @@ export class UpgradeWindowPage {
         await this.subtitle.hover();
     }
 
+    /**
+     * The steppers are clicked with `force: true`, and that is not a shortcut.
+     *
+     * Phase 7.11 gave a greyed stepper `aria-disabled="true"`, which is the
+     * correct markup -- it tells assistive technology the control is unavailable
+     * while leaving it focusable. Playwright reads that attribute as "not
+     * enabled" and refuses to click, which would be right if the game refused
+     * too. It does not: these deliberately keep the `disabled` PROPERTY off so
+     * the click still fires and the handler ignores it, exactly as the greyed
+     * PNGs behaved (see `src/ui/controls/steppers.js`). Driving them the way a
+     * player does therefore means saying so.
+     */
     async plus(building, times = 1) {
         await this.dismissTooltip();
         for (let i = 0; i < times; i += 1) {
-            await this.row(building).locator(upgradeWindow.rowPlus).click();
+            await this.row(building).locator(upgradeWindow.rowPlus).click({ force: true });
         }
     }
 
     async minus(building, times = 1) {
         await this.dismissTooltip();
         for (let i = 0; i < times; i += 1) {
-            await this.row(building).locator(upgradeWindow.rowMinus).click();
+            await this.row(building).locator(upgradeWindow.rowMinus).click({ force: true });
         }
     }
 
@@ -57,9 +69,16 @@ export class UpgradeWindowPage {
         return (await this.row(building).innerText()).replace(/\s+/g, " ").trim();
     }
 
+    /**
+     * True when the row's plus button is inert.
+     *
+     * Phase 7.11: this used to ask whether the button's `src` ended in
+     * `Grey.png`, because the image WAS the state. The button is drawn now and
+     * `aria-disabled` carries it -- which is also what a screen reader reads.
+     */
     async rowGreyedOut(building) {
-        const src = await this.row(building).locator(upgradeWindow.rowPlus).getAttribute("src");
-        return src.includes("Grey.png");
+        const state = await this.row(building).locator(upgradeWindow.rowPlus).getAttribute("aria-disabled");
+        return state === "true";
     }
 
     async totals() {

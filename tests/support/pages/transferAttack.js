@@ -75,17 +75,24 @@ export class TransferAttackPage {
         );
     }
 
+    /**
+     * `force: true` on all three steppers, for the reason written up in
+     * `upgradeWindow.js`: a greyed stepper carries `aria-disabled="true"`, which
+     * Playwright treats as not-enabled and refuses to click, while the game
+     * itself still dispatches the click and ignores it. A transfer cell starts
+     * greyed until a destination is chosen, so this one is hit constantly.
+     */
     async plus(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(cls.transferPlusButton).click();
+            await column.locator(cls.transferPlusButton).click({ force: true });
         }
     }
 
     async minus(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(cls.transferMinusButton).click();
+            await column.locator(cls.transferMinusButton).click({ force: true });
         }
     }
 
@@ -96,7 +103,7 @@ export class TransferAttackPage {
     async cycleMultiplier(territoryName, unit, times = 1) {
         const column = this.unitColumn(territoryName, unit);
         for (let i = 0; i < times; i += 1) {
-            await column.locator(cls.multipleIncrementerButton).click();
+            await column.locator(cls.multipleIncrementerButton).click({ force: true });
         }
         return this.multiplier(territoryName, unit);
     }

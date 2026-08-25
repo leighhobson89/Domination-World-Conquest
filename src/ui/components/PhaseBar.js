@@ -26,6 +26,7 @@
 
 import { ids } from "../core/registry.js";
 import { el } from "../core/dom.js";
+import { chevronIcon } from "../icons.js";
 import { Events, on as onStateEvent } from "../../state/events.js";
 import { Phase } from "../../state/phases.js";
 import { currentPhase } from "../../state/selectors.js";
@@ -60,11 +61,16 @@ let titleCell = null;
 let bodyCell = null;
 let button = null;
 let colourLabel = null;
+let collapsible = null;
+let collapseButton = null;
+let collapsed = false;
 let mode = Mode.SELECTING;
 let unsubscribe = null;
+let playSound = null;
 
-export function create({ onColourLabelClick } = {}) {
+export function create({ onColourLabelClick, onSound } = {}) {
     if (root) return root;
+    playSound = onSound ?? null;
 
     titleCell = el("td", {
         id: ids.popupTitle,
@@ -105,10 +111,53 @@ export function create({ onColourLabelClick } = {}) {
         text: "CONFIRM",
     });
 
+    //Phase 7.4. The bar collapses, and three things about how are deliberate.
+    //
+    //**It collapses DOWNWARDS.** The container is anchored by its BOTTOM edge and
+    //its height comes from its content, so removing rows shortens it upwards and
+    //the advance button -- the one control the player reaches for every turn --
+    //does not move by a pixel. Anchoring the top and animating the height would
+    //have slid that button up the screen mid-turn, which is the one thing a
+    //phase-advance button must never do.
+    //
+    //**Only the two rows that are ABOUT the country collapse.** The flag and the
+    //colour picker belong to choosing a country and to looking at one; the phase
+    //title and the button are the turn loop and always stay. They are wrapped
+    //together rather than hidden individually because a slide needs one box with
+    //one height to animate.
+    //
+    //**The header stays.** It holds the control that expands the bar again, so
+    //hiding it with the rest would collapse the bar permanently.
+    collapseButton = el(
+        "button",
+        {
+            id: ids.phaseBarCollapseButton,
+            class: "phase-bar-collapse",
+            attrs: {
+                type: "button",
+                "aria-expanded": "true",
+                "aria-controls": ids.phaseBarCollapsible,
+                title: "Collapse the phase panel",
+            },
+            on: { click: () => setCollapsed(!collapsed) },
+        },
+        chevronIcon()
+    );
+
+    const header = el("div", { id: ids.phaseBarHeader, class: "phase-bar-header" }, [
+        collapseButton,
+    ]);
+
+    collapsible = el(
+        "div",
+        { id: ids.phaseBarCollapsible, class: "phase-bar-collapsible" },
+        [colourLabel, bodyCell]
+    );
+
     root = el("div", { class: "popup-with-confirm-container" }, [
+        header,
         titleCell,
-        colourLabel,
-        bodyCell,
+        collapsible,
         button,
     ]);
 
@@ -165,6 +214,10 @@ export function setMode(next) {
         //screen where nothing has been selected.
         button.style.opacity = "";
         colourLabel.style.display = "";
+        //A bar the previous game left folded up would hide the country name and the
+        //colour picker on the selection screen -- the two things that screen is FOR.
+        //Silent, because nothing was clicked.
+        setCollapsed(false, { silent: true });
         return;
     }
     if (next === Mode.INITIALISING) {
@@ -207,6 +260,40 @@ export function setBrandFlag(src) {
 
 export function currentMode() {
     return mode;
+}
+
+/**
+ * Fold the flag and the colour picker away, or bring them back.
+ *
+ * The animation is CSS -- `max-height` on `.phase-bar-collapsible` -- and the one
+ * number that has to be right is that max-height in the stylesheet: it is a
+ * ceiling, not a measurement, so it must be comfortably larger than the two rows
+ * ever are. Too small and the rows are clipped while expanded; enormous and the
+ * open half of the transition spends most of its time animating empty space.
+ *
+ * @param {boolean} next
+ * @param {{silent?: boolean}} [options]  `silent` skips the click, for a reset
+ */
+export function setCollapsed(next, { silent = false } = {}) {
+    const wanted = Boolean(next);
+    if (!root || collapsed === wanted) {
+        return collapsed;
+    }
+    collapsed = wanted;
+    root.classList.toggle("is-collapsed", collapsed);
+    collapseButton?.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    collapseButton?.setAttribute(
+        "title",
+        collapsed ? "Expand the phase panel" : "Collapse the phase panel"
+    );
+    if (!silent) {
+        playSound?.();
+    }
+    return collapsed;
+}
+
+export function isCollapsed() {
+    return collapsed;
 }
 
 /** The country name shown while selecting. `adjustTextToFit()` writes it too. */
@@ -253,6 +340,8 @@ export function destroy() {
     root?.remove();
     root = null;
     titleCell = bodyCell = button = colourLabel = null;
+    collapsible = collapseButton = null;
+    collapsed = false;
     mode = Mode.SELECTING;
 }
 
@@ -261,6 +350,8 @@ export const phaseBar = {
     create,
     update,
     setMode,
+    setCollapsed,
+    isCollapsed,
     currentMode,
     bodyElement,
     bodyText,

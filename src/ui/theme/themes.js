@@ -56,6 +56,7 @@ export const THEMES = Object.freeze([
             "--accent-strong": "#5c3520",
             "--positive": "#4b6b32",
             "--negative": "#9a3320",
+            "--siege-amber": "#8a6a1f",
 
             "--border-color": "rgba(122, 74, 43, 0.45)",
             "--border-strong": "#7a4a2b",
@@ -66,6 +67,7 @@ export const THEMES = Object.freeze([
             "--shadow-panel": "0 18px 48px rgba(50, 32, 16, 0.45)",
             "--shadow-text": "0 1px 0 rgba(255, 248, 230, 0.6)",
             "--panel-blur": "2px",
+            "--glow": "rgba(122, 74, 43, 0.35)",
 
             "--font-display": SERIF,
             "--font-body": SERIF,
@@ -95,6 +97,7 @@ export const THEMES = Object.freeze([
             "--accent-strong": "#6ef2ef",
             "--positive": "#3fb950",
             "--negative": "#f85149",
+            "--siege-amber": "#e3b341",
 
             "--border-color": "rgba(125, 216, 214, 0.22)",
             "--border-strong": "rgba(61, 219, 217, 0.65)",
@@ -105,6 +108,7 @@ export const THEMES = Object.freeze([
             "--shadow-panel": "0 24px 70px rgba(0, 0, 0, 0.7)",
             "--shadow-text": "0 0 18px rgba(61, 219, 217, 0.35)",
             "--panel-blur": "10px",
+            "--glow": "rgba(61, 219, 217, 0.55)",
 
             "--font-display": SANS,
             "--font-body": SANS,
@@ -138,6 +142,7 @@ export const THEMES = Object.freeze([
             "--accent-strong": "#f0bd35",
             "--positive": "#6a8f3c",
             "--negative": "#c8102e",
+            "--siege-amber": "#d4a017",
 
             "--border-color": "rgba(212, 160, 23, 0.35)",
             "--border-strong": "#d4a017",
@@ -148,6 +153,7 @@ export const THEMES = Object.freeze([
             "--shadow-panel": "0 20px 60px rgba(0, 0, 0, 0.75)",
             "--shadow-text": "3px 3px 0 rgba(0, 0, 0, 0.55)",
             "--panel-blur": "3px",
+            "--glow": "rgba(212, 160, 23, 0.5)",
 
             "--font-display": CONDENSED,
             "--font-body": SANS,
@@ -177,6 +183,7 @@ export const THEMES = Object.freeze([
             "--accent-strong": "#12507e",
             "--positive": "#1f7a3d",
             "--negative": "#b3261e",
+            "--siege-amber": "#9a6f0a",
 
             "--border-color": "rgba(27, 108, 168, 0.28)",
             "--border-strong": "#1b6ca8",
@@ -187,6 +194,7 @@ export const THEMES = Object.freeze([
             "--shadow-panel": "0 16px 44px rgba(30, 60, 85, 0.28)",
             "--shadow-text": "none",
             "--panel-blur": "5px",
+            "--glow": "rgba(27, 108, 168, 0.4)",
 
             "--font-display": SANS,
             "--font-body": SANS,
@@ -216,6 +224,7 @@ export const THEMES = Object.freeze([
             "--accent-strong": "#7dffa4",
             "--positive": "#4af07a",
             "--negative": "#ff5f56",
+            "--siege-amber": "#e8d44a",
 
             "--border-color": "rgba(74, 240, 122, 0.3)",
             "--border-strong": "#4af07a",
@@ -226,6 +235,7 @@ export const THEMES = Object.freeze([
             "--shadow-panel": "0 0 60px rgba(74, 240, 122, 0.14)",
             "--shadow-text": "0 0 12px rgba(74, 240, 122, 0.55)",
             "--panel-blur": "1px",
+            "--glow": "rgba(74, 240, 122, 0.6)",
 
             "--font-display": MONO,
             "--font-body": MONO,

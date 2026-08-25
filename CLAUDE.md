@@ -32,8 +32,8 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 358 tests, ~1s
-npm run test:e2e       # Playwright, 330 tests, 4 workers headless, ~7-14 min
+npm run test:unit      # Vitest, 437 tests, ~1s
+npm run test:e2e       # Playwright, 397 tests, 4 workers headless, ~7-14 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
@@ -419,6 +419,81 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `src/ui/transferAttack/` since Phase 6.5 — `TransferTable.js`, `AttackTable.js` and the
   shared `ArmyAllocationRow.js`, with the step multiplier as one table in `multiples.js`
   rather than six `if` chains.
+- **A disabled control is a class, not a picture** (Phase 7.11). The plus, minus and
+  step-multiplier buttons and the two territory-row action buttons are drawn
+  (`src/ui/controls/steppers.js`, `actionButtons.js`) from icons in `src/ui/icons.js`.
+  They were twelve PNGs whose greyed twin was the ONLY record that a control was
+  disabled, which is why eleven sites asked `button.src.includes("Grey.png")` — a
+  question about game rules answered by reading a file path, and one that fails
+  silently. Use `isStepperEnabled()` / `setStepperEnabled()` / `setCellEnabled()`.
+  **They deliberately do NOT take the `disabled` property**: the greyed PNGs still
+  received clicks and several handlers do other work on the way past, so `aria-disabled`
+  plus `is-disabled` is the state. The consequence is that Playwright refuses to click
+  them, which is why the four page objects that drive a stepper pass `force: true`.
+  **The ARTWORK stays** — resources, unit types, and the farm/forest/oil-well/fort
+  plates are illustrations and still swap to `Grey.png`; `tests/unit/ui-stylesheet.spec.js`
+  asserts both halves.
+- **No colour literal may appear outside the `:root` block in `style.css`**, and a unit
+  test fails the build if one does. The only exceptions are the colour picker's
+  `#fff`/`#000` selection rings, which mark a swatch that can itself be any colour. If a
+  new colour is genuinely needed it becomes a token — that means `tokens.js`, the
+  `:root` default, and all five non-default themes, in that order.
+- **The two resource windows are declared TOGETHER in the stylesheet.** `ResourceWindow.js`
+  has built Upgrade Territory and Buy Military from one spec since Phase 6.3, but the CSS
+  described them twice and they drifted to different row heights. Every shared rule names
+  both class families, and a unit test fails if one is styled without the other. Where they
+  genuinely differ (the buy row has a step multiplier, so its fifth column is wider) the
+  difference is stated once and says why.
+- **A window's height is its content; only the container carries a number.** Upgrade
+  Territory shipped for months as `height: 500px` over a `366px` content window over a
+  `300px` table — three fixed numbers that had to agree and did not, so the fourth of four
+  rows was drawn under the bottom bar. The container's height must stay a number, because
+  `.blur-background` is absolutely positioned and `height: auto` collapses it to nothing.
+- **The five floating windows are draggable and focus-ordered** (Phase 7.4,
+  `src/ui/core/draggable.js`). Three rules. The drag shifts the COMPUTED `left`/`top` and
+  never touches the `transform` — `.title-transfer-attack-window` and
+  `.content-transfer-header-row` are `position: fixed` inside the transfer window and
+  resolve against its transform, so "simplifying" the drag by removing it flings that
+  window's header into the corner. Stacking is a counter in the 9100–9400 band, not a set
+  of constants: `bringToFront()` is what "whichever window was touched last" means, and it
+  renormalises rather than climbing into the modal band at 10000+. And **opening a window
+  focuses it** — that is why Upgrade Territory appears above the panel whose button opened
+  it, and why the activity feed opens over the territory panel without needing a higher
+  fixed z-index.
+- **The phase bar folds, and the advance button must never move.** It is bottom-anchored
+  with a content height, so collapsing shortens it UPWARDS. Its z-index is 9050 —
+  deliberately below every window — because it is furniture the player reads through; at
+  9999 nothing could ever sit over it. The flag row is `height: 13.2vh` and **must not be a
+  percentage**: a percentage against an `auto` parent resolves to `auto` and the flag
+  becomes a four-pixel stripe. The colour picker measures the bar's rectangle on open
+  (`--phase-bar-top`) rather than naming its height in CSS, which is no longer a constant.
+- **The activity feed stores facts, never sentences** (Phase 7.4).
+  `src/state/activityLog.js` holds `{kind, territory, defender, attacker, playerAttacking,
+  playerDefending}`; `src/ui/activityFeed/describeActivity.js` derives the wording and the
+  tone when a row is drawn. Storing the sentence would bake today's phrasing into every
+  save file. `ActivityKind` is a CLOSED set and `recordActivity()` rejects anything else,
+  which is what keeps economy and planning out of a feed that is supposed to be military.
+- **Most feed entries are DERIVED from `state/events.js`, not written at the event.** A
+  conquest is "a territory's `dataName` changed" and a siege start is "a siege was added",
+  both from `mutations.js`, which every path must go through — there are eight places that
+  take a territory and a list of eight loggers is one new attack route away from being
+  wrong. `updateTerritory()` reports a `previous` field for this: by the time the listener
+  runs the store only knows who holds the territory NOW, and the line is about who it was
+  taken from. Only what the store cannot answer afterwards is reported explicitly: a failed
+  attack (nothing changed) and a siege ENDING (one change, three meanings).
+- **The turn boundary is not where it looks.** `endTurn: advanceTurn`, so the AI moves
+  during turn N and the counter reaches N+1 afterwards — everything the player is shown
+  when the feed raises itself is filed under the turn that just ENDED. `onTurnStarted()`
+  opens exactly one section (the new turn) and scrolls the list to the top; the safety net
+  is in `render()`, which will not draw a panel with every section shut and falls back to
+  the newest turn that has anything in it — which on a quiet N+1 is N, where the conquests
+  are. A spec that records into an arbitrary turn number and expects it to be open is
+  testing nothing.
+- **The AI's plans go to the console and must never reach the panel.** `src/ai/goalHorizons.js`
+  derives short, medium and long-term intent (the last from the world — lost territories,
+  nearest continent, principal rival — not from any stored plan) and `planLog.js` prints
+  one collapsed group per country. The feed reports what HAPPENED; a panel showing the AI's
+  intentions would be a cheat.
 - **The info panel's four tabs are column definitions, not code.** `src/ui/infoTable/columns.js`
   and `warColumns.js` say what each tab shows; `tableDom.js` builds a header row and a data
   row; `renderInfoTable.js` is four small functions and a dispatcher (Phase 6.4). Adding a

@@ -64,18 +64,6 @@ test.describe("asset integrity", () => {
         // swap in by name at click time. The swapped variants never appear in the
         // DOM until clicked, which is why they are listed explicitly.
         const swappedIcons = [
-            "resources/plusButton.png",
-            "resources/plusButtonGrey.png",
-            "resources/minusButton.png",
-            "resources/minusButtonGrey.png",
-            "resources/multipleIncrementerButton.png",
-            "resources/multipleIncrementerButtonGrey.png",
-            "resources/upgradeButtonIcon.png",
-            "resources/upgradeButtonIconPressed.png",
-            "resources/upgradeButtonGreyedOut.png",
-            "resources/buyButtonIcon.png",
-            "resources/buyButtonIconPressed.png",
-            "resources/buyButtonGreyedOut.png",
             "resources/gold.png",
             "resources/prodPopulation.png",
             "resources/buy.png",

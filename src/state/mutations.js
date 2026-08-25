@@ -44,9 +44,17 @@ export function updateTerritory(uniqueId, patch) {
     }
 
     const changed = [];
+    //Phase 7.4. `previous` carries the value each changed field HELD, and it exists for
+    //one listener: the activity feed derives "X (Spain) conquered by Libya" from an
+    //ownership change, and the country it was taken FROM is gone by the time the event
+    //arrives. Recording that at every conquest site instead was the alternative, and
+    //there are eight of them across battle.js and aiCalculations.js -- a list that is
+    //one new code path away from being wrong, and silently.
+    const previous = {};
     write(() => {
         for (const [field, value] of Object.entries(patch)) {
             if (territory[field] !== value) {
+                previous[field] = territory[field];
                 territory[field] = value;
                 changed.push(field);
             }
@@ -54,7 +62,7 @@ export function updateTerritory(uniqueId, patch) {
     });
 
     if (changed.length > 0) {
-        emit(Events.TERRITORY_CHANGED, { uniqueId: String(uniqueId), territory, changed });
+        emit(Events.TERRITORY_CHANGED, { uniqueId: String(uniqueId), territory, changed, previous });
     }
     return territory;
 }

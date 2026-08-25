@@ -138,6 +138,23 @@ export function installTestHooks(accessors) {
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/04-e2e-test-plan.md 3.7.
         applyScenario: (scenario) => snapshot(accessors.applyScenario(scenario)),
+
+        // The military activity feed (Phase 7.4), as DATA rather than as rendered
+        // rows. The panel stores facts and derives its wording and its colours when it
+        // draws, so a spec that read the text back off the DOM would be asserting the
+        // phrasing and nothing else -- and the interesting properties are the ones the
+        // phrasing hides: that a conquest names the country it was taken FROM, that a
+        // failed attack is recorded at all, that the player's involvement is marked on
+        // both sides.
+        activity: () => snapshot(accessors.activity()),
+
+        // Write one entry directly. The feed's harder cases are unreachable by
+        // clicking in any reasonable time -- an AI conquering an AI on the far side of
+        // the map, a siege running four turns -- and the alternative is a spec that
+        // plays twenty turns and hopes. What this does NOT bypass is the panel: the
+        // entry goes through `recordActivity()` and the panel re-renders from the
+        // event, so what the spec then reads is the real rendering path.
+        recordActivity: (entry) => snapshot(accessors.recordActivity(entry)),
     };
 }
 

@@ -2,7 +2,8 @@
 // UI that something changed.
 //
 // Deliberately minimal: no wildcards, no async, no priority. `mutations.js` is the
-// only module that emits; anything may subscribe. Handlers run synchronously in
+// only module that emits world changes -- `state/activityLog.js` is the single
+// exception and the note on ACTIVITY_LOGGED says why. Anything may subscribe. Handlers run synchronously in
 // subscription order so a listener sees the state exactly as the mutation left it.
 //
 // A throwing listener must not abort the mutation that emitted, nor stop the other
@@ -21,7 +22,19 @@ export const Events = Object.freeze({
     WAR_CHANGED: "warChanged",
     SIEGE_CHANGED: "siegeChanged",
     /** The greyed-out / attackable highlight sets. UI selection, not world state. */
-    SELECTION_CHANGED: "selectionChanged"
+    SELECTION_CHANGED: "selectionChanged",
+    /**
+     * Something military was written to the activity feed.
+     *
+     * The one event NOT emitted by `mutations.js`. Its source is
+     * `state/activityLog.js`, which is a record of things that happened rather
+     * than a part of the world -- nothing reads it back to decide a rule, and
+     * putting it through a mutation would have meant giving the store a field
+     * whose only consumer is a panel. The payload carries the entry, or
+     * `{ entry: null, cleared: true }` / `{ entry: null, restored: true }` when
+     * the whole log was replaced.
+     */
+    ACTIVITY_LOGGED: "activityLogged"
 });
 
 /**

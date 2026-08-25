@@ -112,6 +112,11 @@ import {
 import {
     registerSaveSlice
 } from './src/platform/saveSlices.js';
+import {
+    recordFailedAttack,
+    recordSiegeLifted,
+    recordSiegeResolved
+} from './src/state/activityRecorder.js';
 
 export let finalAttackArray = [];
 export const proportionsOfAttackArray = [];
@@ -413,6 +418,20 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     if (routFromSiege) { //assure correct data updated
         contestedTerritory = getTerritory(contestedTerritory.uniqueId) ?? contestedTerritory;
     }
+
+    //Phase 7.4. Read here, used after the switch. Three of the five branches below
+    //hand the territory to the attacker, so `contestedTerritory.dataName` is the
+    //ATTACKER by the time the outcome is known -- the same trap that made the Wars &
+    //Sieges tab draw the winner's flag on both sides of a war (known-issues AS). A
+    //record of something that happened names who it happened to; it does not read it
+    //back off the world afterwards.
+    const feedDefender = contestedTerritory.dataName;
+    const feedAttacker = ai
+        ? (siegeObject?.attackingCountry ?? siegeObject?.dataName ?? "")
+        : playerCountryName();
+    const feedPlayerAttacking = !ai;
+    const feedPlayerDefending = contestedTerritory.owner === "Player";
+
     switch (situation) {
         case 0:
             won = true;
@@ -540,6 +559,36 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
             break;
     }
+    //Phase 7.4. What the activity feed is told, and what it is deliberately NOT told.
+    //
+    //A CONQUEST is derived from the ownership change (`state/activityRecorder.js`), so
+    //there is nothing to report for a win that was a straight attack -- reporting it
+    //here as well would double every conquest in the feed.
+    //
+    //What has to be said explicitly is everything the store cannot answer afterwards.
+    //A failed attack changes nothing about who owns what. And a battle that came out
+    //of a SIEGE is worth its own line either way, because a siege ending is one state
+    //change with three possible meanings and the player wants to know which.
+    if (routFromSiege) {
+        recordSiegeResolved({
+            besiegerWon: won,
+            territory: contestedTerritory.territoryName,
+            defender: feedDefender,
+            attacker: feedAttacker,
+            playerAttacking: feedPlayerAttacking,
+            playerDefending: feedPlayerDefending
+        });
+    }
+    if (!won) {
+        recordFailedAttack({
+            territory: contestedTerritory.territoryName,
+            defender: feedDefender,
+            attacker: feedAttacker,
+            playerAttacking: feedPlayerAttacking,
+            playerDefending: feedPlayerDefending
+        });
+    }
+
     contestedTerritory.oilDemand = oilDemandFor(contestedTerritory);
     setPlayerUseableNotUseableWeaponsDueToOilDemand(allTerritories(), contestedTerritory);
 
@@ -1156,6 +1205,18 @@ export function handleEndSiegeDueArrest(ai, siege) {
 
         siege.attackingArmyRemaining = [0, 0, 0, 0];
         siege.resolution = "Arrested";
+
+        //Phase 7.4. The third way a siege can end, and the only one with no battle:
+        //the besieging army starved or was taken. `SIEGE_CHANGED` fires for the
+        //removal below, but a removal alone cannot say WHICH of the three endings
+        //this was, which is why the feed is told here rather than deriving it.
+        recordSiegeLifted({
+            territory: defendingTerritory.territoryName,
+            defender: defendingTerritory.dataName,
+            attacker: ai ? siege.attackingCountry : playerCountryName(),
+            playerAttacking: !ai,
+            playerDefending: defendingTerritory.owner === "Player"
+        });
 
         //Phase 5.8. `setUpResultsOfWarExternal(true)` used to run for EVERY arrest, and only
         //the `!ai` branch below ever filled the screen in. The AI runs dozens of concurrent

@@ -119,6 +119,23 @@ import {
     registerSaveSlice
 } from './src/platform/saveSlices.js';
 import {
+    activityTurns,
+    captureActivityLog,
+    clearActivityLog,
+    recordActivity,
+    restoreActivityLog
+} from './src/state/activityLog.js';
+import {
+    installActivityRecorder,
+    recordOngoingSieges
+} from './src/state/activityRecorder.js';
+import {
+    activityPanel
+} from './src/ui/components/ActivityPanel.js';
+import {
+    logAiPlan
+} from './src/ai/planLog.js';
+import {
     pathCountry
 } from './src/state/pathState.js';
 import {
@@ -133,6 +150,8 @@ import {
 installTestHooks({
     turn: () => currentTurn(),
     phase: () => currentPhase(),
+    activity: () => activityTurns(),
+    recordActivity: (entry) => recordActivity(entry),
     // Straight through the store's own indexes. This used to be a deliberate linear
     // scan, because doAiActions() replaced whole elements of mainGameArray and orphaned
     // the separate territory index (audit 5.1 AB) -- so the index could report a
@@ -263,6 +282,11 @@ export async function initialiseGame() {
     zoomMap("init");
     svg.style.pointerEvents = 'none';
     gameInitialisation = true;
+    //A new game is a new war. Restart restores the pristine world, and a feed still
+    //listing the conquests of the game that was thrown away would be the same species
+    //of bug as the top table showing the abandoned game's totals (Phase 7.2).
+    clearActivityLog();
+    activityPanel.reset();
     console.log("Welcome to new game! Your country is " + playerCountryName() + "!");
     //A local `const paths = Array.from(svgMap.querySelectorAll("path"))` stood here,
     //shadowing the module-level import of the same list. It went with the extraction of
@@ -477,6 +501,16 @@ function beginTurn() {
     }
     incrementSiegeTurns(true);
     incrementSiegeTurns(false);
+    //Phase 7.4. One line per siege still running, written AFTER the turn counters have
+    //been bumped so the entry can say which turn of the siege this is. Called once with
+    //both sides rather than from inside incrementSiegeTurns(), which runs twice and is a
+    //rule rather than a narrator.
+    recordOngoingSieges([
+        ...Object.entries(playerSieges()).map(([territoryName, siege]) =>
+            ({ side: "player", territoryName: territoryName, siege: siege })),
+        ...Object.entries(aiSieges()).map(([territoryName, siege]) =>
+            ({ side: "ai", territoryName: territoryName, siege: siege }))
+    ]);
     if (currentTurn() > 1) {
         handleArmyRetrievals(getRetrievalArray());
     }
@@ -501,6 +535,13 @@ function beginTurn() {
         toggleUIMenu(true);
         drawUITable(document.getElementById(ids.uiTable), 0);
     }
+    //Phase 7.4. After the info panel above, deliberately: the feed opens ON TOP of it,
+    //which is what the brief asks for and is why it is a window rather than a fifth tab.
+    //`onTurnStarted` always re-points the panel at the new turn -- closing the section
+    //the player had expanded and opening this one -- and only RAISES it if the
+    //start-of-turn preference is on, so a player who has switched that off still finds
+    //the right section waiting when they open it by hand.
+    activityPanel.onTurnStarted(currentTurn());
     randomEventHappening = false;
     randomEvent = "";
     console.log("Turn " + currentTurn() + " has started!");
@@ -567,6 +608,26 @@ registerSaveSlice("turnLoop", {
     capture: () => ({ randomEventProbability: probability }),
     restore: (data) => {
         probability = Number(data?.randomEventProbability) || 0;
+    }
+});
+
+//Phase 7.4. The activity feed derives most of itself from `state/events.js`, so the
+//recorder has to be listening before anything can happen. Installed here rather than
+//at the top of `activityRecorder.js` because a module that installs a side effect on
+//import only works if something imports it -- and this file is the one that owns the
+//turn, which is what the feed is grouped by.
+installActivityRecorder();
+
+//The feed is saved with the game. It is not part of the world -- no rule reads it --
+//so it is a slice rather than a field in `GameState`, and a save from before this
+//existed simply restores an empty log rather than failing.
+registerSaveSlice("activity", {
+    capture: () => captureActivityLog(),
+    restore: (data) => {
+        restoreActivityLog(data);
+        //A load lands inside a saved turn, so the section the panel should be showing
+        //is that turn's -- not whichever one the player had expanded when they saved.
+        activityPanel.reset();
     }
 });
 
@@ -650,6 +711,21 @@ async function handleAITurn() {
         unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
         refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
+        //Phase 7.4. One collapsed console group per country, printed BEFORE the goals
+        //are carried out so a developer can compare the intent against what followed.
+        //The forty-odd lines this file and aiCalculations.js already emit per country
+        //are a running commentary on gold; none of them said what the country was
+        //trying to DO, which is the only question worth asking of an AI turn.
+        //
+        //This is developer-facing only. The player's view of the same turn is the
+        //activity feed, and it deliberately reports outcomes rather than plans -- a
+        //panel that showed the AI's intentions would be a cheat.
+        logAiPlan({
+            country: currentAiCountry,
+            leader: leader,
+            refinedGoals: refinedTurnGoals,
+            turn: currentTurn()
+        });
         refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
 
         resetAiRngContext();

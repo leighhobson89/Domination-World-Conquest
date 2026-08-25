@@ -261,3 +261,110 @@ export function repeatPanelIcon() {
         svgEl("path", { attrs: { d: "M12.4 2.2 15.3 4.4 13 6.9" } }),
     ]);
 }
+
+/* ---------------------------------------------------------------------------
+   STEPPER AND ACTION ICONS (Phase 7.11)
+
+   The plus, minus and step-multiplier controls used to be six PNGs --
+   `plusButton.png` / `plusButtonGrey.png` and the same pair for minus and for
+   the multiplier cycler -- and the greyed member of each pair was the ONLY
+   record anywhere that a control was disabled. That is why the codebase was
+   full of `if (button.src.includes("Grey.png"))`: the image WAS the state.
+
+   Drawn instead, the state moves onto the element (`aria-disabled`, and the
+   `is-disabled` class the stylesheet reads) and the colour comes from a token,
+   so the same three controls take every theme. See `src/ui/controls/steppers.js`
+   for the buttons these sit inside.
+   ------------------------------------------------------------------------ */
+
+/** A plus. Add one step of whatever the multiplier says. */
+export function plusIcon() {
+    return icon("chrome-icon-plus", [
+        svgEl("line", { attrs: { x1: "12", y1: "5", x2: "12", y2: "19" } }),
+        svgEl("line", { attrs: { x1: "5", y1: "12", x2: "19", y2: "12" } }),
+    ]);
+}
+
+/** A minus. The other half of the pair, and deliberately the same weight. */
+export function minusIcon() {
+    return icon("chrome-icon-minus", [
+        svgEl("line", { attrs: { x1: "5", y1: "12", x2: "19", y2: "12" } }),
+    ]);
+}
+
+/**
+ * A ring of two arrows: the step multiplier, which CYCLES rather than toggling.
+ *
+ * `multipleIncrementerButton.png` was a pair of chevrons and read as "sort", so
+ * players clicked it expecting the column to reorder. Two arrows chasing each
+ * other round a circle is the standard sign for "this walks a list and wraps",
+ * which is exactly what x1 -> x10 -> x100 -> x1k -> All -> x1 does.
+ */
+export function cycleIcon() {
+    return icon("chrome-icon-cycle", [
+        svgEl("path", { attrs: { d: "M20.2 11.4a8.2 8.2 0 0 0-14.1-4.3L3.8 9.4" } }),
+        svgEl("path", { attrs: { d: "M3.8 4.9v4.5h4.5" } }),
+        svgEl("path", { attrs: { d: "M3.8 12.6a8.2 8.2 0 0 0 14.1 4.3l2.3-2.3" } }),
+        svgEl("path", { attrs: { d: "M20.2 19.1v-4.5h-4.5" } }),
+    ]);
+}
+
+/**
+ * A tower rising out of a base plate, with a chevron over it: UPGRADE.
+ *
+ * The four things this button opens are farms, forests, oil wells and forts --
+ * "build something on this territory". A bare up-arrow would say "increase",
+ * which is what the plus button already says two columns away.
+ */
+export function upgradeIcon() {
+    return icon("chrome-icon-upgrade", [
+        svgEl("path", { attrs: { d: "M7 4.6 12 2l5 2.6" } }),
+        svgEl("path", { attrs: { d: "M7 9.4 12 6.8l5 2.6" } }),
+        svgEl("path", { attrs: { d: "M4.5 20.5h15" } }),
+        svgEl("path", { attrs: { d: "M8.4 20.5v-6.9h7.2v6.9" } }),
+    ]);
+}
+
+/**
+ * A chevron in a bracket over a bar: BUY MILITARY.
+ *
+ * Not a shopping cart. The window it opens buys infantry, assault, air and
+ * naval units, and a supermarket trolley next to a row of tanks reads as a
+ * joke; a unit being dropped onto a muster line does not.
+ */
+export function buyIcon() {
+    return icon("chrome-icon-buy", [
+        svgEl("path", { attrs: { d: "M12 3v9.6" } }),
+        svgEl("path", { attrs: { d: "M8.2 9.2 12 13l3.8-3.8" } }),
+        svgEl("path", { attrs: { d: "M4.5 15.4v3.6a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.6" } }),
+    ]);
+}
+
+/**
+ * A sheet of paper with ruled lines and a folded corner: the ACTIVITY LOG.
+ *
+ * Phase 7.4. The button that opens the military feed sits under the info-panel
+ * globe, so it has to read as a different KIND of thing at 22px, not as a second
+ * globe. A document with a turned corner is the one shape everybody already reads
+ * as "a log file", and the ruled lines are what stop it reading as a blank card.
+ */
+export function activityLogIcon() {
+    return icon("chrome-icon-activity", [
+        // The sheet, with the top-right corner cut away.
+        svgEl("path", { attrs: { d: "M14.2 2.8H6.6a1.8 1.8 0 0 0-1.8 1.8v14.8a1.8 1.8 0 0 0 1.8 1.8h10.8a1.8 1.8 0 0 0 1.8-1.8V7.6z" } }),
+        // The fold.
+        svgEl("path", { attrs: { d: "M14.2 2.8v4.8h5" } }),
+        // Three ruled lines, the last one short, which is what says "entries" and
+        // not "a table".
+        svgEl("line", { attrs: { x1: "8.2", y1: "11.4", x2: "15.8", y2: "11.4" } }),
+        svgEl("line", { attrs: { x1: "8.2", y1: "14.6", x2: "15.8", y2: "14.6" } }),
+        svgEl("line", { attrs: { x1: "8.2", y1: "17.8", x2: "12.6", y2: "17.8" } }),
+    ]);
+}
+
+/** A chevron. The activity feed's per-turn sections open and close with one. */
+export function chevronIcon() {
+    return icon("chrome-icon-chevron", [
+        svgEl("path", { attrs: { d: "M8.4 5.2 15.6 12l-7.2 6.8" } }),
+    ]);
+}

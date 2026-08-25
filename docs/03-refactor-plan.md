@@ -1128,13 +1128,14 @@ over 400 lines.
 | 7.1 | **Win / lose conditions** (`rules/victory.js`) | Check after each turn: total conquest, player elimination, and a configurable objective (N territories / a continent / turn limit). Add a victory/defeat screen. |
 | 7.2 | ✅ **New game / restart, and a menu you can reach** | Done. `TurnEngine.reset()` made the restart part small; the rest was the menu itself. See below. |
 | 7.3 | ✅ **Save / load** (`platform/storage.js`) | Done. `GameState` really was a `JSON.stringify` away, as Phase 4 predicted. Autosave to `localStorage` on a timer, plus a compressed code the player can copy and paste. See below. |
-| 7.4 | **AI activity feed** | The single biggest "feel" gap. Surface AI conquests, sieges and declarations in a turn-summary panel instead of `console.log`. |
+| 7.4 | ✅ **AI activity feed** | Done. A military log grouped by turn, in a draggable window of its own, plus a developer-facing console report of what each AI is planning at three horizons. See below. |
 | 7.5 | **Continent control bonuses** | Continents already exist as data; give holding one a real reward. |
 | 7.6 | **Help / tutorial** | Wire the inert Help button. Oil demand, useable units and sieges all need in-game explanation. |
 | 7.7 | **Consolidate AI powers** | Reduce 206 independent AI countries to 8–16 *powers* owning multiple countries (GDD §12.1). Makes the AI turn fast, the world legible, and diplomacy possible. |
 | 7.8 | **Long-term AI goals** | The TODOs in `gameTurnsLoop.js`, now implementable against `ai/goals.js`. |
 | 7.9 | **Re-enable or remove the 3D dice** | Decide. If keeping, wire it into `BattleUI` behind a setting; if not, delete `dices.js` and the three `dist/` bundles and drop `three` + `cannon-es`. |
 | 7.10 | ✅ **Theme system and menu redesign** | Done out of order, at the developer's request. `src/ui/theme/` — a token vocabulary, a catalogue of six themes as data, and an applier that writes tokens onto the root element as CSS custom properties. A new Options panel (`src/ui/components/OptionsPanel.js`) holds the picker; the main menu was rebuilt around it. See below. |
+| 7.11 | ✅ **The rest of the UI onto the tokens** | Done — the completion of 7.10, which reached the menu and the map chrome and stopped. The five remaining windows, the twelve PNG controls that carried their own state in a file path, and every colour literal outside `:root`. See below. |
 
 #### Phase 7.2 / 7.3 — what landed
 
@@ -1319,6 +1320,164 @@ over the map; "no sound, please" is a decision made before the game starts and h
 reachable from the title screen, where there is no map for a floating panel to float over.
 Both are views onto `src/platform/audio.js` and neither holds state, so they cannot
 disagree — `tests/e2e/options/sound-toggles.spec.js` asserts that in both directions.
+
+---
+
+#### Phase 7.11 — what landed
+
+7.10 put a token system in and converted the menu, the map chrome and the modals.
+It stopped there, and what was left was the part players spend the game inside: the
+territory info panel, Upgrade Territory, Buy Military, the transfer/attack window
+and the battle UI. This is that pass.
+
+**Twelve PNGs became five drawn controls, and the point was not the pictures.** The
+plus, minus and step-multiplier buttons each shipped as a lit image and a
+`Grey.png` twin, and the Upgrade and Buy buttons as an idle, a pressed and a
+greyed-out plate. The grey twin was the ONLY record anywhere that a control was
+disabled — which is why eleven sites across four files asked
+`button.src.includes("Grey.png")`, answering a question about game rules by
+reading a file path. A typo there does not throw; it silently makes a disabled
+button clickable and lets the player overdraw. The state is on the element now
+(`aria-disabled`, plus the `is-disabled` class the stylesheet reads) and lives in
+`src/ui/controls/steppers.js` and `actionButtons.js`.
+
+One consequence is worth recording because it changed the harness. Playwright
+treats `aria-disabled="true"` as not-enabled and refuses to click it. The game
+deliberately does NOT set the `disabled` property — the greyed PNGs still received
+clicks and several handlers do other work on the way past — so the four page
+objects that drive a stepper now pass `force: true`, with the reason written at
+the site.
+
+**The artwork stayed, deliberately.** Gold, oil, food, construction materials,
+population, land area, the four unit types, the farm/forest/oil-well/fort
+illustrations and the fort-progress plates are illustrations, not icons, and they
+are unchanged — including their `Grey.png` twins, which still say "you cannot
+build this". `tests/unit/ui-stylesheet.spec.js` asserts both halves: that no
+retired control PNG is referenced anywhere, and that the artwork still is.
+
+**Ten copies of a five-line block became one call.** The two resource windows'
+confirm button was armed by writing `style.backgroundColor` and then adding a
+FRESH pair of mouseover/mouseout listeners — so forty clicks left eighty listeners
+on one button, every one of them writing a literal `rgba()` no theme could reach.
+`setConfirmArmed()` toggles `is-armed`. The same species of fault was in
+`InfoTable.js`, where two `rgb()` constants were written inline onto a tab on
+click, on mouseover and on mouseout: an inline write beats the stylesheet on
+specificity, so no theme could ever reach a tab, and `:hover` was being hand-rolled
+with two listeners that got it wrong when the pointer left the window.
+
+**The stylesheet describes the two resource windows once.** `ResourceWindow.js`
+has built them from one spec since Phase 6.3, but `style.css` described them
+twice — 300 lines each, differing in nothing but the class prefix, which is how
+they drifted to different row heights. Every shared rule now names both, and a
+unit test fails if one is styled without the other.
+
+**A layout bug that had shipped for months** was found by writing the measurement
+test rather than by reading: Upgrade Territory was `height: 500px` over a `366px`
+content window over a `300px` table — three fixed numbers that had to agree and did
+not, so the fourth of four rows was drawn underneath the bottom bar. The content
+window and the table size themselves now; the container's height is the one number
+left, and it has to be a number because `.blur-background` is absolutely positioned
+and `height: auto` collapses it to nothing.
+
+**One new token, `--glow`**, and one more (`--siege-amber`) came with 7.4. Both are
+tokens rather than an alpha on `--accent` because how much a theme should bloom is
+a stylistic decision: Terminal is a phosphor tube and wants to, Parchment is ink on
+paper and must not.
+
+**Twenty-eight unit tests and a new `ui-layout/` e2e area.** The division is the
+one `save-load/` records: the unit suite owns what the source SAYS — no colour
+literal outside `:root`, no retired PNG, every class the JS writes is styled — and
+the e2e suite owns what the page DOES, because a window that clips its own last row
+has no textual signature at all.
+
+---
+
+#### Phase 7.4 — what landed
+
+The design document calls the activity feed the single biggest "feel" gap, and it
+was: two hundred and six AI countries fought each other every turn and the only
+trace a player could see was that the map had quietly changed colour while they
+were looking at their own economy. Everything that happened went to `console.log`.
+
+**The feed stores facts, not sentences.** `src/state/activityLog.js` holds
+`{ kind, territory, defender, attacker, playerAttacking, playerDefending }` per
+entry, grouped by turn; `src/ui/activityFeed/describeActivity.js` turns one of
+those into a line and a tone when it is drawn. Storing the sentence would have
+baked today's phrasing into every save file and made the player-involvement rules
+— which decide both the colour of a conquest and the size of every row —
+unrecoverable after the fact.
+
+**Most entries are DERIVED from `state/events.js`, not written where the event
+happens.** A conquest is exactly "a territory's `dataName` changed", and a siege
+beginning is exactly "a siege was added" — both already emit from `mutations.js`,
+which every code path must go through. There are eight places that take a
+territory, and a list of eight loggers is one new attack route away from being
+silently incomplete. What IS reported explicitly is what the store cannot answer
+afterwards: a failed attack changes nothing about who owns what, and a siege
+ENDING is one state change with three meanings (arrested, stormed, thrown back).
+
+`updateTerritory()` gained a `previous` field on its event for exactly this: by
+the time the listener runs, the store only knows who holds the territory now, and
+the country it was taken FROM is the one the line is about. That is the same trap
+that made the Wars & Sieges tab draw the winner's flag on both sides of a war
+(known-issues **AS**).
+
+**What counts as military is decided in the log, not by its callers.**
+`ActivityKind` is a closed set and `recordActivity()` rejects anything else, so an
+economic event cannot leak into the feed by someone passing a new string. The
+brief was explicit: attacks, conquests, losses, battles between AIs and sieges in
+all four of their states — not upgrades, not planning, not "thoughts".
+
+**A turn is a collapsible section, and the turn boundary is not where it looks.**
+`endTurn: advanceTurn` means the AI moves during turn *N* and the counter reaches
+*N+1* afterwards, so everything the player is shown when the panel raises itself is
+filed under the turn that has just ENDED. The panel opens exactly one section — the
+new turn — and scrolls back to the top, so a window that raises itself every turn
+always presents the same thing. The safety net is in `render()`, which refuses to
+draw a panel with every section shut and falls back to the newest turn that has
+anything in it: on a quiet *N+1* with no siege lines that is *N*, which is where
+the conquests are.
+
+**Which sections are open is view state and is never saved.** The log itself is a
+save slice (`registerSaveSlice("activity", ...)`) and survives a load; a restored
+game opens on its own current turn rather than on whatever was expanded when the
+save was taken.
+
+**The windows move now.** `src/ui/core/draggable.js` — the territory panel, both
+resource windows, the transfer/attack window and the feed. Two of them overlap by
+design, so the alternative to dragging was closing one to read the other. Three
+things in there are less obvious than they look: the drag shifts the computed
+`left`/`top` and never touches the `transform`, because two of the transfer
+window's own children are `position: fixed` and resolve against it; stacking is a
+counter rather than a set of constants, because "whichever one was touched last" is
+not something a constant can say; and opening a window focuses it, which is what
+makes Upgrade Territory appear above the panel whose button opened it.
+
+The territory panel grew a title bar to be dragged by. It had four tabs and a
+close button and nothing that said what the window WAS — liveable while it could
+not move, and not once the tab strip has to double as a grip.
+
+**The phase bar folds, and the advance button does not move.** It was
+`height: 40%` with `justify-content: center` — four items centred in a box a third
+taller than they needed, with an empty row under the button. It is content-height
+and bottom-anchored now, so folding the flag and the colour picker away shortens it
+UPWARDS and the one control a player reaches for every turn stays exactly where it
+was. Its z-index came down from 9999 to 9050: it is furniture the player reads
+through, and at 9999 no window could ever sit over it.
+
+**The console half is separate and stays separate.** `src/ai/goalHorizons.js`
+derives what a country is trying to do at three horizons — this turn's goals as
+sentences, what they add up to (a posture, and which enemy is taking the pressure),
+and standing ambitions read from the world rather than from any plan: territories
+it once owned and has lost, the continent it is closest to holding, and the country
+holding most of what it lost. `planLog.js` prints one collapsed group per country.
+The player-facing feed reports what HAPPENED; a panel that showed the AI's
+intentions would be a cheat.
+
+**Fifty-one unit tests and a new `activity-feed/` e2e area**, plus the window and
+phase-bar specs in `ui-layout/`. The wording and every colour rule are unit-tested
+because they are pure; the e2e specs assert what the wording hides — which turn an
+entry lands in, whether it was recorded at all, and the player-involvement flags.
 
 ---
 

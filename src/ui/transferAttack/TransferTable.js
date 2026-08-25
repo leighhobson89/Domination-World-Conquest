@@ -24,27 +24,19 @@
 import { armyAllocationRow } from "./ArmyAllocationRow.js";
 import { multipleValueOf, nextMultipleLabel, showMultiple, ALL } from "./multiples.js";
 import { ids, sel } from "../core/registry.js";
+import { setCellEnabled, setStepperEnabled } from "../controls/steppers.js";
 
-const GREYED = "Grey.png";
-
-/** Turn one army-type column's art and text lit or grey. */
+/**
+ * Turn one army-type column live or inert.
+ *
+ * Phase 7.11. This used to swap three image sources between `plusButton.png` and
+ * `plusButtonGrey.png` and then write `style.color = "white"` / `"grey"` onto the
+ * two text boxes -- two literal colours in a themed UI, applied inline so the
+ * stylesheet could never win them back. `setCellEnabled()` puts one class on the
+ * cell and the stylesheet does the rest.
+ */
 function setColumnEnabled(column, enabled) {
-    const parts = [
-        column.querySelector(sel.multipleIncrementCycler),
-        column.querySelector(sel.minusButton),
-        column.querySelector(sel.plusButton)
-    ];
-    parts.forEach(part => {
-        if (enabled && part.src.includes(GREYED)) {
-            part.src = part.src.replace(GREYED, ".png");
-        } else if (!enabled && !part.src.includes(GREYED)) {
-            part.src = part.src.replace(".png", GREYED);
-        }
-    });
-
-    const colour = enabled ? "white" : "grey";
-    column.querySelector(sel.quantityTextBox).style.color = colour;
-    column.querySelector(sel.multipleTextBox).style.color = colour;
+    setCellEnabled(column, enabled);
 }
 
 /** Reset one column's spinner to nothing allocated, at the "All" step. */
@@ -157,7 +149,7 @@ export function renderTransferTable(table, deps) {
                 }
 
                 if (parseInt(quantityTextBox.value) === ceiling) {
-                    plusButton.src = "resources/plusButtonGrey.png";
+                    setStepperEnabled(plusButton, false);
                 }
 
                 commit();
@@ -193,7 +185,7 @@ export function renderTransferTable(table, deps) {
                 showMultiple(multipleTextBox, reduced);
 
                 if (parseInt(quantityTextBox.value) < maxAllocatable(sourceTerritory, slot, false, 0)) {
-                    plusButton.src = "resources/plusButton.png";
+                    setStepperEnabled(plusButton, true);
                 }
 
                 commit();
@@ -217,7 +209,10 @@ export function renderTransferTable(table, deps) {
     /** Make one row the destination, and light up what can be sent to it. */
     function selectDestination(row, nameColumn, destination) {
         const title = document.getElementById(ids.territoryTextString);
-        title.style.color = "white";
+        //Phase 7.11. `style.color = "white"` stood here -- a literal that beat the
+        //stylesheet on specificity in all six themes. The class says "a destination
+        //has been chosen" and `style.css` decides what that looks like.
+        title.classList.add("attackWhiteDefault");
         title.style.fontWeight = "normal";
         title.innerHTML = nameColumn.innerHTML;
 

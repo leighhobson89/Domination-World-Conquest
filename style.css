@@ -34,6 +34,7 @@
   --accent-strong: #a9dcf6;
   --positive: #3fa757;
   --negative: #d0463b;
+  --siege-amber: #e0b33c;
 
   /* Line and shape */
   --border-color: rgba(127, 196, 232, 0.3);
@@ -46,6 +47,7 @@
   --shadow-panel: 0 22px 60px rgba(0, 0, 0, 0.55);
   --shadow-text: 0 2px 10px rgba(0, 0, 0, 0.45);
   --panel-blur: 6px;
+  --glow: rgba(127, 196, 232, 0.55);
 
   /* Type */
   --font-display: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -251,21 +253,116 @@ td {
    ========================================================================= */
 .popup-with-confirm-container {
   width: 15%;
-  height: 40%;
   position: fixed;
   bottom: 8%;
   left: 10px;
   display: none;
   flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  justify-content: flex-end;
+  gap: 4px;
   padding: 10px;
   background: var(--surface-panel);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius);
   box-shadow: var(--shadow-panel);
   font-family: var(--font-body);
-  z-index: 9999;
+  /* Below every draggable window (9100+) and above the map chrome. The bar is
+     furniture the player reads THROUGH -- a territory panel or an activity feed
+     must be able to sit over it, and at 9999 nothing ever could. */
+  z-index: 9050;
+}
+
+/* The height comes from the content, and that is what makes the collapse work.
+   The container is anchored by its BOTTOM edge, so folding the middle away
+   shortens it upwards and the advance button -- the one control the player
+   reaches for every single turn -- does not move by a pixel. It was `height: 40%`
+   with `justify-content: center`, which is where the empty row under the button
+   came from: four items centred in a box a third taller than they needed. */
+.popup-with-confirm-container {
+  height: auto;
+  max-height: 46vh;
+}
+
+/* The collapse control lives in a row of its own so that it survives the fold --
+   it is what expands the bar again. */
+.phase-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 20px;
+  margin-bottom: 2px;
+}
+
+.phase-bar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: color 0.18s ease, border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.phase-bar-collapse:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background-color: var(--surface-control);
+}
+
+.phase-bar-collapse:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The chevron points DOWN when the bar is open, because down is the direction the
+   content will travel, and UP when it is folded. Rotating one icon rather than
+   swapping two keeps the animation continuous with the slide. */
+.phase-bar-collapse .chrome-icon {
+  width: 14px;
+  height: 14px;
+  transform: rotate(90deg);
+  transition: transform 0.28s ease;
+}
+
+.popup-with-confirm-container.is-collapsed .phase-bar-collapse .chrome-icon {
+  transform: rotate(-90deg);
+}
+
+/* The two rows that fold: the colour picker's label and the flag/country
+   subtitle. Both are about the COUNTRY; the phase title and the button are the
+   turn loop and never fold.
+
+   `max-height` and not `height`, because the rows size themselves and there is no
+   number to animate to. The ceiling has to be comfortably larger than the pair
+   ever is -- too small clips them while open -- and comfortably smaller than
+   enormous, or the opening half of the transition is mostly empty space. */
+.phase-bar-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.22s ease, margin-bottom 0.28s ease;
+}
+
+.popup-with-confirm-container.is-collapsed .phase-bar-collapsible {
+  max-height: 0;
+  opacity: 0;
+  /* The flex gap would otherwise leave a 4px hole where the rows used to be. */
+  margin-bottom: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-bar-collapsible,
+  .phase-bar-collapse .chrome-icon {
+    transition: none;
+  }
 }
 
 .popup-option {
@@ -281,7 +378,7 @@ td {
 
 .popup-option-confirm {
   width: 100%;
-  margin-top: 12px !important;
+  margin-top: 6px !important;
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: var(--display-weight);
@@ -370,7 +467,16 @@ td {
    over it -- it used to be a 1px black text stroke, which is a different
    solution to the same problem and looked like a sticker in every light theme. */
 .popup-option-subtitle {
-  height: 40%;
+  /* A real height, and it has to be one. This was `height: 40%` -- forty per cent
+     of a bar that was itself `height: 40%` of the viewport. Phase 7.4 made the bar
+     size itself from its content so that collapsing it could leave the advance
+     button where it was, and a percentage height against an `auto` parent resolves
+     to `auto`: the row shrank to its (empty) text and the player's flag became a
+     four-pixel stripe. `vh` keeps it proportional to the screen the way the old
+     percentage did, with a floor for short windows. */
+  height: 13.2vh;
+  min-height: 92px;
+  flex: 0 0 auto;
   display: flex;
   border-top: none;
   border-bottom-left-radius: var(--radius-sm);
@@ -587,9 +693,9 @@ td {
   background-color: var(--surface-control);
   border: 3px solid var(--border-color);
   border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-panel);
   flex-direction: column;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
@@ -691,7 +797,7 @@ td {
   display: flex;
   width: 100%;
   height: 100%;
-  color: yellow;
+  color: var(--accent);
   font-size: 82px;
   font-weight: bolder;
   text-align: left;
@@ -746,7 +852,7 @@ td {
   width: 50%;
   height: 100%;
   cursor: pointer;
-  background-color: rgb(165, 0, 0);
+  background-color: var(--negative);
   transition: all 0.3s ease;
   justify-content: center;
   align-items: center;
@@ -757,7 +863,8 @@ td {
 
 .aiButtonLeft:hover {
   cursor: pointer;
-  background-color: rgb(105, 0, 0);
+  background-color: var(--negative);
+  filter: brightness(0.8);
   transition: all 0.3s ease;
 }
 
@@ -766,7 +873,7 @@ td {
   width: 50%;
   height: 100%;
   cursor: pointer;
-  background-color: green;
+  background-color: var(--positive);
   transition: all 0.3s ease;
   justify-content: center;
   align-items: center;
@@ -777,7 +884,8 @@ td {
 
 .aiButtonRight:hover {
   cursor: pointer;
-  background-color: rgb(0, 85, 0);
+  background-color: var(--positive);
+  filter: brightness(1.2);
   transition: all 0.3s ease;
 }
 
@@ -786,7 +894,7 @@ td {
   width: 100%;
   height: 100%;
   cursor: pointer;
-  background-color: green;
+  background-color: var(--positive);
   transition: all 0.3s ease;
   justify-content: center;
   align-items: center;
@@ -797,13 +905,34 @@ td {
 
 .aiButtonAllRow:hover {
   cursor: pointer;
-  background-color: rgb(0, 85, 0);
+  background-color: var(--positive);
+  filter: brightness(1.2);
   transition: all 0.3s ease;
 }
 
 
 /* -------------------------------------------- MAIN UI --------------------------------------------- */
 
+/* ============================================================================
+   TERRITORY INFO PANEL (Phase 7.11)
+   ----------------------------------------------------------------------------
+   The panel behind the globe button: four tabs, a start-of-turn toggle, a close
+   button and one of four tables.
+
+   What this replaces is worth recording, because it is the same three faults in
+   every window the phase touched. The panel was a 3px slab with a 7px radius and
+   `font-family: Arial` written past the token; the tab strip was four buttons at
+   `width: 50%` -- 200% in total, held back only by flex -- coloured from two
+   `rgb()` literals written INLINE by `InfoTable.js` on click, mouseover and
+   mouseout, so no theme reached them and the selected tab's appearance was
+   computed in two places; and the close button and the start-of-turn toggle were
+   two sizes of the same idea with two rules apiece.
+
+   Now: a `--surface-panel` card with the panel radius and shadow, a header bar
+   with the tab strip as a segmented control, and one shared `.panel-icon-button`
+   for the two square controls at either end of it. The active tab is the
+   `active` class and nothing else.
+   ========================================================================= */
 #main-ui-container {
   display: none;
   position: fixed;
@@ -815,50 +944,124 @@ td {
      a window and the map behind it was invisible. */
   width: 85.5%;
   height: 80vh;
-  background-color: var(--surface-control);
-  border: 3px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
   flex-direction: column;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
+/* The header bar. `space-between` is what puts the start-of-turn toggle at one
+   end and the close button at the other with the tabs filling the middle -- the
+   three used to be siblings in a row that merely happened to add up. */
 .tab-buttons {
   display: flex;
-  justify-content: space-between;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
+/* One tab. A segment of a control, not a button in its own right, which is why
+   it has no shadow and why only the active one carries the accent. */
 .tab-button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
-  padding: 5px 10px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: var(--text-primary);
-  border: 3px solid var(--border-color);
-  transition: all 0.3s ease;
+  color: var(--text-muted);
   background-color: var(--surface-control);
-  width: 50%;
-  margin-left: 2px;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-sm);
+  transition: color 0.18s ease, background-color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.x-button {
-  cursor: pointer;
-  padding: 5px;
-  font-size: 0.9rem;
-  font-weight: bold;
+.tab-button:hover {
   color: var(--text-primary);
-  border: 3px solid var(--border-color);
-  transition: all 0.3s ease;
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-color);
+}
+
+.tab-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The selected tab is the only element in the strip that takes the accent, and
+   it takes it as a border and a halo rather than as a fill -- a filled accent
+   here competes with the buy and upgrade buttons two rows below, which are the
+   things in this panel that should be pulling the eye. */
+.tab-button.active {
+  color: var(--text-primary);
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--glow), 0 4px 14px -6px var(--glow);
+}
+
+/* --------------------------------------------------------------------------
+   The two square controls that bracket the tab strip, and the two that close
+   the resource windows. One design: same box, same tokens, different glyph.
+   `.x-button` / `.x-button-buy` / `.checkBox-appear-start-of-turn` are three
+   ids' worth of history and are kept as selectors because `registry.js` and the
+   page objects address them; what they no longer are is three designs.
+   ----------------------------------------------------------------------- */
+.x-button,
+.x-button-buy,
+.checkBox-appear-start-of-turn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
   background-color: var(--surface-control);
-  height: 35px;
-  width: 28px;
-  margin-right: 7px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: color 0.18s ease, background-color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.x-button:hover,
+.x-button-buy:hover,
+.checkBox-appear-start-of-turn:hover {
+  color: var(--text-primary);
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 12px -2px var(--glow);
+}
+
+.x-button:focus-visible,
+.x-button-buy:focus-visible,
+.checkBox-appear-start-of-turn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.checkBox-appear-start-of-turn .chrome-icon {
+  width: 19px;
+  height: 19px;
 }
 
 /* "Open this panel again at the start of every turn."
@@ -869,65 +1072,10 @@ td {
    a panel with a repeat arrow round it, which is what the option actually means
    -- always drawn, dimmed when the option is off and in the accent when it is
    on. The tooltip that explains it is unchanged. */
-.checkBox-appear-start-of-turn {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px;
-  color: var(--text-muted);
-  border: 3px solid var(--border-color);
-  transition: all 0.3s ease;
-  background-color: var(--surface-control);
-  height: 35px;
-  width: 46px;
-  margin-left: 7px;
-}
-
-.checkBox-appear-start-of-turn .chrome-icon {
-  width: 20px;
-  height: 20px;
-}
-
 .checkBox-appear-start-of-turn.is-on {
   color: var(--accent);
   border-color: var(--border-strong);
   background-color: var(--surface-control-hover);
-}
-
-.x-button-buy {
-  cursor: pointer;
-  padding: 5px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: var(--text-primary);
-  border: 3px solid var(--border-color);
-  transition: all 0.3s ease;
-  background-color: var(--surface-control);
-  margin-right: 7px;
-}
-
-.tab-button:hover {
-  background-color: var(--surface-control-hover);
-}
-
-.x-button:hover {
-  background-color: var(--surface-control-hover);
-}
-
-.checkBox-appear-start-of-turn:hover {
-  background-color: var(--surface-control-hover);
-}
-
-.x-button-buy:hover {
-  background-color: var(--surface-control-hover);
-}
-
-
-.tab-button.active {
-  color: var(--text-primary);
-  background-color: var(--surface-control-hover);
-  border: 3px solid var(--border-color);
 }
 
 .content-window {
@@ -958,7 +1106,7 @@ td {
   height: 100%;
   opacity: 0.1;
   z-index: -1;
-  background: rgba(0, 0, 0, 0.5) no-repeat center;
+  background: var(--surface-panel) no-repeat center;
 }
 
 .info-panel>* {
@@ -976,8 +1124,18 @@ td {
   /* adjust the amount of blur */
 }
 
-/* -------------------------------------------- TERRITORY TABLE--------------------------------------------- */
+/* ============================================================================
+   TERRITORY TABLE (Phase 7.11)
+   ----------------------------------------------------------------------------
+   The body of the info panel: the four tabs all render into this one table.
 
+   Every row used to be `border: white 1px solid` on three or four sides, spelled
+   out separately for the first row, the last row, the hoverable variant and the
+   siege and war variants -- nine near-identical blocks whose only job was to
+   avoid doubling the hairline between two rows. A hairline in ONE direction plus
+   a border on the container does that in two rules, and `--border-color` means
+   the light themes stop drawing white on cream.
+   ========================================================================= */
 #uiTable {
   display: none;
 }
@@ -989,117 +1147,56 @@ td {
   table-layout: fixed;
 }
 
+/* Every row shape shares this. The variants below add only what differs. */
+.ui-table-row,
+.ui-table-row-hoverable,
+.ui-table-row-siege,
+.ui-table-row-war {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  background-color: var(--surface-raised);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* The outer frame. Put on the row group rather than repeated on every row, which
+   is what the four `:first-child` / `:last-child` blocks were doing by hand. */
 .ui-table-row:first-child,
-.ui-table-row:nth-child(4),
-.ui-table-row:nth-child(7) {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--surface-raised);
-  border-top: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
+.ui-table-row-hoverable:first-child,
+.ui-table-row-siege:first-child,
+.ui-empty-row + .ui-table-row-war {
+  border-top: 1px solid var(--border-color);
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
 }
 
-.ui-table-row {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--surface-raised);
-  border-bottom: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
+.ui-table-row:last-child,
+.ui-table-row-hoverable:last-child,
+.ui-table-row-siege:last-child,
+.ui-table-row-war:last-child {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
 }
 
+.ui-table-row-siege,
+.ui-table-row-war {
+  align-items: center;
+  height: 40px;
+  justify-content: center;
+}
+
+/* The gap between the territory table and the wars table under it. */
 .ui-empty-row {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  background-color: var(--surface-raised);
+  background-color: transparent;
   height: 10px;
-}
-
-.ui-table-row-hoverable:first-child {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--surface-raised);
-  border-top: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-}
-
-.ui-table-row-hoverable {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--surface-raised);
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-}
-
-.ui-table-row-hoverable:last-child {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--surface-raised);
-  border-bottom: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-}
-
-.ui-table-row-siege {
-  width: 100%;
-  display: flex;
-  background-color: var(--surface-raised);
-  border-bottom: white 1px solid;
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-  align-items: center;
-  height: 40px;
-  justify-content: center;
-}
-
-
-
-.ui-empty-row+.ui-table-row-war {
-  /* this selects the first row of the historic wars table */
-  width: 100%;
-  display: flex;
-  background-color: var(--surface-raised);
-  border: 1px white solid;
-  align-items: center;
-  height: 40px;
-  justify-content: center;
-}
-
-.ui-table-row-war {
-  width: 100%;
-  display: flex;
-  background-color: var(--surface-raised);
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-  align-items: center;
-  height: 40px;
-  justify-content: center;
-}
-
-.ui-table-row-war:last-child {
-  width: 100%;
-  display: flex;
-  background-color: var(--surface-raised);
-  border-left: white 1px solid;
-  border-right: white 1px solid;
-  border-bottom: white 1px solid;
-  align-items: center;
-  height: 40px;
-  justify-content: center;
 }
 
 .ui-table-row-hoverable:hover {
   cursor: pointer;
   background-color: var(--surface-control);
-  transition: all 0.3s ease;
 }
 
 .ui-table-column {
@@ -1121,10 +1218,6 @@ td {
   font-size: 0.90rem;
 }
 
-.ui-table-column:first-child {
-  color: var(--text-primary);
-}
-
 ::-webkit-scrollbar {
   width: 8px;
   background-color: var(--surface-raised);
@@ -1132,30 +1225,11 @@ td {
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--surface-control);
+  border-radius: 999px;
 }
 
-.upgrade-button {
-  cursor: pointer;
-}
-
-.buy-button {
-  cursor: pointer;
-}
-
-.upgrade-button:hover {
-  filter: brightness(120%);
-}
-
-.buy-button:hover {
-  filter: brightness(120%);
-}
-
-.sizeUpgradeButton {
-  width: 90%;
-}
-
-.sizeBuyButton {
-  width: 90%;
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--surface-control-hover);
 }
 
 .centerIcons {
@@ -1164,108 +1238,181 @@ td {
   display: flex;
 }
 
-/*------------------------------------------------UPGRADE WINDOW---------------------------------------------------*/
+/* ============================================================================
+   RESOURCE WINDOWS -- UPGRADE TERRITORY AND BUY MILITARY (Phase 7.11)
+   ----------------------------------------------------------------------------
+   `src/ui/components/ResourceWindow.js` has built these two out of ONE builder
+   since Phase 6.3 -- `UpgradeWindow.js` and `BuyWindow.js` are specs, not DOM.
+   The stylesheet had not caught up: 300 lines described the upgrade window and
+   then 300 near-identical lines described the buy window, with `.key-bar-column3`
+   and `.key-bar-buy-column3` differing by nothing at all. Editing one and
+   forgetting the other is how the two drifted to different row heights.
 
-#upgrade-container {
+   Both class families are kept -- they are in `registry.js` and the page objects
+   address them -- but they are declared TOGETHER, so a change lands on both
+   windows or on neither. Where the two genuinely differ (the buy row carries a
+   step multiplier and the upgrade row does not, so their fifth columns are
+   different widths) the difference is stated once, on its own, and says why.
+
+   The chrome itself is now the same card as every other panel in the game: token
+   surface, token radius, the panel shadow, the display font in the title.
+   ========================================================================= */
+
+#upgrade-container,
+#buy-container {
   display: none;
   position: fixed;
   top: 51%;
-  left: 40%;
   transform: translate(-50%, -50%);
-  width: 50%;
-  height: 500px;
-  border: 3px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  font-family: Arial, Helvetica, sans-serif;
+  /* The one number left that has to be right, and it has to be a NUMBER: the
+     builder wraps the whole window in `.blur-background`, which is absolutely
+     positioned, so the container has no in-flow child to take its height from
+     and `height: auto` collapses it to nothing.
+
+     What is gone is the other two. It used to be `height: 500px` over a
+     `366px` content window over a `300px` table -- three fixed heights that had
+     to agree and did not, so the fourth row of four was drawn underneath the
+     bottom bar. The content window and the table size themselves now; this is
+     56px of nav bar, 37 of subtitle, 49 of key bar and 424 of content, with
+     slack. */
+  height: 570px;
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
   color: var(--text-primary);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-.navbar-upgrade-window {
+/* The two sit in different places and are different widths, because the buy
+   window carries an extra control per row. */
+#upgrade-container {
+  left: 40%;
+  width: 50%;
+}
+
+#buy-container {
+  left: 50%;
+  width: 70%;
+}
+
+/* -------------------------------------------------------------- nav bar --- */
+.navbar-upgrade-window,
+.navbar-buy-window {
   display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
+  align-items: center;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
-.navbar-upgrade-window>div {
+.navbar-upgrade-window > div,
+.navbar-buy-window > div {
   flex: 1;
   display: flex;
   align-items: center;
 }
 
-.navbar-upgrade-window>.center-column {
+.navbar-upgrade-window > .center-column,
+.navbar-buy-window > .center-column-buy {
   justify-content: center;
-  font-size: 1.6rem;
   align-items: center;
-  font-weight: bold;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
   white-space: nowrap;
-  letter-spacing: 1px;
 }
 
-.navbar-upgrade-window>.right-column {
+.navbar-upgrade-window > .right-column,
+.navbar-buy-window > .right-column-buy {
   justify-content: flex-end;
-  align-items: flex-start;
+  align-items: center;
 }
 
-.subtitle-upgrade-window {
+/* ------------------------------------------------------------- subtitle --- */
+/* The territory this window is acting on. It was `color: yellow` -- a literal,
+   and the one piece of text in either window that ignored the theme. */
+.subtitle-upgrade-window,
+.subtitle-buy-window {
   display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
-  color: yellow;
   justify-content: center;
   align-items: center;
-  letter-spacing: 1px;
-  font-weight: bolder;
-  border-bottom: solid 2px var(--surface-control-hover);
+  padding: 8px 10px;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background-color: var(--surface-panel);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.key-bar-upgrade-window {
+/* -------------------------------------------------------------- key bar --- */
+/* The column headings. Small, muted and in caps: a header row that shouts as
+   loudly as the data under it is how a table stops being readable at a glance. */
+.key-bar-upgrade-window,
+.key-bar-buy-window {
   width: 100%;
   display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
   background-color: var(--surface-panel);
-  align-items: center;
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
-.key-bar-column0 {
-  width: 70px;
+.key-bar-column0,
+.key-bar-buy-column0 {
+  width: 78px;
   align-items: center;
   text-align: center;
 }
 
-.key-bar-column1 {
+.key-bar-column1,
+.key-bar-buy-column1 {
   width: 12%;
-  padding: 10px;
+  padding: 4px 10px;
   align-items: center;
   text-align: center;
 }
 
-.key-bar-column2 {
+.key-bar-column2,
+.key-bar-buy-column2 {
   width: 30%;
-  padding: 10px;
+  padding: 4px 10px;
   align-items: center;
   text-align: center;
 }
 
-.key-bar-column3 {
-  width: 4%;
-  padding: 10px;
+.key-bar-column3,
+.key-bar-buy-column3 {
+  width: 7%;
+  padding: 4px 10px;
   align-items: center;
   text-align: center;
 }
 
-.key-bar-column4 {
-  width: 12%;
-  padding: 10px;
+.key-bar-column4,
+.key-bar-buy-column4 {
+  width: 8%;
+  padding: 4px 10px;
+  display: flex;
   align-items: center;
-  text-align: center;
   justify-content: center;
+  text-align: center;
 }
 
+/* The last key-bar cell sits over the spinner, which is wider in the buy window
+   because of the step multiplier. This is a real difference, not a drift. */
 .key-bar-column5 {
   display: flex;
   width: 15%;
@@ -1274,319 +1421,37 @@ td {
   text-align: center;
 }
 
-.content-window-upgrade {
-  height: 370px;
-  display: flex;
-  flex-grow: 1;
-  overflow: auto;
-  box-sizing: border-box;
-}
-
-.info-panel-upgrade {
-  position: relative;
-  flex-basis: 100%;
-  overflow-y: auto;
-}
-
-.info-panel-upgrade::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.1;
-  z-index: -1;
-  background: var(--surface-panel) no-repeat center / 100% 100%;
-}
-
-.info-panel-upgrade>* {
-  position: relative;
-  z-index: 1;
-}
-
-.upgrade-table {
-  height: 300px;
-  /* Adjust the height as needed */
-  display: flex;
-  flex-direction: column;
-}
-
-.upgrade-row {
-  height: 23%;
-  display: flex;
-  align-items: center;
-  padding: 2px;
-  /* border-bottom: 2px solid var(--border-strong); */
-  border-top: 2px solid var(--border-strong);
-  background-color: var(--surface-panel);
-}
-
-.upgrade-row img {
-  width: 69px;
-}
-
-.upgrade-column:first-child {
-  padding: 0;
-  width: 65px;
-}
-
-.upgrade-column:nth-child(2) {
-  width: 12%;
-  text-align: center;
-}
-
-.upgrade-column:nth-child(3) {
-  width: 30%;
-  text-align: center;
-}
-
-.upgrade-column:nth-child(4) {
-  width: 7%;
-}
-
-.upgrade-column:nth-child(5) {
-  width: 8%;
-}
-
-.upgrade-column:nth-child(6) {
-  display: flex;
-  justify-content: space-between;
-  width: 60px;
-}
-
-.upgrade-column {
-  padding: 10px;
-}
-
-.column5A {
-  width: 20px;
-  padding: 0;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.column5-wrapper {
-  display: flex;
-  align-items: center;
-  width: 25px;
-}
-
-.column5B {
-  padding: 0;
-  align-items: center;
-  display: flex;
-  width: 15px;
-}
-
-.column5B input[type="text"] {
-  width: 41px;
-  height: 20px;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  background-color: var(--surface-panel);
-  margin-left: 2px;
-  margin-right: 2px;
-  pointer-events: none;
-  text-align: center;
-}
-
-.column5C {
-  padding: 0;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  width: 20px;
-}
-
-.bottom-bar-upgrade-window {
-  border-top: 2px solid var(--border-strong);
-  width: 100%;
-  display: flex;
-  background-color: var(--surface-panel);
-  align-items: center;
-}
-
-.bottom-bar-confirm-button {
-  color: var(--text-primary);
-  font-weight: bold;
-  font-size: 1.5rem;
-  width: 60%;
-  height: 68px;
-  display: flex;
-  background-color: var(--surface-panel);
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  border: none;
-}
-
-.bottom-bar-confirm-button:hover {
-  background-color: var(--surface-control);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.prices-info-window {
-  display: flex;
-  width: 40%;
-  height: 68px;
-  background-color: var(--surface-panel);
-  flex: 1;
-}
-
-.prices-info-column {
-  color: var(--text-primary);
-  font-weight: bold;
-  font-size: 1.0rem;
-  width: 20%;
-  height: 68px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.prices-info-col0-padding {
-  padding-left: 5px;
-}
-
-.prices-info-icon-justification {
-  justify-content: flex-end;
-  padding-right: 5px;
-}
-
-.prices-info-total-justification {
-  justify-content: flex-start;
-  padding-left: 5px;
-}
-
-/*------------------------------------------------BUY WINDOW---------------------------------------------------*/
-
-#buy-container {
-  display: none;
-  position: fixed;
-  top: 51%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70%;
-  height: 500px;
-  border: 3px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  font-family: Arial, Helvetica, sans-serif;
-  color: var(--text-primary);
-  box-sizing: border-box;
-}
-
-.navbar-buy-window {
-  display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
-}
-
-.navbar-buy-window>div {
-  flex: 1;
-  display: flex;
-  align-items: center;
-}
-
-.navbar-buy-window>.center-column-buy {
-  justify-content: center;
-  font-size: 1.6rem;
-  align-items: center;
-  font-weight: bold;
-  white-space: nowrap;
-  letter-spacing: 1px;
-}
-
-.navbar-buy-window>.right-column-buy {
-  justify-content: flex-end;
-  align-items: flex-start;
-}
-
-.subtitle-buy-window {
-  display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
-  color: yellow;
-  justify-content: center;
-  align-items: center;
-  letter-spacing: 1px;
-  font-weight: bolder;
-  border-bottom: solid 2px var(--surface-control-hover);
-}
-
-.key-bar-buy-window {
-  width: 100%;
-  display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  background-color: var(--surface-panel);
-  align-items: center;
-}
-
-.key-bar-buy-column0 {
-  width: 70px;
-  align-items: center;
-  text-align: center;
-}
-
-.key-bar-buy-column1 {
-  width: 12%;
-  padding: 10px;
-  align-items: center;
-  text-align: center;
-}
-
-.key-bar-buy-column2 {
-  width: 30%;
-  padding-right: 44px;
-  align-items: center;
-  text-align: center;
-}
-
-.key-bar-buy-column3 {
-  width: 4%;
-  padding-right: 17px;
-  align-items: center;
-  text-align: center;
-}
-
-.key-bar-buy-column4 {
-  width: 12%;
-  padding-right: 74px;
-  align-items: center;
-  text-align: center;
-  justify-content: center;
-}
-
 .key-bar-buy-column5 {
   display: flex;
-  width: 15%;
+  width: 22%;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 
+/* -------------------------------------------------------------- content --- */
+.content-window-upgrade,
 .content-window-buy {
-  height: 370px;
+  height: auto;
   display: flex;
   flex-grow: 1;
   overflow: auto;
   box-sizing: border-box;
+  padding: 10px 12px 0;
 }
 
+.info-panel-upgrade,
 .info-panel-buy {
   position: relative;
   flex-basis: 100%;
   overflow-y: auto;
 }
 
+/* `info-panel-upgrade::before` and `info-panel-buy::before` are CLASS names that
+   happen to contain two colons -- they are elements the builder inserts, not
+   pseudo-elements. Renaming them is Phase 6.8's job; what they do is hold the
+   wash behind the rows. */
+.info-panel-upgrade::before,
 .info-panel-buy::before {
   content: "";
   position: fixed;
@@ -1599,175 +1464,284 @@ td {
   background: var(--surface-panel) no-repeat center / 100% 100%;
 }
 
-.info-panel-buy>* {
+.info-panel-upgrade > *,
+.info-panel-buy > * {
   position: relative;
   z-index: 1;
 }
 
+/* ----------------------------------------------------------------- rows --- */
+.upgrade-table,
 .buy-table {
-  height: 300px;
-  /* Adjust the height as needed */
+  /* Height comes from the rows, not the other way round. It was `height: 300px`
+     over four `flex: 1` rows, which cannot shrink below their content -- the
+     artwork is 66px and the padding 8 -- so the fourth row overflowed and the
+     bottom bar sat on top of it. */
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
+/* A card per row rather than a stack separated by a 2px rule. The rows are four
+   independent purchases and the old shared top-border made them read as one
+   block; a gap and a radius say "these are four things". */
+.upgrade-row,
 .buy-row {
-  height: 23%;
+  flex: 0 0 auto;
+  min-height: 68px;
   display: flex;
   align-items: center;
-  padding: 2px;
-  /* border-bottom: 2px solid var(--border-strong); */
-  border-top: 2px solid var(--border-strong);
-  background-color: var(--surface-panel);
+  padding: 4px 6px;
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.18s ease, background-color 0.18s ease;
 }
 
+.upgrade-row:hover,
+.buy-row:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface-control);
+}
+
+/* The artwork column. These stay PNGs on purpose -- the farm, forest, oil well,
+   fort and the four unit types are illustrations, not icons, and their greyed
+   twins are still what says "you cannot build this". */
+.upgrade-row img,
 .buy-row img {
-  width: 69px;
+  width: 58px;
 }
 
-.buy-column {
-  text-align: center;
- }
-
+.upgrade-column:first-child,
 .buy-column:first-child {
   padding: 0;
-  width: 70px;
+  width: 62px;
+  display: flex;
+  justify-content: center;
 }
 
+.upgrade-column:nth-child(2),
 .buy-column:nth-child(2) {
   width: 12%;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
 }
 
+.upgrade-column:nth-child(3),
 .buy-column:nth-child(3) {
   width: 30%;
+  text-align: center;
+  color: var(--text-muted);
 }
 
+.upgrade-column:nth-child(4),
 .buy-column:nth-child(4) {
   width: 7%;
+  justify-content: center;
 }
 
+.upgrade-column:nth-child(5),
 .buy-column:nth-child(5) {
   width: 8%;
+  justify-content: center;
+}
+
+.upgrade-column,
+.buy-column {
+  padding: 6px 8px;
+}
+
+/* The spinner. Wider on the buy side, which has a step multiplier in front of
+   the minus button. */
+.upgrade-column:nth-child(6) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 15%;
 }
 
 .buy-column:nth-child(6) {
   display: flex;
-  justify-content: space-between;
-  width: 185px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 22%;
 }
 
-.buy-column {
-  padding: 10px;
+.column5A,
+.buyColumn5A,
+.column5C,
+.buyColumn5C {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
+.column5-wrapper,
 .buyColumn5-wrapper {
   display: flex;
   align-items: center;
-  width: 65px;
+  gap: 6px;
 }
 
 .buyColumn5Multiplier {
   display: flex;
   align-items: center;
-  margin-right: 12px;
+  gap: 4px;
+  padding: 0;
+  flex: 0 0 auto;
 }
 
 .buyColumn5Multiplier .buy-column {
-  margin-left: 5px;
+  padding: 0;
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 
-.buyColumn5A {
-  width: 20px;
+.column5B,
+.buyColumn5B {
   padding: 0;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  margin-right: -10px;
+  flex: 0 0 auto;
 }
 
+/* The quantity box is a readout, not an input -- `pointer-events: none` has
+   always been on it, because nothing in the game reads a typed value. */
+.column5B input[type="text"],
 .buyColumn5B input[type="text"] {
-  width: 27px;
-  height: 20px;
-  border: none;
+  width: 52px;
+  height: 24px;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  background-color: rgba(54, 93, 125, 0);
-  margin-left: 2px;
-  margin-right: -7px;
+  background-color: var(--surface-panel);
   pointer-events: none;
   text-align: center;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
 }
 
-.buyColumn5C {
-  display: flex;
-  margin-left: 9px;
-}
-
+/* ----------------------------------------------------------- bottom bar --- */
+.bottom-bar-upgrade-window,
 .bottom-bar-buy-window {
-  border-top: 2px solid var(--border-strong);
   width: 100%;
   display: flex;
-  background-color: var(--surface-panel);
   align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-top: var(--border-width) solid var(--border-color);
 }
 
-.bottom-bar-buy-confirm-button {
-  color: var(--text-primary);
-  font-weight: bold;
-  font-size: 1.5rem;
-  width: 60%;
-  height: 68px;
-  display: flex;
-  background-color: var(--surface-panel);
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  border: none;
-}
-
-.bottom-bar-buy-confirm-button:hover {
-  background-color: var(--surface-control);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
+.prices-info-window,
 .prices-buy-info-window {
   display: flex;
+  align-items: center;
   width: 40%;
-  height: 68px;
-  background-color: var(--surface-panel);
+  height: 56px;
   flex: 1;
+  background-color: transparent;
 }
 
+.prices-info-column,
 .prices-buy-info-column {
   color: var(--text-primary);
-  font-weight: bold;
-  font-size: 1.0rem;
+  font-weight: var(--display-weight);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
   width: 20%;
-  height: 68px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 
-.prices-buy-info-column:last-child {
-  border-right: 2px solid var(--border-strong);
-  padding-right: 10px;
-}
-
+.prices-info-col0-padding,
 .prices-buy-info-col0-padding {
   padding-left: 5px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
+.prices-info-icon-justification,
 .prices-buy-info-icon-justification {
   justify-content: flex-end;
   padding-right: 5px;
 }
 
+.prices-info-total-justification,
 .prices-buy-info-total-justification {
   justify-content: flex-start;
   padding-left: 5px;
+}
+
+/* The confirm button. It reads "Cancel" until something is allocated and
+   "Confirm" after, and the difference used to be an inline `backgroundColor`
+   written from ten places in `resourceCalculations.js`, each of which also added
+   a fresh pair of mouseover / mouseout listeners. `is-armed` is the whole state
+   now -- see `setConfirmArmed()` -- and what "armed" looks like is here. */
+.bottom-bar-confirm-button,
+.bottom-bar-buy-confirm-button {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  font-size: 1.35rem;
+  width: 42%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background-color: var(--surface-control);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease, transform 0.08s ease;
+}
+
+.bottom-bar-confirm-button:hover,
+.bottom-bar-buy-confirm-button:hover {
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 18px -4px var(--glow);
+}
+
+.bottom-bar-confirm-button:focus-visible,
+.bottom-bar-buy-confirm-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bottom-bar-confirm-button:active,
+.bottom-bar-buy-confirm-button:active {
+  transform: translateY(1px);
+}
+
+.bottom-bar-confirm-button.is-armed,
+.bottom-bar-buy-confirm-button.is-armed {
+  color: var(--text-on-accent);
+  background-color: var(--positive);
+  border-color: var(--positive);
+  box-shadow: 0 0 22px -6px var(--positive);
+}
+
+.bottom-bar-confirm-button.is-armed:hover,
+.bottom-bar-buy-confirm-button.is-armed:hover {
+  background-color: var(--positive);
+  filter: brightness(1.18);
+  box-shadow: 0 0 26px -4px var(--positive);
 }
 
 /*-------------------------------------------- TRANSFER / ATTACK WINDOW -------------------------------------- */
@@ -1783,14 +1757,15 @@ td {
   width: 80%;
   height: 60vh;
   background-color: var(--surface-panel);
-  border: 3px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
   flex-direction: column;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .title-transfer-attack-window {
@@ -1802,12 +1777,12 @@ td {
   align-items: center;
   padding-left: 10px;
   padding-bottom: 10px;
-  background-color: rgba(54, 93, 125, 0.5);
+  background-color: var(--surface-panel);
   font-size: 1.4rem;
   text-align: center;
   height: auto;
   top: 0;
-  border-top: 1px solid white;
+  border-top: 1px solid var(--border-color);
 }
 
 .color-bar-attack-underlay-red {
@@ -1819,7 +1794,7 @@ td {
   align-items: center;
   padding-left: 10px;
   padding-bottom: 10px;
-  background-color: red;
+  background-color: var(--negative);
   font-size: 1.4rem;
   text-align: center;
   height: auto;
@@ -1835,7 +1810,7 @@ td {
   align-items: center;
   padding-left: 10px;
   padding-bottom: 10px;
-  background-color: green;
+  background-color: var(--positive);
   font-size: 1.4rem;
   text-align: center;
   height: auto;
@@ -1865,8 +1840,11 @@ td {
   justify-content: left;
   text-align: left;
   width: 1%;
-  font-weight: bold;
-  color: yellow;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
 }
 
 .fromHeading {
@@ -1900,29 +1878,43 @@ td {
 .x-button-transfer-attack {
   display: flex;
   cursor: pointer;
+  font-family: var(--font-display);
   font-size: 0.9rem;
-  font-weight: bold;
-  border: 3px solid var(--border-color);
-  transition-property: background-color;
-  transition-duration: 0.3s;
-  transition-timing-function: ease;
+  font-weight: var(--display-weight);
+  line-height: 1;
+  color: var(--text-muted);
   background-color: var(--surface-control);
-  height: 20px !important;
-  width: 13px !important;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  height: 28px !important;
+  width: 28px !important;
   align-items: center;
   justify-content: center;
   text-align: center;
   margin-top: -4px;
-  padding: 5px;
+  padding: 0;
+  transition: color 0.18s ease, background-color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .x-button-transfer-attack:hover {
+  color: var(--text-primary);
   background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 12px -2px var(--glow);
+}
+
+.x-button-transfer-attack:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .percentage-attack {
   display: flex;
-  font-weight: bold;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
   background-color: var(--surface-control);
   height: 30px;
   width: 60px !important;
@@ -1930,7 +1922,8 @@ td {
   justify-content: center;
   text-align: center;
   padding: 5px;
-  border: 3px solid var(--border-color);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
   top: 10px;
 }
 
@@ -1940,8 +1933,8 @@ td {
   width: calc(100% - 3px);
   padding-bottom: 10px;
   padding-top: 10px;
-  border-bottom: 1px white solid;
-  border-top: 1px white solid;
+  border-bottom: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
   background-color: var(--surface-raised);
 }
 
@@ -1951,7 +1944,7 @@ td {
   width: 28%;
   align-items: center;
   text-align: left;
-  color: yellow;
+  color: var(--accent);
 }
 
 .content-transfer-header-column:last-child {
@@ -1977,7 +1970,7 @@ td {
   overflow-y: auto;
   overflow-x: hidden;
   margin-top: 150px;
-  border-bottom: 1px white solid;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .transfer-table-container {
@@ -2019,7 +2012,7 @@ td {
 }
 
 .transfer-table-row-hoverable>.transfer-table-outer-column:first-of-type:hover {
-  background-color: rgba(75, 111, 140, 0.7);
+  background-color: var(--surface-control);
 }
 
 .transfer-table-row-hoverable>.transfer-table-outer-column:first-of-type {
@@ -2031,27 +2024,34 @@ td {
   width: 25%;
   height: 40px;
   display: flex;
-  border-left: solid 1px var(--surface-control-hover);
+  border-left: solid 1px var(--border-color);
 }
 
 .army-type-column:last-child {
-  border-right: solid 1px var(--surface-control-hover);
+  border-right: solid 1px var(--border-color);
 }
 
+/* An inert cell -- no destination chosen yet, or this unit type cannot go where
+   the player picked. The two text boxes used to be dimmed by an INLINE
+   `style.color = "grey"` written from three places, which beat the stylesheet on
+   specificity and put a literal grey into all six themes. One class now. */
+.army-type-column.is-disabled .multipleTextField,
+.army-type-column.is-disabled .quantityTextField,
+.army-type-column.is-disabled .multipleTextField input[type="text"],
+.army-type-column.is-disabled .quantityTextField input[type="text"] {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* The five inner containers of one army-type cell, in order: the step-multiplier
+   cycler, its label, minus, the quantity, plus. Phase 7.11 replaced the three
+   `<img>` controls with `.stepper-button`s, which size themselves -- these rules
+   now only place them. */
 #multipleIncrementCyclerContainer {
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
-  margin-left: 9px;
-}
-
-.multipleIncrementerButton {
-  padding: 0;
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  width: 20px;
-  height: 20px;
+  margin-right: 6px;
+  margin-left: 8px;
 }
 
 #multipleTextFieldContainer {
@@ -2064,19 +2064,22 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  color: grey;
-  background-color: var(--surface-panel);
+  color: var(--text-primary);
+  background-color: transparent;
   pointer-events: none;
   cursor: default;
   border-style: none;
   text-align: left;
+  font-family: var(--font-body);
 }
 
 .multipleTextField input[type="text"] {
   width: 40px;
+  color: inherit;
   border: none;
   border-radius: var(--radius-sm);
-  background-color: var(--surface-panel);
+  background-color: transparent;
+  font-family: inherit;
 }
 
 #quantityMinusContainer {
@@ -2084,17 +2087,6 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  width: 15px;
-  height: 15px;
-}
-
-.transferMinusButton {
-  padding: 0;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  width: 20px;
-  height: 20px;
 }
 
 #quantityTextFieldContainer {
@@ -2108,37 +2100,36 @@ td {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  color: grey;
-  background-color: var(--surface-panel);
+  color: var(--text-primary);
+  background-color: transparent;
   pointer-events: none;
   cursor: default;
   border-style: none;
   text-align: center;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
 }
 
 .quantityTextField input[type="text"] {
   pointer-events: none;
   width: 50px;
-  height: 15px;
-  border: none;
+  height: 22px;
+  color: inherit;
+  background-color: var(--surface-panel);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   margin-left: 2px;
   margin-right: 2px;
+  text-align: center;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 #quantityPlusContainer {
-  width: 15px;
-  margin-left: 5px;
-  margin-right: 9px;
-}
-
-.transferPlusButton {
-  padding: 0;
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  width: 20px;
-  height: 20px;
+  margin-left: 4px;
+  margin-right: 8px;
 }
 
 .attackWhiteDefault {
@@ -2157,11 +2148,11 @@ td {
   width: 90%;
   height: 80vh;
   background-color: var(--surface-panel);
-  border: 3px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
   flex-direction: column;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
@@ -2184,24 +2175,24 @@ td {
   display: flex;
   width: 100%;
   border-bottom: 1px solid var(--border-color);
-  color: yellow;
+  color: var(--accent);
   font-size: 1.8rem;
   font-weight: bold;
 }
 
 .battleUIRow2AttackBg {
-  background-color: rgb(131, 38, 38);
+  background-color: var(--negative);
 }
 
 .battleUIRow2SiegeBg {
-  background-color: rgb(114, 88, 48);
+  background-color: var(--surface-control);
 }
 
 .battleUIRow3 {
   height: 35%;
   display: flex;
   width: 100%;
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--border-color);
   flex-direction: column;
   background-color: var(--surface-control);
 }
@@ -2218,7 +2209,7 @@ td {
   height: 21%;
   display: flex;
   width: 100%;
-  background-color: rgb(114, 88, 48);
+  background-color: var(--surface-control);
   border-top: 1px solid var(--border-color);
   border-bottom-left-radius: 10px;
   border-bottom-right-radius: 10px;
@@ -2280,7 +2271,7 @@ td {
   display: flex;
   width: 17%;
   /* adjust this for probability */
-  background-color: green;
+  background-color: var(--positive);
   justify-content: flex-end;
   align-items: center;
   font-size: 1.4rem;
@@ -2309,7 +2300,7 @@ td {
 }
 
 .armyIconColumnBattleUIDivider {
-  border-left: 1px solid white;
+  border-left: 1px solid var(--border-color);
 }
 
 .sizingPositionArmyIconsBattleUI {
@@ -2428,16 +2419,23 @@ td {
   justify-content: center;
   text-align: center;
   align-items: center;
-  background-color: rgb(114, 88, 48);
+  background-color: var(--surface-control);
   color: var(--text-primary);
+  font-family: var(--font-display);
   font-size: 1.7rem;
-  border: 2px solid rgb(83, 62, 30);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius);
-  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .siegeButton:hover {
-  cursor: pointer;
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 18px -4px var(--glow);
 }
 
 .battleRow4Icon {
@@ -2469,66 +2467,69 @@ td {
   justify-content: flex-start;
   text-align: center;
   align-items: center;
-  color: rgb(0, 255, 0);
+  color: var(--positive);
   font-size: 1.8rem;
   font-weight: bold;
   white-space: pre;
 }
 
 .mountainDefenseText {
-  color: rgb(255, 255, 255);
+  color: var(--text-primary);
+}
+
+/* The battle window's bottom bar: RETREAT and ADVANCE, with the siege button
+   taking ADVANCE's place when the attack turns into a siege. All three are one
+   control in three colours -- which is what the shared block says -- and the
+   colours are the game's own `--negative` / `--positive` / neutral rather than
+   the three literals they were. */
+.retreatButton,
+.advanceButton,
+.siegeBottomBarButton {
+  display: flex;
+  width: 50%;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  font-size: 2.3rem;
+  color: var(--text-primary);
+  transition: filter 0.15s ease, box-shadow 0.18s ease;
 }
 
 .retreatButton {
-  display: flex;
-  width: 50%;
-  height: 100%;
-  border-bottom-left-radius: 10px;
-  justify-content: center;
-  background-color: rgb(131, 38, 38);
-  align-items: center;
-  font-weight: bold;
-  font-size: 2.5rem;
-  color: var(--text-primary);
+  border-bottom-left-radius: var(--radius);
+  background-color: var(--negative);
 }
 
 .advanceButton {
-  display: flex;
-  width: 50%;
-  height: 100%;
-  border-bottom-right-radius: 10px;
-  justify-content: center;
-  background-color: rgb(0, 128, 0);
-  align-items: center;
-  font-weight: bold;
-  font-size: 2.5rem;
-  color: var(--text-primary);
+  border-bottom-right-radius: var(--radius);
+  background-color: var(--positive);
 }
 
 .siegeBottomBarButton {
+  /* Hidden until the attack becomes a siege -- `display` is written by the
+     battle UI, so the shared block above must not be what sets it. */
   display: none;
-  width: 50%;
-  height: 100%;
-  border-bottom-right-radius: 10px;
-  justify-content: center;
-  background-color: rgb(114, 88, 48);
-  align-items: center;
-  font-weight: bold;
-  font-size: 2.5rem;
-  color: var(--text-primary);
+  border-bottom-right-radius: var(--radius);
+  background-color: var(--surface-control);
 }
 
-.retreatButton:hover {
-  cursor: pointer;
-}
-
-.advanceButton:hover {
-  cursor: pointer;
-}
-
+.retreatButton:hover,
+.advanceButton:hover,
 .siegeBottomBarButton:hover {
-  background-color: rgb(144, 118, 78);
-  cursor: pointer;
+  filter: brightness(1.15);
+  box-shadow: inset 0 0 30px -8px var(--glow);
+}
+
+.retreatButton:focus-visible,
+.advanceButton:focus-visible,
+.siegeBottomBarButton:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
 }
 
 /* --------------------------------------------BATTLE RESULTS-------------------------------------------------- */
@@ -2543,11 +2544,11 @@ td {
   width: 90%;
   height: 80vh;
   background-color: var(--surface-panel);
-  border: 3px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
   flex-direction: column;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
@@ -2620,7 +2621,7 @@ td {
   display: flex;
   flex-direction: column;
   width: 100%;
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--border-color);
   background-color: var(--surface-control);
 }
 
@@ -2639,7 +2640,7 @@ td {
 }
 
 .battleResultsRowDivider {
-  border-left: 1px solid white;
+  border-left: 1px solid var(--border-color);
 }
 
 .battleResultsRow2Row2 {
@@ -2647,7 +2648,7 @@ td {
   width: 100%;
   height: 30%;
   background-color: var(--surface-panel);
-  border-top: 1px white solid;
+  border-top: 1px solid var(--border-color);
 }
 
 .battleResultsRow2Row2Quantity {
@@ -2680,10 +2681,10 @@ td {
   height: 35%;
   display: flex;
   width: 100%;
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--border-color);
   flex-direction: column;
   background-color: var(--surface-control);
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .battleResultsRow3Row1 {
@@ -2723,7 +2724,7 @@ td {
   display: flex;
   width: 100%;
   height: 50%;
-  border-top: 1px white solid;
+  border-top: 1px solid var(--border-color);
 }
 
 .battleResultsRow3Row3Column {
@@ -2764,11 +2765,11 @@ td {
 }
 
 .battleResultsRow4Won {
-  background-color: rgb(0, 128, 0);
+  background-color: var(--positive);
 }
 
 .battleResultsRow4Lost {
-  background-color: rgb(131, 38, 38);
+  background-color: var(--negative);
 }
 
 /*----------------------------------------------------DICE----------------------------------------------------*/
@@ -2808,7 +2809,7 @@ td {
   height: 0;
   border-left: 2px solid transparent;
   border-right: 2px solid transparent;
-  border-bottom: 2px solid #ffffff;
+  border-bottom: var(--border-width) solid var(--border-color);
   transform: rotate(45deg);
   animation: sparkleAnim 3s infinite;
 }
@@ -3515,9 +3516,14 @@ td {
    ========================================================================= */
 .colour-picker-container {
   position: fixed;
-  /* Just above the phase bar, which is 40% tall and 8% off the bottom, and
-     hard against the same left edge so the two read as one column. */
-  bottom: calc(8% + 40% + 10px);
+  /* Just above the phase bar and hard against the same left edge, so the two read
+     as one column. The offset used to be `calc(8% + 40% + 10px)` -- the bar's own
+     `bottom` plus its `height` -- and that stopped being expressible in Phase 7.4,
+     when the bar's height became its content and started changing as it folds.
+     `--phase-bar-top` is written by `ColourPicker.open()` from the bar's measured
+     rectangle; the fallback here is what a cold start uses before anything has
+     been measured. */
+  bottom: var(--phase-bar-top, calc(8% + 40% + 10px));
   left: 10px;
   z-index: 10001;
 }
@@ -3829,4 +3835,536 @@ td {
 .audio-slider:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
+}
+
+
+/* ============================================================================
+   REACTIVE CONTROLS (Phase 7.11)
+   ----------------------------------------------------------------------------
+   The steppers (plus / minus / step-multiplier) and the two territory-row action
+   buttons (Upgrade / Buy). Everything here used to be a PNG -- twelve of them,
+   counting each control's greyed twin and the buy and upgrade buttons' three
+   states apiece -- which meant the enabled flag lived in a file path and no
+   theme could reach any of it.
+
+   Two rules make this section work and both are worth stating.
+
+   `is-disabled` is the ONE class that means "inert", on a stepper, on an action
+   button and on a whole army-allocation cell. It is set by
+   `src/ui/controls/steppers.js` and nothing else writes it.
+
+   And the glow is `--glow`, a token, not `--accent` at some alpha. How much a
+   theme should bloom is a stylistic decision: Terminal is a phosphor tube and
+   wants to, Parchment is ink on paper and must not.
+   ========================================================================= */
+
+.stepper-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--accent);
+  background-color: var(--surface-control);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+
+.stepper-button .chrome-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.stepper-button:hover:not(.is-disabled) {
+  color: var(--text-primary);
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 12px -2px var(--glow);
+}
+
+.stepper-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.stepper-button:active:not(.is-disabled) {
+  transform: translateY(1px);
+}
+
+/* Dimmed, not hidden, and the cursor says so. A disabled control that still
+   looks clickable is the complaint the greyed PNGs were answering; what they got
+   wrong was making the appearance the only record of it. */
+.stepper-button.is-disabled {
+  color: var(--text-muted);
+  background-color: var(--surface-raised);
+  border-color: var(--border-color);
+  box-shadow: none;
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The three kinds differ, and it is worth saying how rather than leaving them
+   identical and relying on the glyph alone.
+
+   Plus is the one the player reaches for -- it is what allocates -- so it keeps
+   the accent and is the only one of the three with a filled hover.
+
+   Minus is its opposite number and takes the same weight, because a pair of
+   controls where one is louder than the other reads as one control and a
+   decoration. */
+.stepper-plus:not(.is-disabled),
+.stepper-minus:not(.is-disabled) {
+  color: var(--accent);
+}
+
+/* The step multiplier is the odd one of the three: it cycles a list rather than
+   changing a quantity, so it takes the muted ink at rest and only lights on
+   hover. Giving it the accent at rest made three identical-looking buttons in a
+   row and players clicked it expecting a plus. */
+.stepper-cycle:not(.is-disabled) {
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   The Upgrade and Buy buttons in a territory row.
+
+   These are the only two controls in the info panel that DO something rather
+   than reveal something, so they are the only two that carry a fill. The glow is
+   what the brief asked for and it is on hover and focus rather than at rest: a
+   table of eleven rows each with a permanently glowing button is a table nobody
+   can read.
+   ----------------------------------------------------------------------- */
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 108px;
+  padding: 5px 10px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--text-on-accent);
+  background-color: var(--accent);
+  border: 1px solid var(--accent-strong);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.18s ease, transform 0.08s ease, filter 0.15s ease;
+}
+
+.action-button .chrome-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.action-button:hover:not(.is-disabled) {
+  background-color: var(--accent-strong);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--glow), 0 0 20px -2px var(--glow);
+}
+
+.action-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.action-button:active:not(.is-disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 0 0 1px var(--glow) inset;
+}
+
+/* Outside the Buy/Upgrade phase, and for a territory still locked out after a
+   conquest. It stays in the row -- the column would otherwise change width four
+   times a turn -- and it says why by looking switched off. */
+.action-button.is-disabled {
+  color: var(--text-muted);
+  background-color: var(--surface-raised);
+  border-color: var(--border-color);
+  box-shadow: none;
+  opacity: 0.5;
+  cursor: default;
+}
+
+.action-button-label {
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepper-button,
+  .action-button {
+    transition: none;
+  }
+}
+
+/* ============================================================================
+   ACTIVITY PANEL (Phase 7.4)
+   ----------------------------------------------------------------------------
+   The military feed: what the AI countries just did to each other and to the
+   player. A window in its own right rather than a fifth tab of the info panel,
+   because it answers a different question -- the info panel is the state of the
+   world, this is what has just happened to it -- and because the brief asks for
+   it to open ON TOP of that panel at the start of every turn, which a tab cannot
+   do.
+
+   The colour rules are the brief's, and they are three tone classes rather than
+   three copies of the row rule: green for a conquest, red for a loss or a failed
+   attack, amber for anything to do with a siege. `is-player` is a SEPARATE axis
+   -- it makes an entry the player has a stake in larger, and says nothing about
+   its colour, so a player defeat is red and large while a distant AI conquest is
+   green and small.
+   ========================================================================= */
+
+#activity-button-container {
+  position: fixed;
+  /* Third in the left-hand column: 36px hamburger + 44, then the info-panel
+     globe + 44, then this one. Same 8px gaps as the right-hand column. */
+  top: 140px;
+  left: 10px;
+  display: none;
+  z-index: 9000;
+}
+
+#activity-panel-container {
+  position: fixed;
+  /* Beside the left-hand chrome column rather than centred: the panel is meant to
+     be readable WHILE the map and the info panel are being used, which a centred
+     modal would prevent. */
+  top: 88px;
+  left: 64px;
+  display: none;
+  /* The stacking base is shared with the other four draggable windows -- see the
+     DRAGGABLE WINDOWS block near the end of this file. It opens over the territory
+     panel not because of a higher constant here but because opening a window
+     focuses it, which is what lets the player raise the territory panel back over
+     the feed afterwards. */
+}
+
+.activity-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 46vw);
+  max-height: min(560px, 68vh);
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.activity-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.activity-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.activity-panel-empty {
+  margin: 0;
+  padding: 14px 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------- one turn --- */
+.activity-turn + .activity-turn {
+  margin-top: 6px;
+}
+
+/* The header is the whole clickable row, so it is a button and not a div with a
+   listener: it has to be reachable by keyboard, and `aria-expanded` has to live
+   on something that can carry it. */
+.activity-turn-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.activity-turn-header:hover {
+  background-color: var(--surface-control);
+  border-color: var(--border-strong);
+}
+
+.activity-turn-header:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.activity-turn-header .chrome-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--accent);
+  transition: transform 0.15s ease;
+}
+
+.activity-turn.is-open .activity-turn-header .chrome-icon {
+  transform: rotate(90deg);
+}
+
+.activity-turn-label {
+  flex: 0 0 auto;
+}
+
+/* The count, and how much of it is the player's business. Muted, small and to the
+   right, because a shut section should be scannable without being read. */
+.activity-turn-summary {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed by absence, not by height: a closed section holds dozens of rows and
+   `display: none` is what keeps them out of the layout entirely. An animated
+   max-height would need a number, and the number is different for every turn. */
+.activity-turn-entries {
+  display: none;
+  padding: 4px 2px 6px;
+}
+
+.activity-turn.is-open .activity-turn-entries {
+  display: block;
+}
+
+/* -------------------------------------------------------------- one entry --- */
+.activity-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 7px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.activity-entry .chrome-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  /* Nudged onto the first line's baseline. The icon is a fixed 15px and the text
+     wraps, so centring it vertically would float it in the middle of a two-line
+     entry rather than beside the sentence it introduces. */
+  margin-top: 2px;
+}
+
+.activity-entry-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The brief's three colours. `--positive` and `--negative` are already the tokens
+   for "this went well" and "this did not" -- the phase bar and the battle window
+   use both -- so a conquest and a loss take those rather than a literal green and
+   red that no theme could reach. Amber for sieges is the one new colour and it is
+   mixed WITH the accent so it moves with the theme rather than sitting outside it. */
+.activity-entry.tone-victory {
+  color: var(--positive);
+  font-weight: 700;
+}
+
+.activity-entry.tone-loss {
+  color: var(--negative);
+  font-weight: 700;
+}
+
+.activity-entry.tone-siege {
+  color: var(--siege-amber);
+  font-weight: 600;
+}
+
+.activity-entry.tone-victory .chrome-icon {
+  color: var(--positive);
+}
+
+.activity-entry.tone-loss .chrome-icon {
+  color: var(--negative);
+}
+
+.activity-entry.tone-siege .chrome-icon {
+  color: var(--siege-amber);
+}
+
+/* An entry the player is a party to, either side. Size only -- the tone above
+   still decides the colour, which is what lets a player DEFEAT be red and large
+   rather than having to choose between the two. The brief asked for four or five
+   points and this is about that: 0.82rem to 1.12rem at a 16px root. */
+.activity-entry.is-player {
+  font-size: 1.12rem;
+  line-height: 1.3;
+  padding: 6px 7px;
+}
+
+.activity-entry.is-player .chrome-icon {
+  width: 19px;
+  height: 19px;
+  margin-top: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-turn-header,
+  .activity-turn-header .chrome-icon {
+    transition: none;
+  }
+}
+
+/* ============================================================================
+   DRAGGABLE WINDOWS (Phase 7.4)
+   ----------------------------------------------------------------------------
+   Five windows float over the map and every one of them used to be nailed to a
+   percentage of the viewport. Two of them overlap by design -- the activity feed
+   opens on top of the territory panel at the start of every turn -- so the only
+   way to read what was underneath was to close what was on top.
+
+   They move now, and touching one raises it. The stacking is NOT in this file:
+   `src/ui/core/draggable.js` writes an inline z-index, because "whichever window
+   was touched last" is not something a constant can say. What IS here is the base
+   of the band they live in, and it matters that it is one number in one place --
+   above the map chrome at 9000, below the modals at 10000, so a confirm dialog can
+   never open behind the panel it was opened from.
+   ========================================================================= */
+
+#main-ui-container,
+#upgrade-container,
+#buy-container,
+#transfer-attack-window-container,
+#activity-panel-container {
+  z-index: 9100;
+}
+
+/* The grip. Applied by `makeDraggable()` to whatever it was handed, which is why
+   it is separate from `.window-title-bar`: Upgrade Territory's nav bar and the
+   activity feed's header are already title bars and become handles without
+   growing a second one. */
+.window-drag-handle {
+  cursor: grab;
+  /* A drag that selects the title text as it goes looks broken. */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.window-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Two hairlines at the left of the bar: the standard "this is a grip" mark, and
+   the cheapest way to say a title bar is draggable without adding an element or an
+   icon to five components. Drawn from the border token so a theme reaches it. */
+.window-drag-handle::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 10px;
+  height: 14px;
+  margin-right: 4px;
+  border-left: 2px solid var(--border-strong);
+  border-right: 2px solid var(--border-strong);
+  opacity: 0.55;
+}
+
+.window-drag-handle:hover::before {
+  opacity: 0.9;
+}
+
+/* While the pointer is down. A ring in the theme's own glow says "this is the one
+   you are holding" without inventing a shadow colour -- and transitions are
+   suppressed, because a window that eases towards the pointer feels broken rather
+   than smooth. */
+.is-dragging {
+  box-shadow: var(--shadow-panel), 0 0 0 2px var(--glow);
+}
+
+.is-dragging * {
+  transition: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   The territory panel's title bar.
+
+   It is new. That window had four tabs and a close button and nothing that said
+   what it WAS -- which was liveable while it could not move, and is not once the
+   tab strip has to double as a grip. Every pixel of that strip is already a
+   control, so there was nowhere to take hold of it.
+   ----------------------------------------------------------------------- */
+.window-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background-color: var(--surface-panel);
+  border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+
+.window-title-text {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

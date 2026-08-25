@@ -252,6 +252,12 @@ import {
     audioPanel
 } from './src/ui/components/AudioPanel.js';
 import {
+    activityPanel
+} from './src/ui/components/ActivityPanel.js';
+import {
+    resetAllWindowPositions
+} from './src/ui/core/draggable.js';
+import {
     applyAudioSettings,
     audioSettings,
     currentTrackName,
@@ -831,6 +837,14 @@ document.addEventListener("DOMContentLoaded", function() {
     //the panel are ordinary window buttons and take the other one, which is why
     //the component is handed a sound callback rather than choosing for itself.
     audioPanel.create({ onSound: () => playSoundClip("button") });
+    //THE MILITARY ACTIVITY FEED (Phase 7.4)
+    //A window of its own rather than a fifth tab of the info panel: it answers a
+    //different question -- the info panel is the state of the world, this is what
+    //just happened to it -- and the brief asks for it to open ON TOP of that panel
+    //at the start of a turn, which a tab cannot do. `playSoundClip("switch")` is
+    //map chrome's sound; the panel's own buttons use it too, because the whole
+    //thing is one control surface.
+    activityPanel.create({ onSound: () => playSoundClip("switch") });
 
     //A browser will not start audio until the page has been interacted with, so
     //the very first click is the earliest moment the music the player left running
@@ -891,6 +905,7 @@ document.addEventListener("DOMContentLoaded", function() {
     //Phase 6.3. The bar builds itself and derives its own title and button label
     //from the phase, so setPhase() is now the only call a phase transition makes.
     const popupWithConfirmContainer = phaseBar.create({
+        onSound: () => playSoundClip("switch"),
         onColourLabelClick() {
             playSoundClip("switch");
             //Toggle, not show. The grid is a panel that stays open while the player
@@ -2775,6 +2790,20 @@ function toggleUIButton(makeVisible) {
     } else {
         document.getElementById(ids.uiButtonContainer).style.display = "none";
     }
+    //Phase 7.4. The activity button is the third item in the same left-hand column
+    //and appears at the same moment as the globe above it, so it is toggled from
+    //here rather than from all of this function's call sites -- the same reasoning
+    //that keeps the music button inside toggleMapModeButton(). Unlike the music
+    //button it has no exception: there is nothing to report before a game starts.
+    //
+    //Taking the button down takes the PANEL down with it. Every caller that hides
+    //this button is putting something in front of the map -- the menu, a battle, a
+    //transfer window -- and a feed left floating over a battle screen is the same
+    //class of bug as the autosave indicator flashing over the map chrome.
+    activityPanel.setButtonVisible(makeVisible);
+    if (!makeVisible) {
+        activityPanel.close();
+    }
 }
 
 function toggleMapModeButton(makeVisible) {
@@ -4062,6 +4091,13 @@ async function startNewGame() {
 function resetChromeForCountrySelection() {
     phaseBar.setMode(phaseBar.Mode.SELECTING);
     bottomTable.reset();
+    //Phase 7.4. Windows can be dragged, and an inline `left`/`top` survives the
+    //window being closed -- deliberately, so a panel a player moved aside stays
+    //where they put it. It must not survive a NEW GAME: a window dragged to the far
+    //corner of the game that was just thrown away is a window the next player
+    //cannot find. Same species as bottomTable.reset() on the line above.
+    resetAllWindowPositions();
+    activityPanel.reset();
     toggleUIButton(false);
     toggleMapModeButton(false);
     //...but not the music button, which the line above has just taken down with it.

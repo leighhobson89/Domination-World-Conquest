@@ -82,9 +82,9 @@ export class InfoTablePage {
 
     /**
      * The upgrade/buy buttons respond to mousedown+mouseup, not click -- the
-     * handler is on mouseup so the pressed-state image can be swapped in
-     * between. Playwright's click() fires both, but only via the element's own
-     * hit box; hovering first keeps it stable while the table redraws.
+     * handler was on mouseup until Phase 7.11, so the pressed-state image could
+     * be swapped in between; it is an ordinary click on a `<button>` now, and
+     * the press is `:active` in the stylesheet.
      */
     async openUpgradeFor(territoryName) {
         await this.showTerritories();
@@ -106,17 +106,29 @@ export class InfoTablePage {
         );
     }
 
-    /** Is the upgrade button on this row live, or the greyed-out image? */
+    /**
+     * Is the upgrade button on this row live?
+     *
+     * Phase 7.11: this used to be "does an element with the `.upgrade-button`
+     * class EXIST in the row", because the old build added that class only when
+     * the button worked -- so the class said what the control is and was being
+     * read to say what it is doing. The class is always present now and
+     * `aria-disabled` is the state.
+     */
     async upgradeButtonEnabled(territoryName) {
         await this.showTerritories();
-        const row = this.rowFor(territoryName);
-        return (await row.locator(infoTable.upgradeButton).count()) > 0;
+        return this.actionButtonEnabled(territoryName, infoTable.upgradeButton);
     }
 
     async buyButtonEnabled(territoryName) {
         await this.showArmy();
-        const row = this.rowFor(territoryName);
-        return (await row.locator(infoTable.buyButton).count()) > 0;
+        return this.actionButtonEnabled(territoryName, infoTable.buyButton);
+    }
+
+    async actionButtonEnabled(territoryName, selector) {
+        const button = this.rowFor(territoryName).locator(selector);
+        if ((await button.count()) === 0) return false;
+        return (await button.getAttribute("aria-disabled")) !== "true";
     }
 
     async toggleAppearsAtStartOfTurn() {

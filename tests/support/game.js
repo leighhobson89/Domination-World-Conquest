@@ -16,6 +16,7 @@ import {
     MoveButtonPage,
     TransferAttackPage,
     BattlePage,
+    ActivityPanelPage,
 } from "./pages/index.js";
 import { readFile } from "node:fs/promises";
 
@@ -35,6 +36,7 @@ export class GameDriver {
         this.moveButton = new MoveButtonPage(page);
         this.transferAttack = new TransferAttackPage(page);
         this.battle = new BattlePage(page);
+        this.activityPanel = new ActivityPanelPage(page);
     }
 
     // ---------------------------------------------------------------- lifecycle

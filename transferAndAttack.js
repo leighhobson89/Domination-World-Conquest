@@ -47,6 +47,7 @@ import {
 import {
     renderAttackTable
 } from './src/ui/transferAttack/AttackTable.js';
+import { setCellEnabled } from './src/ui/controls/steppers.js';
 
 //`selectedTerritoryUniqueId` moved into TransferTable.js in Phase 6.5 -- it is the
 //window's selection, so it lives for exactly as long as one render of the window.
@@ -426,28 +427,11 @@ function disableAttackScreenOptions(table, territoryUniqueIds) {
             const targetedArmyColumn = table.querySelector(`.transfer-table-row:nth-child(${rowPosition + 1}) .army-type-column:nth-child(${columnPosition + 1})`);
 
             if (targetedArmyColumn) {
-                // Apply styling changes to the targeted armyColumn
-                const quantityTextBox = targetedArmyColumn.querySelector(sel.quantityTextBox);
-                const multipleTextBox = targetedArmyColumn.querySelector(sel.multipleTextBox);
-                const multipleIncrementCycler = targetedArmyColumn.querySelector(sel.multipleIncrementCycler);
-                const plusButton = targetedArmyColumn.querySelector(sel.plusButton);
-                const minusButton = targetedArmyColumn.querySelector(sel.minusButton);
-
-                if (quantityTextBox) {
-                    quantityTextBox.style.color = "grey";
-                }
-                if (multipleTextBox) {
-                    multipleTextBox.style.color = "grey";
-                }
-                if (multipleIncrementCycler) {
-                    multipleIncrementCycler.src = "resources/multipleIncrementerButtonGrey.png";
-                }
-                if (plusButton) {
-                    plusButton.src = "resources/plusButtonGrey.png";
-                }
-                if (minusButton) {
-                    minusButton.src = "resources/minusButtonGrey.png";
-                }
+                //Phase 7.11. Five writes stood here: two inline `style.color = "grey"`
+                //and three image-source swaps to a `Grey.png` twin. All five said the
+                //same thing -- this unit type cannot contribute to this attack -- in a
+                //form nothing could read back and no theme could reach. One call now.
+                setCellEnabled(targetedArmyColumn, false);
             }
         }
     }

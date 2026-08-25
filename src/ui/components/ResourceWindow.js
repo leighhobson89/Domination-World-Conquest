@@ -17,6 +17,7 @@
 // since the windows were written, and renaming them is Phase 6.8's job.
 
 import { el, mount } from "../core/dom.js";
+import { bringToFront, makeDraggable } from "../core/draggable.js";
 
 /**
  * @typedef {object} ResourceWindowSpec
@@ -134,8 +135,17 @@ export function buildResourceWindow(spec, { onClose, onConfirm } = {}) {
 
     mount(spec.container, root);
 
+    //Phase 7.4. The nav bar is already a title bar -- centred window name, close
+    //button in the right column -- so it becomes the grip rather than growing a
+    //second bar above itself. `makeDraggable` adds `.window-drag-handle` to it,
+    //which is what gives it the cursor and the grip texture.
+    const container = document.getElementById(spec.container);
+    const undrag = makeDraggable(container, navBar);
+
     return {
         root,
+        container,
+        undrag,
         navBar,
         subtitle,
         keyBar,
@@ -157,7 +167,14 @@ export function windowVisibility(containerId) {
     return {
         show() {
             const node = container();
-            if (node) node.style.display = "block";
+            if (!node) return;
+            node.style.display = "block";
+            //Phase 7.4. Opening IS focusing, and here it has to be: both of these
+            //windows are opened by a button INSIDE the territory panel, so without
+            //this they appear behind the thing that opened them the moment the
+            //player has raised that panel. Being last in the document is not enough
+            //once the windows carry a z-index of their own.
+            bringToFront(node);
         },
         hide() {
             const node = container();

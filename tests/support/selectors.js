@@ -41,6 +41,8 @@ export const containers = {
     movePhaseButtons: sel.movePhaseButtonsContainer,
     uiButton: sel.uiButtonContainer,
     mapMode: sel.mapModeContainer,
+    activityPanel: sel.activityPanelContainer,
+    activityButton: sel.activityButtonContainer,
     tooltip: sel.tooltip,
 };
 
@@ -212,6 +214,54 @@ export const infoTable = {
     buyButton: cls.buyButton,
 };
 
+/**
+ * The military activity feed (Phase 7.4) and the window furniture it shares.
+ *
+ * `entry` and the three tone classes are how a spec asks what the feed SAID
+ * without asserting the sentence: the wording is derived when the row is drawn
+ * and is pinned by `tests/unit/ui-activity-feed.spec.js`, so an e2e spec that
+ * matched on text would be testing the phrasing twice and the behaviour not at
+ * all.
+ */
+export const activityPanel = {
+    button: sel.activityToggleButton,
+    buttonContainer: sel.activityButtonContainer,
+    container: sel.activityPanelContainer,
+    panel: sel.activityPanel,
+    body: sel.activityPanelBody,
+    empty: sel.activityPanelEmpty,
+    close: sel.xButtonActivity,
+    appearsAtStartOfTurn: sel.checkBoxActivityAtStartOfTurn,
+    turnGroup: cls.activityTurnGroup,
+    turnHeader: cls.activityTurnHeader,
+    entry: cls.activityEntry,
+    entryText: cls.activityEntryText,
+    isOpen: cls.activityIsOpen,
+    isPlayer: cls.activityIsPlayer,
+    toneVictory: cls.activityToneVictory,
+    toneLoss: cls.activityToneLoss,
+    toneSiege: cls.activityToneSiege,
+};
+
+/** Draggable windows (Phase 7.4): which container moves, and what moves it. */
+export const draggableWindows = {
+    titleBar: cls.windowTitleBar,
+    dragHandle: cls.windowDragHandle,
+    isDragging: cls.windowIsDragging,
+    mainUiTitleBar: sel.mainUiTitleBar,
+    /** Every window in the focus stack, and the handle each is dragged by. */
+    all: [
+        { name: "territory panel", container: sel.mainUiContainer, handle: sel.mainUiTitleBar },
+        { name: "upgrade window", container: sel.upgradeContainer, handle: sel.navbarUpgradeWindow },
+        { name: "buy window", container: sel.buyContainer, handle: sel.navbarBuyWindow },
+        {
+            name: "activity feed",
+            container: sel.activityPanelContainer,
+            handle: sel.activityPanel + " .activity-panel-header",
+        },
+    ],
+};
+
 export const buyWindow = {
     close: sel.xButtonBuy,
     confirm: sel.bottomBarBuyConfirmButton,
@@ -219,11 +269,13 @@ export const buyWindow = {
     totalGold: sel.pricesBuyInfoColumn2,
     totalProdPop: sel.pricesBuyInfoColumn4,
     row: cls.buyRow,
-    rowMultiplier: `${cls.buyMultiplier} img`,
+    // Phase 7.11: the three spinner controls are `<button>`s drawn from
+    // `src/ui/icons.js`, not `<img>` elements swapping to a `Grey.png` twin.
+    rowMultiplier: `${cls.buyMultiplier} ${cls.stepperButton}`,
     rowMultiplierText: `${cls.buyMultiplier} ${cls.buyColumn}`,
-    rowMinus: `${cls.minusColumn} img`,
+    rowMinus: `${cls.minusColumn} ${cls.stepperButton}`,
     rowQuantity: `${cls.buyQuantity} input`,
-    rowPlus: `${cls.buyPlus} img`,
+    rowPlus: `${cls.buyPlus} ${cls.stepperButton}`,
 };
 
 // Row order is fixed by calculateAvailablePurchases().
@@ -236,9 +288,9 @@ export const upgradeWindow = {
     totalGold: sel.pricesInfoColumn2,
     totalConsMats: sel.pricesInfoColumn4,
     row: cls.upgradeRow,
-    rowMinus: `${cls.minusColumn} img`,
+    rowMinus: `${cls.minusColumn} ${cls.stepperButton}`,
     rowQuantity: `${cls.upgradeQuantity} input`,
-    rowPlus: `${cls.upgradePlus} img`,
+    rowPlus: `${cls.upgradePlus} ${cls.stepperButton}`,
 };
 
 // Row order is fixed by calculateAvailableUpgrades().

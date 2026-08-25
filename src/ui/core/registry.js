@@ -229,6 +229,29 @@ export const ids = Object.freeze({
     quantityTextBox: "quantityTextBox",
     plusButton: "plusButton",
 
+    // The territory panel's title bar, added in Phase 7.4 so the window has
+    // something to be dragged by. The four tabs sit under it.
+    mainUiTitleBar: "main-ui-title-bar",
+
+    // The phase bar's collapse control and the part of it that collapses.
+    phaseBarHeader: "phase-bar-header",
+    phaseBarCollapseButton: "phase-bar-collapse",
+    phaseBarCollapsible: "phase-bar-collapsible",
+
+    // --- Activity panel (Phase 7.4) -------------------------------------------
+    // The military feed. Two containers, because the button lives over the map in
+    // the left-hand chrome column and the panel is a window in its own right --
+    // the same split `#UIButtonContainer` / `#main-ui-container` already uses.
+    activityButtonContainer: "activity-button-container",
+    activityToggleButton: "activityToggleButton",
+    activityPanelContainer: "activity-panel-container",
+    activityPanel: "activity-panel",
+    activityPanelTitle: "activity-panel-title",
+    activityPanelBody: "activity-panel-body",
+    activityPanelEmpty: "activity-panel-empty",
+    xButtonActivity: "xButtonActivity",
+    checkBoxActivityAtStartOfTurn: "checkBoxActivityAtStartOfTurn",
+
     // --- Move-phase button ----------------------------------------------------
     movePhaseButton: "move-phase-button",
     attackDestinationContainer: "attack-destination-container",
@@ -448,6 +471,47 @@ export const classNames = Object.freeze({
     // box, same tokens, different art inside.
     chromeButton: "chrome-button",
     chromeIcon: "chrome-icon",
+
+    // Steppers and action buttons (Phase 7.11). The plus, minus and step
+    // multiplier used to be `<img>` pairs whose GREY TWIN was the only record
+    // that a control was disabled -- which is why eleven call sites asked
+    // `src.includes("Grey.png")`. The state is on the element now, and
+    // `isDisabled` is the single class that carries it, for a stepper, for an
+    // action button and for a whole army-allocation cell alike.
+    // Draggable windows (Phase 7.4). Every floating window gets a title bar, the
+    // title bar is the grip, and touching a window anywhere raises it above the
+    // others. `windowTitleBar` is the element; `windowDragHandle` is added by
+    // `makeDraggable()` to whatever it was given, so the two are not the same
+    // thing -- Upgrade Territory's existing nav bar becomes the handle without
+    // becoming a second title bar.
+    windowTitleBar: "window-title-bar",
+    windowTitleText: "window-title-text",
+    windowDragHandle: "window-drag-handle",
+    windowIsDragging: "is-dragging",
+
+    // Activity feed (Phase 7.4). The tone classes are what carry the brief's
+    // colour rules -- green for a conquest, red for a loss or a failed attack,
+    // amber for anything to do with a siege -- and `is-player` is the separate
+    // axis that makes an entry the player has a stake in bigger than the rest.
+    activityTurnGroup: "activity-turn",
+    activityTurnHeader: "activity-turn-header",
+    activityTurnEntries: "activity-turn-entries",
+    activityEntry: "activity-entry",
+    activityEntryText: "activity-entry-text",
+    activityIsOpen: "is-open",
+    activityIsPlayer: "is-player",
+    activityToneVictory: "tone-victory",
+    activityToneLoss: "tone-loss",
+    activityToneSiege: "tone-siege",
+
+    stepperButton: "stepper-button",
+    stepperPlus: "stepper-plus",
+    stepperMinus: "stepper-minus",
+    stepperCycle: "stepper-cycle",
+    actionButton: "action-button",
+    actionButtonLabel: "action-button-label",
+    isDisabled: "is-disabled",
+    isArmed: "is-armed",
 });
 
 /**

@@ -24,6 +24,7 @@ test.describe("?e2e=1 state hook", () => {
         //be able to read the settings before anything has been started.
         expect(api).toEqual(
             [
+                "activity",
                 "applyScenario",
                 "audio",
                 "audioTracks",
@@ -38,6 +39,7 @@ test.describe("?e2e=1 state hook", () => {
                 "phase",
                 "randomEventProbability",
                 "ready",
+                "recordActivity",
                 "retrievals",
                 "seed",
                 "setAudio",

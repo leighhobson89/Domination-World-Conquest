@@ -218,8 +218,31 @@ function onKeyDown(event) {
 export function open() {
     if (!root) create();
     paintSelection();
+    anchorAbovePhaseBar();
     root.style.display = "block";
     document.addEventListener("keydown", onKeyDown, true);
+}
+
+/**
+ * Sit the grid directly above the phase bar, whatever height that is today.
+ *
+ * The offset used to be a constant in `style.css` -- `calc(8% + 40% + 10px)`, the
+ * bar's `bottom` plus its `height` -- and it was correct for exactly as long as
+ * the bar had a fixed height. Phase 7.4 made the bar fold, so its height is its
+ * content and changes while the player is looking at it. Measuring is the only
+ * honest answer; the stylesheet keeps the old constant as the fallback for the
+ * case where the bar is not on screen at all.
+ */
+function anchorAbovePhaseBar() {
+    const bar = document.querySelector(".popup-with-confirm-container");
+    if (!bar || !root) {
+        return;
+    }
+    const rect = bar.getBoundingClientRect();
+    if (rect.height === 0) {
+        return;
+    }
+    root.style.setProperty("--phase-bar-top", window.innerHeight - rect.top + 10 + "px");
 }
 
 export function close() {

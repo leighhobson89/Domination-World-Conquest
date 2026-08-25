@@ -20,11 +20,19 @@
 
 import { classNames, ids } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
+import { makeDraggable } from "../core/draggable.js";
 import { repeatPanelIcon } from "../icons.js";
 import { tooltip } from "./Tooltip.js";
 
-const TAB_ACTIVE_COLOUR = "rgb(111, 151, 183)";
-const TAB_IDLE_COLOUR = "rgb(81, 121, 153)";
+//Phase 7.11. `TAB_ACTIVE_COLOUR` and `TAB_IDLE_COLOUR` stood here -- two literal
+//`rgb()` strings written inline onto the element on click, on mouseover and on
+//mouseout. Three problems, and they are the reason the whole pair is gone. An
+//inline write beats the stylesheet on specificity, so no theme could ever reach
+//a tab; `mouseover` / `mouseout` were hand-rolling `:hover`, which CSS does
+//without a listener and without getting it wrong when the pointer leaves the
+//window; and `mouseout` asked whether the button was active in order to decide
+//which literal to restore, so the selected tab's appearance was computed in two
+//places. The `active` class is the whole state now and `style.css` reads it.
 
 /**
  * The four tabs, in display order. `index` is the number `drawUITable()` takes
@@ -40,11 +48,13 @@ const TABS = [
 let root = null;
 let table = null;
 let checkBox = null;
+let titleBar = null;
+let undrag = null;
 let tabButtons = new Map();
 
 function paintTab(button, active) {
     button.classList.toggle(classNames.tabButtonActive, active);
-    button.style.backgroundColor = active ? TAB_ACTIVE_COLOUR : TAB_IDLE_COLOUR;
+    button.setAttribute("aria-selected", active ? "true" : "false");
 }
 
 /**
@@ -62,19 +72,12 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
             id: tab.id,
             class: classNames.tabButton,
             html: tab.label,
+            attrs: { type: "button", role: "tab", "aria-selected": "false" },
             on: {
                 click() {
                     onTabClick?.();
                     setActiveTab(tab.key);
                     drawTable?.(table, tab.index);
-                },
-                mouseover() {
-                    button.style.backgroundColor = TAB_ACTIVE_COLOUR;
-                },
-                mouseout() {
-                    if (!button.classList.contains(classNames.tabButtonActive)) {
-                        button.style.backgroundColor = TAB_IDLE_COLOUR;
-                    }
                 },
             },
         });
@@ -131,7 +134,16 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
         table,
     ]);
 
+    //Phase 7.4. A title bar above the tab strip, and the reason it exists is that
+    //the window is draggable now: the tabs cannot be the grip, because every pixel
+    //of that strip is already a control. It is also the one thing this panel never
+    //had -- four tabs and a close button, with nothing saying what the window IS.
+    titleBar = el("div", { id: ids.mainUiTitleBar, class: classNames.windowTitleBar }, [
+        el("span", { class: classNames.windowTitleText, text: "Empire Overview" }),
+    ]);
+
     root = el("div", { class: "blur-background" }, [
+        titleBar,
         el("div", { id: ids.tabButtons, class: "tab-buttons" }, [...buttons, checkBox, closeButton]),
         el("div", { id: ids.contentWindow, class: "content-window" }, [
             infoPanel,
@@ -140,6 +152,9 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
     ]);
 
     mount(ids.mainUiContainer, root);
+    //The CONTAINER moves, not the blur-background inside it: the container is what
+    //carries `position: fixed` and the stylesheet's placement.
+    undrag = makeDraggable(document.getElementById(ids.mainUiContainer), titleBar);
     return root;
 }
 
@@ -184,10 +199,13 @@ export function setAppearAtStartOfTurn(enabled) {
 }
 
 export function destroy() {
+    undrag?.();
+    undrag = null;
     root?.remove();
     root = null;
     table = null;
     checkBox = null;
+    titleBar = null;
     tabButtons = new Map();
 }
 

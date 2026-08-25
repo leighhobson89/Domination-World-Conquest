@@ -2,9 +2,18 @@ import {
     renderInfoTable
 } from "./src/ui/infoTable/renderInfoTable.js";
 import {
+    classNames,
     compound,
     ids
 } from './src/ui/core/registry.js';
+import {
+    isStepperEnabled,
+    setStepperEnabled,
+    stepperButton
+} from './src/ui/controls/steppers.js';
+import {
+    territoryActionButton
+} from './src/ui/controls/actionButtons.js';
 import {
     whenPageLoaded,
     removeSiegeImageFromPath,
@@ -1323,6 +1332,23 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     });
 }
 
+/**
+ * Arm or disarm one of the two windows' bottom-bar buttons.
+ *
+ * Phase 7.11. Ten copies of a five-line block stood where the calls to this now
+ * are, and each wrote `style.backgroundColor` and then added a FRESH pair of
+ * mouseover / mouseout listeners -- so a player who clicked plus forty times
+ * left eighty listeners on one button, every one of them writing a literal
+ * `rgba(...)` no theme could reach. The class says what the button MEANS and
+ * `style.css` decides what green is.
+ */
+function setConfirmArmed(buttonId, armed) {
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.classList.toggle(classNames.isArmed, armed);
+    }
+}
+
 /** Is this territory's own action button live right now? */
 function territoryActionsEnabled(path) {
     return currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(path);
@@ -1336,70 +1362,32 @@ function territoryActionsEnabled(path) {
  * is named once above rather than repeated four times as it was.
  */
 function buildUpgradeButton(path, territoryData) {
-    const image = document.createElement("img");
-    const button = document.createElement("div");
-
-    if (territoryActionsEnabled(path)) {
-        button.classList.add("upgrade-button");
-        image.src = "resources/upgradeButtonIcon.png";
-    } else {
-        image.src = "resources/upgradeButtonGreyedOut.png";
-    }
-    image.alt = "Upgrade Territory";
-    image.classList.add("sizeUpgradeButton");
-
-    button.addEventListener("mousedown", () => {
-        if (territoryActionsEnabled(path)) {
-            playSoundClip("button");
-            image.src = "resources/upgradeButtonIconPressed.png";
-        }
-    });
-    button.addEventListener("mouseup", () => {
-        if (territoryActionsEnabled(path)) {
+    return territoryActionButton({
+        kind: "upgrade",
+        isEnabled: () => territoryActionsEnabled(path),
+        onPress: () => playSoundClip("button"),
+        onActivate: () => {
             populateUpgradeTable(territoryData);
             toggleUpgradeMenu(true, territoryData);
             currentlySelectedTerritoryForUpgrades = territoryData;
-            image.src = "resources/upgradeButtonIcon.png";
             setUpgradeOrBuyWindowOnScreenToTrue(1);
         }
     });
-
-    button.appendChild(image);
-    return button;
 }
 
 /** The buy button in the army tab. Same shape as the upgrade button above. */
 function buildBuyButton(path, territoryData) {
-    const image = document.createElement("img");
-    const button = document.createElement("div");
-
-    if (territoryActionsEnabled(path)) {
-        button.classList.add("buy-button");
-        image.src = "resources/buyButtonIcon.png";
-    } else {
-        image.src = "resources/buyButtonGreyedOut.png";
-    }
-    image.alt = "Buy Military";
-    image.classList.add("sizeBuyButton");
-
-    button.addEventListener("mousedown", () => {
-        if (territoryActionsEnabled(path)) {
-            playSoundClip("button");
-            image.src = "resources/buyButtonIconPressed.png";
-        }
-    });
-    button.addEventListener("mouseup", () => {
-        if (territoryActionsEnabled(path)) {
+    return territoryActionButton({
+        kind: "buy",
+        isEnabled: () => territoryActionsEnabled(path),
+        onPress: () => playSoundClip("button"),
+        onActivate: () => {
             populateBuyTable(territoryData);
             toggleBuyMenu(true, territoryData);
             currentlySelectedTerritoryForPurchases = territoryData;
-            image.src = "resources/buyButtonIcon.png";
             setUpgradeOrBuyWindowOnScreenToTrue(2);
         }
     });
-
-    button.appendChild(image);
-    return button;
 }
 
 //setGainsRowTextColor() moved to src/ui/infoTable/tableDom.js as applyGainColour(),
@@ -2268,13 +2256,7 @@ function populateBuyTable(territory) {
     document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = "0";
     document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = "0";
     document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Cancel";
-    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
-        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-    });
-    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
-        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    });
+    setConfirmArmed(ids.bottomBarBuyConfirmButton, false);
 
     let simulatedPurchaseCosts;
     const buyTable = document.getElementById(ids.buyTable);
@@ -2321,14 +2303,10 @@ function populateBuyTable(territory) {
         const buyColumn5Multiplier = document.createElement("div");
         buyColumn5Multiplier.classList.add("upgrade-column");
         buyColumn5Multiplier.classList.add("buyColumn5Multiplier");
-        const imageMultiplier = document.createElement("img");
-        if (purchaseRow.condition === "Can Build") {
-            imageMultiplier.src = "resources/multipleIncrementerButton.png";
-        } else {
-            imageMultiplier.src = "resources/multipleIncrementerButtonGrey.png";
-        }
-        imageMultiplier.style.height = "21px";
-        imageMultiplier.style.width = "21px";
+        const imageMultiplier = stepperButton({
+            kind: "cycle",
+            enabled: purchaseRow.condition === "Can Build"
+        });
         const multiplierQuantityTextBox = document.createElement("div");
         multiplierQuantityTextBox.classList.add("buy-column");
         multiplierQuantityTextBox.innerHTML = "x1";
@@ -2339,14 +2317,10 @@ function populateBuyTable(territory) {
         const buyColumn5A = document.createElement("div");
         buyColumn5A.classList.add("buy-column");
         buyColumn5A.classList.add("column5A");
-        const buyImageMinus = document.createElement("img");
-        if (purchaseRow.condition === "Can Build") {
-            buyImageMinus.src = "resources/minusButton.png";
-        } else {
-            buyImageMinus.src = "resources/minusButtonGrey.png";
-        }
-        buyImageMinus.style.height = "21px";
-        buyImageMinus.style.width = "21px";
+        const buyImageMinus = stepperButton({
+            kind: "minus",
+            enabled: purchaseRow.condition === "Can Build"
+        });
         buyColumn5A.appendChild(buyImageMinus);
 
         const buyColumn5Wrapper = document.createElement("div");
@@ -2363,14 +2337,10 @@ function populateBuyTable(territory) {
         const buyColumn5C = document.createElement("div");
         buyColumn5C.classList.add("buy-column");
         buyColumn5C.classList.add("buyColumn5C");
-        const buyImagePlus = document.createElement("img");
-        if (purchaseRow.condition === "Can Build") {
-            buyImagePlus.src = "resources/plusButton.png";
-        } else {
-            buyImagePlus.src = "resources/plusButtonGrey.png";
-        }
-        buyImagePlus.style.height = "21px";
-        buyImagePlus.style.width = "21px";
+        const buyImagePlus = stepperButton({
+            kind: "plus",
+            enabled: purchaseRow.condition === "Can Build"
+        });
         buyColumn5C.appendChild(buyImagePlus);
 
         // Add columns to the row
@@ -2415,7 +2385,7 @@ function populateBuyTable(territory) {
         });
 
         buyImageMinus.addEventListener("click", (e) => {
-            if (buyImageMinus.src.includes("resources/minusButton.png")) {
+            if (isStepperEnabled(buyImageMinus)) {
                 const multiplierText = multiplierQuantityTextBox.innerHTML;
                 let multiplier = 1;
 
@@ -2459,29 +2429,17 @@ function populateBuyTable(territory) {
                     checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "minus");
 
                     if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
-                        document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
-                            this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
-                        });
-                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
-                            this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        });
+                        setConfirmArmed(ids.bottomBarBuyConfirmButton, true);
                     } else if (allRowsWithValueZeroForPurchases(buyTable)) {
                         document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Cancel";
-                        document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
-                            this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-                        });
-                        document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
-                            this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        });
+                        setConfirmArmed(ids.bottomBarBuyConfirmButton, false);
                     }
                 }
             }
         });
 
         buyImagePlus.addEventListener("click", (e) => {
-            if (buyImagePlus.src.includes("resources/plusButton.png")) {
+            if (isStepperEnabled(buyImagePlus)) {
                 const multiplierText = multiplierQuantityTextBox.innerHTML;
                 let multiplier = 1;
 
@@ -2534,21 +2492,9 @@ function populateBuyTable(territory) {
 
                 if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
                     document.getElementById(ids.bottomBarBuyConfirmButton).innerHTML = "Confirm";
-                    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
-                        this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
-                    });
-                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
-                        this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    });
+                    setConfirmArmed(ids.bottomBarBuyConfirmButton, true);
                 } else if (allRowsWithValueZeroForPurchases(buyTable)) {
-                    document.getElementById(ids.bottomBarBuyConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseover", function() {
-                        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-                    });
-                    document.getElementById(ids.bottomBarBuyConfirmButton).addEventListener("mouseout", function() {
-                        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    });
+                    setConfirmArmed(ids.bottomBarBuyConfirmButton, false);
                 }
             }
         });
@@ -2561,13 +2507,7 @@ function populateUpgradeTable(territory) {
     document.getElementById(ids.pricesInfoColumn2).innerHTML = "0";
     document.getElementById(ids.pricesInfoColumn4).innerHTML = "0";
     document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Cancel";
-    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
-        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-    });
-    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
-        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-    });
+    setConfirmArmed(ids.bottomBarConfirmButton, false);
 
     let simulatedCosts;
     const upgradeTable = document.getElementById(ids.upgradeTable);
@@ -2613,14 +2553,10 @@ function populateUpgradeTable(territory) {
         const column5A = document.createElement("div");
         column5A.classList.add("upgrade-column");
         column5A.classList.add("column5A");
-        const imageMinus = document.createElement("img");
-        if (upgradeRow.condition === "Can Build") {
-            imageMinus.src = "resources/minusButton.png";
-        } else {
-            imageMinus.src = "resources/minusButtonGrey.png";
-        }
-        imageMinus.style.height = "21px";
-        imageMinus.style.width = "21px";
+        const imageMinus = stepperButton({
+            kind: "minus",
+            enabled: upgradeRow.condition === "Can Build"
+        });
         column5A.appendChild(imageMinus);
 
         const column5Wrapper = document.createElement("div");
@@ -2637,14 +2573,10 @@ function populateUpgradeTable(territory) {
         const column5C = document.createElement("div");
         column5C.classList.add("upgrade-column");
         column5C.classList.add("column5C");
-        const imagePlus = document.createElement("img");
-        if (upgradeRow.condition === "Can Build") {
-            imagePlus.src = "resources/plusButton.png";
-        } else {
-            imagePlus.src = "resources/plusButtonGrey.png";
-        }
-        imagePlus.style.height = "21px";
-        imagePlus.style.width = "21px";
+        const imagePlus = stepperButton({
+            kind: "plus",
+            enabled: upgradeRow.condition === "Can Build"
+        });
         column5C.appendChild(imagePlus);
 
 
@@ -2697,7 +2629,7 @@ function populateUpgradeTable(territory) {
         }
 
         imageMinus.addEventListener("click", (e) => {
-            if (imageMinus.src.includes("resources/minusButton.png")) {
+            if (isStepperEnabled(imageMinus)) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
                 if (parseInt(textField.value) > 0) {
                     simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, false);
@@ -2730,29 +2662,17 @@ function populateUpgradeTable(territory) {
                     checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
                     if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
-                        document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
-                            this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
-                        });
-                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
-                            this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                        });
+                        setConfirmArmed(ids.bottomBarConfirmButton, true);
                     } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
                         document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Cancel";
-                        document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
-                            this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-                        });
-                        document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
-                            this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                        });
+                        setConfirmArmed(ids.bottomBarConfirmButton, false);
                     }
                 }
             }
         });
 
         imagePlus.addEventListener("click", (e) => {
-            if (imagePlus.src.includes("resources/plusButton.png")) {
+            if (isStepperEnabled(imagePlus)) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
                 simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory, false);
                 switch (simulatedCosts[2]) {
@@ -2794,21 +2714,9 @@ function populateUpgradeTable(territory) {
 
                 if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
                     document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Confirm";
-                    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
-                        this.style.backgroundColor = "rgba(0, 158, 0, 0.8)";
-                    });
-                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
-                        this.style.backgroundColor = "rgba(0, 128, 0, 0.8)";
-                    });
+                    setConfirmArmed(ids.bottomBarConfirmButton, true);
                 } else if (allRowsWithValueZeroForUpgrades(upgradeTable)) {
-                    document.getElementById(ids.bottomBarConfirmButton).style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseover", function() {
-                        this.style.backgroundColor = "rgba(84, 123, 155, 0.8)";
-                    });
-                    document.getElementById(ids.bottomBarConfirmButton).addEventListener("mouseout", function() {
-                        this.style.backgroundColor = "rgba(54, 93, 125, 0.8)";
-                    });
+                    setConfirmArmed(ids.bottomBarConfirmButton, false);
                 }
             }
         });
@@ -3152,11 +3060,9 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                 }
 
                 // Get the plus button image in the fifth column
-                const plusButton = buyRow.querySelector('.buyColumn5C img');
+                const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
                 if (plusButton) {
-                    if (!plusButton.src.includes('Grey.png')) {
-                        plusButton.src = plusButton.src.replace('.png', 'Grey.png');
-                    }
+                    setStepperEnabled(plusButton, false);
                 }
             }
         });
@@ -3189,12 +3095,9 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                     }
                 }
                 // Get the plus button image in the fifth column
-                const plusButton = buyRow.querySelector('.buyColumn5C img');
+                const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
                 if (plusButton) {
-                    // Update the plus button source
-                    if (!plusButton.src.includes('Grey.png')) {
-                        plusButton.src = plusButton.src.replace('.png', 'Grey.png');
-                    }
+                    setStepperEnabled(plusButton, false);
                 }
             }
         });
@@ -3227,7 +3130,7 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
             const imageElement = buyRow.querySelector('.buy-column:first-child img');
 
             // Get the plus button image in the fifth column
-            const plusButton = buyRow.querySelector('.buyColumn5C img');
+            const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
 
             if (
                 Math.ceil(totalPlayerResources[0].totalGold) >= totalGoldPrice + amountToAdd &&
@@ -3238,16 +3141,18 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                 if (imageElement && imageElement.src.includes('Grey.png')) {
                     imageElement.src = imageElement.src.replace('Grey.png', '.png');
                 }
-                if (plusButton && plusButton.src.includes('Grey.png')) {
-                    plusButton.src = plusButton.src.replace('Grey.png', '.png');
-                }
+                setStepperEnabled(plusButton, true);
             }
         });
     }
 }
 
 function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
-    let column5CImage;
+    //Phase 7.11. `column5CPlus` is a `<button>` now, not an `<img>`: the row's
+    //ARTWORK (`firstRowImage`) is still a PNG and still swaps to its `Grey.png`
+    //twin, because that art is the farm/forest/oil-well/fort illustration and is
+    //deliberately kept. The plus button is drawn, so its disabled state is a class.
+    let column5CPlus;
     let firstRowImage;
     const simulatedGoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
     const simulatedConsMatsElements = [simulatedCostsAll[1], simulatedCostsAll[3], simulatedCostsAll[5], simulatedCostsAll[7]];
@@ -3267,11 +3172,9 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 }
 
                 // Get the plus button image in the fifth column
-                const plusButton = upgradeRow.querySelector('.column5C img');
+                const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
                 if (plusButton) {
-                    if (!plusButton.src.includes('Grey.png')) {
-                        plusButton.src = plusButton.src.replace('.png', 'Grey.png');
-                    }
+                    setStepperEnabled(plusButton, false);
                 }
             }
         });
@@ -3288,12 +3191,9 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                     }
                 }
                 // Get the plus button image in the fifth column
-                const plusButton = upgradeRow.querySelector('.column5C img');
+                const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
                 if (plusButton) {
-                    // Update the plus button source
-                    if (!plusButton.src.includes('Grey.png')) {
-                        plusButton.src = plusButton.src.replace('.png', 'Grey.png');
-                    }
+                    setStepperEnabled(plusButton, false);
                 }
             }
         });
@@ -3304,10 +3204,8 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
 
-                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5C img`);
-                if (!column5CImage.src.includes('Grey.png')) {
-                    column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
-                }
+                column5CPlus = upgradeTable.querySelector(`.upgrade-row:nth-child(1) .column5C .stepper-button`);
+                setStepperEnabled(column5CPlus, false);
             }
         } else if (type === "Forest") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5B input`).value) + territory.forestsBuilt >= 5) {
@@ -3315,10 +3213,8 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5C img`);
-                if (!column5CImage.src.includes('Grey.png')) {
-                    column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
-                }
+                column5CPlus = upgradeTable.querySelector(`.upgrade-row:nth-child(2) .column5C .stepper-button`);
+                setStepperEnabled(column5CPlus, false);
             }
         } else if (type === "Oil Well") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5B input`).value) + territory.oilWellsBuilt >= 5) {
@@ -3326,10 +3222,8 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5C img`);
-                if (!column5CImage.src.includes('Grey.png')) {
-                    column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
-                }
+                column5CPlus = upgradeTable.querySelector(`.upgrade-row:nth-child(3) .column5C .stepper-button`);
+                setStepperEnabled(column5CPlus, false);
             }
         } else if (type === "Fort") {
             if (parseInt(upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5B input`).value) + territory.fortsBuilt >= 5) {
@@ -3337,10 +3231,8 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 if (!firstRowImage.src.includes('Grey.png')) {
                     firstRowImage.src = firstRowImage.src.replace('.png', 'Grey.png');
                 }
-                column5CImage = upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5C img`);
-                if (!column5CImage.src.includes('Grey.png')) {
-                    column5CImage.src = column5CImage.src.replace('.png', 'Grey.png');
-                }
+                column5CPlus = upgradeTable.querySelector(`.upgrade-row:nth-child(4) .column5C .stepper-button`);
+                setStepperEnabled(column5CPlus, false);
             }
         }
     } else if (button === "minus") {
@@ -3354,7 +3246,7 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
             const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
 
             // Get the plus button image in the fifth column
-            const plusButton = upgradeRow.querySelector('.column5C img');
+            const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
 
             const simulatedConsMatsElement = simulatedConsMatsElements[index];
 
@@ -3381,9 +3273,7 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 if (imageElement && imageElement.src.includes('Grey.png')) {
                     imageElement.src = imageElement.src.replace('Grey.png', '.png');
                 }
-                if (plusButton && plusButton.src.includes('Grey.png')) {
-                    plusButton.src = plusButton.src.replace('Grey.png', '.png');
-                }
+                setStepperEnabled(plusButton, true);
             }
         });
     }

@@ -457,10 +457,12 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 14 | `random-events/` | P2 | §2.2, §3.7 | ✅ 7 — Phase 5.8 |
 | 15 | `conquest-lifecycle/` | P2 | §3.7 | ✅ 4 — Phase 5.8 |
 | — | `options/` | P2 | — | ✅ 21 — Phase 7.10; not in the original list, added with the theme system and grown with the audio work |
+| — | `ui-layout/` | P2 | — | ✅ 42 — Phase 7.11 and 7.4. Not in the original list: it exists because two of its faults have no textual signature at all, so no unit test can hold them — a window that clips its own last row, and a focus order that never reorders anything |
+| — | `activity-feed/` | P2 | Refactor 7.4 | ✅ 25 — Phase 7.4 |
 | 16 | `save-load/` | P3 | Refactor 7.2/7.3 | ✅ 16 — Phase 7.2/7.3. This is row 16, `persistence/`, delivered under the name of the feature rather than of the mechanism |
 | 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
 
-**330 tests in 57 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
+**397 tests in 61 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
 Each folder's README records which rows of the tables below it delivers and which it defers,
 with the reason — a spec that is missing is missing on purpose and says so.
 
@@ -731,6 +733,48 @@ uses, and `saveCode()` / `loadCode()`, which are the panel's two buttons without
 Total conquest triggers victory; losing the last territory triggers defeat; the configured objective (N territories / a continent / turn limit) is evaluated at the right point in the turn; the end screen offers a new game that actually restarts.
 
 ---
+
+### 5.18 `ui-layout/` — ✅ delivered (Refactor 7.11, extended in 7.4)
+
+Not in the original plan. It exists because the two faults it is built around leave no trace
+in the source, so no unit test can hold them:
+
+- **a window that clips its own content.** Upgrade Territory shipped for months as
+  `height: 500px` over a `366px` content window over a `300px` table — three ordinary CSS
+  declarations that had to agree and did not, so the fourth of four rows was drawn underneath
+  the bottom bar. Only a measurement finds that.
+- **a focus order that never reorders anything.** The first version of `bringToFront()`
+  compared a window's z-index against the counter's high-water mark, which was true for every
+  window while they all sat at the base — so nothing could be raised and nothing threw.
+
+| Spec | Covers |
+|---|---|
+| `drawn-controls.spec.js` | The steppers and the two territory-row action buttons are `<button>`s with inline SVG, not `<img>`s; disabled is `aria-disabled`, not a file path; a greyed stepper still receives its click and ignores it; the artwork PNGs the brief kept are still there; moving a token repaints all of it |
+| `window-chrome.spec.js` | No window clips its own rows or hides them under its bottom bar; both fit on screen; the tab strip carries its selection in one class and is not styled inline; the confirm button arms and disarms; every panel paints an opaque themed surface |
+| `draggable-windows.spec.js` | Each window moves by the distance the pointer moved and keeps its centring transform; a control inside a title bar still does its own job; a window cannot be dragged off screen; touching a window raises it, including deep inside; opening one focuses it; the stack never reaches the modal band |
+| `phase-bar.spec.js` | The advance button sits at the bottom with no spare row; folding the bar does not move it by a pixel; it expands to exactly what it was; the flag is shown whenever the bar is open; the bar is below every window; the colour picker still sits directly above it |
+
+`tests/unit/ui-stylesheet.spec.js` (28 tests) owns the other half — that no colour literal
+survives outside `:root`, that no retired control PNG is referenced, that the two resource
+windows are declared together, and that every class the JS writes is styled.
+
+### 5.19 `activity-feed/` — ✅ delivered (Refactor 7.4)
+
+The military activity panel. The division with the unit suite is sharper here than anywhere
+else: `describeActivity()` is pure, so `tests/unit/ui-activity-feed.spec.js` owns every
+sentence and every colour rule, and **no spec in this folder matches on the text of an
+entry** — doing so would test the phrasing twice and the behaviour not at all.
+
+| Spec | Covers |
+|---|---|
+| `panel.spec.js` | The button appears with the in-game chrome and not before; open, close and the X; per-turn sections group, collapse and expand, and a shut one is out of the layout; the panel raises itself at the start of a turn with exactly one section open and scrolled to the top, and the toggle switches the raising off without making it stale; it opens over the territory panel and can be pushed back under it |
+| `recording.spec.js` | A conquest is derived from the ownership change and names the country it was taken *from*; the ownership pass that starts a game is not a conquest; a siege is recorded when it starts; an economic entry is refused outright and a buy/upgrade turn records nothing; the player-involvement flags are set on the right side and make the row larger; the log survives a save/load round trip and a pre-7.4 save still loads |
+
+Two hooks were added to `window.__game`: `activity()` reads the log as data, and
+`recordActivity()` writes one entry — because the feed's harder cases (an AI conquering an AI
+on the far side of the map, a siege in its fourth turn) are unreachable by clicking in any
+reasonable time. What it does not bypass is the panel: the entry goes through
+`recordActivity()` and the panel re-renders from the event.
 
 ## 6. Delivery sequence
 

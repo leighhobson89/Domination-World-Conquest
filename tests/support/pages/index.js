@@ -8,3 +8,4 @@ export { UpgradeWindowPage } from "./upgradeWindow.js";
 export { MoveButtonPage } from "./moveButton.js";
 export { TransferAttackPage, UNIT_COLUMN } from "./transferAttack.js";
 export { BattlePage } from "./battle.js";
+export { ActivityPanelPage } from "./activityPanel.js";

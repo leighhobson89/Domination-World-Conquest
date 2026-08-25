@@ -80,6 +80,9 @@ import {
 import {
     ids
 } from './src/ui/core/registry.js';
+import {
+    recordFailedAttack
+} from './src/state/activityRecorder.js';
 
 //Balance numbers live in src/config/balance.js (Phase 5.1); imported above.
 
@@ -286,6 +289,16 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                                 mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
                             } else {
                                 summaryWarsLostArray.push(mainArrayEnemyTerritoryCopy.territoryName + " resisted attack from " + mainArrayFriendlyTerritoryCopy.dataName);
+                                //Phase 7.4. The activity feed's explicit half. A CONQUEST
+                                //is derived from the ownership change and needs no call
+                                //here; a failed attack changes nothing in the store, so
+                                //this line is the only record of it there will ever be.
+                                recordFailedAttack({
+                                    territory: mainArrayEnemyTerritoryCopy.territoryName,
+                                    defender: mainArrayEnemyTerritoryCopy.dataName,
+                                    attacker: mainArrayFriendlyTerritoryCopy.dataName,
+                                    playerDefending: mainArrayEnemyTerritoryCopy.owner === "Player"
+                                });
                             }
                         } else {
                             break;

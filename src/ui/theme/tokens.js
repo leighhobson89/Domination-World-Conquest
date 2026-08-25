@@ -33,6 +33,10 @@ export const TOKENS = Object.freeze([
     "--accent-strong", // hover/pressed form of the accent
     "--positive", // music on, gains, "yes"
     "--negative", // music off, losses, "no"
+    // A siege is neither. It is the third state the activity feed needs -- a
+    // territory that has not fallen and has not held -- and giving it a token of
+    // its own is what stops five themes rendering it as the same literal amber.
+    "--siege-amber",
 
     // --- Line and shape -------------------------------------------------------
     // These are what make the themes differ in FEEL and not only in hue: a
@@ -48,6 +52,11 @@ export const TOKENS = Object.freeze([
     "--shadow-panel",
     "--shadow-text",
     "--panel-blur", // backdrop-filter blur radius for the menu scrim
+    // The halo a reactive control throws when it is hovered, focused or armed.
+    // A token rather than `--accent` at some alpha, because how much a theme
+    // should glow is a stylistic decision and not a derived one: Terminal is a
+    // phosphor tube and wants to bloom, Parchment is ink on paper and must not.
+    "--glow",
 
     // --- Type -----------------------------------------------------------------
     "--font-display", // title and menu buttons

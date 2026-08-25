@@ -18,6 +18,7 @@
 import { armyAllocationRow } from "./ArmyAllocationRow.js";
 import { multipleValueOf, nextMultipleLabel, showMultiple, ALL } from "./multiples.js";
 import { sel } from "../core/registry.js";
+import { setStepperEnabled } from "../controls/steppers.js";
 
 const UNIT_SLOTS = 4;
 
@@ -114,7 +115,7 @@ export function renderAttackTable(table, deps) {
                 }
 
                 if (parseInt(quantityTextBox.value) === limit) {
-                    plusButton.src = "resources/plusButtonGrey.png";
+                    setStepperEnabled(plusButton, false);
                 }
 
                 commit();
@@ -156,7 +157,7 @@ export function renderAttackTable(table, deps) {
                 showMultiple(multipleTextBox, reduced);
 
                 if (parseInt(quantityTextBox.value) < ceiling()) {
-                    plusButton.src = "resources/plusButton.png";
+                    setStepperEnabled(plusButton, true);
                 }
 
                 commit();

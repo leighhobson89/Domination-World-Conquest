@@ -21,9 +21,11 @@
 
 import { ids } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
+import { bringToFront, makeDraggable } from "../core/draggable.js";
 
 let root = null;
 let parts = null;
+let undrag = null;
 
 export function create({ onClose } = {}) {
     if (root) return root;
@@ -39,10 +41,18 @@ export function create({ onClose } = {}) {
 
     const heading = el("div", { id: ids.attackOrTransferString, class: "attackOrTransferHeading" });
     const territoryText = el("div", { id: ids.territoryTextString, class: "territoryText" });
-    const closeButton = el("div", {
+    //A real `<button>`, and Phase 7.4 is what forced the issue. It was a `<div>`
+    //with a click listener, which every stylesheet rule and every spec was happy
+    //with -- until the window became draggable and `makeDraggable()` had to decide
+    //whether a pointerdown on this element was a grip or a control. It excludes
+    //`button, input, select, textarea, a`; a `<div>` is none of those, so taking
+    //hold of the X started a drag, and a drag cancels the click that would have
+    //closed the window and cleared the attack marker.
+    const closeButton = el("button", {
         id: ids.xButtonTransferAttack,
         class: "x-button-transfer-attack",
         html: "X",
+        attrs: { type: "button", "aria-label": "Close" },
         on: { click: onClose },
     });
 
@@ -127,6 +137,14 @@ export function create({ onClose } = {}) {
     };
 
     mount(ids.transferAttackWindowContainer, root);
+    //Phase 7.4. The two-row title is the grip. Note what the drag deliberately does
+    //NOT touch: this container is centred by `transform: translate(-50%, -50%)` and
+    //BOTH `.title-transfer-attack-window` and `.content-transfer-header-row` are
+    //`position: fixed` inside it -- a fixed child is positioned against the nearest
+    //transformed ancestor, so removing that transform to make the drag arithmetic
+    //simpler would fling this window's own header into the corner of the screen.
+    //`makeDraggable()` shifts the computed `left`/`top` and leaves the transform be.
+    undrag = makeDraggable(container(), title);
     return root;
 }
 
@@ -136,7 +154,12 @@ function container() {
 
 export function show() {
     const node = container();
-    if (node) node.style.display = "block";
+    if (!node) return;
+    node.style.display = "block";
+    //Opening is focusing -- see the note in `ResourceWindow.js`. This window is
+    //raised from the move button rather than from inside another window, but it is
+    //in the same stacking group and the same rule applies.
+    bringToFront(node);
 }
 
 export function hide() {
@@ -157,6 +180,8 @@ export function elements() {
 }
 
 export function destroy() {
+    undrag?.();
+    undrag = null;
     root?.remove();
     root = null;
     parts = null;
