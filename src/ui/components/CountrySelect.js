@@ -21,8 +21,8 @@
 //     again, and the fill no longer matched so the button came back. The caller
 //     passes `locked`, and it gets that from `pathIsGreyedOut()`.
 
-import { ids } from "../core/registry.js";
 import { on } from "../core/dom.js";
+import { colourPicker } from "./ColourPicker.js";
 import { phaseBar } from "./PhaseBar.js";
 
 const MAX_FONT_SIZE = 35;
@@ -34,14 +34,19 @@ let picker = null;
 let unsubscribe = null;
 
 /**
- * Adopt the `<input type="color">` from index.html and wire its change event.
+ * Wire the change event of the element that holds the chosen colour.
  *
- * The input is markup rather than built here because it is a native control the
- * browser opens its own dialog for, and the label in the phase bar points at it
- * by id.
+ * That element used to be an `<input type="color">` declared in index.html, which
+ * the browser answered with its own operating-system dialog -- the one thing in
+ * the game a theme could not restyle, and a control that did not repaint the map
+ * until it was dismissed. `ColourPicker.js` builds a themed grid of 256 swatches
+ * instead, and creates the input itself as an off-screen value holder. Everything
+ * below is unchanged: the value is still read from one input and the map still
+ * repaints on that input's `change`.
  */
 export function create({ onColourChange } = {}) {
-    picker = document.getElementById(ids.playerColorPicker);
+    colourPicker.create();
+    picker = colourPicker.inputElement();
     if (picker && onColourChange) {
         unsubscribe = on(picker, "change", onColourChange);
     }
@@ -63,16 +68,33 @@ export function colour() {
  * as a hole rather than a selection.
  */
 export function setColour(hex) {
-    if (picker) picker.value = hex;
+    colourPicker.setValue(hex);
 }
 
+/** Open the swatch grid. The phase bar's colour label is what asks. */
 export function showPicker() {
-    if (picker) picker.style.display = "block";
+    colourPicker.open();
+}
+
+/** Open it if it is closed, close it if it is open. */
+export function togglePicker() {
+    colourPicker.toggle();
+}
+
+/**
+ * Put the grid away.
+ *
+ * It is a floating panel with no scrim, so nothing dismisses it as a side effect of
+ * something else happening -- hiding the control that opened it does not close it.
+ * Confirming a country is one of the moments that has to say so.
+ */
+export function closePicker() {
+    colourPicker.close();
 }
 
 /** Once the game has started the colour is fixed. */
 export function lockPicker() {
-    if (picker) picker.disabled = true;
+    colourPicker.lock();
 }
 
 /**
@@ -100,6 +122,7 @@ export function nameCountry(countryName, { locked }) {
 export function destroy() {
     unsubscribe?.();
     unsubscribe = null;
+    colourPicker.destroy();
     picker = null;
 }
 
@@ -162,6 +185,8 @@ export const countrySelect = {
     colour,
     setColour,
     showPicker,
+    togglePicker,
+    closePicker,
     lockPicker,
     nameCountry,
     adjustTextToFit,

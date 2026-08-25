@@ -17,6 +17,8 @@ import { tooltip } from "../components/Tooltip.js";
  * @typedef {object} ColumnSpec
  * @property {string} label     the header tooltip, and the image's alt text
  * @property {string} [icon]    file name under `resources/`
+ * @property {() => Element} [iconNode]  builds the header icon instead of `icon`,
+ *           for the columns drawn as inline SVG so a theme can reach them
  * @property {string} [width]   CSS width for both header and body cell
  * @property {string} [headerText]  literal text INSTEAD of the icon, for a title cell
  * @property {(ctx: any) => void} [render]  fills the body cell
@@ -65,7 +67,16 @@ export function headerRow(columns, { rowClass = "ui-table-row", columnClass = "u
 
         attachHeaderTooltip(column, spec.label);
 
-        if (spec.icon) {
+        // An inline SVG wins over a file name. The war and siege columns are drawn
+        // rather than shipped as PNGs so they take `var(--accent)` like the rest of
+        // the chrome -- a bitmap is the same colour in every theme, which is what
+        // made those two icons the odd ones out in a themed table.
+        if (spec.iconNode) {
+            const node = spec.iconNode();
+            node.setAttribute("role", "img");
+            node.setAttribute("aria-label", spec.label);
+            column.appendChild(node);
+        } else if (spec.icon) {
             const image = el("img", { class: "sizingIcons", alt: spec.label });
             image.src = "resources/" + spec.icon;
             column.appendChild(image);

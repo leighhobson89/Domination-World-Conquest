@@ -72,11 +72,24 @@ export function create({ onColourLabelClick } = {}) {
         text: "Select a Country...",
     });
 
+    //A <label> with no `for`, deliberately. It used to point at the
+    //`<input type="color">`, which is what made clicking it open the operating
+    //system's colour dialog -- and that dialog now opens ON TOP of the themed
+    //swatch grid this same click is meant to show. The input still exists and
+    //still holds the value, but it is off screen and nothing must activate it:
+    //`ColourPicker.js` writes it and dispatches its `change`.
+    //
+    //Phase 7.5: its text is the theme's and stays the theme's. Two places in ui.js
+    //used to write `style.color = playerColour()` on it after every pick, which
+    //made the words themselves the colour preview -- and unreadable whenever the
+    //player picked something near the panel's own background. The swatch grid
+    //marks the chosen swatch and previews it in its header, so the preview was
+    //already there twice. Do not repaint this element from game state.
     colourLabel = el("label", {
         id: ids.popupColor,
         class: ["popup-option", "popup-option-color"],
         text: "Select Player Color",
-        attrs: { for: ids.playerColorPicker },
+        attrs: { role: "button", tabindex: "0" },
         on: { click: onColourLabelClick },
     });
 
@@ -135,7 +148,9 @@ export function setMode(next) {
         //(`setFlag` paints it there whenever the selection screen is up), the subtitle
         //keeps the font size `adjustTextToFit` chose for that country's name, the
         //confirm button stays green and offered before anything has been clicked, and
-        //the colour label stays visible, which on a cold start it is not.
+        //the colour label stays visible, which on a cold start it is not. The label's
+        //colour is NOT cleared here -- nothing writes it any more, so there is nothing
+        //left behind to undo.
         titleCell.innerText = "Select a Country...";
         bodyCell.innerText = "- - - -";
         bodyCell.style.opacity = "";
@@ -150,7 +165,6 @@ export function setMode(next) {
         //screen where nothing has been selected.
         button.style.opacity = "";
         colourLabel.style.display = "";
-        colourLabel.style.color = "";
         return;
     }
     if (next === Mode.INITIALISING) {
@@ -208,10 +222,6 @@ export function buttonElement() {
     return button;
 }
 
-export function colourLabelElement() {
-    return colourLabel;
-}
-
 /**
  * Show or hide the bar itself.
  *
@@ -255,7 +265,6 @@ export const phaseBar = {
     bodyElement,
     bodyText,
     buttonElement,
-    colourLabelElement,
     setBrandFlag,
     setVisible,
     setButtonEnabled,

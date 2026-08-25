@@ -1350,7 +1350,7 @@ function buildUpgradeButton(path, territoryData) {
 
     button.addEventListener("mousedown", () => {
         if (territoryActionsEnabled(path)) {
-            playSoundClip("click");
+            playSoundClip("button");
             image.src = "resources/upgradeButtonIconPressed.png";
         }
     });
@@ -1384,7 +1384,7 @@ function buildBuyButton(path, territoryData) {
 
     button.addEventListener("mousedown", () => {
         if (territoryActionsEnabled(path)) {
-            playSoundClip("click");
+            playSoundClip("button");
             image.src = "resources/buyButtonIconPressed.png";
         }
     });

@@ -1,12 +1,11 @@
 import { menu, containers } from "../selectors.js";
 
-/** The main menu: New Game, Toggle Music, Help. */
+/** The main menu: Resume, New Game, Save / Load, Options, Help. */
 export class MenuPage {
     constructor(page) {
         this.page = page;
         this.container = page.locator(containers.menu);
         this.newGame = page.locator(menu.newGame);
-        this.toggleMusic = page.locator(menu.toggleMusic);
     }
 
     /** True once the territory model is built -- the button starts disabled. */

@@ -44,7 +44,6 @@ gameTurnsLoop.js
 initialData.js
 leaderPersonalities.js
 manualExceptionsForInteractions.js
-music.js
 resourceCalculations.js
 sfx.js
 style.css

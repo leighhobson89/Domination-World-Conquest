@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import fs from "node:fs";
 import path from "node:path";
+import { writeMusicManifest } from "./tools/build-music-manifest.mjs";
 
 const ROOT = import.meta.dirname;
 
@@ -28,6 +29,25 @@ function copyVerbatimDirs(outDir) {
           fs.cpSync(from, path.resolve(ROOT, outDir, dir), { recursive: true });
         }
       }
+    },
+  };
+}
+
+// `resources/music/tracks.json` is the list of mp3s the audio manager shuffles
+// through. A browser cannot read a directory and there is no server here, so the
+// folder listing has to be written down -- and the one thing that must never
+// happen is a track being dropped into `resources/music/` and silently ignored.
+// Regenerating it whenever Vite starts or builds means adding an mp3 and
+// reloading is the whole procedure; `npm run build:music` does the same job
+// without Vite. See `tools/build-music-manifest.mjs`.
+function refreshMusicManifest() {
+  return {
+    name: "refresh-music-manifest",
+    buildStart() {
+      writeMusicManifest();
+    },
+    configureServer() {
+      writeMusicManifest();
     },
   };
 }
@@ -66,5 +86,5 @@ export default defineConfig({
     strictPort: true,
   },
 
-  plugins: [copyVerbatimDirs(OUT_DIR)],
+  plugins: [refreshMusicManifest(), copyVerbatimDirs(OUT_DIR)],
 });

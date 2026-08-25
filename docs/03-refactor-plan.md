@@ -1307,6 +1307,19 @@ one bug away from each other, since a preview that persisted would make Cancel m
 main-menu button because `music.js` owns it and finds it by id; moving it into Options is a
 small change that belongs with 7.6, when Help gets wired and the panel has more than one row.
 
+*Since superseded, twice.* Music did not move into Options as described. `music.js` is
+gone, and with it the menu item: the audio settings are a floating panel opened from a
+music-note button on the map (`src/ui/components/AudioPanel.js`), because volume is
+something a player adjusts while looking at the game rather than something they leave the
+game to find.
+
+Then the two MUTES came back to Options as a pair of switches, which is not a reversal of
+that reasoning but the other half of it. A volume is adjusted against the game and belongs
+over the map; "no sound, please" is a decision made before the game starts and has to be
+reachable from the title screen, where there is no map for a floating panel to float over.
+Both are views onto `src/platform/audio.js` and neither holds state, so they cannot
+disagree — `tests/e2e/options/sound-toggles.spec.js` asserts that in both directions.
+
 ---
 
 ## 3. Effort summary

@@ -52,9 +52,26 @@ export const ids = Object.freeze({
     resumeGameBtn: "resume-game-btn",
     newGameBtn: "new-game-btn",
     saveLoadBtn: "save-load-btn",
-    toggleMusicBtn: "toggle-music-btn",
     optionsBtn: "options-btn",
     helpBtn: "help-btn",
+
+    // --- Audio ----------------------------------------------------------------
+    // `toggle-music-btn` used to live in the main menu and was the whole of the
+    // audio UI: one button, no volume, nothing saved. It is a music-note chrome
+    // button under the continent-view button now, and it opens a panel with a
+    // slider and a mute for each of music and sfx, plus transport controls.
+    audioButton: "audio-button",
+    audioButtonContainer: "audio-button-container",
+    audioPanel: "audio-panel",
+    audioPanelContainer: "audio-panel-container",
+    audioPlayPauseBtn: "audio-play-pause-btn",
+    audioSkipBtn: "audio-skip-btn",
+    audioTrackName: "audio-track-name",
+    audioMusicSlider: "audio-music-slider",
+    audioMusicMuteBtn: "audio-music-mute-btn",
+    audioSfxSlider: "audio-sfx-slider",
+    audioSfxMuteBtn: "audio-sfx-mute-btn",
+    audioCloseBtn: "audio-close-btn",
 
     // --- In-game menu button (Phase 7.2) --------------------------------------
     // The hamburger at the top of the screen. Escape has always opened the menu
@@ -94,6 +111,12 @@ export const ids = Object.freeze({
     themeSelect: "theme-select",
     themePreview: "theme-preview",
     themeDescription: "theme-description",
+    // The two sound switches. They are the same two mutes the audio panel over the
+    // map already offers, put where a player looks for a setting -- the panel is
+    // reachable only once a game is on screen, and "turn the music off" is the
+    // first thing some players do from the title screen.
+    optionsMusicToggle: "options-music-toggle",
+    optionsSfxToggle: "options-sfx-toggle",
     optionsCloseBtn: "options-close-btn",
     // Phase 7.3 gave Cancel an id. It never had one, and the theme spec reached it
     // by `.options-button-ghost` -- which stopped being unique the moment the
@@ -107,7 +130,17 @@ export const ids = Object.freeze({
     popupBody: "popup-body",
     popupConfirm: "popup-confirm",
     popupColor: "popup-color",
+    // The VALUE holder, and nothing else. It is an `<input type="color">` kept
+    // off screen: the browser's own 16.7-million-colour dialog is gone, replaced
+    // by `ColourPicker.js`'s grid of 256 swatches, but the input is still where
+    // the chosen `#rrggbb` lives and is still what fires `change`. One fact, one
+    // element, and every existing reader keeps working.
     playerColorPicker: "player-color-picker",
+    colourPickerContainer: "colour-picker-container",
+    colourPickerPanel: "colour-picker-panel",
+    colourPickerGrid: "colour-picker-grid",
+    colourPickerPreview: "colour-picker-preview",
+    colourPickerCloseBtn: "colour-picker-close-btn",
 
     // --- Map ------------------------------------------------------------------
     // `svgMap` is an <object>, not an <iframe>. In Playwright it is reached with

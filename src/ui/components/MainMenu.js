@@ -1,5 +1,5 @@
 // The start menu: title, subtitle, Resume Game, New Game, Save / Load, Options,
-// Toggle Music, Help.
+// Help.
 //
 // Refactor Phase 6.3. Small, and the last component with no store state at all
 // -- the menu is either up or it is not, and that is a fact about the UI rather
@@ -41,10 +41,12 @@
 // is Phase 7.6, which is also where there will be something for it to say. It
 // now carries an id so that Phase can find it without a positional selector.
 //
-// Music is deliberately NOT here. `music.js` finds `#toggle-music-btn` itself
-// and owns the audio element and the isPlaying/isNotPlaying classes; the menu
-// only has to make sure the button exists and that those two classes have
-// somewhere to land.
+// Music is no longer here at all. "Toggle Music" was a menu item that could only
+// be reached by leaving the game, and all it could do was start or stop one
+// hard-coded file -- no volume, no mute, nothing saved. The music-note chrome
+// button under the continent-view button opens `AudioPanel.js` instead, which has
+// a slider and a mute for each of music and sound effects and transport controls
+// for the playlist, and it is reachable without abandoning the map.
 
 import { ids } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
@@ -55,7 +57,7 @@ let newGameButton = null;
 let resumeButton = null;
 let saveLoadButton = null;
 
-export function create({ onNewGame, onOptions, onResume, onSaveLoad } = {}) {
+export function create({ onNewGame, onOptions, onResume, onSaveLoad, onSound } = {}) {
     if (root) return root;
 
     resumeButton = el("button", {
@@ -88,8 +90,13 @@ export function create({ onNewGame, onOptions, onResume, onSaveLoad } = {}) {
     });
 
     // The panel creates itself on first open, but creating it here means the
-    // player's stored theme is on screen before anything is clicked.
-    optionsPanel.create();
+    // player's stored theme is on screen before anything is clicked -- and, since
+    // it grew two sound switches, that the switches agree with `audio.js` before
+    // the panel has ever been opened.
+    //
+    // The sound is handed down rather than chosen there for the same reason the
+    // audio panel is handed one: a component does not decide which clip it is.
+    optionsPanel.create({ onSound });
 
     root = el("div", { class: "menu-panel" }, [
         el("div", { class: "menu-brand" }, [
@@ -105,11 +112,6 @@ export function create({ onNewGame, onOptions, onResume, onSaveLoad } = {}) {
                 class: "menu-button",
                 text: "Options",
                 on: { click: onOptions ?? (() => optionsPanel.open()) },
-            }),
-            el("button", {
-                id: ids.toggleMusicBtn,
-                class: ["menu-button", "menu-button-music"],
-                text: "Toggle Music",
             }),
             el("button", { id: ids.helpBtn, class: "menu-button", text: "Help" }),
         ]),

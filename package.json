@@ -31,7 +31,9 @@
     "build:adjacency:check": "node tools/build-adjacency.mjs --check",
     "build:areas": "node tools/precompute-areas.mjs",
     "build:areas:check": "node tools/precompute-areas.mjs --check",
-    "build:data": "npm run build:adjacency && npm run build:areas",
+    "build:music": "node tools/build-music-manifest.mjs",
+    "build:music:check": "node tools/build-music-manifest.mjs --check",
+    "build:data": "npm run build:adjacency && npm run build:areas && npm run build:music",
     "test:e2e:perf": "node scripts/run-tests.cjs --category bootstrap"
   },
   "repository": {

@@ -13,11 +13,13 @@ Laying a siege, what a turn does to it, and the marker that says it is there.
 - **The marker was drawn twice.** Phase 4.5 moved marker rendering to
   `src/ui/siegeOverlay.js`, driven by the store's `siegeChanged` event, and left the old
   imperative `addImageToPath(..., "siege.png", 1)` behind in the siege button handler — and
-  the same again on the AI side in `aiCalculations.js`. Laying a siege produced **two
-  `<image>` elements carrying the same `siegeImage_<name>` id**, of which only one was ever
-  removed. Both call sites are gone; the marker is rendered from state.
+  the same again on the AI side in `aiCalculations.js`. Laying a siege produced **two marker
+  elements carrying the same `siegeImage_<name>` id**, of which only one was ever removed.
+  Both call sites are gone; the marker is rendered from state. (The marker was an `<image>`
+  at the time. It is a drawn `<g data-siege>` now — the PNGs went with the theme pass — so
+  the specs find markers by `[data-siege]` rather than by tag, and the ids are unchanged.)
 - **The marker swallowed the click underneath it.** It had no `pointer-events: none`, so a
-  hit test at the centre of a besieged territory returned the image rather than the path.
+  hit test at the centre of a besieged territory returned the marker rather than the path.
   Clicking the territory is the player's only route to `VIEW SIEGE`, so a besieged territory
   could not be opened at all. Same class of bug as `#tooltip`, which the page objects still
   work around.

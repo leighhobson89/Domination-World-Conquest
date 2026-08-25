@@ -48,7 +48,6 @@ export const menu = {
     resume: sel.resumeGameBtn,
     newGame: sel.newGameBtn,
     saveLoad: sel.saveLoadBtn,
-    toggleMusic: sel.toggleMusicBtn,
     options: sel.optionsBtn,
     help: sel.helpBtn,
     /** The hamburger over the map. The same door as Escape (Phase 7.2). */
@@ -80,13 +79,22 @@ export const saveLoad = {
     indicator: sel.saveIndicator,
 };
 
-/** The Options panel, opened from the main menu. Holds the theme picker. */
+/**
+ * The Options panel, opened from the main menu: the theme picker and the two
+ * sound switches.
+ *
+ * The switches are real checkboxes, so `check()` / `uncheck()` / `isChecked()`
+ * all work on them. Their sense is inverted against what `audio.js` stores --
+ * checked means audible, the setting is `musicMuted`.
+ */
 export const options = {
     container: sel.optionsContainer,
     panel: sel.optionsPanel,
     themeSelect: sel.themeSelect,
     themePreview: sel.themePreview,
     themeDescription: sel.themeDescription,
+    musicToggle: sel.optionsMusicToggle,
+    sfxToggle: sel.optionsSfxToggle,
     done: sel.optionsCloseBtn,
     cancel: sel.optionsCancelBtn,
 };
@@ -97,7 +105,40 @@ export const phaseBar = {
     body: sel.popupBody,
     confirm: sel.popupConfirm,
     colourLabel: sel.popupColor,
+    /**
+     * The `#rrggbb` value holder. It is an off-screen `<input type="color">`: the
+     * browser's own dialog was replaced by a themed grid of 256 swatches, but the
+     * input is still where the value lives and still what fires `change`.
+     */
     colourPicker: sel.playerColorPicker,
+    colourContainer: sel.colourPickerContainer,
+    colourPanel: sel.colourPickerPanel,
+    colourGrid: sel.colourPickerGrid,
+    colourPreview: sel.colourPickerPreview,
+    colourClose: sel.colourPickerCloseBtn,
+};
+
+/**
+ * The floating audio panel and the music-note button that opens it.
+ *
+ * The button is the TOP of the right-hand chrome column, with the continent-view
+ * button under it, and it is on screen from the country-selection screen onward
+ * rather than from the first turn -- the two mutes it offers are also in the main
+ * menu's Options panel, for the screens where the map is not up at all.
+ */
+export const audio = {
+    button: sel.audioButton,
+    buttonContainer: sel.audioButtonContainer,
+    container: sel.audioPanelContainer,
+    panel: sel.audioPanel,
+    playPause: sel.audioPlayPauseBtn,
+    skip: sel.audioSkipBtn,
+    trackName: sel.audioTrackName,
+    musicSlider: sel.audioMusicSlider,
+    musicMute: sel.audioMusicMuteBtn,
+    sfxSlider: sel.audioSfxSlider,
+    sfxMute: sel.audioSfxMuteBtn,
+    close: sel.audioCloseBtn,
 };
 
 export const map = {

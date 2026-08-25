@@ -17,6 +17,7 @@ import {
     renderAllTerritories
 } from './src/ui/mapAttributeSync.js';
 import {
+    installAudioTestHooks,
     installSaveTestHooks
 } from './src/platform/testHooks.js';
 import {
@@ -184,7 +185,8 @@ import {
     globeIcon,
     mapSheetIcon,
     mountainIcon,
-    continentIcon
+    continentIcon,
+    crossedSwordsIcon
 } from './src/ui/icons.js';
 import {
     tooltip
@@ -246,6 +248,18 @@ import {
 import {
     saveIndicator
 } from './src/ui/components/SaveIndicator.js';
+import {
+    audioPanel
+} from './src/ui/components/AudioPanel.js';
+import {
+    applyAudioSettings,
+    audioSettings,
+    currentTrackName,
+    initAudio,
+    isMusicPlaying,
+    resumePendingMusic,
+    trackList
+} from './src/platform/audio.js';
 import {
     applyGame,
     autosaveSummary,
@@ -775,6 +789,23 @@ document.addEventListener("DOMContentLoaded", function() {
     //nothing below knows which theme is in force.
     initTheme();
 
+    //The remembered volumes and mutes, read before anything can make a noise.
+    //This does NOT start the music even when the player left it playing: a browser
+    //refuses `play()` until the page has been interacted with, so the attempt is
+    //hung off the first gesture instead -- see `resumePendingMusic()` below.
+    initAudio();
+    //Installed here rather than in `beginAutosaving()` -- the audio panel exists from
+    //the main menu onwards, so a spec must be able to read the settings before any
+    //game has been started. `installTestHooks()` (gameTurnsLoop.js) has already put
+    //`window.__game` there by this point; without ?e2e=1 this is a no-op.
+    installAudioTestHooks({
+        audio: () => audioSettings(),
+        setAudio: (settings) => applyAudioSettings(settings),
+        audioTracks: () => trackList(),
+        currentTrack: () => currentTrackName(),
+        musicPlaying: () => isMusicPlaying(),
+    });
+
     //Phase 6.3. The tooltip owns its own element now -- it is no longer a <div> in
     //index.html reached through named window access. Created first because every
     //other component's hover handlers push content into it.
@@ -795,13 +826,32 @@ document.addEventListener("DOMContentLoaded", function() {
         //country-selection screen -- backing out of that is a decision too.
         isGameInProgress: () => outsideOfMenuAndMapVisible,
     });
+    //The music-note button and its floating panel. It is chrome over the map, so
+    //it takes the "switch" clip like the rest of the chrome; the buttons INSIDE
+    //the panel are ordinary window buttons and take the other one, which is why
+    //the component is handed a sound callback rather than choosing for itself.
+    audioPanel.create({ onSound: () => playSoundClip("button") });
+
+    //A browser will not start audio until the page has been interacted with, so
+    //the very first click is the earliest moment the music the player left running
+    //can be put back on. `resumePendingMusic()` is idempotent -- after the first
+    //attempt it does nothing -- which is what makes it safe to hang off `capture`
+    //on the document and never take off again.
+    document.addEventListener("pointerdown", () => void resumePendingMusic(), { capture: true });
+
     //The hamburger is the same door Escape has always opened, with a handle on it.
-    menuButton.create({ onOpen: openInGameMenu });
+    menuButton.create({
+        onOpen() {
+            //Map chrome, so it takes the switch clip rather than the button one.
+            playSoundClip("switch");
+            openInGameMenu();
+        },
+    });
 
     //MENU CONTAINER
     mainMenu.create({
         async onNewGame() {
-            playSoundClip("click");
+            playSoundClip("button");
             //Restart is New Game, exactly as before -- what is new is that it now
             //asks first, because from inside a running game it destroys that game.
             if (outsideOfMenuAndMapVisible) {
@@ -819,15 +869,20 @@ document.addEventListener("DOMContentLoaded", function() {
             await startNewGame();
         },
         onOptions() {
-            playSoundClip("click");
+            playSoundClip("button");
             optionsPanel.open();
         },
+        //The Options panel's own controls. Menu items and the buttons inside a
+        //window both take "button"; only the chrome over the map takes the other.
+        onSound() {
+            playSoundClip("button");
+        },
         onResume() {
-            playSoundClip("click");
+            playSoundClip("button");
             resumeFromMenu();
         },
         onSaveLoad() {
-            playSoundClip("click");
+            playSoundClip("button");
             saveLoadPanel.open();
         },
     });
@@ -837,8 +892,11 @@ document.addEventListener("DOMContentLoaded", function() {
     //from the phase, so setPhase() is now the only call a phase transition makes.
     const popupWithConfirmContainer = phaseBar.create({
         onColourLabelClick() {
-            playSoundClip("click");
-            countrySelect.showPicker();
+            playSoundClip("switch");
+            //Toggle, not show. The grid is a panel that stays open while the player
+            //picks -- that is what makes choosing against the live map possible --
+            //so the control that opened it has to be the one that closes it.
+            countrySelect.togglePicker();
         },
     });
     const popupConfirm = phaseBar.buttonElement();
@@ -861,7 +919,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 attrs: { type: "button", "aria-label": "Continent view" },
                 on: {
                     click() {
-                        playSoundClip("click");
+                        playSoundClip("switch");
                         cycleContinentView();
                     },
                 },
@@ -881,7 +939,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 attrs: { type: "button", "aria-label": "Territories and upgrades", title: "Territories, army and wars" },
                 on: {
                     click() {
-                        playSoundClip("click");
+                        playSoundClip("switch");
                         if (uiCurrentlyOnScreen) {
                             toggleUIMenu(false);
                         } else {
@@ -901,7 +959,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 exitPhysicalMap();
             }
             setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
-            phaseBar.colourLabelElement().style.color = playerColour();
 
             if (selectCountryPlayerState) {
                 //Phase 6.7. This was a restore, then a loop painting the new colour onto
@@ -921,13 +978,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // add event listener to popup confirm button
     popupConfirm.addEventListener("click", async function() {
-        playSoundClip("click");
+        playSoundClip("switch");
         if (selectCountryPlayerState) {
             document.getElementById(ids.popupColor).style.display = "none";
+            //The swatch grid is a floating panel with nothing behind it, so it does not
+            //close itself when the control that opened it is hidden. Leaving it up would
+            //strand it over the map for the rest of the game.
+            countrySelect.closePicker();
             setAllGreyedOutAttributesToFalseOnGameStart();
             selectCountryPlayerState = false;
             countrySelectedAndGameStarted = true;
-            document.getElementById(ids.popupColor).style.color = playerColour();
             phaseBar.dimBody();
             setPlayerCountry(phaseBar.bodyText());
             setPlayerFlag(playerCountryName());
@@ -1009,18 +1069,15 @@ document.addEventListener("DOMContentLoaded", function() {
     //calls it with the tab index the player clicked.
     infoTable.create({
         drawTable: drawUITable,
-        onTabClick: () => playSoundClip("click"),
+        onTabClick: () => playSoundClip("switch"),
         onClose() {
-            playSoundClip("click");
+            playSoundClip("button");
             toggleUIMenu(false);
             uiCurrentlyOnScreen = false;
         },
         onToggleStartOfTurn() {
-            playSoundClip("click");
-            uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(
-                infoTable.checkBoxElement(),
-                uiAppearsAtStartOfTurn
-            );
+            playSoundClip("button");
+            uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(uiAppearsAtStartOfTurn);
         },
     });
     //UPGRADE WINDOW / BUY MENU
@@ -1031,12 +1088,12 @@ document.addEventListener("DOMContentLoaded", function() {
     //is Phase 6.6's shape of problem, not this one's.
     upgradeWindow.create({
         onClose() {
-            playSoundClip("click");
+            playSoundClip("button");
             toggleUpgradeMenu(false);
             upgradeWindowCurrentlyOnScreen = false;
         },
         onConfirm() {
-            playSoundClip("click");
+            playSoundClip("button");
             if (upgradeWindow.confirmButton().innerHTML === "Confirm") {
                 addPlayerUpgrades(
                     upgradeWindow.tableElement(),
@@ -1052,12 +1109,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     buyWindow.create({
         onClose() {
-            playSoundClip("click");
+            playSoundClip("button");
             toggleBuyMenu(false);
             buyWindowCurrentlyOnScreen = false;
         },
         onConfirm() {
-            playSoundClip("click");
+            playSoundClip("button");
             if (buyWindow.confirmButton().innerHTML === "Confirm") {
                 addPlayerPurchases(
                     buyWindow.tableElement(),
@@ -1093,7 +1150,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     territoryUniqueIds.length = 0;
                 }
             }
-            playSoundClip("click");
+            playSoundClip("button");
             toggleTransferAttackWindow(false);
             transferAttackWindowOnScreen = false;
             toggleUIButton(true);
@@ -1293,7 +1350,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 break;
         }
         toggleDiceCanvas(false);
-        playSoundClip("click");
+        playSoundClip("button");
         toggleBattleUI(false, false);
         battleUIDisplayed = false;
         toggleBattleResults(true);
@@ -1317,7 +1374,7 @@ document.addEventListener("DOMContentLoaded", function() {
             case 0: //before battle to start it
                 removeCanvasIfExist();
                 toggleDiceCanvas(true);
-                playSoundClip("click");
+                playSoundClip("button");
                 battleStart = false;
                 let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
                 //Phase 5.8. `transferArmyOutOfTerritoryOnStartingInvasion()` was called here,
@@ -1372,13 +1429,14 @@ document.addEventListener("DOMContentLoaded", function() {
                         enableDisableSiegeButton(1);
                     }
                 } else { //start new round
+                    //The two dice WAVs are gone, and with them the cosmetic coin-flip
+                    //that chose between them (audit 5.3 Y kept that draw off the game's
+                    //stream; nothing now draws here at all). Every round of a battle is
+                    //a button press inside a window, so it sounds like one.
+                    playSoundClip("button");
                     if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
-                        advanceButton.innerHTML === "Start Attack!" ? playSoundClip("dice1") : playSoundClip("click");
                         roundCounterForStats++;
                         enableDisableSiegeButton(1);
-                    } else {
-                        let diceSound = cosmeticRandom() < 0.5; //audit 5.3 Y - which sound plays is not game state
-                        diceSound ? playSoundClip("dice1") : playSoundClip("dice2");
                     }
                     advanceButtonState = 1;
                     setAdvanceButtonText(advanceButtonState, advanceButton);
@@ -1410,7 +1468,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 break;
             case 2: //accept victory
                 toggleDiceCanvas(false);
-                playSoundClip("click");
+                playSoundClip("button");
                 addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
                 toggleBattleUI(false, false);
                 battleUIDisplayed = false;
@@ -1419,7 +1477,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false); //won
                 break;
             case 3: //continue siege
-                playSoundClip("click");
+                playSoundClip("button");
                 toggleBattleUI(false, true);
                 battleUIDisplayed = false;
                 toggleUIButton(true);
@@ -1488,7 +1546,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 addWarToHistoricWarArray(getResolution(), warId, false);
             }
         }
-        playSoundClip("click");
+        playSoundClip("button");
         toggleBattleResults(false);
         battleResultsDisplayed = false;
         toggleUIButton(true);
@@ -2155,7 +2213,7 @@ function installMoveButtonHandlers() {
     button.addEventListener("click", function transferAttackClickHandler() {
         tooltip.setContent("");
         tooltip.hide();
-        playSoundClip("click");
+        playSoundClip("switch");
         if (transferAttackButtonState === 0) {
             moveButtonSource = lastClickedPath;
         }
@@ -2725,6 +2783,30 @@ function toggleMapModeButton(makeVisible) {
     } else {
         document.getElementById(ids.mapModeContainer).style.display = "none";
     }
+    //The music button shares every one of this button's rules but one, so it is
+    //still toggled from here rather than from all twelve of this function's call
+    //sites -- that is how the two would drift apart. The exception is stated at
+    //the three places that need it: see toggleAudioButton().
+    toggleAudioButton(makeVisible);
+}
+
+/**
+ * Show or hide the music button.
+ *
+ * It follows the rest of the map chrome -- down behind the menu, down behind a
+ * battle or a transfer window -- with one exception, which is the whole reason it
+ * has a name of its own. The continent-view and territory buttons do not exist
+ * until a country has been chosen. The music button does: it is up from the first
+ * screen the player sees, because someone who wants the music off wants it off
+ * while they are choosing a country too, and the alternative was leaving the game
+ * to find the setting in the menu.
+ *
+ * That exception costs three explicit calls -- one where the selection screen goes
+ * up, one where a restart puts it back, and one where the in-game menu closes over
+ * it -- because `toggleMapModeButton(false)` is what the selection screen runs.
+ */
+function toggleAudioButton(makeVisible) {
+    audioPanel.setButtonVisible(makeVisible);
 }
 
 export function toggleAiDialogue(makeVisible) {
@@ -2745,8 +2827,15 @@ export function toggleUIMenu(makeVisible) {
         drawUITable(infoTable.tableElement(), 0);
         svg.style.pointerEvents = 'none';
         uiCurrentlyOnScreen = true;
-        toggleUIButton(false);
-        uiButtonCurrentlyOnScreen = false;
+        //The globe button STAYS UP while the panel is open, and its click handler
+        //already reads `uiCurrentlyOnScreen` -- so the button that opens the
+        //territory panel is now also the button that closes it. It used to be
+        //hidden here, which left the X in the corner of the panel as the only way
+        //out and made the globe a one-way door. `#UIButtonContainer` sits at
+        //z-index 9000, above the panel, so it is reachable rather than merely
+        //present.
+        toggleUIButton(true);
+        uiButtonCurrentlyOnScreen = true;
         toggleMapModeButton(false);
         mapModeButtonCurrentlyOnScreen = false;
         toggleBottomLeftPaneWithTurnAdvance(false);
@@ -2889,15 +2978,13 @@ export function toggleTransferAttackButton(turnOnButton, aiTurn) {
     }
 }
 
-function toggleUIToAppearAtStartOfTurn(checkBox, uiAppearsAtStartOfTurn) {
-    if (uiAppearsAtStartOfTurn) {
-        uiAppearsAtStartOfTurn = false;
-        checkBox.innerHTML = "";
-    } else {
-        uiAppearsAtStartOfTurn = true;
-        checkBox.innerHTML = "✔";
-    }
-    return uiAppearsAtStartOfTurn;
+function toggleUIToAppearAtStartOfTurn(uiAppearsAtStartOfTurn) {
+    //The button used to be emptied to say "off", which is indistinguishable from a
+    //button that failed to render. It always shows its icon now and the component
+    //owns how the state reads -- see `InfoTable.setAppearAtStartOfTurn()`.
+    const next = !uiAppearsAtStartOfTurn;
+    infoTable.setAppearAtStartOfTurn(next);
+    return next;
 }
 
 //----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
@@ -3757,6 +3844,9 @@ function resetGameState() {
     menuState = false;
     countrySelectedAndGameStarted = false;
     selectCountryPlayerState = true;
+    //The music button is up from here on, ahead of the two chrome buttons that wait
+    //for a country to be picked.
+    toggleAudioButton(true);
     phaseBar.setVisible(true);
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
     menuButton.show();
@@ -3802,6 +3892,10 @@ export function openInGameMenu() {
     uiButtonCurrentlyOnScreen = false;
     toggleMapModeButton(false);
     mapModeButtonCurrentlyOnScreen = false;
+    //Both floating panels. The audio one goes with the button that owns it, inside
+    //toggleMapModeButton(); the swatch grid has no owner to follow, so it is said
+    //here. Neither has a scrim, so neither closes itself.
+    countrySelect.closePicker();
     toggleUpgradeMenu(false);
     toggleBuyMenu(false);
     toggleTransferAttackButton(false, false);
@@ -3860,6 +3954,10 @@ export function closeInGameMenu() {
     }
     if (mapModeButtonCurrentlyOnScreen) {
         toggleMapModeButton(true);
+    } else if (selectCountryPlayerState) {
+        //No map-mode button on the selection screen, so nothing above puts the music
+        //button back -- but it was up before the menu opened and has to be up after.
+        toggleAudioButton(true);
     }
     if (buyWindowCurrentlyOnScreen) {
         toggleBuyMenu(true);
@@ -3966,6 +4064,9 @@ function resetChromeForCountrySelection() {
     bottomTable.reset();
     toggleUIButton(false);
     toggleMapModeButton(false);
+    //...but not the music button, which the line above has just taken down with it.
+    //A restart lands on the selection screen, and that screen has music.
+    toggleAudioButton(true);
     toggleTopTableContainer(false);
     topTable.setHeading("Select a Country");
     //The colour label and the confirm button are put back by phaseBar.setMode()
@@ -4109,7 +4210,6 @@ async function applyLoadedGame(save) {
     }
 
     countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
-    phaseBar.colourLabelElement().style.color = playerColour();
     phaseBar.dimBody();
     setFlag(playerCountryName(), 1); //top table
     setFlag(playerCountryName(), 3); //info panel
@@ -4364,7 +4464,16 @@ function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGre
 function setSiegeScoreText(siegeScore, situation) {
     if (situation === 0) {
         document.getElementById(ids.battleUIRow4Col1TextSiegeScore).innerHTML = siegeScore;
-        document.getElementById(ids.battleUIRow4Col1IconSiegeScore).innerHTML = "<img class='sizingPositionRow4Column1IconBattleUI' src='./resources/sword.png'>";
+        //Phase 7.5. Was an <img> pointing at `sword.png`. The siege score is a war
+        //figure, so it takes the same crossed-swords icon the Wars tab uses -- and,
+        //being drawn rather than shipped, it follows the theme.
+        const siegeScoreIcon = document.getElementById(ids.battleUIRow4Col1IconSiegeScore);
+        siegeScoreIcon.innerHTML = "";
+        const swords = crossedSwordsIcon();
+        swords.classList.add("sizingPositionRow4Column1IconBattleUI");
+        swords.setAttribute("role", "img");
+        swords.setAttribute("aria-label", "Siege score");
+        siegeScoreIcon.appendChild(swords);
         document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.display = "flex";
         document.getElementById(ids.battleUIRow4Col1IconSiegeScore).style.display = "flex";
     } else if (situation === 1) {

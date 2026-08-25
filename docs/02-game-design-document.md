@@ -314,7 +314,9 @@ territory name, that ticks once per turn.
 game checks `checkIfWouldBeARoutAndPossiblyLeaveSiege` and can flip the siege into an
 immediate rout victory for the besieger.
 
-Sieges are shown on the map with a `siege.png` / `siegeai.png` overlay and a dashed stroke.
+Sieges are shown on the map with a shield-and-keep marker and a dashed stroke. The marker is
+drawn (`SIEGE_SHIELD_PATH` in `src/ui/icons.js`) rather than shipped as an image, and takes
+its colour from the theme; an AI siege gets the same marker smaller and faded.
 
 ⚠️ A single siege that misses its hit roll aborts processing of every other siege that turn
 (audit §5.1 D).
@@ -410,11 +412,13 @@ implemented — the AI is purely turn-local.
 
 | Element | Purpose |
 |---|---|
-| **Main menu** | Resume Game, New Game, Save / Load, Options, Toggle Music, Help ❌ (Help does nothing). Reachable during play by Escape or by the hamburger button at the top of the map |
+| **Main menu** | Resume Game, New Game, Save / Load, Options, Help ❌ (Help does nothing). Reachable during play by Escape or by the hamburger button at the top of the map |
 | **Confirm dialog** | One reusable yes/no modal. New Game and a load over a running game both ask through it, because both destroy a game with no undo |
 | **Save / Load panel** | The whole game as a copyable code, and a box to paste one back into |
-| **Autosave indicator** | A spinner at the top right while the autosave writes; holds ~2 s, then fades |
-| **Country selection** | Countries above a strength threshold (40,000) are greyed out and unpickable; player picks a colour |
+| **Autosave indicator** | A spinner at the bottom right while the autosave writes; holds ~2 s, then fades. It is at the bottom because the top right is where the map chrome lives |
+| **Country selection** | Countries above a strength threshold (40,000) are greyed out and unpickable; player picks a colour from a grid of 256 themed swatches, and the map repaints as each one is clicked |
+| **Audio panel** | A music-note button at the top of the right-hand map chrome, above the continent-view button, opens it: play / pause, next track, and a volume slider and a mute for each of music and sound effects. It is on screen from the country-selection screen onward rather than from the first turn. Settings are saved with the game and remembered between sessions |
+| **Options: sound** | The same two mutes, as on/off switches in the main menu's Options panel — the audio panel needs a map behind it, and the title screen has none. One setting seen twice: changing either moves the other |
 | **Top table** | Player-wide totals: gold, oil, food, cons. mats, productive population, land area, army |
 | **Bottom table** | Selected territory: flag, name, mountain defence, gold, oil, food, cons. mats, population, area, military |
 | **Popup / confirm bar** | Phase title and the phase-advance button |

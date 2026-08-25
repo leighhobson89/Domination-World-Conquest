@@ -32,12 +32,13 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 341 tests, ~1s
-npm run test:e2e       # Playwright, 306 tests, 4 workers headless, ~7-14 min
+npm run test:unit      # Vitest, 358 tests, ~1s
+npm run test:e2e       # Playwright, 330 tests, 4 workers headless, ~7-14 min
 npm run test:e2e:categories   # list the functional areas and their spec counts
 npm run test:e2e:category -- turn-loop   # one area
 npm run test:e2e:slow  # one visible browser, 500ms between actions
-npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
+npm run build:data     # regenerate adjacency.json + pathAreas.json + music/tracks.json
+npm run build:music    # just the music folder listing (Vite also does it on start/build)
 ```
 
 ## House rules
@@ -195,9 +196,9 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   `"Grand Bahama"` / `"Andros Island"` where the SVG says `"Grand Bahama (Bahamas)"` /
   `"Andros Island (Bahamas)"`. Those parentheses are real, not typos. Derive names from the
   SVG in any tool or test.
-- **`resources/adjacency.json` and `resources/pathAreas.json` are generated** by `tools/`.
-  Edit the generator, never the JSON. `npm run build:data` regenerates both; the `:check`
-  variants verify they are current.
+- **`resources/adjacency.json`, `resources/pathAreas.json` and `resources/music/tracks.json`
+  are generated** by `tools/`. Edit the generator, never the JSON. `npm run build:data`
+  regenerates all three; the `:check` variants verify they are current.
 - **Seeding `Math.random` DOES make the game deterministic** — since Phase 5.8, and it did not
   before. `addSparklesRegularly()` burned three draws per timer tick on the same global stream
   as combat and the economy, so two runs of the same seed diverged (audit 5.3 Y). Cosmetic
@@ -324,6 +325,61 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   in Phase 5.8: the ten-turn `long-run` went from 6/6 green to 0/6, the player eliminated every
   time. Giving the AI a fully-formed first turn is a balance change, and it belongs to the Phase
   7 balance pass. The measurement is recorded at the site in `gameTurnsLoop.js`.
+- **All sound goes through `src/platform/audio.js`.** `music.js` is deleted and `sfx.js` is a
+  one-line forward. The vocabulary is two clips, named for what the control means rather
+  than for a file: `playSoundClip("switch")` for map chrome and the territory panel's tabs,
+  `playSoundClip("button")` for buttons inside a window and items in the menus. **There are
+  no dice sounds and no WAVs** — the two dice clips fired on a cosmetic coin flip in the
+  battle loop and are gone along with the draw that chose between them.
+- **The music playlist is every mp3 in `resources/music/`, and that list is GENERATED.**
+  A browser cannot read a directory, so `resources/music/tracks.json` is written by
+  `tools/build-music-manifest.mjs` — and by Vite on every dev-server start and build, so
+  dropping a track in and reloading is the whole procedure. `npm run build:music` does it
+  without Vite. A playthrough is a permutation of the whole folder; nothing repeats until
+  everything has played, and the track that closed one playthrough cannot open the next.
+  **The shuffle draws from `cosmeticRandom()`, never `Math.random`** — a draw per track
+  change would put the music on the game's stream and two runs of one seed would diverge as
+  soon as a track ended.
+- **Audio settings are saved with the game.** `registerSaveSlice("audio", ...)` in
+  `audio.js`, plus a `localStorage` copy so a reload with no save still remembers. A save
+  taken with the music playing comes back playing. Music is never started at load — a
+  browser refuses `play()` before a user gesture — so `resumePendingMusic()` hangs off the
+  first `pointerdown` and is idempotent.
+- **The two mutes have two controls, and neither owns the setting.** The audio panel over
+  the map has them alongside the volumes and transport; the main menu's Options panel has
+  them as a pair of switches, because the audio panel hangs off a button over the map and
+  the title screen has no map. Both subscribe to `onAudioChanged` and repaint from
+  `audioSettings()`, so muting in one shows in the other — a control that remembered its
+  own last position instead would be right until the player used the other one. The
+  switches read as AUDIBLE while `audio.js` stores `musicMuted`; the inversion is in
+  `OptionsPanel.js` and nowhere else. Options applies live and Cancel restores what was in
+  force at open, the same contract the theme picker has.
+- **The music button is the ONE piece of map chrome that does not wait for a country to be
+  chosen.** It is the top of the right-hand column, above the continent-view button, and it
+  is up from the country-selection screen onward. `toggleMapModeButton()` still drives it
+  for every other transition — menu, battle, transfer window — through `toggleAudioButton()`,
+  which is why the exception costs exactly three explicit calls in `ui.js`: `resetGameState()`,
+  `resetChromeForCountrySelection()` and the tail of `closeInGameMenu()`. Miss the third and
+  the button never comes back after Escape on the selection screen.
+- **The autosave indicator is bottom right**, clear of the 30px bottom table. It was top
+  right, which is the corner the map chrome fills from 36px down, so an autosave flashed a
+  box over the music and continent-view buttons.
+- **The player's colour is a grid of 256 swatches, not the OS dialog**
+  (`src/ui/components/ColourPicker.js`). The `<input type="color">` still exists and is
+  still `#player-color-picker`: it is off screen and it is the VALUE, so every existing
+  reader and every spec that sets it still works. Clicking a swatch writes it and dispatches
+  `change` by hand, which is what repaints the map. The phase bar's colour label deliberately
+  has **no `for` attribute** — pointing it at the input is what made the operating system's
+  dialog open on top of the grid — and it is deliberately NOT repainted in the player's
+  colour. Three writes in `ui.js` used to set `style.color = playerColour()` on it, with a
+  `::before` chip taking the same colour, so the words "Select Player Color" became the
+  preview: unreadable on anything near the panel background, and the one element in the
+  phase bar that ignored the theme. The grid marks the chosen swatch and previews it in its
+  own header, which is preview enough. `colourLabelElement()` is gone — it existed only to
+  be repainted.
+- **The territory panel's globe button stays visible while the panel is open**, so the button
+  that opens it also closes it (`toggleUIMenu()` no longer hides it). `#UIButtonContainer` is
+  at z-index 9000, above the panel, which is what makes it clickable rather than merely present.
 - **The five strongest countries are LOCKED on the selection screen and that is deliberate**
   (`COUNTRY_GREYOUT_RANK`, audit 5.2 Z). They are painted in their own colour muted toward grey,
   not flat grey, because flat grey read as "failed to render". The lock is enforced from the
@@ -334,7 +390,13 @@ npm run build:data     # regenerate resources/adjacency.json + pathAreas.json
   to VIEW SIEGE. `#tooltip` was the same class of bug and is fixed (Phase 6.3).
 - **Siege markers are rendered from state**, by `src/ui/siegeOverlay.js` on the `siegeChanged`
   event. Do not also draw one imperatively where a siege is created — that produced two
-  `<image>` elements sharing one id, of which only one was ever removed.
+  marker elements sharing one id, of which only one was ever removed. The marker is a
+  **drawn** `<g data-siege="player|ai">` holding the shield-and-keep path from
+  `src/ui/icons.js`, not an `<image>`; `siege.png` / `siegeai.png` are gone. Because the map
+  is an `<object>` with its own document, the tokens do NOT cascade into it: the colour is
+  resolved from the host root with `getComputedStyle` and written on as a literal fill, and
+  `repaintSiegeOverlays()` redoes that on `THEME_CHANGED`. Anything else drawn into the map
+  document has to do the same.
 - **INVADE! debits the source territory immediately** (Phase 4.7, audit §5.1 AD), and a
   no-penalty retreat returns the army through `retrievalArray` a turn later. The two halves
   balance; changing one without the other creates or destroys army.

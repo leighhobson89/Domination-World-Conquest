@@ -5,23 +5,104 @@
 // `underSiege` attribute against the siege lists, and reconcile the siege overlay
 // images against the same lists. The first job no longer exists -- `underSiege` is
 // derived from the lists, so it cannot disagree with them. The second is real work,
-// because an <image> element is not derived from anything; it has to be created and
+// because a marker element is not derived from anything; it has to be created and
 // removed. So it moved here, and it is driven by `siegeChanged` rather than by a
 // once-a-turn sweep.
 //
 // The id is `siegeImage_<territory name with spaces underscored>`. Six territory
 // names carry real parentheses (audit 5.2 AI), which makes them invalid in a CSS
-// selector, so this looks images up with `getElementById` and never `querySelector`.
+// selector, so this looks markers up with `getElementById` and never `querySelector`.
+//
+// The marker used to be an `<image>` pointing at `siege.png` (or `siegeai.png` for
+// an AI siege) and was one of the last things in the game a theme could not reach:
+// a bitmap of a cannon is the same colour whichever palette is applied. It is now
+// the shield-and-keep path from `icons.js`, drawn into the map document.
+//
+// Drawing into the MAP document is the whole difficulty. `#svg-map` is an
+// `<object>`, so the SVG inside it has its own document: `style.css` does not
+// reach it, the custom properties on the host's root element do not cascade into
+// it, and `currentColor` therefore has nothing to resolve against. The colour is
+// read off the HOST root with `getComputedStyle` and written onto the marker as a
+// literal fill, and every marker is repainted when the theme changes -- which is
+// what `THEME_CHANGED` is subscribed to below.
+
+import { SIEGE_SHIELD_PATH } from "./icons.js";
+import { THEME_CHANGED } from "./theme/theme.js";
+import { ids, SIEGE_OVERLAY_PREFIX } from "./core/registry.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+/** The shield path is drawn on a 24x24 grid; the marker scales that to fit. */
+const ICON_GRID = 24;
+
+/** What an AI siege's marker is faded to, so the player's own stand out. */
+const AI_OPACITY = 0.4;
 
 function overlayId(territoryName) {
-    return "siegeImage_" + territoryName.replace(/\s+/g, "_");
+    return SIEGE_OVERLAY_PREFIX + territoryName.replace(/\s+/g, "_");
 }
 
 function existingOverlay(path, territoryName) {
     return path.ownerDocument?.getElementById(overlayId(territoryName)) ?? null;
+}
+
+/**
+ * The colour a marker is painted, resolved from the theme in force.
+ *
+ * `--negative` rather than `--accent`: a siege on the map is a warning, and the
+ * accent is already the colour of the chrome the player clicks. The fallback is
+ * for the bootstrap window in which the token has not been written yet.
+ */
+function markerColour() {
+    try {
+        const value = getComputedStyle(document.documentElement)
+            .getPropertyValue("--negative")
+            .trim();
+        return value || "#c0392b";
+    } catch {
+        return "#c0392b";
+    }
+}
+
+/**
+ * Build the marker in the MAP's document.
+ *
+ * A `<g>` holding one path, translated and scaled into place, rather than a
+ * `<symbol>` or a `<use>`: the map document has no defs of ours to point at, and
+ * a self-contained group can be dropped in and taken out again with no other
+ * state. The stroke is the map's own dark ink so the shield reads against a
+ * territory painted in a similar hue to the theme's negative colour.
+ */
+function buildMarker(document_, { id, x, y, size, aiSiege }) {
+    const group = document_.createElementNS(SVG_NS, "g");
+    group.setAttribute("id", id);
+    const scale = size / ICON_GRID;
+    group.setAttribute("transform", `translate(${x} ${y}) scale(${scale})`);
+
+    // Phase 5.8. A marker is decoration and must never intercept a click. Without
+    // this it sits over the middle of the territory it marks, and a hit test at the
+    // centre of a besieged territory returns the marker rather than the path -- so
+    // the player cannot click their own besieged territory, which is the only route
+    // to VIEW SIEGE. Same class of bug as `#tooltip` having no `pointer-events`.
+    group.setAttribute("style", "pointer-events: none");
+    if (aiSiege) {
+        group.setAttribute("opacity", String(AI_OPACITY));
+    }
+    // What kind of siege this is, as an attribute rather than as a file name. The
+    // e2e suite used to assert `href` contained "siegeai"; there is no file to name
+    // now, and "which variant" was always the question being asked.
+    group.setAttribute("data-siege", aiSiege ? "ai" : "player");
+
+    const shield = document_.createElementNS(SVG_NS, "path");
+    shield.setAttribute("d", SIEGE_SHIELD_PATH);
+    shield.setAttribute("fill-rule", "evenodd");
+    shield.setAttribute("fill", markerColour());
+    shield.setAttribute("stroke", "rgba(0, 0, 0, 0.55)");
+    shield.setAttribute("stroke-width", "0.9");
+    shield.setAttribute("stroke-linejoin", "round");
+    group.appendChild(shield);
+
+    return group;
 }
 
 /**
@@ -55,31 +136,41 @@ export function renderSiegeOverlay(path, territoryName, underSiege, aiSiege) {
         const centerX = bounds.x + bounds.width / 2;
         const centerY = bounds.y + bounds.height / 2;
 
-        const image = document.createElementNS(SVG_NS, "image");
-        image.setAttributeNS(XLINK_NS, "href", aiSiege ? "siegeai.png" : "siege.png");
-
-        //Phase 5.8. A marker is decoration and must never intercept a click. Without this
-        //the <image> sits over the middle of the territory it marks, and a hit test at the
-        //centre of a besieged territory returns the marker rather than the path -- so the
-        //player cannot click their own besieged territory, which is the only route to
-        //VIEW SIEGE. Same class of bug as `#tooltip` having no `pointer-events: none`.
         let size = Math.min(bounds.width * 0.7, bounds.height * 0.7);
         if (aiSiege) {
             size *= 0.6;
-            image.setAttribute("style", "opacity: 0.4; pointer-events: none");
-        } else {
-            image.setAttribute("style", "pointer-events: none");
         }
 
-        image.setAttribute("x", (centerX - size / 2).toString());
-        image.setAttribute("y", (centerY - size / 2).toString());
-        image.setAttribute("z-index", "9999");
-        image.setAttribute("width", size.toString());
-        image.setAttribute("height", size.toString());
-        image.setAttribute("id", overlayId(territoryName));
+        const marker = buildMarker(path.ownerDocument, {
+            id: overlayId(territoryName),
+            x: centerX - size / 2,
+            y: centerY - size / 2,
+            size,
+            aiSiege,
+        });
 
-        path.parentNode.appendChild(image);
+        path.parentNode.appendChild(marker);
     } catch {
         // not laid out yet; the next siege change will try again
     }
+}
+
+/**
+ * Repaint every marker in the map document.
+ *
+ * The map is a separate document, so a theme change cannot reach the markers
+ * through the cascade the way it reaches everything else. This is the same write
+ * `buildMarker()` makes, applied to what is already on screen.
+ */
+export function repaintSiegeOverlays() {
+    const mapDocument = document.getElementById(ids.svgMap)?.contentDocument;
+    if (!mapDocument) return;
+    const colour = markerColour();
+    for (const marker of mapDocument.querySelectorAll('[data-siege] > path')) {
+        marker.setAttribute("fill", colour);
+    }
+}
+
+if (typeof window !== "undefined") {
+    window.addEventListener(THEME_CHANGED, repaintSiegeOverlays);
 }

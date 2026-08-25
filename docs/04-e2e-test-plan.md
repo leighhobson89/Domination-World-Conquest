@@ -456,11 +456,11 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 13 | `info-panels/` | P2 | §2.3 | ✅ 5 — Phase 5.8 |
 | 14 | `random-events/` | P2 | §2.2, §3.7 | ✅ 7 — Phase 5.8 |
 | 15 | `conquest-lifecycle/` | P2 | §3.7 | ✅ 4 — Phase 5.8 |
-| — | `options/` | P2 | — | ✅ 8 — Phase 7.10; not in the original list, added with the theme system |
+| — | `options/` | P2 | — | ✅ 21 — Phase 7.10; not in the original list, added with the theme system and grown with the audio work |
 | 16 | `save-load/` | P3 | Refactor 7.2/7.3 | ✅ 16 — Phase 7.2/7.3. This is row 16, `persistence/`, delivered under the name of the feature rather than of the mechanism |
 | 17 | `victory-conditions/` | P3 | Refactor 7.1 | — |
 
-**291 tests in 51 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
+**330 tests in 57 files.** P0, P1 and P2 are complete; P3 arrives with the features it tests.
 Each folder's README records which rows of the tables below it delivers and which it defers,
 with the reason — a spec that is missing is missing on purpose and says so.
 
@@ -655,17 +655,23 @@ Needs the scenario loader (§3.7) for anything beyond a single tick.
 
 ### 5.15 `options/` — P2
 
-Added with the theme system (refactor 7.10). The catalogue itself is a unit test
-(`tests/unit/ui-theme.spec.js`); what needs a browser is the three paths below, which are one
-bug away from each other — a preview that persisted would leave Cancel closing the panel and
-changing nothing, with no error anywhere.
+Added with the theme system (refactor 7.10) and grown since with the audio work. The
+catalogues themselves are unit tests (`tests/unit/ui-theme.spec.js`,
+`tests/unit/platform-audio.spec.js`); what needs a browser is everything below, and the
+theme paths in particular are one bug away from each other — a preview that persisted
+would leave Cancel closing the panel and changing nothing, with no error anywhere.
 
 | Spec | Covers |
 |---|---|
 | `theme-picker.spec.js` | Opens from the menu; closes on Done, on Escape and on a click outside; lists every theme with the default selected; changing the dropdown repaints immediately; the description follows the selection; Done survives a reload; Cancel restores the theme in force when the panel opened; the theme survives starting a game |
+| `audio-panel.spec.js` | The music-note button is up from the country-selection screen onward and sits above the continent-view button; the in-game menu takes it down and gives it back; the button opens and closes the floating panel; Escape closes it; it is NOT a modal, so the map stays live behind it; the sliders and mutes move the real settings; a save carries them; the main menu no longer has a music item |
+| `sound-toggles.spec.js` | The Options panel's two sound switches work before any game exists; unchecking mutes and Done keeps it muted; Cancel and Escape both restore the mutes in force at open; the switches and the audio panel over the map are one setting seen twice, asserted in both directions |
 
 Assertions go through `data-theme` on `<html>` and one computed background colour. Pinning a
 specific hex value is deliberately avoided — it would break every time a theme was tuned.
+The one geometric assertion in the folder is a RELATIONSHIP, not a position: the music
+button's top is above the continent-view button's, which is the fact that was changed and
+would otherwise be guarded by nothing.
 
 ---
 
@@ -822,8 +828,13 @@ harness share, and a parallel attribute would be a second thing to keep in step.
 `ai-dialogue-container` · `attack-destination-containers` · `move-phase-buttons-container` ·
 `UIButtonContainer` · `mapModeContainer` · `threeCanvasForDice` · `tooltip`
 
-**Menu & start:** `new-game-btn` · `toggle-music-btn` · `popup-title` · `popup-body` ·
-`popup-confirm` · `popup-color` · `player-color-picker`
+**Menu & start:** `new-game-btn` · `popup-title` · `popup-body` · `popup-confirm` ·
+`popup-color` · `player-color-picker` (an off-screen `<input type="color">` -- the VALUE,
+written by the swatch grid) · `colour-picker-panel` · `colour-picker-grid`
+
+**Audio:** `audio-button` · `audio-panel` · `audio-play-pause-btn` · `audio-skip-btn` ·
+`audio-track-name` · `audio-music-slider` · `audio-music-mute-btn` · `audio-sfx-slider` ·
+`audio-sfx-mute-btn`
 
 **Map:** `svg-map` (object → `contentDocument`) · `svg-coast-lines` · `continentViewButton`
 (read its `data-view`: `normal` / `physical` / `continent`) · `UIToggleButton`

@@ -18,20 +18,29 @@ test.describe("?e2e=1 state hook", () => {
     test("is present with the flag, before a game is even started", async ({ page, game }) => {
         await game.open();
         const api = await page.evaluate(() => Object.keys(window.__game).sort());
+        //The save hooks are deliberately NOT in this list: `installSaveTestHooks()`
+        //runs from `beginAutosaving()`, which needs a game. The audio hooks ARE,
+        //because the audio panel exists from the main menu onwards and a spec has to
+        //be able to read the settings before anything has been started.
         expect(api).toEqual(
             [
                 "applyScenario",
+                "audio",
+                "audioTracks",
                 "battle",
+                "currentTrack",
                 "countryStrengths",
                 "forceRandomEvent",
                 "greyedOutCountries",
                 "isReady",
+                "musicPlaying",
                 "pathAreaComputations",
                 "phase",
                 "randomEventProbability",
                 "ready",
                 "retrievals",
                 "seed",
+                "setAudio",
                 "siegeAt",
                 "sieges",
                 "stateGuardViolations",

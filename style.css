@@ -225,98 +225,163 @@ td {
 
 #mapModeContainer {
   position: fixed;
-  /* Level with the hamburger, at the other corner. */
-  top: 36px;
+  /* Under the music button: 36px + its 44px + an 8px gap. The two swapped in
+     Phase 7.5 -- music is the control a player reaches for first and reaches for
+     often, and the continent view is the one they set once. */
+  top: 88px;
   right: 10px;
   display: none;
   z-index: 9000;
 }
 
+/* ============================================================================
+   PHASE BAR
+
+   The bottom-left panel: a title, the country name or the player's flag, the
+   colour control, and one button that is CONFIRM before the game starts and
+   MILITARY / END TURN for the rest of it.
+
+   It was the last piece of chrome still drawn in the pre-theme style: four
+   stacked cells with `border: 1px solid white` and a hard-coded `green`
+   background on the button, which meant Parchment and Arctic -- both light
+   themes -- got white hairlines on a cream panel and an office-green button in
+   the middle of a sepia map. Every colour, line and radius here is a token now,
+   so the bar restyles with everything else and the button's two states are the
+   theme's own accent and positive rather than two literal greens.
+   ========================================================================= */
 .popup-with-confirm-container {
   width: 15%;
   height: 40%;
   position: fixed;
   bottom: 8%;
-  left: 5px;
-  border-radius: var(--radius);
+  left: 10px;
   display: none;
   flex-direction: column;
   justify-content: center;
+  gap: 2px;
+  padding: 10px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
   z-index: 9999;
 }
 
-
 .popup-option {
-  padding-top: 5px;
-  padding-bottom: 5px;
+  padding: 6px 8px;
   background-color: var(--surface-control);
   color: var(--text-primary);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: normal;
-  border: 1px solid white;
+  border: var(--border-width) solid var(--border-color);
+  box-sizing: border-box;
 }
 
 .popup-option-confirm {
   width: 100%;
-  border-radius: var(--radius);
-  border: 1px white solid;
+  margin-top: 12px !important;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  border-radius: var(--radius-sm);
   opacity: 0;
   bottom: 0;
-  margin-top: 20px !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    color 0.18s ease;
 }
 
+/* `greenBackground` is the class the phase bar adds when the button becomes
+   live -- CONFIRM once a country is picked, then MILITARY and END TURN for the
+   rest of the game. The name is historical and the colour is not: this is the
+   theme's accent, which is the same colour every other primary action in the
+   game takes. Renaming the class is a Phase 6.8-shaped job that would touch
+   PhaseBar.js, the page objects and three specs; the colour is the part that
+   was wrong. */
 .popup-option-confirm.greenBackground {
-  background-color: green;
-  transition: all 0.3s ease;
+  color: var(--text-on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 .popup-option-confirm.greenBackground:hover {
   cursor: pointer;
-  background-color: rgb(0, 85, 0);
-  transition: all 0.3s ease;
+  background-color: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
+.popup-option-confirm:disabled {
+  cursor: default;
+  color: var(--text-muted);
+  background-color: var(--surface-control);
+  border-color: var(--border-color);
+}
+
+/* The colour control. It opens the swatch grid (`ColourPicker.js`) rather than
+   the operating system's own dialog, so unlike the input it replaced it can be
+   -- and is -- styled like the rest of the bar. The chip on the left is the
+   colour in force, written as `color` by ui.js and picked up by `currentColor`. */
 .popup-option-color {
-  border-bottom: none;
-  font-size: 1rem;
+  /* Hidden until a country is clicked; five places in ui.js reveal it by writing
+     `style.display = "block"` inline, which is why this is not a flex row -- a
+     flex layout would be undone by every one of those writes.
+
+     The text is the THEME's colour and stays that way. It used to be repainted in
+     the player's colour on every pick, along with a chip of the same colour before
+     it, and that chip was the only preview there was. The swatch grid now marks the
+     chosen colour and previews it in its own header, so the label was saying a
+     second time what the picker says better -- and saying it by making the words
+     themselves unreadable whenever the player chose something close to the panel
+     background. Nothing writes `style.color` on this element any more. */
   display: none;
-  font-family: Arial, Helvetica, sans-serif;
+  border-top: none;
+  border-bottom: none;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
   text-align: center;
+  cursor: pointer;
+  transition: background-color 0.18s ease;
 }
 
 .popup-option-color:hover {
-  cursor: pointer;
-  background-color: var(--surface-raised);
-}
-
-#color-picker {
-  /* display: none; */
-  width: 18%;
-  height: 40%;
-  position: absolute;
-  bottom: 8%;
-  left: 200px;
+  background-color: var(--surface-control-hover);
 }
 
 .popup-option-title {
   border-bottom: none;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  font-size: 1rem;
-  font-weight: bold;
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+  text-align: center;
 }
 
+/* The subtitle doubles as the player's flag: `phaseBar.setBrandFlag()` paints
+   one as a background image. The inset shadow is what keeps the name readable
+   over it -- it used to be a 1px black text stroke, which is a different
+   solution to the same problem and looked like a sticker in every light theme. */
 .popup-option-subtitle {
   height: 40%;
   display: flex;
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
+  border-top: none;
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
   color: var(--text-primary);
   line-height: 1.1;
   justify-content: center;
   align-items: flex-end;
-  -webkit-text-stroke-width: 1px;
-  -webkit-text-stroke-color: black;
+  text-align: center;
+  text-shadow: var(--shadow-text);
+  box-shadow: inset 0 0 40px 8px var(--surface-panel);
 }
 
 /*MOVE PHASE BOTTOM BUTTONS*/
@@ -342,56 +407,77 @@ td {
   z-index: 1;
   color: var(--text-primary);
   font-size: 1.5rem;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   justify-content: center;
   align-items: center;
   text-align: center;
-  background-color: rgba(84, 123, 155, 0.5);
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-panel);
 }
 
+/* The move-phase button. Its class says what it will do -- transfer, attack,
+   view siege, or nothing -- and `deriveMoveButtonState()` is what chooses; the
+   e2e suite reads these class names, so they are the same five names they have
+   always been. The COLOURS were five literals (`green`, `rgb(210,0,0)`,
+   `rgb(83,62,30)`, `grey`), which put an office green and a fire-engine red on
+   top of every theme including the two light ones. They are the theme's own
+   positive and negative now, and the siege brown is derived from the panel
+   rather than fixed. */
 .move-phase-button {
   width: 100%;
   display: none;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display);
   justify-content: center;
   align-items: center;
   border-radius: var(--radius);
-  border: 1px white solid;
+  border: var(--border-width) solid var(--border-color);
   color: var(--text-primary);
   font-size: 1.5rem;
-  font-weight: normal;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
 }
 
 .move-phase-button-green-background {
-  background-color: green;
+  color: var(--text-on-accent);
+  background-color: var(--positive);
+  border-color: var(--positive);
 }
 
 .move-phase-button-green-background:hover {
   cursor: pointer;
-  background-color: rgb(0, 85, 0);
-  transition: all 0.3s ease;
+  filter: brightness(0.85);
 }
 
 .move-phase-button-grey-background {
-  background-color: grey;
+  color: var(--text-muted);
+  background-color: var(--surface-control);
 }
 
 .move-phase-button-red-background {
-  background-color: rgb(210, 0, 0);
-}
-
-.move-phase-button-brown-background {
-  background-color: rgb(83, 62, 30);
-}
-
-.move-phase-button-brown-background:hover {
-  background-color: rgb(113, 92, 60);
+  color: var(--text-on-accent);
+  background-color: var(--negative);
+  border-color: var(--negative);
 }
 
 .move-phase-button-red-background:hover {
   cursor: pointer;
-  background-color: rgb(165, 0, 0);
-  transition: all 0.3s ease;
+  filter: brightness(0.85);
+}
+
+/* VIEW SIEGE. Distinct from both attack and transfer without being a third
+   accent: the panel colour, warmed toward the negative. */
+.move-phase-button-brown-background {
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--negative) 30%, var(--surface-raised));
+  border-color: var(--border-strong);
+}
+
+.move-phase-button-brown-background:hover {
+  cursor: pointer;
+  background-color: color-mix(in srgb, var(--negative) 45%, var(--surface-raised));
 }
 
 .move-phase-button-blue-background {
@@ -400,8 +486,7 @@ td {
 
 .move-phase-button-blue-background:hover {
   cursor: pointer;
-  background-color: var(--surface-panel);
-  transition: all 0.3s ease;
+  background-color: var(--surface-control-hover);
 }
 
 .left-attack-image,
@@ -725,7 +810,10 @@ td {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 95%;
+  /* 10% narrower than the 95% it was. At full width the panel ran to within a
+     few pixels of both screen edges, so the window read as a page rather than as
+     a window and the map behind it was invisible. */
+  width: 85.5%;
   height: 80vh;
   background-color: var(--surface-control);
   border: 3px solid var(--border-color);
@@ -773,19 +861,38 @@ td {
   margin-right: 7px;
 }
 
+/* "Open this panel again at the start of every turn."
+
+   It used to be a bare "✔" written into `innerHTML`, and it carried its state
+   that way too: a tick meant on and an EMPTY button meant off, which is
+   indistinguishable from a control that failed to render. It is an icon now --
+   a panel with a repeat arrow round it, which is what the option actually means
+   -- always drawn, dimmed when the option is off and in the accent when it is
+   on. The tooltip that explains it is unchanged. */
 .checkBox-appear-start-of-turn {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 5px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: var(--text-primary);
+  color: var(--text-muted);
   border: 3px solid var(--border-color);
   transition: all 0.3s ease;
   background-color: var(--surface-control);
   height: 35px;
   width: 46px;
   margin-left: 7px;
-  text-align: center;
+}
+
+.checkBox-appear-start-of-turn .chrome-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.checkBox-appear-start-of-turn.is-on {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background-color: var(--surface-control-hover);
 }
 
 .x-button-buy {
@@ -829,6 +936,11 @@ td {
   flex-grow: 1;
   overflow: auto;
   box-sizing: border-box;
+  /* The table rows carry a 1px white border on all four sides, and with no
+     padding here that border sat flush against the window's own frame -- two
+     lines a pixel apart, which reads as a rendering fault rather than as a
+     table. The gutter is what separates them. */
+  padding: 0 14px 12px;
 }
 
 .info-panel {
@@ -2827,23 +2939,6 @@ td {
   color: var(--text-on-accent);
 }
 
-/* `isPlaying` / `isNotPlaying` are written by music.js, which owns the audio
-   element and finds the button by id. Keep both names. */
-.menu-button-music.isPlaying {
-  background: var(--positive);
-  color: var(--text-on-accent);
-}
-
-.menu-button-music.isNotPlaying {
-  background: var(--negative);
-  color: var(--text-on-accent);
-}
-
-.menu-button-music.isPlaying:hover,
-.menu-button-music.isNotPlaying:hover {
-  filter: brightness(1.15);
-}
-
 /* ============================================================================
    OPTIONS PANEL
    ========================================================================= */
@@ -2937,6 +3032,100 @@ td {
   height: 24px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+}
+
+/* The two sound switches.
+
+   A real `<input type="checkbox">` does the work, and it is made TRANSPARENT and
+   laid over the track rather than shrunk to a pixel and tucked out of the way.
+   That distinction matters: a 1px input is still on screen as far as a browser
+   is concerned, so a click aimed at it lands on whatever is drawn over the top,
+   and `page.check()` fails with "the track intercepts pointer events". Over the
+   track the input IS the hit area, at the size it looks. Keyboard focus, the
+   accessibility tree and `page.check()` all then work with nothing simulated,
+   which is the whole reason this is a checkbox and not a styled button.
+
+   The track and knob are the sibling span, painted from the input's `:checked`.
+
+   Every colour is a token, so a theme reaches the switch the way it reaches the
+   rest of the panel. The knob rides on `--radius-sm` rather than a hard-coded
+   pill, which is what stops Command and Parchment looking like the same control. */
+.options-toggles {
+  gap: 26px;
+}
+
+.options-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.options-toggle-input {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: 46px; /* the track's box exactly -- see .options-toggle-track */
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: none;
+  opacity: 0;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.options-toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 24px;
+  background: var(--surface-control);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.options-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.options-toggle-input:checked + .options-toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.options-toggle-input:checked + .options-toggle-track::after {
+  background: var(--surface-panel);
+  /* 46 - 3 - 3 - 16 = 24: the width of the track less both insets and the knob. */
+  transform: translateX(22px);
+}
+
+.options-toggle-input:focus-visible + .options-toggle-track {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.options-toggle-label {
+  font-size: 0.95rem;
+  color: var(--text-primary);
 }
 
 .options-description {
@@ -3233,9 +3422,12 @@ td {
    ========================================================================= */
 .save-indicator {
   position: fixed;
-  /* Below the 30px top table, mirroring the hamburger on the other side, and above
-     the map-mode column at 88px. At 14px it sat on top of the army total. */
-  top: 40px;
+  /* Bottom right, clear of the 30px bottom table. It used to sit at the top right,
+     which is the corner the map chrome now fills from 36px down -- an autosave
+     firing there flashed a box across the music and continent-view buttons. Down
+     here it has the corner to itself, and the phase bar is at the other end of the
+     same edge. */
+  bottom: 42px;
   right: 12px;
   z-index: 9500;
   display: none;
@@ -3286,4 +3478,355 @@ td {
   .save-spinner {
     animation: none;
   }
+}
+
+
+/* ============================================================================
+   TABLE ICONS THAT ARE DRAWN
+
+   Three of the Wars & Sieges columns -- war, siege and the plain defender
+   shield -- are inline SVG rather than PNGs, so a theme can reach them (see
+   `src/ui/icons.js` and `src/ui/infoTable/warColumns.js`). `.sizingIcons` is
+   the rule the PNG columns take; this is its counterpart, and it exists
+   separately because an `<svg>` sizes from attributes rather than from
+   intrinsic pixels.
+   ========================================================================= */
+.ui-table-column > .chrome-icon,
+.ui-table-column-siege-war > .chrome-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+/* The battle UI's siege-score readout takes the same crossed swords. Sized by
+   the existing battle-UI rule, coloured here. */
+.sizingPositionRow4Column1IconBattleUI.chrome-icon {
+  color: var(--accent);
+}
+
+/* ============================================================================
+   COLOUR PICKER
+
+   256 swatches instead of the operating system's colour dialog. It is a
+   floating panel rather than a modal on purpose: the whole point of replacing
+   the dialog was that the map repaints as a swatch is clicked, and a scrim over
+   the map would hide the thing the player is looking at.
+   ========================================================================= */
+.colour-picker-container {
+  position: fixed;
+  /* Just above the phase bar, which is 40% tall and 8% off the bottom, and
+     hard against the same left edge so the two read as one column. */
+  bottom: calc(8% + 40% + 10px);
+  left: 10px;
+  z-index: 10001;
+}
+
+/* The value holder. Off screen rather than `display: none` -- a hidden input
+   still holds and reports a value, and the phase bar's <label for> still has
+   something real to point at. */
+.colour-picker-value {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.colour-picker-panel {
+  width: 288px;
+  padding: 12px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.colour-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.colour-picker-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+/* The colour in force, at a size worth looking at -- a 14px chip in the phase
+   bar is enough to identify a colour but not to judge one. */
+.colour-picker-preview {
+  width: 26px;
+  height: 20px;
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.colour-picker-close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.colour-picker-close:hover {
+  color: var(--text-primary);
+}
+
+.colour-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+}
+
+.colour-swatch {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.colour-swatch:hover {
+  transform: scale(1.35);
+  border-color: var(--text-primary);
+  /* Lifted over its neighbours, or the scaled swatch is clipped by them. */
+  position: relative;
+  z-index: 1;
+}
+
+.colour-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Two rings, light over dark, so the mark is visible on a white swatch and on
+   a black one -- a single outline colour cannot be. */
+.colour-swatch.is-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px #000;
+  position: relative;
+  z-index: 2;
+}
+
+.colour-swatch:disabled {
+  cursor: default;
+}
+
+.colour-picker-hint {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   AUDIO
+
+   The music-note button and its floating panel. The button is `.chrome-button`
+   like every other control over the map; only where it sits is new.
+   ========================================================================= */
+.audio-button-container {
+  position: fixed;
+  /* Level with the hamburger, at the other corner, with the continent-view
+     button under it. It is the top of the right-hand column rather than the
+     second item because it is up from the very first screen -- the button below
+     it does not appear until a country has been chosen. */
+  top: 36px;
+  right: 10px;
+  display: none;
+  z-index: 9000;
+}
+
+.audio-panel-container {
+  position: fixed;
+  /* Below the whole right-hand column rather than immediately under the button
+     that opens it: 36px + two 44px buttons + two 8px gaps. Anchoring it to the
+     music button alone would lay it over the continent-view button. */
+  top: 140px;
+  right: 10px;
+  z-index: 10001;
+}
+
+.audio-panel {
+  width: 260px;
+  padding: 14px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.audio-panel-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.audio-panel-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+.audio-panel-close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.audio-panel-close:hover {
+  color: var(--text-primary);
+}
+
+.audio-transport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* Every small square control in the panel: play, skip and the two mutes. */
+.audio-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--accent);
+  background: var(--surface-control);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.audio-icon-button .chrome-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.audio-icon-button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-control-hover);
+  border-color: var(--border-strong);
+}
+
+.audio-icon-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-icon-button:disabled {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* A muted channel is the negative colour, not a dimmed accent: "off" and
+   "unavailable" have to look different, and the skip button uses dimming. */
+.audio-mute.is-muted {
+  color: var(--negative);
+  border-color: var(--negative);
+}
+
+.audio-track-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-row + .audio-row {
+  margin-top: 10px;
+}
+
+.audio-row-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.audio-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* `appearance: none` on the track, then the thumb drawn from tokens for both
+   engines. Without it the slider is painted by the operating system and is the
+   one control in the panel that ignores the theme -- exactly the problem the
+   colour dialog had. */
+.audio-slider {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.audio-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.audio-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.audio-slider:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }

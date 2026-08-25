@@ -6,12 +6,20 @@ import { battle } from "../../support/selectors.js";
 //
 // docs/04-e2e-test-plan.md sections 5.4 and 5.11.
 
-/** Every siege overlay in the map document, by id. */
+/**
+ * Every siege overlay in the map document, by id.
+ *
+ * A marker used to be an `<image>` pointing at `siege.png` / `siegeai.png`, and this
+ * looked for that tag. It is a `<g data-siege>` holding a themed path now -- the PNGs
+ * are gone, because a bitmap is the same colour in every theme -- so the marker is
+ * found by the attribute that says what it IS rather than by the tag it happens to
+ * use. The ids are unchanged.
+ */
 function overlayIds(page) {
     return page.evaluate(() => {
         const doc = document.getElementById("svg-map").contentDocument;
-        return [...doc.querySelectorAll("image")]
-            .map((image) => image.getAttribute("id"))
+        return [...doc.querySelectorAll("[data-siege]")]
+            .map((marker) => marker.getAttribute("id"))
             .filter((id) => id && id.startsWith("siegeImage_"));
     });
 }
@@ -66,10 +74,14 @@ test.describe("siege markers", () => {
 
         const hit = await hitTestCentre(page, "France");
         expect(hit.tag, "the marker must not be the hit target").toBe("path");
-        expect(hit.territory).toBe("France");
+        expect(hit.territory, "the TERRITORY path, not the marker's own path").toBe("France");
     });
 
     test("an AI siege renders the AI variant", async ({ game, page }) => {
+        // The variant used to be asserted by reading the marker's `href` and checking it
+        // contained "siegeai". There is no file to name any more -- the marker is drawn --
+        // so `data-siege` says which variant it is, which is the question that was always
+        // being asked. The faded rendering and the pointer-events are unchanged.
         await game.start({ country: "Germany", seed: "marker-ai" });
         const report = await game.loadScenario("two-sieges");
         expect(report.sieges).toHaveLength(2);
@@ -79,18 +91,20 @@ test.describe("siege markers", () => {
 
         const variant = await page.evaluate(() => {
             const doc = document.getElementById("svg-map").contentDocument;
-            const image = doc.getElementById("siegeImage_Germany");
+            const marker = doc.getElementById("siegeImage_Germany");
             return {
-                href:
-                    image.getAttributeNS("http://www.w3.org/1999/xlink", "href") ??
-                    image.getAttribute("href"),
-                opacity: getComputedStyle(image).opacity,
-                pointerEvents: getComputedStyle(image).pointerEvents,
+                kind: marker.getAttribute("data-siege"),
+                opacity: getComputedStyle(marker).opacity,
+                pointerEvents: getComputedStyle(marker).pointerEvents,
+                fill: marker.querySelector("path")?.getAttribute("fill"),
             };
         });
-        expect(variant.href).toContain("siegeai");
+        expect(variant.kind).toBe("ai");
         expect(Number(variant.opacity), "the AI marker is the faded variant").toBeLessThan(1);
         expect(variant.pointerEvents).toBe("none");
+        // Painted from the theme rather than baked into an image. The exact colour is
+        // `--negative`, which differs per theme; what matters is that one was resolved.
+        expect(variant.fill, "the marker takes a colour from the theme").toBeTruthy();
     });
 
     test("no orphan marker survives the siege that raised it", async ({ game, page }) => {

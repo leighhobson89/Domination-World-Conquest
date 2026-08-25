@@ -6,6 +6,7 @@ The main info panel: Summary / Territories / Military / Wars & Sieges.
 |---|---|
 | `tabs.spec.js` | The panel opens and closes; exactly one tab is marked active and the mark follows the selection; the choice survives a redraw; the Territories tab lists one row per owned territory and gains a row on conquest; the Wars & Sieges tab names a siege the player is running |
 | `wars-tab.spec.js` | A war the attacker WON shows the defender's flag in the Defending Country column, not the flag of whoever owns the territory now (known-issues **AS**) |
+| `toggle-button.spec.js` | The globe over the map opens the panel AND closes it again — it used to be hidden the moment the panel opened, leaving the X as the only way out — and it is clickable rather than merely present, which is a statement about the stacking |
 
 ## The defect this folder was written against
 

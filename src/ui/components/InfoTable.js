@@ -20,6 +20,7 @@
 
 import { classNames, ids } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
+import { repeatPanelIcon } from "../icons.js";
 import { tooltip } from "./Tooltip.js";
 
 const TAB_ACTIVE_COLOUR = "rgb(111, 151, 183)";
@@ -81,10 +82,18 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
         return button;
     });
 
+    //The control used to be a bare "✔" written into `innerHTML`, and it carried its
+    //own state that way: a tick meant on, an empty button meant off. Two problems
+    //with that. A tick says "yes" and nothing else -- sitting in a row of four tab
+    //buttons it reads as a fifth tab or as a confirm, not as "open this panel again
+    //next turn" -- and an EMPTY button is not a control that is switched off, it is
+    //a control that failed to render. The icon says recurrence (a panel with a
+    //repeat arrow round it), it is always drawn, and whether the option is on is a
+    //class. The tooltip that explains it is unchanged.
     checkBox = el("button", {
         id: ids.checkBoxAppearStartOfTurn,
-        class: "checkBox-appear-start-of-turn",
-        html: "✔",
+        class: ["checkBox-appear-start-of-turn", "is-on"],
+        attrs: { type: "button", "aria-pressed": "true" },
         on: {
             mouseover(e) {
                 tooltip.moveTo(e.clientX - 40, 25 + e.clientY);
@@ -98,7 +107,7 @@ export function create({ drawTable, onClose, onToggleStartOfTurn, onTabClick } =
                 onToggleStartOfTurn?.();
             },
         },
-    });
+    }, repeatPanelIcon());
 
     const closeButton = el("button", {
         id: ids.xButtonInfoPanel,
@@ -161,6 +170,19 @@ export function checkBoxElement() {
     return checkBox;
 }
 
+/**
+ * Whether the panel opens itself at the start of each turn.
+ *
+ * The component owns how that reads, which is the point of moving it here: the
+ * caller says what is true and does not have to know that the answer is a class
+ * on a button rather than a character in its `innerHTML`.
+ */
+export function setAppearAtStartOfTurn(enabled) {
+    if (!checkBox) return;
+    checkBox.classList.toggle("is-on", Boolean(enabled));
+    checkBox.setAttribute("aria-pressed", enabled ? "true" : "false");
+}
+
 export function destroy() {
     root?.remove();
     root = null;
@@ -176,5 +198,6 @@ export const infoTable = {
     activeTab,
     tableElement,
     checkBoxElement,
+    setAppearAtStartOfTurn,
     destroy,
 };

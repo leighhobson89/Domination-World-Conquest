@@ -181,6 +181,38 @@ export function installSaveTestHooks(accessors) {
     });
 }
 
+/**
+ * Audio hooks.
+ *
+ * A spec cannot hear anything, so what it needs is the settings and the transport
+ * state as numbers -- did the slider actually move the volume, did a restored save
+ * bring back the mute. The panel's own controls are driven through the DOM like any
+ * other UI; this is the readout that says whether they landed.
+ *
+ * `setAudio()` is here for the one thing the DOM cannot do: put the settings into a
+ * known state that is NOT the one the save under test carries, so that a load can be
+ * shown to have changed them rather than merely to have left them alone.
+ *
+ * Reaching into the module directly with a dynamic `import()` was the obvious
+ * alternative and does not work: `index.html` loads the entry modules as plain
+ * `<script type="module">` tags against the SOURCE files, and a Vite BUILD rewrites
+ * those to hashed bundles -- so `/src/platform/audio.js` exists under `npm run dev`
+ * and does not exist under `npm run preview`, which is what the e2e suite runs
+ * against.
+ */
+export function installAudioTestHooks(accessors) {
+    if (!ENABLED || !window.__game) {
+        return;
+    }
+    Object.assign(window.__game, {
+        audio: () => snapshot(accessors.audio()),
+        setAudio: (settings) => snapshot(accessors.setAudio(settings)),
+        audioTracks: () => accessors.audioTracks(),
+        currentTrack: () => accessors.currentTrack(),
+        musicPlaying: () => accessors.musicPlaying(),
+    });
+}
+
 /** Signal that initialisation has finished. */
 export function signalReady() {
     if (!ENABLED) {

@@ -3,6 +3,15 @@
 // Phase 6.4, split out of `columns.js` in 6.8 to keep both files under 400 lines.
 // Ongoing sieges and finished wars share every column; they differ only in the icon
 // in the first cell and in one fix-up on the attacker figures.
+//
+// Three of the thirteen icons are DRAWN rather than shipped. War (crossed swords),
+// siege (a shield with a keep on it) and the plain defender shield were
+// `sword.png`, `siege.png` and `shield.png`, and they were both the least legible
+// icons in the table -- at row height a single upright sword and a bare shield are
+// the same grey blob -- and the only ones a theme could not recolour. They are
+// inline SVG from `src/ui/icons.js` now, stroked with `currentColor`.
+
+import { castleShieldIcon, crossedSwordsIcon, shieldIcon } from "../icons.js";
 
 const WAR_LABELS = [
     "Outcome",
@@ -21,19 +30,26 @@ const WAR_LABELS = [
 ];
 const WAR_ICONS = [
     "battle.png",
-    "siege.png",
+    null,
     "flagUIIcon.png",
-    "sword.png",
+    null,
     "infantry.png",
     "assault.png",
     "air.png",
     "naval.png",
-    "shield.png",
+    null,
     "infantry.png",
     "assault.png",
     "air.png",
     "naval.png"
 ];
+
+/** The three columns whose icon is drawn, by column index. See the header. */
+const WAR_ICON_NODES = Object.freeze({
+    1: castleShieldIcon,
+    3: crossedSwordsIcon,
+    8: shieldIcon
+});
 
 //The war table's widths were thirteen `if (j === a || j === b)` tests, repeated
 //verbatim in the header builder, the ongoing-siege row builder and the historic-war
@@ -133,16 +149,28 @@ export function warColumns(kind) {
 
     return WAR_LABELS.map((label, index) => ({
         label,
-        icon: WAR_ICONS[index],
+        icon: WAR_ICONS[index] ?? undefined,
+        iconNode: WAR_ICON_NODES[index],
         width: WAR_COLUMN_WIDTHS[index],
         cellWidth: WAR_CELL_WIDTHS[index],
         headerStyle: index === 0 ? { justifyContent: "center", marginLeft: "10px" } : undefined,
         cellStyle: warColumnStyle(index),
         render: [
             (cell, ctx) => {
+                //An ONGOING siege draws the themed shield-and-keep; a finished war
+                //still shows how it ended, and those four outcome images (victory,
+                //defeat, retreat, arrest) are illustrations rather than icons and
+                //stay as they are.
+                if (!historic) {
+                    const node = castleShieldIcon();
+                    node.setAttribute("role", "img");
+                    node.setAttribute("aria-label", "Under siege");
+                    cell.appendChild(node);
+                    return;
+                }
                 const image = document.createElement("img");
                 image.classList.add("sizingIcons");
-                const src = historic ? outcomeIcon(ctx.war.resolution) : "./resources/siege.png";
+                const src = outcomeIcon(ctx.war.resolution);
                 //An unrecognised resolution leaves the src unset, exactly as before.
                 //Inventing a fallback would hide a resolution string nobody handles.
                 if (src) {
