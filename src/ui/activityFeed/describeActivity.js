@@ -98,6 +98,14 @@ export function describeActivity(entry) {
                 icon: "siege"
             };
 
+        case ActivityKind.SIEGE_ABANDONED:
+            return {
+                text: `Siege of ${place(entry)} abandoned — ${entry.attacker} withdraws`,
+                tone: Tone.SIEGE,
+                isPlayer,
+                icon: "siege"
+            };
+
         case ActivityKind.SIEGE_WON:
             return {
                 text: `Siege of ${place(entry)} breaks into battle — ${entry.attacker} wins`,

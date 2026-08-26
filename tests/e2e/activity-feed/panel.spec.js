@@ -67,7 +67,12 @@ test.describe("per-turn sections", () => {
      */
     async function twoTurnsOfHistory(game) {
         await game.playTurns(2);
-        const now = await game.turn();
+        //The feed hides the turn that has just BEGUN -- the news a player opens it for
+        //happened in the turn that ENDED, because `endTurn: advanceTurn` means the AI
+        //moved during turn N and the counter reached N+1 afterwards. So "recent" here is
+        //the turn behind the current one, not the current one.
+        const current = await game.turn();
+        const now = current - 1;
         await game.activityPanel.record(distantConquest(now, "Recent"));
         await game.activityPanel.record(distantConquest(now - 2, "Ancient"));
         await game.activityPanel.open();

@@ -41,7 +41,8 @@ import {
     setNextAiWarId,
     addRemoveWarSiegeObjectAi,
     getSiegeObjectFromPlayerSiegeList,
-    getSiegeObjectFromAiSiegeList
+    getSiegeObjectFromAiSiegeList,
+    setBattleResolutionOnHistoricWarArrayAfterSiege
 } from "./battle.js";
 import {
     getArrayOfLeadersAndCountries,
@@ -53,6 +54,7 @@ import {
 } from "./gameTurnsLoop.js";
 import {
     allTerritories,
+    currentTurn,
     getTerritory,
     getTerritoryByName
 } from './src/state/selectors.js';
@@ -78,10 +80,33 @@ import {
     prioritiseTurnGoalsBasedOnPersonality as prioritiseTurnGoals
 } from './src/ai/goals.js';
 import {
+    captureCampaigns,
+    planCampaign,
+    recordAttackOutcome,
+    releaseSiegeSlot,
+    restoreCampaigns
+} from './src/ai/strategy.js';
+import {
+    reviewSiege,
+    SiegeVerdict
+} from './src/ai/siegeReview.js';
+import {
+    captureVictoryCondition,
+    restoreVictoryCondition
+} from './src/ai/victory.js';
+import {
+    registerSaveSlice
+} from './src/platform/saveSlices.js';
+import {
+    isUnderSiege
+} from './src/state/selectors.js';
+import {
     ids
 } from './src/ui/core/registry.js';
 import {
-    recordFailedAttack
+    recordFailedAttack,
+    recordSiegeAbandoned,
+    recordSiegeResolved
 } from './src/state/activityRecorder.js';
 
 //Balance numbers live in src/config/balance.js (Phase 5.1); imported above.
@@ -134,21 +159,277 @@ export {
 } from "./src/ai/threat.js";
 export { refineTurnGoals } from "./src/ai/goals.js";
 export { resetAiRngContext, setAiRngContext } from "./src/ai/rng.js";
+export { planCampaign, resetCampaigns } from "./src/ai/strategy.js";
+export {
+    activeVictoryCondition,
+    resetVictoryCondition,
+    setVictoryCondition,
+    victoryProgress
+} from "./src/ai/victory.js";
 
-/** The AI's goal planner, with this file's two impure dependencies bound in. */
-export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats) {
+//The AI's campaign commitments and the active victory condition are durable state that
+//lives OUTSIDE the store -- a country's three continents are a plan, not a fact about the
+//world -- so they need a save slice or a loaded game would find every AI starting its
+//long-term plan again from scratch. The registration is here rather than in `src/ai/`
+//because those modules import `config/` and `state/` and nothing else, which is the
+//property that lets the whole planner run in Node.
+registerSaveSlice("aiStrategy", {
+    capture: () => ({
+        campaigns: captureCampaigns(),
+        victory: captureVictoryCondition()
+    }),
+    restore: (data) => {
+        restoreCampaigns(data?.campaigns);
+        restoreVictoryCondition(data?.victory);
+    }
+});
+
+/**
+ * This country's campaign for this turn -- its long-term objective, its posture and its
+ * budgets. Called once per country at the top of its turn, before its goals are planned.
+ *
+ * The seeded per-country stream is bound in for the same reason it is everywhere else in
+ * the AI: the small random term that separates two neighbours with identical standings
+ * must not come off `Math.random`.
+ */
+export function planAiCampaign(country, leader, turn) {
+    return planCampaign(country, { turn, leader, rng: aiRng });
+}
+
+/** The AI's goal planner, with this file's impure dependencies bound in. */
+export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, campaign = null) {
     return planTurnGoals(arrayOfTerritoriesInRangeThreats, {
         rng: aiRng,
-        probabilityFor: calculateProbabilityPreBattle
+        probabilityFor: calculateProbabilityPreBattle,
+        campaign,
+        country: campaign?.country ?? null,
+        isBesieged: isUnderSiege
     });
 }
 
-/** As `prioritiseTurnGoals()`, with the seeded stream bound in. */
-export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits) {
-    return prioritiseTurnGoals(refinedTurnGoals, currentAiCountry, leaderTraits, aiRng);
+/** As `prioritiseTurnGoals()`, with the seeded stream and the campaign bound in. */
+export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits, campaign = null) {
+    return prioritiseTurnGoals(refinedTurnGoals, currentAiCountry, leaderTraits, aiRng, campaign);
 }
 
-export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories) {
+/**
+ * What this country does about the sieges it is ALREADY running. Once per turn, before
+ * anything else is planned.
+ *
+ * The gap this closes is the one visible from the AI log: a siege appeared the turn it was
+ * laid and was never mentioned again until it starved out or its army was arrested, because
+ * the besieging country genuinely never looked at it. `siegesRunBy()` counted it into the
+ * budget and nothing else in the AI knew it existed.
+ *
+ * The decision itself is `src/ai/siegeReview.js` and is pure. This is the half that cannot
+ * be: it reads the live siege lists, asks `battle.js` what an assault would run at, and
+ * carries the verdict out.
+ *
+ * It runs BEFORE the threat map is built, deliberately. A siege that ends here changes who
+ * owns the target and where an army is standing, and planning a turn against a world one
+ * decision out of date is how the AI came to plan attacks that were cancelled the moment
+ * they were attempted.
+ */
+export function reviewAiSieges(country, leader, campaign) {
+    const reviews = [];
+
+    for (const territoryName of Object.keys(aiSiegeWarsList)) {
+        const siege = aiSiegeWarsList[territoryName];
+        if (!siege || siege.attackingCountry !== country) {
+            continue;
+        }
+        const target = siege.defendingTerritory;
+        if (!target) {
+            continue;
+        }
+        const source = getTerritoryByName(siege.attackingTerritory);
+
+        let review = reviewSiege({
+            siege: siege,
+            target: target,
+            campaign: campaign,
+            traits: leader?.traits ?? {},
+            assaultOdds: assaultOddsFromSiege(siege, target, source)
+        });
+
+        //The territory the siege was launched FROM can have changed hands since -- it was
+        //left thin when its army marched out, which is exactly what makes it a target. If
+        //it has, there is nowhere to recall the army to and nobody to hand a conquest to,
+        //so neither ending can be carried out and the siege stands until it resolves
+        //itself. Said out loud rather than silently skipped, because "why is that siege
+        //still there?" is the question this whole review exists to answer.
+        if (review.verdict !== SiegeVerdict.PRESS && (!source || source.dataName !== country)) {
+            review = {
+                ...review,
+                verdict: SiegeVerdict.PRESS,
+                reason: "wanted to " + review.verdict.toLowerCase() + " (" + review.reason +
+                    ") but " + siege.attackingTerritory + " is no longer ours to act from"
+            };
+        }
+
+        console.log("SIEGE REVIEW -- " + territoryName + ": " + review.verdict.toUpperCase() +
+            " (" + review.reason + ")");
+
+        if (review.verdict === SiegeVerdict.ASSAULT) {
+            stormBesiegedTerritory(siege, target, source, review, campaign);
+        } else if (review.verdict === SiegeVerdict.LIFT) {
+            liftAiSiege(siege, target, source, campaign);
+        }
+
+        reviews.push(review);
+    }
+
+    //Read by planLog.js and the debug panel. Kept on the campaign for the same reason the
+    //ratings and decisions are: it is per-turn scratch, and the goal rows cannot carry it.
+    if (campaign) {
+        campaign.siegeReviews = reviews;
+    }
+    return reviews;
+}
+
+/**
+ * The odds the besieging army would win if it stormed the territory as it now stands.
+ *
+ * The army is the one in the siege, not one in the source territory -- it marched out when
+ * the siege was laid (audit 5.1 AD debits at INVADE!). The defender is read live, which is
+ * the whole point: a garrison that has been starving for six turns is not the one that
+ * turned the first assault back.
+ */
+function assaultOddsFromSiege(siege, target, source) {
+    const army = siege?.attackingArmyRemaining ?? [];
+    const infantry = Number(army[0]) || 0;
+    const assault = Number(army[1]) || 0;
+    const air = Number(army[2]) || 0;
+    const naval = Number(army[3]) || 0;
+
+    if (!source || infantry + assault + air + naval <= 0) {
+        return 0;
+    }
+
+    return calculateProbabilityPreBattle(
+        [target.uniqueId, parseInt(source.uniqueId), infantry, assault, air, naval],
+        allTerritories(),
+        false);
+}
+
+/**
+ * Storm a territory this country is besieging.
+ *
+ * Reuses the ordinary AI battle -- `doAttack()` then `recombineRemainingArmyAfterBattle()`
+ * -- with one difference that matters: the source territory is NOT debited, because the
+ * army doing the storming is the one already standing outside the walls. Debiting it again
+ * would create army out of nothing on a win and destroy it twice on a loss.
+ *
+ * The siege is closed either way. There is no third outcome where the besiegers fail and
+ * settle back down: an assault that is turned back has lost the army that was maintaining
+ * the siege.
+ */
+function stormBesiegedTerritory(siege, target, source, review, campaign) {
+    const armyArray = [...(siege.attackingArmyRemaining ?? [0, 0, 0, 0])];
+    const sourceCopy = { ...source };
+    const targetCopy = { ...target };
+    //Who it happened TO, read before the conquest can change it -- the trap that made the
+    //Wars and Sieges tab draw the winner flag on both sides (known-issues AS).
+    const defendingCountry = target.dataName;
+    const playerDefending = target.owner === "Player";
+
+    const battleResult = doAttack(armyArray, sourceCopy, targetCopy, review.assaultOdds, false);
+    const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, targetCopy);
+    const won = remainingArmyArray[4] === 0;
+
+    console.log("ASSAULT out of the siege of " + target.territoryName + ": " +
+        (won ? "the walls are taken" : "thrown back, the besieging army is spent"));
+
+    endAiSiege(siege, target, won ? "Victory" : "Defeat");
+    releaseSiegeSlot(campaign);
+
+    recordAttackOutcome(siege.attackingCountry, target.territoryName, won, currentTurn());
+    recordSiegeResolved({
+        besiegerWon: won,
+        territory: target.territoryName,
+        defender: defendingCountry,
+        attacker: siege.attackingCountry,
+        playerAttacking: false,
+        playerDefending: playerDefending
+    });
+
+    if (won) {
+        updateTerritory(targetCopy, remainingArmyArray, sourceCopy);
+        patchTerritory(target.uniqueId, targetCopy);
+    } else {
+        summaryWarsLostArray.push(target.territoryName + " threw back the assault of " +
+            siege.attackingCountry);
+        recordFailedAttack({
+            territory: target.territoryName,
+            defender: defendingCountry,
+            attacker: siege.attackingCountry,
+            playerDefending: playerDefending
+        });
+    }
+}
+
+/**
+ * Give up a siege and march the army home.
+ *
+ * The counterpart of the player's `removeSiegeAndReturnPlayerArmy()`, and it returns the
+ * army the same way -- immediately, into the territory it came from, rather than through
+ * `retrievalArray`. The `useable*` counts are credited alongside the raw counts because
+ * `doAttack()` debits both, and an army that came back only half recorded would be able to
+ * defend with vehicles the country no longer believed it could crew.
+ */
+function liftAiSiege(siege, target, source, campaign) {
+    const army = siege.attackingArmyRemaining ?? [0, 0, 0, 0];
+    const returning = { ...source };
+
+    returning.infantryForCurrentTerritory += Number(army[0]) || 0;
+    returning.assaultForCurrentTerritory += Number(army[1]) || 0;
+    returning.useableAssault += Number(army[1]) || 0;
+    returning.airForCurrentTerritory += Number(army[2]) || 0;
+    returning.useableAir += Number(army[2]) || 0;
+    returning.navalForCurrentTerritory += Number(army[3]) || 0;
+    returning.useableNaval += Number(army[3]) || 0;
+    returning.armyForCurrentTerritory = returning.infantryForCurrentTerritory +
+        (returning.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) +
+        (returning.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) +
+        (returning.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+
+    patchTerritory(source.uniqueId, returning);
+
+    console.log("LIFTING the siege of " + target.territoryName + " -- the army marches back to " +
+        source.territoryName);
+
+    endAiSiege(siege, target, "Retreat");
+    releaseSiegeSlot(campaign);
+
+    //The fourth way a siege can end, and the newest: not a victory, not a defeat, not an
+    //arrest, but the besieger walking away. A removal alone cannot say which, so the feed
+    //is told outright.
+    recordSiegeAbandoned({
+        territory: target.territoryName,
+        defender: target.dataName,
+        attacker: siege.attackingCountry,
+        playerAttacking: false,
+        playerDefending: target.owner === "Player"
+    });
+}
+
+/**
+ * Close one AI siege. The same four steps the starve-out takes, in the same order.
+ *
+ * `underSiege` is derived from the siege lists, so removing the siege is what clears it --
+ * only the drawn overlay is left to take down.
+ */
+function endAiSiege(siege, target, resolution) {
+    const warId = siege.warId;
+    addRemoveWarSiegeObjectAi(1, warId, target, target);
+    const siegedPath = getPathByUniqueId(target.uniqueId);
+    if (siegedPath) {
+        removeSiegeImageFromPath(true, siegedPath);
+    }
+    setBattleResolutionOnHistoricWarArrayAfterSiege(resolution, warId, true);
+}
+
+export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, campaign = null) {
     let economyBenefitArray = [];
     let bolsterBenefitArray = [];
     let siegeLaunchedFromArray = [];
@@ -156,7 +437,25 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
     let attackLaunchedFromArray = [];
     let attackLaunchedToArray = [];
 
+    //The campaign's budgets are enforced TWICE, and deliberately. `goals.js` cuts the
+    //ranked list to them, which is what stops the country planning a war it cannot fund;
+    //these two counters stop it STARTING one, because a goal can still fall through to a
+    //siege after a target it preferred turned out to be unreachable, and because the AI
+    //also opens interactions from `handleCaseOfTerritoryAlreadyBeingUnderSiege...`. One
+    //budget, checked at the two places an army actually leaves a territory.
+    const siegeBudget = campaign?.siegeBudget ?? Infinity;
+    const attackBudget = campaign?.attackBudget ?? Infinity;
+    let siegesOpened = 0;
+    let attacksPressed = 0;
+
     console.log("As a generally " + leader.leaderType.toUpperCase() + " type of leader, I am");
+    if (campaign) {
+        console.log("Campaigning for " + (campaign.objective.continents.join(", ") || "nothing in particular") +
+            " -- focus " + (campaign.focusContinent ?? "none") +
+            ", posture " + campaign.posture +
+            ", budget " + siegeBudget + " new siege(s) on top of " + campaign.activeSieges +
+            " already running and " + attackBudget + " attack(s)");
+    }
 
     for (let goalIndex = 0; goalIndex < refinedTurnGoals.length; goalIndex++) {
         const goal = refinedTurnGoals[goalIndex];
@@ -227,7 +526,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     consMatsToSpend = consMatsToSpend[1];
                     console.log("Gold to spend on this ECONOMY = " + goldToSpend);
                     console.log("ConsMats to spend on this ECONOMY = " + consMatsToSpend);
-                    couldNotAffordEconomy = analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
+                    couldNotAffordEconomy = analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend, upgradeAllowanceFor(campaign));
                 }
                 break;
             case "Bolster":
@@ -252,13 +551,26 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                         console.log("Gold to spend on this BOLSTER = " + goldToSpend);
                         console.log("ProdPop to spend on this bolster = " + prodPopToSpend);
                         couldNotAffordEconomy ? (console.log("Couldn't afford to upgrade, so saving half and can now spend " + (goldToSpend / 2)), goldToSpend /= 2) : console.log("Upgraded ECONOMY normally or economy not done yet, so has all stated gold for BOLSTER");
-                        goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldToSpend, consMatsToSpend);
+                        //A bolstering territory used to offer ALL its gold to forts and
+                        //give the army whatever the fort loop happened not to want. That
+                        //made every country build the same way whatever it was trying to
+                        //do. The posture decides the split now: a DEFENDing country puts
+                        //four fifths of it into walls, an EXPANDing one keeps most of it
+                        //for units it can march out with.
+                        const fortShare = campaign?.fortShare ?? 1;
+                        const goldOfferedToForts = Math.floor(goldToSpend * fortShare);
+                        const goldHeldBackForArmy = goldToSpend - goldOfferedToForts;
+                        goldToSpend = analyzeAndBuildFortDefenses(mainArrayFriendlyTerritoryCopy, goldOfferedToForts, consMatsToSpend) + goldHeldBackForArmy;
                         console.log("gold left over for army / economy (if still to build): " + goldToSpend);
                         bolsterArmy(mainArrayFriendlyTerritoryCopy, goldToSpend, prodPopToSpend);
                     }
                 }
                 break;
             case "Siege":
+                if (siegesOpened >= siegeBudget) {
+                    console.log("Siege budget spent for this turn -- not opening another against " + goal[2]);
+                    break;
+                }
                 if (!siegeLaunchedFromArray.includes(goal[3])) {
                     siegeLaunchedFromArray.push(goal[3]);
                     siegeLaunchedToArray.push(goal[2]);
@@ -269,11 +581,16 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                         if (proceed) {
                             setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[1], leader);
+                            siegesOpened++;
                         }
                     }
                 }
                 break;
             case "Attack":
+                if (attacksPressed >= attackBudget) {
+                    console.log("Attack budget spent for this turn -- not pressing another against " + goal[2]);
+                    break;
+                }
                 if (!attackLaunchedFromArray.includes(goal[3])) { //only one attack from any territory per turn
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
@@ -283,8 +600,19 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
                         if (proceed) {
+                            attacksPressed++;
                             const battleResult = doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[1]);
                             const remainingArmyArray = recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy);
+                            //Remember how it went, win or lose. This is the whole of the
+                            //AI's memory between turns about a particular target, and
+                            //without it a country re-attacks whatever just beat it every
+                            //turn forever -- visible in the activity feed as the same
+                            //line repeating turn after turn.
+                            recordAttackOutcome(
+                                mainArrayFriendlyTerritoryCopy.dataName,
+                                mainArrayEnemyTerritoryCopy.territoryName,
+                                remainingArmyArray[4] === 0,
+                                currentTurn());
                             if (remainingArmyArray[4] === 0) { //attacker won
                                 mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
                             } else {
@@ -459,7 +787,18 @@ function determineResourcesAvailableForThisGoal(resource, amountOfResourceCurren
     return [refinedTurnGoals, resourcesAvailable];
 }
 
-function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, goldToSpend, consMatsToSpend) {
+/**
+ * How many upgrades one territory may buy this turn.
+ *
+ * `MAX_AI_UPGRADES_PER_TURN` is the flat cap; a country whose campaign says it has no
+ * economy worth speaking of is allowed to build past it, and one that is defending is held
+ * below it. Rounded up so the scale can never take the allowance to zero.
+ */
+function upgradeAllowanceFor(campaign) {
+    return Math.max(1, Math.ceil(MAX_AI_UPGRADES_PER_TURN * (campaign?.upgradeScale ?? 1)));
+}
+
+function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, goldToSpend, consMatsToSpend, maxUpgrades = MAX_AI_UPGRADES_PER_TURN) {
     let couldNotAffordEconomy = false;
 
     let buildList = [];
@@ -597,7 +936,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             }
 
             buildAgain = (aiRng() * 10 + 1) >= 5;
-            if (buildList && buildList.length >= MAX_AI_UPGRADES_PER_TURN) {
+            if (buildList && buildList.length >= maxUpgrades) {
                 break;
             } else {
                 buildAgain = (aiRng() * 10 + 1) >= 5;
@@ -931,11 +1270,17 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
     return [infantryCount, assaultAddCount, airAddCount, navalAddCount];
 }
 
-function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability) { //simple battle mechanic as large number to process
+/**
+ * @param {boolean} debitSource  whether the army being sent still has to leave the source
+ *        territory. False for an assault out of a SIEGE: that army marched out when the
+ *        siege was laid, so debiting the source again would destroy it twice on a loss and
+ *        conjure it out of nothing on a win.
+ */
+function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, debitSource = true) { //simple battle mechanic as large number to process
     let armyRemainingAttack = calculateCombinedForce(armyArray);
     let armyRemainingDefend = calculateCombinedForce([mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval]);
 
-    for (let i = 0; i < allTerritories().length; i++) { //remove army from attacking territory
+    for (let i = 0; debitSource && i < allTerritories().length; i++) { //remove army from attacking territory
         if (allTerritories()[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
             allTerritories()[i].infantryForCurrentTerritory -= armyArray[0];
             allTerritories()[i].assaultForCurrentTerritory -= armyArray[1];

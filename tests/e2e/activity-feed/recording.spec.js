@@ -112,18 +112,23 @@ test.describe("player involvement is marked on both sides", () => {
     });
 
     test("and shows up as a larger row than a distant war", async ({ startedGame: game }) => {
+        //Recorded into the turn that has just ENDED, which is the one the feed shows --
+        //see the note in panel.spec.js.
+        const turn = (await game.turn()) - 1;
         await game.activityPanel.record({
             kind: "conquest",
             territory: "Bavaria",
             defender: "Germany",
             attacker: "Poland",
             playerDefending: true,
+            turn,
         });
         await game.activityPanel.record({
             kind: "conquest",
             territory: "Balearic Islands",
             defender: "Spain",
             attacker: "Libya",
+            turn,
         });
         await game.activityPanel.open();
 

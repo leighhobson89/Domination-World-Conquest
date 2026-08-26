@@ -46,9 +46,19 @@ test.describe("the advance button sits at the bottom", () => {
     });
 
     test("and the bar is no taller than what is in it", async ({ startedGame: game, page }) => {
+        // RE-BASELINED, deliberately, on the developer's decision that the shipped bar is
+        // correct and this number was the stale fact. The budget was 32% of the viewport,
+        // written when the bar held less than it does now; the bar measures ~35% today and
+        // that height is its content, which is all this test was ever about.
+        //
+        // 38% is not a rounding of 35: it is chosen to stay strictly below the 40% this
+        // test exists to catch. The defect was `height: 40%` with `justify-content: center`
+        // -- a fixed fraction of the viewport with an empty row under the button -- so any
+        // budget under 40% still fails the moment the bar goes back to being sized by the
+        // window rather than by what is in it. Widening it further would retire the test.
         const { barHeight } = await geometry(page);
         const viewport = page.viewportSize();
-        expect(barHeight).toBeLessThan(viewport.height * 0.32);
+        expect(barHeight).toBeLessThan(viewport.height * 0.38);
     });
 });
 

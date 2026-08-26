@@ -53,6 +53,8 @@ import {
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
     calculateTurnGoals,
+    planAiCampaign,
+    reviewAiSieges,
     convertAttackableArrayStringsToMainArrayObjects,
     doAiActions,
     getFriendlyTerritoriesDefenseScores,
@@ -696,6 +698,26 @@ async function handleAITurn() {
 
         setAiRngContext(currentTurn(), currentAiCountry);
 
+        //The CAMPAIGN, and it is planned before anything is measured because everything
+        //after it is measured against it: which continents this country has committed to
+        //taking under the active victory condition, which one it is pushing this turn,
+        //what kind of turn this is, and how much war it can afford. See src/ai/strategy.js.
+        //
+        //It has to come after setAiRngContext(), because the small random term that
+        //separates two neighbours with identical standings draws from the seeded
+        //per-country stream.
+        const campaign = planAiCampaign(currentAiCountry, leader, currentTurn());
+
+        //The sieges this country ALREADY has, reviewed one by one: press on, storm the
+        //place, or march the army home. See src/ai/siegeReview.js.
+        //
+        //It runs here -- after the campaign, before anything is measured -- for two
+        //reasons. The verdict needs the campaign posture and odds floors the line above
+        //derives. And an assault or a lift changes who owns the target and where an army
+        //is standing, so it has to happen before the threat map is built rather than
+        //after, or the whole turn is planned against a world one decision out of date.
+        reviewAiSieges(currentAiCountry, leader, campaign);
+
         // TODO: Unblock territories that are no longer deactivated from previous wars
         // Implement once AI can conquer territories
 
@@ -706,11 +728,13 @@ async function handleAITurn() {
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange);
         arrayOfAiPlayerDefenseScoresForTerritories = getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i);
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
-        // TODO: Check long term goal i.e. destroy x country, or have x territories or have an average defense level of x%, or gain continent x etc
-        // implement when long term goal is decided
-        unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats));
+        //The long-term goal is no longer a TODO: it is `campaign.objective`, derived above
+        //from the active victory condition. Under the default -- hold three continents
+        //outright -- it names the three this country has committed to, and every goal
+        //below is weighed against them.
+        unrefinedTurnGoals.push(calculateTurnGoals(arrayOfTerritoriesInRangeThreats, campaign));
         refinedTurnGoals = refineTurnGoals(unrefinedTurnGoals, currentAiCountry, leaderTraits);
-        refinedTurnGoals= prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits);
+        refinedTurnGoals = prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits, campaign);
         //Phase 7.4. One collapsed console group per country, printed BEFORE the goals
         //are carried out so a developer can compare the intent against what followed.
         //The forty-odd lines this file and aiCalculations.js already emit per country
@@ -724,14 +748,18 @@ async function handleAITurn() {
             country: currentAiCountry,
             leader: leader,
             refinedGoals: refinedTurnGoals,
-            turn: currentTurn()
+            turn: currentTurn(),
+            campaign: campaign
         });
-        refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
+        refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, campaign); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
 
         resetAiRngContext();
         // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
         // TODO: Based on threat, move available army around between available owned territories
-        // TODO: Assess if turn goal was realised and update long-term goal if necessary
+        //A country does not re-assess its long-term goal here. The campaign is re-derived
+        //at the top of its NEXT turn from the world as it then stands, and the commitment
+        //behind it is deliberately sticky -- reviewed every CAMPAIGN_REVIEW_INTERVAL turns
+        //rather than after every turn, because a plan re-chosen every turn is not a plan.
     }
     //Phase 5.8. A `//DEBUG` block stood here: two calls to a 40-line `logGoldStats()` that
     //sorted, averaged and took the mode of every AI country's spending, twice, on every AI

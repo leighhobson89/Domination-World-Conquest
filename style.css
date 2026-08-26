@@ -1078,6 +1078,17 @@ td {
   background-color: var(--surface-control-hover);
 }
 
+/* "Also show the turn that has just begun." The chevron points down when the
+   turn is hidden and up when it is showing, so the control says which way it
+   will move the list rather than only that it is on. */
+.checkBox-show-current-turn .chrome-icon {
+  transition: transform 120ms ease;
+}
+
+.checkBox-show-current-turn.is-on .chrome-icon {
+  transform: rotate(180deg);
+}
+
 .content-window {
   height: 445px;
   display: flex;
@@ -4713,6 +4724,221 @@ td {
 }
 
 /* ============================================================================
+   AI DEBUG PANEL
+   ----------------------------------------------------------------------------
+   A developer window onto the AI's reasoning, toggled with numpad /. It has no
+   button anywhere: it is not part of the game, and map chrome that opens a debug
+   view is map chrome a player will click.
+
+   It borrows the activity feed's shape deliberately -- a header, a scrolling body,
+   collapsible sections -- because a second window in this game should not be a
+   second design. It is wider and its type is smaller, because what it shows is a
+   table of verdicts and reasons rather than a sentence a player reads.
+
+   Every colour here is an existing token. The three verdict colours say what the
+   country DID about a target: it acted, it settled in for a siege, or it walked
+   away, which maps onto `--positive`, `--siege-amber` and `--text-muted` without
+   needing a colour of its own.
+   ========================================================================= */
+
+#ai-debug-panel-container {
+  position: fixed;
+  top: 72px;
+  left: 96px;
+  display: none;
+}
+
+.ai-debug-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 72vw);
+  max-height: min(640px, 78vh);
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.ai-debug-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.ai-debug-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+.ai-debug-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.ai-debug-panel-empty {
+  margin: 0;
+  padding: 14px 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------- one country -------- */
+.ai-debug-country + .ai-debug-country {
+  margin-top: 4px;
+}
+
+.ai-debug-country-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--surface-control);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-debug-country-header:hover {
+  background-color: var(--surface-control-hover);
+}
+
+.ai-debug-country.is-open .ai-debug-country-header {
+  border-color: var(--border-strong);
+}
+
+.ai-debug-country-name {
+  flex: 0 1 auto;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ai-debug-country-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.ai-debug-country-body {
+  display: none;
+  padding: 6px 8px 10px 10px;
+}
+
+.ai-debug-country-body.is-open {
+  display: block;
+}
+
+.ai-debug-section-label {
+  margin: 8px 0 3px;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: var(--display-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ai-debug-fact {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ai-debug-fact-label {
+  flex: 0 0 90px;
+  color: var(--text-muted);
+}
+
+.ai-debug-fact-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------- one weighed target ----- */
+/* A four-column row rather than a sentence: the point of this list is that a
+   dozen of them can be scanned down, and a sentence per target cannot be. */
+.ai-debug-decision {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 1px 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.ai-debug-decision-verdict {
+  flex: 0 0 52px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ai-debug-decision-target {
+  flex: 0 0 34%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.ai-debug-decision-odds {
+  flex: 0 0 34px;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.ai-debug-decision-reason {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.ai-debug-decision.verdict-attack .ai-debug-decision-verdict {
+  color: var(--positive);
+}
+
+.ai-debug-decision.verdict-siege .ai-debug-decision-verdict {
+  color: var(--siege-amber);
+}
+
+.ai-debug-decision.verdict-skip .ai-debug-decision-verdict {
+  color: var(--text-muted);
+}
+
+/* A siege already running, reviewed this turn: storming it, or walking away from it. */
+.ai-debug-decision.verdict-assault .ai-debug-decision-verdict {
+  color: var(--positive);
+}
+
+.ai-debug-decision.verdict-lift .ai-debug-decision-verdict {
+  color: var(--negative);
+}
+
+/* ============================================================================
    DRAGGABLE WINDOWS (Phase 7.4)
    ----------------------------------------------------------------------------
    Five windows float over the map and every one of them used to be nailed to a
@@ -4732,7 +4958,8 @@ td {
 #upgrade-container,
 #buy-container,
 #transfer-attack-window-container,
-#activity-panel-container {
+#activity-panel-container,
+#ai-debug-panel-container {
   z-index: 9100;
 }
 

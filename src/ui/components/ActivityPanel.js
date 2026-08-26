@@ -39,6 +39,7 @@ import { clear, el, listenerGroup, mount } from "../core/dom.js";
 import { bringToFront, makeDraggable } from "../core/draggable.js";
 import { activityTurns } from "../../state/activityLog.js";
 import { Events, on as onStateEvent } from "../../state/events.js";
+import { currentTurn } from "../../state/selectors.js";
 import { describeActivity, summariseTurn } from "../activityFeed/describeActivity.js";
 import {
     activityLogIcon,
@@ -52,6 +53,7 @@ let buttonRoot = null;
 let panelRoot = null;
 let bodyElement = null;
 let repeatButton = null;
+let currentTurnButton = null;
 let unsubscribe = null;
 let undrag = null;
 const listeners = listenerGroup();
@@ -61,6 +63,18 @@ let openTurns = new Set();
 
 /** Does the panel open itself at the start of every turn? */
 let appearsAtStartOfTurn = true;
+
+/**
+ * Does the feed show the turn that has just BEGUN, as well as the ones behind it?
+ *
+ * Off by default, and the reason is the turn boundary. `endTurn: advanceTurn`, so the AI
+ * moves during turn N and the counter reaches N+1 afterwards -- everything the player is
+ * shown when the feed raises itself happened in turn N. Turn N+1 is a section that is
+ * almost always empty and, when it is not, holds the player's own move rather than the
+ * news they opened the panel to read. Showing it first pushed the actual report down the
+ * list. The switch in the title bar puts it back for anyone who wants it.
+ */
+let showsCurrentTurn = false;
 
 /** Injected: the click sound, so this component does not import the audio layer. */
 let playSound = null;
@@ -118,6 +132,29 @@ export function create({ onSound } = {}) {
         repeatPanelIcon()
     );
 
+    currentTurnButton = el(
+        "button",
+        {
+            id: ids.checkBoxActivityShowCurrentTurn,
+            //Same control vocabulary as the repeat switch beside it: one class, one
+            //`is-on` state. Two switches in one title bar that looked different would
+            //be two designs.
+            class: ["checkBox-appear-start-of-turn", "checkBox-show-current-turn"],
+            attrs: {
+                type: "button",
+                "aria-pressed": "false",
+                title: "Also show the turn that has just begun",
+            },
+            on: {
+                click() {
+                    playSound?.();
+                    setShowCurrentTurn(!showsCurrentTurn);
+                },
+            },
+        },
+        chevronIcon()
+    );
+
     const closeButton = el("button", {
         id: ids.xButtonActivity,
         class: "x-button",
@@ -139,6 +176,7 @@ export function create({ onSound } = {}) {
             class: "activity-panel-title",
             text: "Military Activity",
         }),
+        currentTurnButton,
         repeatButton,
         closeButton,
     ]);
@@ -251,7 +289,11 @@ export function onTurnStarted(turn) {
     // counter reaches N+1 afterwards -- so a quiet N+1 with no siege lines has no
     // section at all, and the fallback lands on the conquests the player came to
     // read.
-    openTurns = new Set([turn]);
+    //`turn` is the turn that has just BEGUN. The section worth opening is the one behind
+    //it -- the AI moved during that turn and the counter advanced afterwards, so that is
+    //where the conquests are. `render()` still falls back to the newest section with
+    //anything in it if that turn was silent.
+    openTurns = new Set([turn - 1]);
 
     // Nothing has happened on turn 1, so there is nothing to raise a panel for --
     // the same rule the info panel applies, and for the same reason.
@@ -284,13 +326,32 @@ export function reset() {
     render();
 }
 
+/** Show or hide the turn that has just begun. */
+export function setShowCurrentTurn(enabled) {
+    showsCurrentTurn = Boolean(enabled);
+    if (currentTurnButton) {
+        currentTurnButton.classList.toggle("is-on", showsCurrentTurn);
+        currentTurnButton.setAttribute("aria-pressed", String(showsCurrentTurn));
+    }
+    render();
+}
+
+export function showsCurrentTurnEnabled() {
+    return showsCurrentTurn;
+}
+
 // --- rendering -------------------------------------------------------------
 
 function render() {
     if (!bodyElement) return;
     clear(bodyElement);
 
-    const turns = activityTurns();
+    //The turn that has just begun is hidden unless the switch is on. See the note on
+    //`showsCurrentTurn` -- the news the player opened this for is in the turn that ENDED.
+    const now = currentTurn();
+    const all = activityTurns();
+    const turns = showsCurrentTurn ? all : all.filter(({ turn }) => turn < now);
+
     if (turns.length === 0) {
         mount(
             bodyElement,

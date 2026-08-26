@@ -17,6 +17,7 @@
 // printing is not testable and does not need to be.
 
 import { summariseGoalHorizons } from "./goalHorizons.js";
+import { recordPlan } from "./planRecord.js";
 
 /** Console styling. Muted for structure, accent for the country, red for a rival. */
 const HEADING = "color: #7fc4e8; font-weight: bold;";
@@ -44,10 +45,11 @@ function endGroup() {
  * they are carried out -- a plan reported after the fact is a summary, and the
  * point of this is to be able to compare the intent with what followed.
  *
- * @param {{country: string, leader: object, refinedGoals: Array, turn: number}} view
+ * @param {{country: string, leader: object, refinedGoals: Array, turn: number,
+ *          campaign?: object}} view
  */
-export function logAiPlan({ country, leader, refinedGoals, turn }) {
-    const plan = summariseGoalHorizons({ country, leader, refinedGoals });
+export function logAiPlan({ country, leader, refinedGoals, turn, campaign = null }) {
+    const plan = summariseGoalHorizons({ country, leader, refinedGoals, campaign });
     const { mediumTerm, longTerm } = plan;
 
     group(
@@ -67,12 +69,40 @@ export function logAiPlan({ country, leader, refinedGoals, turn }) {
         }
     }
 
+    //The sieges this country was already running, and what it decided about each. Printed
+    //between the plan and the posture because that is where it belongs in the turn: these
+    //were reviewed BEFORE anything else was planned, and an assault or a lift here is what
+    //the rest of the turn was then planned around.
+    const reviews = campaign?.siegeReviews ?? [];
+    if (reviews.length > 0) {
+        console.log("%cSIEGES ALREADY RUNNING", LABEL);
+        for (const review of reviews) {
+            console.log("  " + review.verdict.toUpperCase() + " " + review.target +
+                " (turn " + review.turnsInSiege + ", " + Math.round(review.progress * 100) +
+                "% worn down, assault would run at " + review.assaultOdds + "%) -- " + review.reason);
+        }
+    }
+
     console.log("%cMEDIUM TERM (what that adds up to)", LABEL);
     console.log(
         `  Posture: ${mediumTerm.posture}` +
         ` (${mediumTerm.counts.attack} attack, ${mediumTerm.counts.siege} siege,` +
         ` ${mediumTerm.counts.bolster} reinforce, ${mediumTerm.counts.economy} develop)`
     );
+    if (mediumTerm.focusContinent) {
+        console.log(`  Pushing on: ${mediumTerm.focusContinent}`);
+    }
+    if (mediumTerm.budgets) {
+        //The budgets are the answer to "why did it not attack?", which is the question a
+        //developer asks most often of a quiet AI turn, so they are printed even when they
+        //are zero -- especially when they are zero.
+        const budgets = mediumTerm.budgets;
+        console.log(
+            `  Affordable this turn: ${budgets.attack} attack(s), ${budgets.siege} new siege(s)` +
+            ` (${budgets.activeSieges} of ${budgets.concurrentSiegeCap} concurrent sieges already running)`
+        );
+        console.log(`  Will not attack below ${budgets.attackOddsFloor}% odds`);
+    }
     if (mediumTerm.pressureOn) {
         console.log(`  Pressing hardest against: ${mediumTerm.pressureOn}`);
     }
@@ -82,6 +112,16 @@ export function logAiPlan({ country, leader, refinedGoals, turn }) {
 
     console.log("%cLONG TERM (standing ambitions)", LABEL);
     console.log(`  Holds ${longTerm.territoriesHeld} territories`);
+    if (longTerm.objective) {
+        const objective = longTerm.objective;
+        console.log(
+            `  Objective (${objective.kind}): ${objective.continents.join(", ") || "none chosen"}` +
+            (objective.banked.length > 0 ? ` — holds ${objective.banked.join(", ")} outright` : "")
+        );
+    }
+    if (longTerm.progress) {
+        console.log(`  Progress: ${longTerm.progress.label} (${Math.round(longTerm.progress.fraction * 100)}%)`);
+    }
     if (longTerm.nearestContinent) {
         const { continent, held, total } = longTerm.nearestContinent;
         console.log(
@@ -104,5 +144,20 @@ export function logAiPlan({ country, leader, refinedGoals, turn }) {
     }
 
     endGroup();
+
+    //The same view, kept for the in-game debug panel (numpad /). The console is fine for
+    //one country you already know the name of; the panel is for the question a strategic
+    //AI actually provokes, which is "what is it thinking?" across the last few countries
+    //at once, with the reason each target was taken or left alone.
+    recordPlan({
+        country,
+        turn,
+        leader,
+        campaign,
+        shortTerm: plan.shortTerm,
+        mediumTerm: plan.mediumTerm,
+        longTerm: plan.longTerm
+    });
+
     return plan;
 }

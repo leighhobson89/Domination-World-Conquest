@@ -52,6 +52,14 @@ export const ActivityKind = Object.freeze({
     SIEGE_ONGOING: "siegeOngoing",
     /** A siege ended without a battle -- the besiegers were arrested. Amber. */
     SIEGE_LIFTED: "siegeLifted",
+    /**
+     * A siege ended without a battle because the BESIEGER walked away -- it decided the
+     * army was worth more at home than standing in front of a wall it was not going to
+     * take. Distinct from SIEGE_LIFTED, which is the defender taking the besiegers: from
+     * the store both are "a siege was removed", and a feed that called them the same thing
+     * would tell the player their troops had been arrested when they had marched home.
+     */
+    SIEGE_ABANDONED: "siegeAbandoned",
     /** A siege became a battle and the besieger took the territory. */
     SIEGE_WON: "siegeWon",
     /** A siege became a battle and the defender held. */

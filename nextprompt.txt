@@ -1,0 +1,26 @@
+The AI appears to get stuck in repetitive loops when an approach fails, repeatedly attempting the same actions without adapting its strategy. We need to address this so that the AI can recognize failed approaches, learn from them, and make meaningful strategic adjustments rather than endlessly repeating the same behavior.
+
+The current battle balance also appears to be too heavily weighted against attackers. Attacking is currently extremely difficult, to the point where it feels nearly impossible to succeed.
+
+Please analyze the current balance and identify the main factors contributing to this difficulty. Then make incremental adjustments that progressively shift the balance in favor of attackers. Do not make large changes all at once. Instead, adjust the relevant mechanics gradually, test the resulting balance after each change, and continue iterating until we reach a point where attacking is challenging but consistently viable.
+
+Use your judgment to determine which parameters and mechanics need to change, how much they should change, and when the balance has reached a satisfactory point. The goal is not simply to make attacks easier, but to find a healthy balance where attackers have a realistic path to victory while battles remain strategically challenging.
+
+For the AI specifically, prioritize:
+
+* Detecting when an approach has failed.
+* Avoiding repeated attempts that produce the same unsuccessful result.
+* Exploring alternative strategies when the current approach isn't working.
+* Adapting tactics based on what has already happened during the battle.
+* Introducing meaningful variation rather than cycling through the same actions.
+* Evaluating whether a change in strategy is actually improving the situation.
+
+For battle balance, prioritize:
+
+* Establishing the current balance as the baseline.
+* Identifying why attacking is currently so difficult.
+* Making small, measurable changes in the attacker's favor.
+* Testing after each adjustment rather than changing everything simultaneously.
+* Continuing to iterate until attacks are difficult but realistically winnable.
+
+Please handle the analysis, strategy, parameter selection, and incremental balancing yourself rather than simply applying arbitrary buffs to attackers.

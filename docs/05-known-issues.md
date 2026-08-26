@@ -22,8 +22,9 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: after refactor Phase 7.2 / 7.3 (menu access, new game, save/load).** Earlier
-revisions: end of Phase 6, the Phase 6.9 planning review, and 7.10 (themes).
+**Last updated: Phase 7, on the developer's report of AZ (an AI-versus-AI siege handing the
+player the territory).** Earlier revisions: after Phase 7.2 / 7.3 (menu access, new game,
+save/load), end of Phase 6, the Phase 6.9 planning review, and 7.10 (themes).
 
 ## Currently open
 
@@ -539,3 +540,61 @@ asserting the flag on any other outcome would have passed against the bug.
 | Issue | Why not |
 |---|---|
 | `generateDistinctRGBs()` in [src/ui/map/colouring.js](../src/ui/map/colouring.js) is **dead code that is still called**. `ui.js` assigned its result to `colorArray` at module load and never read it — dead since before the refactor began. It cannot simply be deleted: it draws from `Math.random` at module load, on the same stream the economy, combat and the AI read from, so removing it shifts every seeded outcome in the game | **Measured, not assumed.** With the call gone, the whole-garrison attack on France in `conquest-lifecycle/ownership-transfer.spec.js` resolves as a last push rather than an outright victory, and three more exact-outcome specs move with it. That is a balance change, and Phase 6 is a decomposition — behaviour is preserved unless a defect is being fixed deliberately. The draws stay, isolated in one function with the reason written at the site. Removing them and re-baselining the four specs is one Phase 7 change, and doing both together is the only way it stays bisectable. Same species as audit 5.3 **Y**, with the difference that this one IS reproducible, which is why it can wait |
+
+---
+
+## 11. Reported by the developer during Phase 7
+
+### AZ — an AI-versus-AI siege handed the conquered territory to the PLAYER
+
+**Reported by the developer: Russia besieged Estonia, the player was offered a rout, and the
+player ended the turn holding Estonia. Not a one-off — territories were arriving in the
+player's hands across several games with no battle ever fought for them.**
+
+There are two ways a siege ends: an arrest, and the besieged garrison starving out. The second
+is resolved by `calculatePopulationChange()` in [resourceCalculations.js](../resourceCalculations.js),
+from the income pass inside `beginTurn()`. It takes an `ai` flag that decides everything about
+what happens next — whether the siege is closed through `addRemoveWarSiegeObject()` or
+`addRemoveWarSiegeObjectAi()`, whether `routeSiegeUIProcesses()` raises the rout screen, and
+which branch of `handleWarEndingsAndOptions()` awards the territory.
+
+**Its caller never worked out what to pass.** `calculateTerritoryResourceIncomesEachTurn()`
+declared a bare `let ai;` above both of its loops and assigned it in exactly one place: the
+post-siege food-capacity reset in the branch *beside* the siege branch, which is about historic
+wars and has nothing to do with the siege being processed. So by the time a besieged territory
+was reached, `ai` held whatever an unrelated war had left in it — and on most turns nothing had
+written to it at all, so it was still `undefined`.
+
+`undefined` is falsy, and falsy means "the player". Every AI-versus-AI siege that starved its
+garrison out therefore resolved down the player's branch:
+
+- `handleWarEndingsAndOptions(2, …, ai = undefined)` ran its `!ai` case-2 body, which ends
+  `setTerritoryOwner(uniqueId, "Player", playerCountryName())` — the player was handed a
+  territory in a war they were no party to, and credited with the captured survivors;
+- `routeSiegeUIProcesses()` raised the rout screen over a siege between two AI countries, which
+  is the popup that was reported. Same family as **AT**, which was the arrest-side version of
+  the same mistake;
+- the siege was removed through `addRemoveWarSiegeObject(1, warId, false)`, which scans the
+  **player's** siege list for that `warId`. The siege was in the AI's list, so nothing matched
+  and it was never removed — leaving a live siege standing on a territory that had already
+  changed hands.
+
+**A second defect sat behind the first**, unreachable while the flag was always falsy: both AI
+branches read the besieger as `siegeObject.dataName`. `dataName` is a **territory's** field; a
+siege object does not have one. On the rare turn the leaked flag happened to be `true`, the AI
+branch called `setTerritoryOwner(uniqueId, undefined)` and the territory was left with no owner
+and no country at all. The besieger is `attackingCountry`, which is set when the siege is laid —
+the third instance of the `dataName` confusion CLAUDE.md warns about, after **AS**.
+
+**The fix.** Which side is besieging is a property of the siege, and the only honest place to
+read it from is the list the siege is in: the siege branch looks the territory up in
+`playerSiegeWarsList` first and derives `siegeIsAi` from whether that lookup found anything.
+The outer `let ai;` and both of its assignments are gone, so there is nothing left to leak.
+`battle.js` reads `siegeObject.attackingCountry` at all three sites that wanted the besieger.
+
+Covered by `tests/e2e/siege/ai-versus-ai-resolution.spec.js` over the
+`ai-siege-starves-out` scenario — an AI siege on an AI territory whose garrison is already
+inside the rout band with no food and no forts, so the next turn's income pass resolves it.
+The spec asserts the territory does not end up with the player, that whoever takes it is a
+real country rather than `undefined`, and that the siege is gone from the AI's list. It fails
+on all three counts against the old code.

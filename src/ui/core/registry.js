@@ -279,6 +279,20 @@ export const ids = Object.freeze({
     activityPanelEmpty: "activity-panel-empty",
     xButtonActivity: "xButtonActivity",
     checkBoxActivityAtStartOfTurn: "checkBoxActivityAtStartOfTurn",
+    // The feed opens on the turn that just ENDED, because that is the turn the
+    // player was shown. This switch reveals the turn that has just begun as well.
+    checkBoxActivityShowCurrentTurn: "checkBoxActivityShowCurrentTurn",
+
+    // --- AI debug panel -------------------------------------------------------
+    // A developer window, toggled with numpad /, showing what the AI is thinking.
+    // It has NO button over the map: it is not part of the game, and a piece of map
+    // chrome that opens a debug view is a piece of map chrome a player will click.
+    aiDebugPanelContainer: "ai-debug-panel-container",
+    aiDebugPanel: "ai-debug-panel",
+    aiDebugPanelTitle: "ai-debug-panel-title",
+    aiDebugPanelBody: "ai-debug-panel-body",
+    aiDebugPanelEmpty: "ai-debug-panel-empty",
+    xButtonAiDebug: "xButtonAiDebug",
 
     // --- Move-phase button ----------------------------------------------------
     movePhaseButton: "move-phase-button",
@@ -544,6 +558,25 @@ export const classNames = Object.freeze({
     dominapediaTopicLink: "dominapedia-topic-link",
     dominapediaIsOpen: "is-open",
     dominapediaIsCurrent: "is-current",
+
+    // AI debug panel. One collapsible section per country, the same `is-open`
+    // vocabulary as the activity feed and the Dominapedia; the verdict classes
+    // colour a weighed target by what the country decided to do about it.
+    aiDebugCountry: "ai-debug-country",
+    aiDebugCountryHeader: "ai-debug-country-header",
+    aiDebugCountryBody: "ai-debug-country-body",
+    aiDebugSectionLabel: "ai-debug-section-label",
+    aiDebugFact: "ai-debug-fact",
+    aiDebugFactLabel: "ai-debug-fact-label",
+    aiDebugFactValue: "ai-debug-fact-value",
+    aiDebugDecision: "ai-debug-decision",
+    aiDebugDecisionReason: "ai-debug-decision-reason",
+    aiDebugIsOpen: "is-open",
+    aiDebugVerdictAttack: "verdict-attack",
+    aiDebugVerdictSiege: "verdict-siege",
+    aiDebugVerdictSkip: "verdict-skip",
+    aiDebugVerdictAssault: "verdict-assault",
+    aiDebugVerdictLift: "verdict-lift",
 
     stepperButton: "stepper-button",
     stepperPlus: "stepper-plus",

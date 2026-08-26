@@ -164,37 +164,41 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "because deciding it is the single largest open question the " +
                                 "game has."
                         ),
-                        h("The proposed victory conditions"),
-                        planned(
-                            "DOMINATION — hold 60% of the world's land area. Area rather than " +
-                                "territory count, because the map's territories are wildly " +
-                                "unequal in size and a hundred Caribbean islands should not " +
-                                "outweigh Russia. This is the default win and the one the game " +
-                                "is shaped for."
+                        h("The four victory conditions"),
+                        p(
+                            "These four are DEFINED, and the game measures every country's " +
+                                "progress towards whichever one is active — but nothing ends " +
+                                "when one is met, and there is no screen on which to choose " +
+                                "between them yet. What they already do is give the computer " +
+                                "players something to play for; see \"How the AI Thinks\"."
                         ),
-                        planned(
+                        ul(
                             "CONTINENTAL — hold every territory on any three continents " +
                                 "outright. A shorter, sharper game for a player who does not " +
                                 "want to click through the whole map, and the condition that " +
-                                "gives the continent-control bonuses something to build towards."
-                        ),
-                        planned(
-                            "ELIMINATION — you lose when you hold no territories at all. This " +
-                                "is the defeat condition and it needs no configuration; it is " +
-                                "simply the moment the game should stop and say so, rather than " +
-                                "leaving you clicking END TURN on an empty empire."
-                        ),
-                        planned(
+                                "gives continent control a point. This is the DEFAULT, and it " +
+                                "is what every computer country is currently campaigning towards.",
+                            "DOMINATION — hold 60% of the world's land area. Area rather than " +
+                                "territory count, because the map's territories are wildly " +
+                                "unequal in size and a hundred Caribbean islands should not " +
+                                "outweigh Russia.",
+                            "ELIMINATION — you lose when you hold no territories at all. The " +
+                                "defeat condition; it needs no configuration.",
                             "SCORE AT THE TURN LIMIT — at turn 100, the largest empire by land " +
-                                "area wins. A backstop, so that a stalemate has an ending, and " +
-                                "the option a player picks when they want a fixed-length game."
+                                "area wins. A backstop, so that a stalemate has an ending."
                         ),
                         planned(
-                            "Which of these is active should be chosen when the game is " +
-                                "started, alongside the country and the colour, and shown " +
-                                "somewhere permanent — a line in the phase bar reading " +
-                                "\"Domination: 12% of 60%\" would turn every turn into progress " +
-                                "towards something."
+                            "Choosing between them when the game is started, alongside the " +
+                                "country and the colour. The AI already adapts to whichever is " +
+                                "active — a country playing for DOMINATION spreads across four " +
+                                "continents where one playing for CONTINENTAL tunnels into " +
+                                "three — so what is missing is the screen and nothing else."
+                        ),
+                        planned(
+                            "The moment the game STOPS and says so, and a permanent line " +
+                                "showing where you are: \"Domination: 12% of 60%\" would turn " +
+                                "every turn into progress towards something. The number behind " +
+                                "that line is already worked out for every country every turn."
                         ),
                         h("What you are optimising for in the meantime"),
                         p(
@@ -217,12 +221,23 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("What the AI is trying to do"),
                         p(
-                            "The same things, badly. Each AI country scores every enemy " +
-                                "territory it can reach, ranks attacking, besieging, " +
-                                "reinforcing and developing against its leader's personality, " +
-                                "and executes the top of the list. It has no long-term plan, " +
-                                "which is why it will start far more sieges than it can ever " +
-                                "finish. See \"How the AI Thinks\"."
+                            "The same thing you are. Every computer country commits to three " +
+                                "continents of its own — the ones it has a foothold on, that " +
+                                "are worth holding, and that nobody stronger is already sitting " +
+                                "on — and works towards owning them outright. It keeps that " +
+                                "commitment across turns rather than re-choosing every turn, it " +
+                                "weighs a target by whether taking it advances the plan, and it " +
+                                "will decline a fight it does not rate. See \"How the AI " +
+                                "Thinks\"."
+                        ),
+                        p(
+                            "Two consequences for you. A neighbour that has committed to YOUR " +
+                                "continent is a permanent problem and will keep coming back for " +
+                                "the same few territories; one whose three continents are " +
+                                "elsewhere will largely leave you alone until you threaten " +
+                                "something it holds. And every computer country is racing you " +
+                                "to the same condition, so the map has a clock on it even " +
+                                "though nothing yet declares a winner."
                         ),
                     ],
                 },
@@ -1645,35 +1660,102 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "original owner forever, so land you take from a high-" +
                                 "reconquista leader will be attacked again and again."
                         ),
+                        h("Every AI has a campaign, and it lasts several turns"),
+                        p(
+                            "The leader says HOW a country fights. The campaign says what it is " +
+                                "fighting for, and it is derived from the active victory " +
+                                "condition rather than invented — so when the start-of-game " +
+                                "chooser lands, every computer country adapts to your choice " +
+                                "with no further change. Under the default condition, that means " +
+                                "each of them picks THREE CONTINENTS and works towards owning " +
+                                "them outright."
+                        ),
+                        p(
+                            "A continent is chosen on five things: how much of it the country " +
+                                "already holds, whether it has a foothold there at all, what the " +
+                                "continent is worth economically, how few territories it has — a " +
+                                "twelve-territory continent is a shorter war than a sixty — and " +
+                                "how much of it the strongest rival already owns. The choice is " +
+                                "then KEPT. It is reviewed every five turns, and abandoned early " +
+                                "only when it has become pointless: the continent is already " +
+                                "held outright, or the country has been thrown off it entirely."
+                        ),
+                        h("Four kinds of turn"),
+                        p(
+                            "From the campaign and the state of the country, each turn is one of " +
+                                "four postures, and the posture decides where the gold goes and " +
+                                "how much war is affordable."
+                        ),
+                        table(
+                            ["Posture", "When", "What it does"],
+                            [
+                                ["DEVELOP", "Barely any buildings, or a very small country",
+                                    "Farms, forests and oil wells first; few attacks, almost no sieges"],
+                                ["EXPAND", "The ordinary case",
+                                    "Full attack and siege budget; gold favours units over forts"],
+                                ["CONSOLIDATE", "Three quarters of the focus continent held",
+                                    "Finishes that continent; refuses fights elsewhere that are not threats"],
+                                ["DEFEND", "A fifth of the country under siege",
+                                    "Four fifths of its gold into forts; attacks only on strong odds"]
+                            ]
+                        ),
                         h("What it does each turn"),
                         p(
-                            "For every country in turn: score its own territories' defences, " +
-                                "score every enemy territory it can reach, turn those into " +
-                                "candidate goals — Economy, Bolster, Attack, Siege — rank them " +
-                                "by the leader's personality, and execute down the list. At most " +
-                                "one attack and one siege per originating territory, and at most " +
-                                "five upgrades a turn."
+                            "Plan the campaign. Score its own territories' defences and every " +
+                                "enemy territory it can reach. Rate each of those targets — can " +
+                                "it, should it, and which way — and turn the survivors into " +
+                                "candidate goals: Economy, Bolster, Attack, Siege. Rank them by " +
+                                "the leader's personality AND by what the target is worth to the " +
+                                "campaign. Then cut the list to what it can afford, and execute."
                         ),
-                        h("What it cannot do"),
                         p(
-                            "Plan. The AI is entirely turn-local: it has no memory of what it " +
-                                "was trying to achieve last turn and no notion of what it will " +
-                                "need next turn. It does not know it already has forty sieges " +
-                                "running. It does not coordinate with anyone. It never allies, " +
-                                "never trades, and never declares anything."
+                            "RATING a target is the part that changed the AI most. A target has " +
+                                "to clear an odds floor set by the leader's type and its " +
+                                "style_of_war — around 25% for an aggressive leader, 45% for a " +
+                                "pacifist, higher again while defending — and a siege has a " +
+                                "lower floor than an assault, because a siege is what you do to " +
+                                "something you cannot storm. It then has to be worth having: a " +
+                                "territory on the continent the country is finishing is worth " +
+                                "roughly five times one that is nowhere near it, and one that " +
+                                "would COMPLETE a continent is worth several times again. Each " +
+                                "target gets ONE verdict, so a country can no longer plan to " +
+                                "storm and besiege the same place in the same turn."
+                        ),
+                        p(
+                            "BUDGETS are the other half. A country may run a limited number of " +
+                                "sieges at once — one, plus one for every fourteen territories " +
+                                "it holds, up to six — and the sieges it ALREADY has running " +
+                                "count against that. A country at its cap opens none at all and " +
+                                "spends the turn reinforcing and building instead. Attacks are " +
+                                "budgeted the same way, one plus one per ten territories."
+                        ),
+                        h("What it still cannot do"),
+                        p(
+                            "Coordinate. Each country plans alone; it never allies, never " +
+                                "trades and never declares anything. It has no model of what YOU " +
+                                "are about to do, so it still cannot see an army massing on its " +
+                                "border. And it plans at the level of a continent, not a route: " +
+                                "it knows Europe is worth taking, not which three territories in " +
+                                "sequence would take it."
                         ),
                         h("How to exploit it"),
                         ul(
-                            "It evaluates each of your territories independently, so it will " +
-                                "throw itself at the strongest point of your line as readily as " +
-                                "the weakest. Uniform fortification works better against it than " +
-                                "against a human.",
-                            "It will start sieges it cannot win. A besieging army on a negative " +
-                                "margin is an army waiting to be arrested — build one more fort " +
-                                "in the besieged territory rather than trying to relieve it.",
+                            "Find out which three continents your neighbours want. A country " +
+                                "whose campaign is elsewhere will largely leave you alone unless " +
+                                "you threaten something it holds; one that has committed to your " +
+                                "continent will keep coming back for the same few territories " +
+                                "however often you throw it off.",
+                            "Forts change its mind, not just its odds. A heavily fortified " +
+                                "territory is rated as something to besiege rather than storm, " +
+                                "and a country with no siege budget left will simply skip it.",
+                            "Make yourself expensive rather than strong everywhere. It ranks " +
+                                "targets by worth divided by risk, so a cheap, low-value " +
+                                "territory of yours is likelier to be taken than a rich one " +
+                                "behind walls — which is the opposite of what you would expect " +
+                                "and worth using.",
                             "It does not defend against a threat it cannot see this turn. " +
-                                "Massing an army in a territory adjacent to its border provokes " +
-                                "no response at all.",
+                                "Massing an army in a territory adjacent to its border still " +
+                                "provokes no response at all.",
                             "High-reconquista neighbours are permanent enemies and low-" +
                                 "expansion ones are nearly harmless. You cannot see a leader's " +
                                 "traits in game, but you can infer them from behaviour over a " +
@@ -1685,6 +1767,12 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "minor or neutral states. That single change makes the AI turn " +
                                 "fast, the world legible, and diplomacy possible — none of which " +
                                 "is true with 206 unrelated actors."
+                        ),
+                        planned(
+                            "Route planning. A country knows which continent it wants and which " +
+                                "territories are worth taking, but it weighs each target on its " +
+                                "own — it cannot yet say \"these three in this order, and the " +
+                                "second one only once the first is safe\"."
                         ),
                     ],
                 },

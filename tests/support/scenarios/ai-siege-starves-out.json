@@ -1,0 +1,42 @@
+{
+  "name": "ai-siege-starves-out",
+  "description": "An AI-versus-AI siege the player is no party to: Russia besieges Estonia, whose garrison is already below the 5% rout threshold, holds no forts, and has no food left. The next turn's income pass starves the garrison out and the siege resolves as a conquest. The player is nowhere near it, so the conquest must go to Russia and must NOT raise a battle screen. Reaching the rout band is done by COMPOSITION, not attrition: the siege's startingDef records a garrison of a million while the territory holds a thousand, which is the state a siege that has ground on for several turns is actually in.",
+  "territories": [
+    {
+      "territory": "Estonia",
+      "patch": {
+        "infantryForCurrentTerritory": 1000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "armyForCurrentTerritory": 1000,
+        "fortsBuilt": 0,
+        "foodForCurrentTerritory": 0,
+        "territoryPopulation": 100
+      }
+    }
+  ],
+  "sieges": [
+    {
+      "side": "ai",
+      "territory": "Estonia",
+      "attackingCountry": "Russia",
+      "attackingArmy": [
+        500000,
+        0,
+        0,
+        0
+      ],
+      "defendingArmy": [
+        1000000,
+        0,
+        0,
+        0
+      ],
+      "turnsInSiege": 3
+    }
+  ]
+}

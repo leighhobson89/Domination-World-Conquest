@@ -424,3 +424,190 @@ export const randomEventLikelihood = {
     incrementPerQuietTurn: 1,
     samples: 5
 };
+
+// --- ai strategy -----------------------------------------------------------
+//
+// The numbers behind the AI's long- and medium-term planning (src/ai/victory.js and
+// src/ai/strategy.js). Before these existed the AI was entirely turn-local: it scored
+// every reachable enemy territory, ranked the results by its leader's personality and
+// executed the list, which is why it started far more sieges than it could ever finish
+// and why it fought equally hard for a Caribbean island and for the last territory it
+// needed to own a continent outright. See docs/05-known-issues.md section 6.
+
+/**
+ * The default victory condition, and the one the AI campaigns towards until the player
+ * chooses otherwise. CONTINENTAL: hold every territory on this many continents.
+ *
+ * The Dominapedia's "Goals and Victory" page is the design this comes from. The player-
+ * facing chooser is still to come; `setVictoryCondition()` is the seam it will use.
+ */
+export const CONTINENTS_REQUIRED_FOR_VICTORY = 3;
+
+/** Fraction of the world's land area a DOMINATION victory requires. */
+export const DOMINATION_LAND_SHARE = 0.6;
+
+/** The turn a TURN_LIMIT game is scored on. */
+export const VICTORY_TURN_LIMIT = 100;
+
+/**
+ * How often a country re-examines WHICH continents it is campaigning for.
+ *
+ * Commitments are deliberately sticky: a country that re-picked its three continents
+ * every turn would chase whichever front happened to look best this turn and never
+ * finish one, which is the turn-local behaviour the campaign layer exists to replace.
+ * A commitment is abandoned early only when it becomes pointless -- the continent is
+ * already held outright, or the country has been thrown off it entirely.
+ */
+export const CAMPAIGN_REVIEW_INTERVAL = 5;
+
+/** How a continent is scored when a country is choosing what to campaign for. */
+export const continentAmbitionWeights = {
+    /** Weight on the share of the continent already held. Progress is the strongest signal. */
+    share: 3,
+    /** Flat bonus for having any foothold at all -- you cannot campaign for Antarctica from Peru. */
+    foothold: 1.2,
+    /** Weight on the continent's economic worth (`continentModifiers`). Europe beats Africa. */
+    value: 1.5,
+    /** Weight on how small the continent is. A 12-territory continent is a shorter war than a 60. */
+    brevity: 1,
+    /** Penalty weight on the strongest rival's share of the continent. */
+    contest: 1.4,
+    /** Territory count treated as "a big continent" when scoring brevity. */
+    brevityScale: 60
+};
+
+/**
+ * How many sieges one country may have running at once, and how many it may open per turn.
+ *
+ * Measured before the campaign layer: the AI went from 17 to 67 concurrent sieges over
+ * fourteen turns, most of them on a negative margin and therefore armies standing still
+ * waiting to be arrested. A siege is now a scarce commitment, budgeted against how much
+ * country there is to draw an army from.
+ */
+export const siegeDiscipline = {
+    baseConcurrent: 1,
+    territoriesPerExtraConcurrent: 14,
+    maxConcurrent: 6,
+    /** New sieges one country may OPEN in a single turn, whatever its standing budget. */
+    maxOpenedPerTurn: 2,
+    /**
+     * Odds floor for a siege to be worth opening at all. Lower than an attack's, because a
+     * siege is the answer to a target too strong to storm -- but not so low that the army
+     * is simply parked in front of a fort forever.
+     */
+    minimumOdds: 22
+};
+
+/**
+ * What a besieging country decides about a siege it ALREADY has, once a turn.
+ *
+ * Before this existed a siege was fire-and-forget: the rules ticked it, and the country
+ * that laid it never looked at it again between the turn it opened and the turn it starved
+ * out or was arrested. These are the numbers behind "press on, storm it, or go home".
+ */
+export const siegeReview = {
+    /**
+     * Turns of no visible progress the most patient leader will tolerate. `style_of_war`
+     * moves it: low favours sieges, so a siege-minded leader waits `base + swing` turns and
+     * one who would rather storm waits `base`.
+     */
+    basePatienceTurns: 4,
+    /** How many further turns `style_of_war` at its most siege-minded adds to the wait. */
+    patienceSwing: 4,
+    /** Progress (0..1) below which a siege is judged to be achieving nothing. */
+    stalledProgress: 0.15,
+    /**
+     * Progress at or above which the territory is falling by itself. Above this the army
+     * is never recalled and never risked on an assault -- there is nothing left to win by
+     * storming a garrison that will be gone next turn.
+     */
+    starvationImminent: 0.85,
+    /**
+     * Percentage points an assault must clear the campaign's ATTACK floor by before the
+     * besiegers storm. A margin rather than the bare floor, because the besieging army has
+     * no line of retreat: it is already committed, so a coin-flip assault loses it outright.
+     */
+    assaultOddsMargin: 12,
+    /** Turns before a country that has gone onto the DEFEND posture recalls a besieging army. */
+    defendRecallTurns: 2,
+    /**
+     * Turns after which a siege whose assault odds have fallen below the campaign's SIEGE
+     * floor is abandoned -- the garrison has been reinforced or the besiegers worn down, and
+     * an army that can no longer take the place is an army standing in a field.
+     */
+    hopelessAfterTurns: 3
+};
+
+/** How many attacks one country may press per turn, and the odds each leader type demands. */
+export const attackDiscipline = {
+    basePerTurn: 1,
+    territoriesPerExtraAttack: 10,
+    maxPerTurn: 5,
+    /**
+     * Odds floor by leader type, before `style_of_war` shifts it. An aggressive leader
+     * will press on unclear odds; a pacifist wants a near-certainty before committing.
+     * The old code demanded only `probability >= 1`, which is why the AI threw armies at
+     * anything at all.
+     */
+    minimumOdds: { aggressive: 25, balanced: 34, pacifist: 45 },
+    /** How far `style_of_war` (0..1) may move that floor, in percentage points, either way. */
+    styleOfWarSwing: 12
+};
+
+/** What a candidate target is worth, before the odds of taking it are applied. */
+export const targetValueWeights = {
+    continentModifier: 0.4,
+    devIndex: 0.3,
+    area: 0.2,
+    resources: 0.1,
+    /** Area at which the area term saturates. Matches the combat area cap. */
+    areaSaturation: MAX_AREA_THRESHOLD
+};
+
+/**
+ * How much the campaign multiplies a target's value by, according to where it sits.
+ *
+ * `offContinent` below 1 is what "pick your battles" means in practice: a territory that
+ * does nothing for the objective has to be considerably better odds, or considerably more
+ * valuable, before it outranks one that does.
+ */
+export const campaignTargetWeights = {
+    focusContinent: 2.5,
+    committedContinent: 1.6,
+    offContinent: 0.5,
+    /**
+     * Multiplier when taking this territory would leave the continent nearly complete.
+     * Scaled by how few territories are left: the last one is worth far more than the tenth.
+     */
+    completionBonus: 3,
+    /** Multiplier applied to a territory this country originally owned, times `reconquista`. */
+    reconquista: 1.5,
+    /** Multiplier for a territory that is already besieged by this country's enemies. */
+    opportunism: 1.25
+};
+
+/**
+ * The four postures, and what each one does to the turn's spending and appetite.
+ *
+ * `fortShare` is the fraction of a Bolster goal's gold that goes on forts before the rest
+ * is spent on units -- a defending country builds walls, an expanding one builds armies.
+ * `siegeBudgetScale` and `attackBudgetScale` scale the budgets above.
+ */
+export const campaignPostures = {
+    DEVELOP: { economyBias: 1, defenceBias: 0.7, offenceBias: 0.35, fortShare: 0.45, siegeBudgetScale: 0.35, attackBudgetScale: 0.4, upgradeScale: 1.6 },
+    EXPAND: { economyBias: 0.5, defenceBias: 0.6, offenceBias: 1, fortShare: 0.3, siegeBudgetScale: 1, attackBudgetScale: 1, upgradeScale: 1 },
+    CONSOLIDATE: { economyBias: 0.7, defenceBias: 0.85, offenceBias: 0.8, fortShare: 0.5, siegeBudgetScale: 0.7, attackBudgetScale: 0.9, upgradeScale: 1.2 },
+    DEFEND: { economyBias: 0.6, defenceBias: 1, offenceBias: 0.25, fortShare: 0.8, siegeBudgetScale: 0.2, attackBudgetScale: 0.3, upgradeScale: 0.8 }
+};
+
+/** The thresholds that choose a posture. Stated rather than tuned; each says what it means. */
+export const postureThresholds = {
+    /** Fraction of a country's own territories under siege that forces DEFEND. */
+    besiegedShareForDefend: 0.2,
+    /** Development (built upgrades as a fraction of the maximum) below which it DEVELOPs. */
+    developmentForDevelop: 0.22,
+    /** Share of the focus continent above which it CONSOLIDATEs rather than opening new fronts. */
+    focusShareForConsolidate: 0.75,
+    /** A country smaller than this leans on its economy before it picks fights. */
+    smallCountryTerritories: 3
+};

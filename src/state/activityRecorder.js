@@ -130,6 +130,16 @@ export function recordSiegeLifted(what) {
 }
 
 /** A siege became a battle. `besiegerWon` picks which of the two lines is written. */
+/**
+ * A besieging country gave up and marched its army home (`src/ai/siegeReview.js`).
+ *
+ * Explicit for the same reason every other siege ending is: `SIEGE_CHANGED` fires for the
+ * removal, but a removal alone cannot say which of the four endings this was.
+ */
+export function recordSiegeAbandoned(what) {
+    return recordActivity({ kind: ActivityKind.SIEGE_ABANDONED, ...what });
+}
+
 export function recordSiegeResolved({ besiegerWon, ...what }) {
     return recordActivity({
         kind: besiegerWon ? ActivityKind.SIEGE_WON : ActivityKind.SIEGE_LOST,

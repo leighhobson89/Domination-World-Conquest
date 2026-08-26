@@ -502,7 +502,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 //that is not iterable. It threw every time an AI rout resolved here. The
                 //country NAME is the key; the entry is the value.
                 for (const [countryName, country] of Object.entries(turnGainsArrayAi)) {
-                    if (countryName === siegeObject.dataName) {
+                    if (countryName === siegeObject.attackingCountry) {
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] * battleOutcomeEffects.routCaptureShare) * oilRequirements.assault);
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[2] * oilRequirements.air) + (Math.floor(defendingArmyRemaining[2] * battleOutcomeEffects.routCaptureShare) * oilRequirements.air);
                         country.changeOilDemand += (siegeObject.attackingArmyRemaining[3] * oilRequirements.naval) + (Math.floor(defendingArmyRemaining[3] * battleOutcomeEffects.routCaptureShare) * oilRequirements.naval);
@@ -518,7 +518,12 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 contestedTerritory.airForCurrentTerritory = siegeObject.attackingArmyRemaining[2];
                 contestedTerritory.navalForCurrentTerritory = siegeObject.attackingArmyRemaining[3];
                 contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.dataName);
+                //A siege object has no `dataName` -- that is a TERRITORY's field. The
+                //besieger is `attackingCountry`, set when the siege was laid. Reading
+                //`dataName` here handed `setTerritoryOwner()` `undefined` for both the owner
+                //and the country, which is what an AI-versus-AI starve-out conquest did on
+                //the rare turn it reached this branch at all.
+                setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.attackingCountry);
             }
             break;
         case 3:
@@ -600,7 +605,8 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             contestedPath.style.stroke = "white";
         }
     } else if (won && ai) {
-        setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.dataName);
+        //As above: the besieger is `attackingCountry`, not `dataName`.
+        setTerritoryOwner(contestedTerritory.uniqueId, siegeObject.attackingCountry);
         deactivateTerritoryAi(contestedPath);
     } else {
         //Nothing to do: the path renders the owner from the store (Phase 4.4), and

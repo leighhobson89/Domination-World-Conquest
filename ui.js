@@ -258,6 +258,12 @@ import {
     activityPanel
 } from './src/ui/components/ActivityPanel.js';
 import {
+    aiDebugPanel
+} from './src/ui/components/AiDebugPanel.js';
+import {
+    clearPlans
+} from './src/ai/planRecord.js';
+import {
     resetAllWindowPositions
 } from './src/ui/core/draggable.js';
 import {
@@ -855,6 +861,13 @@ document.addEventListener("DOMContentLoaded", function() {
     //map chrome's sound; the panel's own buttons use it too, because the whole
     //thing is one control surface.
     activityPanel.create({ onSound: () => playSoundClip("switch") });
+
+    //THE AI DEBUG WINDOW. Developer-facing, and deliberately keyboard-only: numpad /
+    //toggles it. It has no button over the map because it is not part of the game, and
+    //map chrome that opens a debug view is map chrome a player will click. Creating it
+    //here only installs the key handler and the (hidden) window; nothing renders until
+    //it is opened. See src/ui/components/AiDebugPanel.js.
+    aiDebugPanel.create();
 
     //A browser will not start audio until the page has been interacted with, so
     //the very first click is the earliest moment the music the player left running
@@ -4112,6 +4125,11 @@ function resetChromeForCountrySelection() {
     //cannot find. Same species as bottomTable.reset() on the line above.
     resetAllWindowPositions();
     activityPanel.reset();
+    //The AI's recorded reasoning belongs to the game that was just thrown away. It is
+    //cleared for the same reason the activity feed is: a debug window that opens on the
+    //previous world's plans is worse than one that opens empty.
+    clearPlans();
+    aiDebugPanel.close();
     toggleUIButton(false);
     toggleMapModeButton(false);
     //...but not the music button, which the line above has just taken down with it.

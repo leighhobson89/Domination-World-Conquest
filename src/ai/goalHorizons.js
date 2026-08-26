@@ -18,14 +18,17 @@
 //           read back as sentences.
 //   MEDIUM  what that adds up to. Which enemy is taking the pressure, which of
 //           its own territories it is reinforcing, and whether this is a fighting
-//           turn or a building one. The AI has no explicit medium-term state, so
-//           this is a summary rather than a plan -- and it is honest about that.
-//   LONG    the standing ambitions, which do NOT come from the goal list at all:
-//           territories it once owned and wants back (its leader has a
-//           `reconquista` trait that already up-ranks them), the continent it is
-//           closest to holding outright, and the country that has taken most from
-//           it. These persist across turns because they are properties of the
-//           world, not of a plan.
+//           turn or a building one.
+//   LONG    the standing ambitions.
+//
+// When this file was written the AI had no explicit plan of any kind, so the medium
+// term was a SUMMARY of the goal list and the long term was inferred from the world.
+// It has one now -- `strategy.js` derives a campaign per country per turn -- so both
+// take an optional campaign and report the real thing when they are given one:
+// the posture it actually chose, the budgets it is working inside, the continents it
+// has committed to under the active victory condition, and how far along it is. The
+// derived-from-the-world versions are kept and are what a caller without a campaign
+// still gets, which is what keeps the unit tests over this file meaningful.
 //
 // Pure, and imports only from `state/selectors.js`, so it runs in Node and is
 // unit-tested there. `planLog.js` does the printing.
@@ -72,7 +75,7 @@ export function shortTermGoals(refinedGoals, limit = 8) {
  * @returns {{posture: string, pressureOn: string|null, holding: string[],
  *            counts: {attack: number, siege: number, bolster: number, economy: number}}}
  */
-export function mediumTermPosture(refinedGoals) {
+export function mediumTermPosture(refinedGoals, campaign = null) {
     const counts = { attack: 0, siege: 0, bolster: 0, economy: 0 };
     const pressure = new Map();
     const holding = [];
@@ -103,11 +106,18 @@ export function mediumTermPosture(refinedGoals) {
     // Three postures, and the thresholds are stated rather than tuned: a country
     // with no offensive goal at all is building, one with more offence than defence
     // is on the front foot, anything else is holding what it has.
+    //
+    // This is the INFERRED posture, and it is only used when there is no campaign to
+    // ask. With one, the country's actual choice is reported -- inferring it from the
+    // goal list would occasionally contradict the plan that produced the list.
     let posture = "Holding";
     if (offensive === 0) {
         posture = "Building";
     } else if (offensive > defensive) {
         posture = "Advancing";
+    }
+    if (campaign?.posture) {
+        posture = campaign.posture;
     }
 
     let pressureOn = null;
@@ -119,7 +129,23 @@ export function mediumTermPosture(refinedGoals) {
         }
     }
 
-    return { posture, pressureOn, holding: holding.slice(0, 5), counts };
+    return {
+        posture,
+        pressureOn,
+        holding: holding.slice(0, 5),
+        counts,
+        //Null without a campaign, which is how a caller tells the two apart.
+        budgets: campaign
+            ? {
+                siege: campaign.siegeBudget,
+                attack: campaign.attackBudget,
+                activeSieges: campaign.activeSieges,
+                concurrentSiegeCap: campaign.concurrentSiegeCap,
+                attackOddsFloor: Math.round(campaign.attackOddsFloor)
+            }
+            : null,
+        focusContinent: campaign?.focusContinent ?? null
+    };
 }
 
 /**
@@ -129,7 +155,7 @@ export function mediumTermPosture(refinedGoals) {
  * @returns {{reconquista: string[], nearestContinent: object|null, principalRival: object|null,
  *            territoriesHeld: number}}
  */
-export function longTermAmbitions(country) {
+export function longTermAmbitions(country, campaign = null) {
     const territories = allTerritories();
 
     /** Territories this country started with and no longer holds. */
@@ -183,7 +209,13 @@ export function longTermAmbitions(country) {
         reconquista: lost.slice(0, 6),
         reconquistaTotal: lost.length,
         nearestContinent,
-        principalRival
+        principalRival,
+        //The actual objective, when there is one. `nearestContinent` above is where the
+        //country happens to be strongest; this is where it has decided to go, and the two
+        //are different facts -- a country commits to a continent it is NOT yet strongest
+        //on often enough that reporting only the first would be misleading.
+        objective: campaign?.objective ?? null,
+        progress: campaign?.progress ?? null
     };
 }
 
@@ -202,13 +234,13 @@ function ownerOf(territoryName) {
  *
  * @param {{country: string, leader: object, refinedGoals: Array}} view
  */
-export function summariseGoalHorizons({ country, leader, refinedGoals }) {
+export function summariseGoalHorizons({ country, leader, refinedGoals, campaign = null }) {
     return {
         country,
         leaderName: leader?.name ?? "unknown",
         leaderType: leader?.leaderType ?? "unknown",
         shortTerm: shortTermGoals(refinedGoals),
-        mediumTerm: mediumTermPosture(refinedGoals),
-        longTerm: longTermAmbitions(country)
+        mediumTerm: mediumTermPosture(refinedGoals, campaign),
+        longTerm: longTermAmbitions(country, campaign)
     };
 }

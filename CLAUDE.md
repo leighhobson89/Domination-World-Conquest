@@ -157,6 +157,31 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   used to paper over it are gone (Phase 1.7). Static imports work because the symbols involved
   are hoisted function declarations. Do not add more module coupling, and never reintroduce a
   timer to "wait for" an import.
+- **The AI has a plan now, and it comes from the victory condition.** `src/ai/victory.js`
+  defines the four conditions the Dominapedia's "Goals and Victory" page designs and
+  measures every country's progress towards the active one; the default is CONTINENTAL at
+  three continents. `src/ai/strategy.js` turns that into a per-country CAMPAIGN each turn —
+  three committed continents, a focus continent, a posture (DEVELOP / EXPAND / CONSOLIDATE
+  / DEFEND) and two budgets — and `src/ai/targeting.js` rates each candidate target and
+  returns ONE verdict. Four consequences. **Commitments are sticky**: reviewed every
+  `CAMPAIGN_REVIEW_INTERVAL` turns and abandoned early only when pointless, because a plan
+  re-chosen every turn is not a plan. **Budgets count the sieges already running**, which
+  is what ended the 17-to-67-concurrent-sieges problem — a country at its cap opens none.
+  **The two coin flips in `getPossibleTurnGoals()` are gone**; a pairing produces a Siege
+  or an Attack or neither, never both. And **the campaign carries per-turn scratch**
+  (`ratings`, `decisions`) rather than the goal rows carrying it, because the rows are
+  positional arrays that get rebuilt and spread twice during refinement. Changing the
+  victory condition is `setVictoryCondition()` and nothing else — the AI adapts for free,
+  which is the whole reason the objective is derived rather than hard-coded.
+- **The campaign table and the victory condition are a save slice**, registered from
+  `aiCalculations.js` and NOT from `src/ai/`, so those modules keep importing only
+  `config/` and `state/` and keep running in Node.
+- **Numpad `/` opens the AI debug window** (`src/ui/components/AiDebugPanel.js`): one
+  collapsible section per country showing its objective, progress, posture, budgets, odds
+  floors, ranked plan, and every target it weighed with the REASON it acted or did not.
+  `src/ai/planRecord.js` is the bounded ring behind it, filled by `planLog.js`. It has no
+  button anywhere on purpose — map chrome that opens a debug view is map chrome a player
+  will click — and it renders only while open, so an AI turn does not pay for it.
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
   import from `src/config/` and `src/state/selectors.js` and from nothing else — no DOM, no
   `ui.js`. That is the property the unit suite depends on, so before adding an import to any
@@ -188,6 +213,19 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
 - **A siege holds a territory id, not a copy.** `siege.defendingTerritory` is a live getter
   onto the real territory (`src/state/sieges.js`), so writing through it writes the world.
   Do not reintroduce a copy, and do not add a sync-back.
+- **A siege's SIDE is derived from the list it is in, never carried in a variable.** The
+  starve-out that ends a siege is in `calculatePopulationChange()`
+  ([resourceCalculations.js](./resourceCalculations.js)), and its `ai` flag decides which siege
+  list is closed, whether `routeSiegeUIProcesses()` raises the rout screen, and which branch of
+  `handleWarEndingsAndOptions()` awards the territory. It used to come from a bare `let ai;`
+  declared above the income loops and assigned only by the unrelated historic-war reset beside
+  them, so it was usually still `undefined` — falsy, meaning "the player" — and **every
+  AI-versus-AI siege that starved out handed the conquered territory to a player who was no
+  party to the war**, raised a rout popup over it, and then failed to remove the siege because
+  it looked for it in the player's list (known-issues **AZ**). Look the territory up in
+  `playerSiegeWarsList` and take `siegeIsAi = !playerSiege`. And the besieger on a siege object
+  is `attackingCountry`: `dataName` is a *territory's* field and a siege has none, so reading it
+  set the owner to `undefined`.
 - **`allTerritories()` is ordered by `defenseBonus`**, not by `uniqueId`. Never index it
   positionally, and treat it as read-only.
 - **There is a write guard.** Load the page with `?stateGuard=1` to log every territory write

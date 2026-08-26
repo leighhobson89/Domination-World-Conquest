@@ -26,18 +26,38 @@
 //                     `calculateProbabilityPreBattle()` in battle.js, which also caches the
 //                     modifiers a mid-battle recalculation needs -- a side effect this
 //                     module has no business knowing about, and does not.
+//
+// A third, the CAMPAIGN, is passed in from `strategy.js`. It is what turned this file from
+// a turn-local scorer into the executive arm of a plan. Two things follow from it:
+//
+//   * whether a target is worth fighting for at all is now `targeting.js`'s decision, made
+//     once per pairing, instead of two coin flips that produced a siege on roughly
+//     `1 - style_of_war` of everything in sight and could emit a Siege and an Attack
+//     against the same territory for `removeDoubleAttackSiege()` to pick between;
+//   * the ranked list is CUT to the campaign's budgets at the end, which is what stops a
+//     country opening its fortieth siege.
+//
+// The campaign carries a `ratings` map that this module fills in as it plans and reads
+// back when it prioritises. It lives there rather than on the goal rows because the rows
+// are positional arrays that get rebuilt and spread twice during refinement, so anything
+// attached to a row does not survive the trip.
 
 import {
     PROBABILITY_THRESHOLD_FOR_SIEGE,
     THREAT_DISREGARD_CONSTANT
 } from "../config/balance.js";
 import { allTerritories } from "../state/selectors.js";
+import { Posture } from "./strategy.js";
+import { rateTarget, Verdict } from "./targeting.js";
 
 /**
  * Every goal this country could pursue this turn, before refinement.
  *
  * @param {Array} arrayOfTerritoriesInRangeThreats  from `threat.js`
- * @param {{rng: () => number, probabilityFor: (attackArray: Array, territories: Array) => number}} deps
+ * @param {{rng: () => number,
+ *          probabilityFor: (attackArray: Array, territories: Array) => number,
+ *          campaign?: object, country?: string,
+ *          isBesieged?: (territoryName: string) => boolean}} deps
  */
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, deps) {
     let sortedThreatArrayInfo = organizeThreats(arrayOfTerritoriesInRangeThreats);
@@ -60,7 +80,11 @@ export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, deps) {
     // console.log(leaderTraits);
     sortedThreatArrayInfo = removeNonThreats(sortedThreatArrayInfo);
     sortedThreatArrayInfo = addProbabilitiesOfBattle(sortedThreatArrayInfo, deps.probabilityFor);
-    return getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, deps.rng);
+    return getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, deps.rng, {
+        campaign: deps.campaign ?? null,
+        country: deps.country ?? sortedThreatArrayInfo[0]?.[2]?.dataName ?? null,
+        isBesieged: deps.isBesieged
+    });
 }
 
 function organizeThreats(arrayOfTerritoriesInRangeThreats) {
@@ -98,27 +122,119 @@ function removeNonThreats(sortedThreatArrayInfo) {
     return sortedThreatArrayInfo;
 }
 
-function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, rng) {
+/**
+ * One or two goal rows per (enemy, friendly) pairing.
+ *
+ * Economy is emitted for every pairing, as it always was -- the COUNT of those duplicates
+ * is what tells the refiner how much of this country's attention a territory deserves.
+ * What has changed is the military half: `rateTarget()` returns exactly one verdict, so a
+ * pairing now produces a Siege or an Attack or neither, never both and never a siege the
+ * country has no budget to open.
+ */
+function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, rng, planning) {
     const possibleGoalsArray = [];
+    const campaign = planning?.campaign ?? null;
+    const country = planning?.country ?? null;
+    const isBesieged = typeof planning?.isBesieged === "function" ? planning.isBesieged : () => false;
+
     for (const threat of sortedThreatArrayInfo) {
+        const enemyTerritory = threat[0];
+        const friendlyTerritory = threat[2];
         const threatScore = threat[3];
-        const styleOfWar = leaderTraits.style_of_war;
-        const territoryExpansion = leaderTraits.territory_expansion;
-        const considerSiege = rng() >= styleOfWar;
-        let considerWar = rng() <= territoryExpansion;
-        if (considerWar) {
-            considerWar = territoryExpansion <= (threat.probabilityOfWin / 100);
+        const probability = threat.probabilityOfWin;
+
+        const rating = rateTarget({
+            target: enemyTerritory,
+            source: friendlyTerritory,
+            probability,
+            threatScore,
+            campaign,
+            traits: leaderTraits,
+            country,
+            targetAlreadyBesieged: isBesieged(enemyTerritory.territoryName)
+        });
+
+        //PROBABILITY_THRESHOLD_FOR_SIEGE stays as a hard floor beneath the campaign's own,
+        //because it is the same number the player's attack window enforces: below it an
+        //interaction is not offered to anybody.
+        const meetsHardFloor = probability >= PROBABILITY_THRESHOLD_FOR_SIEGE;
+
+        if (meetsHardFloor && rating.verdict === Verdict.SIEGE) {
+            possibleGoalsArray.push(["Siege", enemyTerritory.territoryName, friendlyTerritory.territoryName, threatScore, probability]);
+            rememberRating(campaign, "Siege", enemyTerritory.territoryName, friendlyTerritory.territoryName, rating);
+        } else if (meetsHardFloor && rating.verdict === Verdict.ATTACK) {
+            possibleGoalsArray.push(["Attack", enemyTerritory.territoryName, friendlyTerritory.territoryName, threatScore, probability]);
+            rememberRating(campaign, "Attack", enemyTerritory.territoryName, friendlyTerritory.territoryName, rating);
         }
-        if (threatScore >= 0) {
-            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
-            possibleGoalsArray.push(["Bolster", threat[0].territoryName, threat[2].territoryName, threat[2].fortsBuilt, threat[2].armyForCurrentTerritory, threat[2].isCoastal, threatScore, threat.probabilityOfWin]);
-        } else {
-            threat.probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE && considerSiege ? possibleGoalsArray.push(["Siege", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
-            territoryExpansion <= (threat.probabilityOfWin / 100) && considerWar ? possibleGoalsArray.push(["Attack", threat[0].territoryName, threat[2].territoryName, threatScore, threat.probabilityOfWin]) : null;
+
+        recordDecision(campaign, {
+            verdict: meetsHardFloor ? rating.verdict : Verdict.SKIP,
+            target: enemyTerritory.territoryName,
+            targetOwner: enemyTerritory.dataName,
+            continent: enemyTerritory.continent ?? null,
+            source: friendlyTerritory.territoryName,
+            odds: Math.round(probability),
+            score: Number(rating.score.toFixed(3)),
+            reason: meetsHardFloor
+                ? rating.reason
+                : "below the " + PROBABILITY_THRESHOLD_FOR_SIEGE + "% floor the game applies to everybody"
+        });
+
+        //Bolster when the neighbour outguns us, as before -- and unconditionally while the
+        //campaign is DEFENDing, because a country with a fifth of itself besieged should be
+        //reinforcing the quiet borders too, not only the loud ones.
+        if (threatScore >= 0 || campaign?.posture === Posture.DEFEND) {
+            possibleGoalsArray.push(["Bolster", enemyTerritory.territoryName, friendlyTerritory.territoryName, friendlyTerritory.fortsBuilt, friendlyTerritory.armyForCurrentTerritory, friendlyTerritory.isCoastal, threatScore, probability]);
         }
-        possibleGoalsArray.push(["Economy", threat[2].territoryName, threat[2].farmsBuilt, threat[2].forestsBuilt, threat[2].oilWellsBuilt]);
+
+        possibleGoalsArray.push(["Economy", friendlyTerritory.territoryName, friendlyTerritory.farmsBuilt, friendlyTerritory.forestsBuilt, friendlyTerritory.oilWellsBuilt]);
     }
     return possibleGoalsArray;
+}
+
+/** The key a rating is filed under, and the only place its shape is written. */
+function ratingKey(type, target, source) {
+    return type + "|" + target + "|" + source;
+}
+
+function rememberRating(campaign, type, target, source, rating) {
+    campaign?.ratings?.set(ratingKey(type, target, source), rating);
+}
+
+/**
+ * How many weighed pairings one country keeps for the debug panel.
+ *
+ * A country with a long border can weigh several hundred in a turn. They are small, they
+ * live for one turn, and the panel shows two dozen -- but an unbounded array on a hot loop
+ * is the kind of thing that is fine until somebody conquers half the map.
+ */
+const DECISIONS_KEPT_PER_COUNTRY = 200;
+
+/**
+ * Record why a target was taken or left alone.
+ *
+ * The SKIPPED ones matter most. "Why did that country do nothing?" is the commonest
+ * question of an AI turn, and until the campaign layer there was no answer to it anywhere
+ * -- the goal list only ever said what a country DID decide to do.
+ */
+function recordDecision(campaign, decision) {
+    if (!campaign) {
+        return;
+    }
+    if (!campaign.decisions) {
+        campaign.decisions = [];
+    }
+    if (campaign.decisions.length < DECISIONS_KEPT_PER_COUNTRY) {
+        campaign.decisions.push(decision);
+    }
+}
+
+/** The strategic worth of a refined goal row, or null if it is not a military one. */
+function ratingForGoal(campaign, row) {
+    if (!campaign?.ratings) {
+        return null;
+    }
+    return campaign.ratings.get(ratingKey(row[1], row[2], row[3])) ?? null;
 }
 
 function addProbabilitiesOfBattle(sortedThreatArrayInfo, probabilityFor) {
@@ -314,53 +430,108 @@ function finalRefinementOfArrayReduceDown(refinedGoalsArray) {
 }
 
 /**
- * Rank the refined goals the way this leader would.
+ * Rank the refined goals the way this leader, pursuing this campaign, would.
+ *
+ * Personality still decides HOW the four kinds of goal trade off against each other; the
+ * campaign decides what kind of turn it is and how much war is affordable. The last step
+ * is the one that was missing altogether: the list is cut to the campaign's budgets, so
+ * what survives is the best of what was possible rather than everything that was possible.
  *
  * @param {Array} refinedTurnGoals
  * @param {string} currentAiCountry
  * @param {object} leaderTraits
  * @param {() => number} rng  the seeded per-country stream
+ * @param {object} [campaign]  from `strategy.js`; omitted, the budgets are not applied
  */
-export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits, rng) {
-    // console.log (leaderTraits);
-    // console.log("Before:");
-    // console.log(refinedTurnGoals);
-    refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits, rng);
+export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits, rng, campaign = null) {
+    refinedTurnGoals = prioritizeActions(refinedTurnGoals, leaderTraits, rng, campaign);
     refinedTurnGoals = removeDoubleAttackSiege(refinedTurnGoals);
-    // console.log("After:");
-    // console.log(refinedTurnGoals);
+    refinedTurnGoals = enforceCampaignBudgets(refinedTurnGoals, campaign);
     return refinedTurnGoals;
 }
 
-function prioritizeActions(array, leaderTraits, rng) {
+function prioritizeActions(array, leaderTraits, rng, campaign) {
     return array.sort((a, b) => {
-        const priorityA = calculatePriorityScore(a, leaderTraits, rng);
-        const priorityB = calculatePriorityScore(b, leaderTraits, rng);
+        const priorityA = calculatePriorityScore(a, leaderTraits, rng, campaign);
+        const priorityB = calculatePriorityScore(b, leaderTraits, rng, campaign);
         return priorityB - priorityA; // Sort in descending order
     });
 }
 
-function calculatePriorityScore(row, leaderTraits, rng) {
-    let priorityScore = 0;
-
+/**
+ * What one goal is worth to this leader this turn.
+ *
+ * The `rowQuantitiesReduced * trait` shape is unchanged -- how many threats agreed on a
+ * goal is still the base of it. What the campaign adds is a multiplier per kind (a
+ * DEFENDing country weighs bolstering above attacking whatever its leader thinks) and,
+ * for the two military kinds, the strategic worth of the actual target. Without that last
+ * term an AI ranks a siege of a worthless island exactly as it ranks the last territory it
+ * needs to own a continent, which is the behaviour the campaign exists to end.
+ *
+ * Economy is no longer a bare `rng() * fortification`. That made developing a territory a
+ * coin flip weighted by a trait that has nothing to do with economics, so a country with
+ * no economy at all would routinely rank five sieges above its first farm.
+ */
+function calculatePriorityScore(row, leaderTraits, rng, campaign) {
     const rowQuantitiesReduced = row[0];
     const action = row[1];
 
     const fortification = leaderTraits.fortification;
     const territoryExpansion = leaderTraits.territory_expansion;
-    const economy = rng() * fortification;
+
+    const defenceBias = campaign?.defenceBias ?? 1;
+    const offenceBias = campaign?.offenceBias ?? 1;
+    const economyBias = campaign?.economyBias ?? 1;
 
     if (action === "Bolster") {
-        priorityScore = rowQuantitiesReduced * fortification;
-    } else if (action === "Siege") {
-        priorityScore = rowQuantitiesReduced * territoryExpansion;
-    } else if (action === "Attack") {
-        priorityScore = rowQuantitiesReduced * territoryExpansion;
-    } else if (action === "Economy") {
-        priorityScore = economy;
+        return rowQuantitiesReduced * fortification * defenceBias;
+    }
+    if (action === "Siege" || action === "Attack") {
+        const rating = ratingForGoal(campaign, row);
+        //A rating of 1 leaves the old ranking exactly as it was, which is what a goal
+        //planned without a campaign gets.
+        const strategicWorth = rating ? Math.max(0.05, rating.score) : 1;
+        return rowQuantitiesReduced * territoryExpansion * offenceBias * strategicWorth;
+    }
+    if (action === "Economy") {
+        //The count is how many fronts this territory sits behind, so a well-connected
+        //territory is worth developing first. The rng term keeps two equal territories
+        //from always being developed in map order.
+        return rowQuantitiesReduced * economyBias * (0.75 + rng() * 0.5);
+    }
+    return 0;
+}
+
+/**
+ * Cut the ranked list to what the campaign can actually pay for.
+ *
+ * This is the direct fix for the AI opening far more sieges than it can finish -- measured
+ * at 17 rising to 67 concurrent over fourteen turns, most of them on a negative margin and
+ * therefore armies standing still waiting to be arrested (docs/05-known-issues.md section
+ * 6). The budget counts the sieges ALREADY running, so a country that is over-committed
+ * gets a budget of zero and spends the turn reinforcing and building instead.
+ *
+ * Economy and Bolster goals are never cut. They cost gold, which the resource-sharing in
+ * `aiCalculations.js` already rations; it is the military goals that cost armies the
+ * country cannot get back for several turns.
+ */
+function enforceCampaignBudgets(refinedTurnGoals, campaign) {
+    if (!campaign) {
+        return refinedTurnGoals;
     }
 
-    return priorityScore;
+    let siegesLeft = campaign.siegeBudget ?? Infinity;
+    let attacksLeft = campaign.attackBudget ?? Infinity;
+
+    return refinedTurnGoals.filter(row => {
+        if (row[1] === "Siege") {
+            return siegesLeft-- > 0;
+        }
+        if (row[1] === "Attack") {
+            return attacksLeft-- > 0;
+        }
+        return true;
+    });
 }
 
 function upPriorityForReconquistaTerritories(refinedTurnsGoals, currentAiCountry, leaderTraits) {

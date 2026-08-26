@@ -58,7 +58,7 @@ fleet before it touches the infantry, and a defender of 100 ships and 2,000 infa
 99 % of its combined force with 2,000 men still standing. That is what
 `rout-bound-defender` and `last-push-defender` are built on.
 
-## The nine
+## The ten
 
 | Scenario | Sets up |
 |---|---|
@@ -71,3 +71,4 @@ fleet before it touches the infantry, and a defender of 100 ships and 2,000 infa
 | `rout-bound-defender` | Mostly-naval defender plus infantry: `DEFENDER_ROUTED` |
 | `last-push-defender` | The same shape, tuned to land between the 5 % and 15 % thresholds: `LAST_PUSH` |
 | `evenly-matched` | Two identical fleets: `FIGHT_AGAIN`, and the setup every siege spec starts from |
+| `ai-siege-starves-out` | An AI siege on an AI territory already inside the rout band, with no food and no forts, so the next turn's income pass resolves it as a conquest — known-issue **AZ** |

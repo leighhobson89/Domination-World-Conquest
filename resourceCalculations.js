@@ -713,8 +713,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    let ai;
-
     //audit 5.1 G: zero every AI country gains entry once, here, at the start of the turn
     //income pass. Mutated in place rather than reassigned so that battle.js, which holds a
     //reference to the same object, keeps writing into the live one.
@@ -741,7 +739,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
                             //reset the stats here for food capacity after the siege is finished
                             allTerritories()[i].foodCapacity = historicWars[w].startingFoodCapacity;
                             historicWars[w].resetStatsAfterWar = true;
-                            ai = false; //player
                         }
                     }
                 }
@@ -751,7 +748,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
                             //reset the stats here for food capacity after the siege is finished
                             allTerritories()[i].foodCapacity = historicAiWars[k].startingFoodCapacity;
                             historicAiWars[k].resetStatsAfterWar = true;
-                            ai = true; //ai
                         }
                     }
                 }
@@ -830,18 +826,31 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 //what the income branch beside this one already did; the copy made it lag a
                 //turn here.
                 const besiegedTerritory = allTerritories()[i];
-                const siegeTerritory =
-                    playerSiegeWarsList[besiegedTerritory.territoryName] ??
-                    aiSiegeWarsList[besiegedTerritory.territoryName];
+                const playerSiege = playerSiegeWarsList[besiegedTerritory.territoryName];
+                const siegeTerritory = playerSiege ?? aiSiegeWarsList[besiegedTerritory.territoryName];
                 if (!siegeTerritory) {
                     continue;
                 }
 
+                //Which side is besieging is a property of THIS siege, and the only place it
+                //can be read from is the list the siege is in. It used to be a bare `ai`
+                //declared above both loops and assigned only in the branch beside this one,
+                //from the post-siege food-capacity reset -- so by the time a siege was
+                //processed it held whatever an unrelated historic war had left there, and on
+                //most turns it was still `undefined`. `undefined` is falsy, which means every
+                //AI-versus-AI siege that starved its garrison out below resolved down the
+                //PLAYER's branch: `handleWarEndingsAndOptions` raised the rout screen and
+                //handed the conquered territory to the player, who was no party to the war,
+                //and the siege was then removed from the player's list -- where it was not --
+                //so it stood in the AI's list for the rest of the game. Same family as
+                //known-issue AT: an AI-versus-AI siege reaching a player-only code path.
+                const siegeIsAi = !playerSiege;
+
                 //changeGold = calculateGoldChange(siegeTerritory, false);
                 //changeOil = calculateOilChange(siegeTerritory, false);
-                changeFood = calculateFoodChange(siegeTerritory, false, true, ai);
+                changeFood = calculateFoodChange(siegeTerritory, false, true, siegeIsAi);
                 //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
-                changePop = calculatePopulationChange(siegeTerritory, true, ai);
+                changePop = calculatePopulationChange(siegeTerritory, true, siegeIsAi);
 
                 changeProdPopTemp = productivePopulationOf(besiegedTerritory);
 
@@ -854,7 +863,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 besiegedTerritory.productiveTerritoryPop = productivePopulationOf(besiegedTerritory);
 
                 changeProdPop = besiegedTerritory.productiveTerritoryPop - changeProdPopTemp;
-                if (!ai) {
+                if (!siegeIsAi) {
                     writeBottomTableInformation(besiegedTerritory, true, null);
                 }
             }

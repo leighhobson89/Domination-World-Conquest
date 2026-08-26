@@ -174,3 +174,119 @@ describe("prioritiseTurnGoalsBasedOnPersonality", () => {
         expect(idle[0][1]).toBe("Bolster");
     });
 });
+
+describe("the campaign's budgets and biases", () => {
+    //A campaign as `strategy.js` builds one, cut down to the fields the prioritiser reads.
+    //Written out rather than planned through `planCampaign()` so that these tests say what
+    //the goal layer does with a campaign, not how a campaign is chosen -- that is
+    //ai-strategy.spec.js's job.
+    const campaign = (overrides = {}) => ({
+        posture: "EXPAND",
+        siegeBudget: 99,
+        attackBudget: 99,
+        economyBias: 1,
+        defenceBias: 1,
+        offenceBias: 1,
+        ratings: new Map(),
+        objective: { kind: "CONTINENTAL", required: 3, continents: ["Europe"], banked: [] },
+        ...overrides
+    });
+
+    const siege = (count, target) => [count, "Siege", target, "Baden", 100, 40];
+    const attack = (count, target) => [count, "Attack", target, "Baden", 100, 40];
+
+    it("cuts the ranked list down to the sieges the country can afford", () => {
+        //The behaviour that was missing altogether: an AI planned a siege against
+        //everything it could reach and opened all of them, which is how a country came to
+        //have sixty-seven running at once.
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [siege(9, "Alsace"), siege(8, "Lorraine"), siege(7, "Baden")],
+            "Germany",
+            traits(),
+            constantRng(0),
+            campaign({ siegeBudget: 1 }));
+        expect(ranked.filter((goal) => goal[1] === "Siege")).toHaveLength(1);
+    });
+
+    it("keeps the best sieges rather than the first ones it happened to plan", () => {
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [siege(1, "Alsace"), siege(9, "Lorraine")],
+            "Germany",
+            traits(),
+            constantRng(0),
+            campaign({ siegeBudget: 1 }));
+        expect(ranked[0][2]).toBe("Lorraine");
+    });
+
+    it("budgets attacks separately from sieges", () => {
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [siege(9, "Alsace"), attack(9, "Lorraine"), attack(8, "Baden")],
+            "Germany",
+            traits(),
+            constantRng(0),
+            campaign({ siegeBudget: 1, attackBudget: 1 }));
+        expect(ranked.filter((goal) => goal[1] === "Siege")).toHaveLength(1);
+        expect(ranked.filter((goal) => goal[1] === "Attack")).toHaveLength(1);
+    });
+
+    it("never cuts an economy or a bolster goal, which cost gold rather than armies", () => {
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [
+                [1, "Economy", "Baden", 1, 2, 3],
+                [1, "Economy", "Alsace", 1, 2, 3],
+                [1, "Bolster", "Baden", 1, 500, true, 100],
+                siege(9, "Lorraine")
+            ],
+            "Germany",
+            traits(),
+            constantRng(0),
+            campaign({ siegeBudget: 0, attackBudget: 0 }));
+        expect(ranked.filter((goal) => goal[1] === "Economy")).toHaveLength(2);
+        expect(ranked.filter((goal) => goal[1] === "Bolster")).toHaveLength(1);
+        expect(ranked.filter((goal) => goal[1] === "Siege")).toHaveLength(0);
+    });
+
+    it("ranks reinforcing above attacking when the campaign is defending", () => {
+        //Same leader, same goals; only the posture differs. Without the campaign biases an
+        //AI with a quarter of itself besieged planned exactly the turn it would have
+        //planned with none of itself besieged.
+        const goals = () => [attack(5, "Alsace"), [5, "Bolster", "Baden", 1, 500, true, 100]];
+        const defending = prioritiseTurnGoalsBasedOnPersonality(
+            goals(), "Germany", traits(), constantRng(0),
+            campaign({ posture: "DEFEND", defenceBias: 1, offenceBias: 0.25 }));
+        const expanding = prioritiseTurnGoalsBasedOnPersonality(
+            goals(), "Germany", traits(), constantRng(0),
+            campaign({ posture: "EXPAND", defenceBias: 0.6, offenceBias: 1 }));
+        expect(defending[0][1]).toBe("Bolster");
+        expect(expanding[0][1]).toBe("Attack");
+    });
+
+    it("ranks a strategically worthwhile target above an equally-agreed worthless one", () => {
+        //Both goals were agreed on by the same number of threats, so the old ranking --
+        //`count * territory_expansion` -- could not tell them apart at all. The rating is
+        //what says one of them completes a continent and the other is an island.
+        const ratings = new Map([
+            ["Attack|Alsace|Baden", { score: 0.1 }],
+            ["Attack|Lorraine|Baden", { score: 4 }]
+        ]);
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [attack(5, "Alsace"), attack(5, "Lorraine")],
+            "Germany",
+            traits(),
+            constantRng(0),
+            campaign({ ratings }));
+        expect(ranked[0][2]).toBe("Lorraine");
+    });
+
+    it("ranks exactly as it always did when there is no campaign", () => {
+        //Every existing caller passes four arguments, and the goal layer has to keep
+        //working for them -- including the unit tests above this block.
+        const ranked = prioritiseTurnGoalsBasedOnPersonality(
+            [siege(1, "Alsace"), siege(9, "Lorraine")],
+            "Germany",
+            traits(),
+            constantRng(0));
+        expect(ranked).toHaveLength(2);
+        expect(ranked[0][2]).toBe("Lorraine");
+    });
+});
