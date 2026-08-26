@@ -3498,6 +3498,72 @@ td {
   margin-bottom: 6px;
 }
 
+/* Tables of figures. The scroller is load-bearing: the panel is a fixed height
+   with overflow hidden and the reading column owns its own vertical overflow, so
+   a six-column table has to scroll inside itself rather than widening the page. */
+.dominapedia-body-table-scroll {
+  margin: 0 0 18px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.dominapedia-body-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.dominapedia-body-table th,
+.dominapedia-body-table td {
+  padding: 7px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+/* Only the first column is allowed to wrap. It carries the names -- "Construction
+   materials", "Attacker \ Defender" -- and forcing those onto one line is what
+   would make the table need a scroller in the first place. */
+.dominapedia-body-table td:first-child,
+.dominapedia-body-table th:first-child {
+  white-space: normal;
+}
+
+.dominapedia-body-table thead th {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.dominapedia-body-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dominapedia-body-table tbody tr:nth-child(odd) {
+  background-color: var(--surface-raised);
+}
+
+/* A rule that is DESIGNED but not built takes the accent, not the amber. The amber
+   below means "this page is unfinished"; this one means "this page is finished and
+   the GAME is not", and a reader has to be able to tell those apart at a glance. */
+.dominapedia-body-planned {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--surface-raised);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
 /* A page that is not written yet says so, in the one token that means "neither
    won nor lost" everywhere else in this game. A help system whose unwritten pages
    look like written ones is worse than one with gaps in it. */

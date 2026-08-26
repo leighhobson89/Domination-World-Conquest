@@ -70,11 +70,47 @@ let onSound = null;
 /* ------------------------------------------------------------------ content --- */
 
 /**
+ * A table of figures, wrapped in its own horizontal scroller.
+ *
+ * The wrapper is not decoration: the unit and matchup tables are five and six
+ * columns wide, and the reading column is a fraction of a panel that is itself a
+ * fixed height with `overflow: hidden`. Without a scroller of its own a wide table
+ * pushes the whole page sideways, which is the one thing the panel's layout
+ * forbids.
+ */
+function bodyTable(block) {
+    const head = el(
+        "tr",
+        {},
+        block.headers.map((heading) => el("th", { text: heading }))
+    );
+    const rows = block.rows.map((row) =>
+        el(
+            "tr",
+            {},
+            row.map((cell) => el("td", { text: cell }))
+        )
+    );
+    return el("div", { class: "dominapedia-body-table-scroll" }, [
+        el("table", { class: "dominapedia-body-table" }, [
+            el("thead", {}, [head]),
+            el("tbody", {}, rows),
+        ]),
+    ]);
+}
+
+/**
  * One body block.
  *
- * The vocabulary is deliberately small -- a paragraph, a sub-heading, a list, and
- * the note that says a page is still a placeholder. Content that needed markup
- * would be content that had opinions about how the panel looks.
+ * The vocabulary is deliberately small -- a paragraph, a sub-heading, a list, a
+ * table of figures, and two marked notes. Content that needed markup would be
+ * content that had opinions about how the panel looks.
+ *
+ * The two marked notes are not the same thing and must not be merged. `todo` says
+ * THIS PAGE is unwritten; `planned` says THIS RULE is not in the game yet, on a
+ * page that is otherwise finished. The manual doubles as the design document, so a
+ * reader has to be able to tell a rule from an intention at a glance -- which is
+ * why `planned` is given the accent rather than the amber that means "unfinished".
  */
 function bodyBlock(block) {
     switch (block.kind) {
@@ -86,6 +122,10 @@ function bodyBlock(block) {
                 { class: "dominapedia-body-list" },
                 block.items.map((item) => el("li", { text: item }))
             );
+        case "table":
+            return bodyTable(block);
+        case "planned":
+            return el("p", { class: "dominapedia-body-planned", text: block.text });
         case "todo":
             return el("p", { class: "dominapedia-body-todo", text: block.text });
         case "p":
