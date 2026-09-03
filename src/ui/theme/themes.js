@@ -58,6 +58,10 @@ export const THEMES = Object.freeze([
             "--negative": "#9a3320",
             "--siege-amber": "#8a6a1f",
 
+            // The same in every theme, on purpose -- see tokens.js.
+            "--debug-surface": "#ffd400",
+            "--debug-ink": "#141005",
+
             "--border-color": "rgba(122, 74, 43, 0.45)",
             "--border-strong": "#7a4a2b",
             "--border-width": "2px",
@@ -98,6 +102,10 @@ export const THEMES = Object.freeze([
             "--positive": "#3fb950",
             "--negative": "#f85149",
             "--siege-amber": "#e3b341",
+
+            // The same in every theme, on purpose -- see tokens.js.
+            "--debug-surface": "#ffd400",
+            "--debug-ink": "#141005",
 
             "--border-color": "rgba(125, 216, 214, 0.22)",
             "--border-strong": "rgba(61, 219, 217, 0.65)",
@@ -144,6 +152,10 @@ export const THEMES = Object.freeze([
             "--negative": "#c8102e",
             "--siege-amber": "#d4a017",
 
+            // The same in every theme, on purpose -- see tokens.js.
+            "--debug-surface": "#ffd400",
+            "--debug-ink": "#141005",
+
             "--border-color": "rgba(212, 160, 23, 0.35)",
             "--border-strong": "#d4a017",
             "--border-width": "3px",
@@ -185,6 +197,10 @@ export const THEMES = Object.freeze([
             "--negative": "#b3261e",
             "--siege-amber": "#9a6f0a",
 
+            // The same in every theme, on purpose -- see tokens.js.
+            "--debug-surface": "#ffd400",
+            "--debug-ink": "#141005",
+
             "--border-color": "rgba(27, 108, 168, 0.28)",
             "--border-strong": "#1b6ca8",
             "--border-width": "2px",
@@ -225,6 +241,10 @@ export const THEMES = Object.freeze([
             "--positive": "#4af07a",
             "--negative": "#ff5f56",
             "--siege-amber": "#e8d44a",
+
+            // The same in every theme, on purpose -- see tokens.js.
+            "--debug-surface": "#ffd400",
+            "--debug-ink": "#141005",
 
             "--border-color": "rgba(74, 240, 122, 0.3)",
             "--border-strong": "#4af07a",

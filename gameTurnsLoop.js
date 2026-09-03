@@ -150,6 +150,16 @@ import {
 import {
     moveButton
 } from './src/ui/components/MoveButton.js';
+import {
+    isAiGameActive
+} from './src/debug/aiGameMode.js';
+import {
+    beginAiGameCountry,
+    endAiGameCountry
+} from './src/debug/aiGameWatch.js';
+import {
+    aiGameConsole
+} from './src/ui/components/AiGameConsole.js';
 
 // Read-only accessors for the ?e2e=1 harness. Lazy closures, so this runs safely
 // at module-evaluation time even though the model is not built yet.
@@ -289,7 +299,21 @@ let gameInitialisation;
 //to do is the orphan check, and that only matters if the map itself changes, so it runs
 //once at game start rather than every turn.
 
-export async function initialiseGame() {
+/**
+ * Start a new game.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.spectator]
+ *        Start a game with NO player in it -- the "AI Game" debug mode. The only
+ *        difference here is that no territory is assigned to `Player`, which is
+ *        all it takes: `updateArrayOfLeadersAndCountries()` collects every country
+ *        whose territories are not the player's, so leaving the assignment out
+ *        hands the whole map to the AI. The two phases that normally wait for a
+ *        click stop waiting because the steps below ask the mode, and the caller
+ *        (`startAiGame()` in ui.js) creates the CPU leaders and the starting forts
+ *        BEFORE this runs rather than after -- see the note on that ordering below.
+ */
+export async function initialiseGame({ spectator = false } = {}) {
     setZoomLevel(1);
     zoomMap("init");
     svg.style.pointerEvents = 'none';
@@ -307,9 +331,13 @@ export async function initialiseGame() {
     //Two loops for one fact: the path attribute and then the model field, each over its
     //own collection. One write now, and src/ui/mapAttributeSync.js renders the attribute
     //(Phase 4.4).
-    for (const territory of allTerritories()) {
-        if (territory.dataName === playerCountryName()) {
-            setTerritoryOwner(territory.uniqueId, "Player", territory.dataName);
+    //Skipped entirely in spectator mode: nobody is the player, so nothing is owned
+    //by `Player` and every country on the map is taken by the AI.
+    if (!spectator) {
+        for (const territory of allTerritories()) {
+            if (territory.dataName === playerCountryName()) {
+                setTerritoryOwner(territory.uniqueId, "Player", territory.dataName);
+            }
         }
     }
     //Bootstrap ordering, and it is NOT an accident -- see docs/05-known-issues.md section 2.
@@ -328,7 +356,11 @@ export async function initialiseGame() {
     //map does not have can only happen if the map changed under us, so it is checked
     //once here rather than every turn.
     pruneSiegesForMissingTerritories(name => getTerritoryByName(name) !== null);
-    document.getElementById(ids.topTableContainer).style.display = "block";
+    //A spectated game has no player, so the total-player-resources table has nothing
+    //to total. `applySpectatorChrome()` in ui.js keeps it down for the rest of the run.
+    if (!spectator) {
+        document.getElementById(ids.topTableContainer).style.display = "block";
+    }
     toggleTransferAttackButton(true, true);
     changeAllPathsToWhite();
     moveButton.setLabel("LOADING...");
@@ -543,7 +575,7 @@ function beginTurn() {
     //5.1 D, 5.2 J) an arrest happened on nearly every turn, so the preference silently never
     //took effect at all. The collision is gone: an arrest only raises the results screen
     //when the player was a party to it, so the gate can say what it means.
-    if (uiAppearsAtStartOfTurn && currentTurn() !== 1) {
+    if (uiAppearsAtStartOfTurn && currentTurn() !== 1 && !isAiGameActive()) {
         toggleUIMenu(true);
         drawUITable(document.getElementById(ids.uiTable), 0);
     }
@@ -553,7 +585,14 @@ function beginTurn() {
     //the player had expanded and opening this one -- and only RAISES it if the
     //start-of-turn preference is on, so a player who has switched that off still finds
     //the right section waiting when they open it by hand.
-    activityPanel.onTurnStarted(currentTurn());
+    //Both panels are the player's view of the turn, and a spectated game has no
+    //player: the feed's collapsible sections are replaced by the console's flat
+    //log, which only needs to be told which turn it is now printing.
+    if (isAiGameActive()) {
+        aiGameConsole.setTurn(currentTurn());
+    } else {
+        activityPanel.onTurnStarted(currentTurn());
+    }
     randomEventHappening = false;
     randomEvent = "";
     console.log("Turn " + currentTurn() + " has started!");
@@ -576,14 +615,24 @@ function announcePhase(description) {
 const turnEngine = createTurnEngine({
     beginTurn: beginTurn,
     steps: [
+        //`waitsForPlayer` is a GETTER on both, and that is the whole of what makes a
+        //spectated game run by itself. The engine reads the property each time it
+        //reaches the step, so asking the mode here means the two player phases simply
+        //do not open a gate when there is no player -- rather than opening one and
+        //having something else reach in to click it, which is a race between a timer
+        //and a phase and eventually loses.
         {
             name: "buyUpgrade",
-            waitsForPlayer: true,
+            get waitsForPlayer() {
+                return !isAiGameActive();
+            },
             onEnter: () => announcePhase("Handling Spend Upgrade Phase")
         },
         {
             name: "military",
-            waitsForPlayer: true,
+            get waitsForPlayer() {
+                return !isAiGameActive();
+            },
             onEnter: () => announcePhase("Handling Move Attack Phase")
         },
         {
@@ -706,6 +755,14 @@ async function handleAITurn() {
         currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
 
+        //Spectator mode. A no-op with one boolean test in an ordinary game; here it
+        //snapshots what this country holds and how far the activity log has got, so
+        //that the block written at the bottom of this loop can report the economy as
+        //a difference and the fighting as the entries in between. It has to be taken
+        //BEFORE the campaign is planned, because planning is where the sieges are
+        //reviewed and a review can storm a territory.
+        beginAiGameCountry(currentAiCountry);
+
         setAiRngContext(currentTurn(), currentAiCountry);
 
         //The CAMPAIGN, and it is planned before anything is measured because everything
@@ -765,7 +822,10 @@ async function handleAITurn() {
         //This is developer-facing only. The player's view of the same turn is the
         //activity feed, and it deliberately reports outcomes rather than plans -- a
         //panel that showed the AI's intentions would be a cheat.
-        logAiPlan({
+        //The return value is the same three-horizon view the console prints, so the
+        //spectator log and the console groups can never disagree about what a country
+        //was trying to do.
+        const plan = logAiPlan({
             country: currentAiCountry,
             leader: leader,
             refinedGoals: refinedTurnGoals,
@@ -775,6 +835,21 @@ async function handleAITurn() {
         refinedTurnGoals = await doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, campaign); //refinedTurnGoals gets returned because can be updated in this function if a bolster job gets deleted after recalculations
 
         resetAiRngContext();
+
+        //...and the other half of the spectator bracket: write this country's block
+        //and then hold the screen on it for as long as the speed slider says. In an
+        //ordinary game this returns on the first line without allocating.
+        await endAiGameCountry({
+            country: currentAiCountry,
+            leader: leader,
+            campaign: campaign,
+            plan: plan,
+            //Turn 1 has no AI income pass -- `turnGainsArrayAi` is still the PLAYER's
+            //last-turn row at that point, which is the wrong country's numbers rather
+            //than merely missing ones. Better to print no income line than a false one.
+            turnGains: currentTurn() === 1 ? null : (turnGainsArrayAi ?? null)
+        });
+
         // TODO: If successful, deactivate army stationed in territory for x turns and block the upgrade of territory for the same
         // TODO: Based on threat, move available army around between available owned territories
         //A country does not re-assess its long-term goal here. The campaign is re-derived

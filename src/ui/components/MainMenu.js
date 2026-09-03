@@ -59,6 +59,7 @@ let root = null;
 let newGameButton = null;
 let resumeButton = null;
 let saveLoadButton = null;
+let aiGameButton = null;
 
 export function create({
     onNewGame,
@@ -66,6 +67,7 @@ export function create({
     onResume,
     onSaveLoad,
     onDominapedia,
+    onAiGame,
     onSound,
 } = {}) {
     if (root) return root;
@@ -99,6 +101,19 @@ export function create({
         on: { click: onSaveLoad },
     });
 
+    // The debug entry, and everything about it says so: it is LAST, so nothing a
+    // player reaches for moves when it is there, and it is yellow-on-black rather
+    // than a themed control, so it cannot be mistaken for one. It starts a game with
+    // no player in it -- see src/debug/aiGameMode.js -- and it needs the territory
+    // model for exactly the reason New Game does, so it is enabled by the same call.
+    aiGameButton = el("button", {
+        id: ids.aiGameBtn,
+        class: ["menu-button", "menu-button-debug"],
+        text: "AI Game (debug)",
+        disabled: true,
+        on: { click: onAiGame },
+    });
+
     // The panel creates itself on first open, but creating it here means the
     // player's stored theme is on screen before anything is clicked -- and, since
     // it grew two sound switches, that the switches agree with `audio.js` before
@@ -129,6 +144,7 @@ export function create({
                 text: "Dominapedia",
                 on: { click: onDominapedia },
             }),
+            aiGameButton,
         ]),
     ]);
 
@@ -146,6 +162,9 @@ export function create({
 export function setNewGameEnabled(enabled) {
     if (newGameButton) newGameButton.disabled = !enabled;
     if (saveLoadButton) saveLoadButton.disabled = !enabled;
+    // The spectated game is a new game with the player left out, so it has the same
+    // prerequisite and is enabled by the same call rather than by one of its own.
+    if (aiGameButton) aiGameButton.disabled = !enabled;
 }
 
 /** Enable or grey out Resume Game. */
@@ -193,6 +212,7 @@ export function destroy() {
     newGameButton = null;
     resumeButton = null;
     saveLoadButton = null;
+    aiGameButton = null;
 }
 
 export const mainMenu = {

@@ -261,6 +261,17 @@ import {
     aiDebugPanel
 } from './src/ui/components/AiDebugPanel.js';
 import {
+    aiGameConsole
+} from './src/ui/components/AiGameConsole.js';
+import {
+    isAiGameActive,
+    startAiGameMode,
+    stopAiGameMode
+} from './src/debug/aiGameMode.js';
+import {
+    clearAiGameLog
+} from './src/debug/aiGameLog.js';
+import {
     clearPlans
 } from './src/ai/planRecord.js';
 import {
@@ -875,6 +886,16 @@ document.addEventListener("DOMContentLoaded", function() {
     //it is opened. See src/ui/components/AiDebugPanel.js.
     aiDebugPanel.create();
 
+    //THE SPECTATOR CONSOLE. Opened only by "AI Game" on the menu, and closed by
+    //leaving that mode -- it has no chrome button for the same reason the AI debug
+    //window has none. Its X button STOPS the mode rather than merely hiding the
+    //window: a self-playing game with its console shut is a page that looks idle
+    //while two hundred countries fight behind it, and nothing would bring it back.
+    aiGameConsole.create({
+        onSound: () => playSoundClip("button"),
+        onStop: () => void endAiGame()
+    });
+
     //A browser will not start audio until the page has been interacted with, so
     //the very first click is the earliest moment the music the player left running
     //can be put back on. `resumePendingMusic()` is idempotent -- after the first
@@ -931,6 +952,24 @@ document.addEventListener("DOMContentLoaded", function() {
         onDominapedia() {
             playSoundClip("button");
             dominapedia.open();
+        },
+        //The debug entry. It throws away whatever game is running for the same
+        //reason New Game does, so it asks the same question first.
+        async onAiGame() {
+            playSoundClip("button");
+            if (outsideOfMenuAndMapVisible) {
+                const proceed = await confirmDialog.open({
+                    title: "Watch an AI-only game?",
+                    message:
+                        "Your current game will be lost. If you want to keep it, cancel " +
+                        "and take a save code from Save / Load first.",
+                    confirmLabel: "AI Game",
+                });
+                if (!proceed) {
+                    return;
+                }
+            }
+            await startAiGame();
         },
     });
 
@@ -4036,6 +4075,14 @@ export function closeInGameMenu() {
     toggleBottomTableContainer(true);
     mainMenu.hide();
 
+    //Everything above has just tried to put the player's chrome back, and a
+    //spectated game has no player: no phase bar, no END TURN, no territory panel.
+    //Re-applying the spectator chrome here is one call at the end rather than an
+    //`isAiGameActive()` test threaded through thirty lines of restore logic.
+    if (isAiGameActive()) {
+        applySpectatorChrome();
+    }
+
     if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
         selectCountry(lastClickedPath, true);
         //Re-appending the path puts it over the marker, so the marker is drawn again.
@@ -4084,6 +4131,11 @@ function setUnsetMenuOnEscape(e) {
  * screen.
  */
 async function startNewGame() {
+    //Before the engine is reset, never after: `TurnEngine.stop()` waits for the
+    //running step to return, and in spectator mode the AI step does not return
+    //until the last country has been through the pacing gate. Stopping the mode
+    //releases every waiter, which turns the rest of that turn into a fast run.
+    leaveSpectatorMode();
     if (outsideOfMenuAndMapVisible) {
         stopAutosave();
         await getTurnEngine().reset();
@@ -4110,6 +4162,167 @@ async function startNewGame() {
     //New Game the map is already in that state and this is a no-op; after a restart
     //it is what takes the player's colour and every conquest back off the map.
     repaintCountrySelection(null);
+}
+
+//--- AI Game: the debug spectator mode (see src/debug/aiGameMode.js) ---------
+//
+//A game with the player left out. Everything below is sequencing; what makes it
+//work is two things somewhere else -- `initialiseGame({ spectator: true })` skips
+//the one loop that assigns territories to `Player`, and the turn engine's two
+//player phases ask the mode whether they should wait at all.
+
+/**
+ * Start watching a game that plays itself.
+ *
+ * The shape is `startNewGame()` with the country-selection screen taken out and one
+ * ordering deliberately reversed: the CPU leaders and the AI starting forts are
+ * created BEFORE the engine starts rather than after it.
+ *
+ * That reversal is load-bearing and it is the opposite of what an ordinary game
+ * does. In a normal game `initialiseGame()` starts turn 1 and the engine
+ * immediately blocks on the player first phase, which gives the confirm handler
+ * time to create the leaders before the AI ever runs -- and turn 1 is therefore
+ * deliberately fought over a world with no leaders and no forts, which the Phase
+ * 5.8 measurement recorded in gameTurnsLoop.js says must not be "fixed". Here
+ * nothing blocks: the AI phase is reached in the same tick, so a country without a
+ * leader would be read as `arrayOfLeadersAndCountries[i][2][0].leader` and throw.
+ * Spectator turn 1 is consequently a slightly stronger opening than a played turn
+ * 1, and that is the right trade for a debug tool -- but it does mean this mode is
+ * NOT a way to measure balance. `tools/ai-sim.mjs` is.
+ */
+async function startAiGame() {
+    leaveSpectatorMode();
+
+    if (outsideOfMenuAndMapVisible) {
+        stopAutosave();
+        await getTurnEngine().reset();
+        const baseline = newGameBaseline();
+        if (baseline) {
+            applyGame(baseline);
+            renderAllTerritories();
+        }
+        resetTransientUiState();
+        resetChromeForCountrySelection();
+    }
+
+    //The selection locks are a fact about the country-selection SCREEN, and this mode
+    //never shows one. Left in place they would mute the five strongest countries on
+    //the map for the whole run, which is exactly the five worth watching.
+    setAllGreyedOutAttributesToFalseOnGameStart();
+
+    mainMenu.hide();
+    outsideOfMenuAndMapVisible = true;
+    menuState = false;
+    selectCountryPlayerState = false;
+    //Not `true`: the rest of this file reads that flag as "the player has a country
+    //and the player chrome belongs on screen". There is no player.
+    countrySelectedAndGameStarted = false;
+
+    //See the note above -- these two have to be in place before the engine starts.
+    updateArrayOfLeadersAndCountries();
+    createCpuPlayerObjectAndAddToMainArray();
+    addRandomFortsToAllNonPlayerTerritories();
+
+    clearAiGameLog();
+    startAiGameMode();
+    applySpectatorChrome();
+
+    //Deliberately NOT beginAutosaving(). The autosave has one slot and it belongs to
+    //the game the player is actually playing; a spectated run would quietly overwrite
+    //it, and there is nothing here anybody would want back.
+    await initialiseGame({ spectator: true });
+    repaintMap();
+}
+
+/**
+ * Stop watching and go back to the title screen.
+ *
+ * The console X button is the only caller, and closing the window IS stopping the
+ * mode: a self-playing game with its console shut is a page that looks idle while
+ * two hundred countries fight behind it, and nothing would open the window again.
+ */
+async function endAiGame() {
+    leaveSpectatorMode();
+    await getTurnEngine().reset();
+
+    const baseline = newGameBaseline();
+    if (baseline) {
+        applyGame(baseline);
+        renderAllTerritories();
+    }
+    resetTransientUiState();
+    resetChromeForCountrySelection();
+    clearAiGameLog();
+
+    //Back to a cold start rather than to the country-selection screen: the spectated
+    //world has just been thrown away, so there is nothing behind the menu to resume.
+    outsideOfMenuAndMapVisible = false;
+    countrySelectedAndGameStarted = false;
+    selectCountryPlayerState = false;
+    menuState = true;
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    toggleBottomLeftPaneWithTurnAdvance(false);
+    toggleBottomTableContainer(false);
+    toggleTopTableContainer(false);
+    toggleMapModeButton(false);
+    toggleAudioButton(false);
+    menuButton.hide();
+    mainMenu.setResumeLabel("Resume Game");
+    mainMenu.setResumeEnabled(false);
+    //...unless the player left an autosave behind before they came here, which is
+    //still in its slot and still worth offering.
+    offerStoredAutosave();
+    mainMenu.show();
+
+    greyOutTerritoriesForUnselectableCountries();
+    repaintCountrySelection(null);
+}
+
+/** Stop the mode and shut the console. Safe to call when neither is running. */
+function leaveSpectatorMode() {
+    if (!isAiGameActive()) {
+        return;
+    }
+    stopAiGameMode();
+    aiGameConsole.close();
+}
+
+/**
+ * The chrome a spectated game has, and the chrome it does not.
+ *
+ * Called when the mode starts and again whenever the in-game menu closes, because
+ * `closeInGameMenu()` restores what a PLAYER would have had on screen.
+ *
+ * The bottom table stays: clicking a territory to read its garrison and its economy
+ * is the most useful thing a spectator can do with the map, and it is the one panel
+ * that describes a territory rather than the player. The top table, the phase bar
+ * and the territory panel all go, because all three are about a country nobody owns.
+ */
+function applySpectatorChrome() {
+    phaseBar.setVisible(false);
+    toggleBottomLeftPaneWithTurnAdvance(false);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    toggleTopTableContainer(false);
+    toggleUIMenu(false);
+    toggleTransferAttackButton(false, true);
+    toggleUpgradeMenu(false);
+    toggleBuyMenu(false);
+
+    //The continent view and the music are worth having while watching, and this call
+    //puts the music button back as a side effect (see toggleAudioButton).
+    toggleMapModeButton(true);
+    mapModeButtonCurrentlyOnScreen = true;
+    //...but not the territory panel or the activity feed. The feed in particular is
+    //what this mode REPLACES: its collapsible per-turn sections are the wrong shape
+    //for watching, which is why the console is a flat stream. Both go down after
+    //toggleMapModeButton(), because that call is what would otherwise put the
+    //activity button back up alongside them.
+    toggleUIButton(false);
+    uiButtonCurrentlyOnScreen = false;
+
+    toggleBottomTableContainer(true);
+    menuButton.show();
+    aiGameConsole.open();
 }
 
 /**
@@ -4264,6 +4477,10 @@ async function loadGameFromCode(code) {
  * regenerating any of them would silently replace part of the loaded game.
  */
 async function applyLoadedGame(save) {
+    //Before the engine is reset, for the reason given in `startNewGame()`: a
+    //spectator turn does not return until its last country has been through the
+    //pacing gate, and `stop()` waits for the running step.
+    leaveSpectatorMode();
     stopAutosave();
     await getTurnEngine().reset();
 
@@ -4820,7 +5037,13 @@ export function endPlayerTurn() {
 }
 
 export function initialiseNewPlayerTurn() {
-    populateBottomTableWhenSelectingACountry(getLastClickedPath());
+    //Skipped while spectating: there is no player and no selected territory, so this
+    //would ask the bottom table to describe the placeholder path -- which fetches
+    //`resources/flags/null.png` and writes nothing. The table is still there and
+    //still fills in when a territory is clicked.
+    if (!isAiGameActive()) {
+        populateBottomTableWhenSelectingACountry(getLastClickedPath());
+    }
     phaseBar.setButtonEnabled(true);
     if (playerSiegeWarsList) {
         for (const key in playerSiegeWarsList) {

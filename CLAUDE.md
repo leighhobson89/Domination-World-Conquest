@@ -217,6 +217,32 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `src/ai/planRecord.js` is the bounded ring behind it, filled by `planLog.js`. It has no
   button anywhere on purpose — map chrome that opens a debug view is map chrome a player
   will click — and it renders only while open, so an AI turn does not pay for it.
+- **"AI Game" on the main menu is SPECTATOR MODE, and the whole of it is `src/debug/`.**
+  A game with no player in it: `initialiseGame({ spectator: true })` skips the one loop
+  that assigns territories to `Player`, and because `updateArrayOfLeadersAndCountries()`
+  collects every country whose territories are not the player's, that alone hands all 207
+  to the AI. Four things follow. **The two player phases stop waiting because
+  `waitsForPlayer` is a GETTER** on those steps in `gameTurnsLoop.js` — the engine reads
+  the property each time it reaches the step, so asking `isAiGameActive()` there is what
+  makes the loop run by itself; do not "fix" it by having a timer click the phase button,
+  which is a race between a timer and a phase. **The CPU leaders and the starting forts
+  are created BEFORE the engine starts**, which is the opposite of a played game and is
+  deliberate: nothing blocks, so the AI phase is reached in the same tick and a country
+  without a leader would throw. That makes spectator turn 1 a slightly stronger opening
+  than a played turn 1, so **this mode is not a way to measure balance** —
+  `tools/ai-sim.mjs` is. **`stopAiGameMode()` must be called before
+  `getTurnEngine().reset()`**, never after: `stop()` waits for the running step to return
+  and the AI step is blocked in the pacing gate, so stopping the mode is what releases it.
+  And **the console is a flat append-only log, not the activity feed** — the feed's
+  collapsible per-turn sections are the wrong shape for watching, so a turn is a rule
+  ACROSS the log, the DOM is trimmed from the front to the same bound the ring uses, and
+  the country filter hides rows in place (`src/debug/aiGameFilter.js`: three characters
+  minimum, substring, case-insensitive) rather than re-rendering.
+- **`--debug-surface` and `--debug-ink` are the one token pair every theme repeats
+  verbatim.** They are what makes the AI Game button yellow-on-black in all six themes.
+  They are tokens only because `style.css` may not carry a colour literal outside `:root`;
+  do not "harmonise" them with a palette, because a debug control that matches the theme
+  is a debug control somebody ships.
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
   import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8, and only
   `src/ai/theatre.js`) `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module

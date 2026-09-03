@@ -59,6 +59,11 @@ export const ids = Object.freeze({
     // it opens should not be two names.
     dominapediaBtn: "dominapedia-btn",
 
+    // The debug entry: a spectated game with no player in it. Yellow-on-black in
+    // the menu, and last in the list, because it is a developer tool sitting in a
+    // player-facing menu and both of those are how it says so.
+    aiGameBtn: "ai-game-btn",
+
     // --- Audio ----------------------------------------------------------------
     // `toggle-music-btn` used to live in the main menu and was the whole of the
     // audio UI: one button, no volume, nothing saved. It is a music-note chrome
@@ -293,6 +298,26 @@ export const ids = Object.freeze({
     aiDebugPanelBody: "ai-debug-panel-body",
     aiDebugPanelEmpty: "ai-debug-panel-empty",
     xButtonAiDebug: "xButtonAiDebug",
+
+    // --- AI game console (spectator mode) -------------------------------------
+    // The window that drives and narrates a game with no player in it: a speed
+    // slider, a pause button, and a continuous log of what each AI country did.
+    // Unlike the activity feed it has no button over the map -- it opens with the
+    // mode and closes with it, because there is nothing else it could be doing.
+    aiGameConsoleContainer: "ai-game-console-container",
+    aiGameConsole: "ai-game-console",
+    aiGameConsoleTitle: "ai-game-console-title",
+    aiGameConsoleTurn: "ai-game-console-turn",
+    aiGameConsoleBody: "ai-game-console-body",
+    aiGameConsoleEmpty: "ai-game-console-empty",
+    aiGameConsoleNoMatch: "ai-game-console-no-match",
+    aiGameSpeedSlider: "ai-game-speed-slider",
+    aiGameSpeedLabel: "ai-game-speed-label",
+    aiGamePauseBtn: "ai-game-pause-btn",
+    aiGameFollowBtn: "ai-game-follow-btn",
+    aiGameFilter: "ai-game-filter",
+    aiGameFilterCount: "ai-game-filter-count",
+    xButtonAiGame: "xButtonAiGame",
 
     // --- Move-phase button ----------------------------------------------------
     movePhaseButton: "move-phase-button",
@@ -562,6 +587,28 @@ export const classNames = Object.freeze({
     // AI debug panel. One collapsible section per country, the same `is-open`
     // vocabulary as the activity feed and the Dominapedia; the verdict classes
     // colour a weighed target by what the country decided to do about it.
+    // AI game console (spectator mode). A block is one country's turn and its
+    // lines never change after they are written, so there is no open/closed state
+    // here -- a log whose rows move as you read them cannot be read. The tone
+    // classes are the same three ideas the activity feed uses plus three the feed
+    // has no use for: what a country thought, what it planned, and what it spent.
+    aiGameBlock: "ai-game-block",
+    aiGameBlockHeader: "ai-game-block-header",
+    aiGameBlockCountry: "ai-game-block-country",
+    aiGameBlockLeader: "ai-game-block-leader",
+    aiGameBlockPosture: "ai-game-block-posture",
+    aiGameTurnRule: "ai-game-turn-rule",
+    aiGameLine: "ai-game-line",
+    aiGameLineLabel: "ai-game-line-label",
+    aiGameLineText: "ai-game-line-text",
+    aiGameToneNeutral: "ai-tone-neutral",
+    aiGameToneThought: "ai-tone-thought",
+    aiGameTonePlan: "ai-tone-plan",
+    aiGameToneEconomy: "ai-tone-economy",
+    aiGameToneVictory: "ai-tone-victory",
+    aiGameToneLoss: "ai-tone-loss",
+    aiGameToneSiege: "ai-tone-siege",
+
     aiDebugCountry: "ai-debug-country",
     aiDebugCountryHeader: "ai-debug-country-header",
     aiDebugCountryBody: "ai-debug-country-body",

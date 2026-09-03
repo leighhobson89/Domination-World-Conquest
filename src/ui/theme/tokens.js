@@ -38,6 +38,18 @@ export const TOKENS = Object.freeze([
     // its own is what stops five themes rendering it as the same literal amber.
     "--siege-amber",
 
+    // --- Debug ----------------------------------------------------------------
+    // The one pair that is deliberately the SAME in every theme. A debug
+    // affordance has to be unmistakable, and a control whose colour a theme could
+    // soften into the palette would eventually stop reading as one -- which is the
+    // whole job of the "AI Game" button and the spectator console's chrome. They
+    // are tokens rather than literals only because `style.css` is not allowed
+    // literals outside `:root`, and every theme is given the same values on
+    // purpose. Do not "harmonise" them: a debug button that matches the theme is a
+    // debug button somebody ships.
+    "--debug-surface",
+    "--debug-ink",
+
     // --- Line and shape -------------------------------------------------------
     // These are what make the themes differ in FEEL and not only in hue: a
     // square-cornered 3px border reads as a different product from a 16px
