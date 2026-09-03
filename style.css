@@ -5212,7 +5212,9 @@ td {
 }
 
 .ai-game-speed-label {
-  min-width: 106px;
+  /* Wide enough for the longest either unit produces -- "2.75s per country" and
+     "10 countries/s" -- so the slider beside it does not resize as it is dragged. */
+  min-width: 120px;
   font-size: 0.72rem;
   text-align: right;
   color: var(--text-muted);

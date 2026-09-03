@@ -45,11 +45,13 @@ import {
     onAiGameBlock
 } from "../../debug/aiGameLog.js";
 import {
-    MAX_SECONDS_PER_COUNTRY,
-    MIN_SECONDS_PER_COUNTRY,
+    SPEED_SLIDER_STEPS,
     aiGameState,
+    describeAiGameSpeed,
     onAiGameChanged,
+    secondsForSliderPosition,
     setAiGameSecondsPerCountry,
+    sliderPositionForSeconds,
     toggleAiGamePaused
 } from "../../debug/aiGameMode.js";
 import {
@@ -142,21 +144,27 @@ export function create({ onSound, onStop: stopHandler } = {}) {
         toggleAiGamePaused();
     });
 
+    // The track is POSITIONS, not seconds. The useful range spans a factor of fifty
+    // and the pace anybody watches at -- one second -- sits a fiftieth of the way
+    // along it, so a slider measured in seconds would bury everything readable in its
+    // first two pixels. `secondsForSliderPosition()` puts 1s dead centre, ten
+    // countries a second at the left and five seconds each at the right; see the note
+    // on it in src/debug/aiGameMode.js.
     speedSlider = el("input", {
         id: ids.aiGameSpeedSlider,
         class: "ai-game-speed-slider",
         attrs: {
             type: "range",
-            min: String(MIN_SECONDS_PER_COUNTRY),
-            max: String(MAX_SECONDS_PER_COUNTRY),
-            step: "0.5",
-            "aria-label": "Seconds spent on each AI country"
+            min: "0",
+            max: String(SPEED_SLIDER_STEPS),
+            step: "1",
+            "aria-label": "How long each AI country's turn is held on screen"
         }
     });
     // `input`, not `change`: the label has to follow the thumb while it is being
     // dragged, and the next country is due in a second either way.
     speedSlider.addEventListener("input", () => {
-        setAiGameSecondsPerCountry(Number(speedSlider.value));
+        setAiGameSecondsPerCountry(secondsForSliderPosition(Number(speedSlider.value)));
     });
 
     speedLabel = el("span", { id: ids.aiGameSpeedLabel, class: "ai-game-speed-label" });
@@ -321,10 +329,10 @@ export function setTurn(turn) {
 
 function applyModeState(state) {
     if (speedSlider && document.activeElement !== speedSlider) {
-        speedSlider.value = String(state.secondsPerCountry);
+        speedSlider.value = String(sliderPositionForSeconds(state.secondsPerCountry));
     }
     if (speedLabel) {
-        speedLabel.textContent = state.secondsPerCountry.toFixed(1) + "s per country";
+        speedLabel.textContent = describeAiGameSpeed(state.secondsPerCountry);
     }
     if (pauseButton) {
         // The icon says what pressing it DOES, which is the convention every transport

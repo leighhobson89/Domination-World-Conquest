@@ -233,6 +233,11 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `tools/ai-sim.mjs` is. **`stopAiGameMode()` must be called before
   `getTurnEngine().reset()`**, never after: `stop()` waits for the running step to return
   and the AI step is blocked in the pacing gate, so stopping the mode is what releases it.
+  **The speed slider is a track of POSITIONS, not seconds**, in two geometric halves
+  pinned to three anchors — ten countries a second at the left, one second dead centre,
+  five seconds at the right. A linear track in seconds would bury the whole readable
+  range in its first two pixels, because the span is a factor of fifty and the pace
+  anybody watches at sits a fiftieth of the way along it.
   And **the console is a flat append-only log, not the activity feed** — the feed's
   collapsible per-turn sections are the wrong shape for watching, so a turn is a rule
   ACROSS the log, the DOM is trimmed from the front to the same bound the ring uses, and
