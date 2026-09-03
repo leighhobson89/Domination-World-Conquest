@@ -55,6 +55,17 @@ import {
 } from "../config/balance.js";
 import { aiSieges, playerSieges, territoriesOwnedByCountry } from "../state/selectors.js";
 import {
+    captureTheatres,
+    frontierFor,
+    noteAttemptOutcome,
+    noteDevelopment,
+    restoreTheatres,
+    resetTheatres,
+    reviewTheatre,
+    theatreWeightFor,
+    wallsFor
+} from "./theatre.js";
+import {
     activeVictoryCondition,
     continentStandingsFor,
     VictoryCondition,
@@ -98,12 +109,22 @@ const SETBACK_MEMORY_TURNS = 6;
 const campaignsThisTurn = new Map();
 let campaignsCachedForTurn = null;
 
+/**
+ * country -> the posture it took last turn.
+ *
+ * Needed because "have I been developing fruitlessly?" is a question about what this country
+ * HAS been doing, and the campaign that knew is two turns of garbage collection ago.
+ */
+const lastPosture = new Map();
+
 /** Wipe every campaign. New Game and the unit tests call this. */
 export function resetCampaigns() {
     commitments.clear();
     setbacks.clear();
     campaignsThisTurn.clear();
     campaignsCachedForTurn = null;
+    lastPosture.clear();
+    resetTheatres();
 }
 
 /**
@@ -112,10 +133,16 @@ export function resetCampaigns() {
  * A win clears the memory outright -- the territory is now this country's, and if it is
  * ever lost again the next failure starts a fresh count.
  */
-export function recordAttackOutcome(country, targetTerritoryName, won, turn) {
+export function recordAttackOutcome(country, targetTerritoryName, won, turn, targetOwner = null) {
     if (!country || !targetTerritoryName) {
         return;
     }
+    //The same outcome, told twice, because the two memories answer different questions.
+    //This one is per TERRITORY -- "do not throw the army at that hill again". The theatre's
+    //is per COUNTRY -- "this whole neighbour is a wall, go around". A country that keeps
+    //picking new territories along the same unbreakable border would satisfy the first
+    //memory perfectly and still be stuck.
+    noteAttemptOutcome(country, targetOwner, won, turn);
     if (!setbacks.has(country)) {
         setbacks.set(country, new Map());
     }
@@ -142,7 +169,11 @@ export function failuresAgainst(country, targetTerritoryName, turn = 0) {
 }
 
 export function captureCampaigns() {
-    const data = { commitments: {}, setbacks: {} };
+    //One save slice, two modules: the mid-term goals live in `theatre.js` and are captured
+    //through here rather than registering a second slice, because a restore that brought
+    //back a country's continents without the rival it was in the middle of absorbing would
+    //be a plan with its middle missing.
+    const data = { commitments: {}, setbacks: {}, theatres: captureTheatres() };
     for (const [country, commitment] of commitments) {
         data.commitments[country] = {
             continents: [...commitment.continents],
@@ -172,6 +203,10 @@ export function restoreCampaigns(data) {
     for (const [country, byTarget] of Object.entries(data?.setbacks ?? {})) {
         setbacks.set(country, new Map(Object.entries(byTarget ?? {})));
     }
+    //Absent from a save written before mid-term goals existed, which restores as "nobody has
+    //committed to anything yet" -- the same state a new game starts in, so it costs a few
+    //turns of re-choosing rather than failing the load.
+    restoreTheatres(data?.theatres);
 }
 
 /** What this country has committed to taking, or an empty list if it has not chosen yet. */
@@ -212,7 +247,32 @@ export function planCampaign(country, context = {}) {
     const objective = chooseObjective(country, { condition, rows, turn, rng });
     const focus = chooseFocusContinent(objective, rows);
     const health = assessCountry(country);
-    const posture = choosePosture({ health, focus, leaderType, traits, rows, objective });
+
+    //The MID-TERM goal, between the objective above and this turn's goals below: the
+    //neighbouring country this one is trying to absorb, kept while it is working and
+    //dropped for another when it is not. `theatre.js` owns the judgement and the memory.
+    const theatre = context.theatre ?? reviewTheatre({
+        country,
+        turn,
+        focusContinent: focus?.continent ?? null,
+        frontier: context.frontier ?? frontierFor(country),
+        //Every country's size, already counted in one pass by `worldStandings()` above.
+        //Without this the ranking runs a 359-territory scan per candidate rival per country
+        //per turn -- the same shape of mistake Phase 1.5 took out of the goal planner.
+        sizeOf: (name) => standings.byCountry.get(name)?.territories ?? 0,
+        rng
+    });
+
+    //Has developing got this country anywhere lately? Asked with LAST turn's posture,
+    //because the question is about what it has been doing, not what it is about to do.
+    const development = noteDevelopment(country, health.development, turn, lastPosture.get(country));
+
+    const posture = choosePosture({
+        health, focus, leaderType, traits, rows, objective,
+        developmentStalled: development.stalled,
+        theatre
+    });
+    lastPosture.set(country, posture);
     const budgets = deriveBudgets({ country, health, posture, traits, leaderType });
 
     const tuning = campaignPostures[posture] ?? campaignPostures.EXPAND;
@@ -225,6 +285,17 @@ export function planCampaign(country, context = {}) {
         focusContinent: focus?.continent ?? null,
         focusStanding: focus ?? null,
         standings: rows,
+        /**
+         * The mid-term goal: the country being absorbed, why it was chosen or dropped, and
+         * what has come of it so far. `targeting.js` weighs targets by it and the debug
+         * panel prints it -- it is the answer to "what is this country actually doing?",
+         * which neither the objective (too far away) nor the goal list (too close) gives.
+         */
+        theatre,
+        /** Rivals this country has tried and failed against, and is leaving alone for now. */
+        walls: wallsFor(country, turn),
+        /** Whether developing has stopped getting this country anywhere. */
+        development,
         posture,
         progress: victoryProgress(country, condition, standings),
         health,
@@ -445,8 +516,25 @@ export function siegesRunBy(country) {
  * opening a second front would be a mistake. Personality shifts the thresholds rather than
  * overriding the answer -- a pacifist develops sooner and an aggressive leader expands
  * through more discomfort, but neither ignores a quarter of its country being besieged.
+ *
+ * Two rules here are the difference between a world that consolidates and one that freezes,
+ * and both are forms of the same mistake: a posture that guarantees the conditions for
+ * choosing it again next turn.
+ *
+ *   BEING SMALL IS A REASON TO EXPAND. It used to be an `||` -- a country under four
+ *   territories DEVELOPed whatever its economy looked like. On a map that begins as 207
+ *   countries, most of them holding one or two territories, that disqualified the great
+ *   majority of the world from ever expanding, and never expanding is what kept them small.
+ *   A small country builds its first farms; a small country that HAS farms takes a
+ *   neighbour, because no amount of building will make one territory into an empire.
+ *
+ *   DEVELOPING IS A MEANS, NOT A STATE. A country whose development has not moved in
+ *   `developStallTurns` has learned that building is not working -- besieged, boxed in, or
+ *   on ground too poor to pay for the next upgrade -- and fights instead. Without this the
+ *   posture that produced the failure is the posture the failure keeps it in, which is the
+ *   whole of what "the AI gets stuck repeating a failed approach" means economically.
  */
-export function choosePosture({ health, focus, leaderType, traits, objective }) {
+export function choosePosture({ health, focus, leaderType, traits, objective, developmentStalled = false, theatre = null }) {
     const thresholds = postureThresholds;
     const expansion = finiteOr(traits?.territory_expansion, 0.5);
     const fortify = finiteOr(traits?.fortification, 0.5);
@@ -457,11 +545,19 @@ export function choosePosture({ health, focus, leaderType, traits, objective }) 
         return Posture.DEFEND;
     }
 
+    //A small country is asked for a little MORE economy before it starts a war, rather than
+    //being forbidden one: it has fewer territories to raise an army from, so the first farms
+    //genuinely do come first. What it is not is permanently disqualified.
     const developAt = thresholds.developmentForDevelop *
-        (leaderType === "pacifist" ? 1.6 : leaderType === "aggressive" ? 0.6 : 1);
-    if (health.development < developAt || health.territories <= thresholds.smallCountryTerritories) {
-        //An aggressive leader with somewhere obvious to go will still go, small or not.
-        if (!(leaderType === "aggressive" && expansion > 0.85 && focus && focus.missing <= 3)) {
+        (leaderType === "pacifist" ? 1.6 : leaderType === "aggressive" ? 0.6 : 1) *
+        (health.territories <= thresholds.smallCountryTerritories ? 1.3 : 1);
+
+    if (health.development < developAt) {
+        //An aggressive leader with somewhere obvious to go will still go, small or not; and
+        //nobody keeps developing once developing has stopped paying.
+        const pushOnAnyway = developmentStalled ||
+            (leaderType === "aggressive" && expansion > 0.85 && focus && focus.missing <= 3);
+        if (!pushOnAnyway) {
             return Posture.DEVELOP;
         }
     }
@@ -495,10 +591,18 @@ export function deriveBudgets({ country, health, posture, traits, leaderType }) 
             tuning.siegeBudgetScale * expansionBias),
         0, siegeDiscipline.maxConcurrent);
 
+    //A country in a fighting posture always gets at least one attack. The scaled figure
+    //rounded to ZERO for the great majority of the world -- one base attack times DEVELOP's
+    //0.4 is 0.4 -- so the budget, not the odds, was deciding that nothing happened. The
+    //ODDS FLOORS are what keep an attack honest; a budget of nought is not discipline, it
+    //is a country that has been told to sit still whatever it can see in front of it. Only
+    //DEFEND may be reduced to none, because a country with a fifth of itself besieged has
+    //somewhere better to put the army.
+    const scaledAttacks = Math.round((attackDiscipline.basePerTurn +
+        Math.floor(health.territories / attackDiscipline.territoriesPerExtraAttack)) *
+        tuning.attackBudgetScale * expansionBias);
     const attackBudget = clampInt(
-        Math.round((attackDiscipline.basePerTurn +
-            Math.floor(health.territories / attackDiscipline.territoriesPerExtraAttack)) *
-            tuning.attackBudgetScale * expansionBias),
+        posture === Posture.DEFEND ? scaledAttacks : Math.max(1, scaledAttacks),
         0, attackDiscipline.maxPerTurn);
 
     const siegeBudget = clampInt(
@@ -573,6 +677,13 @@ export function campaignWeightForTarget(campaign, target) {
         //is worth almost none of it.
         weight *= 1 + (weights.completionBonus - 1) / standing.missing;
     }
+
+    //And the MID-TERM goal, which is the term that concentrates a war rather than spreading
+    //it. Two targets of equal worth on the same continent are not equally useful: the one
+    //belonging to the country being absorbed is a step towards owning a whole neighbour,
+    //and the one belonging to a rival already written off as a wall is a step back into the
+    //fight that produced the wall.
+    weight *= theatreWeightFor(campaign.country, target.dataName, campaign.turn);
 
     return weight;
 }

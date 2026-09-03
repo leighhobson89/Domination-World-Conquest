@@ -148,6 +148,13 @@ export function installTestHooks(accessors) {
         // both sides.
         activity: () => snapshot(accessors.activity()),
 
+        // What the AI countries most recently decided and WHY -- the same bounded ring
+        // the Numpad-/ debug panel renders (src/ai/planRecord.js). A hundred-turn run
+        // that stops conquering anything is the AI's most important failure mode and it
+        // has no textual signature: every turn completes, nothing throws, and the map
+        // simply stops changing. The skip reasons are the only place that says why.
+        aiPlans: (limit) => snapshot(accessors.aiPlans(limit)),
+
         // Write one entry directly. The feed's harder cases are unreachable by
         // clicking in any reasonable time -- an AI conquering an AI on the far side of
         // the map, a siege running four turns -- and the alternative is a spec that

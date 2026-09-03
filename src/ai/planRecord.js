@@ -60,6 +60,25 @@ export function recordPlan(view) {
             }
             : null,
         focusContinent: campaign?.focusContinent ?? null,
+        //The mid-term goal, and the two things that judge it: what this country is trying to
+        //absorb, who it has given up on, and where it is marching to make the next attempt
+        //possible. Trimmed to the fields the panel draws, like everything else here.
+        theatre: campaign?.theatre
+            ? {
+                rival: campaign.theatre.rival,
+                continent: campaign.theatre.continent,
+                reason: campaign.theatre.reason,
+                takenFromRival: campaign.theatre.takenFromRival,
+                failures: campaign.theatre.failures,
+                committedOnTurn: campaign.theatre.committedOnTurn,
+                changed: campaign.theatre.changed
+            }
+            : null,
+        walls: [...(campaign?.walls ?? [])],
+        development: campaign?.development ? { ...campaign.development } : null,
+        //Written by the executor after the campaign is built, so it is absent on a plan
+        //recorded before the country moved anything.
+        musters: (campaign?.musters ?? []).map(move => ({ ...move })),
         progress: campaign?.progress
             ? { label: campaign.progress.label, fraction: campaign.progress.fraction }
             : null,

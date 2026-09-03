@@ -53,6 +53,7 @@ import {
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
     calculateTurnGoals,
+    musterAiArmies,
     planAiCampaign,
     reviewAiSieges,
     convertAttackableArrayStringsToMainArrayObjects,
@@ -138,6 +139,9 @@ import {
     logAiPlan
 } from './src/ai/planLog.js';
 import {
+    recentPlans
+} from './src/ai/planRecord.js';
+import {
     pathCountry
 } from './src/state/pathState.js';
 import {
@@ -216,6 +220,12 @@ installTestHooks({
         turnQueued: entry[2],
         turnsUntilReturn: entry[3]
     })),
+    //The AI's own reasoning, as the debug panel sees it: posture, objective, budgets and
+    //the reason each target was taken or left alone. It is what `tools/ai-sim.mjs` reads
+    //to answer "why has the world stopped changing?" over a hundred turns -- a question
+    //no assertion about one turn can answer, because the interesting failure is a world
+    //that freezes rather than one that throws.
+    aiPlans: (limit) => recentPlans(limit ?? 256),
     pathAreaComputations: () => getPathAreaComputations(),
     countryStrengths: () => countryStrengthsArray ?? [],
     randomEventProbability: () => probability,
@@ -728,6 +738,17 @@ async function handleAITurn() {
         attackableTerritoriesInRange = convertAttackableArrayStringsToMainArrayObjects(attackableTerritoriesInRange);
         arrayOfAiPlayerDefenseScoresForTerritories = getFriendlyTerritoriesDefenseScores(arrayOfLeadersAndCountries, currentAiCountry, i);
         arrayOfTerritoriesInRangeThreats = calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory(attackableTerritoriesInRange, arrayOfLeadersAndCountries, fullTerritoriesInRange, arrayOfAiPlayerDefenseScoresForTerritories, i);
+
+        //March the spare army towards the fronts that asked for it last turn, and towards the
+        //border of the country this one has committed to absorbing. This is the answer to the
+        //TODO that sat below this loop from before the refactor -- "move available army around
+        //between available owned territories" -- and it is what lets a country attack with
+        //more than whatever one border province could raise by itself.
+        //
+        //It runs AFTER the threat map, because a move is decided from the threats facing each
+        //territory, and BEFORE the goals, so that an army which arrived this turn is counted
+        //in this turn's odds rather than sitting idle until the next one.
+        musterAiArmies(currentAiCountry, campaign, arrayOfTerritoriesInRangeThreats);
         //The long-term goal is no longer a TODO: it is `campaign.objective`, derived above
         //from the active victory condition. Under the default -- hold three continents
         //outright -- it names the three this country has committed to, and every goal

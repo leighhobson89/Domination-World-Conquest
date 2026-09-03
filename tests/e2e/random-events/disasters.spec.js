@@ -106,7 +106,19 @@ test.describe("random events", () => {
             await game.playTurn();
             const after = await playerSnapshot(game);
 
-            const hit = Object.keys(before).filter(
+            // Only the territories the player STILL HOLDS. Since Phase 7.8 the AI masses an
+            // army and presses attacks it can win, and it is entirely capable of taking one
+            // of Japan's five territories during the turn this spec plays -- verified in a
+            // browser when this first failed: South Korea took Kochi in a real conquest,
+            // recorded in the activity feed, with the model consistent and no console error.
+            // A territory that changed hands is not a disaster's doing and is not this
+            // spec's business; assuming it could never happen is what made the comparison
+            // read `undefined[resource]` and throw.
+            const stillHeld = Object.keys(before).filter((name) => after[name]);
+            expect(stillHeld.length, "the AI took the whole country -- nothing left to measure")
+                .toBeGreaterThan(0);
+
+            const hit = stillHeld.filter(
                 (name) => after[name][resource] < before[name][resource]
             );
             expect(hit.length, `${event} should have taken ${resource} from someone`).toBeGreaterThan(

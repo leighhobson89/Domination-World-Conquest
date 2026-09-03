@@ -32,10 +32,16 @@
 
 import {
     campaignTargetWeights,
-    maxForts,
-    targetValueWeights
+    maxForts
 } from "../config/balance.js";
 import { campaignWeightForTarget, Posture } from "./strategy.js";
+import { territoryValue } from "./value.js";
+
+//Re-exported rather than moved outright: `territoryValue()` is part of this module's public
+//story ("SHOULD IT?"), and both the unit suite and `strategy.js` already name it here. Its
+//body moved to `value.js` only so that `theatre.js` can use it without closing an import
+//cycle back through this file.
+export { territoryValue };
 
 /**
  * Percentage points added to both odds floors per previous defeat against a target.
@@ -51,31 +57,6 @@ export const Verdict = Object.freeze({
     SIEGE: "Siege",
     SKIP: "Skip"
 });
-
-/**
- * What a territory is worth having, on a roughly 0..1 scale.
- *
- * Deliberately NOT the same as its military strength -- that is what the odds already
- * measure. This is what owning it does for you: a developed European territory is worth
- * several times a bare African island of the same size, which is the fact the Dominapedia
- * spends a paragraph on under "Expanding into a poor continent" and which the AI had no
- * representation of at all.
- */
-export function territoryValue(territory) {
-    if (!territory) {
-        return 0;
-    }
-    const weights = targetValueWeights;
-    const area = Math.min(1, (Number(territory.area) || 0) / weights.areaSaturation);
-    const buildings = (territory.farmsBuilt ?? 0) + (territory.forestsBuilt ?? 0) +
-        (territory.oilWellsBuilt ?? 0);
-    const resources = Math.min(1, buildings / 9);
-
-    return (Number(territory.continentModifier) || 0.5) * weights.continentModifier +
-        (Number(territory.devIndex) || 0.5) * weights.devIndex +
-        area * weights.area +
-        resources * weights.resources;
-}
 
 /**
  * Rate one (source territory, target territory) pairing.

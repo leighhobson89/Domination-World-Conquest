@@ -70,7 +70,9 @@ import {
 } from './src/state/pathState.js';
 import {
     MAX_AI_UPGRADES_PER_TURN,
-    PROBABILITY_THRESHOLD_FOR_SIEGE
+    PROBABILITY_THRESHOLD_FOR_SIEGE,
+    siegeDiscipline,
+    THREAT_DISREGARD_CONSTANT
 } from './src/config/balance.js';
 import {
     aiRandom
@@ -91,6 +93,23 @@ import {
     SiegeVerdict
 } from './src/ai/siegeReview.js';
 import {
+    decideCommitment
+} from './src/ai/commitment.js';
+import {
+    captureMusters,
+    clearReinforcementDemand,
+    planMusters,
+    recordReinforcementDemand,
+    restoreMusters
+} from './src/ai/muster.js';
+import {
+    currentTheatre
+} from './src/ai/theatre.js';
+import {
+    getInteractableFrom,
+    isAdjacencyLoaded
+} from './src/data/adjacency.js';
+import {
     captureVictoryCondition,
     restoreVictoryCondition
 } from './src/ai/victory.js';
@@ -98,7 +117,8 @@ import {
     registerSaveSlice
 } from './src/platform/saveSlices.js';
 import {
-    isUnderSiege
+    isUnderSiege,
+    territoriesOwnedByCountry
 } from './src/state/selectors.js';
 import {
     ids
@@ -176,11 +196,15 @@ export {
 registerSaveSlice("aiStrategy", {
     capture: () => ({
         campaigns: captureCampaigns(),
-        victory: captureVictoryCondition()
+        victory: captureVictoryCondition(),
+        musters: captureMusters()
     }),
     restore: (data) => {
         restoreCampaigns(data?.campaigns);
         restoreVictoryCondition(data?.victory);
+        //Absent from a save written before mustering existed, which restores as "nobody has
+        //asked for reinforcement", the same state a new game starts in.
+        restoreMusters(data?.musters);
     }
 });
 
@@ -210,6 +234,89 @@ export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, campaign = 
 /** As `prioritiseTurnGoals()`, with the seeded stream and the campaign bound in. */
 export function prioritiseTurnGoalsBasedOnPersonality(refinedTurnGoals, currentAiCountry, leaderTraits, campaign = null) {
     return prioritiseTurnGoals(refinedTurnGoals, currentAiCountry, leaderTraits, aiRng, campaign);
+}
+
+/**
+ * March this country's spare infantry towards the fronts that asked for it.
+ *
+ * Once per country per turn, BEFORE the threat map is built, so that an army which arrived
+ * this turn is counted in this turn's odds -- otherwise the reinforcement would only take
+ * effect a turn after it arrived, and a country would spend two turns doing what it decided
+ * to do in one.
+ *
+ * The decision is `src/ai/muster.js` and is pure; this supplies the adjacency and moves the
+ * men. Infantry only, and always between two territories the same country holds, so nothing
+ * here can create or destroy army: what leaves one territory arrives in the other.
+ *
+ * @returns {Array} the moves made, for the plan log
+ */
+export function musterAiArmies(country, campaign, arrayOfTerritoriesInRangeThreats) {
+    if (!isAdjacencyLoaded()) {
+        return [];
+    }
+
+    const territories = territoriesOwnedByCountry(country);
+    const theatre = currentTheatre(country);
+
+    //The spearhead: our territory on the border of the country we have committed to
+    //absorbing, and the one worth massing at. The closest thing this AI has to a front line.
+    let spearhead = null;
+    if (theatre?.rival) {
+        for (const territory of territories) {
+            const touchesRival = getInteractableFrom(territory.uniqueId, territory.territoryName)
+                .some(name => getTerritoryByName(name)?.dataName === theatre.rival);
+            if (touchesRival) {
+                spearhead = territory.territoryName;
+                break;
+            }
+        }
+    }
+
+    const moves = planMusters({
+        country,
+        turn: currentTurn(),
+        territories,
+        spearhead,
+        localEnemyPowerFor: (territoryName) =>
+            strongestEnemyPowerAgainst(territoryName, arrayOfTerritoriesInRangeThreats),
+        neighboursOf: (territory) => getInteractableFrom(territory.uniqueId, territory.territoryName)
+    });
+
+    for (const move of moves) {
+        const from = getTerritoryByName(move.from);
+        const to = getTerritoryByName(move.to);
+        if (!from || !to || from.dataName !== country || to.dataName !== country) {
+            continue;
+        }
+        //A besieged territory's garrison is pinned -- it cannot march out, and marching INTO
+        //one is walking into the encirclement.
+        if (isUnderSiege(move.from) || isUnderSiege(move.to)) {
+            continue;
+        }
+        const infantry = Math.min(move.infantry, from.infantryForCurrentTerritory ?? 0);
+        if (infantry <= 0) {
+            continue;
+        }
+
+        patchTerritory(from.uniqueId, {
+            infantryForCurrentTerritory: from.infantryForCurrentTerritory - infantry,
+            armyForCurrentTerritory: from.armyForCurrentTerritory - infantry
+        });
+        patchTerritory(to.uniqueId, {
+            infantryForCurrentTerritory: to.infantryForCurrentTerritory + infantry,
+            armyForCurrentTerritory: to.armyForCurrentTerritory + infantry
+        });
+        //The request has been answered; whether the attack now succeeds is next turn's
+        //business, and leaving the demand standing would keep draining the interior into a
+        //province that already has what it asked for.
+        clearReinforcementDemand(country, move.to);
+        console.log(move.reason + ": " + infantry + " infantry");
+    }
+
+    if (campaign) {
+        campaign.musters = moves.map(move => ({ ...move }));
+    }
+    return moves;
 }
 
 /**
@@ -343,7 +450,10 @@ function stormBesiegedTerritory(siege, target, source, review, campaign) {
     endAiSiege(siege, target, won ? "Victory" : "Defeat");
     releaseSiegeSlot(campaign);
 
-    recordAttackOutcome(siege.attackingCountry, target.territoryName, won, currentTurn());
+    //`defendingCountry` was read before the storm resolved, so it is who the siege was
+    //AGAINST rather than who holds the place now -- which is the country the mid-term
+    //ledger has to credit the gain to.
+    recordAttackOutcome(siege.attackingCountry, target.territoryName, won, currentTurn(), defendingCountry);
     recordSiegeResolved({
         besiegerWon: won,
         territory: target.territoryName,
@@ -575,7 +685,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     siegeLaunchedFromArray.push(goal[3]);
                     siegeLaunchedToArray.push(goal[2]);
                     console.log("going to start a siege attack on " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, true);
+                    const amountBeingSentToSiegeAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, true, campaign);
                     if (amountBeingSentToSiegeAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToSiegeAndProbability[0]);
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
@@ -595,7 +705,7 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
-                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, false);
+                    const amountBeingSentToBattleAndProbability = calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, false, campaign);
                     if (amountBeingSentToBattleAndProbability !== "Cancel") {
                         const armyArray = calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattleAndProbability[0]);
                         let proceed = await handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy);
@@ -612,7 +722,11 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                                 mainArrayFriendlyTerritoryCopy.dataName,
                                 mainArrayEnemyTerritoryCopy.territoryName,
                                 remainingArmyArray[4] === 0,
-                                currentTurn());
+                                currentTurn(),
+                                //Read BEFORE the conquest is applied below: `dataName` is the
+                                //current owner and a win is about to change it, so taking it
+                                //afterwards would credit the gain against ourselves.
+                                mainArrayEnemyTerritoryCopy.dataName);
                             if (remainingArmyArray[4] === 0) { //attacker won
                                 mainArrayEnemyTerritoryCopy = updateTerritory(mainArrayEnemyTerritoryCopy, remainingArmyArray, mainArrayFriendlyTerritoryCopy);
                             } else {
@@ -1127,88 +1241,150 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
     //LEAVE COMMENT - Be aware of goldCostPerTurn of army if AI stops generating gold or goes negative
 }
 
-function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, arrayOfAiPlayerDefenseScoresForTerritories, siege) {
-    const leaderType = leader.leaderType;
-
-    let defenseScore;
-    let threatArray = [];
-
-    for (let i = 0; i < arrayOfAiPlayerDefenseScoresForTerritories.length; i++) {
-        if (arrayOfAiPlayerDefenseScoresForTerritories[i][0] === mainArrayFriendlyTerritoryCopy.territoryName) {
-            defenseScore = arrayOfAiPlayerDefenseScoresForTerritories[i][1];
-        }
-    }
-
-    for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
-        threatArray.push(arrayOfTerritoriesInRangeThreats[i][2] - defenseScore);
-    }
-
-    let amountCanSend = threatArray.reduce((sum, threat) => sum + threat, 0) / threatArray.length;
-    let actuallyBeingSent;
-    const twentyFivePercentOfAverage = Math.abs(amountCanSend) * 0.25;
-
-    console.log(threatArray);
-    console.log(amountCanSend);
-
-    if (leaderType === "aggressive") {
-        if (amountCanSend < 0) {
-            amountCanSend -= twentyFivePercentOfAverage;
-        } else {
-            amountCanSend += twentyFivePercentOfAverage;
-        }
-    } else if (leaderType === "pacifist") {
-        if (amountCanSend < 0) {
-            amountCanSend += twentyFivePercentOfAverage;
-        } else {
-            amountCanSend -= twentyFivePercentOfAverage;
-        }
-    }
-
-    //reconquista
-    if (mainArrayEnemyTerritoryCopy.originalOwner === mainArrayFriendlyTerritoryCopy.dataName) {
-        amountCanSend -= amountCanSend * (leader.traits.reconquista * 100) / 100;
-    }
-
-    if (amountCanSend >= 0) {
-        console.log("Interaction cancelled as surrounding threats would leave territory too vulnerable");
-        return "Cancel";
-    } else {
-        console.log("Amount would like to send is: " + Math.abs(amountCanSend));
-        if (Math.abs(amountCanSend) < mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory) {
-            actuallyBeingSent = amountCanSend;
-        } else {
-            console.log("Want to send more than I have, so cancelling to be safe.");
-            return "Cancel";
-        }
-    }
-    // //DEBUG
-    // console.log("Actually Being sent: " + Math.abs(actuallyBeingSent));
-    // console.log("From: " + mainArrayFriendlyTerritoryCopy.territoryName + " to: " + mainArrayEnemyTerritoryCopy.territoryName);
-    // console.log("Whole army size: " + mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory);
-    // console.log("Remaining defenders will be: " + (mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory - Math.abs(actuallyBeingSent)));
-    // console.log("threat array:");
-    // let originalThreatArrayNotIncludingDefenseScore = [];
-    // for (let i = 0; i < arrayOfTerritoriesInRangeThreats.length; i++) {
-    //     originalThreatArrayNotIncludingDefenseScore.push(arrayOfTerritoriesInRangeThreats[i][2]);
-    // }
-    // console.log(originalThreatArrayNotIncludingDefenseScore);
-    // // mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory -= Math.abs(actuallyBeingSent);
-    // // END OF DEBUG
-
-    const attackArray = [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId), Math.abs(Math.floor(actuallyBeingSent)), 0, 0, 0];
-    const newProb = calculateProbabilityPreBattle(attackArray, allTerritories(), false);
-    console.log("Probability of that interaction would be: " + newProb);
-
-    if ((leaderType === "aggressive" && newProb < 1) || (leaderType === "balanced" && newProb < 1) || (leaderType === "pacifist" && newProb < 1)) {
-        console.log("Probability too low, bunking out!");
-        return "Cancel";
-    } else if ((aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) || (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName))) { //if target under siege and is siege type interaction
+/**
+ * How much of this territory's army goes at this target, or "Cancel" and why.
+ *
+ * The decision itself is `src/ai/commitment.js`, which is pure and unit-tested; this is the
+ * wiring that gives it the two things it cannot compute in Node -- the real pre-battle odds,
+ * and the local threat read out of the turn's own threat map.
+ *
+ * What it replaces was the single largest cause of the AI losing wars it had correctly
+ * decided to fight. The old sizing averaged every threat facing the WHOLE COUNTRY, subtracted
+ * one territory's defence score from it, and used the result as a number of soldiers; it then
+ * pressed the attack on any probability at all above 1%. So the odds the planner approved and
+ * the odds the battle was actually fought at were two unrelated numbers, and the country
+ * learned nothing from the difference. See the module comment for the measurement.
+ *
+ * @param {boolean} siege  a siege rather than an assault: it clears the campaign's SIEGE
+ *        floor instead of its attack floor, because sitting outside a wall is what a siege
+ *        is for and it does not have to win a battle today.
+ */
+function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, arrayOfTerritoriesInRangeThreats, siege, campaign = null) {
+    //A target already besieged is not interactable by anybody, so there is nothing to size.
+    //Checked first because it is the one answer that does not depend on the army at all.
+    if (aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) ||
+        playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) {
         console.log("Can't siege or attack because territory already under siege!");
         return "Cancel";
-    } else {
-        console.log("Proceeding!");
-        return [Math.abs(Math.floor(actuallyBeingSent)), newProb];
     }
+
+    const localEnemyPower = strongestEnemyPowerAgainst(
+        mainArrayFriendlyTerritoryCopy.territoryName, arrayOfTerritoriesInRangeThreats);
+
+    //The odds of sending exactly this much, composed the way it will actually be composed.
+    //Asking about the force that will be SENT rather than about the whole garrison is the
+    //fix: those were different armies, and only one of them ever turned up to the battle.
+    const oddsFor = (amount) => {
+        const makeup = calculateArmyMakeupOfAttack(
+            mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amount);
+        return calculateProbabilityPreBattle(
+            [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId),
+                makeup[0], makeup[1], makeup[2], makeup[3]],
+            allTerritories(), false);
+    };
+
+    //The two numbers are a PREFERENCE and a LIMIT, and a siege is where the difference
+    //shows. Its preference is the campaign's siege floor; its limit is the floor the game
+    //applies to everybody, because a siege does not have to win a battle today -- it is the
+    //answer to a target that cannot be stormed, and refusing to lay one until it could have
+    //been stormed makes the whole mechanic unreachable. Measured: eighty-seven sieges
+    //decided upon across the world in a turn and not one of them laid, all hundred turns.
+    const floor = siege
+        ? siegeFloorFor(leader.leaderType)
+        : (campaign?.attackOddsFloor ?? 34);
+    const aim = siege
+        ? (campaign?.siegeOddsFloor ?? PROBABILITY_THRESHOLD_FOR_SIEGE)
+        : undefined;
+
+    const decision = decideCommitment({
+        army: mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory,
+        localEnemyPower,
+        leaderType: leader.leaderType,
+        traits: leader.traits,
+        floor,
+        aimAt: aim,
+        //A siege presses on below its preference, and so does a war this country has
+        //COMMITTED to: in both, the alternative to a hard attempt is not a better one, it
+        //is no war at all. Everything else waits for the troops to do it properly.
+        pressOnBelowAim: siege ||
+            campaign?.theatre?.rival === mainArrayEnemyTerritoryCopy.dataName,
+        oddsFor,
+        targetName: mainArrayEnemyTerritoryCopy.territoryName
+    });
+
+    console.log(decision.reason);
+    if (!decision.commit) {
+        //A cancellation for want of STRENGTH is remembered; one for want of troops this
+        //turn is not, and the difference matters more than it looks. A country that plans
+        //an attack every turn and cancels it every turn is the most invisible of the
+        //repeating-failure loops -- the goal list says it acted, the world says nothing
+        //happened, and nothing connected the two -- so "everything this border can spare
+        //still cannot take that place" has to raise the bar for next time.
+        //
+        //Remembering the other kind was measured and was much worse than not: a border
+        //briefly too stretched to attack wrote its neighbour off, the setback penalty then
+        //kept it written off, and conquests across the whole world fell to zero within ten
+        //turns. A transient shortage is not a lesson about the enemy.
+        if (decision.reasonCode === "below-floor") {
+            recordAttackOutcome(
+                mainArrayFriendlyTerritoryCopy.dataName,
+                mainArrayEnemyTerritoryCopy.territoryName,
+                false,
+                currentTurn(),
+                mainArrayEnemyTerritoryCopy.dataName);
+        }
+        //"I could take it with more men" is not a failure, it is a REQUISITION -- and it is
+        //the one piece of feedback that makes the AI adapt across turns rather than within
+        //one. The interior provinces answer it at the top of next turn (src/ai/muster.js),
+        //and the attack that was impossible becomes possible without anything having been
+        //thrown away in the meantime.
+        if (decision.reasonCode === "needs-more-force" || decision.reasonCode === "below-floor") {
+            recordReinforcementDemand(
+                mainArrayFriendlyTerritoryCopy.dataName,
+                mainArrayFriendlyTerritoryCopy.territoryName,
+                decision.shortfall ?? 0,
+                currentTurn());
+        }
+        return "Cancel";
+    }
+
+    return [decision.amount, decision.odds];
+}
+
+/**
+ * The odds a siege has to show before this leader will lay one.
+ *
+ * The single definition of a rule that used to exist in two places that could not see each
+ * other -- here, where the army is sized, and inside `setSiege()`, where the siege is
+ * actually laid. When they disagreed the second silently discarded what the first had decided.
+ */
+function siegeFloorFor(leaderType) {
+    return PROBABILITY_THRESHOLD_FOR_SIEGE +
+        (siegeDiscipline.leaderOddsModifier[leaderType] ?? siegeDiscipline.leaderOddsModifier.balanced);
+}
+
+/**
+ * The army power of the strongest enemy territory that can reach one of ours.
+ *
+ * `arrayOfTerritoriesInRangeThreats` is one row per reachable ENEMY territory,
+ * `[name, turnStillToCome, armyPower, isCoastal, [[ourTerritory, threatScore], ...]]`. The
+ * threat SCORE is a difference between two armies, inflated by the attacking leader's
+ * personality; `armyPower` at [2] is a quantity in the same units as an army, which is what
+ * a decision about how many soldiers to leave behind has to be made in. Rows that cannot
+ * reach this territory carry `THREAT_DISREGARD_CONSTANT` and are not enemies of it.
+ *
+ * Zero means nothing can reach the territory at all -- it is interior.
+ */
+function strongestEnemyPowerAgainst(territoryName, arrayOfTerritoriesInRangeThreats) {
+    let strongest = 0;
+    for (const row of arrayOfTerritoriesInRangeThreats ?? []) {
+        const canReach = (row[4] ?? []).some(([ourTerritory, threatScore]) =>
+            ourTerritory === territoryName && threatScore !== THREAT_DISREGARD_CONSTANT);
+        if (canReach) {
+            strongest = Math.max(strongest, Number(row[2]) || 0);
+        }
+    }
+    return strongest;
 }
 
 function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amountBeingSentToBattle) {
@@ -1224,6 +1400,20 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
     let infantryCount;
 
     while ((amountBeingSentToBattle > ((originalAmountBeingSentToBattle / 100) * 30)) && (naval > 0 || air > 0 || assault > 0)) {
+        //A pass that allocates nothing is a pass that will allocate nothing next time
+        //either -- nothing it reads has changed -- so the loop would spin forever and take
+        //the whole browser tab with it. It is reachable whenever the budget falls between
+        //two unit costs while the territory holds only the dearer ones: 3,000 personnel to
+        //spend, no assault units (1,000 each), and air (5,000) and naval (20,000) in stock.
+        //Every branch then declines to buy and every early exit declines to fire.
+        //
+        //Long-standing, and it took a deliberate force-sizing decision to expose it: the old
+        //caller passed one arbitrary figure derived from a national threat average, and this
+        //one asks the same question four times with smaller budgets, which is how the gap
+        //between two unit costs finally got landed on. A hundred-turn run froze on turn 61
+        //with no error of any kind -- the tab simply stopped responding.
+        const allocatedBefore = navalAddCount + airAddCount + assaultAddCount;
+
         if (mainArrayEnemyTerritoryCopy.isCoastal) {
             if (naval >= vehicleArmyPersonnelWorth.naval && amountBeingSentToBattle >= vehicleArmyPersonnelWorth.naval) {
                 amountBeingSentToBattle -= vehicleArmyPersonnelWorth.naval;
@@ -1256,6 +1446,12 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
             }
         }
         if ((amountBeingSentToBattle < vehicleArmyPersonnelWorth.assault) || (naval === 0 && air === 0 && assault === 0 && amountBeingSentToBattle > ((originalAmountBeingSentToBattle / 100) * 30))) {
+            break;
+        }
+        //Nothing was bought this pass. The remaining budget cannot afford any unit the
+        //territory still has, and nothing above will change that, so the rest of the force
+        //goes as infantry. See the note at the top of the loop.
+        if (navalAddCount + airAddCount + assaultAddCount === allocatedBefore) {
             break;
         }
     }
@@ -1642,20 +1838,10 @@ async function handleCaseOfTerritoryAlreadyBeingUnderSiegeByPlayerOrOtherAi(main
 }
 
 function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, leader) {
-    let probabilityModifier;
-        switch(leader.leaderType) {
-            case "aggressive":
-                probabilityModifier = -5;
-                break;
-            case "balanced":
-                probabilityModifier = 10;
-            break;
-            case "pacifist":
-                probabilityModifier = 15;
-                break;
-        }
-
-    if (probability >= (PROBABILITY_THRESHOLD_FOR_SIEGE + probabilityModifier)) { //if siege is allowed at all depending on leader type
+    //The same floor the commitment sized this army against, read from one place. It used to
+    //be a private switch here, so this function could -- and routinely did -- throw away a
+    //siege the rest of the AI had decided on, sized an army for and logged.
+    if (probability >= siegeFloorFor(leader.leaderType)) { //if siege is allowed at all depending on leader type
         if (playerSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName) || aiSiegeWarsList.hasOwnProperty(mainArrayEnemyTerritoryCopy.territoryName)) {
             return;
         }

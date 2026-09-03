@@ -227,10 +227,37 @@ function sectionContent(plan) {
             .map(row => row.continent + " " + row.held + "/" + row.total).join("  ")));
     }
 
+    //The MID-TERM goal sits between the two on the screen because it sits between them in
+    //the AI: the objective says which continents, this says which NEIGHBOUR is being taken
+    //to get one, and the goal list below says what is being done about it this turn.
+    parts.push(label("Mid term"));
+    if (plan.theatre?.rival) {
+        parts.push(fact("Absorbing", plan.theatre.rival +
+            (plan.theatre.continent ? " (" + plan.theatre.continent + ")" : "") +
+            " — committed turn " + plan.theatre.committedOnTurn));
+        parts.push(fact("How it is going", plan.theatre.takenFromRival + " taken, " +
+            plan.theatre.failures + " attack(s) lost — " + plan.theatre.reason));
+    } else {
+        parts.push(fact("Absorbing", plan.theatre?.reason ?? "nobody in particular"));
+    }
+    if (plan.walls?.length > 0) {
+        //Written off, and the single most useful line when asking why a country is ignoring
+        //an obvious neighbour.
+        parts.push(fact("Walls", plan.walls.join(", ") + " — beaten here lately, leaving them alone"));
+    }
+    if (plan.musters?.length > 0) {
+        parts.push(fact("Marching", plan.musters
+            .map(move => move.infantry + " to " + move.to + " from " + move.from).join("; ")));
+    }
+
     parts.push(label("This turn"));
     parts.push(fact("Posture", plan.posture ?? "unknown"));
     if (plan.focusContinent) {
         parts.push(fact("Pushing on", plan.focusContinent));
+    }
+    if (plan.development?.stalled) {
+        parts.push(fact("Note", "developing has stopped paying after " +
+            plan.development.turnsDeveloping + " turns — fighting instead"));
     }
     if (plan.health) {
         parts.push(fact("Country", plan.health.territories + " territories, " +

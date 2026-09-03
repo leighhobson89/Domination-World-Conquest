@@ -37,8 +37,9 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 | — | Bootstrap ordering is timing-luck: CPU leaders and the AI's starting forts are created after `initialiseGame()` resolves, so turn 1 runs over a world with no leaders and no forts | 7.x balance |
 | — | No win or lose condition — the game cannot be finished | 7.1 |
 | — | Unpaid army upkeep has no consequence; a broke territory keeps its army for free | 7.x balance |
-| — | AI sieges accumulate without bound (17 → 67 over 14 turns), and a besieged territory earns nothing | 7.7 / 7.8 |
+| — | ~~AI sieges accumulate without bound (17 → 67 over 14 turns)~~ — closed by the campaign budgets; a besieged territory still earns nothing | 7.x design |
 | — | The AI can eliminate a single-territory player in ten turns once it plans its first turn with full information | 7.7 / 7.x |
+| — | **Attacking is too hard for the world to consolidate.** Measured after Phase 7.8 over two seeds: ~59% of every reachable (attacker, defender) pairing in the world is below the 15% win probability the game applies to everybody, before any AI decision is taken. The AI now plans, masses and presses properly, and a hundred turns still ends with 106–145 countries rather than the 16 or so a world of great powers implies — and which of the two it is depends on whether one power happened to get an early snowball. The defender's fort multiplier and the attacker's sub-1 `devIndex` are the two terms to look at, together with **AR** below. `tools/ai-sim.mjs` is the instrument | 7.x balance |
 | — | `dices.js` is fully wired but its call site is commented out; `dist/` (~1 MB) loads on every page view for it | 7.9 |
 | — | The transfer table's row-selection handler is on the row's NAME column, not on the row | 7.x |
 | — | Mixed tabs and spaces, inconsistent brace style, commented-out blocks in the legacy root sources | per file, as each moves into `src/` |
@@ -540,6 +541,78 @@ asserting the flag on any other outcome would have passed against the bug.
 | Issue | Why not |
 |---|---|
 | `generateDistinctRGBs()` in [src/ui/map/colouring.js](../src/ui/map/colouring.js) is **dead code that is still called**. `ui.js` assigned its result to `colorArray` at module load and never read it — dead since before the refactor began. It cannot simply be deleted: it draws from `Math.random` at module load, on the same stream the economy, combat and the AI read from, so removing it shifts every seeded outcome in the game | **Measured, not assumed.** With the call gone, the whole-garrison attack on France in `conquest-lifecycle/ownership-transfer.spec.js` resolves as a last push rather than an outright victory, and three more exact-outcome specs move with it. That is a balance change, and Phase 6 is a decomposition — behaviour is preserved unless a defect is being fixed deliberately. The draws stay, isolated in one function with the reason written at the site. Removing them and re-baselining the four specs is one Phase 7 change, and doing both together is the only way it stays bisectable. Same species as audit 5.3 **Y**, with the difference that this one IS reproducible, which is why it can wait |
+
+---
+
+## 10b. Closed in Phase 7.8 — the AI's mid-term goals
+
+Five of these are the same species and are worth reading together: **a decision was taken and
+then silently discarded by a second rule that could not see the first.** The AI did not lack
+intelligence so much as it lacked a chain of custody between deciding and doing.
+
+They were found with `tools/ai-sim.mjs`, a hundred-turn headless playthrough that reports what
+the world looks like each turn and, on request, what every AI country was thinking. None of
+them has a textual signature: nothing throws, every turn completes, every test passes, and the
+map simply stops changing.
+
+### BA — the world froze at 163 countries because 93% of it was forbidden to expand
+
+`choosePosture()` read `if (development < developAt || territories <= smallCountryTerritories)`
+→ DEVELOP. This map begins as 207 countries of which the great majority hold one or two
+territories, so the second clause disqualified nearly the whole world from expanding — and
+never expanding is what kept them at one or two territories. Measured over a hundred turns:
+204 countries at turn 1, 163 at turn 100, the largest empire on the map **unchanged at 30
+territories**, and on turn 20 a hundred and fifty-three of a hundred and sixty-five countries
+sat in DEVELOP with a mean development of 0.355 — well clear of the 0.22 the posture describes.
+
+Being small is now a reason to expand, asking only for a little more economy first
+(`developAt × 1.3`). DEVELOP is also time-boxed: a country whose development has not moved in
+`developStallTurns` concludes that building is not working and fights instead, which is the
+economic half of "recognise a failed approach".
+
+### BB — a fighting posture with a budget of zero attacks
+
+`attackBudget` was `round((1 + territories/10) × postureScale × expansionBias)`, and DEVELOP's
+scale of 0.4 rounds one attack to **nought**. So the budget, not the odds, was deciding that
+nothing happened. The odds floors are what keep an attack honest; a budget of zero is not
+discipline. Every posture but DEFEND now floors at one.
+
+### BC — the planner and the executor fought two different battles
+
+`targeting.js` approved an attack on odds computed from the attacking territory's **whole
+garrison**. The executor then sized the actual force as the MEAN of every threat facing the
+whole country minus one territory's defence score — not a quantity of anything — and pressed
+the attack on `probability >= 1`, a floor the planner would never have accepted. Twelve failed
+attacks a turn against two conquests, on the same borders, turn after turn. The AI was not
+failing to plan; it was failing to send what it had planned with, and learning nothing from
+the difference because the two were never compared. `src/ai/commitment.js` now sizes the force
+by asking the real probability function about the force being SENT.
+
+### BD — `setSiege()` threw away sieges the rest of the AI had decided on
+
+A third odds gate, a bare `switch` on leader type inside `setSiege()`, invisible to the
+planner and to the commitment layer. The log said "going to start a siege attack on Belgium
+from Austria", an army was sized for it, and no siege existed afterwards: **eighty-seven
+sieges decided upon across the world in one turn and none laid, for a hundred turns.** Both
+places read `siegeDiscipline.leaderOddsModifier` now.
+
+### BE — `calculateArmyMakeupOfAttack()` could hang the browser outright
+
+Every branch of its allocation loop can decline to buy, and every early exit can decline to
+fire, whenever the remaining budget falls between two unit costs while the territory holds
+only the dearer ones — 3,000 personnel to spend, no assault units at 1,000, air at 5,000 and
+naval at 20,000 in stock. Nothing changes, so the next pass makes the same non-decision. A
+hundred-turn run froze on turn 61 with **no error of any kind**: the tab simply stopped
+responding. Long-standing, and exposed only because the new sizing asks the same question four
+times with smaller budgets. A pass that allocates nothing now ends the loop.
+
+### BF — New Game inherited the previous world's AI plans
+
+Nothing called `resetCampaigns()`. Harmless while a campaign was three continent names;
+not harmless now that a country also remembers which neighbour it was absorbing and which
+borders it had written off, all of which would be applied to a country of the same name in a
+world that had never fought those wars. `resetChromeForCountrySelection()` clears both
+registers alongside the activity feed and the plan ring it already cleared.
 
 ---
 

@@ -264,6 +264,12 @@ import {
     clearPlans
 } from './src/ai/planRecord.js';
 import {
+    resetCampaigns
+} from './src/ai/strategy.js';
+import {
+    resetMusters
+} from './src/ai/muster.js';
+import {
     resetAllWindowPositions
 } from './src/ui/core/draggable.js';
 import {
@@ -4129,6 +4135,14 @@ function resetChromeForCountrySelection() {
     //cleared for the same reason the activity feed is: a debug window that opens on the
     //previous world's plans is worse than one that opens empty.
     clearPlans();
+    //And so does everything the AI countries had LEARNED. Their committed continents,
+    //the neighbours they were absorbing, the borders they had written off as walls and
+    //the reinforcements their fronts had asked for are all memories of a world that no
+    //longer exists -- and every one of them would otherwise be applied to a country of
+    //the same name in the new one, which is how a fresh game would open with France
+    //already refusing to attack Spain over a war it never fought.
+    resetCampaigns();
+    resetMusters();
     aiDebugPanel.close();
     toggleUIButton(false);
     toggleMapModeButton(false);

@@ -495,7 +495,19 @@ export const siegeDiscipline = {
      * siege is the answer to a target too strong to storm -- but not so low that the army
      * is simply parked in front of a fort forever.
      */
-    minimumOdds: 22
+    minimumOdds: 22,
+    /**
+     * Percentage points a leader adds to the GAME's siege floor before it will lay one.
+     *
+     * This lived inside `setSiege()` as a bare switch, which made it a third odds gate that
+     * nothing else in the AI could see: the planner approved a siege, the commitment sized an
+     * army for it, `setSiege()` compared the odds against its own private number and returned
+     * without doing anything. The turn's log said "going to start a siege attack on Belgium"
+     * and no siege existed afterwards -- measured at eighty-seven decided and zero laid, every
+     * turn for a hundred turns. Both places read this now, so a siege that is decided on is a
+     * siege that happens.
+     */
+    leaderOddsModifier: { aggressive: -5, balanced: 10, pacifist: 15 }
 };
 
 /**
@@ -554,6 +566,83 @@ export const attackDiscipline = {
     styleOfWarSwing: 12
 };
 
+/**
+ * How much of a garrison an AI territory commits to an attack. See `src/ai/commitment.js`.
+ *
+ * The numbers a leader's character actually shows up in. Everything above decides WHETHER to
+ * fight; this decides what is sent, which is what the AI was getting wrong -- it planned
+ * against a territory's whole garrison and then committed a figure derived from the average
+ * threat facing the entire country.
+ */
+export const commitmentDiscipline = {
+    /** Fraction of the local surplus a leader will march out with, before traits move it. */
+    baseAppetite: { aggressive: 0.85, balanced: 0.7, pacifist: 0.55 },
+    /** How far `style_of_war` (0..1) moves that appetite, either way. */
+    styleSwing: 0.3,
+    /** How far `territory_expansion` (0..1) moves it, either way. */
+    expansionSwing: 0.2,
+    minimumAppetite: 0.3,
+    maximumAppetite: 1,
+    /**
+     * What an aggressive leader will still throw at a border where it is ALREADY outgunned.
+     * Small, because the alternative to a bad attack is not a lost war, it is next turn.
+     */
+    recklessShare: 0.25,
+    /**
+     * How much of the strongest neighbouring enemy's army power a territory keeps at home.
+     *
+     * Below 1 because defending is the easier half of this game: the defender has the forts,
+     * the mountains and the area bonus, and the attacker is scaled DOWN by its development
+     * index. Holding a border therefore costs less than storming one, and that asymmetry is
+     * the whole reason an attack can be afforded at all.
+     */
+    defenceKeepRatio: 0.5,
+    /** What an interior territory -- nothing can reach it -- still keeps behind. */
+    interiorReserve: 0.15,
+    /**
+     * The shares of the disposable force the sizing walks, smallest first. Coarse on purpose:
+     * every rung costs a real probability calculation, and this runs for every attack every
+     * country weighs every turn.
+     */
+    ladder: [0.35, 0.55, 0.75, 1],
+    /**
+     * The odds an attack aims for, over and above the floor its leader will fight on.
+     *
+     * The floor answers "is this worth doing at all"; this answers "how much do I send". They
+     * are not the same question, and treating them as one was measurable: sizing to the
+     * smallest force that merely cleared the floor made every battle in the world a 35%
+     * battle, so two thirds of them were lost and conquests fell to nothing over a hundred
+     * turns. An army that masses for a decisive result and skips the marginal fights takes
+     * more ground than one that fights everything at even money.
+     */
+    decisiveOdds: 65
+};
+
+/**
+ * Moving an army to where the war is. See `src/ai/muster.js`.
+ *
+ * The capability the AI never had: every attack in the game was fought with whatever the one
+ * territory on the border could raise by itself, while the provinces behind it sat out the
+ * whole game. These numbers decide how much of an interior garrison marches, and how long a
+ * front-line territory's request for reinforcement stands.
+ */
+export const musterDiscipline = {
+    /** Fraction of a territory's surplus infantry that marches out to a neighbour. */
+    share: 0.6,
+    /** Fewer than this many infantry is not worth a march. */
+    minimumMove: 25,
+    /**
+     * How much of the strongest neighbouring enemy's power a territory keeps before it will
+     * send any army away. Higher than the attack commitment's `defenceKeepRatio`, because
+     * reinforcing elsewhere is worth less than holding here.
+     */
+    keepAgainstNeighbour: 0.8,
+    /** A flat cushion on top of that, so a border level with its enemy still sends nothing. */
+    comfortMargin: 200,
+    /** Turns a request for reinforcement stands before it is assumed to have gone stale. */
+    demandMemoryTurns: 4
+};
+
 /** What a candidate target is worth, before the odds of taking it are applied. */
 export const targetValueWeights = {
     continentModifier: 0.4,
@@ -608,6 +697,79 @@ export const postureThresholds = {
     developmentForDevelop: 0.22,
     /** Share of the focus continent above which it CONSOLIDATEs rather than opening new fronts. */
     focusShareForConsolidate: 0.75,
-    /** A country smaller than this leans on its economy before it picks fights. */
-    smallCountryTerritories: 3
+    /**
+     * A country this small builds its first farms before it picks a fight -- but ONLY while
+     * it is also undeveloped. It used to be an `||`, and that one character froze the world:
+     * this map begins as 207 countries of which the great majority own one or two
+     * territories, so "smaller than three territories" disqualified ~93% of the world from
+     * expanding, and being disqualified from expanding is precisely what kept them small.
+     * Measured over a hundred turns: 204 countries at turn 1, 163 at turn 100, the largest
+     * empire unchanged at 30 territories, and 153 of 165 countries in DEVELOP on turn 20
+     * with a mean development of 0.355 -- well clear of the 0.22 that posture is meant to
+     * describe. See tools/ai-sim.mjs, which is the instrument that found it.
+     */
+    smallCountryTerritories: 3,
+    /**
+     * Turns a country will keep DEVELOPing without its development materially improving
+     * before it concludes that building is not the way out and fights instead.
+     *
+     * This is the economic half of "recognise a failed approach". A country whose income
+     * cannot buy the next upgrade -- besieged, tiny, or squeezed onto poor ground -- would
+     * otherwise develop for the rest of the game, because the posture that produced the
+     * failure is the posture the failure keeps it in.
+     */
+    developStallTurns: 8,
+    /** Development gained per turn that counts as the approach WORKING rather than stalling. */
+    developProgressPerTurn: 0.008
+};
+
+/**
+ * The MID-TERM goal: which neighbouring country a power is currently trying to absorb, and
+ * when it gives up on it.
+ *
+ * The long term is the victory condition and the short term is this turn's goal list. What
+ * was missing between them is the thing a human plays: "I am taking Belgium, and if Belgium
+ * turns out to be a wall I will take Denmark instead and come back to Belgium later." Without
+ * it a country spreads one attack a turn across every neighbour it can reach, takes the free
+ * ones in the first ten turns and then grinds against defended borders forever -- which is
+ * exactly what the hundred-turn measurement showed.
+ */
+export const theatreCommitment = {
+    /**
+     * Turns a war that has produced NOTHING yet is given before the rival is written off.
+     * Longer than `stallTurns` on purpose: a new plan deserves more room to get going than a
+     * stalled one deserves to restart.
+     */
+    reviewInterval: 6,
+    /** Turns since the LAST territory taken from the rival before the war counts as stalled. */
+    stallTurns: 5,
+    /** Attacks lost against the rival before it counts as a wall, whatever the clock says. */
+    failuresBeforeWall: 3,
+    /**
+     * How long a country stays written off as a wall.
+     *
+     * It decays rather than being permanent, because the reason it was a wall -- their forts,
+     * our army -- is a fact about a moment. A country that has since built an army should try
+     * again; one that has not should not keep throwing itself at the same border.
+     */
+    wallMemoryTurns: 15,
+    /** Multiplier on a target belonging to the country this power has committed to absorbing. */
+    rivalWeight: 2,
+    /** Multiplier on a target belonging to a rival written off as a wall. */
+    wallWeight: 0.4,
+    /** How a candidate rival is ranked. Each term is a sentence in `rankRivals()`. */
+    weights: {
+        /** Weight on how much of our frontier this rival occupies -- the war we are already in. */
+        frontage: 1.4,
+        /** Weight on how weak the rival's border territories are against ours. */
+        weakness: 2.2,
+        /** Weight on the worth of what taking them would win. */
+        value: 1.2,
+        /** Bonus for a rival sitting on the continent we have committed to finishing. */
+        onFocusContinent: 1.5,
+        /** Penalty weight on how large the rival is -- a giant is a war, not an absorption. */
+        size: 0.9,
+        /** Territory count at which the size penalty saturates. */
+        sizeScale: 12
+    }
 };

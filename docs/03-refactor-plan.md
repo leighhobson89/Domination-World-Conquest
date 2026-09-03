@@ -1132,7 +1132,7 @@ over 400 lines.
 | 7.5 | **Continent control bonuses** | Continents already exist as data; give holding one a real reward. |
 | 7.6 | ◐ **Help / tutorial — the Dominapedia** | UI done. The inert Help button is now **Dominapedia**, and it opens a full-screen manual: a collapsible contents column, a content pane, and Previous / Next walking every sub-topic and wrapping at both ends. Twenty-three pages are stubbed with a note saying what each will cover. Oil demand, useable units and sieges have pages waiting for them; writing the content is what is left. See below. |
 | 7.7 | **Consolidate AI powers** | Reduce 206 independent AI countries to 8–16 *powers* owning multiple countries (GDD §12.1). Makes the AI turn fast, the world legible, and diplomacy possible. |
-| 7.8 | **Long-term AI goals** | The TODOs in `gameTurnsLoop.js`, now implementable against `ai/goals.js`. |
+| 7.8 | ✅ **Long-term AI goals** | Done. A mid-term goal between the victory condition and the turn's goal list — the neighbour a country is absorbing — plus the memory that judges it, and the ability to march an army to where the war is. See below. |
 | 7.9 | **Re-enable or remove the 3D dice** | Decide. If keeping, wire it into `BattleUI` behind a setting; if not, delete `dices.js` and the three `dist/` bundles and drop `three` + `cannon-es`. |
 | 7.10 | ✅ **Theme system and menu redesign** | Done out of order, at the developer's request. `src/ui/theme/` — a token vocabulary, a catalogue of six themes as data, and an applier that writes tokens onto the root element as CSS custom properties. A new Options panel (`src/ui/components/OptionsPanel.js`) holds the picker; the main menu was rebuilt around it. See below. |
 | 7.11 | ✅ **The rest of the UI onto the tokens** | Done — the completion of 7.10, which reached the menu and the map chrome and stopped. The five remaining windows, the twelve PNG controls that carried their own state in a file path, and every colour literal outside `:root`. See below. |
@@ -1478,6 +1478,77 @@ intentions would be a cheat.
 phase-bar specs in `ui-layout/`. The wording and every colour rule are unit-tested
 because they are pure; the e2e specs assert what the wording hides — which turn an
 entry lands in, whether it was recorded at all, and the player-involvement flags.
+
+#### Phase 7.8 — what landed
+
+The AI had a long term (`victory.js` — the continents it must hold to win) and a short term
+(`goals.js` — what it will attempt this turn). It had nothing in between, and the gap showed
+up not as a bug but as a world that stopped: **204 countries at turn 1, 163 at turn 100, and
+the largest empire on the map unchanged at 30 territories.** Nobody was absorbing anybody.
+
+**The measurement came first, and it is the deliverable that matters most.**
+`tools/ai-sim.mjs` plays a hundred turns headless through the real game and reports, per turn,
+how many countries survive, how large the largest empire is, how much of the map the top
+sixteen hold, and what was conquered, lost and besieged. `--diagnose` adds the AI's own
+reasoning, aggregated over every country: postures, budgets, verdicts, and the commonest
+reasons a target was skipped. Every finding below came from it, and none of them has any
+textual signature — nothing throws, every turn completes, the unit suite passes, and the map
+simply stops changing. A hundred turns takes about two minutes.
+
+**The mid-term goal is a THEATRE** (`src/ai/theatre.js`): one committed neighbouring country
+to absorb, plus the continent the war is on. Three properties make it a plan rather than a
+preference — it is STICKY (re-chosen every turn it would be worth nothing), it is JUDGED
+against a ledger of what was held when it was chosen and what has been taken since, and it is
+DROPPED when it stalls. A rival that beats a country `failuresBeforeWall` times, or holds it
+off for `stallTurns`, is written off as a WALL and a different one is chosen — which is the
+whole of "when it comes across a wall it finds another way to the same long-term goal". Walls
+decay, because "we could not break them on turn 12" stops being true once there is an army
+that can.
+
+**Armies can now move to where the war is** (`src/ai/muster.js`), which closes the TODO the
+turn loop has carried since before the refactor. A front-line territory that cannot raise the
+odds it needs does not shrug and does not attack anyway: it asks, and the interior provinces —
+which had otherwise sat out the entire game — answer at the top of the next turn. One hop
+between neighbours, infantry only (vehicles are gated by the oil capacity of wherever they
+stand, so marching tanks into a dry province turns them into scenery). This is the only thing
+in the AI that adapts across turns rather than within one.
+
+**Personality still decides the shape of a game, but no longer decides that nothing happens.**
+A pacifist develops longer and demands better odds; an aggressive leader attacks early on thin
+odds and neglects its economy; both are playing for domination in the end, which is what the
+victory condition means. What is gone is the arrangement where a leader type could produce a
+country that would never, under any circumstances, attack anything.
+
+**Six defects, five of them the same species** — a decision taken and then silently discarded
+by a second rule that could not see the first. They are written up as **BA–BF** in
+[05-known-issues.md](./05-known-issues.md) §10b: the posture deadlock, a fighting posture with
+a budget of zero attacks, a planner and an executor fighting two different battles, sieges
+thrown away by a private odds gate inside `setSiege()`, an allocation loop that could hang the
+browser outright with no error at all, and New Game inheriting the previous world's plans.
+
+**Measured, same seed, before and after:**
+
+| After 100 turns | Before | After |
+|---|---:|---:|
+| Countries surviving | 163 | **106** |
+| Largest empire | 30 territories | **92** |
+| Map held by the top sixteen | 50% | **70%** |
+| Sieges ever laid | ~0 | running continuously |
+
+**What it does NOT yet do, stated plainly.** A hundred turns ends with 106 countries on one
+seed and 145 on another, not the sixteen or so a world of great powers implies, and which of
+the two you get depends on whether a power happened to get an early snowball. The reason is
+the same on both seeds and is not the AI: **~59% of every reachable (attacker, defender)
+pairing in the world is below the 15% win probability the game applies to everybody**, before
+any AI decision is taken. The planning, the massing and the pressing are all working against
+a battle model in which attacking is close to impossible. That is the balance pass, it is
+logged in the register, and `tools/ai-sim.mjs` is now the instrument for doing it
+incrementally.
+
+**Tests:** 33 new unit tests across `ai-theatre.spec.js`, `ai-commitment.spec.js` and
+`ai-muster.spec.js` (570 total, from 541). `territoryValue()` moved to `src/ai/value.js`,
+re-exported from `targeting.js`, so that `theatre.js` could use it without closing an import
+cycle.
 
 #### Phase 7.6 — what landed (the UI half)
 

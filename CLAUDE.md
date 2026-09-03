@@ -173,9 +173,44 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   positional arrays that get rebuilt and spread twice during refinement. Changing the
   victory condition is `setVictoryCondition()` and nothing else — the AI adapts for free,
   which is the whole reason the objective is derived rather than hard-coded.
+- **The AI's MID-TERM goal is a theatre, and it is what makes the world consolidate**
+  (Phase 7.8). `src/ai/theatre.js` commits each country to absorbing ONE neighbouring
+  country, keeps the commitment while it takes ground, and writes the rival off as a WALL
+  when it stalls — at which point a different neighbour is chosen. Walls decay. Three things
+  follow. **A posture must never guarantee its own preconditions**: `choosePosture()` used to
+  send any country under four territories to DEVELOP, which on a map of 207 mostly
+  one-territory countries disqualified 93% of the world from expanding and thereby kept it
+  small — the world froze at 163 countries with the largest empire never growing past 30
+  (known-issues **BA**). Being small is a reason to expand now, and DEVELOP is time-boxed.
+  **A fighting posture always gets at least one attack**: the budget rounded to zero for most
+  of the world, so the budget rather than the odds was deciding that nothing happened. And
+  **the executor must send what the planner planned with** — `src/ai/commitment.js` sizes the
+  force by asking the real probability function about the force being SENT, against a
+  garrison derived from the strongest enemy that can reach the territory. Never reason about
+  what a territory can spare from a threat SCORE: that is a difference between two armies
+  inflated by personality, it sits near zero between comparable neighbours, and using it
+  produced 208 sieges decided and none laid.
+- **A front-line territory that is short of force ASKS, and the interior answers next turn.**
+  `src/ai/muster.js` — infantry only (vehicles are gated by the oil capacity of wherever they
+  stand), one hop between neighbours, and never out of a border that needs it. It is the only
+  thing in the AI that adapts across turns rather than within one, and it is what lets a
+  country attack with more than whatever one border province could raise alone. A cancelled
+  attack is therefore not always a failure: `reasonCode` distinguishes `no-force` (a fact
+  about this turn — never remembered) from `below-floor` (a fact about the two armies —
+  remembered as a setback) from `needs-more-force` (a requisition). Recording the first kind
+  as a defeat was measured and took the world's conquests to **zero** within ten turns.
+- **`tools/ai-sim.mjs` is how any change to `src/ai/` is judged.** A hundred headless turns in
+  about two minutes: countries surviving, the largest empire, the share held by the top
+  sixteen, conquests, failed attacks, sieges — and with `--diagnose`, every country's posture,
+  budgets, verdicts and the commonest reasons a target was skipped. The AI's failures have no
+  textual signature: nothing throws, every turn completes, the unit suite passes, and the map
+  quietly stops changing. Do NOT edit source files while a run is in flight — Vite's HMR
+  reloads the page, `window.__game` goes with it, and the run dies looking exactly like a game
+  defect.
 - **The campaign table and the victory condition are a save slice**, registered from
   `aiCalculations.js` and NOT from `src/ai/`, so those modules keep importing only
-  `config/` and `state/` and keep running in Node.
+  `config/` and `state/` and keep running in Node. The theatres and the reinforcement
+  demands ride inside that same slice rather than registering their own.
 - **Numpad `/` opens the AI debug window** (`src/ui/components/AiDebugPanel.js`): one
   collapsible section per country showing its objective, progress, posture, budgets, odds
   floors, ranked plan, and every target it weighed with the REASON it acted or did not.
@@ -183,8 +218,10 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   button anywhere on purpose — map chrome that opens a debug view is map chrome a player
   will click — and it renders only while open, so an AI turn does not pay for it.
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
-  import from `src/config/` and `src/state/selectors.js` and from nothing else — no DOM, no
-  `ui.js`. That is the property the unit suite depends on, so before adding an import to any
+  import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8, and only
+  `src/ai/theatre.js`) `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module
+  THROWS when its data has not been loaded, which is the case in Node, so every call is
+  behind `isAdjacencyLoaded()` and the neighbour lookup is injectable for the unit tests. That is the property the unit suite depends on, so before adding an import to any
   of them, check it does not drag the UI in. Two dependencies are INJECTED for exactly this
   reason: the AI's seeded rng, and `calculateProbabilityPreBattle` (which lives in `battle.js`,
   which imports `ui.js`). Rules take an `rng` parameter rather than calling `Math.random`.

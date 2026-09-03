@@ -25,6 +25,11 @@ test.describe("?e2e=1 state hook", () => {
         expect(api).toEqual(
             [
                 "activity",
+                //Phase 7.8. What every AI country decided and why, from the same bounded
+                //ring the Numpad-/ debug panel draws. `tools/ai-sim.mjs` reads it to answer
+                //"why has the world stopped changing?" over a hundred turns -- a question
+                //with no textual signature, since every turn completes and nothing throws.
+                "aiPlans",
                 "applyScenario",
                 "audio",
                 "audioTracks",
