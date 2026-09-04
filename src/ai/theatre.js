@@ -182,6 +182,14 @@ export function frontierFor(country, deps = {}) {
     return byRival;
 }
 
+/** Named by the goal, ordinary, or written off. See the sort at the end of `rankRivals()`. */
+function tierOf(candidate) {
+    if (candidate.walled) {
+        return 2;
+    }
+    return candidate.preferred ? 0 : 1;
+}
+
 /**
  * Rank the reachable rivals by how good an absorption each would make.
  *
@@ -190,7 +198,7 @@ export function frontierFor(country, deps = {}) {
  * neighbour whose border territories are held more thinly than ours can actually be taken,
  * and one whose are not cannot, however valuable it is.
  */
-export function rankRivals(frontier, { focusContinent = null, country = "", turn = 0, rng = () => 0.5, sizeOf = null } = {}) {
+export function rankRivals(frontier, { focusContinent = null, country = "", turn = 0, rng = () => 0.5, sizeOf = null, preferredRivals = [] } = {}) {
     const weights = theatreCommitment.weights;
     const rivals = [...frontier.values()];
     const widestFrontage = Math.max(1, ...rivals.map(entry => entry.frontage));
@@ -212,6 +220,18 @@ export function rankRivals(frontier, { focusContinent = null, country = "", turn
             const onFocus = focusContinent && entry.continents.has(focusContinent) ? 1 : 0;
             const sizePenalty = Math.min(1, size / weights.sizeScale);
 
+            //The GOAL's own opinion about who the enemy is. Under Great Powers this is the
+            //powers still to be broken; empty under every other goal, which costs nothing.
+            //It is a TIER rather than a term in the score, and that is the whole reason it
+            //works: a great power is by definition one of the strongest countries on the
+            //map, so it scores near zero on `weakness` -- the term carrying the most weight
+            //here -- and no bonus small enough to be a bias would ever lift it above a
+            //convenient small neighbour, while one large enough to lift it would also lift
+            //a hopeless rival that the goal did not name. Under Great Powers the strongest
+            //neighbour IS the objective, and the ranking's job is to choose between the
+            //powers rather than to talk the country out of fighting one.
+            const preferred = preferredRivals.includes(entry.rival);
+
             const score =
                 (entry.frontage / widestFrontage) * weights.frontage +
                 weakness * weights.weakness +
@@ -225,14 +245,21 @@ export function rankRivals(frontier, { focusContinent = null, country = "", turn
                 size,
                 weakness,
                 onFocusContinent: Boolean(onFocus),
+                preferred,
                 walled: isWall(country, entry.rival, turn),
                 score
             };
         })
+        //Three tiers, and the score decides only WITHIN one.
+        //
         //A rival already written off is ranked last rather than removed: if every neighbour
         //is a wall the country still has to point at one, and pointing at the least bad of
-        //them is better than having no mid-term goal at all.
-        .sort((a, b) => (a.walled === b.walled ? b.score - a.score : a.walled ? 1 : -1) ||
+        //them is better than having no mid-term goal at all. A rival the goal NAMES is
+        //ranked first, for the reason given above -- but a walled one is still walled, so a
+        //country that has thrown itself at a great power and failed goes elsewhere for a
+        //while rather than grinding against it forever. That escape is the safety valve
+        //that makes the top tier safe to have at all.
+        .sort((a, b) => tierOf(a) - tierOf(b) || b.score - a.score ||
             a.rival.localeCompare(b.rival));
 }
 
@@ -242,7 +269,8 @@ export function rankRivals(frontier, { focusContinent = null, country = "", turn
  * Called once per country per turn, from `planCampaign()`.
  *
  * @param {{country: string, turn: number, focusContinent?: string|null, frontier?: Map,
- *          sizeOf?: (country: string) => number, rng?: () => number}} input
+ *          sizeOf?: (country: string) => number, rng?: () => number,
+ *          preferredRivals?: string[]}} input
  * @returns {{rival: string|null, continent: string|null, reason: string, committedOnTurn: number,
  *            takenFromRival: number, failures: number, turnsCommitted: number, changed: boolean,
  *            candidates: Array}}
@@ -259,7 +287,8 @@ export function reviewTheatre(input) {
         country,
         turn,
         rng,
-        sizeOf
+        sizeOf,
+        preferredRivals: input?.preferredRivals ?? []
     });
 
     const standing = theatres.get(country);

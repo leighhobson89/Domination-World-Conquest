@@ -1,5 +1,5 @@
 import { test, expect } from "../../support/fixtures.js";
-import { menu, options } from "../../support/selectors.js";
+import { goalSelect, menu, options } from "../../support/selectors.js";
 
 // The Options panel and the theme it picks.
 //
@@ -112,7 +112,13 @@ test.describe("options panel", () => {
         await page.click(options.done);
 
         await page.click(menu.newGame);
+        //The goal chooser, which every new game opens on. It is the first screen the theme
+        //has to survive now, and it shares the Options panel's scrim and buttons, so it is
+        //worth asserting that it arrives themed rather than in the default palette.
+        await expect(page.locator(goalSelect.panel)).toBeVisible();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "terminal");
 
+        await page.click(goalSelect.confirm);
         await expect(page.locator("html")).toHaveAttribute("data-theme", "terminal");
     });
 });

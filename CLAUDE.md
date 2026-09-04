@@ -193,6 +193,48 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   positional arrays that get rebuilt and spread twice during refinement. Changing the
   victory condition is `setVictoryCondition()` and nothing else — the AI adapts for free,
   which is the whole reason the objective is derived rather than hard-coded.
+- **`src/ai/doctrine.js` is the ONLY module in `src/ai/` allowed to switch on a victory
+  condition kind** (Goals and Victory, Q2). It turns the active condition into the small set
+  of dials the other modules already think in — `continentsToCommit`, `areaHunger`,
+  `targetCountries`, `urgency`, `neverSatisfied` — whose rows live in `goalDoctrines` in
+  `balance.js`, so a goal's character is a balance edit rather than a code edit. Before it,
+  `chooseObjective()` was the only place the condition was read and all it did was map the
+  kind to a continent count, so a Great Powers AI campaigned for two arbitrary continents and
+  never looked at a great power in its life. Four things follow. **`urgency` scales the
+  ATTACK budget and nothing else**, and the module deliberately exposes no siege dial so that
+  it cannot reach the other one — the siege budget subtracting the sieges already running is
+  what ended the 17-to-67 problem, and a multiplier over that cap walks straight back into
+  it; a unit test asserts no key here matches `/siege/`. **Urgency is the strongest RIVAL's
+  share of the world's land**, found from the two largest shares in one pass over standings
+  that already exist and memoised on the standings object — asking `victoryProgress()` for
+  every rival of every country would be 207×207 map walks a turn. It is what makes a player
+  who pulls ahead get attacked harder by the whole world. **A Timed Game takes its urgency
+  from the clock instead**, because there is nothing to conserve on the last turn. And
+  **`theatre.js`'s preference for a named rival is a sort TIER, not a term in the score**: a
+  great power is by definition one of the strongest countries on the map, so it scores near
+  zero on `weakness` — the heaviest term in `rankRivals()` — and no bias small enough to be a
+  bias ever lifted it above a convenient small neighbour, while one large enough to lift it
+  would also lift a hopeless rival the goal never named. Walls still sort last, which is the
+  escape that makes the top tier safe to have.
+- **Measured, per goal, over 150 headless turns** (`tools/ai-sim.mjs --goal=KIND[:scale]`).
+  The five goals produce visibly different worlds — 78 to 114 countries surviving, a largest
+  empire of 51 to 97, a top-sixteen share of 65% to 81% — and none of them freezes one. The
+  full table and a paragraph per goal are in
+  [docs/05-goals-and-victory.md](./docs/05-goals-and-victory.md) §5. That measurement is the
+  acceptance criterion for any change to `src/ai/`, because the failure it catches has no
+  textual signature: nothing throws, every turn completes, and the map quietly stops changing.
+- **`leadingCountry()` and `closestToVictory()` answer different questions and are not
+  interchangeable.** The first is the largest empire by land, which is the TURN_LIMIT win
+  condition and nothing else; the second is the country closest to whatever condition is
+  actually in force, and it is what "who is winning" means under the other four. Under Great
+  Powers the biggest empire on the map need not be the one nearest to breaking three of them.
+- **A country's own progress label is not always a sentence about a LEADER.** Under
+  TURN_LIMIT, `victoryProgress()` reads "Largest empire: N% of the leader" — a comparison
+  against the leader — so applied to the leader it says "100% of the leader" every turn of
+  every game, whoever is winning and however far ahead. `describeLeaderProgress()` in
+  `src/ui/goals/goalCatalogue.js` is the one place that knows this, and it substitutes the
+  two facts that actually decide a timed game: what the leader holds and how much clock is
+  left. Anything else that describes a front-runner has to go through it.
 - **The AI's MID-TERM goal is a theatre, and it is what makes the world consolidate**
   (Phase 7.8). `src/ai/theatre.js` commits each country to absorbing ONE neighbouring
   country, keeps the commitment while it takes ground, and writes the rival off as a WALL
@@ -237,6 +279,40 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `src/ai/planRecord.js` is the bounded ring behind it, filled by `planLog.js`. It has no
   button anywhere on purpose — map chrome that opens a debug view is map chrome a player
   will click — and it renders only while open, so an AI turn does not pay for it.
+- **A new game opens on the GOAL CHOOSER, and the choice is forced** (Goals and Victory, Q3).
+  `src/ui/components/GoalSelect.js` renders `src/ui/goals/goalCatalogue.js`, which is frozen
+  data that imports almost nothing and is unit-tested in Node — the same arrangement the
+  Dominapedia has with `topics.js`, so adding a sixth goal is one entry there, one row in
+  `goalDoctrines`, and no change to the component. Six things follow. **There is no Cancel
+  and no scrim dismissal**; Escape goes BACK to the main menu rather than skipping the
+  screen, because a player must be able to change their mind about starting a game but not
+  to start one with no goal. **`conditionFor()` is the one place that knows which FIELD a
+  scale belongs on** — nothing that renders a dropdown ever names `landShare` or
+  `turnLimit`, because that mistake is silent: a Domination game with its share written into
+  `continentsRequired` is a valid condition object that plays as the default game. **The
+  scale options carry INDEXES, not values**, because the DOM stringifies an option's value
+  and Domination's `0.6` came back as `"0.6"`, matched nothing in the tier list, and would
+  have handed every game the default scale without a word. **The panel is a fixed `height`
+  and never scrolls itself**, with the description column owning the overflow — a box that
+  resizes as the player browses reads as a rendering fault and moves the Begin button while
+  somebody is reaching for it. **No dropdown may be truncated**: a flex item will not shrink
+  below its own content unless told it may, so `min-width: 0` is what keeps a `<select>`
+  inside its column, and the column is then sized from the longest label in the catalogue —
+  measured, not guessed. And **the ORDERING TRAP**:
+  `greyOutTerritoriesForUnselectableCountries()` must run before the chooser opens, because
+  a GREAT_POWERS condition freezes the five locked countries into itself. `strongestCountries()`
+  in `ui.js` is the one derivation both the lock and the condition read, which is where
+  `COUNTRY_GREYOUT_RANK` and `GREAT_POWERS_REQUIRED` are reconciled — never read those names
+  back from a fill colour, and never from the locked SET, which is cleared once a game
+  begins (that is what made a Great Powers game read "0 of 0" and be unwinnable).
+- **The phase bar carries the victory-progress line**, `victoryProgress().label` verbatim, so
+  the player and the country trying to beat them cannot be looking at two different numbers.
+  It lives INSIDE the collapsible section, which is what keeps the promise that the advance
+  button never moves — the bar is bottom-anchored with a content height, so anything added
+  grows it upwards. `refreshGoalLine()` is called from `TURN_CHANGED` and, as an ADDRESSED
+  write, from both `initialiseGame()` and `resumeSavedGame()`: a save taken on turn 1 and
+  restored over a fresh game at turn 1 changes no turn and emits no event, and a loaded game
+  never sees the country-selection screen that would otherwise have made it right.
 - **"AI Game" on the main menu is SPECTATOR MODE, and the whole of it is `src/debug/`.**
   A game with no player in it: `initialiseGame({ spectator: true })` skips the one loop
   that assigns territories to `Player`, and because `updateArrayOfLeadersAndCountries()`
@@ -275,6 +351,22 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   countries spend the run in the muted form of their own colour. Both calls are in
   `startAiGame()`. The same question applies to anything else the confirm handler does:
   a spectated game reaches none of it.
+- **A spectated game draws its goal at RANDOM and says so across the top.** Leigh's call: a
+  debug mode pinned to the default condition would only ever exercise the default condition,
+  which is precisely the claim the doctrine layer makes about the other four. The draw is
+  `Math.random` and not `cosmeticRandom()` — the goal is a rule of the game and not a
+  decoration, so it belongs on the seeded stream and `?seed=` reproduces a world including
+  what it was played for. `src/ui/components/AiGameGoalBar.js` fills the strip
+  `applySpectatorChrome()` leaves empty when it takes the player's top table down; it wears
+  `--debug-surface` / `--debug-ink` like the rest of the debug chrome, and it follows
+  `TURN_CHANGED` only, because the leader can change no more often than that.
+- **The spectator log states all three horizons, and the middle one even when it is empty.**
+  `buildCountryReport()` prints a `Playing for` line (the goal, this country's progress, its
+  urgency, and under Great Powers the powers it is hunting) above the `Objective` and
+  `Absorbing` lines. `Absorbing` is printed even when there is no theatre, because in a log
+  of two hundred countries a turn a silent line and a country that was never asked look
+  identical — and "nothing reachable to campaign against" is itself the answer to why an
+  island does nothing for fifty turns.
 - **The faded, shrunken AI siege marker exists to make the PLAYER's sieges stand out, so
   it is switched off when there is no player.** `src/ui/siegeOverlay.js` asks
   `isAiGameActive()`. Applied in spectator mode it faded every marker on the map to 40% at

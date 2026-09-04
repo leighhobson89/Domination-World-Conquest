@@ -210,6 +210,67 @@ top-sixteen share, conquests, failed attacks and sieges. The acceptance criterio
 compiles" — it is that each goal produces a visibly DIFFERENT world, and that no goal freezes
 one. Those numbers get recorded in this document as they are taken.
 
+### What was measured
+
+Five runs, `--turns=150 --seed=goals --every=25`, one per goal at its default scale, taken
+after `doctrine.js` landed. Every run played all 150 turns, and every run reported **zero**
+page errors and zero failed turns.
+
+| Goal | Countries left | Largest empire | Top-16 share | Open sieges |
+|---|---|---|---|---|
+| Continental Supremacy (3) | 81 | 97 | 81% | 1 |
+| World Conquest | 78 | 78 | 80% | 0 |
+| Domination (60%) | 96 | 79 | 76% | 1 |
+| Great Powers (all 5) | 107 | 69 | 70% | 0 |
+| Timed Game (200) | 114 | 51 | 65% | 1 |
+
+Countries surviving / largest empire, sampled every 25 turns:
+
+```
+continental   t25 147/31   t50 139/45   t75 123/54   t100 109/57   t125  95/76   t150  81/97
+domination    t25 147/36   t50 132/45   t75 120/56   t100 113/62   t125 110/62   t150  96/79
+great_powers  t25 146/32   t50 124/47   t75 115/69   t100 111/69   t125 111/69   t150 107/69
+conquest      t25 146/36   t50 115/60   t75  93/76   t100  87/78   t125  80/78   t150  78/78
+turn_limit    t25 153/36   t50 142/38   t75 136/38   t100 133/47   t125 124/47   t150 114/51
+```
+
+**Each goal produces a different world, and the differences are the ones the doctrine
+predicts.** The spread is wide — 78 to 114 countries surviving, a largest empire of 51 to 97,
+and a top-sixteen share from 65% to 81%. Set against the pre-theatre baseline recorded at the
+top of `src/ai/theatre.js` (163 countries surviving and a largest empire of **30** at turn
+100), every one of the five consolidates the world far harder than the AI did before any of
+this existed.
+
+Reading the individual rows:
+
+* **World Conquest consolidates fastest and earliest.** It is the only goal that commits to
+  every continent on the map, so wars start everywhere at once: 115 countries by turn 50,
+  against 139 for Continental. This is `neverSatisfied` doing its job — no country under this
+  goal ever settles into CONSOLIDATE.
+* **Continental Supremacy produces the single largest empire (97).** It is the goal that
+  concentrates rather than spreads: three named continents, and `campaignWeightForTarget()`
+  pays two and a half times for a target on the focus continent.
+* **A Timed Game is the most fragmented (114 countries, largest 51).** Expected, and it is the
+  `turn / turnLimit` urgency curve: at turn 150 of a 200-turn limit these countries are at
+  0.75 urgency and have only recently started spending it. The trajectory is still rising.
+* **Great Powers survives the most countries (107) and its leader stops growing at 69 from
+  turn 75.** This is the signature of the sort tier in `rankRivals()`: countries commit to a
+  named power rather than to the convenient small neighbour beside them, so the small states
+  on the margins are left alone and the leader spends its attacks on the hardest targets on
+  the map. It is the intended behaviour of the goal, not a stall — countries are still
+  falling over the same span (115 → 107), so the world has not frozen.
+
+**No goal freezes one.** Every row is still moving at turn 150: the country count falls in
+every one of the five between t125 and t150, and the largest empire rises or holds in all
+five. The failure this measurement exists to catch — a world that quietly stops changing while
+every turn completes and nothing throws — does not appear under any goal.
+
+One thing the numbers do NOT settle: the open-siege count is 0 or 1 at turn 150 under every
+goal, which is the concurrent-siege discipline holding, but it is low enough that it is worth
+watching whether sieges are being under-used now rather than over-used. That is a balance
+question for a later pass and not a doctrine one — urgency is deliberately kept away from the
+siege budget, so nothing here changed it.
+
 ---
 
 ## 6. The chooser

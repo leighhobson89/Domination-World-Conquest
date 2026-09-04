@@ -61,6 +61,7 @@ let titleCell = null;
 let bodyCell = null;
 let button = null;
 let colourLabel = null;
+let goalLine = null;
 let collapsible = null;
 let collapseButton = null;
 let collapsed = false;
@@ -148,10 +149,24 @@ export function create({ onColourLabelClick, onSound } = {}) {
         collapseButton,
     ]);
 
+    //The victory-progress line. `victoryProgress().label` verbatim, which is the same
+    //string the AI reads its own progress from -- so a player and the country trying to
+    //beat them cannot be looking at two different numbers.
+    //
+    //It goes INSIDE the collapsible section, and that is what keeps the promise the
+    //collapse was built around: the bar is anchored by its bottom edge and takes its
+    //height from its content, so a line added here grows the panel upwards and the
+    //advance button does not move by a pixel. It is also, being about the game rather
+    //than about the turn loop, exactly the kind of thing that should fold away.
+    //
+    //It starts empty and `.phase-bar-goal:empty` is `display: none`, so a cold start and
+    //the country-selection screen show nothing at all rather than an empty strip.
+    goalLine = el("div", { id: ids.phaseBarGoal, class: "phase-bar-goal" });
+
     collapsible = el(
         "div",
         { id: ids.phaseBarCollapsible, class: "phase-bar-collapsible" },
-        [colourLabel, bodyCell]
+        [colourLabel, bodyCell, goalLine]
     );
 
     root = el("div", { class: "popup-with-confirm-container" }, [
@@ -214,6 +229,11 @@ export function setMode(next) {
         //screen where nothing has been selected.
         button.style.opacity = "";
         colourLabel.style.display = "";
+        //New Game must clear the last game's progress, for the same reason as everything
+        //else in this block: nothing else writes this line until a turn ends, so the
+        //previous game's "Continental: 2 of 3 continents" would sit on the
+        //country-selection screen of the next one.
+        setGoalLine("");
         //A bar the previous game left folded up would hide the country name and the
         //colour picker on the selection screen -- the two things that screen is FOR.
         //Silent, because nothing was clicked.
@@ -260,6 +280,25 @@ export function setBrandFlag(src) {
 
 export function currentMode() {
     return mode;
+}
+
+/**
+ * The victory-progress line.
+ *
+ * Pass the empty string to remove it -- which is what New Game does, and what spectator
+ * mode does, because there is no player whose progress it could describe.
+ *
+ * @param {string} label  `victoryProgress(playerCountryName()).label`, or ""
+ */
+export function setGoalLine(label) {
+    if (goalLine) {
+        goalLine.textContent = label ?? "";
+    }
+}
+
+/** What the progress line currently reads. The e2e page object asks this way. */
+export function goalLineText() {
+    return goalLine?.textContent ?? "";
 }
 
 /**
@@ -339,7 +378,7 @@ export function destroy() {
     unsubscribe = null;
     root?.remove();
     root = null;
-    titleCell = bodyCell = button = colourLabel = null;
+    titleCell = bodyCell = button = colourLabel = goalLine = null;
     collapsible = collapseButton = null;
     collapsed = false;
     mode = Mode.SELECTING;
@@ -357,6 +396,8 @@ export const phaseBar = {
     bodyText,
     buttonElement,
     setBrandFlag,
+    setGoalLine,
+    goalLineText,
     setVisible,
     setButtonEnabled,
     dimBody,

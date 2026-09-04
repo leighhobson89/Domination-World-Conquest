@@ -151,13 +151,19 @@ import {
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import {
-    setAiResponseFlag
+    activeVictoryCondition,
+    closestToVictory,
+    setAiResponseFlag,
+    setVictoryCondition,
+    victoryProgress,
+    worldStandings
 } from "./aiCalculations.js";
 import {
     allTerritories,
     getTerritory,
     currentTurn,
     currentPhase,
+    greyedOutCountryNames,
     playerCountryName,
     playerColour,
     playerTerritories,
@@ -176,6 +182,10 @@ import {
 import {
     Phase
 } from './src/state/phases.js';
+import {
+    Events,
+    on as onStateEvent
+} from './src/state/events.js';
 import {
     deriveMoveButtonState,
     stateAfterWindowClosed,
@@ -253,6 +263,17 @@ import {
 import {
     dominapedia
 } from './src/ui/components/Dominapedia.js';
+import {
+    goalSelect
+} from './src/ui/components/GoalSelect.js';
+import {
+    aiGameGoalBar
+} from './src/ui/components/AiGameGoalBar.js';
+import {
+    describeCondition,
+    describeLeaderProgress,
+    randomGoalCondition
+} from './src/ui/goals/goalCatalogue.js';
 import {
     initTheme
 } from './src/ui/theme/theme.js';
@@ -923,6 +944,30 @@ document.addEventListener("DOMContentLoaded", function() {
     //the player's stored theme costs nothing at bootstrap and avoids a first open
     //that paints in the default palette and then corrects itself.
     dominapedia.create({ onSound: () => playSoundClip("button") });
+    //THE GOAL CHOOSER (Goals and Victory, Q3)
+    //Created here for the same reason as the two above: it is themed, and building it
+    //under the player's stored theme costs nothing at bootstrap and avoids a first open
+    //that paints in the default palette and then corrects itself. Nothing shows until
+    //`startNewGame()` opens it.
+    //
+    //Confirm and Escape are the ONLY two ways out, and they are the whole contract:
+    //Confirm sets the condition and drops through to country selection, Escape goes back
+    //to the main menu. There is no third path that starts a game with no goal.
+    goalSelect.create({
+        onSound: () => playSoundClip("button"),
+        onConfirm(condition) {
+            //`setVictoryCondition()` validates and fills in the defaults, which is why it
+            //was written as the seam -- the chooser passes a kind, a scale and the five
+            //names and does not have to produce a complete condition.
+            setVictoryCondition(condition);
+            beginCountrySelection();
+        },
+        onBack() {
+            //Back to the title, not on into the game. A player must be able to change
+            //their mind about starting at all.
+            returnToMainMenuFromGoalSelect();
+        }
+    });
     saveLoadPanel.create({
         captureSave() {
             const save = captureGame();
@@ -962,6 +1007,39 @@ document.addEventListener("DOMContentLoaded", function() {
     aiGameConsole.create({
         onSound: () => playSoundClip("button"),
         onStop: () => void endAiGame()
+    });
+
+    //THE SPECTATOR'S GOAL BAR. It fills the strip a played game gives to the player's top
+    //table, which spectator mode takes down because there is no player to describe. What it
+    //puts there instead is the one thing that space can usefully say when nobody owns
+    //anything: which of the five goals this world is racing for, and who is winning it.
+    //
+    //The world is read through a callback so the component imports nothing from the AI --
+    //it is a view, and the standings are one pass over the map taken once a turn.
+    aiGameGoalBar.create({
+        readWorld() {
+            const condition = activeVictoryCondition();
+            const standings = worldStandings();
+            const turn = currentTurn();
+            //Who is closest to WINNING, not who is biggest -- under Great Powers the largest
+            //empire on the map need not be the one nearest to breaking three of them.
+            const front = closestToVictory(condition, standings, turn);
+            return {
+                condition,
+                leader: front?.country ?? null,
+                //And described in a way that is not a tautology. A timed game scores every
+                //country as a fraction OF the leader, so the leader's own label reads
+                //"100% of the leader" every turn of every game; `describeLeaderProgress()`
+                //is what says something instead.
+                leaderProgress: front
+                    ? describeLeaderProgress(condition, {
+                        label: front.progress.label,
+                        territories: standings.byCountry.get(front.country)?.territories ?? 0,
+                        turn
+                    })
+                    : ""
+            };
+        }
     });
 
     //A browser will not start audio until the page has been interacted with, so
@@ -2226,13 +2304,26 @@ export function enableNewGameButton() {
     offerStoredAutosave();
 }
 
-function greyOutTerritoriesForUnselectableCountries() {
+/**
+ * The N strongest countries, strongest first.
+ *
+ * Two things want this and they must agree: the selection lock below, and the GREAT_POWERS
+ * victory condition, whose whole design is that its targets are the same five countries the
+ * player is forbidden to play as. `GREAT_POWERS_REQUIRED` in `balance.js` and
+ * `COUNTRY_GREYOUT_RANK` here are the two halves of that number, kept apart only because
+ * `config/` may not import the UI -- so this function is where they are reconciled.
+ */
+export function strongestCountries(count = COUNTRY_GREYOUT_RANK) {
     //calculateTerritoryStrengths already returns this sorted strongest-first; sorting a copy
     //keeps that from being a silent assumption. See audit 5.2 Z.
-    const strongestFirst = [...countryStrengthsArray].sort((a, b) => b[1] - a[1]);
-    const unselectableCountries = new Set(
-        strongestFirst.slice(0, COUNTRY_GREYOUT_RANK).map(entry => entry[0])
-    );
+    return [...countryStrengthsArray]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, count)
+        .map(entry => entry[0]);
+}
+
+function greyOutTerritoriesForUnselectableCountries() {
+    const unselectableCountries = new Set(strongestCountries());
 
     //Phase 4.4: which countries are unselectable is state, not a DOM attribute. The
     //fill stays here because it is presentation; `greyedOut` is rendered from the set.
@@ -3985,6 +4076,37 @@ function resetGameState() {
 }
 
 /**
+ * Put the player's progress towards the chosen goal on the phase bar.
+ *
+ * `victoryProgress().label` verbatim, which is the point: it is the exact string the AI
+ * reads its own progress from, so the player and the country trying to beat them cannot be
+ * looking at two different numbers.
+ *
+ * Called from the `TURN_CHANGED` subscription below and, addressed rather than incidentally,
+ * from the load path -- anything made correct as a side effect of the country-selection
+ * screen breaks a loaded game, because a load never sees that screen.
+ *
+ * Two cases produce an empty line rather than a bad one: spectator mode, where there is no
+ * player whose progress could be described, and the stretch before a country has been chosen.
+ */
+export function refreshGoalLine() {
+    const country = playerCountryName();
+    if (isAiGameActive() || !country) {
+        phaseBar.setGoalLine("");
+        return;
+    }
+    //`worldStandings()` is one pass over the map and this runs once a turn, which is the
+    //same cost the AI already pays for its own copy.
+    phaseBar.setGoalLine(victoryProgress(country).label);
+}
+
+//The turn boundary is where progress is worth restating: it moves when territory changes
+//hands and nothing else. A load emits the same event when the restored turn differs from
+//the one on screen, which covers most loads; `resumeSavedGame()` calls the function
+//directly for the ones it does not.
+onStateEvent(Events.TURN_CHANGED, () => refreshGoalLine());
+
+/**
  * Is there a game (or a country selection) behind the menu to go back to?
  *
  * Phase 7.2. `outsideOfMenuAndMapVisible` has always meant this; it now has a name
@@ -4188,11 +4310,56 @@ async function startNewGame() {
     }
 
     resetGameState();
+    //THE ORDERING TRAP, and it is why this line is above the chooser rather than below
+    //it. Under Great Powers the chooser has to freeze the five strongest countries into
+    //the condition, and this is what computes them -- it sorts `countryStrengthsArray`
+    //and writes the result into the store. Opening the chooser first would leave it
+    //reading an empty set, and answering it from the map's grey FILLS instead is the
+    //shape of mistake that once made the country lock bypassable in three clicks.
     greyOutTerritoriesForUnselectableCountries();
     //Back to the bootstrap palette with the five locked countries muted. On a first
     //New Game the map is already in that state and this is a no-op; after a restart
     //it is what takes the player's colour and every conquest back off the map.
     repaintCountrySelection(null);
+
+    //And the question this game is being played to answer. The chooser is FORCED -- its
+    //Confirm calls `beginCountrySelection()` below and its Escape calls
+    //`returnToMainMenuFromGoalSelect()`, and there is no other way out of it. One
+    //insertion point serves both the cold start and the mid-game restart, because there
+    //is one New Game button and it does both.
+    goalSelect.open({ greatPowers: greyedOutCountryNames() });
+}
+
+/**
+ * Confirm on the goal chooser: the goal is set, so get on with picking a country.
+ *
+ * Everything the country-selection screen needs was already done by `startNewGame()`
+ * before the chooser opened -- this exists only because the chooser sits between the two
+ * halves and the second half has to be reachable from a callback.
+ */
+function beginCountrySelection() {
+    phaseBar.setGoalLine("");
+    //The player has not chosen a country yet, so there is nobody whose progress could be
+    //described. The line appears at the end of the first turn.
+}
+
+/**
+ * Escape on the goal chooser: back to the title screen, not on into the game.
+ *
+ * A player must be able to change their mind about starting a game; what they must not be
+ * able to do is start one with no goal. This is the same transition `openInGameMenu()`
+ * makes, minus the parts that assume a game is running.
+ */
+function returnToMainMenuFromGoalSelect() {
+    toggleBottomTableContainer(false);
+    phaseBar.setVisible(false);
+    bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
+    menuButton.hide();
+    toggleAudioButton(false);
+    outsideOfMenuAndMapVisible = false;
+    menuState = true;
+    selectCountryPlayerState = false;
+    mainMenu.show();
 }
 
 //--- AI Game: the debug spectator mode (see src/debug/aiGameMode.js) ---------
@@ -4270,6 +4437,24 @@ async function startAiGame() {
     createCpuPlayerObjectAndAddToMainArray();
     addRandomFortsToAllNonPlayerTerritories();
 
+    //THE GOAL THIS WORLD IS PLAYING FOR, drawn at random.
+    //
+    //Spectator mode exists to watch the AI, and an AI watched only under the default
+    //condition is an AI half of whose behaviour is never seen -- the doctrine layer's whole
+    //claim is that the five goals produce five different worlds, and this is where that
+    //claim is looked at. The bar across the top says which one came up.
+    //
+    //`Math.random` rather than `cosmeticRandom()`, deliberately: the goal is a RULE of the
+    //game and not a decoration, so it belongs on the seeded stream and `?seed=alpha`
+    //reproduces the same world including what it was played for.
+    //
+    //The great powers are read from `countryStrengthsArray` rather than from the store's
+    //locked set, because the line above this has just CLEARED that set -- spectator mode
+    //shows no selection screen, so there is no lock to read.
+    setVictoryCondition(randomGoalCondition(Math.random, {
+        greatPowers: strongestCountries()
+    }));
+
     clearAiGameLog();
     startAiGameMode();
     applySpectatorChrome();
@@ -4332,6 +4517,7 @@ function leaveSpectatorMode() {
     }
     stopAiGameMode();
     aiGameConsole.close();
+    aiGameGoalBar.hide();
 }
 
 /**
@@ -4370,6 +4556,8 @@ function applySpectatorChrome() {
     toggleBottomTableContainer(true);
     menuButton.show();
     aiGameConsole.open();
+    //Into the space the top table just vacated.
+    aiGameGoalBar.show();
 }
 
 /**

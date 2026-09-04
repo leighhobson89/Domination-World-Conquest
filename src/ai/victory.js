@@ -265,6 +265,45 @@ export function leadingCountry(standings = worldStandings()) {
 }
 
 /**
+ * Who is closest to WINNING, as distinct from who is biggest.
+ *
+ * `leadingCountry()` above answers "largest empire by land", which is the TURN_LIMIT win
+ * condition and nothing else. Under Great Powers the biggest empire on the map need not be
+ * the one nearest to breaking three great powers, and under Continental Supremacy it need not
+ * be the one about to finish its second continent -- so "who is winning" has to be measured
+ * against the condition actually in force.
+ *
+ * Ties break on land area and then on name, so a seeded run reproduces its own answer.
+ *
+ * Note the one goal where this degenerates: TURN_LIMIT scores every country as a fraction of
+ * the leader, so the leader scores 1 and this returns the same country `leadingCountry()`
+ * would. That is correct -- it is the same question there -- but it does mean the leader's
+ * own progress LABEL is a tautology under that goal; see `describeLeaderProgress()` in
+ * `src/ui/goals/goalCatalogue.js`.
+ *
+ * @returns {{country: string, fraction: number, progress: object}|null}
+ */
+export function closestToVictory(condition = activeVictoryCondition(),
+    standings = worldStandings(), turn = 0) {
+    let best = null;
+
+    for (const [country, holding] of standings.byCountry) {
+        const progress = victoryProgress(country, condition, standings, turn);
+        const candidate = { country, fraction: progress.fraction, progress, area: holding.area };
+        if (best === null
+            || candidate.fraction > best.fraction
+            || (candidate.fraction === best.fraction && candidate.area > best.area)
+            || (candidate.fraction === best.fraction && candidate.area === best.area
+                && country.localeCompare(best.country) < 0)) {
+            best = candidate;
+        }
+    }
+    return best === null ? null : {
+        country: best.country, fraction: best.fraction, progress: best.progress
+    };
+}
+
+/**
  * The same standings, read from one country's point of view.
  *
  * `strongestRivalShare` is what makes a continent look like a war rather than a walk, and

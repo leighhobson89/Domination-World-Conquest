@@ -78,38 +78,66 @@ condition kind is consumed and all it does is pick a continent count.
 
 ### Q2.1 `src/ai/doctrine.js` — new, pure
 
-- [ ] Unit tests first, in `tests/unit/ai-doctrine.spec.js`
-- [ ] `doctrineFor(condition, { progress, turn, standings, country })` returning
+- [x] Unit tests first, in `tests/unit/ai-doctrine.spec.js`
+- [x] `doctrineFor(condition, { progress, turn, standings, country })` returning
       `{ kind, continentsToCommit, areaHunger, targetCountries, urgency, neverSatisfied }`
-- [ ] One row per goal, per the table in the plan
-- [ ] `urgency` from the strongest rival's progress (the runaway-leader response)
-- [ ] `urgency` from `turn / turnLimit` for Timed Games
-- [ ] Under Great Powers, `targetCountries` excludes the country itself
+- [x] One row per goal, per the table in the plan — the rows are `goalDoctrines` in
+      `config/balance.js`, so a goal's character is a balance edit and not a code edit
+- [x] `urgency` from the strongest rival's progress (the runaway-leader response). Measured
+      from land SHARE rather than from `victoryProgress()` per rival, which would be 207×207
+      map walks a turn; the two largest shares are found in one pass and memoised on the
+      standings object, so the whole world's urgency costs one loop
+- [x] `urgency` from `turn / turnLimit` for Timed Games
+- [x] Under Great Powers, `targetCountries` excludes the country itself — and drops a power
+      whose homeland this country already holds outright
+- [x] The returned object is FROZEN and carries no siege dial at all, so urgency cannot reach
+      the siege budget even by accident. A unit test asserts no key matches `/siege/`
 
 ### Q2.2 Consumers stop switching on the condition kind
 
-- [ ] `strategy.js chooseObjective()` reads `continentsToCommit`
-- [ ] `strategy.js deriveBudgets()` scales the **attack** budget by urgency — and the siege
-      budget **not at all**, or the 17→67 concurrent sieges problem returns
-- [ ] `strategy.js choosePosture()` honours `neverSatisfied`
-- [ ] `theatre.js` biases the mid-term rival choice towards `targetCountries`
-- [ ] `targeting.js` rates a target power's homeland higher, and weights area by `areaHunger`
-- [ ] No module outside `doctrine.js` reads `VictoryCondition` kinds any more
+- [x] `strategy.js chooseObjective()` reads `continentsToCommit`; `Infinity` (Conquest) is
+      clamped to how many continents the map actually has, with a floor of one
+- [x] `strategy.js deriveBudgets()` scales the **attack** budget by urgency — and the siege
+      budget **not at all**, or the 17→67 concurrent sieges problem returns. Pinned by a test
+      asserting `siegeBudget` and `concurrentSiegeCap` are identical at urgency 0 and 1
+- [x] `strategy.js choosePosture()` honours `neverSatisfied` — the banked-and-no-focus branch
+      is the one that had no way out, so that is the one it skips
+- [x] `theatre.js` biases the mid-term rival choice towards `targetCountries`.
+      **This landed as a sort TIER, not a score term**, and the first attempt proved why: a
+      great power is by definition one of the strongest countries on the map, so it scores
+      near zero on `weakness` — the heaviest term in the ranking — and a multiplier small
+      enough to be a bias never lifted it above a convenient small neighbour, while one large
+      enough to lift it would also lift a rival the goal never named. Walls still sort last,
+      so a country that throws itself at a power and fails still goes elsewhere
+- [x] `targeting.js` rates a target power's homeland higher (by `originalOwner`, so the goal
+      survives a third party taking it first), and weights area by `areaHunger`
+- [x] No module outside `doctrine.js` reads `VictoryCondition` kinds any more — `strategy.js`
+      no longer imports the enum at all
 
 ### Q2.3 Measurement — the acceptance criterion
 
-- [ ] `tools/ai-sim.mjs` gains `--goal=KIND[:scale]`
-- [ ] 150-turn headless run recorded for each of the five goals
-- [ ] Each goal produces a visibly DIFFERENT world
-- [ ] **No goal freezes one** — the AI's failures have no textual signature, so this is checked
-      by reading the numbers, not by the suite passing
-- [ ] Numbers written back into §5 of the plan document
+- [x] `tools/ai-sim.mjs` gains `--goal=KIND[:scale]`, and the goal goes in the default output
+      filename so five runs of one seed do not overwrite one another
+- [x] `window.__game.setGoal(kind, scale)` / `victoryCondition()` / `victoryProgressFor()` —
+      the hooks the flag needs. `setGoal` takes a kind and a scale, never a condition object,
+      so nothing outside `goalCatalogue.js` knows which field a scale belongs on
+- [x] 150-turn headless run recorded for each of the five goals (`--seed=goals`, default
+      scales). All five played every turn with zero page errors
+- [x] Each goal produces a visibly DIFFERENT world: 78–114 countries surviving, a largest
+      empire of 51–97, a top-sixteen share of 65–81%. Against the pre-theatre baseline of
+      163 countries and a largest empire of 30 at turn 100, all five consolidate far harder
+- [x] **No goal freezes one** — checked by reading the trajectories rather than by the suite
+      passing. The country count falls in all five between t125 and t150, and the largest
+      empire rises or holds in all five
+- [x] Numbers written back into §5 of the plan document, with a paragraph per goal saying
+      what its shape means
 
 ### Q2.4 Q2 exit
 
-- [ ] `npm run test:unit` green
-- [ ] `ai-turn` e2e area green
-- [ ] Verified in a browser
+- [x] `npm run test:unit` green
+- [x] `ai-turn` e2e area green — including "two runs of the same seed produce the same world",
+      which is what says nothing added here draws off the seeded stream
+- [x] Verified in a browser
 
 ---
 
@@ -117,46 +145,115 @@ condition kind is consumed and all it does is pick a continent count.
 
 ### Q3.1 `src/ui/goals/goalCatalogue.js` — new
 
-- [ ] Unit tests first, in `tests/unit/ui-goal-catalogue.spec.js`
-- [ ] Five goals: names, scale options, summaries, description bodies as frozen
+- [x] Unit tests first, in `tests/unit/ui-goal-catalogue.spec.js`
+- [x] Five goals: names, scale options, summaries, description bodies as frozen
       `{ kind: "p" | "h" | "ul" }` blocks — never markup
-- [ ] Imports nothing; runs in Node
-- [ ] World Conquest's scale list holds exactly one entry
+- [x] Imports nothing but `config/balance.js` and the `VictoryCondition` enum; runs in Node
+- [x] World Conquest's scale list holds exactly one entry
+- [x] `conditionFor(kind, scale)` is the ONE place that knows which field a scale belongs on,
+      so nothing that renders a dropdown ever names `landShare` or `turnLimit`. That is the
+      one mistake here that would be silent — a Domination game with its share written into
+      `continentsRequired` is a valid condition object that plays as the default game
+- [x] `randomGoalCondition(rng)` — spectator mode's opening question, answered from the
+      seeded stream so `?seed=` reproduces a world including what it was played for
 
 ### Q3.2 `src/ui/components/GoalSelect.js` — new
 
-- [ ] Ids in `src/ui/core/registry.js` — never hand-written selectors
-- [ ] Built with `el()` / `mount()` / `on()`; `destroy()` undoes itself
-- [ ] Shares `.options-scrim` / `.options-button` with Options, Save/Load and the Dominapedia
-- [ ] Goal dropdown + scale dropdown left, description pane right, Confirm in the footer
-- [ ] The scale dropdown repopulates when the goal changes and always shows a valid default
-- [ ] **The choice is forced** — no Cancel, no scrim dismissal; Escape goes back to the main
+- [x] Ids in `src/ui/core/registry.js` — never hand-written selectors
+- [x] Built with `el()` / `mount()` / `on()`; `destroy()` undoes itself
+- [x] Shares `.options-scrim` / `.options-button` with Options, Save/Load and the Dominapedia
+- [x] Goal dropdown + scale dropdown left, description pane right, Confirm in the footer
+- [x] The scale dropdown repopulates when the goal changes and always shows a valid default.
+      Its options carry INDEXES, not values: the DOM stringifies an option's value, so
+      Domination's `0.6` came back as the string `"0.6"`, matched nothing in the tier list,
+      and would have handed every game the default scale in silence
+- [x] **The choice is forced** — no Cancel, no scrim dismissal; Escape goes back to the main
       menu rather than skipping the screen
-- [ ] No colour literal outside `:root` in `style.css`; anything new becomes a token in
-      `tokens.js`, the `:root` default, **and all five non-default themes**
-- [ ] `tests/unit/ui-theme.spec.js` and `ui-stylesheet.spec.js` still green
+- [x] **The panel is a FIXED height and never scrolls itself** (`height`, not `max-height`),
+      with the description column owning the overflow. A box that resizes as the player
+      browses the five goals reads as a rendering fault, and it moves the Begin button while
+      somebody is reaching for it — the same rule the Dominapedia records
+- [x] **No dropdown is truncated or overflows its column.** Two separate faults: a flex item
+      will not shrink below its own content unless told it may, so a `<select>`'s longest
+      option pushed the control out through the divider; and the column was then too narrow
+      to show "Continental Supremacy" without an ellipsis. The panel is wider, the labels sit
+      above their controls, and the column is sized from the longest label in the catalogue.
+      Measured in the browser: the tightest option has 165px of slack
+- [x] Under Great Powers the panel NAMES the five powers. The description spends two
+      paragraphs on this being the goal with antagonists, so it had better say who they are
+- [x] No colour literal outside `:root` in `style.css`; nothing new needed a token
+- [x] `tests/unit/ui-theme.spec.js` and `ui-stylesheet.spec.js` still green
 
 ### Q3.3 Wire it into the flow
 
-- [ ] Opens from `startNewGame()` in `ui.js` — one insertion point serves both the cold start
+- [x] Opens from `startNewGame()` in `ui.js` — one insertion point serves both the cold start
       and the mid-game restart
-- [ ] Confirm calls `setVictoryCondition()` and drops through to country selection
-- [ ] **Ordering trap**: the five great-power names must be available BEFORE the chooser
-      freezes them, and must not be answered from a fill colour or an empty store
-- [ ] Spectator mode is unaffected — it keeps the default condition
+- [x] Confirm calls `setVictoryCondition()` and drops through to country selection
+- [x] **Ordering trap** closed: `greyOutTerritoriesForUnselectableCountries()` runs BEFORE the
+      chooser opens, and the names are read from the store through `greyedOutCountryNames()`
+      — never from a fill colour and never from an empty store. `strongestCountries()` in
+      `ui.js` is the one function both the lock and the condition read, which is where
+      `COUNTRY_GREYOUT_RANK` and `GREAT_POWERS_REQUIRED` are reconciled
+- [!] Spectator mode is NO LONGER unaffected — **Leigh's call, taken mid-phase**: it draws a
+      RANDOM goal at start and shows it in the strip a played game gives to the top table. A
+      debug mode pinned to the default condition would only ever exercise the default
+      condition, which is exactly the claim the doctrine layer makes about the other four.
+      See `src/ui/components/AiGameGoalBar.js`
 
 ### Q3.4 The progress line
 
-- [ ] `victoryProgress().label` on the phase bar, refreshed on turn change
-- [ ] The advance button does not move
-- [ ] Reset by New Game; correct after a load (not made correct as a side effect of the
-      country-selection screen, which a load never sees)
-- [ ] Hidden in spectator mode
+- [x] `victoryProgress().label` on the phase bar, refreshed on `TURN_CHANGED`
+- [x] The advance button does not move — the line is inside the collapsible section, and the
+      bar is bottom-anchored with a content height, so anything added there grows upwards
+- [x] Reset by New Game (`phaseBar.setMode(SELECTING)` clears it); correct after a load,
+      written by an addressed `refreshGoalLine()` in BOTH `initialiseGame()` and
+      `resumeSavedGame()` rather than as a side effect of either. A save taken on turn 1 and
+      restored over a fresh game at turn 1 changes no turn and so emits no event
+- [x] Hidden in spectator mode, where there is no player whose progress it could describe
 
 ### Q3.5 Q3 exit
 
-- [ ] `npm run test:unit` green
-- [ ] Verified in a browser at more than one theme and window size
+- [x] `npm run test:unit` green
+- [x] Verified in a browser at three themes (including the light one, where a half-filled
+      palette shows as unreadable text) and two window sizes, with zero `console.error`
+
+---
+
+## Interleaved: the spectator's view of the goal (Leigh's request, mid-phase)
+
+Not in the original breakdown. Asked for while Q2 was landing, on the grounds that a
+spectated game is where the doctrine layer is actually watched.
+
+- [x] The AI's LONG-term goal in the spectator log: a `Playing for` line carrying
+      `victoryProgress().label`, that country's urgency, and — under Great Powers — the
+      powers it is hunting
+- [x] The MID-term goal printed even when there is none. A silent line and a country that was
+      never asked look identical in a log of two hundred countries a turn, and "nothing
+      reachable to campaign against" is itself the answer to why an island does nothing for
+      fifty turns
+- [x] `goalHorizons.js` carries the doctrine on the long term, so the AI debug panel and the
+      spectator console read one fact rather than two
+- [x] The goal bar across the top of a spectated game (`AiGameGoalBar.js`), in the space
+      `applySpectatorChrome()` leaves empty when it takes the player's top table down. It
+      names the goal and the country currently leading it, and follows `TURN_CHANGED`
+- [x] **The leader is the country closest to the ACTIVE GOAL, not the largest empire.**
+      `closestToVictory()` in `victory.js`. `leadingCountry()` answers "largest by land",
+      which is the TURN_LIMIT win condition and nothing else — under Great Powers the
+      biggest empire on the map need not be the one nearest to breaking three of them
+- [x] **A timed game's leader is not described by its own progress label.** Leigh spotted it
+      on screen: `victoryProgress()` under TURN_LIMIT reads "Largest empire: N% of the
+      leader" — a comparison AGAINST the leader — so applied to the leader it says "100% of
+      the leader" every turn, in every game, whoever is winning and however far ahead. It is
+      the one line that can never say anything. `describeLeaderProgress()` in
+      `goalCatalogue.js` says how much the leader holds and how much clock is left instead
+- [x] **Bug found by watching a spectated game, which is what the mode is for.**
+      `window.__game.setGoal()` read the great powers from the store's LOCKED-country set,
+      and the lock is a fact about the country-selection screen: spectator mode clears it
+      explicitly and a played game leaves it behind once a country is chosen. So a
+      GREAT_POWERS game set through that hook named no powers, `greatPowerStandingsFor()`
+      correctly reduced the requirement to nought, and the bar read "Great Powers: 0 of 0"
+      — a goal that could never be met. It reads `strongestCountries()` now, the same
+      derivation the lock itself uses
 
 ---
 

@@ -721,6 +721,76 @@ export const GREAT_POWERS_REQUIRED = 5;
 export const GREAT_POWERS_TIERS = Object.freeze([3, 5]);
 
 /**
+ * The dials `src/ai/doctrine.js` turns the active victory condition into.
+ *
+ * One row per goal, and the row is the ONLY place a goal's character is written down --
+ * `strategy.js`, `theatre.js` and `targeting.js` read a doctrine and never ask which
+ * condition is active, so a sixth goal is one entry here and no change to any of them.
+ *
+ * `continentsToCommit` feeds `chooseObjective()`; `Infinity` means "as many as the map has"
+ * and is clamped there, and `null` means "whatever the condition itself asks for", which is
+ * only CONTINENTAL. `areaHunger` is how much a target's raw LAND is worth on top of what
+ * `territoryValue()` already says about it -- Domination and a Timed Game are both scored in
+ * area, so they should prefer Russia to a Caribbean island in a way Continental Supremacy
+ * should not. `neverSatisfied` says the goal has no resting point, which is what stops a
+ * large empire under World Conquest settling into CONSOLIDATE for the rest of the game.
+ */
+export const goalDoctrines = Object.freeze({
+    CONQUEST: { continentsToCommit: Infinity, areaHunger: 1, neverSatisfied: true },
+    CONTINENTAL: { continentsToCommit: null, areaHunger: 0.2, neverSatisfied: false },
+    DOMINATION: { continentsToCommit: 4, areaHunger: 0.8, neverSatisfied: false },
+    ELIMINATION: { continentsToCommit: 2, areaHunger: 0.4, neverSatisfied: false },
+    GREAT_POWERS: { continentsToCommit: 2, areaHunger: 0.3, neverSatisfied: false },
+    TURN_LIMIT: { continentsToCommit: 3, areaHunger: 0.9, neverSatisfied: false }
+});
+
+/**
+ * How a doctrine's `urgency` is derived, and what it is allowed to do.
+ *
+ * Urgency is the runaway-leader response: when one country is visibly winning, everybody
+ * else fights harder. It is measured from the strongest RIVAL's share of the world's land
+ * area rather than from `victoryProgress()` for every country, because the second is 207
+ * calls per country per turn and the first is already counted in the one pass
+ * `worldStandings()` makes. Area share is an honest proxy under every goal -- a country
+ * running away with a Great Powers game is a country that is getting bigger.
+ *
+ * A Timed Game takes its urgency from the clock instead. There is nothing to conserve on
+ * the last turn, and the deadline is the thing that actually ends that game.
+ *
+ * ONE TRAP, ALREADY PAID FOR ONCE: urgency scales the ATTACK budget and NEVER the siege
+ * budget. The siege budget counting the sieges already running is what ended the
+ * seventeen-to-sixty-seven concurrent sieges problem, and a multiplier over that cap walks
+ * straight back into it.
+ */
+export const doctrineUrgency = {
+    /** The rival land share at which urgency reaches 1. A third of the world is a runaway. */
+    rivalShareForFull: 0.35,
+    /** Urgency every country carries regardless, so an early game is not wholly placid. */
+    floor: 0.1,
+    /** The most urgency may multiply the attack budget by, at urgency 1. */
+    attackBudgetBoost: 1.6
+};
+
+/**
+ * What a doctrine's `targetCountries` is worth to the two modules that read it.
+ *
+ * `theatre.js` needs no number here: a named rival is a sort TIER above an unnamed one, not
+ * a term in its score, because a great power is one of the strongest countries on the map
+ * and no bias small enough to be a bias would ever lift it past a convenient small neighbour.
+ * `targeting.js` uses `homelandWeight` on any territory whose `originalOwner` is a target
+ * power -- which is what makes the goal survive a third party taking half of the United
+ * States first: those territories are still the ones worth having, whoever holds them now.
+ */
+export const doctrineTargeting = {
+    homelandWeight: 2.2,
+    /**
+     * Territory area treated as "a large territory" when `areaHunger` weighs one. The same
+     * saturation `targetValueWeights` uses, so the two area terms speak the same units.
+     */
+    areaSaturation: MAX_AREA_THRESHOLD
+};
+
+/**
  * How often a country re-examines WHICH continents it is campaigning for.
  *
  * Commitments are deliberately sticky: a country that re-picked its three continents

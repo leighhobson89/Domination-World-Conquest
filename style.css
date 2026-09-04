@@ -3683,6 +3683,273 @@ td {
 }
 
 /* ============================================================================
+   GOAL CHOOSER (Goals and Victory, Q3)
+   ----------------------------------------------------------------------------
+   The screen a new game opens on. It shares `.options-scrim`, `.options-row`,
+   `.options-label`, `.options-control`, `.options-select`, `.options-actions` and
+   `.options-button` with Options, Save / Load and the Dominapedia, deliberately:
+   screens that open from one menu should not be four designs.
+
+   What it does not share is the SHAPE. Options is a dialog read top to bottom.
+   This is a question with an explanation beside it, so it is two columns -- the
+   two dropdowns and a one-line summary on the left, the chosen goal's description
+   filling the right.
+
+   Two rules hold the layout together, and the first is the same one the Dominapedia
+   records. THE PANEL IS A FIXED HEIGHT AND NEVER SCROLLS: `height`, not
+   `max-height`, so the box does not resize itself as the player browses the five
+   goals -- a panel that grows and shrinks under the cursor reads as a rendering
+   fault, and it moves the Begin button while somebody is reaching for it. The
+   description column owns the overflow instead and simply scrolls further for a
+   longer goal. The second rule is that it COLLAPSES TO ONE COLUMN under 760px,
+   because two 40-character columns on a phone-width window is neither.
+   ========================================================================= */
+.goal-select-panel {
+  display: flex;
+  flex-direction: column;
+  /* `border-box`, so the height above IS the height on screen. Without it the padding
+     and the border are added to it, and the short-window case below -- 94vh plus
+     34px of padding -- overflows the viewport it was written to fit. */
+  /* Wide enough that no option in `goalCatalogue.js` is ever ellipsised in its closed
+     control -- "Continental Supremacy" and "40% of the world's land" are the two that
+     set the floor, and a truncated option is a player choosing a goal they cannot read.
+     The left column is given a generous `minmax` floor for the same reason; the
+     description simply takes whatever is left. */
+  box-sizing: border-box;
+  width: min(1180px, 94vw);
+  height: min(700px, 88vh);
+  padding: 26px 30px 22px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.goal-select-body {
+  display: grid;
+  grid-template-columns: minmax(420px, 5fr) 7fr;
+  gap: 30px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* The left column scrolls too, for the same reason: under Great Powers it carries five
+   country names on top of the summary, and on a short window that must not push the
+   dropdowns off the panel. */
+.goal-select-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* A flex item will not shrink below its own content unless it is told it may, and a
+   `<select>`'s content is its LONGEST option -- so "Total -- the whole map" pushed the
+   control out through the right-hand edge of the column and under the divider. These
+   three declarations are what keep every dropdown inside its column whatever any goal
+   ever names its scales, which matters because the labels are content in
+   `goalCatalogue.js` and nobody writing a sixth goal should have to count characters.
+   The rules are scoped to the chooser rather than added to `.options-select`, which the
+   Options panel and the save/load panel also wear. */
+.goal-select-choices .options-row,
+.goal-select-choices .options-control {
+  min-width: 0;
+}
+
+/* The last-resort behaviour if a future goal names a scale longer than the column can
+   hold: ellipsise rather than clip mid-letter, and never push the control out of the
+   panel. It should not fire -- the column above is sized so that nothing in the
+   catalogue reaches it -- and a new option that DOES trigger it is a sign the column
+   needs widening again, not that the label needs shortening. */
+.goal-select-choices .options-select {
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+/* The two labels sit above their controls rather than beside them, which is what buys
+   the dropdowns the full width of the column. "Powers to break" wrapping onto a second
+   line next to a control was also what made the two rows different heights. */
+.goal-select-choices .options-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.goal-select-choices .options-label {
+  flex: 0 0 auto;
+}
+
+.goal-select-summary {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+/* A flex item will not shrink below its own content by default, so a long option --
+   World Conquest's "Total, every territory on the map" -- pushed the `<select>` out
+   through the column's right-hand border. Scoped to this panel rather than added to
+   `.options-select`, which the Options panel shares and whose options are short. */
+.goal-select-choices .options-control,
+.goal-select-choices .options-select {
+  min-width: 0;
+}
+
+/* The five names, under Great Powers only. `:empty` hides it under the other four, so
+   the panel does not carry a blank strip where a list sometimes goes. */
+.goal-select-powers {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--accent);
+}
+
+.goal-select-powers:empty {
+  display: none;
+}
+
+/* The one scrolling region. See the note above. */
+.goal-select-description {
+  min-height: 0;
+  padding-right: 12px;
+  overflow-y: auto;
+  border-left: var(--border-width) solid var(--border-color);
+  padding-left: 26px;
+}
+
+.goal-select-heading {
+  margin: 20px 0 6px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+}
+
+.goal-select-heading:first-child {
+  margin-top: 0;
+}
+
+.goal-select-paragraph {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.goal-select-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.goal-select-list li {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 760px) {
+  .goal-select-body {
+    /* One column, and the two halves share the fixed height: the choices take what
+       they need and the description scrolls in what is left. `1fr` on the second row
+       is what makes the description the part that gives, rather than the dropdowns. */
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+
+  .goal-select-choices {
+    overflow-y: visible;
+  }
+
+  .goal-select-description {
+    padding-left: 0;
+    border-left: none;
+    border-top: var(--border-width) solid var(--border-color);
+    padding-top: 14px;
+  }
+}
+
+/* A short window -- a laptop in a small browser -- gets more of the screen rather than
+   a panel that has to scroll twice over. */
+@media (max-height: 720px) {
+  .goal-select-panel {
+    height: 94vh;
+    padding: 18px 22px 16px;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   The progress line on the phase bar, and the spectator's goal bar.
+
+   Both say the same thing -- `victoryProgress().label`, the exact string the AI
+   reads its own progress from -- so a player and the country trying to beat them
+   cannot be looking at two different numbers.
+
+   The phase-bar line sits INSIDE the collapsible section, which is what keeps the
+   promise that the advance button never moves: the bar is anchored by its bottom
+   edge and takes its height from its content, so anything added here grows the
+   panel upwards.
+   -------------------------------------------------------------------------- */
+.phase-bar-goal {
+  padding: 4px 8px 2px;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.phase-bar-goal:empty {
+  display: none;
+}
+
+/* Spectator mode's readout, in the space the player's top table occupies in a
+   played game. It uses the debug tokens rather than the theme's, for the same
+   reason the AI Game button does: a debug surface that matches the theme is a
+   debug surface somebody ships. */
+.ai-game-goal-bar {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: none;
+  align-items: center;
+  gap: 14px;
+  max-width: 90vw;
+  padding: 5px 18px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--debug-ink);
+  background: var(--debug-surface);
+  border: var(--border-width) solid var(--debug-ink);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.ai-game-goal-bar.is-visible {
+  display: flex;
+}
+
+.ai-game-goal-bar .ai-game-goal-leader {
+  opacity: 0.75;
+}
+
+/* ============================================================================
    DOMINAPEDIA (Phase 7.6)
    ----------------------------------------------------------------------------
    The manual, opened from the main menu where an inert "Help" button used to sit.

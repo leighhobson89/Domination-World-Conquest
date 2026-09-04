@@ -32,6 +32,7 @@
 
 import {
     campaignTargetWeights,
+    doctrineTargeting,
     maxForts
 } from "../config/balance.js";
 import { campaignWeightForTarget, Posture } from "./strategy.js";
@@ -94,6 +95,30 @@ export function rateTarget(input) {
     if (target.originalOwner && target.originalOwner === country) {
         const reconquista = finiteOr(traits.reconquista, 0.5);
         value *= 1 + (campaignTargetWeights.reconquista - 1) * reconquista;
+    }
+
+    //--- AND WHAT THE GOAL ASKS FOR ---------------------------------------------------
+    //Two terms, both from the doctrine, and both are the reason a goal produces a
+    //different world rather than a differently-labelled one.
+    const doctrine = campaign?.doctrine ?? null;
+    if (doctrine) {
+        //LAND. `territoryValue()` already has an area term, weighted for what owning a
+        //place does for your economy. This is the second question a goal scored in area
+        //asks: how much of the MAP is it. Domination and a Timed Game are decided on land
+        //area, so they should prefer Russia to a Caribbean island in a way Continental
+        //Supremacy -- which counts territories -- should not.
+        const area = Math.min(1,
+            (Number(target.area) || 0) / doctrineTargeting.areaSaturation);
+        value *= 1 + area * finiteOr(doctrine.areaHunger, 0);
+
+        //THE ANTAGONIST. Under Great Powers the ground that matters is whatever a target
+        //power ORIGINALLY owned, whoever holds it now -- that is what keeps the goal
+        //achievable when a third party takes half of the United States first, and turns it
+        //into a different war rather than an impossible one.
+        if (target.originalOwner &&
+            doctrine.targetCountries.includes(target.originalOwner)) {
+            value *= doctrineTargeting.homelandWeight;
+        }
     }
     if (targetAlreadyBesieged) {
         //A besieged territory is nobody's to plan against from here. The game refuses

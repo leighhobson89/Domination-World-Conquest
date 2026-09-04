@@ -489,3 +489,167 @@ describe("draws", () => {
         }
     });
 });
+
+// ---------------------------------------------------------------------------
+// The doctrine, where the consumers read it (Q2.2).
+//
+// The point of `src/ai/doctrine.js` is that these three functions stop switching on the
+// victory condition. What is worth pinning is not the dial values -- `ai-doctrine.spec.js`
+// owns those -- but that each dial actually reaches the decision it is supposed to reach,
+// because a dial that is derived and then ignored has no signature at all: nothing throws,
+// every turn completes, and the goal simply does not happen.
+// ---------------------------------------------------------------------------
+
+describe("the goal reaching the campaign", () => {
+    it("commits a World Conquest AI to every continent on the map", () => {
+        setVictoryCondition({ kind: VictoryCondition.CONQUEST });
+        const campaign = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
+        //Three continents in the fixture, and CONQUEST asks for `Infinity` of them --
+        //`chooseObjective()` is what clamps that to how many there actually are.
+        expect(campaign.objective.continents).toHaveLength(3);
+        expect(campaign.doctrine.neverSatisfied).toBe(true);
+    });
+
+    it("spreads a Domination AI over four fronts where the map has them", () => {
+        setVictoryCondition({ kind: VictoryCondition.DOMINATION });
+        //The fixture has three continents, so four is clamped to three; what matters is
+        //that DOMINATION asks for more than the two the old `else` branch gave it.
+        expect(planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF })
+            .doctrine.continentsToCommit).toBe(4);
+    });
+
+    it("carries the doctrine on the campaign, where targeting can read it", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Brava", "Carda"],
+            greatPowersRequired: 2
+        });
+        const campaign = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
+        expect(campaign.doctrine.targetCountries).toContain("Brava");
+    });
+});
+
+describe("urgency", () => {
+    const health = (overrides = {}) => ({
+        territories: 20, army: 5000, gold: 5000, besieged: 0, besiegedShare: 0,
+        development: 0.5, activeSieges: 0, ...overrides
+    });
+
+    it("buys more attacks when a rival is running away with the game", () => {
+        const calm = deriveBudgets({
+            country: "Alba", health: health(), posture: Posture.EXPAND,
+            traits: leader().traits, leaderType: "balanced", urgency: 0
+        });
+        const alarmed = deriveBudgets({
+            country: "Alba", health: health(), posture: Posture.EXPAND,
+            traits: leader().traits, leaderType: "balanced", urgency: 1
+        });
+        expect(alarmed.attackBudget).toBeGreaterThan(calm.attackBudget);
+    });
+
+    it("NEVER buys more sieges, however alarmed", () => {
+        //The seventeen-to-sixty-seven concurrent sieges problem was closed by the siege
+        //budget subtracting the sieges already running. A multiplier over that cap walks
+        //straight back into it, so urgency is not allowed anywhere near it.
+        const shared = health();
+        const calm = deriveBudgets({
+            country: "Alba", health: shared, posture: Posture.EXPAND,
+            traits: leader().traits, leaderType: "balanced", urgency: 0
+        });
+        const alarmed = deriveBudgets({
+            country: "Alba", health: shared, posture: Posture.EXPAND,
+            traits: leader().traits, leaderType: "balanced", urgency: 1
+        });
+        expect(alarmed.siegeBudget).toBe(calm.siegeBudget);
+        expect(alarmed.concurrentSiegeCap).toBe(calm.concurrentSiegeCap);
+    });
+
+    it("still leaves a defending country able to be reduced to no attacks", () => {
+        expect(deriveBudgets({
+            country: "Alba", health: health({ territories: 1 }), posture: Posture.DEFEND,
+            traits: leader().traits, leaderType: "pacifist", urgency: 1
+        }).attackBudget).toBeGreaterThanOrEqual(0);
+    });
+});
+
+describe("a goal with no resting point", () => {
+    const health = () => ({
+        territories: 10, army: 5000, gold: 5000, besieged: 0, besiegedShare: 0,
+        development: 0.5, activeSieges: 0
+    });
+    const banked = { kind: "CONQUEST", required: 3, continents: ["Europe"], banked: ["Europe"] };
+
+    it("consolidates once everything committed to is taken, under an ordinary goal", () => {
+        expect(choosePosture({
+            health: health(), focus: null, leaderType: "balanced",
+            traits: leader().traits, objective: banked, neverSatisfied: false
+        })).toBe(Posture.CONSOLIDATE);
+    });
+
+    it("keeps expanding under World Conquest, where there is no such thing as arriving", () => {
+        expect(choosePosture({
+            health: health(), focus: null, leaderType: "balanced",
+            traits: leader().traits, objective: banked, neverSatisfied: true
+        })).toBe(Posture.EXPAND);
+    });
+});
+
+describe("what the goal makes worth taking", () => {
+    const campaign = (doctrine) => ({
+        country: "Alba",
+        turn: 1,
+        objective: { kind: doctrine.kind, required: 3, continents: ["Europe"], banked: [] },
+        focusContinent: "Europe",
+        standings: [],
+        posture: Posture.EXPAND,
+        attackOddsFloor: 30,
+        siegeOddsFloor: 20,
+        siegeBudget: 1,
+        attackBudget: 1,
+        failuresAgainst: () => 0,
+        doctrine
+    });
+    const dials = (overrides = {}) => ({
+        kind: "DOMINATION", continentsToCommit: 4, areaHunger: 0,
+        targetCountries: [], urgency: 0, neverSatisfied: false, ...overrides
+    });
+    const rate = (doctrine, target) => rateTarget({
+        target,
+        source: territory({ armyForCurrentTerritory: 5000 }),
+        probability: 80,
+        threatScore: 0,
+        campaign: campaign(doctrine),
+        traits: leader().traits,
+        country: "Alba"
+    });
+
+    it("prefers the larger territory when the goal is scored in land area", () => {
+        const small = territory({ territoryName: "Islet", area: 100 });
+        const large = territory({ territoryName: "Steppe", area: 350000 });
+        const hungry = dials({ areaHunger: 1 });
+        const indifferent = dials({ areaHunger: 0 });
+
+        //With hunger, the big one is worth materially more; without it, the two differ
+        //only by `territoryValue()`'s own modest area term.
+        const hungryGap = rate(hungry, large).value / rate(hungry, small).value;
+        const indifferentGap = rate(indifferent, large).value / rate(indifferent, small).value;
+        expect(hungryGap).toBeGreaterThan(indifferentGap);
+    });
+
+    it("weights a target power's homeland however holds it now", () => {
+        //The whole point of measuring GREAT_POWERS from `originalOwner`: Brava's homeland
+        //taken by Carda first is still the ground the goal is about, so taking it from
+        //Carda is the route to the same objective rather than a distraction from it.
+        const doctrine = dials({ kind: "GREAT_POWERS", targetCountries: ["Brava"] });
+        const homeland = territory({ territoryName: "Bravaland", dataName: "Carda", originalOwner: "Brava" });
+        const elsewhere = territory({ territoryName: "Nowhere", dataName: "Carda", originalOwner: "Carda" });
+        expect(rate(doctrine, homeland).value).toBeGreaterThan(rate(doctrine, elsewhere).value);
+    });
+
+    it("leaves an ordinary goal blind to whose homeland a territory was", () => {
+        const doctrine = dials({ kind: "CONTINENTAL", areaHunger: 0, targetCountries: [] });
+        const homeland = territory({ territoryName: "Bravaland", dataName: "Carda", originalOwner: "Brava" });
+        const elsewhere = territory({ territoryName: "Nowhere", dataName: "Carda", originalOwner: "Carda" });
+        expect(rate(doctrine, homeland).value).toBeCloseTo(rate(doctrine, elsewhere).value, 10);
+    });
+});

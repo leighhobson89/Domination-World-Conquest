@@ -256,3 +256,68 @@ describe("buildCountryReport", () => {
         expect(block.lines[0].text).toBe("eliminated -- holds no territory");
     });
 });
+
+// ---------------------------------------------------------------------------
+// The three horizons, in the spectator log (Goals and Victory, Q2/Q3).
+//
+// Watching a self-playing world is only useful if you can see what each country is aiming
+// AT. The block already carried the objective and the theatre; what it did not carry is the
+// goal those are in service of -- and under a randomly chosen victory condition, which is
+// what spectator mode now starts with, that is the first thing a spectator needs to know.
+// ---------------------------------------------------------------------------
+
+describe("what the country is ultimately playing for", () => {
+    const doctrine = {
+        kind: "GREAT_POWERS",
+        continentsToCommit: 2,
+        areaHunger: 0.3,
+        targetCountries: ["United States", "Russia"],
+        urgency: 0.6,
+        neverSatisfied: false
+    };
+
+    it("names the goal, how far along it is, and how hurried it is", () => {
+        const block = buildCountryReport({
+            country: "France",
+            turn: 4,
+            campaign: { posture: "EXPAND", doctrine },
+            plan: { longTerm: { progress: { label: "Great Powers: 1 of 5 (Russia 2/9)" } } }
+        });
+        const text = line(block, "Playing for");
+        expect(text).toContain("Great Powers: 1 of 5");
+        expect(text).toContain("60%");
+    });
+
+    it("names the antagonists under the one goal that has any", () => {
+        const block = buildCountryReport({
+            country: "France", turn: 4, campaign: { doctrine }, plan: {}
+        });
+        expect(line(block, "Playing for")).toContain("United States");
+    });
+
+    it("names none under a goal that has none", () => {
+        const block = buildCountryReport({
+            country: "France",
+            turn: 4,
+            campaign: { doctrine: { ...doctrine, kind: "DOMINATION", targetCountries: [] } },
+            plan: { longTerm: { progress: { label: "Domination: 4% of 60%" } } }
+        });
+        expect(line(block, "Playing for")).not.toContain("hunting");
+    });
+
+    it("says so when a country has no mid-term goal, rather than saying nothing", () => {
+        //A silent line and a country that was never asked look identical in a log of two
+        //hundred countries a turn, and "nothing reachable to campaign against" is itself
+        //the answer to why an island spends fifty turns doing nothing.
+        const block = buildCountryReport({
+            country: "Iceland", turn: 4, campaign: { posture: "DEVELOP", theatre: null }, plan: {}
+        });
+        expect(line(block, "Absorbing")).toContain("nobody");
+    });
+
+    it("leaves the line out entirely when there was no campaign at all", () => {
+        const block = buildCountryReport({ country: "Iceland", turn: 4, note: "took no turn" });
+        expect(line(block, "Absorbing")).toBeUndefined();
+        expect(line(block, "Playing for")).toBeUndefined();
+    });
+});

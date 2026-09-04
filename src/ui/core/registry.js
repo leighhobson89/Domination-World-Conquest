@@ -132,6 +132,33 @@ export const ids = Object.freeze({
     // confirm dialog and the save/load panel started sharing that class.
     optionsCancelBtn: "options-cancel-btn",
 
+    // --- Goal chooser (Goals and Victory, Q3) ---------------------------------
+    // The screen a new game now opens on: which victory condition this game is
+    // being played for, and at what scale. It creates its own container the way
+    // Options, Save / Load and the Dominapedia do, and it shares their scrim and
+    // button classes -- screens that open from one menu should not be four designs.
+    //
+    // There is deliberately no cancel id. The choice is FORCED: Escape goes back to
+    // the main menu rather than skipping the screen, so there is no control that
+    // starts a game with no goal.
+    goalSelectContainer: "goal-select-container",
+    goalSelectPanel: "goal-select-panel",
+    goalSelectKind: "goal-select-kind",
+    goalSelectScale: "goal-select-scale",
+    goalSelectScaleLabel: "goal-select-scale-label",
+    goalSelectSummary: "goal-select-summary",
+    // Under Great Powers, the five countries this particular game is about, by name.
+    // Empty under every other goal -- `.goal-select-powers:empty` is `display: none`.
+    goalSelectPowers: "goal-select-powers",
+    goalSelectDescription: "goal-select-description",
+    goalSelectConfirmBtn: "goal-select-confirm-btn",
+    // The progress line on the phase bar: "Continental: 1 of 3 continents", the
+    // same string `victoryProgress()` gives the AI, so the two cannot disagree.
+    phaseBarGoal: "phase-bar-goal",
+    // Spectator mode's readout, in the space the player's top table occupies in a
+    // played game -- which has nothing to put there, because there is no player.
+    aiGameGoalBar: "ai-game-goal-bar",
+
     // --- Dominapedia (Phase 7.6) ----------------------------------------------
     // The manual. It opens from the main menu the way Options does, but it is a
     // full-screen window rather than a dialog: a contents column on the left and a

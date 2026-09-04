@@ -317,3 +317,75 @@ describe("noticing that DEVELOPING is not working either", () => {
         expect(verdict.stalled).toBe(false);
     });
 });
+
+// ---------------------------------------------------------------------------
+// The goal's opinion about who the enemy is (Q2.2).
+//
+// `doctrine.js` names the countries a goal is ABOUT -- under Great Powers, the powers still
+// to be broken -- and the mid-term goal is where that has to land, because a goal with a
+// named antagonist the AI never actually commits to fighting is a goal in name only.
+// ---------------------------------------------------------------------------
+
+describe("the goal's preferred rivals", () => {
+    it("commits to a great power over the convenient small neighbour", () => {
+        //Carda is enormously stronger and would never be chosen on the merits; naming it
+        //as a target power is what makes the war happen at all.
+        borderWorld();
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+        expect(rankRivals(frontier, { rng: HALF })[0].rival).toBe("Brava");
+        expect(rankRivals(frontier, { rng: HALF, preferredRivals: ["Carda"] })[0].rival)
+            .toBe("Carda");
+    });
+
+    it("marks the chosen rival as preferred, so the debug panel can say why", () => {
+        borderWorld();
+        const ranked = rankRivals(frontierFor("Alba", { interactableFrom: neighbours }),
+            { rng: HALF, preferredRivals: ["Carda"] });
+        expect(ranked.find(row => row.rival === "Carda").preferred).toBe(true);
+        expect(ranked.find(row => row.rival === "Brava").preferred).toBe(false);
+    });
+
+    it("changes nothing when the goal names nobody, which is every goal but one", () => {
+        borderWorld();
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+        const plain = rankRivals(frontier, { rng: HALF }).map(row => row.rival);
+        const empty = rankRivals(frontier, { rng: HALF, preferredRivals: [] })
+            .map(row => row.rival);
+        expect(empty).toEqual(plain);
+    });
+
+    it("still ranks a preferred rival last once it has been written off as a wall", () => {
+        //The escape that makes the top tier safe to have. A country that commits to a great
+        //power and cannot break it writes the power off and goes elsewhere for a while,
+        //rather than grinding against the same border for the rest of the game -- which is
+        //the failure the whole theatre module exists to end, and a doctrine that could
+        //override it would put it straight back.
+        borderWorld();
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+
+        //Commit to Carda, then lose against it until it is a wall, then review again --
+        //`reviewTheatre()` is what records a wall, on the turn it gives the rival up.
+        reviewTheatre({ country: "Alba", turn: 1, frontier, rng: HALF, preferredRivals: ["Carda"] });
+        for (let attempt = 0; attempt < theatreCommitment.failuresBeforeWall; attempt++) {
+            noteAttemptOutcome("Alba", "Carda", false, 2);
+        }
+        reviewTheatre({ country: "Alba", turn: 2, frontier, rng: HALF, preferredRivals: ["Carda"] });
+
+        expect(wallsFor("Alba", 2)).toContain("Carda");
+        const ranked = rankRivals(frontier, {
+            country: "Alba", turn: 2, rng: HALF, preferredRivals: ["Carda"]
+        });
+        expect(ranked.at(-1).rival).toBe("Carda");
+        expect(ranked[0].rival).toBe("Brava");
+    });
+
+    it("reaches the theatre through reviewTheatre, not only through the ranking", () => {
+        borderWorld();
+        const theatre = reviewTheatre({
+            country: "Alba", turn: 1, rng: HALF,
+            frontier: frontierFor("Alba", { interactableFrom: neighbours }),
+            preferredRivals: ["Carda"]
+        });
+        expect(theatre.rival).toBe("Carda");
+    });
+});

@@ -36,6 +36,11 @@ test.describe("?e2e=1 state hook", () => {
                 "battle",
                 "currentTrack",
                 "countryStrengths",
+                //What the 3D dice are SHOWING, as opposed to what the rules rolled. The two
+                //are supposed to be the same list and for as long as the dice have existed
+                //they were not, and the invariant cannot be checked from the DOM -- the dice
+                //are a physics pose composed with a mesh rotation inside a canvas.
+                "diceFaces",
                 "forceRandomEvent",
                 "greyedOutCountries",
                 "isReady",
@@ -59,6 +64,17 @@ test.describe("?e2e=1 state hook", () => {
                 "seed",
                 "setAlwaysSkipPlayback",
                 "setAudio",
+                //Goals and Victory, Q2/Q3. The victory condition: what is being played for,
+                //and a way to change it. `setGoal()` takes a KIND and a SCALE rather than a
+                //condition object, so nothing outside `src/ui/goals/goalCatalogue.js` has to
+                //know that a land share goes on `landShare` and a turn count on `turnLimit`
+                //-- which is the one mistake here that would be silent, since a Domination
+                //game with its share on the wrong field is a valid condition object that
+                //plays as the default game. `tools/ai-sim.mjs --goal=` is the caller that
+                //matters: the acceptance criterion for `src/ai/doctrine.js` is that the five
+                //goals produce five visibly different worlds over 150 headless turns, and
+                //that cannot be measured without a way to start a run under a named goal.
+                "setGoal",
                 "siegeAt",
                 "sieges",
                 "stateGuardViolations",
@@ -66,6 +82,10 @@ test.describe("?e2e=1 state hook", () => {
                 "territory",
                 "totals",
                 "turn",
+                "victoryCondition",
+                //The progress line the phase bar shows, as data. A spec asserting it from
+                //the DOM would be asserting the wording.
+                "victoryProgressFor",
                 "wars",
             ].sort()
         );

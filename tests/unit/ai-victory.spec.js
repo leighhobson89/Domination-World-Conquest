@@ -14,8 +14,10 @@ import { __resetStateForTests, seedTerritories } from "../../src/state/GameState
 import {
     activeVictoryCondition,
     captureVictoryCondition,
+    closestToVictory,
     continentStandingsFor,
     hasWon,
+    leadingCountry,
     resetVictoryCondition,
     setVictoryCondition,
     VictoryCondition,
@@ -340,5 +342,51 @@ describe("the condition survives being captured", () => {
         const saved = captureVictoryCondition();
         live.greatPowers.push("Delta");
         expect(saved.greatPowers).toEqual(["Brava", "Carda"]);
+    });
+});
+
+describe("closestToVictory -- who is winning, as distinct from who is biggest", () => {
+    beforeEach(() => {
+        __resetStateForTests();
+        seedTerritories(world());
+    });
+
+    it("names the country nearest the ACTIVE condition, not the largest empire", () => {
+        //Brava holds much the most land -- three Asian territories at 1000 each against
+        //Alba's 1900 all told -- so `leadingCountry()` says Brava. But the condition is
+        //CONTINENTAL, and Alba owns Europe outright while Brava owns no continent at all.
+        //Measuring "who is winning" by area would name the wrong country under four of the
+        //five goals, which is the whole reason this function exists beside that one.
+        setVictoryCondition({ kind: VictoryCondition.CONTINENTAL, continentsRequired: 2 });
+        expect(leadingCountry()).toBe("Brava");
+        expect(closestToVictory().country).toBe("Alba");
+    });
+
+    it("agrees with leadingCountry under DOMINATION, which really is about area", () => {
+        setVictoryCondition({ kind: VictoryCondition.DOMINATION, landShare: 0.6 });
+        expect(closestToVictory().country).toBe(leadingCountry());
+    });
+
+    it("agrees with leadingCountry under TURN_LIMIT, which is the same question", () => {
+        setVictoryCondition({ kind: VictoryCondition.TURN_LIMIT, turnLimit: 200 });
+        expect(closestToVictory().country).toBe(leadingCountry());
+    });
+
+    it("carries the leader's own progress, so a caller needs no second call", () => {
+        setVictoryCondition({ kind: VictoryCondition.CONTINENTAL, continentsRequired: 2 });
+        const front = closestToVictory();
+        expect(front.progress.label).toBe(victoryProgress(front.country).label);
+        expect(front.fraction).toBe(front.progress.fraction);
+    });
+
+    it("answers null for an empty world rather than throwing", () => {
+        __resetStateForTests();
+        seedTerritories([]);
+        expect(closestToVictory()).toBe(null);
+    });
+
+    it("breaks a tie the same way twice, so a seeded run reproduces its own answer", () => {
+        setVictoryCondition({ kind: VictoryCondition.CONQUEST });
+        expect(closestToVictory().country).toBe(closestToVictory().country);
     });
 });

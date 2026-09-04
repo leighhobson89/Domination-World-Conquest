@@ -7,7 +7,9 @@ import {
     paths,
     svg,
     setColorOnMap,
-    showQueuedDefences
+    showQueuedDefences,
+    refreshGoalLine,
+    strongestCountries
 } from './ui.js';
 //Battle overhaul B.8.4. The playback queue and its preference, for the ?e2e=1 hooks below.
 import {
@@ -58,6 +60,7 @@ import {
     RANDOM_EVENTS
 } from "./src/config/balance.js";
 import {
+    activeVictoryCondition,
     buildAttackableTerritoriesInRangeArray,
     buildFullTerritoriesInRangeArray,
     calculateThreatsFromEachEnemyTerritoryToEachFriendlyTerritory,
@@ -71,7 +74,9 @@ import {
     prioritiseTurnGoalsBasedOnPersonality,
     refineTurnGoals,
     resetAiRngContext,
-    setAiRngContext
+    setAiRngContext,
+    setVictoryCondition,
+    victoryProgress
 } from "./aiCalculations.js";
 import {
     loadAdjacency,
@@ -95,6 +100,9 @@ import {
     Events,
     on
 } from "./src/state/events.js";
+import {
+    conditionFor
+} from "./src/ui/goals/goalCatalogue.js";
 import {
     checkForVictory
 } from "./src/rules/victoryCheck.js";
@@ -226,6 +234,21 @@ installTestHooks({
         territory: violation.territory,
         field: violation.field
     })),
+    //The victory condition: what is being played for, and a way to change it. The scale is
+    //routed through `conditionFor()` so nothing here names a field on the condition -- see
+    //`src/ui/goals/goalCatalogue.js`, which is the one place that mapping lives.
+    victoryCondition: () => activeVictoryCondition(),
+    //The powers come from `strongestCountries()` and NOT from the store's locked set. The
+    //lock is a fact about the country-selection SCREEN and is cleared the moment a game
+    //begins -- spectator mode clears it explicitly, and a played game leaves it behind once
+    //a country has been chosen -- so reading it here handed a GREAT_POWERS game an empty
+    //list of powers, which `greatPowerStandingsFor()` correctly reduced to a requirement of
+    //nought and a progress line reading "Great Powers: 0 of 0". Found by watching a
+    //spectated game, which is exactly what that mode is for. `strongestCountries()` is the
+    //same derivation the lock itself uses, so the two cannot disagree.
+    setGoal: (kind, scale) => setVictoryCondition(
+        conditionFor(kind, scale, { greatPowers: strongestCountries() })),
+    victoryProgressFor: (country) => victoryProgress(country ?? playerCountryName()),
     applyScenario: (scenario) => applyScenario(scenario, {
         getTerritoryByName,
         updateTerritory,
@@ -410,6 +433,12 @@ export async function initialiseGame({ spectator = false } = {}) {
     paintWholeMapFromModel();
 
     toggleTransferAttackButton(false, true);
+    //The victory-progress line. Written here rather than left to the first
+    //`TURN_CHANGED`, which does not arrive until the end of turn 1 -- and never at all
+    //for a save taken on turn 1 restored over a fresh game at turn 1. A loaded game
+    //also never sees the country-selection screen, so this has to be an addressed
+    //write in both paths rather than a side effect of either.
+    refreshGoalLine();
     document.getElementById(ids.popupColor).disabled = true;
     gameInitialisation = false;
     svg.style.pointerEvents = 'auto';
@@ -534,6 +563,12 @@ export async function resumeSavedGame(phase) {
     addUpAllTerritoryResourcesForCountryAndWriteToTopTable(true);
 
     toggleTransferAttackButton(false, true);
+    //The victory-progress line. Written here rather than left to the first
+    //`TURN_CHANGED`, which does not arrive until the end of turn 1 -- and never at all
+    //for a save taken on turn 1 restored over a fresh game at turn 1. A loaded game
+    //also never sees the country-selection screen, so this has to be an addressed
+    //write in both paths rather than a side effect of either.
+    refreshGoalLine();
     document.getElementById(ids.popupColor).disabled = true;
     gameInitialisation = false;
     svg.style.pointerEvents = 'auto';

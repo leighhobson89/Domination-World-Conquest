@@ -34,6 +34,16 @@
 //                    but a hundred-turn run of a busy map is not free
 //   --diagnose=A,B   after these turns, also dump WHY: postures, budgets, verdicts and the
 //                    commonest reasons a target was skipped, aggregated over every country
+//   --goal=KIND[:S]  play under a named victory condition instead of the default. KIND is one
+//                    of CONQUEST, CONTINENTAL, DOMINATION, GREAT_POWERS or TURN_LIMIT, and S
+//                    is that goal's scale in its own units -- CONTINENTAL:4, DOMINATION:0.8,
+//                    TURN_LIMIT:350, GREAT_POWERS:3. Omit the scale for the goal's default.
+//
+//                    This is the acceptance criterion for `src/ai/doctrine.js`: the claim is
+//                    that the five goals produce five visibly DIFFERENT worlds, and that no
+//                    goal freezes one. Neither can be seen from any single turn, and neither
+//                    has a textual signature -- nothing throws, every turn completes, and the
+//                    map quietly stops changing. So it is measured, per goal, over 150 turns.
 //   --trace=TEXT     print the game's own console lines containing TEXT from the LAST turn.
 //                    The AI narrates every decision it makes; when it decides something and
 //                    then does not do it, that narration is the only record of where it
@@ -261,11 +271,27 @@ async function main() {
     });
 
     const game = new GameDriver(page);
-    console.log(`seed "${options.seed}", ${options.turns} turns, player idles as ${options.country}`);
+    console.log(`seed "${options.seed}", ${options.turns} turns, player idles as ${options.country}` +
+        (options.goal ? `, goal ${options.goal.kind}` +
+            (options.goal.scale === undefined ? "" : `:${options.goal.scale}`) : ""));
     await game.start({ country: options.country, seed: options.seed });
     await page.evaluate((country) => {
         window.__simPlayerCountry = country;
     }, options.country);
+
+    //The goal, set AFTER the game has started, which is deliberate: the great powers a
+    //GREAT_POWERS condition names are the five countries the selection screen locks, and
+    //those are only computed once the world has been built.
+    if (options.goal) {
+        const condition = await page.evaluate(
+            ({ kind, scale }) => window.__game.setGoal(kind, scale),
+            options.goal
+        );
+        console.log(`goal: ${condition.kind}` +
+            (condition.greatPowers?.length ? ` vs ${condition.greatPowers.join(", ")}` : "") +
+            ` (continents ${condition.continentsRequired}, share ${condition.landShare},` +
+            ` turn limit ${condition.turnLimit}, powers ${condition.greatPowersRequired})`);
+    }
 
     const series = [];
     const diagnostics = [];
@@ -301,6 +327,7 @@ async function main() {
 
     const report = {
         seed: options.seed,
+        goal: options.goal,
         country: options.country,
         turnsRequested: options.turns,
         turnsPlayed: series.at(-1)?.turn ?? 0,
@@ -353,8 +380,20 @@ function parseArgs(argv) {
         .split(",")
         .map((turn) => Number(turn))
         .filter((turn) => Number.isFinite(turn) && turn > 0);
+    //"--goal=DOMINATION:0.8" -> { kind: "DOMINATION", scale: 0.8 }. The scale is left
+    //undefined when it is absent or not a number, which is what makes the catalogue fall
+    //back to that goal's own default rather than to a condition with a NaN in it.
+    const goalArgument = values.get("goal") ?? null;
+    let goal = null;
+    if (goalArgument) {
+        const [kind, scaleText] = goalArgument.split(":");
+        const scale = Number(scaleText);
+        goal = { kind: kind.toUpperCase(), scale: Number.isFinite(scale) ? scale : undefined };
+    }
+
     return {
         diagnoseAt,
+        goal,
         turns: Number(values.get("turns") ?? 40),
         seed,
         country: values.get("country") ?? "Germany",
@@ -363,7 +402,11 @@ function parseArgs(argv) {
         headed: values.has("headed"),
         trace: values.get("trace") ?? null,
         traceLimit: Number(values.get("traceLimit") ?? 60),
-        out: resolve(values.get("out") ?? `test-reports/ai-sim/${seed}.json`),
+        //The goal goes in the default filename, so five runs of one seed under five goals do
+        //not overwrite one another -- which is exactly what the acceptance criterion asks
+        //for, and exactly the mistake that would make the whole measurement worthless.
+        out: resolve(values.get("out") ??
+            `test-reports/ai-sim/${seed}${goal ? "-" + goal.kind.toLowerCase() : ""}.json`),
     };
 }
 

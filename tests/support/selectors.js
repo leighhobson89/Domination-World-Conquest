@@ -152,12 +152,41 @@ export const dominapedia = {
     currentLink: `${sel.dominapediaNav} [aria-current="page"]`,
 };
 
+/**
+ * The goal chooser: the screen every new game now opens on, before country selection.
+ *
+ * The choice is FORCED -- there is no cancel and clicking the scrim does nothing, and
+ * Escape goes back to the main menu rather than skipping the screen. That is why
+ * `GameDriver.newGame()` has to confirm it: every spec in the suite starts a game, and none
+ * of them would reach the map otherwise.
+ *
+ * The scale `<select>` carries INDEXES rather than values, because the DOM stringifies an
+ * option's value and Domination's 0.6 would come back as "0.6" and never match the number in
+ * the tier list. A spec that wants a particular scale should select by its LABEL.
+ */
+export const goalSelect = {
+    container: sel.goalSelectContainer,
+    panel: sel.goalSelectPanel,
+    kind: sel.goalSelectKind,
+    scale: sel.goalSelectScale,
+    scaleLabel: sel.goalSelectScaleLabel,
+    summary: sel.goalSelectSummary,
+    powers: sel.goalSelectPowers,
+    description: sel.goalSelectDescription,
+    confirm: sel.goalSelectConfirmBtn,
+};
+
+/** Spectator mode's readout, where a played game puts the player's top table. */
+export const aiGameGoalBar = sel.aiGameGoalBar;
+
 /** The popup that is both the country-select confirm AND the phase-advance button. */
 export const phaseBar = {
     title: sel.popupTitle,
     body: sel.popupBody,
     confirm: sel.popupConfirm,
     colourLabel: sel.popupColor,
+    /** The victory-progress line, inside the collapsible half of the bar. */
+    goal: sel.phaseBarGoal,
     /**
      * The `#rrggbb` value holder. It is an off-screen `<input type="color">`: the
      * browser's own dialog was replaced by a themed grid of 256 swatches, but the

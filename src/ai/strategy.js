@@ -46,6 +46,7 @@ import {
     CAMPAIGN_REVIEW_INTERVAL,
     continentAmbitionWeights,
     continentModifiers,
+    doctrineUrgency,
     maxFarms,
     maxForests,
     maxForts,
@@ -65,10 +66,10 @@ import {
     theatreWeightFor,
     wallsFor
 } from "./theatre.js";
+import { doctrineFor } from "./doctrine.js";
 import {
     activeVictoryCondition,
     continentStandingsFor,
-    VictoryCondition,
     victoryProgress,
     worldStandings
 } from "./victory.js";
@@ -244,7 +245,17 @@ export function planCampaign(country, context = {}) {
     const leaderType = context.leader?.leaderType ?? "balanced";
     const rng = typeof context.rng === "function" ? context.rng : () => 0.5;
 
-    const objective = chooseObjective(country, { condition, rows, turn, rng });
+    //The goal, turned into the dials this file already thinks in. Everything below reads
+    //the doctrine; nothing in `src/ai/` outside `doctrine.js` asks which condition is
+    //active any more, which is what makes adding a sixth goal one entry in a table.
+    const doctrine = context.doctrine ?? doctrineFor(condition, {
+        country,
+        turn,
+        standings,
+        progress: victoryProgress(country, condition, standings, turn)
+    });
+
+    const objective = chooseObjective(country, { condition, doctrine, rows, turn, rng });
     const focus = chooseFocusContinent(objective, rows);
     const health = assessCountry(country);
 
@@ -256,6 +267,10 @@ export function planCampaign(country, context = {}) {
         turn,
         focusContinent: focus?.continent ?? null,
         frontier: context.frontier ?? frontierFor(country),
+        //Under GREAT_POWERS this is the powers still to be broken, so a country that
+        //borders one commits to absorbing IT rather than to whichever small neighbour
+        //happened to rank best. Empty under every other goal, which costs nothing.
+        preferredRivals: doctrine.targetCountries,
         //Every country's size, already counted in one pass by `worldStandings()` above.
         //Without this the ranking runs a 359-territory scan per candidate rival per country
         //per turn -- the same shape of mistake Phase 1.5 took out of the goal planner.
@@ -270,10 +285,13 @@ export function planCampaign(country, context = {}) {
     const posture = choosePosture({
         health, focus, leaderType, traits, rows, objective,
         developmentStalled: development.stalled,
-        theatre
+        theatre,
+        neverSatisfied: doctrine.neverSatisfied
     });
     lastPosture.set(country, posture);
-    const budgets = deriveBudgets({ country, health, posture, traits, leaderType });
+    const budgets = deriveBudgets({
+        country, health, posture, traits, leaderType, urgency: doctrine.urgency
+    });
 
     const tuning = campaignPostures[posture] ?? campaignPostures.EXPAND;
 
@@ -282,6 +300,13 @@ export function planCampaign(country, context = {}) {
         turn,
         leaderType,
         objective,
+        /**
+         * The active goal, as dials. On the campaign because `targeting.js` weighs a
+         * target by `areaHunger` and by whether its `originalOwner` is a target power,
+         * and the debug panel and the spectator log both print what this country is
+         * ultimately playing for.
+         */
+        doctrine,
         focusContinent: focus?.continent ?? null,
         focusStanding: focus ?? null,
         standings: rows,
@@ -297,7 +322,7 @@ export function planCampaign(country, context = {}) {
         /** Whether developing has stopped getting this country anywhere. */
         development,
         posture,
-        progress: victoryProgress(country, condition, standings),
+        progress: victoryProgress(country, condition, standings, turn),
         health,
         ...budgets,
         economyBias: tuning.economyBias,
@@ -359,17 +384,24 @@ export function currentCampaign(country) {
 }
 
 /**
- * The long-term objective, derived from the active victory condition.
+ * The long-term objective, derived from the doctrine.
  *
- * Under CONTINENTAL this is the three continents the country is taking. Under DOMINATION
- * there is no continent to name, but a country still has to expand SOMEWHERE, and the
- * cheapest area is the continent it already has most of -- so the same machinery is used
- * with the required count widened, which makes a domination AI spread rather than tunnel.
+ * Under CONTINENTAL this is the three continents the country is taking. Under every other
+ * goal there is no continent the condition names, but a country still has to expand
+ * SOMEWHERE, and the cheapest ground is the continent it already has most of -- so the same
+ * machinery runs with the count the doctrine asks for, which is what makes a Domination AI
+ * spread over four fronts and a Conquest AI point at the whole map.
+ *
+ * This function used to be the ONLY place the victory condition was read, and it read it by
+ * name: CONTINENTAL got its own figure, DOMINATION got four and everything else got two.
+ * That is now one row in `goalDoctrines`, and this asks the doctrine.
  */
-function chooseObjective(country, { condition, rows, turn, rng }) {
-    const required = condition.kind === VictoryCondition.CONTINENTAL
-        ? condition.continentsRequired
-        : Math.min(rows.length, condition.kind === VictoryCondition.DOMINATION ? 4 : 2);
+function chooseObjective(country, { doctrine, rows, turn, rng }) {
+    //`Infinity` is what CONQUEST asks for and means "as many as the map has". The clamp is
+    //here rather than in the doctrine because only this function knows how many continents
+    //there are, and the lower bound matters as much as the upper: a country committed to no
+    //continents at all has no objective and stops choosing targets.
+    const required = Math.max(1, Math.min(rows.length || 1, doctrine.continentsToCommit));
 
     const held = commitments.get(country);
     const stale = !held ||
@@ -386,7 +418,7 @@ function chooseObjective(country, { condition, rows, turn, rng }) {
     }
 
     return {
-        kind: condition.kind,
+        kind: doctrine.kind,
         required,
         continents: [...continents],
         //Under CONTINENTAL, a committed continent already held outright is banked; the
@@ -534,7 +566,7 @@ export function siegesRunBy(country) {
  *   posture that produced the failure is the posture the failure keeps it in, which is the
  *   whole of what "the AI gets stuck repeating a failed approach" means economically.
  */
-export function choosePosture({ health, focus, leaderType, traits, objective, developmentStalled = false, theatre = null }) {
+export function choosePosture({ health, focus, leaderType, traits, objective, developmentStalled = false, theatre = null, neverSatisfied = false }) {
     const thresholds = postureThresholds;
     const expansion = finiteOr(traits?.territory_expansion, 0.5);
     const fortify = finiteOr(traits?.fortification, 0.5);
@@ -562,7 +594,13 @@ export function choosePosture({ health, focus, leaderType, traits, objective, de
         }
     }
 
-    if (objective.banked.length > 0 && !focus) {
+    //Everything the country committed to is taken and there is nothing left to push.
+    //Under most goals that is a country that has arrived and should hold what it has --
+    //but under World Conquest there is no such thing as having arrived, and a large empire
+    //that reached this branch would sit in CONSOLIDATE for the rest of the game while the
+    //one territory it still does not own goes untaken. `neverSatisfied` is the doctrine
+    //saying the goal has no resting point; the country re-commits and keeps going.
+    if (objective.banked.length > 0 && !focus && !neverSatisfied) {
         return Posture.CONSOLIDATE;
     }
 
@@ -580,8 +618,15 @@ export function choosePosture({ health, focus, leaderType, traits, objective, de
  * by the posture, and the siege budget is then reduced by the sieges ALREADY running. That
  * last subtraction is the fix for the AI's most visible failure: it opened sieges it could
  * not feed until two thirds of its army was standing still outside somebody else's forts.
+ *
+ * `urgency` -- the doctrine's runaway-leader dial -- scales the ATTACK budget and NOTHING
+ * ELSE. It is what makes a player who pulls ahead get attacked harder by the whole world.
+ * It must never reach the siege budget: that budget counting the sieges already running is
+ * precisely what ended the seventeen-to-sixty-seven concurrent sieges problem, and a
+ * multiplier applied over the cap would undo the subtraction that fixed it. `doctrine.js`
+ * offers no siege dial at all so that this cannot be done by accident.
  */
-export function deriveBudgets({ country, health, posture, traits, leaderType }) {
+export function deriveBudgets({ country, health, posture, traits, leaderType, urgency = 0 }) {
     const tuning = campaignPostures[posture] ?? campaignPostures.EXPAND;
     const expansionBias = 0.6 + finiteOr(traits?.territory_expansion, 0.5) * 0.8;
 
@@ -598,9 +643,10 @@ export function deriveBudgets({ country, health, posture, traits, leaderType }) 
     //is a country that has been told to sit still whatever it can see in front of it. Only
     //DEFEND may be reduced to none, because a country with a fifth of itself besieged has
     //somewhere better to put the army.
+    const hurry = 1 + clamp01(urgency) * (doctrineUrgency.attackBudgetBoost - 1);
     const scaledAttacks = Math.round((attackDiscipline.basePerTurn +
         Math.floor(health.territories / attackDiscipline.territoriesPerExtraAttack)) *
-        tuning.attackBudgetScale * expansionBias);
+        tuning.attackBudgetScale * expansionBias * hurry);
     const attackBudget = clampInt(
         posture === Posture.DEFEND ? scaledAttacks : Math.max(1, scaledAttacks),
         0, attackDiscipline.maxPerTurn);
@@ -692,6 +738,10 @@ export function campaignWeightForTarget(campaign, target) {
 function finiteOr(value, fallback) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp01(value) {
+    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 }
 
 function clampInt(value, low, high) {

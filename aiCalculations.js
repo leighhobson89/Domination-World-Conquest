@@ -191,9 +191,12 @@ export { resetAiRngContext, setAiRngContext } from "./src/ai/rng.js";
 export { planCampaign, resetCampaigns } from "./src/ai/strategy.js";
 export {
     activeVictoryCondition,
+    closestToVictory,
+    leadingCountry,
     resetVictoryCondition,
     setVictoryCondition,
-    victoryProgress
+    victoryProgress,
+    worldStandings
 } from "./src/ai/victory.js";
 
 //The AI's campaign commitments and the active victory condition are durable state that

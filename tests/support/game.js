@@ -20,7 +20,13 @@ import {
 } from "./pages/index.js";
 import { readFile } from "node:fs/promises";
 
-import { Phase, phaseButtonLabel, phaseBar as phaseBarSelectors, ids } from "./selectors.js";
+import {
+    Phase,
+    phaseButtonLabel,
+    phaseBar as phaseBarSelectors,
+    goalSelect as goalSelectSelectors,
+    ids
+} from "./selectors.js";
 
 export class GameDriver {
     constructor(page) {
@@ -48,10 +54,51 @@ export class GameDriver {
         await this.menu.waitForEnabled();
     }
 
-    /** Click New Game and land on the country-selection screen. */
-    async newGame() {
+    /**
+     * Click New Game, answer the goal chooser, and land on the country-selection screen.
+     *
+     * The chooser sits between the menu and the map and it CANNOT be skipped -- that is its
+     * whole design, and it is why this is one method rather than a step every spec has to
+     * learn. `goal` and `scale` are optional; without them the chooser is confirmed on
+     * whatever it opens with, which is Continental Supremacy at three continents and is what
+     * the whole suite was written against.
+     *
+     * @param {{goal?: string, scale?: string}} [options]
+     *        `goal` is a `VictoryCondition` kind; `scale` is an option LABEL, because the
+     *        scale `<select>`'s values are indexes -- see `goalSelect` in selectors.js.
+     */
+    async newGame({ goal, scale } = {}) {
         await this.menu.start();
+        await this.page.waitForSelector(goalSelectSelectors.confirm, { state: "visible" });
+        if (goal) {
+            await this.page.selectOption(goalSelectSelectors.kind, goal);
+        }
+        if (scale) {
+            await this.page.selectOption(goalSelectSelectors.scale, { label: scale });
+        }
+        await this.page.click(goalSelectSelectors.confirm);
+        await this.page.waitForSelector(goalSelectSelectors.container, { state: "hidden" });
         await this.page.waitForSelector(phaseBarSelectors.confirm, { state: "visible" });
+    }
+
+    /**
+     * Answer the goal chooser, for a spec that reached it by clicking New Game itself.
+     *
+     * `newGame()` above does this as part of its own flow; this is for the handful of specs
+     * that drive the menu directly because the menu is what they are testing.
+     *
+     * @param {{goal?: string, scale?: string}} [options]  see `newGame()`
+     */
+    async confirmGoal({ goal, scale } = {}) {
+        await this.page.waitForSelector(goalSelectSelectors.confirm, { state: "visible" });
+        if (goal) {
+            await this.page.selectOption(goalSelectSelectors.kind, goal);
+        }
+        if (scale) {
+            await this.page.selectOption(goalSelectSelectors.scale, { label: scale });
+        }
+        await this.page.click(goalSelectSelectors.confirm);
+        await this.page.waitForSelector(goalSelectSelectors.container, { state: "hidden" });
     }
 
     /**
@@ -80,9 +127,9 @@ export class GameDriver {
      * Full "start a game as this country" flow, ending in the Buy/Upgrade phase
      * of turn 1. Returns how long initialisation took, in milliseconds.
      */
-    async start({ country = "Germany", seed, colour } = {}) {
+    async start({ country = "Germany", seed, colour, goal, scale } = {}) {
         await this.open({ seed });
-        await this.newGame();
+        await this.newGame({ goal, scale });
         await this.selectTerritory(country);
         await this.page.waitForFunction(
             (selector) => document.querySelector(selector)?.style.display === "block",

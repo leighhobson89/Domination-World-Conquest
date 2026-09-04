@@ -215,7 +215,12 @@ export function longTermAmbitions(country, campaign = null) {
         //are different facts -- a country commits to a continent it is NOT yet strongest
         //on often enough that reporting only the first would be misleading.
         objective: campaign?.objective ?? null,
-        progress: campaign?.progress ?? null
+        progress: campaign?.progress ?? null,
+        //The goal itself, as dials -- what the objective above is IN SERVICE OF. The
+        //objective says "Europe, Africa and Asia"; this says whether those three continents
+        //are the win condition or a step towards owning the whole map, which is the
+        //difference between a country that will stop and one that will not.
+        doctrine: campaign?.doctrine ?? null
     };
 }
 

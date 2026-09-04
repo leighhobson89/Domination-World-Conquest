@@ -140,6 +140,22 @@ export function installTestHooks(accessors) {
         // have existed they were not; see `facesShowing()` in dices.js.
         diceFaces: () => snapshot(accessors.diceFaces?.() ?? []),
 
+        // The active victory condition, and a way to set one.
+        //
+        // `setGoal()` takes a kind and a SCALE rather than a condition object, so nothing
+        // outside `goalCatalogue.js` has to know that a land share goes on `landShare` and
+        // a turn count on `turnLimit` -- the same reason the chooser itself does not.
+        // `tools/ai-sim.mjs --goal=KIND:scale` is the caller that matters: the acceptance
+        // criterion for the doctrine layer is that the five goals produce five visibly
+        // different worlds over 150 headless turns, and that cannot be measured without a
+        // way to start a run under a named goal.
+        //
+        // `victoryProgressFor()` is how a spec asks the question the phase bar answers,
+        // without reading a formatted string off the DOM.
+        victoryCondition: () => snapshot(accessors.victoryCondition()),
+        setGoal: (kind, scale) => snapshot(accessors.setGoal(kind, scale)),
+        victoryProgressFor: (country) => snapshot(accessors.victoryProgressFor(country)),
+
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/03-e2e-test-plan.md 3.7.

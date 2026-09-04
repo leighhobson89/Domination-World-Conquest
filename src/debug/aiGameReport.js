@@ -288,11 +288,39 @@ function from(entry) {
         : entry.territory;
 }
 
-/** What the country was thinking: objective, theatre, walls and budgets. */
+/**
+ * What the country was thinking: the goal, the objective, the theatre, walls and budgets.
+ *
+ * The three horizons are printed in the order a person reads them -- what it is ultimately
+ * trying to win, what it has committed to on the way there, and who it is fighting this
+ * month -- and the first two are ALWAYS printed, even when there is nothing to say. A
+ * spectator scrolling a log of two hundred countries cannot tell a country with no plan from
+ * a country whose plan was not reported, and "no long-term objective" is itself a finding.
+ */
 function thoughtLines(plan, campaign) {
     const lines = [];
     const longTerm = plan?.longTerm ?? null;
     const mediumTerm = plan?.mediumTerm ?? null;
+
+    //THE ULTIMATE AIM. Every country on the map is racing for the same victory condition
+    //-- it is a shared race, and any of them can get there first -- so this line says what
+    //winning means and how far along THIS one is. Under Great Powers the label names the
+    //power it is working on, which is the one goal where the fraction alone says nothing.
+    const doctrine = campaign?.doctrine ?? longTerm?.doctrine ?? null;
+    const progress = longTerm?.progress ?? campaign?.progress ?? null;
+    if (doctrine || progress) {
+        const urgency = doctrine && Number.isFinite(doctrine.urgency)
+            ? ", urgency " + Math.round(doctrine.urgency * 100) + "%"
+            : "";
+        const hunting = doctrine?.targetCountries?.length > 0
+            ? " -- hunting " + doctrine.targetCountries.slice(0, 3).join(", ")
+            : "";
+        lines.push({
+            label: "Playing for",
+            text: (progress?.label ?? doctrine?.kind ?? "no goal") + urgency + hunting,
+            tone: AiGameTone.THOUGHT
+        });
+    }
 
     if (longTerm?.objective) {
         const objective = longTerm.objective;
@@ -317,18 +345,27 @@ function thoughtLines(plan, campaign) {
     }
 
     // The mid-term goal, and it explains most of what a country does: which neighbour
-    // it has committed to absorbing, and how that is going.
+    // it has committed to absorbing, and how that is going. Printed even when there is
+    // none -- a country with nothing reachable to campaign against is the commonest
+    // reason an island spends fifty turns doing nothing, and a silent line looks the
+    // same as a country that was never asked.
     const theatre = campaign?.theatre ?? null;
     if (theatre?.rival) {
-        const progress = theatre.takenFromRival > 0
+        const taken = theatre.takenFromRival > 0
             ? `${theatre.takenFromRival} territory(ies) taken so far`
             : "nothing taken yet";
         const setbacks = theatre.failures > 0 ? `, ${theatre.failures} setback(s)` : "";
         const fresh = theatre.changed ? " -- newly chosen this turn" : "";
         lines.push({
             label: "Absorbing",
-            text: `${theatre.rival} (${progress}${setbacks})${fresh}` +
+            text: `${theatre.rival} (${taken}${setbacks})${fresh}` +
                 (theatre.reason ? ` -- ${theatre.reason}` : ""),
+            tone: AiGameTone.THOUGHT
+        });
+    } else if (campaign) {
+        lines.push({
+            label: "Absorbing",
+            text: theatre?.reason ?? "nobody -- no reachable neighbour to campaign against",
             tone: AiGameTone.THOUGHT
         });
     }

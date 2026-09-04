@@ -92,6 +92,9 @@ test.describe("New Game over a running game", () => {
 
         await page.click(menu.newGame);
         await expect(page.locator(confirmDialog.container)).toBeHidden();
+        //Straight to the goal chooser, which every new game now opens on and which cannot
+        //be skipped -- the country-selection screen is behind it.
+        await game.confirmGoal();
         await expect(page.locator(phaseBar.confirm)).toBeVisible();
     });
 
@@ -109,6 +112,7 @@ test.describe("New Game over a running game", () => {
         await expect(page.locator(containers.menu)).toBeVisible();
         await page.click(menu.newGame);
         await page.click(confirmDialog.confirm);
+        await game.confirmGoal();
 
         // Back on the country-selection screen: nothing owned, the turn counter
         // reset, and the five strongest countries locked again.
@@ -127,6 +131,7 @@ test.describe("New Game over a running game", () => {
         await page.keyboard.press("Escape");
         await page.click(menu.newGame);
         await page.click(confirmDialog.confirm);
+        await game.confirmGoal();
 
         // A different country, to prove the second game is not the first one wearing
         // a new label.
