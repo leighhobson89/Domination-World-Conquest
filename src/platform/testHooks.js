@@ -156,6 +156,16 @@ export function installTestHooks(accessors) {
         setGoal: (kind, scale) => snapshot(accessors.setGoal(kind, scale)),
         victoryProgressFor: (country) => snapshot(accessors.victoryProgressFor(country)),
 
+        // Every GAME_OVER this game has emitted, oldest first.
+        //
+        // A LIST rather than a flag, because the assertion that matters is "once". The
+        // ending latches -- the condition stays met after it has been met, and without the
+        // latch a decided game would announce itself again at the end of every subsequent
+        // turn -- and that failure is invisible to anything reporting only the most recent
+        // result. A spec plays two more turns past the ending and asserts the length is
+        // still one. Cleared by New Game and by a load, alongside the latch itself.
+        gameOverEvents: () => snapshot(accessors.gameOverEvents?.() ?? []),
+
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/03-e2e-test-plan.md 3.7.

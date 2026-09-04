@@ -30,8 +30,12 @@ per-territory resource management and siege mechanics take it much closer to a l
 **Platform:** desktop web browser. **Players:** 1 human vs. up to 206 AI countries.
 **Session model:** ~~one continuous session; there is no save~~ — the game autosaves to
 `localStorage` every minute and can be saved to and loaded from a copyable code (refactor Phase
-7.3), and can be restarted from the menu without reloading the page (7.2). There is still no
-end and no victory screen; that is Phase 7.1.
+7.3), and can be restarted from the menu without reloading the page (7.2). ~~There is still no
+end and no victory screen~~ — a game is played for one of **five goals**, chosen before the
+country on a screen that cannot be skipped, and it ends the moment any country completes that
+goal or the player loses their last territory (Goals and Victory, §6.6 below). What remains of
+that item is the victory/defeat **screen**: the ending is decided and announced, and today the
+announcement is a `console.log`.
 
 ---
 
@@ -197,23 +201,33 @@ the player does not face an undefended world.
 
 ## 6. Turn structure
 
-### 6.1 The loop ✅⚠️
+### 6.1 The loop ✅
+
+`src/engine/TurnEngine.js` (refactor Phase 5.7) — a sequencer that knows nothing about this
+game. ~~`gameLoop()` recursed forever, one level deeper per turn.~~ `gameTurnsLoop.js` supplies
+the hooks.
 
 ```
 initialiseGame()
-  └─ gameLoop()                       ← recurses forever, one level deeper per turn
-       ├─ start-of-turn processing
+  └─ TurnEngine.start()
+       ├─ beginTurn                   ← start-of-turn processing
        │    ├─ reactivate conquered territories whose lockout expired
        │    ├─ resolve one siege tick for every active player + AI siege
        │    ├─ increment siege turn counters, reconcile siege markers
        │    ├─ return armies from concluded wars (retrieval array)
        │    ├─ roll for a random event
        │    └─ apply per-turn economy to every territory
-       ├─ Phase 0 — Buy / Upgrade     ← waits for click on #popup-confirm ("MILITARY")
-       ├─ Phase 1 — Military          ← waits for click on #popup-confirm ("END TURN")
+       ├─ Phase 0 — Buy / Upgrade     ← waitsForPlayer: #popup-confirm ("MILITARY")
+       ├─ Phase 1 — Military          ← waitsForPlayer: #popup-confirm ("END TURN")
        ├─ Phase 2 — AI                ← every AI country takes its turn
-       └─ currentTurn++ → gameLoop()
+       └─ endTurn
+            ├─ checkForVictory()      ← §6.6, and BEFORE the counter moves
+            └─ advanceTurn()
 ```
+
+A step that throws is reported through `onError` and the turn continues without it, so a crash
+is a `console.error` (and therefore a failing e2e spec) rather than a phase button stuck on
+`AI MOVING...`. `stop()` and `reset()` are what make New Game and a mid-game load possible.
 
 ### 6.2 Phase 0 — Buy / Upgrade ✅
 
@@ -235,10 +249,37 @@ Click an owned territory to see its reachable territories highlighted.
 Runs headlessly for every AI country in sequence. Only the AI's **siege offers** surface to
 the player, via the AI dialogue box (§8.4).
 
-### 6.5 Turn-phase state ⚠️
+### 6.5 Turn-phase state ✅
 
-Tracked twice — `ui.js:turnPhase` and `gameTurnsLoop.js:currentTurnPhase` — and reconciled by
-hand. A frequent source of the UI being in a phase the game logic is not.
+~~Tracked twice — `ui.js:turnPhase` and `gameTurnsLoop.js:currentTurnPhase` — and reconciled by
+hand.~~ One counter, and it is an enum: `Phase` in `src/state/phases.js`, read with
+`currentPhase()` and written with `setPhase()`. Same for the turn (`currentTurn()` /
+`advanceTurn()`).
+
+### 6.6 The end of a game ✅
+
+Checked once per turn, in the engine's `endTurn` hook and **before** `advanceTurn` — so a game
+with a 200-turn limit is scored at the end of turn 200 rather than on turn 201, and the ending
+agrees with every number the player has been reading all game.
+
+`src/rules/victoryCheck.js` is the whole rule and it is pure. In order:
+
+1. **Elimination first.** A player holding no territories has lost, whatever else is true of
+   the world. It runs underneath every goal and needs no configuration.
+2. **Any country satisfying `hasWon()` ends the game** — `VICTORY` for the player, `DEFEAT`
+   otherwise. The goal is a shared race: every AI plays for the same condition, so one of them
+   getting there first is a defeat rather than a curiosity. That is what puts a clock on the map.
+3. **Ties are broken explicitly** — by name for two countries completing on the same turn, and
+   by area then territory count then name for a Timed Game — so a seeded run reproduces its own
+   ending.
+
+The outcome is a `GAME_OVER` event on `src/state/events.js`. It fires **at most once per
+game**: the condition stays met after it has been met, so without the latch a decided game
+would announce itself again at the end of every subsequent turn. New Game and a load clear it.
+
+❌ **The victory / defeat screen.** The only listener today is a `console.log` — deliberately
+not a `console.error`, which fails every e2e spec. The screen is a second subscriber rather
+than a change to any of the above.
 
 ---
 
@@ -596,11 +637,33 @@ player's siege is removed and the besieging army returns home.
 
 This is the only diplomacy in the game and is a good seed for more.
 
-### 8.5 Long-term AI goals ❌
+### 8.5 Long-term AI goals ✅
 
-`gameTurnsLoop.js` carries explicit TODOs for long-term goals ("destroy country X", "hold N
-territories", "take continent Y") and for assessing whether a turn goal was achieved. Not
-implemented — the AI is purely turn-local.
+~~`gameTurnsLoop.js` carries explicit TODOs for long-term goals and the AI is purely
+turn-local.~~ Implemented across refactor Phase 7.8 (the mid term) and Goals and Victory Q2
+(the long term). Three horizons, and the AI's own reasoning is readable at Numpad `/`:
+
+| Horizon | Module | What it commits to |
+|---|---|---|
+| Long | `src/ai/strategy.js`, `src/ai/doctrine.js` | Three committed continents, a focus continent, a posture and two budgets, all derived from the active victory condition |
+| Mid | `src/ai/theatre.js` | ONE neighbouring country to absorb, kept while it takes ground and written off as a WALL when it stalls |
+| Short | `src/ai/targeting.js` | One verdict per candidate target this turn |
+
+**`src/ai/doctrine.js` is the only module in `src/ai/` allowed to switch on a victory condition
+kind.** It turns the goal into five dials the rest of the AI already thinks in —
+`continentsToCommit`, `areaHunger`, `targetCountries`, `urgency` and `neverSatisfied` — whose
+rows live in `goalDoctrines` in `balance.js`, so a goal's character is a balance edit rather
+than a code edit. `urgency` is the strongest RIVAL's share of the world's land (a runaway
+leader is attacked harder by the whole map), or `turn / turnLimit` in a Timed Game. It scales
+the **attack** budget and deliberately cannot reach the siege budget.
+
+Measured over 150 headless turns per goal (`tools/ai-sim.mjs --goal=KIND`): 78–114 countries
+surviving, a largest empire of 51–97, a top-sixteen share of 65–81%, and no goal freezing the
+world. The table is in [05-goals-and-victory.md](./05-goals-and-victory.md) §5, and that
+measurement is the acceptance criterion for any change to `src/ai/`.
+
+❌ Still absent: **coordination and route planning.** Each country plans alone, has no model of
+what the player is about to do, and weighs each target on its own rather than as a sequence.
 
 ---
 
@@ -671,21 +734,21 @@ Things the game needs but does not have. Ordered roughly by how badly they are m
 
 | # | Feature | Notes |
 |---|---|---|
-| ❌ 1 | **Win / lose conditions** | Nothing checks total conquest or player elimination. The game literally cannot end. |
+| ✅ 1 | ~~**Win / lose conditions**~~ | **Done, Goals and Victory Q1–Q4.** Five goals — Continental Supremacy, Domination, Great Powers, World Conquest, Timed Game — chosen on a forced screen before the country, with a scale each. Every AI plays for the same one. The ending is checked in `endTurn` before the counter moves and announced once (§6.6); elimination runs underneath every goal. What is left is the victory/defeat **screen**: the ending currently goes to the console. |
 | ✅ 2 | ~~**Save / load**~~ | **Done, refactor Phase 7.3.** Autosave to `localStorage` on a one-minute timer, restored through Resume Game on the next visit, plus an lz-string-compressed code the player can copy out and paste back. `src/state/snapshot.js`, `src/platform/storage.js`. Still a single slot — named slots are a bigger UI than this game needs, and the code is the escape hatch. |
 | ✅ 3 | ~~**New game / restart**~~ | **Done, refactor Phase 7.2.** `TurnEngine.reset()` (Phase 5.7) made the teardown possible; the world is put back by loading a pristine snapshot captured at bootstrap. Restart is New Game, and New Game asks first when there is a game to lose. |
 | ❌ 4 | **Per-turn army maintenance** | Implemented but the call site is commented out (§3.4). Removing the main economic brake on militarisation. |
 | ❌ 5 | **Multiplayer / online** | Despite the repo name. No sockets, no server logic. |
-| ❌ 6 | **Long-term AI goals** | TODOs only (§8.5). |
+| ✅ 6 | ~~**Long-term AI goals**~~ | **Done, refactor Phase 7.8 and Goals and Victory Q2.** Three horizons — continents, a country to absorb, a target this turn — all derived from the chosen goal (§8.5). Coordination and route planning are still absent. |
 | ❌ 7 | **AI diplomacy beyond the siege gold offer** | No alliances, no trade, no non-aggression, no war declarations. |
-| ❌ 8 | **Player-visible AI activity** | AI conquests happen silently; the player learns about them from the console. No news feed, no notifications. |
+| ✅ 8 | ~~**Player-visible AI activity**~~ | **Done, refactor Phase 7.4 — the activity feed.** ~~AI conquests happen silently.~~ `src/state/activityLog.js` stores facts and the feed derives the wording when a row is drawn. It is military only, by design: the AI's *plans* go to the console, because a panel showing them would be a cheat. |
 | ❌ 9 | **Continent control bonuses** | Continents exist as modifiers but holding one grants nothing. |
 | ❌ 10 | **Technology / research** | `dev_index` is static; nothing raises it. |
 | ❌ 11 | **Naval / air movement rules** | Naval and air are combat stats only; there is no sea movement, no range, no transport. Coastal-ness only gates whether naval counts. |
-| ❌ 12 | **Help / tutorial / onboarding** | Help button is inert. No explanation of oil demand, sieges or useable units anywhere in-game. |
+| ✅ 12 | ~~**Help / tutorial / onboarding**~~ | **Done, refactor Phase 7.6 — the Dominapedia.** ~~The Help button is inert.~~ Seven main topics and twenty-nine pages built from `src/ui/dominapedia/topics.js`, covering oil demand, sieges, useable units and the goals. There is still no interactive tutorial. |
 | ❌ 13 | **Difficulty settings** | AI aggression is per-leader random only. |
 | ❌ 14 | **Sound for game events** | Only click SFX and background music. |
-| ❌ 15 | **3D dice in battle** | Fully built, disabled (§7.7). |
+| ✅ 15 | ~~**3D dice in battle**~~ | **Done, battle overhaul B.6.5.** The rules choose the faces and the physics tumbles real dice to show them (§7.3, §7.7). |
 | ❌ 16 | **Turn / battle history or statistics** | `historicWars` exists internally but is only surfaced in the Wars & Sieges tab. |
 | ❌ 17 | **Mobile / responsive layout** | Fixed-pixel desktop layout throughout. |
 | ❌ 18 | **Accessibility** | No keyboard navigation beyond Escape, no ARIA, no colour-blind mode (the player picks an arbitrary colour). |

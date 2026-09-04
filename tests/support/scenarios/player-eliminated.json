@@ -1,0 +1,14 @@
+{
+  "name": "player-eliminated",
+  "description": "The player's last territory changes hands. Elimination runs underneath every goal -- holding nothing is losing whatever you were playing for -- so this is the one ending reachable without playing a two-hundred-turn game, and it is what the GAME_OVER wiring is tested through. Germany is a single-territory country, which is why it is the one used: taking it is the whole of the player's empire.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "owner": "France",
+        "dataName": "France",
+        "isDeactivated": true
+      }
+    }
+  ]
+}

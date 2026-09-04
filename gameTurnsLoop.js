@@ -325,6 +325,10 @@ installTestHooks({
     //this exists to keep closed.
     diceFaces: () => facesShowing(),
     greyedOutCountries: () => [...greyedOutCountryNames()],
+    //Every GAME_OVER this game has emitted, newest last. The ending latches, and "it
+    //announced itself once" is the assertion -- which no hook reporting only the latest
+    //result could answer. See `resetVictoryLatch()`.
+    gameOverEvents: () => gameOverLog.map(entry => ({ ...entry })),
     wars: () => historicWarsList().map(war => ({
         warId: war.warId,
         defendingTerritory: war.defendingTerritory?.territoryName ?? null,
@@ -633,7 +637,22 @@ let gameDecided = false;
 /** New Game and Resume both need the latch cleared, or the previous game's ending sticks. */
 export function resetVictoryLatch() {
     gameDecided = false;
+    gameOverLog.length = 0;
 }
+
+/**
+ * Every GAME_OVER this game has emitted, for the ?e2e=1 harness.
+ *
+ * It is a LIST rather than a flag because the assertion that matters is "once". The latch
+ * above is the whole of the ending's mechanism, and the failure it guards against -- a won
+ * game announcing itself again at the end of every subsequent turn -- is invisible to any
+ * hook that only reports the most recent result. A spec plays two more turns past the
+ * ending and asserts the list is still one long.
+ *
+ * Cleared by `resetVictoryLatch()`, so New Game and a load start with an empty one for the
+ * same reason they clear the latch.
+ */
+const gameOverLog = [];
 
 /**
  * The first and, for now, only subscriber to GAME_OVER.
@@ -643,6 +662,13 @@ export function resetVictoryLatch() {
  * `console.log` deliberately: a `console.error` fails every e2e spec.
  */
 on(Events.GAME_OVER, (result) => {
+    gameOverLog.push({
+        outcome: result.outcome,
+        winner: result.winner ?? null,
+        reason: result.reason,
+        turn: result.turn,
+        kind: result.condition?.kind ?? null
+    });
     const outcome = result.outcome === "VICTORY"
         ? "YOU HAVE WON!"
         : result.outcome === "DEFEAT"

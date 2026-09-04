@@ -42,12 +42,20 @@ test. `GameDriver.loadScenario` already throws if the report carries errors.
 Territory names come from `resources/svgMaster.svg` and six of them contain real parentheses
 (`"Grand Bahama (Bahamas)"`). Write them exactly as the SVG has them.
 
-## Two things a new scenario has to get right
+## Three things a new scenario has to get right
 
 **Patch `armyForCurrentTerritory` as well as the four unit counts.** It is a *stored* total,
 not a derived one. Patch the units alone and the probability calculation reads one number
 while the bottom table reads another — the setup looks applied, and the battle behaves as
 though it were not. Every scenario here patches both.
+
+**Ownership is TWO fields, and a conquest writes both.** `owner` is what
+`territoriesWithOwner()` filters on and is the string "Player" for everything the human
+holds; `dataName` is the country name and is what `worldStandings()` and the victory rules
+count. `setTerritoryOwner()` sets them together, so a scenario that patches only one produces
+a world the game could not have produced -- and the halves disagree silently:
+`player-eliminated` with only `dataName` patched ended the game correctly and still reported
+the player as holding a territory.
 
 **A chosen battle outcome is reached by COMPOSITION, not by attrition.** An attacker big
 enough to win takes the defender from roughly 13 % of its starting force to zero in one step,
@@ -58,7 +66,7 @@ fleet before it touches the infantry, and a defender of 100 ships and 2,000 infa
 99 % of its combined force with 2,000 men still standing. That is what
 `rout-bound-defender` and `last-push-defender` are built on.
 
-## The ten
+## The eleven
 
 | Scenario | Sets up |
 |---|---|
@@ -71,4 +79,5 @@ fleet before it touches the infantry, and a defender of 100 ships and 2,000 infa
 | `rout-bound-defender` | Mostly-naval defender plus infantry: `DEFENDER_ROUTED` |
 | `last-push-defender` | The same shape, tuned to land between the 5 % and 15 % thresholds: `LAST_PUSH` |
 | `evenly-matched` | Two identical fleets: `FIGHT_AGAIN`, and the setup every siege spec starts from |
+| `player-eliminated` | The player's only territory handed to a neighbour, so the end-of-turn victory check reports DEFEAT / ELIMINATED -- the one ending a scenario can reach |
 | `ai-siege-starves-out` | An AI siege on an AI territory already inside the rout band, with no food and no forts, so the next turn's income pass resolves it as a conquest — known-issue **AZ** |

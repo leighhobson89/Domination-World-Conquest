@@ -6,6 +6,7 @@ Refactor plan Phase 7.2 and 7.3.
 | Spec | Covers |
 |---|---|
 | `menu-access.spec.js` | The hamburger appears with the game and disappears with the menu; it and Escape make the same two transitions; Resume is greyed out until there is something to resume; New Game asks before destroying a game in progress and does not ask when there is none; confirming really resets the world; the restarted game is playable |
+| `goal-survives-a-load.spec.js` | The chosen goal and its scale survive a code; a Great Powers game restores the five names it froze; the progress line is right on the first frame of a loaded game; Resume from a stored save comes back to the same goal |
 | `save-load.spec.js` | The panel offers a code as soon as it opens; a code taken before a turn restores the game to before that turn; a loaded game is wired up rather than merely restored; a foreign code and a damaged one give different messages; the autosave writes to `localStorage` and raises the spinner; a stored save offers Resume on the next visit |
 
 ## Why these are e2e and not unit tests
@@ -43,6 +44,11 @@ spec that catches them, and it asserts on the screen and on the engine rather th
   games in the same browser session get the same randomised starting gold, because the roll
   happens before the capture. The AI leaders and the starting forts are re-rolled, because they
   are generated after the game starts.
+- **The chosen goal is durable state OUTSIDE the store**, so it rides in the `aiStrategy`
+  save slice registered from `aiCalculations.js` rather than in the snapshot. A load that put
+  every territory back and quietly resumed the DEFAULT goal would pass every assertion in
+  `save-load.spec.js` — hence `goal-survives-a-load.spec.js`, which starts a second game under
+  a different goal before loading, so a load that did nothing at all cannot pass by accident.
 - **`clearStoredSave()` matters between specs.** Playwright gives each test a fresh context, so
   `localStorage` does not leak — but a spec that reloads the page inside itself is sharing one,
   which is exactly what the Resume specs rely on.

@@ -22,9 +22,10 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: Phase 7, on the developer's report of AZ (an AI-versus-AI siege handing the
-player the territory).** Earlier revisions: after Phase 7.2 / 7.3 (menu access, new game,
-save/load), end of Phase 6, the Phase 6.9 planning review, and 7.10 (themes).
+**Last updated: Goals and Victory Q4 — the game can now be finished, so the register's
+oldest open item is closed.** Earlier revisions: Phase 7, on the developer's report of AZ (an
+AI-versus-AI siege handing the player the territory); after Phase 7.2 / 7.3 (menu access, new
+game, save/load); end of Phase 6; the Phase 6.9 planning review; and 7.10 (themes).
 
 ## Currently open
 
@@ -35,12 +36,12 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 | Id | Issue | Owner |
 |---|---|---|
 | — | Bootstrap ordering is timing-luck: CPU leaders and the AI's starting forts are created after `initialiseGame()` resolves, so turn 1 runs over a world with no leaders and no forts | 7.x balance |
-| — | No win or lose condition — the game cannot be finished | 7.1 |
 | — | Unpaid army upkeep has no consequence; a broke territory keeps its army for free | 7.x balance |
 | — | ~~AI sieges accumulate without bound (17 → 67 over 14 turns)~~ — closed by the campaign budgets; a besieged territory still earns nothing | 7.x design |
 | — | The AI can eliminate a single-territory player in ten turns once it plans its first turn with full information | 7.7 / 7.x |
 | — | **Attacking is too hard for the world to consolidate.** Measured after Phase 7.8 over two seeds: ~59% of every reachable (attacker, defender) pairing in the world is below the 15% win probability the game applies to everybody, before any AI decision is taken. The AI now plans, masses and presses properly, and a hundred turns still ends with 106–145 countries rather than the 16 or so a world of great powers implies — and which of the two it is depends on whether one power happened to get an early snowball. The defender's fort multiplier and the attacker's sub-1 `devIndex` are the two terms to look at, together with **AR** below. `tools/ai-sim.mjs` is the instrument | 7.x balance |
 | ~~—~~ | ~~`dices.js` is fully wired but its call site is commented out~~ | **DONE in battle overhaul B.6.5.** The rules choose the faces; the physics tumbles real dice and each mesh is rotated by one of a cube's 24 symmetries to show the chosen face. Two defects fixed with it: the collision shape was a CUBOID (faces 3 and 4 came up a third as often as they should, chi-square 738) and the throw drew from `Math.random`. **And `dist/` came off the critical path at B.10.3**: the three UMD bundles (~785 KB) are injected by `src/platform/vendor/diceRuntime.js` on the FIRST dice roll of a session rather than by `index.html` on every page view. They are still committed classic scripts setting globals, because a bare-specifier import is something only a bundler can resolve |
+| — | **The ending has no SCREEN.** The game decides itself correctly and emits `GAME_OVER` once — the victory and defeat screens are the only listener still missing, and they are a second subscriber rather than a change to the rule | next |
 | — | The transfer table's row-selection handler is on the row's NAME column, not on the row | 7.x |
 | — | Mixed tabs and spaces, inconsistent brace style, commented-out blocks in the legacy root sources | per file, as each moves into `src/` |
 | — | 166 `console.log` calls in the turn and battle hot path — `aiCalculations.js` 57, `battle.js` 49, `resourceCalculations.js` 36, `gameTurnsLoop.js` 15, `ui.js` 5 | per file, as each moves into `src/` |
@@ -132,7 +133,7 @@ Real, understood, deliberately not being fixed yet.
 | — | **Bootstrap ordering is timing-luck**: CPU leaders and the AI's starting forts are created *after* `initialiseGame()` resolves, which is after the engine has run turn 1 — so turn 1 plans and earns over a world with no leaders and no forts, and `newTurnResources()` skips the income pass on turn 1 to hide it | **7.x — balance pass** (was 5.7) | ~~Re-sequenced in 5.8, with a measurement. Moving the setup inside `initialiseGame()` was implemented and tried: the ten-turn `long-run` went from **6/6 green to 0/6**, the player eliminated every time.~~ A fully-formed AI first turn is a balance change, not a tidy-up. The finding is recorded at the site in `gameTurnsLoop.js` so nobody repeats it blind |
 | — | ~~`eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state~~ | **DONE in 6.6** | ~~It was suppressing a real defect, not debouncing a fast finger: the move button's click handler was re-created and re-attached on every territory selection, and `removeEventListener` could never remove the previous one because each call built a new function object. Listeners accumulated, so one click fired once per selection made since the window opened. There is one listener now, installed once from bootstrap, reading the current state — so there is nothing to de-bounce and the latch and all four timers are gone~~ |
 | — | ~~Essentially **no error handling** — two `try/catch` in 19,800 lines, one of them empty~~ | **DONE in 5.7** | ~~`src/engine/TurnEngine.js` reports a thrown step through `onError` and carries on: one lost turn instead of a dead game. It is why every defect in §3 froze the *whole game* rather than one turn, and why a crash is now a failing e2e spec instead of a stuck phase button~~ |
-| — | **No win or lose condition.** The game cannot be finished | 7.1 | |
+| — | ~~**No win or lose condition.** The game cannot be finished~~ | **DONE, Goals and Victory Q1–Q4** | ~~Nothing checked whether the world had been conquered and nothing checked whether the player had been wiped off it.~~ Five goals, chosen on a forced screen before the country; every AI plays for the same one and adapts to it through `src/ai/doctrine.js`; `src/rules/victoryCheck.js` decides the ending in the turn engine's `endTurn` hook, **before** `advanceTurn`, and it latches so a decided game announces itself exactly once. Elimination runs underneath every goal. Covered by `tests/unit/rules-victory-check.spec.js` and `tests/e2e/goal-selection/game-over.spec.js`. **What is deliberately NOT done: the victory / defeat SCREEN.** The only listener today is a `console.log` (never a `console.error`, which fails every e2e spec); the screen is a second subscriber rather than a change to the rule, and it is the next piece of work |
 | — | **No save or load.** A refresh destroys everything | 7.3 | |
 | — | Unpaid army upkeep has **no consequence** — a broke territory keeps its army for free | 7.x | ~~New in Phase 3, with maintenance re-enabled (**R**).~~ Desertion is a design decision, not a defect fix |
 | — | ~~The start-of-turn info panel is **suppressed on any turn that ends a siege by arrest**~~ | **DONE in 5.8** | ~~It was far worse than recorded: once sieges ticked properly (**D**, **J**) the AI arrested something nearly every turn, so the panel opened on NO turn at all and an empty results screen appeared in its place. See **AT** and **AU** in §8~~ |

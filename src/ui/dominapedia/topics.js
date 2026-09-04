@@ -148,96 +148,141 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                 {
                     id: "how-to-win",
                     title: "Goals and Victory",
-                    summary: "What you are trying to achieve, and what would end a game.",
+                    summary: "The five goals, how each one is won, and how a game ends.",
                     body: [
-                        h("The honest position first"),
                         p(
-                            "As the game stands, it does not end. Nothing checks whether you " +
-                                "have conquered the world and nothing checks whether you have " +
-                                "been wiped off it. You can play until you are bored, and the " +
-                                "autosave will still be there when you come back."
+                            "Every game is played for a GOAL, and you choose it before you " +
+                                "choose your country. The chooser is the first screen a new " +
+                                "game opens on and it cannot be skipped — Escape takes you " +
+                                "back to the title screen, not past the question."
                         ),
                         p(
-                            "Everything below this line is the design for what victory SHOULD " +
-                                "be. It is written here rather than in a planning document " +
-                                "because this is the page a player would look for it on, and " +
-                                "because deciding it is the single largest open question the " +
-                                "game has."
+                            "The goal is not a difficulty setting and it is not yours alone. " +
+                                "Every one of the 206 computer countries is playing for the " +
+                                "same condition you are, adapts how it fights to suit it, and " +
+                                "any of them can get there first. Whoever completes it first " +
+                                "ends the game."
                         ),
-                        h("The four victory conditions"),
+                        h("The five goals"),
+                        table(
+                            ["Goal", "Won by", "Scales offered"],
+                            [
+                                [
+                                    "Continental Supremacy",
+                                    "Every territory on N continents, outright",
+                                    "2, 3 or 4"
+                                ],
+                                [
+                                    "Domination",
+                                    "A share of the world's land AREA",
+                                    "40%, 60% or 80%"
+                                ],
+                                [
+                                    "Great Powers",
+                                    "The whole homeland of N of the five powers",
+                                    "Any 3, or all 5"
+                                ],
+                                [
+                                    "World Conquest",
+                                    "Every territory on the map",
+                                    "None"
+                                ],
+                                [
+                                    "Timed Game",
+                                    "The largest empire by land area at the deadline",
+                                    "200, 350 or 500 turns"
+                                ]
+                            ]
+                        ),
                         p(
-                            "These four are DEFINED, and the game measures every country's " +
-                                "progress towards whichever one is active — but nothing ends " +
-                                "when one is met, and there is no screen on which to choose " +
-                                "between them yet. What they already do is give the computer " +
-                                "players something to play for; see \"How the AI Thinks\"."
+                            "The default is Continental Supremacy at three continents, which " +
+                                "is the shortest genuinely decisive game this map offers. The " +
+                                "chooser describes each goal in full as you browse them, and " +
+                                "under Great Powers it names the five countries by name."
                         ),
+                        h("Losing"),
+                        p(
+                            "You lose the moment you hold no territories at all. That rule " +
+                                "runs underneath every goal — holding nothing is losing " +
+                                "whatever you were playing for — and it is why a " +
+                                "one-territory country is a real handicap rather than a slow " +
+                                "start."
+                        ),
+                        h("Three things worth knowing"),
                         ul(
-                            "CONTINENTAL — hold every territory on any three continents " +
-                                "outright. A shorter, sharper game for a player who does not " +
-                                "want to click through the whole map, and the condition that " +
-                                "gives continent control a point. This is the DEFAULT, and it " +
-                                "is what every computer country is currently campaigning towards.",
-                            "DOMINATION — hold 60% of the world's land area. Area rather than " +
-                                "territory count, because the map's territories are wildly " +
-                                "unequal in size and a hundred Caribbean islands should not " +
-                                "outweigh Russia.",
-                            "ELIMINATION — you lose when you hold no territories at all. The " +
-                                "defeat condition; it needs no configuration.",
-                            "SCORE AT THE TURN LIMIT — at turn 100, the largest empire by land " +
-                                "area wins. A backstop, so that a stalemate has an ending."
+                            "CONTINENTS ARE COUNTED IN TERRITORIES; DOMINATION COUNTS AREA. A " +
+                                "Caribbean island finishes a continent as surely as Siberia " +
+                                "does, and is worth almost nothing towards a land share. The " +
+                                "two goals want different parts of the map taken.",
+                            "GREAT POWERS ROUTES THROUGH THIRD PARTIES. If somebody else takes " +
+                                "half of a power's homeland before you do, you take those " +
+                                "territories from THEM instead. The objective stays reachable " +
+                                "and the route to it becomes a different war. A power's own " +
+                                "homeland never counts towards its own goal, so no computer " +
+                                "country starts a five-power game a fifth of the way home.",
+                            "A TIMED GAME CANNOT BE WON EARLY. However far ahead you are it is " +
+                                "scored at the end of the final turn — and the computer " +
+                                "countries grow steadily more reckless as the deadline nears, " +
+                                "because there is nothing left to conserve."
                         ),
-                        planned(
-                            "Choosing between them when the game is started, alongside the " +
-                                "country and the colour. The AI already adapts to whichever is " +
-                                "active — a country playing for DOMINATION spreads across four " +
-                                "continents where one playing for CONTINENTAL tunnels into " +
-                                "three — so what is missing is the screen and nothing else."
-                        ),
-                        planned(
-                            "The moment the game STOPS and says so, and a permanent line " +
-                                "showing where you are: \"Domination: 12% of 60%\" would turn " +
-                                "every turn into progress towards something. The number behind " +
-                                "that line is already worked out for every country every turn."
-                        ),
-                        h("What you are optimising for in the meantime"),
+                        h("Where you stand"),
                         p(
-                            "Without a victory condition there is still a right way to play, " +
-                                "and it is worth naming because the four things that matter are " +
-                                "not the four things a new player watches."
+                            "The phase bar carries one line of progress towards whatever you " +
+                                "chose: \"Continental: 1 of 3 continents\", " +
+                                "\"Domination: 24% of 60%\", " +
+                                "\"Great Powers: 1 of 3 (France 4/7)\". It is the " +
+                                "same measurement every computer country reads about itself, " +
+                                "so you and the country trying to beat you are never looking " +
+                                "at two different numbers. It is restated at each turn " +
+                                "boundary, which is the only point at which territory has " +
+                                "changed hands."
                         ),
+                        planned(
+                            "A victory and defeat SCREEN. The game already decides itself — " +
+                                "the ending is checked at the end of every turn, before the " +
+                                "turn counter moves, and it is announced exactly once — " +
+                                "but what it currently does with that is write a line to the " +
+                                "browser console. The screen is the next piece of work, and it " +
+                                "is a second listener rather than a change to any of the above."
+                        ),
+                        h("What the AI is trying to do"),
+                        p(
+                            "The same thing you are, and it reads the goal you chose. Each " +
+                                "computer country commits to continents of its own, picks one " +
+                                "neighbouring country to absorb, keeps both commitments across " +
+                                "turns rather than re-choosing every turn, and weighs every " +
+                                "target by whether taking it advances the plan. What the goal " +
+                                "changes is how many continents it commits to, how much it " +
+                                "values raw land, whether it will ever settle for holding what " +
+                                "it has, and — under Great Powers — which countries " +
+                                "it goes looking for. See \"How the AI Thinks\"."
+                        ),
+                        p(
+                            "Two consequences for you. A neighbour that has committed to YOUR " +
+                                "continent is a permanent problem and will keep coming back " +
+                                "for the same few territories; one whose continents are " +
+                                "elsewhere will largely leave you alone until you threaten " +
+                                "something it holds. And the whole world grows more aggressive " +
+                                "as any one country pulls ahead: every country measures the " +
+                                "strongest rival's share of the map and spends its attacks " +
+                                "harder as that share grows. Take a commanding lead and you " +
+                                "will be made to feel it."
+                        ),
+                        h("What you are optimising for, whichever goal you took"),
                         ul(
                             "LAND AREA is the base of everything. It drives gold, it drives " +
-                                "resource capacity, and it is what a domination victory would " +
-                                "count. Territory count is a poor proxy for it.",
+                                "resource capacity, it is what a Domination victory counts and " +
+                                "it is what a Timed Game is scored on. Territory count is a " +
+                                "poor proxy for it.",
                             "PRODUCTIVE POPULATION is the real currency. Gold is easy to come " +
-                                "by; the people to crew what gold buys are not, and running out " +
-                                "of them stops your army growing no matter how rich you are.",
+                                "by; the people to crew what gold buys are not, and running " +
+                                "out of them stops your army growing no matter how rich you " +
+                                "are.",
                             "OIL decides how much of the army you own is an army you can use. " +
                                 "A fleet with no fuel is a line in a table.",
                             "A DEFENSIBLE FRONTIER. Every territory you take is a territory " +
                                 "someone can take back, and a conquered one sits out one to " +
                                 "three turns before it can do anything at all."
-                        ),
-                        h("What the AI is trying to do"),
-                        p(
-                            "The same thing you are. Every computer country commits to three " +
-                                "continents of its own — the ones it has a foothold on, that " +
-                                "are worth holding, and that nobody stronger is already sitting " +
-                                "on — and works towards owning them outright. It keeps that " +
-                                "commitment across turns rather than re-choosing every turn, it " +
-                                "weighs a target by whether taking it advances the plan, and it " +
-                                "will decline a fight it does not rate. See \"How the AI " +
-                                "Thinks\"."
-                        ),
-                        p(
-                            "Two consequences for you. A neighbour that has committed to YOUR " +
-                                "continent is a permanent problem and will keep coming back for " +
-                                "the same few territories; one whose three continents are " +
-                                "elsewhere will largely leave you alone until you threaten " +
-                                "something it holds. And every computer country is racing you " +
-                                "to the same condition, so the map has a clock on it even " +
-                                "though nothing yet declares a winner."
                         ),
                     ],
                 },
@@ -247,10 +292,21 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                     summary: "What the selection screen is asking, and what is locked.",
                     body: [
                         p(
-                            "Before the first turn you pick the country you will play and the " +
-                                "colour it is drawn in. Click any territory on the map and you " +
-                                "take the whole country that holds it — every territory flying " +
-                                "that flag, not just the one you clicked."
+                            "This is the second question a new game asks. The first is the " +
+                                "GOAL — see \"Goals and Victory\" — and it is worth " +
+                                "answering them together, because the goal decides what a good " +
+                                "starting position even is. A Domination game rewards whoever " +
+                                "can reach big, empty, awkward land; Continental Supremacy " +
+                                "rewards a country with a continent it can realistically " +
+                                "finish; Great Powers puts five named countries on the map " +
+                                "that you will have to break, and the chooser names them, so " +
+                                "look at who you would be starting next door to."
+                        ),
+                        p(
+                            "Then you pick the country you will play and the colour it is " +
+                                "drawn in. Click any territory on the map and you take the " +
+                                "whole country that holds it — every territory flying that " +
+                                "flag, not just the one you clicked."
                         ),
                         h("The five locked countries"),
                         p(
@@ -270,6 +326,13 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "Strength here is not army size. It is a single score built from a " +
                                 "country's land area, its stockpiled resources, its development " +
                                 "index, its population, its continent and its army."
+                        ),
+                        p(
+                            "These same five are the powers a Great Powers game asks you to " +
+                                "break. That is not a coincidence and it is not two separate " +
+                                "lists: the lock and the goal read one derivation, so the " +
+                                "countries you cannot play as under any goal are exactly the " +
+                                "countries you are hunting under that one."
                         ),
                         h("How to read a starting position"),
                         p(
@@ -1795,12 +1858,42 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         h("Every AI has a campaign, and it lasts several turns"),
                         p(
                             "The leader says HOW a country fights. The campaign says what it is " +
-                                "fighting for, and it is derived from the active victory " +
-                                "condition rather than invented — so when the start-of-game " +
-                                "chooser lands, every computer country adapts to your choice " +
-                                "with no further change. Under the default condition, that means " +
-                                "each of them picks THREE CONTINENTS and works towards owning " +
-                                "them outright."
+                                "fighting for, and it is DERIVED from the goal you chose rather " +
+                                "than invented — which is why the chooser at the start of a " +
+                                "game is not a scoring rule bolted onto a fixed AI. Under the " +
+                                "default goal that means each country picks THREE CONTINENTS " +
+                                "and works towards owning them outright."
+                        ),
+                        p(
+                            "The goal changes four dials, and they are enough to produce five " +
+                                "recognisably different worlds. HOW MANY CONTINENTS a country " +
+                                "commits to. HOW MUCH IT VALUES RAW LAND, which is what makes a " +
+                                "Domination world spread over four fronts where a Continental " +
+                                "one tunnels into three. WHETHER IT WILL EVER SETTLE for holding " +
+                                "what it has — under World Conquest it never does. And WHICH " +
+                                "COUNTRIES IT GOES LOOKING FOR, which only Great Powers uses, " +
+                                "and which is what makes that goal feel like a hunt rather than " +
+                                "a percentage."
+                        ),
+                        p(
+                            "There is a fifth dial and it is about YOU. Every country measures " +
+                                "the strongest rival's share of the world and spends its attack " +
+                                "budget harder as that share grows, so a runaway leader is " +
+                                "attacked harder by the whole map. In a Timed Game the same " +
+                                "dial reads the clock instead — there is nothing to conserve on " +
+                                "the last turn. It deliberately never reaches the SIEGE budget: " +
+                                "an urgent world that could also lay unlimited sieges is a world " +
+                                "that silts up and stops moving."
+                        ),
+                        p(
+                            "Underneath the campaign each country also commits to absorbing ONE " +
+                                "neighbouring country at a time. It keeps that commitment while " +
+                                "it is taking ground and writes the rival off as a WALL when it " +
+                                "stalls, at which point it looks for somebody else. Under Great " +
+                                "Powers it prefers a named power when one is reachable. This is " +
+                                "the mid-term goal, and it is what makes the world consolidate " +
+                                "into larger countries over a long game instead of trading the " +
+                                "same border province forever."
                         ),
                         p(
                             "A continent is chosen on five things: how much of it the country " +
@@ -2281,10 +2374,16 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("The four things most worth fixing, in order"),
                         p(
-                            "1. THE GAME CANNOT END. No victory condition, no defeat condition, " +
-                                "no score. See \"Goals and Victory\" for the proposal. " +
-                                "Everything else on this list is a balance question; this one is " +
-                                "the difference between a simulation and a game."
+                            "1. THE GAME ENDS, BUT IT DOES NOT SAY SO ON SCREEN. This was the " +
+                                "top of the list for the life of the project and it is now " +
+                                "most of the way closed: you choose one of five goals before " +
+                                "the first turn, every computer country plays for the same " +
+                                "one and adapts to it, your progress is on the phase bar, and " +
+                                "the ending is decided at the end of every turn — the moment " +
+                                "anybody completes the condition, or you lose your last " +
+                                "territory. What is missing is the last step, which is a " +
+                                "victory or defeat SCREEN; today the ending goes to the " +
+                                "browser console. See \"Goals and Victory\"."
                         ),
                         p(
                             "2. SIEGES SILT UP THE MAP. The AI starts far more than it can " +
