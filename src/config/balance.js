@@ -238,6 +238,54 @@ export const initialArmyDistribution = {
 
 // --- military --------------------------------------------------------------
 
+/**
+ * How much harder an attacker hits than its head count says. THE attack/defence dial.
+ *
+ * The world was not changing hands. Forty headless turns of `tools/ai-sim.mjs` left 156
+ * of 207 countries alive with roughly two conquests a turn across the whole map, and the
+ * reason is structural rather than a matter of the AI being timid: `defenseMultiplierFor()`
+ * takes the CEILING of the fortification bonus, so a single fort -- or a mountain, or the
+ * land-locked bonus -- doubles a territory's defending strength outright. Most territories
+ * on the map have at least one of those, so most attacks are fought at a two-to-one
+ * disadvantage before a single unit is counted.
+ *
+ * Rather than unpick that (the ceiling is load-bearing: it is what makes the FIRST fort
+ * worth building), the attacker gets a flat multiplier on its strength, applied at the one
+ * place attack and defence are finally compared. 1.2 means the attacker's force counts for
+ * twenty per cent more than it otherwise would -- the attack-to-defence RATIO improves by
+ * exactly twenty per cent at every point on the scale, which is what "attacking is twenty
+ * per cent easier COMPARED TO defence" says.
+ *
+ * Note what that is not: it is not twenty per cent added to the win probability. The
+ * probability is a share, `attack / (attack + defence)`, so a twenty per cent better ratio
+ * moves an even fight from 50% to 54.5% and a losing one from 25% to 28.6%. That is the
+ * well-behaved form -- it cannot push a probability past 100, it cannot make a hopeless
+ * attack look winnable, and doubling it again would be another twenty per cent rather than
+ * another twenty points. Multiplying the probability itself would do all three of those
+ * things wrong.
+ *
+ * TUNING. This is the only number to change to make attacking easier or harder overall,
+ * and it moves BOTH forms of attack because both funnels read it:
+ *
+ *   * open battle, through `winProbability()` in src/rules/military/probability.js, which
+ *     feeds `skirmishOdds()` and therefore every round of every battle; and
+ *   * sieges, through `scoreDifferenceFor()` in src/rules/military/siege.js, which is the
+ *     single number every siege band is scored on -- the hit roll, the destroy roll, the
+ *     collateral damage and the arrest.
+ *
+ * The AI needs no change at all: it rates targets with the real probability function and
+ * the real siege score, so its odds floors, its budgets and its posture thresholds all
+ * re-derive from this on their own.
+ *
+ * Two things this deliberately does NOT touch, because they are not attack-versus-defence
+ * comparisons and moving them would double-count: `SKIRMISH_ODDS_CAP`, which is a ceiling
+ * on one skirmish and is what stops a lopsided battle being a formality, and
+ * `battleOutcomeThresholds`, which measure each army against its OWN starting size.
+ * If attacking still needs to be easier after raising this, `SKIRMISH_ODDS_CAP` is the
+ * next dial -- above 65% win probability the cap, not the odds, is what decides a battle.
+ */
+export const ATTACK_ADVANTAGE = 1.2;
+
 /** A battle is five rounds; the skirmishes are spread evenly across them. */
 export const BATTLE_ROUNDS = 5;
 

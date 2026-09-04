@@ -23,6 +23,7 @@ import {
     tickSiege
 } from "../../src/rules/military/siege.js";
 import {
+    ATTACK_ADVANTAGE,
     SIEGE_HIT_ITERATIONS,
     armyTypeSiegeValues,
     siegeHitChance
@@ -84,13 +85,27 @@ describe("siegeScore", () => {
 });
 
 describe("scoreDifferenceFor", () => {
+    //Expectations are DERIVED from ATTACK_ADVANTAGE rather than written out, so that the
+    //dial can be retuned without editing arithmetic in a test -- and so that a test that
+    //hard-codes today's value can never quietly become the reason the dial is not moved.
     it("subtracts both the forts and the mountains", () => {
         expect(scoreDifferenceFor(100, territory({ defenseBonus: 30, mountainDefenseBonus: 20 })))
-            .toBe(50);
+            .toBeCloseTo((100 * ATTACK_ADVANTAGE) - 50, 10);
     });
 
     it("goes negative when the defences outweigh the besieging army", () => {
-        expect(scoreDifferenceFor(10, territory({ defenseBonus: 60 }))).toBe(-50);
+        expect(scoreDifferenceFor(10, territory({ defenseBonus: 60 })))
+            .toBeCloseTo((10 * ATTACK_ADVANTAGE) - 60, 10);
+    });
+
+    it("scales the besieging score by the attacker's advantage, not the defences", () => {
+        //The dial is proportional: doubling the besieging army doubles what the advantage
+        //is worth. Subtracting a flat amount from the defences instead would hand a small
+        //siege the same help as an overwhelming one, and would make a territory with no
+        //fortifications at all easier to besiege than the rule intends.
+        const undefended = territory({ defenseBonus: 0, mountainDefenseBonus: 0 });
+        expect(scoreDifferenceFor(100, undefended)).toBeCloseTo(100 * ATTACK_ADVANTAGE, 10);
+        expect(scoreDifferenceFor(200, undefended)).toBeCloseTo(200 * ATTACK_ADVANTAGE, 10);
     });
 });
 
@@ -369,10 +384,14 @@ describe("tickSiege", () => {
     });
 
     it("carries the score and the difference it scored the turn on", () => {
+        //`score` is the raw force -- it is what the siege screen shows the player -- while
+        //`scoreDifference` is the contest, and only the second carries the advantage.
         const result = tickSiege(besieged({ defenseBonus: 50 }), constantRng(0.999));
+        const difference = (200 * ATTACK_ADVANTAGE) - 50;
         expect(result.score).toBe(200);
-        expect(result.scoreDifference).toBe(150);
-        expect(result.hitProbability).toBeCloseTo(siegeHitChance.base + 0.15, 10);
+        expect(result.scoreDifference).toBeCloseTo(difference, 10);
+        expect(result.hitProbability)
+            .toBeCloseTo(siegeHitChance.base + (difference / siegeHitChance.scoreDivisor), 10);
     });
 
     it("writes nothing: the territory is untouched", () => {

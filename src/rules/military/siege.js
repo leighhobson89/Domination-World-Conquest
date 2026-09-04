@@ -28,6 +28,7 @@
 
 import {
     armyTypeSiegeValues,
+    ATTACK_ADVANTAGE,
     SIEGE_ARREST_CAPTURE_SHARE,
     SIEGE_ARREST_CHANCE,
     SIEGE_HIT_ITERATIONS,
@@ -84,12 +85,23 @@ export function siegeScore(attackingArmy) {
  * Negative means the territory's forts and mountains are worth more than the army outside
  * it, which is the band in which the besieging force risks being arrested.
  *
+ * The besieging score is multiplied by `ATTACK_ADVANTAGE` before the defences come off it,
+ * and this is the ONE place a siege reads that dial. Everything else in this file -- the
+ * hit probability, the destroy scale, the collateral bands, the arrest -- is a function of
+ * the number this returns, so raising the dial makes a siege land more often, break more
+ * buildings and be arrested less, all from one multiplication. Applying it to the SCORE
+ * rather than subtracting it from the defences is what makes it proportional: a siege twice
+ * the size gets twice the benefit, which is the same shape the open-battle multiplier has.
+ *
+ * `siegeScore()` itself is left alone, because that figure is shown to the player on the
+ * siege screen and it is a fact about the army, not about the contest.
+ *
  * @param {number} score  from `siegeScore()`
  * @param {object} territory  the defending territory
  * @returns {number}
  */
 export function scoreDifferenceFor(score, territory) {
-    return score - (territory.defenseBonus + territory.mountainDefenseBonus);
+    return (score * ATTACK_ADVANTAGE) - (territory.defenseBonus + territory.mountainDefenseBonus);
 }
 
 /**

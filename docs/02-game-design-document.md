@@ -244,10 +244,80 @@ hand. A frequent source of the UI being in a phase the game logic is not.
 
 ## 7. Combat
 
+### 7.0 The attacker's advantage — the one dial ✅
+
+`ATTACK_ADVANTAGE` in [src/config/balance.js](../src/config/balance.js) is a flat multiplier
+on **attacking** strength, currently **1.2**. It is the single number that makes attacking
+easier or harder across the whole game, and it exists because the world was not changing
+hands: forty headless turns of `tools/ai-sim.mjs` left 156 of 207 countries alive with about
+two conquests a turn on a 359-territory map.
+
+The cause is structural rather than timidity on the AI's part. `defenseMultiplierFor()` takes
+the **ceiling** of `(defenceBonus + mountainBonus) / 15`, so a single fort — or a mountain, or
+the land-locked bonus — doubles a territory's defending strength outright. Most territories
+have at least one of those, so most attacks are fought at two-to-one before a unit is counted.
+The ceiling is load-bearing (it is what makes the *first* fort worth building), so rather than
+unpick it the attacker is given a multiplier at the one point the two sides are compared.
+
+**What "20 % easier" means here.** The multiplier improves the attack-to-defence **ratio** by
+20 % at every point on the scale. It is *not* 20 % added to the win probability. Because the
+probability is a share, `attack / (attack + defence)`:
+
+| Before | After | |
+|---|---|---|
+| 25 % | 28.6 % | a losing attack stays losing |
+| 50 % | 54.5 % | an even fight tilts |
+| 75 % | 78.3 % | a winning attack cannot run away with it |
+
+That is the well-behaved form: it can never push a probability past 100, it cannot make a
+hopeless attack look winnable, and raising the dial again is another 20 % rather than another
+20 points. Multiplying the *probability* would do all three of those things wrong.
+
+**Where it is read.** Exactly two places, one per form of attack:
+
+| Form of attack | Function | File |
+|---|---|---|
+| Open battle | `winProbability()` — multiplies `attackingStrength` | [src/rules/military/probability.js](../src/rules/military/probability.js) |
+| Siege | `scoreDifferenceFor()` — multiplies the besieging `siegeScore` before the defences come off it | [src/rules/military/siege.js](../src/rules/military/siege.js) |
+
+Everything else follows from those two. `skirmishOdds()` is a function of the probability, so
+every round of every battle moves. Every siege band — the hit roll, the destroy scale, the
+collateral damage, the arrest — is a function of `scoreDifference`, so one multiplication
+moves all four. The **AI needs no change at all**: it rates targets with the real probability
+function and the real siege score, so its odds floors, budgets and posture thresholds
+re-derive on their own.
+
+**What it deliberately does not touch**, because these are not attack-versus-defence
+comparisons and moving them would double-count:
+
+- `SKIRMISH_ODDS_CAP` (0.65) — a ceiling on **one skirmish**, which is what stops a lopsided
+  battle being a formality. Above a 65 % win probability the cap, not the odds, is what
+  decides a battle, so **this is the next dial to reach for** if raising `ATTACK_ADVANTAGE`
+  stops helping.
+- `battleOutcomeThresholds` — each army is measured against its **own** starting size.
+- `siegeScore()` itself — that figure is shown to the player on the siege screen and is a
+  fact about the army, not about the contest.
+
+**Measured.** `node tools/ai-sim.mjs --turns=40 --seed=baseline`, the same seed either side:
+
+| | 1.0 (before) | 1.2 (now) |
+|---|---|---|
+| Countries surviving after 40 turns | 156 | 153 |
+| Conquests | 175 | 201 |
+| Failed attacks | 128 | 154 |
+| Sieges laid / won | 13 / 10 | 18 / 15 |
+
+Conquests are up 15 % and sieges won by half. The attack *win rate* is flat (58 % → 57 %),
+which is the expected shape rather than a disappointment: the AI's odds floors let more
+marginal attacks through, so the extra conquests come with extra failures rather than from
+the same attacks succeeding more often. **Re-run that comparison after any change to this
+number.** The unit suite pins the rule but cannot see the world failing to consolidate.
+
 ### 7.1 Pre-battle probability ✅⚠️
 
 ```
 attackStrength  = Σ(units × personnelWorth) × avg(attacker devIndex) × continentCombatModifier
+                × ATTACK_ADVANTAGE                                          ← §7.0
 defendStrength  = Σ(useable units × personnelWorth) × ceil((defenceBonus + mountainBonus) / 15)
                 × areaBonus
 probability     = attackStrength / (attackStrength + defendStrength) × 100
@@ -300,14 +370,17 @@ territory name, that ticks once per turn.
 
 1. `siegeScore = Σ(besieging units × siegeValue)` — naval 10, air 5, assault 3, infantry 0.0001.
    Sieges are therefore won with **hardware, not bodies**.
-2. `hitChance = 0.5 + (siegeScore − (defenceBonus + mountainBonus)) / 1000`, clamped to [0, 1].
-   Rolled **10 times**; a majority of hits means the siege lands this turn.
-3. On a hit, `difference = siegeScore − defences` selects a destruction probability on a
+2. `difference = (siegeScore × ATTACK_ADVANTAGE) − (defenceBonus + mountainBonus)` — the one
+   number the whole turn is scored on, and the only place a siege reads the dial in §7.0.
+   `siegeScore` as *displayed* on the siege screen is the raw figure, without the multiplier.
+3. `hitChance = 0.5 + difference / 1000`, clamped to [0, 1]. Rolled **10 times**; a majority
+   of hits means the siege lands this turn.
+4. On a hit, `difference` selects a destruction probability on a
    sliding scale (0 at ≤0, 0.3 at 20, 0.5 at 70, 0.7 at 130, 0.9 at 200, 1.0 at 280) and
    destroys 0–2 random buildings (fort / farm / forest / oil well).
-4. **Collateral damage** always reduces the defender's `foodCapacity` by 1–25 % depending on
+5. **Collateral damage** always reduces the defender's `foodCapacity` by 1–25 % depending on
    `difference` — starving the defenders out is the real win condition of a siege.
-5. If `difference` is negative and a 40 % roll fails, the besieging force is **arrested** —
+6. If `difference` is negative and a 40 % roll fails, the besieging force is **arrested** —
    the siege collapses and the attackers are lost.
 
 **Defender's escape:** if starvation would force the defender to starve their own army, the

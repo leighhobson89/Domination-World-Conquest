@@ -234,20 +234,52 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `getTurnEngine().reset()`**, never after: `stop()` waits for the running step to return
   and the AI step is blocked in the pacing gate, so stopping the mode is what releases it.
   **The speed slider is a track of POSITIONS, not seconds**, in two geometric halves
-  pinned to three anchors — ten countries a second at the left, one second dead centre,
+  pinned to three anchors — fifty countries a second at the left, one second dead centre,
   five seconds at the right. A linear track in seconds would bury the whole readable
-  range in its first two pixels, because the span is a factor of fifty and the pace
-  anybody watches at sits a fiftieth of the way along it.
+  range in its first pixel, because the span is a factor of two hundred and fifty and the
+  pace anybody watches at sits well under a hundredth of the way along it.
   And **the console is a flat append-only log, not the activity feed** — the feed's
   collapsible per-turn sections are the wrong shape for watching, so a turn is a rule
   ACROSS the log, the DOM is trimmed from the front to the same bound the ring uses, and
   the country filter hides rows in place (`src/debug/aiGameFilter.js`: three characters
-  minimum, substring, case-insensitive) rather than re-rendering.
+  minimum, substring, case-insensitive) rather than re-rendering. **Clicking a territory
+  filters the log to whoever owns it**, read through `pathCountry()` so it is the CURRENT
+  owner: the map is the index into a log where a country's block appears once a turn among
+  two hundred others.
+- **A spectated game has to do the two things a played game does at CONFIRM.** Both were
+  found by watching one. `pushColorsToMainArray()` copies the map's fills into each
+  territory's `countryColor`, and until it runs `setColorOnMap()` refuses to paint —
+  correctly, since it used to paint the word "undefined" and render the territory black —
+  so every conquest logged a warning and **the map never changed colour again**. And the
+  selection lock has to be repainted away as well as cleared, or the five strongest
+  countries spend the run in the muted form of their own colour. Both calls are in
+  `startAiGame()`. The same question applies to anything else the confirm handler does:
+  a spectated game reaches none of it.
+- **The faded, shrunken AI siege marker exists to make the PLAYER's sieges stand out, so
+  it is switched off when there is no player.** `src/ui/siegeOverlay.js` asks
+  `isAiGameActive()`. Applied in spectator mode it faded every marker on the map to 40% at
+  60% size, which read as no markers at all while the console said sieges were being laid.
+  A marker also has a floor (`MIN_MARKER_SIZE`): the size is a fraction of the territory's
+  bounding box, which is right for Sweden and gives an island a shield one screen pixel
+  across.
 - **`--debug-surface` and `--debug-ink` are the one token pair every theme repeats
   verbatim.** They are what makes the AI Game button yellow-on-black in all six themes.
   They are tokens only because `style.css` may not carry a colour literal outside `:root`;
   do not "harmonise" them with a palette, because a debug control that matches the theme
   is a debug control somebody ships.
+- **`ATTACK_ADVANTAGE` in `src/config/balance.js` is THE attack/defence dial**, and it is
+  read in exactly two places — `winProbability()` for open battle and `scoreDifferenceFor()`
+  for sieges. Everything else derives: `skirmishOdds()` is a function of the probability,
+  every siege band is a function of the score difference, and the AI rates targets with the
+  real functions, so its odds floors and budgets re-derive for free. It multiplies
+  attacking STRENGTH, not the probability that comes out, so it improves the attack-to-
+  defence RATIO by its own amount at every point on the scale (an even fight goes 50% →
+  54.5% at 1.2) and can never carry a probability past 100. It exists because a single fort
+  doubles a territory's defence outright — `defenseMultiplierFor()` takes a CEILING, which
+  is load-bearing and was not worth unpicking. `SKIRMISH_ODDS_CAP` is the next dial after
+  it: above 65% the cap, not the odds, decides a battle. **Judge any change to it with
+  `tools/ai-sim.mjs` on a fixed seed, before and after** — the measurement for 1.0 → 1.2 is
+  recorded in docs/02-game-design-document.md §7.0.
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
   import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8, and only
   `src/ai/theatre.js`) `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module

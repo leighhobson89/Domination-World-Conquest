@@ -2,6 +2,9 @@ import {
     PROBABILITY_THRESHOLD_FOR_SIEGE
 } from './src/config/balance.js';
 import {
+    scoreDifferenceFor
+} from './src/rules/military/siege.js';
+import {
     cosmeticRandom
 } from './src/platform/cosmeticRng.js';
 import {
@@ -600,6 +603,18 @@ export function svgMapLoaded() {
             }
             if (e.target.tagName === "path") {
                 currentPath = e.target;
+                //Spectator mode: the map is the index into the log. A country's block
+                //appears once a turn among two hundred others, so scrolling to find the
+                //one you are watching is the whole cost of watching -- and the country
+                //you want is the one whose territory you just pointed at. Read through
+                //`pathCountry()` rather than off `data-name`: this is the CURRENT owner
+                //and a conquest is exactly the moment the two could disagree.
+                if (isAiGameActive()) {
+                    const owner = pathCountry(e.target);
+                    if (owner) {
+                        aiGameConsole.setFilter(owner);
+                    }
+                }
                 document.getElementById(ids.popupConfirm).style.opacity = "1";
                 if (allowSelectionOfCountry) {
                     selectCountry(currentPath, false);
@@ -3132,7 +3147,11 @@ function setupSiegeUI(territory) {
     let siegeScore = calculateSiegeScore(siegeObjectElement);
     setSiegeScoreText(siegeScore, 0);
     document.getElementById(ids.battleUIRow4Col1TextProbabilityTurnsSiege).style.color = "rgb(255,255,255)";
-    let difference = siegeScore - (siegeObjectElement.defendingTerritory.defenseBonus + siegeObjectElement.defendingTerritory.mountainDefenseBonus);
+    //The same expression used to be written out here as well as in the siege rules, and
+    //the two parted company the moment the attacker's advantage was applied to one of
+    //them: the screen would have told the player a siege was losing while the rule
+    //scored it as winning. One function, one answer.
+    let difference = scoreDifferenceFor(siegeScore, siegeObjectElement.defendingTerritory);
     if (difference <= 0) {
         document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.color = "rgb(245,128,128)";
     } else if (difference > 0 && difference < 50) {
@@ -4207,8 +4226,24 @@ async function startAiGame() {
 
     //The selection locks are a fact about the country-selection SCREEN, and this mode
     //never shows one. Left in place they would mute the five strongest countries on
-    //the map for the whole run, which is exactly the five worth watching.
+    //the map for the whole run, which is exactly the five worth watching. Clearing
+    //the lock is a store write, so the muted FILLS are still on the paths until
+    //something repaints -- and the repaint has to happen before the line below reads
+    //those fills back, or the five strongest countries spend the run in the muted
+    //form of their own colour.
     setAllGreyedOutAttributesToFalseOnGameStart();
+    repaintCountrySelection(null);
+
+    //The one thing a spectated game shares with a played one and used to skip.
+    //`countryColor` is copied off the map's fills, and until Phase 7.12 the only
+    //caller was the country-selection confirm handler -- which this mode never
+    //reaches. The consequence was not a missing colour but a map that never changed
+    //again: `setColorOnMap()` refuses to paint a territory whose `countryColor` is
+    //not a colour string (Phase 5.8, and rightly -- it used to paint the word
+    //"undefined" and render the territory black), so every conquest for the rest of
+    //the run logged a warning and left the map exactly as it was. Watching an AI
+    //game whose map cannot change is watching nothing.
+    pushColorsToMainArray();
 
     mainMenu.hide();
     outsideOfMenuAndMapVisible = true;

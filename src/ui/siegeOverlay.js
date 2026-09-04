@@ -29,6 +29,7 @@
 import { SIEGE_SHIELD_PATH } from "./icons.js";
 import { THEME_CHANGED } from "./theme/theme.js";
 import { ids, SIEGE_OVERLAY_PREFIX } from "./core/registry.js";
+import { isAiGameActive } from "../debug/aiGameMode.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -37,6 +38,31 @@ const ICON_GRID = 24;
 
 /** What an AI siege's marker is faded to, so the player's own stand out. */
 const AI_OPACITY = 0.4;
+
+/**
+ * The smallest a marker may be drawn, in map user units.
+ *
+ * The size is a fraction of the territory's bounding box, which is the right rule
+ * for Sweden and useless for an island. `Andaman and Nicobar Islands 3` produced a
+ * shield 1.3 units across on a 1947-unit-wide map -- about one screen pixel, and at
+ * the AI's 0.4 opacity indistinguishable from nothing at all. A besieged territory
+ * you cannot see is a besieged territory you do not know about, so small territories
+ * get a marker larger than themselves rather than no marker.
+ */
+const MIN_MARKER_SIZE = 9;
+
+/**
+ * Does the faded, shrunken AI treatment apply?
+ *
+ * It exists for exactly one reason: to make the PLAYER's sieges stand out from the
+ * hundred-odd the AI has running. Spectator mode has no player, so every siege on
+ * the map is an AI siege and the whole distinction collapses -- applying it there
+ * fades the entire map's worth of markers to 40% at 60% size, which is what made
+ * them read as absent while the console said sieges were being laid.
+ */
+function fadeAiSieges() {
+    return !isAiGameActive();
+}
 
 function overlayId(territoryName) {
     return SIEGE_OVERLAY_PREFIX + territoryName.replace(/\s+/g, "_");
@@ -85,7 +111,7 @@ function buildMarker(document_, { id, x, y, size, aiSiege }) {
     // the player cannot click their own besieged territory, which is the only route
     // to VIEW SIEGE. Same class of bug as `#tooltip` having no `pointer-events`.
     group.setAttribute("style", "pointer-events: none");
-    if (aiSiege) {
+    if (aiSiege && fadeAiSieges()) {
         group.setAttribute("opacity", String(AI_OPACITY));
     }
     // What kind of siege this is, as an attribute rather than as a file name. The
@@ -137,9 +163,10 @@ export function renderSiegeOverlay(path, territoryName, underSiege, aiSiege) {
         const centerY = bounds.y + bounds.height / 2;
 
         let size = Math.min(bounds.width * 0.7, bounds.height * 0.7);
-        if (aiSiege) {
+        if (aiSiege && fadeAiSieges()) {
             size *= 0.6;
         }
+        size = Math.max(size, MIN_MARKER_SIZE);
 
         const marker = buildMarker(path.ownerDocument, {
             id: overlayId(territoryName),

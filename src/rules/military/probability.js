@@ -9,9 +9,15 @@
 // The model: both sides are reduced to a head count, the defender's is multiplied up by its
 // fortifications and its size, the attacker's by how developed it is and how hard the
 // continent is to invade, and the answer is the attacker's share of the total.
+//
+// The attacker's side carries one more factor, `ATTACK_ADVANTAGE`, and it is not a property
+// of either army: it is the global attack/defence dial, and this is the only place open
+// battle reads it. See the note on it in src/config/balance.js for why it multiplies the
+// STRENGTH rather than the probability that comes out.
 
 import {
     AREA_BONUS_DAMPENING,
+    ATTACK_ADVANTAGE,
     combatContinentModifiers,
     DEFENSE_BONUS_DIVISOR,
     MAX_AREA_THRESHOLD
@@ -68,11 +74,16 @@ export function defenseMultiplierFor(territory) {
  * @param {{attackingDevelopmentIndex: number, combatContinentModifier: number}} context
  * @returns {number} 0..100
  */
+//The global attacker's advantage is applied here and NOT in the caller, so that the
+//pre-battle figure the player is shown, the mid-battle recalculation, and every odds the
+//AI rates a target on are the same number. Applying it at a call site is how the two used
+//to drift (see the note at the top of this file).
 export function winProbability(attackers, defenders, territory, context) {
     const attackingStrength =
         combinedForce(attackers) *
         context.attackingDevelopmentIndex *
-        context.combatContinentModifier;
+        context.combatContinentModifier *
+        ATTACK_ADVANTAGE;
 
     const defendingStrength =
         combinedForce(defenders) *

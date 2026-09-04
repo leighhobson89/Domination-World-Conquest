@@ -17,6 +17,7 @@ import {
     DEFAULT_SECONDS_PER_COUNTRY,
     MAX_SECONDS_PER_COUNTRY,
     MIN_SECONDS_PER_COUNTRY,
+    SPEED_SLIDER_STEPS,
     aiGameSecondsPerCountry,
     aiGameState,
     awaitCountryPacing,
@@ -25,6 +26,9 @@ import {
     onAiGameChanged,
     setAiGamePaused,
     setAiGameSecondsPerCountry,
+    describeAiGameSpeed,
+    secondsForSliderPosition,
+    sliderPositionForSeconds,
     startAiGameMode,
     stopAiGameMode,
     toggleAiGamePaused
@@ -92,6 +96,54 @@ describe("the speed", () => {
         setAiGameSecondsPerCountry("nonsense");
         setAiGameSecondsPerCountry(undefined);
         expect(aiGameSecondsPerCountry()).toBe(2);
+    });
+});
+
+describe("the speed slider", () => {
+    // The track is two geometric halves pinned to three anchors, and the anchors are the
+    // whole point: the ends have to actually BE the pace the label claims, and one second
+    // has to sit dead centre rather than a fiftieth of the way along. Rounding is applied
+    // per half at three different grains, which is exactly the sort of arithmetic that
+    // lands 0.021 at the fast end and nobody notices.
+    it("lands its three anchors exactly", () => {
+        expect(secondsForSliderPosition(0)).toBe(MIN_SECONDS_PER_COUNTRY);
+        expect(secondsForSliderPosition(SPEED_SLIDER_STEPS / 2)).toBe(DEFAULT_SECONDS_PER_COUNTRY);
+        expect(secondsForSliderPosition(SPEED_SLIDER_STEPS)).toBe(MAX_SECONDS_PER_COUNTRY);
+    });
+
+    it("reaches fifty countries a second at the fast end, and says so", () => {
+        expect(1 / secondsForSliderPosition(0)).toBe(50);
+        expect(describeAiGameSpeed(secondsForSliderPosition(0))).toBe("50 countries/s");
+    });
+
+    it("gets slower with every step, never faster", () => {
+        let previous = 0;
+        for (let position = 0; position <= SPEED_SLIDER_STEPS; position++) {
+            const seconds = secondsForSliderPosition(position);
+            expect(seconds).toBeGreaterThanOrEqual(previous);
+            previous = seconds;
+        }
+    });
+
+    it("clamps a position off either end of the track", () => {
+        expect(secondsForSliderPosition(-40)).toBe(MIN_SECONDS_PER_COUNTRY);
+        expect(secondsForSliderPosition(SPEED_SLIDER_STEPS + 40)).toBe(MAX_SECONDS_PER_COUNTRY);
+    });
+
+    it("puts the thumb back where a speed came from", () => {
+        // The control holds no copy of the speed -- it repaints from the change event -- so
+        // a round trip that drifts is a thumb that walks away from itself on every notify.
+        for (const position of [0, 1, 17, 50, 63, 88, SPEED_SLIDER_STEPS]) {
+            const seconds = secondsForSliderPosition(position);
+            expect(Math.abs(sliderPositionForSeconds(seconds) - position)).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it("reads as a rate below a second and as a duration above one", () => {
+        expect(describeAiGameSpeed(0.5)).toBe("2 countries/s");
+        expect(describeAiGameSpeed(1)).toBe("1s per country");
+        expect(describeAiGameSpeed(2.25)).toBe("2.25s per country");
+        expect(describeAiGameSpeed(5)).toBe("5s per country");
     });
 });
 

@@ -42,6 +42,7 @@ import {
 } from "../../src/rules/military/battle.js";
 import {
     AREA_BONUS_DAMPENING,
+    ATTACK_ADVANTAGE,
     DEFENSE_BONUS_DIVISOR,
     MAX_AREA_THRESHOLD,
     SKIRMISH_ODDS_CAP,
@@ -147,6 +148,28 @@ describe("probability", () => {
             attackingDevelopmentIndex: 1,
             combatContinentModifier: 1
         })).toBe(100);
+    });
+
+    it("gives the attacker ATTACK_ADVANTAGE over an otherwise identical defender", () => {
+        //The dial, pinned. Two identical armies over a territory whose fortifications
+        //exactly double its defence: without the advantage this is 1 : 2 and the attacker
+        //is on 33.3%. With it the RATIO improves by exactly the advantage, which is what
+        //the constant means -- not that the probability itself goes up by that much.
+        const territory = {
+            defenseBonus: DEFENSE_BONUS_DIVISOR + 1,
+            mountainDefenseBonus: 0,
+            area: MAX_AREA_THRESHOLD
+        };
+        const probability = winProbability([100, 0, 0, 0], [100, 0, 0, 0], territory, {
+            attackingDevelopmentIndex: 1,
+            combatContinentModifier: 1
+        });
+        const expected = (ATTACK_ADVANTAGE / (ATTACK_ADVANTAGE + 2)) * 100;
+        expect(probability).toBeCloseTo(expected, 10);
+
+        //And it is a strength multiplier, so it can never carry a probability past 100 --
+        //which is the whole reason it is applied here and not to the answer.
+        expect(probability).toBeLessThan(100);
     });
 
     it("averages the attackers' development index rather than summing it", () => {
