@@ -1,9 +1,18 @@
 import { test, expect } from "../../support/fixtures.js";
 import { battleOutcomeEffects } from "../../../src/config/balance.js";
 
-// A ROUT: the defender's combined force falls below 5% of what it started with while it
-// still has units on the field. The territory is captured AND half the surviving defenders
-// join the conqueror -- they surrendered rather than died.
+// A ROUT: the defender's combined force falls below BREAK_THRESHOLD of what it started with
+// while it still has units on the field. The territory is captured AND half the surviving
+// defenders join the conqueror -- they surrendered rather than died.
+//
+// BATTLE OVERHAUL B.4.8. Two things changed. The threshold is one symmetric BREAK_THRESHOLD
+// rather than the old 5%, and -- the part that decides how this spec has to be written -- the
+// LAST PUSH band sits directly above it. A defender on its way to being routed passes through
+// that band first, so the offer appears every time. `fightToResolution()` therefore DECLINES it
+// by default: taking it would buy the territory before the rout could happen, and no spec could
+// ever observe a rout at all. Declining and rolling on is what reaches this ending, and it is a
+// real decision the player has -- pay a fifth now, or roll on and maybe absorb half their
+// garrison instead.
 //
 // audit 5.1 E. `unchangeableWarStartCombinedForceDefend` was assigned from
 // `totalAttackingArmy`, so "the defender is below 5% of its starting force" actually meant
@@ -17,12 +26,15 @@ import { battleOutcomeEffects } from "../../../src/config/balance.js";
 //     `addSparklesRegularly()` shared the global RNG stream (audit 5.3 Y). Cosmetic
 //     randomness moved to src/platform/cosmeticRng.js in Phase 5.5, so `?seed=` repeats.
 //
-// The scenario reaches the rout band by COMPOSITION rather than by attrition, which matters
-// enough to write down: a naval unit is worth 20,000 personnel and an infantryman is worth
-// one, so a defender that is almost all naval loses almost all of its combined force when
-// its ships go down, while its infantry are still standing. Attrition cannot get there --
+// HOW THE ROUT BAND IS REACHED CHANGED WITH THE MODEL. It used to be by COMPOSITION: skirmishes
+// paired like against like, so an all-naval attacker sank the defending fleet first and took most
+// of its combined force with it while the infantry still stood. The dice model applies casualties
+// PROPORTIONALLY across the four unit types -- composition survives attrition, which is what stops
+// an army that started combined-arms from losing the modifiers it earned for being so. A defender
+// therefore shrinks evenly and reaches the band by plain attrition, with ships and infantry both
+// still on the field. Attrition cannot get there --
 // an attacker big enough to win takes the defender from ~13% of its starting force to zero
-// in a single step, straight past the 5% band.
+// in a single step, straight past the band.
 //
 // docs/04-e2e-test-plan.md section 5.10.
 
@@ -45,32 +57,32 @@ test.describe("a rout", () => {
         const committed = await game.launchWholeGarrison({ from: "Germany", to: "France" });
         expect(committed).toBe(300);
 
-        const { ending, live } = await game.fightToResolution();
-        expect(ending, "the scenario should end in a rout").toBe("Rout The Enemy");
+        const { ending, live } = await game.fightToResolution({ takeLastPush: false });
+        expect(ending, "declining the push and rolling on should rout them").toBe("Rout The Enemy");
         expect(live, "the harness must see the live battle armies").not.toBeNull();
 
-        // The defender's ships are gone; its infantry are not. That is the rout band.
-        expect(live.defenders[3], "the defending naval should be destroyed").toBe(0);
+        // A rout is a broken army, not a dead one: the defender still has units on the field.
         expect(live.defenders[0], "the defending infantry should still be alive").toBeGreaterThan(0);
-        // The attacking force was ALL naval, so any infantry in the captured territory can
-        // only have come from the defenders.
+        // The attacking force was ALL naval, so any infantry in the captured territory can only
+        // have come from the defenders.
         expect(live.attackers[0]).toBe(0);
-
-        const survivingAttackers = live.attackers[3];
-        const survivingDefenders = live.defenders[0];
 
         await expect.poll(async () => game.battle.resultsShown()).toBe(true);
         await game.battle.acceptResult();
 
         const captured = await game.territory("France");
         expect(captured.owner, "a rout captures the territory").toBe("Player");
-        expect(captured.navalForCurrentTerritory, "the attacker keeps its survivors").toBe(
-            survivingAttackers
+
+        // The garrison is the attacker's survivors PLUS half of the routed defenders, per unit
+        // type -- they surrendered rather than died. That is the whole difference between a rout
+        // and a clean win, and it applies to every type because casualties are proportional.
+        const share = battleOutcomeEffects.routCaptureShare;
+        expect(captured.infantryForCurrentTerritory, "half the routed infantry join").toBe(
+            live.attackers[0] + Math.floor(live.defenders[0] * share)
         );
-        expect(
-            captured.infantryForCurrentTerritory,
-            "half the surviving defenders join the conqueror"
-        ).toBe(Math.floor(survivingDefenders * battleOutcomeEffects.routCaptureShare));
+        expect(captured.navalForCurrentTerritory, "and half the routed ships").toBe(
+            live.attackers[3] + Math.floor(live.defenders[3] * share)
+        );
     });
 
     test("is reproducible: the same seed routs the same way", async ({ game, page }) => {
@@ -81,7 +93,7 @@ test.describe("a rout", () => {
             await game.start({ country: "Germany", seed: "rout-repeat" });
             await game.loadScenario("rout-bound-defender");
             await game.launchWholeGarrison({ from: "Germany", to: "France" });
-            const { ending, live } = await game.fightToResolution();
+            const { ending, live } = await game.fightToResolution({ takeLastPush: false });
             return { ending, attackers: live.attackers, defenders: live.defenders };
         };
 

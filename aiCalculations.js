@@ -45,6 +45,15 @@ import {
     setBattleResolutionOnHistoricWarArrayAfterSiege
 } from "./battle.js";
 import {
+    resolveBattle
+} from "./src/rules/military/battleModel.js";
+import {
+    combatContinentModifierFor
+} from "./src/rules/military/probability.js";
+import {
+    recordDefence
+} from "./src/state/battlePlayback.js";
+import {
     getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
@@ -1472,10 +1481,7 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
  *        siege was laid, so debiting the source again would destroy it twice on a loss and
  *        conjure it out of nothing on a win.
  */
-function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, debitSource = true) { //simple battle mechanic as large number to process
-    let armyRemainingAttack = calculateCombinedForce(armyArray);
-    let armyRemainingDefend = calculateCombinedForce([mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory, mainArrayEnemyTerritoryCopy.useableAssault, mainArrayEnemyTerritoryCopy.useableAir, mainArrayEnemyTerritoryCopy.useableNaval]);
-
+function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, debitSource = true) {
     for (let i = 0; debitSource && i < allTerritories().length; i++) { //remove army from attacking territory
         if (allTerritories()[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
             allTerritories()[i].infantryForCurrentTerritory -= armyArray[0];
@@ -1489,30 +1495,67 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         }
     }
 
-    while (armyRemainingAttack > 0 && armyRemainingDefend > 0) {
-        let skirmishValue;
-        let skirmishOutcome;
-
-        if (armyRemainingAttack > 1000 && armyRemainingDefend > 1000) { //speed up processing of battle
-            skirmishValue = 1000;
-        } else if (armyRemainingAttack > 100 && armyRemainingDefend > 100) {
-            skirmishValue = 100;
-        } else if (armyRemainingAttack > 10 && armyRemainingDefend > 10) {
-            skirmishValue = 10;
-        } else {
-            skirmishValue = 1;
+    //Battle overhaul B.5. THE AI AND THE PLAYER NOW FIGHT THE SAME BATTLE.
+    //
+    //What was here was a second, unrelated combat model: a `while` loop that ground the two
+    //COMBINED FORCES against each other at one flat probability, in chunks of 1000/100/10/1
+    //"to speed up processing", until one of them hit zero. No rounds, no unit types, no matchup
+    //matrix, no rout, no last push, no per-exchange cap -- none of the things the player's
+    //battle had. So the odds the player was shown were produced by a model the AI did not use,
+    //and every measurement of the game measured one of the two systems at a time.
+    //
+    //It is `resolveBattle()` from src/rules/military/battleModel.js now, played headlessly with
+    //the AI's seeded rng: the identical function the player's battle steps through one round per
+    //click. See docs/battle_overhaul.md section 1.1 and phase B.5.
+    const defenders = [
+        mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory,
+        mainArrayEnemyTerritoryCopy.useableAssault,
+        mainArrayEnemyTerritoryCopy.useableAir,
+        mainArrayEnemyTerritoryCopy.useableNaval
+    ];
+    const result = resolveBattle({
+        attackers: [...armyArray],
+        defenders,
+        territory: mainArrayEnemyTerritoryCopy,
+        context: {
+            //The AI attacks out of ONE territory, so the mean development index of the attacking
+            //territories is just that territory's.
+            attackingDevelopmentIndex: parseFloat(mainArrayFriendlyTerritoryCopy.devIndex),
+            combatContinentModifier: combatContinentModifierFor(mainArrayEnemyTerritoryCopy)
         }
+    }, aiRng);
 
-        skirmishOutcome = aiRng() <= (probability / 100); //true is a win for the attacker
-
-        if (skirmishOutcome) {
-            armyRemainingDefend -= skirmishValue;
-        } else {
-            armyRemainingAttack -= skirmishValue;
-        }
+    //The caller's contract is a pair in which exactly ONE side is above zero:
+    //`recombineRemainingArmyAfterBattle()` reads `battleResult[0] > 0` as "the attacker won".
+    //The new model can end with both armies alive -- a rout or a break leaves survivors on both
+    //sides -- so the result is collapsed to that contract here rather than changing every caller.
+    //The attacker's survivors after a FAILED attack are discarded, which is what the old loop did
+    //too: it ran until the attacking force reached zero.
+    //Battle overhaul B.8. A battle the PLAYER defended is worth watching, so the record of it is
+    //queued for playback after the AI phase. It is only a record -- the battle has already been
+    //fought and its consequences applied by the time anything is drawn, which is what makes the
+    //playback skippable and what stops it stalling the turn loop.
+    if (mainArrayEnemyTerritoryCopy.owner === "Player") {
+        recordDefence({
+            attackerCountry: mainArrayFriendlyTerritoryCopy.dataName,
+            //Read NOW. A win is about to change `dataName`, and a record of something that
+            //happened names who it happened to rather than reading it back afterwards
+            //(known-issues AS).
+            defenderCountry: mainArrayEnemyTerritoryCopy.dataName,
+            territoryId: mainArrayEnemyTerritoryCopy.uniqueId,
+            territoryName: mainArrayEnemyTerritoryCopy.territoryName,
+            startingAttackers: armyArray,
+            startingDefenders: defenders,
+            records: result.records,
+            state: result.state,
+            tookTerritory: result.tookTerritory
+        });
     }
 
-    return [armyRemainingAttack, armyRemainingDefend];
+    if (result.tookTerritory) {
+        return [calculateCombinedForce(result.occupying ?? result.battle.attackers), 0];
+    }
+    return [0, calculateCombinedForce(result.battle.defenders)];
 }
 
 function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy) {

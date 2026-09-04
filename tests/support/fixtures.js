@@ -25,6 +25,20 @@ export const test = base.extend({
         // so a spec that only passes at one seed is caught rather than hidden.
         await page.addInitScript(installSeededRandomSource, testInfo.title);
 
+        // Battle overhaul B.8. Defender playback replays every battle the AI fought against the
+        // player, on a timer, at the end of the AI phase. That is right for a person and wrong for
+        // a suite: it would add seconds to every spec that ends a turn, for an animation none of
+        // them are asserting. The preference the player has is the same one used here, so this is
+        // not a special harness path -- it is the "always skip" setting, on by default under test.
+        // `battle/defender-playback.spec.js` clears it, which is what makes it testable.
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem("battlePlayback.alwaysSkip", "1");
+            } catch {
+                //Storage blocked. The playback will run; nothing breaks, it is only slower.
+            }
+        });
+
         const pageErrors = [];
         // The STACK, not just the message. The specs run against the production build,
         // so the frames are minified -- but they carry byte offsets that

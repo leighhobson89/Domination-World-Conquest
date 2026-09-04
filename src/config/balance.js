@@ -267,30 +267,33 @@ export const initialArmyDistribution = {
  * raising it again is another proportional step rather than another fixed number of
  * points. Multiplying the probability itself would do all three of those things wrong.
  *
- * TUNING. This is the only number to change to make attacking easier or harder overall,
- * and it moves BOTH forms of attack because both funnels read it:
+ * TUNING. What it moves changed at the battle overhaul, and the list is now shorter than
+ * the paragraphs above imply:
  *
- *   * open battle, through `winProbability()` in src/rules/military/probability.js, which
- *     feeds `skirmishOdds()` and therefore every round of every battle; and
- *   * sieges, through `scoreDifferenceFor()` in src/rules/military/siege.js, which is the
+ *   * SIEGES, through `scoreDifferenceFor()` in src/rules/military/siege.js, which is the
  *     single number every siege band is scored on -- the hit roll, the destroy roll, the
- *     collateral damage and the arrest.
+ *     collateral damage and the arrest. This is the dial's main job today.
+ *   * The PRE-BATTLE ODDS, through `winProbability()` in src/rules/military/probability.js.
+ *     That figure is what the AI rates targets on and what the attack window shows, but it
+ *     no longer decides a round: the dice model has its own dial, below.
+ *
+ * OPEN BATTLE runs on `DICE_ATTACK_ADVANTAGE` instead, and that split is now permanent
+ * rather than the temporary exception the overhaul plan proposed. See the note on that
+ * constant for the measurement and the reasoning; the short form is that a banded model and
+ * a continuous one cannot share a multiplier, because the banded one turns a 44% edge into a
+ * whole extra die and therefore a guaranteed casualty every round.
  *
  * The AI needs no change at all: it rates targets with the real probability function and
  * the real siege score, so its odds floors, its budgets and its posture thresholds all
  * re-derive from this on their own.
  *
- * Two things this deliberately does NOT touch, because they are not attack-versus-defence
- * comparisons and moving them would double-count: `SKIRMISH_ODDS_CAP`, which is a ceiling
- * on one skirmish and is what stops a lopsided battle being a formality, and
- * `battleOutcomeThresholds`, which measure each army against its OWN starting size.
- * If attacking still needs to be easier after raising this, `SKIRMISH_ODDS_CAP` is the
- * next dial -- above 65% win probability the cap, not the odds, is what decides a battle.
+ * Battle overhaul B.10. Two constants this note used to name as deliberately untouched --
+ * `SKIRMISH_ODDS_CAP` and `battleOutcomeThresholds` -- are DELETED. They belonged to the
+ * five-round skirmish model, which no longer exists. `BREAK_THRESHOLD` is what measures an
+ * army against its own starting size now, and there is no per-exchange cap to raise: the
+ * dice bands are the ceiling on a lopsided fight.
  */
 export const ATTACK_ADVANTAGE = 1.44;
-
-/** A battle is five rounds; the skirmishes are spread evenly across them. */
-export const BATTLE_ROUNDS = 5;
 
 /**
  * Defence bonus and mountain bonus are summed and divided by this, and the CEILING of that
@@ -334,27 +337,6 @@ export const UNIT_MATCHUP_EFFECTIVENESS = [
     /* naval    */ [0.8, 0.7, 0.5, 1]
 ];
 
-/**
- * Ceiling on a single skirmish's win chance for the attacker. Without it a lopsided
- * probability plus a favourable matchup would make an attack a formality.
- */
-export const SKIRMISH_ODDS_CAP = 0.65;
-
-/**
- * Thresholds against each side's combined force AT THE START of the war, checked once the
- * five rounds are done and neither army is wiped out.
- *
- * audit 5.1 E: all three used to be compared against the ATTACKER's starting force, so
- * battles resolved at the wrong moment whenever the two armies differed in size.
- */
-export const battleOutcomeThresholds = {
-    /** Defender below this fraction of its starting force is routed; territory is taken. */
-    defenderRout: 0.05,
-    /** Defender below this is one push from breaking -- "last push", at a cost. */
-    defenderLastPush: 0.15,
-    /** Attacker below this fraction of its starting force is routed instead. */
-    attackerRout: 0.1
-};
 
 /** What each outcome costs or yields. */
 export const battleOutcomeEffects = {
@@ -368,6 +350,213 @@ export const battleOutcomeEffects = {
 
 /** A conquered territory sits out between this many turns, inclusive. */
 export const conquestLockout = { minTurns: 1, maxTurns: 3 };
+
+// --- battle: dice ----------------------------------------------------------
+//
+// Battle overhaul B.1. See docs/battle_overhaul.md section 4 for the reasoning; this is the
+// numeric half of it.
+//
+// The shape of the model in one paragraph: force ratio produces a SHARE, the share produces a
+// number of DICE, terrain and composition produce flat MODIFIERS on those dice, sorted dice
+// are paired high against high with ties going to the defender, dice the other side cannot
+// match are automatic hits, and each lost pairing costs a fixed fraction of the loser's
+// CURRENT force. Rounds run until one side falls below `BREAK_THRESHOLD` of what it started
+// with.
+//
+// Nothing here is measured yet. The table in docs/battle_overhaul.md section 4.6 is modelled,
+// and section 6 is explicit that no constant in this block ships on judgement: each one is
+// measured with tools/ai-sim.mjs on a fixed seed before and after. `tools/battle-lab.mjs`
+// is the cheap version of that check -- it runs the model headlessly and prints the matchup
+// table -- but it is not a substitute for a hundred turns of a real world.
+
+/**
+ * The attack/defence dial FOR THE DICE MODEL, and why it is not `ATTACK_ADVANTAGE`.
+ *
+ * CLAUDE.md is emphatic that `ATTACK_ADVANTAGE` is the one dial and that a second one is drift.
+ * This is the one standing exception, and at B.10 it was made PERMANENT rather than reconciled.
+ * The reason is a measurement, taken with `tools/battle-lab.mjs`:
+ *
+ *   At 1.44, a raw-EVEN fight -- identical armies, no terrain, no composition edge -- was won
+ *   by the ATTACKER 88.3% of the time.
+ *
+ * That is the exact opposite of what docs/battle_overhaul.md section 4.3 designs, and the cause
+ * is banding. 1.44 moves the attacker's share from 0.500 to 0.590, which crosses a band edge, so
+ * the attacker rolls FOUR dice against THREE -- and a spare die is not a small edge, it is an
+ * unmatched die, which is a guaranteed casualty every single round. A continuous probability
+ * absorbs a 44% strength multiplier smoothly; a banded one amplifies it into a permanent free
+ * hit.
+ *
+ * Re-cutting the bands cannot fix it. For a raw-even fight to come out 4v4, one band has to
+ * contain both 0.590 and 0.410 -- and a raw 1:2 attacker sits at 0.419, inside that same band,
+ * so it would get equal dice with a half-sized army. The band that fixes 1:1 breaks 1:2.
+ *
+ * So the dice model runs at 1.0: no thumb on the scale. It does not need one, because the
+ * defender's advantage in this model is TIES, which is worth about seventeen points a pairing
+ * and is far stronger than anything the old model gave a defender. The attacker's advantage is
+ * bringing more, which is what the bands are for.
+ *
+ * `ATTACK_ADVANTAGE` is untouched at 1.44 and runs sieges and the pre-battle odds figure.
+ *
+ * WHY THEY WERE NOT RECONCILED (battle overhaul B.10, Leigh's decision to delegate, the reasoning
+ * recorded here so it is not relitigated). The plan assumed B.5 would collapse the two into one
+ * number. B.5 measured the AI swap as balance-neutral, which removed the pressure to retune, and
+ * left the question standing on its own merits -- at which point the answer is that these are not
+ * two settings of one thing. A dial multiplying a CONTINUOUS share moves the outcome smoothly and
+ * proportionally; a dial multiplying a BANDED share moves it in whole dice, and a whole die is an
+ * unmatched die, which is a guaranteed casualty. Forcing them together has exactly two forms and
+ * both are worse for the player:
+ *
+ *   * 1.44 everywhere -- open battle returns to an 88.3% attacker win on an even fight, which
+ *     deletes the defender's tie advantage, deletes the reason to fortify, and makes the ledger
+ *     in the attack window a formality rather than a decision.
+ *   * 1.0 everywhere -- every siege band loses its 44% attacker multiplier at once. Sieges are
+ *     already the slow option chosen against a target that cannot be stormed; making them harder
+ *     with no measurement behind it removes the strategic alternative rather than balancing it.
+ *
+ * So there are two dials, each owning one model, each documented at its own constant. What is NOT
+ * allowed is a third, or either of these reaching into the other's model. If open battle needs to
+ * get easier or harder, this is the number; if sieges do, that one is.
+ */
+export const DICE_ATTACK_ADVANTAGE = 1.0;
+
+/**
+ * How many dice a side rolls, by its own share of the two strengths.
+ *
+ * Read as: the first row whose `minimumShare` the side has reached. Ordered high to low so
+ * `find()` is the whole lookup.
+ *
+ * BANDS, not a continuous curve, and that is the point. A band edge is a threshold the player
+ * can see and aim at in the attack window -- "forty thousand more infantry gets me a fourth
+ * die" is a decision; "my odds went up 1.8%" is not.
+ *
+ * The bottom row is what guarantees the underdog always keeps one die. Overwhelming force
+ * gets you the maximum number of dice; it never gets you a round for free.
+ */
+export const DICE_SHARE_BANDS = Object.freeze([
+    Object.freeze({ minimumShare: 0.70, dice: 5 }),
+    Object.freeze({ minimumShare: 0.50, dice: 4 }),
+    Object.freeze({ minimumShare: 0.35, dice: 3 }),
+    Object.freeze({ minimumShare: 0.20, dice: 2 }),
+    Object.freeze({ minimumShare: 0, dice: 1 })
+]);
+
+/**
+ * The defender never rolls five.
+ *
+ * At even strength both sides sit in the 0.50 band, so the cap does nothing there and both
+ * roll four. It bites only where the DEFENDER is the stronger side, and it is what stops a
+ * heavily garrisoned territory being able to grind an attacker down at no risk: the defender
+ * can always be attacked, just very badly.
+ */
+export const DEFENDER_DICE_CAP = 4;
+
+/** An ordinary d6. Named because the pairing maths reads better than a bare 6. */
+export const DIE_FACES = 6;
+
+/**
+ * Ceiling on the sum of one side's die modifiers, in either direction.
+ *
+ * +1 to every die is worth roughly seventeen percentage points on a pairing (an unmodified
+ * pairing is 15/36 to the attacker, +1 makes it 21/36), so this is a hard cap on purpose. Two
+ * is already decisive; three would make the dice a formality and put the game back where the
+ * 65% skirmish cap left it.
+ */
+export const MODIFIER_CLAMP = 2;
+
+/**
+ * The named, itemised modifiers -- the half of the model the player is SHOWN.
+ *
+ * Diffuse always-on multipliers (development index, continent, area, ATTACK_ADVANTAGE) shape
+ * the share instead and stay out of this list. The division is deliberate: a modifier appears
+ * as a line of text on the attack screen, so every entry here has to suggest something the
+ * player could do about it. "Your continent modifier is 0.87" does not.
+ */
+export const DIE_MODIFIERS = Object.freeze({
+    /**
+     * How many dice a territory's fortifications take OFF the attacker, banded on the raw
+     * `defenseBonus + mountainDefenseBonus`.
+     *
+     * Deliberately NOT `defenseMultiplierFor()`. That function takes the CEILING of the bonus
+     * over 15, which CLAUDE.md records as load-bearing-but-odd: it makes a single fort double a
+     * territory's defence outright. Fort defence is `forts * (forts + 1) * 10 * devIndex`, so
+     * one fort is 20 and already "doubles", and two forts is 60 and already "triples". Reusing
+     * that here cost the attacker a die for one fort and two dice for two, which measured at a
+     * 1.1% take probability for an even attack on a single-fort territory -- the mirror image of
+     * the bug this whole section exists to fix.
+     *
+     * These bands are read against the raw number instead, so the progression follows the forts
+     * rather than the ceiling: one fort is a nuisance, two is a die, three is a fortress.
+     */
+    fortification: Object.freeze([
+        Object.freeze({ minimumBonus: 100, dice: 2 }),
+        Object.freeze({ minimumBonus: 25, dice: 1 })
+    ]),
+    /** Air superiority: this side has air and the other has none, or holds `airRatio` times as much. */
+    airSuperiority: 1,
+    airRatio: 3,
+    /** Fielding no armour against an opponent who does. */
+    noArmourAgainstArmour: -1,
+    /** A coastal target attacked by a force at least `coastalNavalShare` naval. */
+    coastalAssault: 1,
+    coastalNavalShare: 0.25,
+    /** Spent the previous round consolidating instead of attacking. */
+    dugIn: 1,
+    /** Assaulting out of a siege: +1 per this many turns spent grinding, to `siegeGrindingCap`. */
+    siegeGrindingTurnsPerStep: 3,
+    siegeGrindingCap: 2
+});
+
+/**
+ * What one lost pairing costs, as a fraction of that side's force AS IT STANDS.
+ *
+ * Compounded rather than summed across a round's pairings, so a side losing every pairing of a
+ * five-dice round keeps 0.9^5 of its force rather than half of it -- and can never be driven
+ * below zero by arithmetic.
+ *
+ * This is the pacing dial. It, and the band edges above, are what set the "5-8 rounds" in
+ * docs/battle_overhaul.md section 3. Raising it makes every battle shorter and bloodier.
+ */
+export const PAIRING_CASUALTY_SHARE = 0.10;
+
+/**
+ * A side is BROKEN below this fraction of the force it started the battle with.
+ *
+ * Measured against that side's OWN starting force -- audit 5.1 E is the bug that comes from
+ * getting this wrong -- and checked AFTER the round's casualties are applied, which is what
+ * closes known-issue AP by construction rather than by a guard.
+ *
+ * One threshold replaces the old `battleOutcomeThresholds` trio (0.05 defender rout, 0.15 last
+ * push, 0.10 attacker rout). Those three fired against a five-round battle that annihilated
+ * the smaller army anyway; with continuous attrition and no round limit, a single symmetric
+ * break point is what decides every battle.
+ */
+export const BREAK_THRESHOLD = 0.20;
+
+/**
+ * The last push is offered while the defender is within this multiple of the break threshold.
+ *
+ * So at the defaults: the defender between 20% and 30% of its starting force is nearly gone,
+ * and the attacker may spend `battleOutcomeEffects.lastPushSurvivorShare` to finish it now
+ * rather than risk more rounds. It is an offer, not an outcome -- which is the difference from
+ * today, where "massive assault" fires on its own.
+ */
+export const LAST_PUSH_BAND = 1.5;
+
+/** Digging in: forfeit this round's attack dice, take this fraction of normal casualties. */
+export const DIG_IN_CASUALTY_SHARE = 0.5;
+
+/**
+ * Safety valve, not a balance number.
+ *
+ * A battle cannot run forever, but nothing in the model should ever reach this: every round
+ * costs the loser of at least one pairing a tenth of its force. If `tools/battle-lab.mjs` or
+ * ai-sim ever reports a battle hitting the cap, that is a bug in the casualty floor -- a round
+ * that killed nobody -- and not a tuning question.
+ */
+export const MAX_BATTLE_ROUNDS = 30;
+
+/** Reserves committed mid-battle arrive at the start of the round this many rounds later. */
+export const RESERVE_ARRIVAL_DELAY = 1;
 
 // --- sieges ----------------------------------------------------------------
 

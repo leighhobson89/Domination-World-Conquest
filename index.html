@@ -31,9 +31,12 @@
             if (params.has("seed")) window.__seedRandom(params.get("seed"));
         })();
     </script>
-    <script src="./dist/cannon-bundle.js"></script>
-    <script src="./dist/three-bundle.js"></script>
-    <script src="./dist/bufferutils-bundle.js"></script>
+    <!-- Battle overhaul B.10.3. The three committed UMD bundles that set `CANNON`, `THREE` and
+         the buffer utilities as globals used to load HERE, blocking the parser on every page
+         view -- about 785 KB in service of a canvas that stays empty until a battle opens, which
+         most page views never do. They are injected on the first dice roll instead, by
+         `src/platform/vendor/diceRuntime.js`, which explains why they are still classic scripts
+         rather than imports. `dist/` is NOT the build output; Vite writes to `build/`. -->
     <script type="module" src="initialData.js"></script>
     <script type="module" src="leaderPersonalities.js"></script>
     <script type="module" src="cpuPlayerGenerationAndLoading.js"></script>

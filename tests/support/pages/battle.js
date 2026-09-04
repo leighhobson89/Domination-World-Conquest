@@ -71,7 +71,60 @@ export class BattlePage {
     }
 
     async advanceRound() {
-        await this.advance.click();
+        //`force: true` for the reason CLAUDE.md records for the steppers, and which battle
+        //overhaul B.6.6 brought to the battle bar: "inert" is `aria-disabled` plus the
+        //`is-disabled` class, never the `disabled` PROPERTY. The property would swallow the
+        //click, and the battle container's capture listener has to see every click over the
+        //window in order to settle the dice. Playwright treats `aria-disabled="true"` as not
+        //actionable, so a spec that means to press an inert button has to say so.
+        await this.advance.click({ force: true });
+    }
+
+    /**
+     * Is a bottom-bar button accepting presses?
+     *
+     * The one honest question, and it is asked of `aria-disabled` rather than of `.disabled`.
+     * `GameDriver.fightToResolution()` used to read the property to decide that an attack had
+     * been destroyed, which stopped being true the moment the state moved off the DOM.
+     */
+    async buttonEnabled(id) {
+        return this.page.evaluate((elementId) => {
+            const button = document.getElementById(elementId);
+            return !!button && button.getAttribute("aria-disabled") !== "true"
+                && getComputedStyle(button).display !== "none";
+        }, id);
+    }
+
+    /** The bottom bar's third button while it carries the "Last Push!" offer (overhaul B.7). */
+    get lastPush() {
+        return this.page.locator(battle.lastPush);
+    }
+
+    async takeLastPush() {
+        await this.lastPush.click({ force: true });
+    }
+
+    /** Whether the decisive-round offer is on the bar. */
+    async lastPushOffered() {
+        return this.page.evaluate((id) => {
+            const button = document.getElementById(id);
+            return !!button && getComputedStyle(button).display !== "none"
+                && button.innerText.trim() === "Last Push!";
+        }, battle.lastPushId);
+    }
+
+    /** Arm or read the two mid-battle decisions (overhaul B.7). */
+    async digIn() {
+        await this.page.locator(battle.digIn).click({ force: true });
+    }
+
+    async digInArmed() {
+        return this.page.evaluate((id) => !!document.getElementById(id)?.classList.contains("is-armed"),
+            battle.digInId);
+    }
+
+    async commitReserves() {
+        await this.page.locator(battle.reserves).click({ force: true });
     }
 
     async resultsSummary() {

@@ -96,10 +96,12 @@ export function applyScenario(scenario, api) {
                     startingDefenseBonus: defender.defenseBonus,
                     startingFoodCapacity: defender.foodCapacity,
                     startingProdPop: defender.productiveTerritoryPop,
-                    startingTerritoryPop: defender.territoryPopulation,
-                    defenseBonusColor: "rgb(0,255,0)",
-                    foodCapacityColor: "rgb(0,255,0)",
-                    productiveTerritoryPopColor: "rgb(0,255,0)"
+                    startingTerritoryPop: defender.territoryPopulation
+                    //Battle overhaul B.10.2. Three `"rgb(0,255,0)"` fields stood here, mirroring
+                    //three on the real siege object in battle.js. Nothing ever read any of the
+                    //six: the siege panel writes the colour onto the TERRITORY and reads it back
+                    //from there. A colour stored on a save-able record is a presentation decision
+                    //baked into a save file, which is the mistake the activity feed records.
                 },
                 defender.uniqueId
             )

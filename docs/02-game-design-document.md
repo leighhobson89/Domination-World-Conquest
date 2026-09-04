@@ -244,12 +244,39 @@ hand. A frequent source of the UI being in a phase the game logic is not.
 
 ## 7. Combat
 
-### 7.0 The attacker's advantage — the one dial ✅
+### 7.0 The attacker's advantage — **two dials, one per model** ✅
 
-`ATTACK_ADVANTAGE` in [src/config/balance.js](../src/config/balance.js) is a flat multiplier
-on **attacking** strength, currently **1.44**. It is the single number that makes attacking
-easier or harder across the whole game, and it exists because the world was not changing
-hands: forty headless turns of `tools/ai-sim.mjs` left 156 of 207 countries alive with about
+**There are two, and the split is permanent.** It used to be one, and the battle overhaul is what
+made that impossible; the decision was taken at B.10.4 and the reasoning is recorded at both
+constants in [src/config/balance.js](../src/config/balance.js).
+
+| Dial | Value | Owns |
+|---|---|---|
+| `ATTACK_ADVANTAGE` | **1.44** | Sieges (`scoreDifferenceFor()`), and the pre-battle odds figure the attack window shows and the AI rates targets on |
+| `DICE_ATTACK_ADVANTAGE` | **1.0** | Open battle — the `share` that picks the dice counts in §7.1 |
+
+**Why they cannot be one number.** A dial multiplying a CONTINUOUS share moves the outcome
+smoothly and proportionally. A dial multiplying a BANDED one moves it in whole dice — and a whole
+extra die is an *unmatched* die, which is an automatic hit every round. At 1.44 a raw-even fight
+came out four dice against three and the attacker took the territory **88.3%** of the time, which
+is the opposite of what §7.2's tie rule is for. Re-cutting the bands cannot fix it: for a raw-even
+fight to come out 4v4 one band must contain both 0.590 and 0.410, and a raw 1:2 attacker sits at
+0.419 inside that same band, so it would get equal dice with a half-sized army. The band that
+fixes 1:1 breaks 1:2.
+
+Forcing them together the other way is no better: 1.0 everywhere strips 44% off every siege band
+at once, making the slow option harder with no measurement behind it and removing a strategic
+alternative rather than balancing it.
+
+**So: if open battle needs to get easier or harder, `DICE_ATTACK_ADVANTAGE` is the number. If
+sieges do, `ATTACK_ADVANTAGE` is.** A third dial is not allowed, and neither may reach into the
+other's model.
+
+The rest of this section is the history of `ATTACK_ADVANTAGE`, which is still worth reading
+because it is the reason 1.44 is 1.44.
+
+`ATTACK_ADVANTAGE` is a flat multiplier on **attacking** strength, currently **1.44**. It exists
+because the world was not changing hands: forty headless turns of `tools/ai-sim.mjs` left 156 of 207 countries alive with about
 two conquests a turn on a 359-territory map.
 
 It has been raised twice, twenty per cent each time, **compounded rather than added** —
@@ -296,13 +323,14 @@ re-derive on their own.
 **What it deliberately does not touch**, because these are not attack-versus-defence
 comparisons and moving them would double-count:
 
-- `SKIRMISH_ODDS_CAP` (0.65) — a ceiling on **one skirmish**, which is what stops a lopsided
-  battle being a formality. Above a 65 % win probability the cap, not the odds, is what
-  decides a battle, so **this is the next dial to reach for** if raising `ATTACK_ADVANTAGE`
-  stops helping.
-- `battleOutcomeThresholds` — each army is measured against its **own** starting size.
 - `siegeScore()` itself — that figure is shown to the player on the siege screen and is a
   fact about the army, not about the contest.
+
+Two entries that used to stand here are **deleted**. `SKIRMISH_ODDS_CAP` (0.65) and
+`battleOutcomeThresholds` belonged to the five-round skirmish model, which no longer exists (see
+§7.1); they went with it at battle overhaul B.10.1. There is no per-exchange cap to reach for any
+more — the dice bands are what stops a lopsided fight being a formality — and `BREAK_THRESHOLD` is
+what measures an army against its own starting size.
 
 **Measured.** `node tools/ai-sim.mjs --turns=40 --seed=baseline`, the same seed throughout:
 
@@ -331,53 +359,122 @@ measurement to look at before any third step.
 **Re-run this comparison after any change to this number.** The unit suite pins the rule but
 cannot see the world failing to consolidate.
 
-### 7.1 Pre-battle probability ✅⚠️
+### 7.1 The dice model ✅
+
+**Rewritten by the battle overhaul.** See [battle_overhaul.md](./battle_overhaul.md) for the
+reasoning and the measurements; this is what the game does.
+
+One press of the advance button is one **round**. A round is a dice comparison, not an attrition
+simulation.
 
 ```
-attackStrength  = Σ(units × personnelWorth) × avg(attacker devIndex) × continentCombatModifier
-                × ATTACK_ADVANTAGE                                          ← §7.0
-defendStrength  = Σ(useable units × personnelWorth) × ceil((defenceBonus + mountainBonus) / 15)
-                × areaBonus
-probability     = attackStrength / (attackStrength + defendStrength) × 100
+strengthAttack = Σ(units × personnelWorth) × DICE_ATTACK_ADVANTAGE
+               × avg(attacker devIndex) × continentCombatModifier
+strengthDefend = Σ(useable units × personnelWorth) × areaBonus
+share          = strengthAttack / (strengthAttack + strengthDefend)
 ```
 
-`areaBonus = 1 + (min(1, 350000 / area) − 1) × 0.5` — **large territories are harder to hold**,
-small ones easier to defend.
+`share` picks the DICE COUNTS and nothing else. Fortifications are deliberately absent from it —
+they are a die modifier instead, so nothing is counted twice.
 
-Note the defender uses **useable** unit counts (oil-gated), the attacker uses raw counts.
+| own share | dice |
+|---|---|
+| < 0.20 | 1 |
+| 0.20 – 0.35 | 2 |
+| 0.35 – 0.50 | 3 |
+| 0.50 – 0.70 | 4 |
+| ≥ 0.70 | 5 (defender capped at 4) |
 
-### 7.2 Open battle ✅⚠️
+**Modifiers**, all shown by name in the ledger. A *face* bonus adds to every die; a *dice* change
+alters how many you roll, and only a dice change can answer an opponent's unmatched dice.
 
-- The player picks how many units of each type to send **from one or more of their reachable
-  territories** in the attack table. Sent units leave their home territory immediately.
-- Battle runs in **5 rounds**. Total skirmishes = `Σ min(attacker[type], defender[type])`,
-  split evenly over the rounds.
-- Each skirmish is a coin-flip at `min(probability/100, 0.65)` — **the attacker can never
-  exceed 65 % per-skirmish odds**. Loser of the flip loses one unit of that type.
-- ⚠️ Skirmishes only pair **like unit type against like**. An all-infantry attack on an
-  all-naval defender produces zero skirmishes and the battle cannot resolve (audit §5.1 K).
-- After each round, probability is recomputed from the survivors.
+| Modifier | Side | Effect |
+|---|---|---|
+| Fortification (raw `defenceBonus + mountainBonus` ≥ 25 / ≥ 100) | attacker pays | −1 / −2 dice |
+| Air superiority (holds air against none, or ≥ 3:1) | either | +1 face |
+| No armour against armour | either | −1 face |
+| Naval landing (coastal target, ≥ 25% naval) | attacker | +1 face |
+| Dug in (consolidated last round) | either | +1 face |
+| Siege grinding (per 3 turns besieged, cap +2) | attacker | +1 face |
 
-**Outcomes after 5 rounds:**
+Totals clamp at ±2.
+
+### 7.2 Resolving a round ✅
+
+Both sides roll, add their face modifier, sort descending and pair high against high. **Ties go
+to the defender** — that is the defender's whole built-in advantage, worth roughly 17 points a
+pairing, and it is why an even-strength attack fails about three times in four. Dice the other
+side cannot match are **automatic hits**, which is what makes bringing more force matter once the
+counts diverge.
+
+Every lost pairing costs `PAIRING_CASUALTY_SHARE` (10%) of that side's **current** force,
+compounded within the round and applied proportionally across the four unit types, with a floor
+of one unit so no round can be free.
+
+**Outcomes**, checked after each round's casualties against each side's own force at the start:
 
 | Outcome | Condition | Result |
 |---|---|---|
-| Attacker wins | Defenders all dead | Territory captured, survivors garrison it |
-| Defender wins | Attackers all dead | Attack fails |
-| **Rout** | Defender combined force < 5 % of start | Territory captured **and half the surviving defenders are absorbed** into the attacker's force |
-| **Massive assault** | Defender combined force < 15 % of start | Optional final push: capture at the cost of 20 % of the attacking survivors |
-| **You were routed** | Attacker combined force < 10 % of start | Attack fails, survivors lost/captured |
-| **Fight again** | None of the above | Another 5 rounds, attacker loses 5 % to desertion |
+| Defender wiped | nothing left | Territory captured, survivors garrison it |
+| Defender routed | below `BREAK_THRESHOLD` (20%) | Captured, **and half the surviving defenders join you** |
+| Attacker wiped / broken | same test, other side | Attack fails |
+| Last push **offered** | defender within 1.5× the threshold | One decisive round for 20% of the survivors — a choice, on its own button |
+| Stalemate | `MAX_BATTLE_ROUNDS` (30) | Safety valve; should never fire |
 
-⚠️ All three "combined force" thresholds compare against a value computed from the *attacking*
-army (audit §5.1 E), so these outcomes fire at the wrong times.
+There is **no round limit** and no "fight again" — continuous attrition is the war weariness.
+A contested battle runs a median of 5 rounds.
 
-### 7.3 Retreat and siege options ✅
+Because the break test runs before annihilation can matter, **a garrison of any size is routed
+long before it is wiped out**; wipeout is reachable only for a handful of units.
 
-- **Retreat** at any round boundary (the button doubles as "Accept Defeat!" once lost).
-- **Siege** — offered when pre-battle probability is below
-  `PROBABILITY_THRESHOLD_FOR_SIEGE = 15 %`. Instead of assaulting, invest the sent army into a
-  standing siege.
+### 7.2a Mid-battle decisions ✅
+
+The bottom bar carries `Retreat | Dig In | Reserves | Next Round | (Last Push!)`, sharing its
+width between whichever are visible.
+
+- **Dig In** forfeits the round's *offence* (not its dice — the side still defends), halves its
+  casualties, and gives +1 next round.
+- **Reserves** commits whatever the attack's original source territories still hold. Debited at
+  once, arrives at the start of the next round.
+- **Last Push** appears only while the offer stands, and can be declined — declining is how a rout
+  is reached at all, since the band sits above the break threshold.
+
+### 7.3 The dice on screen ✅
+
+The rules roll the faces on the game's seeded stream. The physics then throws real dice from the
+*cosmetic* stream, and each die's **mesh** is rotated by one of the 24 rotations of a cube so the
+face landing upwards is the one the rules chose. The collision shape and trajectory are untouched:
+a genuine tumble, decided in advance. A click settles them immediately.
+
+The roll does **not** block the round: the numbers update the moment it resolves and the dice
+tumble over the top of them, because gating a click on a render loop would put a second and a half
+between a press and its result.
+
+### 7.3a What the player is shown, and where ✅
+
+Three panels, and all three are pure renders of what the model already computed — so the
+explanation and the battle cannot disagree.
+
+| Panel | Where | Shows |
+|---|---|---|
+| **Attack preview** | the ATTACK window, before INVADE! | The dice each side would roll, itemised by modifier, live as units are allocated — plus a forecast: the chance of taking it, the likely rounds, and the survivors if you win |
+| **Force ledger** | the battle window, under the odds bar | The same itemisation for the round about to be fought, with the faces once it has been rolled |
+| **Round log** | the battle window, collapsed | Every round fought, newest first: dice counts, faces, pairings won and lost, and what it cost both sides |
+
+**Two numbers are shown and they are allowed to differ.** The bar is `winProbability()` — the
+attacker's share of the two strengths, which decides how many DICE each side rolls. The forecast
+line is `battleForecast()`, which answers the player's actual question by playing the whole battle
+out five hundred times on a stream of its own. A 59% bar over a 24% fight is the honest picture;
+showing only one of them, as the old window did, was not.
+
+The forecast's rng is seeded from a stable hash of the SETUP rather than from the clock, so the
+figure does not flicker while the plus button is held — and it never touches the game's stream, so
+recomputing it on every keypress cannot change the battle that follows.
+
+The bands are also what make the preview a lever rather than a readout: *"forty thousand more
+infantry gets me a fourth die"* is a threshold the player can see coming. A continuous curve is
+not.
+
 
 ### 7.4 Sieges ✅⚠️
 
@@ -424,14 +521,24 @@ Units that survive a war but do not garrison the captured territory are returned
 home territories after a delay, in the same proportions they were sent
 (`retrievalArray`, processed at the top of each turn).
 
-### 7.7 3D dice ❌
+### 7.7 3D dice ✅
 
-`dices.js` implements a complete Three.js + cannon-es physics dice roll (485 lines,
-`callDice`, `throwDice`, contrasting-colour dice per enemy). The call site in
-`battle.js:processRound` is **commented out**. The `dist/` bundles that support it still load
-on every page view.
+**Wired, and they mean something.** The long-standing "`dices.js` is fully implemented but its
+call site is commented out" entry is closed — see §7.3 for how the physics and the rules are
+reconciled. Two defects were fixed on the way: the collision shape was a 0.6 × 0.6 × 1.0 cuboid
+under a cube mesh (faces 3 and 4 came up 6% each against 17%, χ² 738 over 3,600 rolls), and the
+throw drew from `Math.random`, which is the game's stream.
+
+**And they are no longer on the critical path.** The three committed UMD bundles that set `CANNON`,
+`THREE` and the buffer utilities as globals — about 785 KB — used to load from `index.html` on
+every page view, blocking the parser, for a canvas that stays empty until a battle opens.
+`src/platform/vendor/diceRuntime.js` injects them on the FIRST dice roll of a session instead.
+They stay classic scripts setting globals rather than becoming imports, because `index.html` loads
+the game's entry modules against the SOURCE files and a bare-specifier import is something only a
+bundler can resolve.
 
 ---
+
 
 ## 8. AI
 
@@ -594,18 +701,18 @@ explicitly before the refactor bakes them in.
    every turn. Consider consolidating into a smaller number of *powers* (8–16) that own many
    countries, with the rest as minor/neutral states. This would make the AI turn fast, the
    world legible, and diplomacy meaningful.
-2. **The 65 % skirmish cap** means a 10:1 attacker still loses roughly a third of exchanges.
-   Combined with like-vs-like unit pairing, battles are swingier and slower than the
-   probability bar suggests to the player.
+2. ~~**The 65 % skirmish cap**~~ — **resolved by the battle overhaul.** Skirmishes, the cap and
+   like-vs-like pairing are all gone; a round is a dice comparison and the ledger shows the player
+   exactly what each side rolls and why.
 3. **Sieges dominate.** With no per-turn army maintenance and siege score driven by hardware,
    parking naval units on a siege is close to free and close to unstoppable. Restoring
    maintenance (§3.4) largely fixes this.
 4. **There is no reason to stop expanding.** No supply lines, no unrest, no over-extension
    penalty, no continent bonus to aim for. Adding a single "cohesion" or "supply" pressure
    would give the economy something to push against.
-5. **The player never sees the world change.** With no AI activity feed, the map quietly
-   redraws between turns. This is probably the biggest *felt* gap in "it doesn't play very
-   well".
+5. **The player never sees the world change.** Largely addressed: the activity feed (Phase 7.4)
+   reports what happened, and battle overhaul B.8 replays any battle the AI fought against a
+   player territory before the player's turn begins.
 
 ---
 

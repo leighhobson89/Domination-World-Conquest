@@ -12,20 +12,27 @@ import {
     paths,
     populateWarResultPopup,
     removeSiegeImageFromPath,
-    retreatButtonState,
-    setAdvanceButtonState,
-    setAdvanceButtonText,
     setArmyTextValues,
     setAttackProbabilityOnUI,
     setCurrentWarFlagString,
     setDefendingTerritoryCopyStart,
-    setFirstSetOfRounds,
     setFlag,
-    setRetreatButtonState,
-    setRetreatButtonText,
     setTerritoryAboutToBeAttackedFromExternal,
     setUpResultsOfWarExternal
 } from './ui.js';
+//Battle overhaul B.6.6. Six imports came out of the list above -- `retreatButtonState`,
+//`setAdvanceButtonState`, `setAdvanceButtonText`, `setRetreatButtonState`,
+//`setRetreatButtonText` and `setLastPushButtonVisible`. Two of them wrote a NUMBER that decided
+//behaviour and two wrote a DIFFERENT number that decided a label, and this file set both by hand
+//at five sites. There is one state now and the labels are derived from it. Note that this import
+//is NOT part of the ui.js cycle: BattleWindow imports only the registry and a pure module.
+import {
+    AdvanceMode,
+    RetreatMode,
+    VictoryKind,
+    battleWindow
+} from './src/ui/battle/BattleWindow.js';
+import { roundLog } from './src/ui/battle/RoundLog.js';
 
 // NOTE: `./ui.js` above is an import cycle -- ui.js imports this file too. The previous
 // code worked around it with `setTimeout(..., 1000)` before a dynamic import(), which is
@@ -38,29 +45,32 @@ import {
 import {
     oilRequirements,
     vehicleArmyPersonnelWorth,
-    BATTLE_ROUNDS,
     battleOutcomeEffects,
-    conquestLockout,
-    SIEGE_HIT_ITERATIONS
+    conquestLockout
 } from './src/config/balance.js';
 import {
     oilDemandFor
 } from './src/rules/economy/capacity.js';
 import {
-    combinedForce,
-    UNIT_TYPES as unitTypes
+    combinedForce
 } from './src/rules/military/units.js';
 import {
-    resolveRound,
-    classifyOutcome,
-    countPossibleSkirmishes,
-    likeForLikeSkirmishes,
-    applyWarWeariness,
-    WarOutcome
-} from './src/rules/military/battle.js';
+    BattleState,
+    isTerminal,
+    modifiersFor,
+    resolveBattleRound,
+    resolveLastPush,
+    shareFor
+} from './src/rules/military/battleModel.js';
+import {
+    defenderDiceCountFor,
+    diceCountFor
+} from './src/rules/military/dice.js';
+import {
+    battleForecast
+} from './src/rules/military/forecast.js';
 import {
     winProbability,
-    areaBonusFor,
     combatContinentModifierFor,
     attackingDevelopmentIndex
 } from './src/rules/military/probability.js';
@@ -88,6 +98,17 @@ import {
     getPathByUniqueId
 } from './src/state/indexes.js';
 import {
+    asModelState,
+    attackingArmy as battleAttackingArmy,
+    commitRound,
+    currentBattle,
+    defendingArmy as battleDefendingArmy,
+    openBattle,
+    reinforceAttackers,
+    setDefeatType,
+    takeArrivedReserves
+} from './src/state/battleState.js';
+import {
     addSiege,
     removeSiege,
     updateTerritory as patchTerritory,
@@ -101,8 +122,11 @@ import {
     setNextAiWarId as storeNextAiWarId
 } from './src/state/mutations.js';
 import {
-    ids
-} from './src/ui/core/registry.js';
+    diceStage
+} from './src/ui/battle/DiceStage.js';
+import {
+    forceLedger
+} from './src/ui/battle/ForceLedger.js';
 import {
     bottomTable
 } from './src/ui/components/BottomTable.js';
@@ -125,6 +149,19 @@ let reusableCombatContinentModifier;
 export const playerTurnsDeactivatedArray = [];
 export const aiTurnsDeactivatedArray = [];
 
+/**
+ * The setup the last pre-battle odds calculation was made from.
+ *
+ * Battle overhaul B.6.7. Read by the attack window's dice preview so that the itemised ledger and
+ * the odds bar come from ONE aggregation of the allocation table. Null when nothing is committed.
+ */
+let lastPreBattleSetup = null;
+
+/** @returns {object|null} see `lastPreBattleSetup`. */
+export function preBattleSetup() {
+    return lastPreBattleSetup;
+}
+
 export let currentRound = 1;
 export let attackingArmyRemaining;
 export let defendingArmyRemaining;
@@ -135,9 +172,6 @@ export let initialCombinedForceAttack;
 export let initialCombinedForceDefend;
 export let combinedForceAttack;
 export let combinedForceDefend;
-export let skirmishesPerRound;
-export let totalSkirmishes;
-export let skirmishesPerType;
 export let totalAttackingArmy;
 export let totalDefendingArmy;
 export let tempTotalAttackingArmy;
@@ -167,8 +201,10 @@ let massiveAssault = false;
 //The unit matchup table and every other balance number in this file live in
 //src/config/balance.js (Phase 5.1). UNIT_MATCHUP_EFFECTIVENESS carries the reasoning.
 
-//chooseDefendingUnitTypeIndex() and countPossibleSkirmishes() are in
-//src/rules/military/battle.js (Phase 5.3); imported above.
+//The skirmish model that used to live here -- chooseDefendingUnitTypeIndex(),
+//countPossibleSkirmishes(), resolveRound() and classifyOutcome() in
+//src/rules/military/battle.js -- is no longer reached from the player's battle (overhaul B.4).
+//It is still imported by the AI until B.5 deletes doAttack() and that file with it.
 
 
 export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, defendingTerritoryId) {
@@ -204,6 +240,9 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
         }
 
         if (nonZeroCount === (attackArray.length - 1) / 5) {
+            //Nothing committed. B.6.7: forget the setup as well as returning zero, or the preview
+            //keeps showing the dice of an allocation the player has just emptied.
+            lastPreBattleSetup = null;
             return 0;
         }
 
@@ -265,6 +304,23 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
                 mainArrayOfTerritoriesAndResources.find(
                     ({ uniqueId }) => uniqueId === territoryUniqueId.toString())));
 
+        //Battle overhaul B.6.7. The aggregation above -- many attacking territories folded into
+        //one army, the defender's USEABLE units, the development index and the continent -- is
+        //exactly the setup a battle is resolved from, and it is rebuilt here on every plus and
+        //minus press. Keeping it means the attack window's dice preview is itemised from the
+        //same numbers the odds bar is computed from, rather than from a second aggregation that
+        //could drift. Cleared when nothing is committed, so a stale setup cannot be drawn.
+        lastPreBattleSetup = {
+            attackers,
+            defenders,
+            territory: defendingTerritory,
+            context: {
+                attackingDevelopmentIndex: reusableAttackingAverageDevelopmentIndex,
+                combatContinentModifier: combatContinentModifier
+            },
+            siegeTurns: 0
+        };
+
         return winProbability(attackers, defenders, defendingTerritory, {
             attackingDevelopmentIndex: reusableAttackingAverageDevelopmentIndex,
             combatContinentModifier: combatContinentModifier
@@ -273,11 +329,7 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
 }
 
 export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {
-    console.log("warId = " + getCurrentWarId());
-    console.log("Battle Underway!");
-    console.log("Probability of a win is: " + probability);
 
-    console.log("Attack Array: " + arrayOfUniqueIdsAndAttackingUnits);
 
     // Extract defending territory data
     defendingTerritoryId = arrayOfUniqueIdsAndAttackingUnits[0];
@@ -285,17 +337,13 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
                                                                       uniqueId
                                                                   }) => uniqueId === defendingTerritoryId);
 
-    // Extract defender's territory attributes
-    const developmentIndex = defendingTerritory.devIndex;
-    const areaWeightDefender = areaBonusFor(defendingTerritory);
-    const continentModifier = calculateContinentModifier(defendingTerritoryId, mainArrayOfTerritoriesAndResources);
+    //Battle overhaul B.10.2. `developmentIndex`, `areaWeightDefender` and `continentModifier`
+    //were read here only to be printed. They are inputs to `shareFor()`, which reads them from
+    //the territory itself, and they are on screen in the ledger -- so reading them a second time
+    //to narrate them was a third copy of the same derivation.
     defenseBonus = defendingTerritory.defenseBonus;
 
     // Display defender's attributes
-    console.log("Development Index: " + developmentIndex);
-    console.log("Area Bonus: " + areaWeightDefender);
-    console.log("Continent Modifier: " + continentModifier);
-    console.log("Defense Bonus: " + defenseBonus);
 
     //audit 5.2 L: proportionsOfAttackArray is module level and is only ever pushed to,
     //so without this every battle inherited the retrieval proportions of every battle
@@ -351,8 +399,6 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
         proportionsOfAttackArray[i] = [territoryData[0], infantryPercentage, assaultPercentage, airPercentage, navalPercentage];
     }
 
-    console.log(proportionsOfAttackArray);
-    console.log("Total Attacking Army: " + totalAttackingArmy);
 
     unchangeableWarStartCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
     //audit 5.1 E: this was calculated from totalAttackingArmy, so all three rout and
@@ -364,25 +410,48 @@ export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, main
     initialCombinedForceAttack = calculateCombinedForce(totalAttackingArmy);
     initialCombinedForceDefend = calculateCombinedForce(totalDefendingArmy);
 
-    // Calculate the total number of skirmishes
-    skirmishesPerType = likeForLikeSkirmishes(totalAttackingArmy, totalDefendingArmy);
-    //audit 5.2 K: the total is now the number of pairings the two armies can make, which is
-    //zero only when one side is empty. Summing the per-type minimums made it zero whenever
-    //the two armies shared no unit type, and the battle hung.
-    totalSkirmishes = countPossibleSkirmishes(totalAttackingArmy, totalDefendingArmy);
-
+    //Battle overhaul B.4. The skirmish budget is gone. `skirmishesPerType`, `totalSkirmishes`
+    //and `skirmishesPerRound` divided the smaller army's HEAD COUNT into five rounds, which on
+    //six-figure garrisons meant one click resolved up to two hundred thousand individual coin
+    //flips and five clicks annihilated the smaller army whatever the outcome table said. A round
+    //is a handful of dice now; see src/rules/military/dice.js.
     let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
 
-    // Divide skirmishes into 5 rounds
-    skirmishesPerRound = Math.ceil(totalSkirmishes / BATTLE_ROUNDS);
+    //Battle overhaul B.3. The two armies live in `src/state/battleState.js` now. The arrays
+    //handed over are exactly the ones this function used to build -- a fresh copy for a new
+    //battle, and the SIEGE's own array when resuming one, which is what makes an assault out of
+    //a siege write its casualties back into the siege record. `openBattle()` adopts rather than
+    //copies precisely so that distinction survives the move.
+    //
+    //`attackingArmyRemaining` and `defendingArmyRemaining` stay as exported bindings pointing at
+    //those same arrays: about sixty sites read them, `ui.js` imports `defendingArmyRemaining`
+    //directly, and this phase is a move with no behaviour change.
+    const hasSiegedBeforeWar = hasSiegedBefore
+        ? historicWars.find((siege) => siege.warId === getCurrentWarId())
+        : null;
+    openBattle({
+        attackers: [...totalAttackingArmy],
+        defenders: hasSiegedBeforeWar ? hasSiegedBeforeWar.defendingArmyRemaining : [...totalDefendingArmy],
+        territoryId: defendingTerritoryId,
+        territory: defendingTerritory,
+        context: {
+            attackingDevelopmentIndex: reusableAttackingAverageDevelopmentIndex,
+            combatContinentModifier: reusableCombatContinentModifier
+        },
+        startingAttackForce: unchangeableWarStartCombinedForceAttack,
+        startingDefendForce: unchangeableWarStartCombinedForceDefend,
+        //Battle overhaul B.9.2. Assaulting OUT of a siege carries the grinding with it: the
+        //besieger has spent turns knocking the place down, and `modifiersFor()` turns that into a
+        //die bonus (+1 per three turns, capped at +2). It is the reward for patience, and the
+        //reason to lay a siege you intend to finish yourself rather than one you abandon.
+        siegeTurns: hasSiegedBeforeWar?.turnsInSiege ?? 0
+    });
+    attackingArmyRemaining = battleAttackingArmy();
+    defendingArmyRemaining = battleDefendingArmy();
 
-    attackingArmyRemaining = [...totalAttackingArmy];
-    if (hasSiegedBefore) {
-        let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
-        defendingArmyRemaining = war.defendingArmyRemaining;
-    } else {
-        defendingArmyRemaining = [...totalDefendingArmy];
-    }
+    //The ledger before a die is thrown: how many each side WILL roll, and every modifier by name.
+    //This is the number the player committed on, so it has to be on screen before they advance.
+    drawLedger();
     updatedProbability = calculateProbabilityPreBattle(totalAttackingArmy, mainArrayOfTerritoriesAndResources, true, totalDefendingArmy, arrayOfUniqueIdsAndAttackingUnits[0]);
 }
 
@@ -395,16 +464,12 @@ function calculateContinentModifier(attackedTerritoryId, mainArrayOfTerritoriesA
 }
 
 export function handleWarEndingsAndOptions(situation, contestedTerritory, attackingArmyRemaining, defendingArmyRemaining, routFromSiege, ai, siegeObject) {
-    let retreatButton;
-    let advanceButton;
-    let siegeButton;
-
+    //Battle overhaul B.6.6. Three `getElementById` lookups stood here so that five branches below
+    //could write labels, `disabled` flags and background colours onto the bar by hand. The bar is
+    //derived from one state now, so this function no longer knows that the buttons are elements.
     if (!ai) {
         let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
         setArmyTextValues(attackArrayText, 1, contestedTerritory.uniqueId);
-        retreatButton = document.getElementById(ids.retreatButton);
-        advanceButton = document.getElementById(ids.advanceButton);
-        siegeButton = document.getElementById(ids.siegeButton);
     }
 
     let contestedPath;
@@ -435,7 +500,6 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
     switch (situation) {
         case 0:
             won = true;
-            console.log("Attacker won the war!");
             setDefendingTerritoryCopyStart(contestedTerritory);
             turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
             turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
@@ -448,31 +512,34 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
             contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
             contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
             contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-            setAdvanceButtonState(2);
-            setAdvanceButtonText(2, advanceButton);
-            retreatButton.disabled = true;
-            retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
-            retreatButton.disabled = false;
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            //Battle overhaul B.10.2 / B.6.6. Seven statements -- two button numbers that had
+            //to agree, two colour literals meaning "inert", and `retreatButton.disabled = true`
+            //immediately undone on the next line -- are one write. Withdrawing is still
+            //available; the siege button is not, because the battle is over.
+            battleWindow.setBattleButtons({
+                advance: AdvanceMode.ACCEPT,
+                victory: VictoryKind.CLEAN,
+                siegeEnabled: false
+            });
             break;
         case 1:
-            console.log("Defender won the war!");
             setDefendingTerritoryCopyStart(contestedTerritory);
-            //set main array to remaining defenders values
-            defendingArmyRemaining.push(0); //add defeat type to array
-            setRetreatButtonState(2);
-            setRetreatButtonText(retreatButtonState, retreatButton);
-            retreatButton.disabled = false;
-            advanceButton.disabled = true;
-            advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            //Battle overhaul B.4.5. `defendingArmyRemaining.push(0)` stood here, appending a
+            //DEFEAT TYPE as a fifth element of a four-slot army array, read back in the retreat
+            //handler as `defendingArmyRemaining[4]`. An army array that is sometimes five long is
+            //a trap for everything that iterates one -- and this one is aliased by any siege
+            //created from the battle. The outcome is state now, on the battle in the store.
+            setDefeatType("wiped");
+            //The attack is lost. The red button is the only way out, so the other two go
+            //inert -- as a class, not as a colour.
+            battleWindow.setBattleButtons({
+                retreat: RetreatMode.DEFEAT,
+                siegeEnabled: false
+            });
             break;
         case 2:
             won = true;
             rout = true;
-            console.log("Enemy routed, they are out of there, territory conquered! - capture half of defense remainder and territory");
             if (!ai) {
                 setDefendingTerritoryCopyStart(contestedTerritory);
                 turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault) + (Math.floor(defendingArmyRemaining[1] * battleOutcomeEffects.routCaptureShare) * oilRequirements.assault);
@@ -489,13 +556,13 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
                 contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2] + (Math.floor(defendingArmyRemaining[2] * battleOutcomeEffects.routCaptureShare));
                 contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3] + (Math.floor(defendingArmyRemaining[3] * battleOutcomeEffects.routCaptureShare));
                 contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                setAdvanceButtonState(2);
-                setAdvanceButtonText(4, advanceButton);
-                retreatButton.disabled = true;
-                retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
-                advanceButton.disabled = false;
-                siegeButton.disabled = true;
-                siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+                //The FLAVOUR of the win changes the word on the button and nothing else,
+                //which is exactly why it is a separate field rather than a fourth advance state.
+                battleWindow.setBattleButtons({
+                    advance: AdvanceMode.ACCEPT,
+                    victory: VictoryKind.ROUT,
+                    siegeEnabled: false
+                });
             } else if (ai) {
                 //audit 5.1 H: this was `for (country of turnGainsArrayAi)` -- an implicit
                 //global (a ReferenceError under a module's strict mode) over a plain object
@@ -529,39 +596,41 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
         case 3:
             won = true;
             massiveAssault = true;
-            console.log("a quick push should finish off the enemy - lose 20% of remainder to conquer territory");
             //Set territory to owner player, replace army values with remaining attackers - 20% in main array, change colors, deactivate territory until next turn
             setDefendingTerritoryCopyStart(contestedTerritory);
-            turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[1] * battleOutcomeEffects.lastPushSurvivorShare) * oilRequirements.assault);
-            turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[2] * battleOutcomeEffects.lastPushSurvivorShare) * oilRequirements.air);
-            turnGainsArrayPlayer.changeOilDemand += (Math.floor(attackingArmyRemaining[3] * battleOutcomeEffects.lastPushSurvivorShare) * oilRequirements.naval);
+            //Battle overhaul B.7. The cost of the push is NOT applied here any more.
+            //`resolveLastPush()` in src/rules/military/battleModel.js already took
+            //`lastPushSurvivorShare` off the attackers before this was called, so charging it
+            //again here billed the player twice -- measured as 600 survivors becoming 384 instead
+            //of 480. The model owns the arithmetic; this branch garrisons what survived.
+            //
+            //Situation 3 is reached from `takeLastPush()` and nowhere else, so there is no other
+            //caller relying on the old behaviour: `legacySituationFor()` never returns 3, and the
+            //siege starve-out in resourceCalculations.js uses 2.
+            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[1] * oilRequirements.assault);
+            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[2] * oilRequirements.air);
+            turnGainsArrayPlayer.changeOilDemand += (attackingArmyRemaining[3] * oilRequirements.naval);
             playerOwnedTerritories.push(contestedPath);
             setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
-            contestedTerritory.infantryForCurrentTerritory = (Math.floor(attackingArmyRemaining[0] * battleOutcomeEffects.lastPushSurvivorShare));
-            contestedTerritory.assaultForCurrentTerritory = (Math.floor(attackingArmyRemaining[1] * battleOutcomeEffects.lastPushSurvivorShare));
-            contestedTerritory.airForCurrentTerritory = (Math.floor(attackingArmyRemaining[2] * battleOutcomeEffects.lastPushSurvivorShare));
-            contestedTerritory.navalForCurrentTerritory = (Math.floor(attackingArmyRemaining[3] * battleOutcomeEffects.lastPushSurvivorShare));
+            contestedTerritory.infantryForCurrentTerritory = attackingArmyRemaining[0];
+            contestedTerritory.assaultForCurrentTerritory = attackingArmyRemaining[1];
+            contestedTerritory.airForCurrentTerritory = attackingArmyRemaining[2];
+            contestedTerritory.navalForCurrentTerritory = attackingArmyRemaining[3];
             contestedTerritory.armyForCurrentTerritory = contestedTerritory.infantryForCurrentTerritory + (contestedTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (contestedTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (contestedTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-            setAdvanceButtonState(2);
-            setAdvanceButtonText(3, advanceButton);
-            retreatButton.disabled = true;
-            retreatButton.style.backgroundColor = "rgb(128, 128, 128)";
-            advanceButton.disabled = false;
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            battleWindow.setBattleButtons({
+                advance: AdvanceMode.ACCEPT,
+                victory: VictoryKind.ASSAULT,
+                siegeEnabled: false
+            });
             break;
         case 4:
-            console.log("you were routed, half of your remaining soldiers were captured and half were slaughtered as an example");
             //remove attacking numbers from initial territories in main array, add half of attack remaining to defender in main array
             setDefendingTerritoryCopyStart(contestedTerritory);
-            defendingArmyRemaining.push(1); //add defeat type to array
-            setRetreatButtonState(2);
-            setRetreatButtonText(retreatButtonState, retreatButton);
-            retreatButton.disabled = false;
-            advanceButton.disabled = true;
-            advanceButton.style.backgroundColor = "rgb(128, 128, 128)";
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
+            setDefeatType("routed"); //B.4.5, as above
+            battleWindow.setBattleButtons({
+                retreat: RetreatMode.DEFEAT,
+                siegeEnabled: false
+            });
             break;
     }
     //Phase 7.4. What the activity feed is told, and what it is deliberately NOT told.
@@ -684,118 +753,209 @@ export function activateAllPlayerTerritoriesForNewTurn() { //reactivate all terr
         }
     }
 }
-export async function processRound(currentRound, arrayOfUniqueIdsAndAttackingUnits, attackArmyRemaining, defendingArmyRemaining, skirmishesPerRound) {
-    // let diceScoreArray; //DICE CODE EXECUTION
-    // for (let i = 0; i < allTerritories().length; i++) {
-    //     if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-    //         diceScoreArray = await callDice(setColorOnMap(allTerritories()[i]));
-    //         break;
-    //     }
-    // }
-    // console.log("Attacker: " + diceScoreArray[0] + " Defender: " + diceScoreArray[1]);
-    // //show feedback
-    combinedForceAttack = calculateCombinedForce(attackArmyRemaining);
-    combinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
-
-    //Phase 5.3: the skirmishes are resolveRound() in src/rules/military/battle.js -- pure,
-    //deterministic given the RNG, and returning new arrays rather than editing these two in
-    //place. The two arrays here are the live ones the UI and the siege objects read, so the
-    //result is copied back into them rather than replacing them.
-    const round = resolveRound(attackArmyRemaining, defendingArmyRemaining, {
-        skirmishesPerRound: skirmishesPerRound,
-        probabilityPercent: updatedProbability
-    });
-    for (let i = 0; i < attackArmyRemaining.length; i++) {
-        attackArmyRemaining[i] = round.attackers[i];
+export async function processRound(choices = {}) {
+    //Battle overhaul B.4. One click is one ROUND of dice, and the whole of a round is
+    //`resolveBattleRound()` in src/rules/military/battleModel.js. What used to be here -- five
+    //rounds of up to two hundred thousand per-unit coin flips, a war-weariness pass and a second
+    //set of five -- is gone. See docs/battle_overhaul.md sections 4.5 to 4.7.
+    //
+    //Three things follow that are worth knowing before changing anything here.
+    //
+    //THE ARRAYS ARE THE STORE'S. `asModelState()` hands the model the live arrays from
+    //`battleState.js`, and `commitRound()` writes the survivors back into those same arrays --
+    //so `attackArmyRemaining` and `defendingArmyRemaining`, which the caller passed in and which
+    //a standing siege may alias, are correct the moment this returns. Nothing is copied back by
+    //hand any more.
+    //
+    //THE RNG IS `Math.random` ON PURPOSE. That is the game's seeded stream, so a battle is
+    //reproducible under `?seed=`. The model takes it as a parameter precisely so the unit suite
+    //and `tools/battle-lab.mjs` can pass their own.
+    //
+    //THERE IS NO ROUND LIMIT. Rounds run until one side breaks. `BATTLE_ROUNDS` no longer bounds
+    //a battle and `firstSetOfRounds` is gone with it -- it was a one-way latch that was set false
+    //at the first battle to go long and never set back, so every later battle in the session took
+    //the wrong branch in ui.js.
+    //No arguments. The four this used to take -- the round number, the attack array, and the two
+    //armies -- were all already module state or derivable from it, and the attack array was
+    //passed in only so that its first element could name the defending territory. The caller had
+    //to rebuild a synthetic one from the siege record to do that, which is the `siegeAttackArray`
+    //dance that used to sit in ui.js twice.
+    const battleBefore = asModelState(defendingTerritory);
+    if (!battleBefore) {
+        console.warn("processRound: no battle is open");
+        return;
     }
-    for (let i = 0; i < defendingArmyRemaining.length; i++) {
-        defendingArmyRemaining[i] = round.defenders[i];
-    }
+    const attackArmyRemaining = attackingArmyRemaining;
 
-    for (const [index, unitType] of unitTypes.entries()) {
-        console.log(`Attacking ${unitType} Left: ${attackArmyRemaining[index]} out of ${totalAttackingArmy[index]}`);
-        console.log(`Defending ${unitType} Left: ${defendingArmyRemaining[index]} out of ${totalDefendingArmy[index]}`);
-    }
-
-    //What the round could not do, and what the legacy loop did about it. The first two are
-    //effectively dead -- a battle whose defender or attacker was already wiped out resolved
-    //at the end of the previous round -- but they are kept so the behaviour is unchanged.
-    if (round.halted === "noDefenders") {
-        handleWarEndingsAndOptions(WarOutcome.ATTACKER_WON, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
-    } else if (round.halted === "noAttackers") {
-        handleWarEndingsAndOptions(WarOutcome.DEFENDER_WON, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
-    } else if (round.halted === "nothingToFight") {
-        setArmyTextValues([...attackArmyRemaining, ...defendingArmyRemaining], 1, arrayOfUniqueIdsAndAttackingUnits[0]);
-        //audit 5.2 M: a `let` here shadowed the module binding, so the freshly computed
-        //probability was shown once and then thrown away -- every later reader saw the
-        //stale module value.
-        updatedProbability = getUpdatedProbability();
-        setAttackProbabilityOnUI(updatedProbability, 1);
+    //Battle overhaul B.7. Reserves join at the START of the round they are due, so they fight in
+    //it. They were debited from their source when they were committed, a round ago.
+    const arrived = takeArrivedReserves(battleBefore.round + 1);
+    if (arrived) {
+        reinforceAttackers(arrived);
     }
 
-    console.log(`-----------------ROUND ${currentRound} COMPLETED--------------------------`);
-    console.log("Attacking Infantry Left:", attackArmyRemaining[0], "out of", totalAttackingArmy[0]);
-    console.log("Attacking Assault Left:", attackArmyRemaining[1], "out of", totalAttackingArmy[1]);
-    console.log("Attacking Air Left:", attackArmyRemaining[2], "out of", totalAttackingArmy[2]);
-    console.log("Attacking Naval Left:", attackArmyRemaining[3], "out of", totalAttackingArmy[3]);
-    console.log("Defending Infantry Left:", defendingArmyRemaining[0], "out of", totalDefendingArmy[0]);
-    console.log("Defending Assault Left:", defendingArmyRemaining[1], "out of", totalDefendingArmy[1]);
-    console.log("Defending Air Left:", defendingArmyRemaining[2], "out of", totalDefendingArmy[2]);
-    console.log("Defending Naval Left:", defendingArmyRemaining[3], "out of", totalDefendingArmy[3]);
-    console.log("Combined Attack Force: " + combinedForceAttack + " Defense Force: " + combinedForceDefend);
+    const { battle: next, record } = resolveBattleRound(battleBefore, Math.random, choices);
+    commitRound(next, record);
+    setCurrentRound(next.round);
 
-    updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, allTerritories(), true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
-    console.log("New probability for next round is:", updatedProbability);
+    //Battle overhaul B.10.2. Nine console lines per round stood here -- the two armies unit by
+    //unit, the dice counts, the pairings lost and the state. Every one of them is now ON SCREEN:
+    //the ledger says what was rolled and why, and the round log (B.6.4) keeps the history. A
+    //battle narrated only to the console is a battle the player cannot read.
+    setArmyTextValues([...attackArmyRemaining, ...defendingArmyRemaining], 1, defendingTerritoryId);
 
-    if (currentRound < BATTLE_ROUNDS && !defendingArmyRemaining.every(count => count === 0) && currentRound !== 0) {
-        // Continue to the next round
-        setCurrentRound(currentRound + 1);
-        console.log("Next round: " + getCurrentRound());
-    } else {
-        console.log("All rounds completed!");
-        console.log("Attacking Units Remaining:", attackArmyRemaining);
-        console.log("Defending Infantry Remaining:", defendingArmyRemaining[0]);
-        console.log("Defending Assault Remaining:", defendingArmyRemaining[1]);
-        console.log("Defending Air Remaining:", defendingArmyRemaining[2]);
-        console.log("Defending Naval Remaining:", defendingArmyRemaining[3]);
+    drawLedger(record);
+    //B.6.4. The round joins the log, newest first.
+    roundLog.update(currentBattleRecords());
 
-        //Phase 5.3: which of the six endings this is, is classifyOutcome() in
-        //src/rules/military/battle.js. The two combined forces are the ones measured at the
-        //TOP of this round, which is what the legacy code compared -- see the note on
-        //classifyOutcome().
-        const outcome = classifyOutcome(attackArmyRemaining, defendingArmyRemaining, {
-            startingAttackForce: unchangeableWarStartCombinedForceAttack,
-            startingDefendForce: unchangeableWarStartCombinedForceDefend,
-            attackForce: combinedForceAttack,
-            defendForce: combinedForceDefend
-        });
+    //The dice the rules just rolled, thrown for real on top of the window. Deliberately NOT
+    //awaited -- see the header of src/ui/battle/DiceStage.js.
+    //The defender's own colour, so the two sets of dice read as the two countries. `countryColor`
+    //and not the path's stroke: the stroke is selection chrome and is black most of the time.
+    //`countryColor` and not the path's stroke: the stroke is selection chrome and is black most
+    //of the time. When the defender has no colour, DiceStage resolves a theme token itself -- a
+    //literal here would be a colour decision made outside the layer that draws.
+    diceStage.showRound(record, defendingTerritory.countryColor);
 
-        if (outcome !== WarOutcome.FIGHT_AGAIN) {
-            handleWarEndingsAndOptions(outcome, defendingTerritory, attackArmyRemaining, defendingArmyRemaining, false, false, null);
-        } else {
-            setArmyTextValues([...attackArmyRemaining, ...defendingArmyRemaining], 1, arrayOfUniqueIdsAndAttackingUnits[0]);
-            console.log("Neither side broke: another five rounds, with war weariness taken off the attacker.");
-            attackArmyRemaining = applyWarWeariness(attackArmyRemaining);
-            initialCombinedForceAttack = calculateCombinedForce(attackArmyRemaining);
-            initialCombinedForceDefend = calculateCombinedForce(defendingArmyRemaining);
+    //The odds shown are now the honest question -- "will I take it" -- measured by playing the
+    //rest of the battle out five hundred times on a stream of its own. The old number was the
+    //attacker's share of the two strengths, which was simultaneously the per-skirmish coin-flip
+    //odds and the figure on the bar, and was not an honest answer to either question.
+    updatedProbability = battleForecast(asModelState(defendingTerritory)).takeProbability * 100;
+    setAttackProbabilityOnUI(updatedProbability, 1);
 
-            updatedProbability = calculateProbabilityPreBattle(attackArmyRemaining, allTerritories(), true, defendingArmyRemaining, arrayOfUniqueIdsAndAttackingUnits[0]);
+    if (next.state !== BattleState.LAST_PUSH_AVAILABLE) {
+        //The defender rallied above the band, or the battle is over. Either way the offer goes.
+        withdrawLastPushOffer();
+    }
 
-            skirmishesPerType = likeForLikeSkirmishes(attackArmyRemaining, defendingArmyRemaining);
-            totalSkirmishes = countPossibleSkirmishes(attackArmyRemaining, defendingArmyRemaining); //audit 5.2 K
+    if (next.state === BattleState.LAST_PUSH_AVAILABLE) {
+        //An OFFER, not an outcome. The legacy "massive assault" awarded the territory by itself
+        //the moment the defender fell below the threshold; here the attacker chooses whether to
+        //buy certainty with a fifth of what is left, or keep rolling.
+        offerLastPush();
+        return;
+    }
 
-            const retreatButton = document.getElementById(ids.retreatButton);
-            const advanceButton = document.getElementById(ids.advanceButton);
-
-            retreatButton.disabled = true;
-            retreatButton.style.backgroundColor = "rgb(128,128,128)";
-            setCurrentRound(0);
-            setFirstSetOfRounds(false);
-            setAdvanceButtonText(5, advanceButton);
-            attackingArmyRemaining = attackArmyRemaining;
-        }
+    if (isTerminal(next.state)) {
+        handleWarEndingsAndOptions(
+            legacySituationFor(next.state), defendingTerritory,
+            attackArmyRemaining, defendingArmyRemaining, false, false, null);
     }
 }
+
+/**
+ * Draw the ledger from the battle as it stands, optionally showing a round's rolled faces.
+ *
+ * The dice counts are re-derived rather than taken from the record, so the ledger drawn BEFORE
+ * the first round and the one drawn after a round come from the same two calls. `record` only
+ * ever adds the faces.
+ */
+/**
+ * The rounds fought in the battle currently open, oldest first.
+ *
+ * A local reader rather than an import of `currentBattle()` from every call site, so that the
+ * round log is fed one thing and there is one place to change if a battle ever holds its records
+ * somewhere else.
+ */
+function currentBattleRecords() {
+    return currentBattle()?.records ?? [];
+}
+
+function drawLedger(record) {
+    const state = asModelState(defendingTerritory);
+    if (!state) {
+        return;
+    }
+    const share = shareFor(state.attackers, state.defenders, state.territory, state.context);
+    const modifiers = modifiersFor(state.attackers, state.defenders, state.territory, {
+        attackerDugIn: state.attackerDugIn,
+        defenderDugIn: state.defenderDugIn,
+        siegeTurns: state.siegeTurns
+    });
+    forceLedger.update({
+        attackerDice: Math.max(1, diceCountFor(share) + modifiers.attacker.diceChange),
+        defenderDice: Math.max(1, defenderDiceCountFor(1 - share) + modifiers.defender.diceChange),
+        attackerFaces: record?.attackerFaces,
+        defenderFaces: record?.defenderFaces,
+        modifiers
+    });
+}
+
+/**
+ * The `situation` number `handleWarEndingsAndOptions()` has always switched on.
+ *
+ * A translation table rather than a renumbering, because that function is also reached from
+ * `resourceCalculations.js` when a siege starves out, and from the AI path -- so its vocabulary
+ * is not this file's to change. It goes when `handleWarEndingsAndOptions()` itself is rewritten.
+ *
+ * STALEMATE has no legacy equivalent and should never occur: every round costs the loser of at
+ * least one pairing a tenth of its force, so `MAX_BATTLE_ROUNDS` is a bug detector. It is
+ * reported as a failed attack, and loudly, rather than silently resolving as something else.
+ */
+function legacySituationFor(state) {
+    switch (state) {
+        case BattleState.DEFENDER_WIPED:
+            return 0;
+        case BattleState.ATTACKER_WIPED:
+            return 1;
+        case BattleState.DEFENDER_ROUTED:
+            return 2;
+        case BattleState.ATTACKER_BROKEN:
+            return 4;
+        case BattleState.STALEMATE:
+            console.error("processRound: a battle reached MAX_BATTLE_ROUNDS. "
+                + "That means a round killed nobody -- see applyCasualties()'s floor.");
+            return 1;
+        default:
+            return 1;
+    }
+}
+
+/**
+ * Offer the decisive final round, WITHOUT taking it.
+ *
+ * The offer goes on the assault button, so the bottom bar reads Retreat / Next Round / Last
+ * Push! -- the three choices docs/battle_overhaul.md section 4.8 describes. Putting it on the
+ * ADVANCE button, which was the first attempt, made it compulsory: advance was the only way
+ * forward, so "offering" a last push meant taking one. That matters more than it sounds, because
+ * the last-push band sits ABOVE the break threshold and is therefore crossed on the way to
+ * almost every rout -- so a mandatory push would delete the rout ending from the game.
+ *
+ * Declining is the interesting half of the decision. The push buys the territory now for a fifth
+ * of the survivors; rolling on may rout them instead, which absorbs half the surviving garrison
+ * rather than paying for it -- or may cost another round's casualties for nothing.
+ */
+function offerLastPush() {
+    battleWindow.setBattleButtons({ advance: AdvanceMode.ROUND });
+    battleWindow.setLastPushOffered(true);
+}
+
+/** Take the offer down again -- the defender rallied, or the battle ended. */
+function withdrawLastPushOffer() {
+    battleWindow.setLastPushOffered(false);
+}
+
+/**
+ * Take the last push: buy the territory outright for a fifth of the surviving attackers.
+ *
+ * Called from the advance button when the offer above is showing. It is a transaction rather
+ * than a round -- no dice -- which is the only reason to prefer it to rolling again.
+ */
+export function takeLastPush() {
+    const state = asModelState(defendingTerritory);
+    if (!state) {
+        return;
+    }
+    withdrawLastPushOffer();
+    const { battle: next, record } = resolveLastPush(state);
+    commitRound(next, record);
+    setCurrentRound(next.round);
+    setArmyTextValues([...attackingArmyRemaining, ...defendingArmyRemaining], 1, defendingTerritoryId);
+    handleWarEndingsAndOptions(3, defendingTerritory,
+        attackingArmyRemaining, defendingArmyRemaining, false, false, null);
+}
+
 
 //Phase 5.3: combinedForce() is in src/rules/military/units.js. This wrapper stays because
 //ui.js, transferAndAttack.js and aiCalculations.js all import it from here; the call sites
@@ -870,7 +1030,7 @@ export function setNextWarId(value) {
 export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let defendingTerritoryCopy = getOriginalDefendingTerritory();
     if (!defendingTerritoryCopy) {
-        console.log("No player-initiated battle to turn into a siege object"); //audit 5.2 AH
+        console.warn("No player-initiated battle to turn into a siege object"); //audit 5.2 AH
         return;
     }
     let proportionsAttackers = proportionsOfAttackArray;
@@ -879,10 +1039,6 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
     let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
-    let defenseBonusColor = "rgb(0,255,0)";
-    let foodCapacityColor = "rgb(0,255,0)";
-    let productiveTerritoryPopColor = "rgb(0,255,0)";
-
     if (addOrRemove === 0) { // add war to siege object
         //Phase 4.7: the siege references the territory by id and resolves it live. It
         //used to hold `defendingTerritoryCopy` -- a shallow copy taken here -- which is
@@ -911,9 +1067,6 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
             startingFoodCapacity: startingFoodCapacity,
             startingProdPop: startingProdPop,
             startingTerritoryPop: startingTerritoryPop,
-            defenseBonusColor: defenseBonusColor,
-            foodCapacityColor: foodCapacityColor,
-            productiveTerritoryPopColor: productiveTerritoryPopColor
         }, defendingTerritoryCopy.uniqueId);
 
         addSiege("player", defendingTerritoryCopy.territoryName, siege);
@@ -936,7 +1089,6 @@ export function addRemoveWarSiegeObject(addOrRemove, warId, battleStart) {
             }
         }
     }
-    console.log(historicWars);
 }
 
 export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker) {
@@ -970,8 +1122,6 @@ export function addRemoveWarSiegeObjectAi(addOrRemove, warId, defender, attacker
         }, defender.uniqueId);
 
         addSiege("ai", defender.territoryName, siege);
-        console.log("Siege now added to aiSiegeWarsList, array is as follows:");
-        console.log(aiSiegeWarsList);
     } else if (addOrRemove === 1) {
         //As above: no copy, so no copy-back.
         for (const key of Object.keys(aiSiegeWarsList)) {
@@ -995,7 +1145,7 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
     //read below threw on undefined. The war those results describe has already been recorded
     //by whoever raised the screen, so there is nothing to add here.
     if (!defendingTerritoryCopy) {
-        console.log("No player-initiated battle to record -- the results screen is showing someone else war");
+        console.warn("No player-initiated battle to record -- the results screen is showing someone else\u2019s war");
         return;
     }
 
@@ -1004,13 +1154,9 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
     let startingFoodCapacity = defendingTerritoryCopy.foodCapacity;
     let startingProdPop = defendingTerritoryCopy.productiveTerritoryPop;
     let startingTerritoryPop = defendingTerritoryCopy.territoryPopulation;
-    let defenseBonusColor = "rgb(0,255,0)";
-    let foodCapacityColor = "rgb(0,255,0)";
-    let productiveTerritoryPopColor = "rgb(0,255,0)";
 
     if (retreatBeforeStart) {
-        console.log(getNextWarId() + " " + getCurrentWarId());
-        warId = getCurrentWarId();
+            warId = getCurrentWarId();
         proportionsAttackers = [0, 0, 0, 0];
         defendingArmyRemaining = [defendingTerritoryCopy.infantryForCurrentTerritory, defendingTerritoryCopy.assaultForCurrentTerritory, defendingTerritoryCopy.airForCurrentTerritory, defendingTerritoryCopy.navalForCurrentTerritory];
         attackingArmyRemaining = ["All", "All", "All", "All"];
@@ -1042,12 +1188,8 @@ export function addWarToHistoricWarArray(warResolution, warId, retreatBeforeStar
         startingFoodCapacity: startingFoodCapacity,
         startingProdPop: startingProdPop,
         startingTerritoryPop: startingTerritoryPop,
-        defenseBonusColor: defenseBonusColor,
-        foodCapacityColor: foodCapacityColor,
-        productiveTerritoryPopColor: productiveTerritoryPopColor
     }, defendingTerritoryCopy.uniqueId));
 
-    console.log(historicWars);
 }
 
 function getStrokeColorOfDefendingTerritory(defendingTerritory) {
@@ -1136,7 +1278,6 @@ export function getDefendingArmyRemaining() {
  */
 function runSiegeTurnFor(side) {
     const sieges = side === "ai" ? aiSiegeWarsList : playerSiegeWarsList;
-    const label = side === "ai" ? " AI war" : " war";
     const continueSiegeArray = [];
 
     if (!sieges || Object.keys(sieges).length === 0) {
@@ -1146,10 +1287,6 @@ function runSiegeTurnFor(side) {
     for (const key in sieges) {
         const siege = sieges[key];
         const result = tickSiege(siege);
-
-        console.log(
-            (result.hit ? "Hit this turn for the " : "No hit this turn for the ") +
-            key + label + ", " + result.hitCount + " hits from " + SIEGE_HIT_ITERATIONS);
 
         if (!result.hit) {
             //audit 5.1 D: this used to `return`, which abandoned the whole loop and handed
@@ -1161,15 +1298,19 @@ function runSiegeTurnFor(side) {
         }
 
         if (result.arrested) {
-            siege.defendingArmyRemaining.push(1); //mark the siege as arrested for handleEndSiegeDueArrest()
+            //Battle overhaul B.4.5, second half. This used to be
+            //`siege.defendingArmyRemaining.push(1)` -- the SECOND place a boolean was smuggled
+            //into slot 4 of a four-slot army array, and a worse one than the battle's, because a
+            //siege's `defendingArmyRemaining` is a live array that outlives the turn and is read
+            //back by the siege panel. A flag on the siege says the same thing and cannot be
+            //mistaken for a unit count by anything iterating the army.
+            siege.arrested = true;
             continueSiegeArray.push(siege);
             continue;
         }
 
         const territory = siege.defendingTerritory;
         patchTerritory(territory.uniqueId, siegeDamageDeltas(territory, result.damage));
-        console.log("remaining farm: " + territory.farmsBuilt + " forest: " + territory.forestsBuilt +
-            " oilwell: " + territory.oilWellsBuilt + " fort: " + territory.fortsBuilt);
         continueSiegeArray.push(true);
     }
 
@@ -1188,13 +1329,13 @@ export function handleEndSiegeDueArrest(ai, siege) {
     let defendingTerritory;
     let defendingPath;
 
-    if (siege.defendingArmyRemaining[4]) { //if siege marked as arrested
+    if (siege.arrested) { //B.4.5: a flag on the siege, not a fifth element of its army array
         //The siege already references the live territory (Phase 4.7), so the 359x359
         //scan that used to find it here -- and then find its path -- is two lookups.
         defendingTerritory = siege.defendingTerritory;
         defendingPath = defendingTerritory ? getPathByUniqueId(defendingTerritory.uniqueId) : null;
         if (!defendingTerritory || !defendingPath) {
-            console.log("Siege arrest for a territory that is no longer on the map; ignoring");
+            console.warn("Siege arrest for a territory that is no longer on the map; ignoring");
             return;
         }
 
@@ -1321,7 +1462,6 @@ export function addAttackingArmyToRetrievalArray(attackingArmyRemaining, proport
         }
     }
 
-    // console.log(returnArray);
 
     return returnArray;
 }
@@ -1348,7 +1488,7 @@ export function setNewWarOnRetrievalArray(warId, array, turn, type) {
 export function deactivateTerritoryAi(territoryOrPath) {
     const uniqueId = territoryOrPath?.uniqueId ?? territoryOrPath?.getAttribute?.("uniqueid") ?? null;
     if (uniqueId === null) {
-        console.log("deactivateTerritoryAi: no territory to deactivate");
+        console.warn("deactivateTerritoryAi: no territory to deactivate");
         return;
     }
     const turnsToDeactivate = Math.floor(Math.random() * (conquestLockout.maxTurns - conquestLockout.minTurns + 1)) + conquestLockout.minTurns;

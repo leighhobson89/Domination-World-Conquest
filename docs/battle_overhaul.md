@@ -1,11 +1,17 @@
 # Battle Overhaul — the Dice Round
 
-Status: **plan, not started.** Written 2026-09-04 from a full audit of the battle UI and the
-battle system, and from thirteen design decisions taken with Leigh (recorded verbatim in §3).
+Status: **COMPLETE. B.0 – B.10 are done and every checklist item is ticked.** Written 2026-09-04
+from a full audit of the battle UI and the battle system, and from thirteen design decisions taken
+with Leigh (recorded verbatim in §3).
 
-This document is the spec and the phase order for replacing open battle. It supersedes
-[02-game-design-document.md](./02-game-design-document.md) §7.1–7.3 and §7.7 once B.4 lands;
-until then the GDD describes what runs and this describes what is coming.
+This document is the spec and the phase order that replaced open battle. It supersedes
+[02-game-design-document.md](./02-game-design-document.md) §7.1–7.3 and §7.7, which now describe
+the dice model. The live tracker, with what each phase deliberately left out and why, is
+[battle_overhaul_checklist.md](./battle_overhaul_checklist.md).
+
+**Two decisions were Leigh's and both are settled** (B.10.4). Known-issue **AR** stays as it is
+and its description was corrected instead — see §6 and the register. The two attack dials stay
+two — see the note on `DICE_ATTACK_ADVANTAGE` in `src/config/balance.js`.
 
 ---
 
@@ -166,9 +172,32 @@ naval 20,000). This is deliberately the *same expression* as today's `winProbabi
 the fortification multiplier** — forts and mountains move out of the strength calculation and
 become an explicit die modifier in §4.4, so nothing is counted twice.
 
-`ATTACK_ADVANTAGE` stays exactly what CLAUDE.md says it is: the one attack/defence dial,
-multiplying attacking *strength*. It now reaches the battle by moving `share`, and therefore
-the dice counts — one multiplication, and everything downstream re-derives.
+**Measured at B.2, and the dial had to be split.** The plan originally said `ATTACK_ADVANTAGE`
+reaches the battle by moving `share`. It does — but at 1.44 it moves it from 0.500 to 0.590,
+which crosses a dice band, so a raw-even fight came out **4 dice against 3** and the attacker
+took the territory **88.3%** of the time. A spare die is not a small edge: it is an *unmatched*
+die, and unmatched dice are automatic hits (§4.5). A continuous probability absorbs a 44%
+multiplier smoothly; a banded one amplifies it into a guaranteed casualty every round.
+
+Re-cutting the bands cannot fix it. For raw-even to come out 4v4 one band must contain both
+0.590 and 0.410 — and a raw 1:2 attacker sits at 0.419, inside that same band, so it would get
+equal dice with a half-sized army. The band that fixes 1:1 breaks 1:2.
+
+So the dice model runs on its own dial, `DICE_ATTACK_ADVANTAGE = 1.0`. It needs no thumb on the
+scale, because in this model the defender's advantage is **ties**, worth about seventeen points
+a pairing — far stronger than anything the old model gave a defender. `ATTACK_ADVANTAGE` is untouched at 1.44 and runs sieges and the pre-battle odds figure.
+
+**They were NOT reconciled, and at B.10 that was made permanent.** B.5 measured the AI swap as
+balance-neutral, which removed the pressure to retune and left the question standing on its own
+merits — at which point the answer is that these are not two settings of one thing. A dial
+multiplying a CONTINUOUS share moves the outcome smoothly; a dial multiplying a BANDED one moves
+it in whole dice, and a whole die is an unmatched die, which is a guaranteed casualty. Both ways
+of forcing them together are worse for the player: 1.44 everywhere returns open battle to an 88.3%
+attacker win on an even fight, deleting the defender's tie advantage and the reason to fortify;
+1.0 everywhere makes every siege band harder with no measurement behind it, removing the strategic
+alternative rather than balancing it. So there are two dials, each owning one model, each
+documented at its own constant. A third is not allowed, and neither may reach into the other's
+model.
 
 ### 4.3 Dice counts
 
@@ -198,14 +227,32 @@ A modifier adds to **every die on that side**, and pairings are compared on modi
 Each side's total is clamped to **±2**, because +1 is worth roughly seventeen percentage
 points on a pairing and the list has to stay legible.
 
-| Modifier | Side | Value | Source |
+**Two kinds of modifier, and they are not interchangeable.** A *face* modifier adds to every
+die on that side and improves the pairings you contest. A *dice* modifier changes how many dice
+you roll, and it is the only kind that can answer an opponent's **unmatched** dice — which are
+automatic hits and are untouched by any face bonus. That distinction was found by measurement,
+not designed: with fortification as a face bonus, a 2:1 attacker took a fortress **100%** of the
+time, because four dice against two is two guaranteed casualties a round and +2 on the
+defender's two dice cannot touch them. Terrain that cannot be answered by terrain is not
+terrain. As a dice penalty the same attack measures **84%**, over 5–8 rounds.
+
+| Modifier | Side | Effect | Source |
 |---|---|---|---|
-| Fortification | defender | +1 at `defenseMultiplierFor()` = 2, +2 at ≥ 3 | forts + mountain bonus, `DEFENSE_BONUS_DIVISOR` unchanged |
-| Air superiority | either | +1 | that side holds air and the other holds none, or ≥ 3:1 in air personnel |
-| No armour against armour | either | −1 | the opponent fields assault units and this side fields none |
-| Coastal assault | attacker | +1 | the target `isCoastal` **and** naval is ≥ 25% of the committed force |
-| Dug in | defender | +1 | the defender spent the previous round consolidating (§4.8) |
-| Siege grinding | attacker | +1 per 3 turns besieged, cap +2 | assaulting out of a siege (§4.10) |
+| Fortification | attacker pays | **−1 die** at bonus ≥ 25, **−2** at ≥ 100 | raw `defenseBonus + mountainDefenseBonus` |
+| Air superiority | either | +1 face | that side holds air and the other holds none, or ≥ 3:1 in air personnel |
+| No armour against armour | either | −1 face | the opponent fields assault units and this side fields none |
+| Coastal assault | attacker | +1 face | the target `isCoastal` **and** naval is ≥ 25% of the committed force |
+| Dug in | either | +1 face | that side spent the previous round consolidating (§4.8) |
+| Siege grinding | attacker | +1 face per 3 turns besieged, cap +2 | assaulting out of a siege (§4.10) |
+
+Fortification deliberately does **not** go through `defenseMultiplierFor()`. That function takes
+the ceiling of the bonus over 15, which CLAUDE.md records as load-bearing but odd: it makes a
+single fort double a territory's defence outright. Fort defence is
+`forts × (forts + 1) × 10 × devIndex`, so one fort is 20 and already "doubles" and two forts is
+60 and already "triples" — reusing that ceiling charged an attacker a die for one fort and two
+dice for two, and measured an even attack on a **single-fort** territory at a 1.1% take
+probability. Banding on the raw number instead makes the progression follow the forts: one fort
+is a nuisance, two is a die, three is a fortress.
 
 `UNIT_MATCHUP_EFFECTIVENESS` is retired as a per-skirmish multiplier, and its intent — air
 beats armour, armour beats infantry, infantry is poor against everything mechanised — is
@@ -242,19 +289,38 @@ Each lost pairing costs **`PAIRING_CASUALTY_SHARE` of that side's current force*
 **0.10**, applied across the four unit types in proportion so composition is preserved, with a
 floor of one unit of the largest surviving type so a force can always actually die.
 
-Modelled behaviour at the default — **to be confirmed by measurement, §6, not shipped on this
-table**:
+**Measured** with `tools/battle-lab.mjs` at B.2 — 1,000 played-out battles per row, on
+featureless ground unless the row says otherwise. This replaces the modelled table this section
+originally carried, which was written before the dial and the fortification rule were corrected.
 
-| Matchup | Dice | Attacker per round | Defender per round | Breaks around |
+| matchup | dice | mods | takes it | rounds (p10–p90) |
 |---|---|---|---|---|
-| Even strength | 4 v 4 | −23% | −17% | attacker, round 6–7 |
-| 2:1 attacker | 5 v 2 | −8% | −42% | defender, round 3 |
-| Overwhelming | 5 v 1 | −3% | −47% | defender, round 2 |
-| Hopeless | 1 v 4 | −38% | −5% | attacker, round 3 |
+| hopeless 1:4 | 2 v 4 | — | 0.0% | 4–5 |
+| outmatched 1:2 | 2 v 4 | — | 0.0% | 4–5 |
+| **even 1:1** | 4 v 4 | — | **24.1%** | 4–6 |
+| favoured 1.5:1 | 4 v 3 | — | 88.1% | 4–7 |
+| strong 2:1 | 4 v 2 | — | 100% | 4–5 |
+| overwhelming 5:1 | 5 v 1 | — | 100% | 4–4 |
+| even, one fort | 4 v 4 | — | 26.1% | 4–6 |
+| even, fortress | 3 v 4 | — | 1.6% | 4–5 |
+| **2:1 vs fortress** | 3 v 2 | — | **84.1%** | 5–8 |
+| combined arms | 4 v 3 | +1/−1 | 99.7% | 4–5 |
+| attacker has no armour | 4 v 4 | −1/0 | 4.5% | 4–5 |
+| naval landing on a coast | 4 v 4 | +1/0 | 65.7% | 4–6 |
 
-That is the requested 5–8 rounds for a contested fight, with lopsided fights ending fast —
-which is right, because a lopsided fight should be a decision made in the attack window, not a
-sequence of clicks.
+What to read out of it:
+
+- **An even attack fails three times in four.** That is the design of §4.3 working: at equal
+  force, with no terrain and no composition edge, the defender's tie advantage decides it.
+- **A fortress is a real obstacle.** An even attack on one is 1.6%; it takes 2:1 to reach 84%,
+  and that is the longest fight on the table at 5–8 rounds.
+- **Composition is worth about as much as force.** Combined arms against a bare infantry
+  garrison is a near-certainty at only 1.25:1 in personnel.
+- **Round length is a median of 5 with a tail to 7**, against the 5–8 asked for in §3. Close
+  enough to leave alone: pushing the median to 6 means lowering `PAIRING_CASUALTY_SHARE`, which
+  lengthens every battle including the lopsided ones that should be over quickly.
+- **The stalemate rate is zero everywhere**, which is the property `MAX_BATTLE_ROUNDS` exists to
+  check. A non-zero rate here would mean a round that killed nobody.
 
 ### 4.7 How a battle ends
 
@@ -278,18 +344,37 @@ ever fires in `ai-sim`, that is a bug in the casualty floor, not a balance quest
 
 ### 4.8 Mid-battle decisions
 
-Offered at every round boundary:
+The bottom bar carries between two and four controls depending on where the battle is:
 
-- **Press the attack** — advance a round. The default.
-- **Commit reserves** — allocate from any territory still in range of the target. The force
-  arrives at the **start of the next round**, is added to the attacker's current force, and
-  re-derives `share` and therefore the dice. Debited from the source immediately, exactly as
-  INVADE! does (audit §5.1 **AD**), and returned through `retrievalArray` like any other
-  committed army.
-- **Dig in** (the defender, and the attacker when holding ground) — forfeit this round's attack
-  dice, take `DIG_IN_CASUALTY_SHARE` (0.5) of normal casualties, gain +1 next round.
-- **Withdraw** — free at a round boundary; the scatter penalty applies only to a withdrawal
-  taken from the results of a round already resolved.
+```
+Retreat | Dig In | Reserves | Next Round | (Last Push!)
+```
+
+- **Next Round** — advance a round. The default.
+- **Dig In** — forfeit this round's OFFENCE, take `DIG_IN_CASUALTY_SHARE` (0.5) of normal
+  casualties, and gain +1 next round. It is *armed* by a click and spent by the round it applies
+  to, because a choice only means anything applied to a round. **It does not forfeit the dice.**
+  Zeroing the dice count was tried and is strictly worse than not digging in at all: with nothing
+  to answer the enemy's dice, every one of them becomes an unmatched automatic hit, and halving
+  the casualties does not make up for taking four of them. The side still rolls and still defends;
+  the pairings it *wins* inflict nothing.
+- **Reserves** — commit whatever the attack's **original source territories** still hold. Debited
+  immediately, the same rule INVADE! follows (audit 5.1 **AD**), and joins the fight at the start
+  of the next round.
+- **Retreat** — free at a round boundary; the scatter penalty applies only to a withdrawal taken
+  after a round has been resolved.
+
+**Reserves come from the front that launched the attack**, not from anywhere on the map. That is
+what makes it one button rather than a second trip through the attack window mid-battle, and it
+is defensible on its own terms: this is the reserve behind *this* offensive. The arrival delay is
+the whole point — a reserve that arrived instantly would be a free top-up rather than a decision.
+
+**The last push goes on the third button, never on Advance.** Putting it on Advance was the first
+attempt and made it compulsory: Advance was the only way forward, so "offering" a push meant
+taking one. That matters more than it sounds, because the last-push band sits directly **above**
+the break threshold and is therefore crossed on the way to almost every rout — a mandatory push
+would have deleted the rout ending from the game. Declining is the interesting half of the
+decision: pay a fifth now, or roll on and maybe absorb half their surviving garrison instead.
 
 ### 4.9 What the attack window shows before you commit
 
@@ -342,23 +427,61 @@ the player is handed a results screen on top of the phase button.
 
 The rules pick the faces. The physics animates them. In that order, always.
 
-`resolveBattleRound()` returns the decided faces; `DiceStage` is handed them and is
-responsible only for arriving at them convincingly:
+**Settled by the B.0 spike (`tools/dice-spike.mjs`), and it is simpler than this document
+originally proposed.** The plan asked for a pre-solved throw — searching for an impulse that
+lands on the required faces. That search is unnecessary. A cube is invariant under the 24
+rotations of its own symmetry group, so the physics never has to be steered:
 
-- **Preferred (spike, phase B.0):** pre-solve. Simulate candidate throws headlessly with
-  `cannon-es` until one lands on the required faces, then replay that throw visibly. Exact,
-  honest, no visible swap. The cost is a few milliseconds of stepping before the reveal.
-- **Fallback:** roll freely and reassign the face materials before the dice settle.
-- **Bail-out:** 2D SVG dice, ~300 ms, drawn from theme tokens — which also lets the `dist/`
-  bundles come off the page load entirely.
+1. Throw the dice however you like, drawing from `cosmeticRandom()` — off the game's stream.
+2. Step the world to rest **headlessly** and read which faces landed up.
+3. For each die, apply the cube rotation carrying its landed face onto the face the **rules**
+   chose — to the **mesh only**, as a fixed offset from the body's quaternion.
+4. Replay the identical throw with rendering on. The mesh offset shows the required faces, and
+   the physics is bit-for-bit the throw already simulated, because nothing about the body
+   changed.
 
-Non-negotiables for whichever wins:
+No search, no rejection sampling, no visible swap, and the roll stays a real tumble rather than
+an animation. Measured cost: **~6 ms for nine dice**, once per round.
+
+**Two defects in `dices.js` that the spike found and that this makes load-bearing:**
+
+- **The shipped dice are badly biased.** `createDice()` gives every die
+  `new CANNON.Box(new CANNON.Vec3(.3, .3, .5))` — a 0.6 × 0.6 × 1.0 **cuboid** under a
+  1 × 1 × 1 cube mesh. A square prism rests on one of its four long sides, so the two faces on
+  the short axis come up a third as often as they should:
+
+  | shape | 1 | 2 | 3 | 4 | 5 | 6 | χ² |
+  |---|---|---|---|---|---|---|---|
+  | shipped `Box(.3,.3,.5)` | 23.0% | 22.1% | **6.2%** | **5.9%** | 22.8% | 19.9% | **738.5** |
+  | cube `Box(.5,.5,.5)` | 17.8% | 15.8% | 16.6% | 16.8% | 17.5% | 15.7% | **7.9** |
+
+  (400 throws of 9 dice; 5 d.f., 11.07 is the p = 0.05 critical value.) The shape **must**
+  become a cube — which is also what unlocks step 3, because a cuboid has only 8 rotational
+  symmetries and cannot carry an arbitrary face onto an arbitrary target. A cube has all 24
+  and can.
+
+- **`world.fixedStep()` cannot be used outside a render loop.** It derives elapsed time from
+  `performance.now()`, so in a tight headless loop it runs zero substeps and the world never
+  advances. The first run of the spike reported a confidently wrong answer this way. The
+  headless pre-run in step 2 must call `world.step(1/60)`.
+
+Non-negotiables for the implementation:
 
 - The tumbling draws from **`cosmeticRandom()`**, never `Math.random` — CLAUDE.md's rule, and
   the reason the seeded suite works at all.
 - A click during the roll **skips to the result**; a preference remembers "always skip".
-- Up to **nine dice** on screen (5 + 4), coloured per side, not the hard-coded two.
-- The dice are decoration: `pointer-events: none` except the skip target.
+- Up to **nine dice** on screen (5 + 4), coloured per side, not the hard-coded two. Note that
+  `throwDice()` starts each die at `(6, index * 1.5, 0)` — y is **up**, so nine dice would be a
+  nine-high column dropped from twelve units. They have to be spread across the tray.
+- Face values are fixed by the pips carved in `createBoxGeometry()`: **+Y = 1, +X = 2, +Z = 3,
+  −Z = 4, −X = 5, −Y = 6.**
+- Read the resting face by **rotating each face normal and taking the largest +Y component**,
+  not by the euler-angle ladder in `addDiceEvents()` — that tests six angle windows on a 0.5
+  radian tolerance and gives up when none matches ("landed on edge"). A dot product always has
+  an answer, which matters because dice do come to rest leaning on each other.
+
+**Fallback**, if the mesh-offset reveal ever looks wrong in motion: 2D SVG dice, ~300 ms, drawn
+from theme tokens — which would also let the `dist/` bundles come off the page load entirely.
 
 ---
 
@@ -372,10 +495,15 @@ Non-negotiables for whichever wins:
 | `src/rules/military/battleModel.js` | Pure, rng injected. `beginBattle()`, `resolveBattleRound()`, `classifyBattleState()`, `applyCasualties()`, `modifiersFor()`. Returns new state; writes nothing. |
 | `src/rules/military/forecast.js` | `battleForecast(setup)` — five hundred headless runs on a dedicated rng. |
 | `src/state/battleState.js` | The live battle as store state, with a save slice. Replaces the ~25 module-level `let`s in `battle.js`. |
-| `src/ui/battle/BattleWindow.js` | The window; `create()` / `update()` / `destroy()` like every other component. |
+| `src/ui/battle/BattleWindow.js` | The bottom bar's controls (B.6.2/B.6.6): installs its five listeners ONCE and applies a spec. `BattleUI.js` still builds the window's elements; what moved here is everything that decided what the buttons say, whether they respond, how wide they are and what colour they go. |
+| `src/ui/battle/buttonState.js` | Pure, unit-tested. `deriveBattleButtons(state)` and `battleBarWidths(spec)`. **One state, and the labels are derived from it** — there used to be two independent 0..n vocabularies for the same buttons, one deciding behaviour and one deciding the label, agreeing only by convention. |
+| `src/ui/battle/AttackPreview.js` | The itemised dice preview in the ATTACK window (B.6.7, §4.9). Live as units are allocated, with the forecast under it. |
+| `src/platform/vendor/diceRuntime.js` | Loads the three UMD bundles on the first dice roll (B.10.3), so `dist/` is off the critical path. |
 | `src/ui/battle/ForceLedger.js` | The itemised dice-and-modifier panel of §4.9. A pure render of a `modifiersFor()` result. |
-| `src/ui/battle/RoundLog.js` | The scrolling record of rounds fought. |
-| `src/ui/battle/DiceStage.js` | Wraps `dices.js`. Takes **decided faces**, owns the skip. |
+| `src/ui/battle/RoundLog.js` | The record of rounds fought, newest first (B.6.4). A pure render of `battle.records`. Collapsed by default and pinned as an overlay, so it costs one line of height and can never push the bottom bar off a window whose height is fixed. |
+| `src/state/battlePlayback.js` | The queue of battles the player DEFENDED, waiting to be replayed (B.8). |
+| `src/ui/battle/DefenderPlayback.js` | Replays one, sides reversed, on a timer. |
+| `src/ui/battle/DiceStage.js` | Wraps `dices.js`. Takes **decided faces**, owns the skip. The roll does **not** block the round: the numbers update at once and the dice tumble over the top, because gating every click on a render loop would put a second and a half between a press and its result. |
 
 ### 5.2 Modules changed
 
@@ -392,15 +520,33 @@ Non-negotiables for whichever wins:
 - `ui.js` — the ~180-line button state machine moves into `BattleWindow.js`; the retreat
   handler's direct territory writes route through `state/mutations.js`.
 - `src/ui/core/registry.js` — ids for the new window.
-- `tools/ai-sim.mjs` — a `--combat=` flag so old and new can be measured side by side.
+- ~~`tools/ai-sim.mjs` — a `--combat=` flag so old and new can be measured side by side.~~
+  **Deliberately not built** (B.5.2). It existed to compare two models; there is only one now, and
+  a flag to switch back would mean keeping the dead one alive — which is the drift the whole plan
+  exists to end.
+- `index.html` — the three `dist/` script tags come OUT (B.10.3). See `diceRuntime.js` above.
 
-### 5.3 Deleted
+### 5.3 Deleted — **done at B.10.1**
 
-`resolveRound`, `classifyOutcome`, `countPossibleSkirmishes`, `likeForLikeSkirmishes`,
-`skirmishOdds`, `applyWarWeariness`, `WarOutcome.FIGHT_AGAIN`, `SKIRMISH_ODDS_CAP`,
-`BATTLE_ROUNDS`, `battleOutcomeThresholds`, `doAttack`, `firstSetOfRounds`, the
-`defendingArmyRemaining[4]` defeat-type discriminant, and the four hand-written copies of the
-`armyForCurrentTerritory` personnel formula in the retreat handler.
+**The whole of `src/rules/military/battle.js` is gone**, which is every function this section
+named: `resolveRound`, `classifyOutcome`, `countPossibleSkirmishes`, `likeForLikeSkirmishes`,
+`skirmishOdds`, `applyWarWeariness`, `chooseDefendingUnitTypeIndex`, `occupyingArmyFor` and
+`WarOutcome` including `FIGHT_AGAIN`. Nothing imported it but its own spec. With it went the three
+`balance.js` constants that served only it — `SKIRMISH_ODDS_CAP`, `BATTLE_ROUNDS` and
+`battleOutcomeThresholds` — and the section of `tests/unit/rules-military.spec.js` that asserted
+the old arithmetic. Nothing was relaxed on the way: those assertions described the old model, so
+keeping them would have meant keeping it alive to satisfy them.
+
+`firstSetOfRounds`, the `defendingArmyRemaining[4]` defeat-type discriminant and the four
+hand-written copies of the `armyForCurrentTerritory` personnel formula went at B.4, as recorded
+there. `UNIT_MATCHUP_EFFECTIVENESS` deliberately SURVIVES in `balance.js` as the data the three
+composition rows in §4.4 are derived from, so the reasoning recorded on it is not lost.
+
+**One correction to this section as it was written.** It listed `doAttack` as deleted. What was
+deleted is the fight-to-the-death LOOP inside it — the second combat model. The function name
+remains in `aiCalculations.js` and is now a thin adapter: debit the source, call `resolveBattle()`
+headlessly, queue the record if the player was defending, and collapse the result to the pair its
+callers expect. Renaming it would have been cosmetic churn across three call sites for no gain.
 
 ### 5.4 Constraints that hold throughout
 
@@ -426,6 +572,13 @@ map quietly stops changing. So:
 > fixed seed, before and after, and the result is recorded in GDD §7.0 beside the existing
 > 1.0 → 1.2 `ATTACK_ADVANTAGE` measurement.**
 
+**The B.5 measurement, and how it contradicted this section.** Swapping the AI onto the shared
+model was predicted here to be an earthquake. It was not: over 60 turns on one seed, countries
+surviving went 118 → 115, the largest empire 80 → 83, and the top-sixteen share 65% → 67%. No
+retune was needed. The reason is worth keeping: the AI rates targets against odds floors and
+mostly attacks where it is already strongly favoured, and the two models agree almost exactly on
+a lopsided fight — they diverge only near parity, which is the region the AI avoids.
+
 The measurements that matter: countries surviving, largest empire, share held by the top
 sixteen, conquests per turn, failed attacks, sieges laid versus decided.
 
@@ -436,15 +589,29 @@ Two things to expect and not to panic about:
   and so nearly always resolves — so the first measurement will very likely show fewer
   conquests and more failed attacks. `ATTACK_ADVANTAGE` and `PAIRING_CASUALTY_SHARE` are the
   two dials for it.
-- **Known-issue AR should be fixed here.** `areaBonusFor()`'s `min`/`max` slip is a balance
-  change that has been deferred because it moves the odds of every attack on the map. This
-  overhaul re-baselines those odds anyway, so it is cheaper to correct it inside B.2 — while
-  the measurement is already being taken — than to defer it a second time. Fix it as its own
-  commit inside B.2 so the before/after stays attributable.
+- ~~**Known-issue AR should be fixed here.**~~ **It was measured at B.2.6 and deliberately NOT
+  applied; Leigh closed it as a design decision at B.10.4.** The premise of this bullet was wrong:
+  AR is not a `min`/`max` slip that can be corrected in passing. The ratio is unbounded as area
+  approaches zero and there is no cap anywhere, so the naive correction gives the smallest
+  territory on the map a 1,047× defence bonus and would make most of the map untakeable. Even the
+  most conservative capped form is a major balance change — over sixty turns on one seed the
+  largest empire goes 80 → 33 and thirty more countries survive. `probability.js` is byte-for-byte
+  unchanged; the register's description of AR was corrected instead, which is where the numbers
+  now live.
 
 ---
 
 ## 7. Phases
+
+> **Status: B.0 – B.10 are done, and every item in
+> [battle_overhaul_checklist.md](./battle_overhaul_checklist.md) is ticked.** The four things that
+> were outstanding at the previous checkpoint all landed at the end: the battle-window rewrite and
+> its state-machine extraction (B.6.2 / B.6.6), the round log and the attack-window dice preview
+> (B.6.4 / B.6.7), and an e2e for defender playback (B.8.4) — which turned out to be reachable
+> after all, by queueing the RECORD rather than waiting for an AI country to attack a chosen
+> territory on a chosen turn. Writing it found a real defect: B.8's Skip control was drawn but
+> never wired. Both of Leigh's decisions are settled and recorded above.
+
 
 House rules apply: **each phase ends with the game playable**, bug fixes stay separate from
 moves and renames, and work is test-first.
@@ -491,10 +658,30 @@ AI attacks on player territory open the window and auto-advance, skippable (§4.
 ### B.9 — Siege dice vocabulary
 Visible dice on the siege screen; the siege-grinding modifier carried into the assault (§4.10).
 
-### B.10 — Cleanup
-Delete §5.3. The 49 `console.log`s and 11 colour literals in `battle.js`. Decide whether
-`dist/` can come off the critical path. Update GDD §7, `05-known-issues.md` and
-`04-e2e-test-plan.md`.
+### B.10 — Cleanup *(done)*
+§5.3 deleted, and it was a whole file rather than a list of functions. Every `console.log` and
+every colour literal is out of `battle.js` — the logs because what they narrated is now on screen
+in the ledger and the round log, the literals because "inert" became a class. `dist/` came off the
+critical path: ~785 KB of physics and rendering runtime is fetched on the first dice roll of a
+session instead of on every page view. GDD §7, `05-known-issues.md` and `04-e2e-test-plan.md`
+updated.
+
+**Four things B.10 found that were not on its list**, all of them consequences of removing a
+workaround rather than of the cleanup itself:
+
+- **B.8's Skip control was never wired.** The label was written straight onto the advance button
+  and the press fell into the battle state machine, doing whatever the last real battle had left
+  behind. Found by writing B.8.4, which is the argument for writing it.
+- **Two colour ladders in `ui.js` had no `else` branch.** A territory above 75% of its starting
+  food or population left the field undefined, and `style.color = undefined` leaves whatever the
+  last siege painted. It looked right only because `addRemoveWarSiegeObject()` seeded the field
+  with a green literal on the way past — deleting that literal is what made the gap visible.
+- **Six mouseover / mouseout listeners were fighting the stylesheet**, guarding on the `disabled`
+  property while the buttons are made inert with a class. `:hover:not(.is-disabled)` in `style.css`
+  already did the job; all six are deleted.
+- **The harness read `.disabled` to decide an attack had been destroyed.** A question about the
+  battle answered by reading a DOM property — the same shape as the label check the state machine
+  removed. It reads `aria-disabled` now.
 
 ---
 

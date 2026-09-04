@@ -8,6 +8,9 @@ Rounds, and the outcomes the game is supposed to produce.
 | `known-broken.spec.js` | The three behaviours that needed a *situation* rather than a fix: the cross-unit-type deadlock (§5.2 K), two concurrent sieges (§5.1 D), and the INVADE!-debit / retreat-return round trip (§5.1 AD). **Nothing in the file is `fixme` any more** |
 | `rout.spec.js` | A rout captures the territory **and takes half the surviving defenders with it**, asserted exactly — and does it identically twice from the same seed |
 | `outcomes.spec.js` | The other four terminal conditions: attacker wins, defender wins, last push (and its 20 % cost), and an even fight that settles nothing. Plus the regression test for a battle debiting its source territory twice |
+| `mid-battle-decisions.spec.js` | Dig In and Reserves (overhaul B.7): hidden until a round has been fought, armed by a class, spent by the round they apply to, debited at once and arriving a round later |
+| `ledger-and-log.spec.js` | The three panels that make the mechanic visible (B.6.3 / B.6.4 / B.6.7) — the attack window's dice preview, the force ledger, and the round log |
+| `defender-playback.spec.js` | Watching a battle you DEFENDED (B.8) — including that the sides are REVERSED on screen, which is the assertion the whole feature stands on |
 
 ## The rule that used to shape this whole folder, and no longer does
 
@@ -36,6 +39,28 @@ fleet before it touches the infantry. A defender of 100 ships and 2,000 infantry
 its combined force when the ships go down and still has 2,000 men standing. Every scenario in
 `outcomes.spec.js` is built that way.
 
+## Two things about the bottom bar that will bite a new spec
+
+**"Inert" is `aria-disabled` plus an `is-disabled` class, never the `disabled` property.** The
+battle container installs a CAPTURE listener that has to see every click over the window in order
+to settle the dice, and a truly disabled control swallows the event. Two consequences here, and
+both were regressions once:
+
+- Playwright treats `aria-disabled="true"` as not actionable, so `BattlePage` presses these with
+  `force: true` — the same thing the four stepper page objects do.
+- `GameDriver.fightToResolution()` decides an attack has been destroyed by reading `aria-disabled`.
+  It used to read `.disabled`, which is a question about the battle answered by a DOM property —
+  the exact shape the B.6.6 state machine removed — and which stopped being true the moment the
+  state moved off the element.
+
+**Defender playback does not need a seed lottery.** `window.__game.queueDefence(record)` is the
+same call `doAttack()` makes once it has fought the battle to its conclusion, and the record is the
+whole input to the playback, so it bypasses the AI turn and nothing else. The fixture sets
+`battlePlayback.alwaysSkip` for every spec — replaying an animation at the end of every AI phase
+would add seconds to every spec that ends a turn — so a spec that wants to watch one calls
+`window.__game.setAlwaysSkipPlayback(false)` first. That is the player's own setting, not a
+harness-only path.
+
 ## Notes
 
 - **There is one row of quantities, not two.** `armyRowRow1*` are the icons;
@@ -45,8 +70,9 @@ its combined force when the ships go down and still has 2,000 men standing. Ever
 - **`GameDriver.launchWholeGarrison()` and `fightToResolution()`** drive these specs. The
   allocation multiplier starts on **"All"**, so one press of the plus button commits the whole
   garrison — the next multipliers are x1, x10, x100 and x1k, which is not a practical way to
-  field a fleet. The advance button walks `Begin War!` → `Next Skirmish` ×5 → `End Round` →
-  `Start Attack!`, so a round of five costs about seven clicks.
+  field a fleet. The advance button walks `Begin War!` → `Next Round`, one round of dice per
+  press, until a side falls below `BREAK_THRESHOLD`. **The first press starts the battle and does
+  not fight a round** — easy to miss, and worth a failing spec when it was.
 - **`#percentageAttack` is the ATTACK WINDOW's probability, not the battle's.**
   `setAttackProbabilityOnUI(probability, situation)` writes one or the other, and the attack
   window's element keeps whatever it last showed after the window closes — so reading it during

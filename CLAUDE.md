@@ -30,9 +30,9 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
+npm run lint           # ESLint (baseline: 81 errors, 290 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 437 tests, ~1s
+npm run test:unit      # Vitest, 767 tests, ~1.5s
 npm run test:e2e       # Playwright, 397 tests, 4 workers headless, ~7-14 min
 node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
 node tests/run-e2e.mjs turn-loop         # one area
@@ -72,9 +72,10 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   the clone succeeds but the checkout fails. `git config --system core.longpaths true`, or
   clone somewhere shallow.
 
-- **`dist/` is not the build output.** It holds committed webpack UMD bundles that
-  `index.html` loads as classic scripts to set `CANNON`, `THREE` and `BufferGeometryUtils` as
-  globals. Vite writes to `build/`. Never point a bundler at `dist/`.
+- **`dist/` is not the build output.** It holds committed webpack UMD bundles that set `CANNON`,
+  `THREE` and `BufferGeometryUtils` as globals. Vite writes to `build/`. Never point a bundler at
+  `dist/`. Since B.10.3 they are no longer in `index.html` — `src/platform/vendor/diceRuntime.js`
+  injects them on the first dice roll.
 - **Asset paths are hand-written strings.** ~100 places do
   `"resources/flags/" + country + ".png"` at runtime. No bundler rewrites those, which is why
   `vite.config.mjs` copies `resources/` into the build verbatim. Moving `resources/` means
@@ -268,19 +269,111 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   They are tokens only because `style.css` may not carry a colour literal outside `:root`;
   do not "harmonise" them with a palette, because a debug control that matches the theme
   is a debug control somebody ships.
-- **`ATTACK_ADVANTAGE` in `src/config/balance.js` is THE attack/defence dial**, and it is
-  read in exactly two places — `winProbability()` for open battle and `scoreDifferenceFor()`
-  for sieges. Everything else derives: `skirmishOdds()` is a function of the probability,
-  every siege band is a function of the score difference, and the AI rates targets with the
-  real functions, so its odds floors and budgets re-derive for free. It multiplies
-  attacking STRENGTH, not the probability that comes out, so it improves the attack-to-
-  defence RATIO by its own amount at every point on the scale (an even fight goes 50% →
-  54.5% at 1.2) and can never carry a probability past 100. It exists because a single fort
-  doubles a territory's defence outright — `defenseMultiplierFor()` takes a CEILING, which
-  is load-bearing and was not worth unpicking. `SKIRMISH_ODDS_CAP` is the next dial after
-  it: above 65% the cap, not the odds, decides a battle. **Judge any change to it with
-  `tools/ai-sim.mjs` on a fixed seed, before and after** — the measurement for 1.0 → 1.2 is
-  recorded in docs/02-game-design-document.md §7.0.
+- **Combat is the DICE MODEL now** (battle overhaul B.1–B.9; see
+  [docs/battle_overhaul.md](./docs/battle_overhaul.md) and its checklist). One press of the
+  advance button is one ROUND: `share` (force only) picks how many dice each side rolls from a
+  band table, terrain and composition become named modifiers, sorted dice pair high against high,
+  **ties go to the defender**, dice the other side cannot match are automatic hits, and each lost
+  pairing costs 10% of that side's current force. Rounds run until a side falls below
+  `BREAK_THRESHOLD`. `src/rules/military/battleModel.js` is the whole of it and it is pure with an
+  injected rng; `src/rules/military/dice.js` under it knows nothing about this game.
+  **`src/rules/military/battle.js` — the five-round skirmish model — is DELETED** (B.10.1),
+  along with the three `balance.js` constants that served only it: `SKIRMISH_ODDS_CAP`,
+  `BATTLE_ROUNDS` and `battleOutcomeThresholds`. `UNIT_MATCHUP_EFFECTIVENESS` deliberately
+  survives as the data the composition modifiers are derived from.
+- **THE PLAYER AND THE AI FIGHT THE SAME BATTLE.** `doAttack()` in `aiCalculations.js` used to be
+  a second, unrelated model (a `while` loop grinding two combined forces at one flat probability,
+  in chunks of 1000/100/10/1). It is gone: the AI calls the same `resolveBattle()` headlessly.
+  Never reintroduce a separate resolver "for speed" — that divergence is what made every
+  measurement of the game measure one of two systems at a time.
+- **There are TWO attack dials and that is PERMANENT** (settled at B.10.4, one of two
+  decisions Leigh took). `ATTACK_ADVANTAGE` (1.44) owns sieges through `scoreDifferenceFor()`
+  and the pre-battle odds figure; `DICE_ATTACK_ADVANTAGE` (1.0) owns open battle. They are not
+  two settings of one thing: a dial multiplying a CONTINUOUS share moves the outcome smoothly,
+  and one multiplying a BANDED share moves it in whole dice — and a whole extra die is an
+  *unmatched* die, which is an automatic hit every round. At 1.44 a raw-even fight came out four
+  dice against three and the attacker won 88.3% of the time; re-cutting the bands cannot fix it,
+  because the band that fixes 1:1 breaks 1:2. Collapsing the other way (1.0 everywhere) strips
+  44% off every siege band with no measurement behind it. **If open battle needs to be easier or
+  harder, `DICE_ATTACK_ADVANTAGE` is the number; if sieges do, `ATTACK_ADVANTAGE` is.** A third
+  dial is not allowed, and neither may reach into the other's model.
+- **Known-issue AR is closed as a DESIGN DECISION, not a bug** (B.10.4, Leigh's call).
+  `areaBonusFor()`'s `min`/`max` slip is real but is not a one-character fix: the ratio is
+  unbounded as area approaches zero, so the naive correction gives the smallest territory on the
+  map a 1,047× defence bonus, and even the most conservative capped form halves the largest empire
+  over sixty turns. `probability.js` is byte-for-byte unchanged and stays that way; the register's
+  description was corrected instead. Do not "fix" it.
+- **The battle window's bottom bar is DERIVED, and its state is one object.** `buttonState.js`
+  under `src/ui/battle/` is pure and unit-tested — `deriveBattleButtons()` and
+  `battleBarWidths()` — and `BattleWindow.js` is the only thing that turns a spec into elements
+  and the only thing that installs the five listeners, once, from bootstrap. What it replaced is
+  worth knowing so it is not reintroduced: there were TWO independent 0..n vocabularies for the
+  same buttons, `advanceButtonState` deciding what a click DID and `setAdvanceButtonText()`
+  deciding what the button SAID, set together by hand at every call site and agreeing only by
+  convention. That is why a dead label case had to be kept alive (deleting it would shift the
+  numbering of the cases either side) and why the advance handler asked
+  `if (advanceButton.innerHTML === "Start Attack!")` — a question about the battle answered by
+  parsing the DOM, and one that could never be true because nothing wrote that string. **Never
+  read a label back to decide anything, and never write a label, a width or a colour onto one of
+  these buttons from outside `BattleWindow.js`.**
+- **The battle bar is derived, so ORDER matters at every call site.** `setupBattleUI()` resets the
+  whole bar to the state a fresh attack opens in, which includes no siege offer — so anything that
+  decides a button's state must run AFTER it, not before. The INVADE! handler decided the Siege
+  offer first, which was correct while `enableDisableSiegeButton()` wrote a colour straight onto
+  the element and nothing else touched it, and became a write the next line discarded the moment
+  the bar became derived. Siege Territory was inert on every attack and a siege could not be laid
+  at all. Neither the unit suite (the derivation is correct in isolation) nor the `battle/` area
+  (it never lays a siege) could see it; the full suite did. **Making state derived turns "two
+  writers that happen not to collide" into "last writer wins", and every existing call site is a
+  candidate.**
+- **On the battle bar, "inert" is a class and `aria-disabled`, never the `disabled` property.**
+  Eleven sites across `battle.js` and `ui.js` wrote `style.backgroundColor = "rgb(128, 128, 128)"`
+  to mean it, fought by six mouseover/mouseout listeners writing four more literals; all of it is
+  gone and `style.css` owns the colours as tokens. The property is deliberately not used, for the
+  same reason as the steppers: the battle container has a CAPTURE listener that must see every
+  click over the window in order to settle the dice. The consequence is that Playwright refuses to
+  click these, so `BattlePage` passes `force: true`, and `fightToResolution()` reads
+  `aria-disabled` rather than `.disabled`.
+- **The player is shown three panels and all three are pure renders of the model.** The ATTACK
+  window's preview (`AttackPreview.js`, B.6.7) itemises the dice you would roll, live as units are
+  allocated; the ledger (`ForceLedger.js`) does the same for the round about to be fought; the
+  round log (`RoundLog.js`) keeps every round fought, newest first. **Two numbers are shown and
+  they are allowed to differ**: the bar is `winProbability()`, the attacker's share of the two
+  strengths, which decides how many DICE each side rolls; the forecast line is `battleForecast()`,
+  which plays the battle out five hundred times on its own rng to answer "will I take it". The
+  forecast is seeded from a stable hash of the SETUP so it does not flicker while the plus button
+  is held, and it never touches the game's stream — recomputing it on every keypress must not
+  change the battle that follows. The round log is `position: absolute` deliberately: the battle
+  window's rows are percentages summing to 100, and a log that took layout height would shorten
+  the bottom bar every time a round was fought.
+- **`dist/` is not loaded by `index.html` any more** (B.10.3). The three UMD bundles — ~785 KB of
+  THREE, CANNON and the buffer utilities — are injected by `src/platform/vendor/diceRuntime.js`
+  on the FIRST dice roll of a session, not on every page view. They stay committed classic scripts
+  setting globals rather than becoming imports, for the bare-specifier reason below. It is still
+  true that `dist/` is not the build output: Vite writes to `build/`.
+- **A face bonus and a dice change are different things.** A face bonus adds to every die; a dice
+  change alters how many you roll. Only a dice change can answer an opponent's UNMATCHED dice,
+  which are automatic hits. That is why fortification takes dice off the ATTACKER rather than
+  adding faces to the defender: as a face bonus, a 2:1 attacker took a fortress 100% of the time.
+- **The 3D dice show numbers the RULES chose.** The rules roll on the game's seeded stream; the
+  physics throws from `cosmeticRandom()`; each die's MESH is then rotated by one of a cube's 24
+  symmetries so the face landing up is the chosen one. The collision shape **must stay a cube** —
+  as a cuboid it both biased the roll badly (faces 3 and 4 at 6% against 17%) and had too few
+  symmetries to relabel an arbitrary face. And `world.fixedStep()` reads the wall clock, so the
+  headless pre-run must call `world.step(1/60)` or the world never advances.
+- **No army array is ever five long.** Two sites used to push a discriminant into slot 4 of a
+  four-slot array — the battle's defeat type and a siege's arrest flag. They are `defeatType()` on
+  the battle state and `siege.arrested` now. Do not reintroduce the pattern.
+- **`src/state/battleState.js` owns the battle in progress**, and its army arrays are FRESH PER
+  BATTLE but stable within one: `addRemoveWarSiegeObject()` puts them onto the siege object, so a
+  siege aliases them and one reused pair would let the next battle rewrite every standing siege.
+  `openBattle()` ADOPTS the arrays it is given rather than copying, because resuming out of a
+  siege deliberately passes the siege's own array.
+- **`setTerritoryArmy()` in `mutations.js` is how a garrison is written.** It computes
+  `armyForCurrentTerritory` from the four counts it writes. The retreat handler had that personnel
+  formula written out by hand four times, which is exactly how a total ends up disagreeing with
+  its own units.
+
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
   import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8, and only
   `src/ai/theatre.js`) `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module

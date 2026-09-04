@@ -10,6 +10,7 @@
 //
 // See docs/03-refactor-plan.md Phase 4.2.
 
+import { vehicleArmyPersonnelWorth } from "../config/balance.js";
 import { __store, openWriteWindow, closeWriteWindow } from "./GameState.js";
 import { emit, Events } from "./events.js";
 import { isPhase, phaseName } from "./phases.js";
@@ -79,6 +80,40 @@ export function updateTerritory(uniqueId, patch) {
  * @param {string} owner
  * @param {string} country  current owning country; defaults to `owner`
  */
+/**
+ * Set a territory's garrison from a four-slot army array, keeping the total honest.
+ *
+ * `armyForCurrentTerritory` is a STORED total, not a derived one, so the four unit counts and
+ * the total can disagree -- and when they do, the probability calculation reads one number while
+ * the bottom table reads another. CLAUDE.md records the same trap for test scenarios ("a
+ * scenario must patch `armyForCurrentTerritory` as well as the four unit counts"), and the
+ * retreat handler in ui.js used to rebuild it by hand, identically, in four separate places.
+ * Computing it here is what makes that impossible to get wrong.
+ *
+ * Writes the OWNED counts, not the `useable*` ones -- those are the oil gate and are recomputed
+ * by `setPlayerUseableNotUseableWeaponsDueToOilDemand()`.
+ *
+ * @param {string|number} uniqueId
+ * @param {number[]} army  [infantry, assault, air, naval]
+ */
+export function setTerritoryArmy(uniqueId, army) {
+    const infantry = army[0] ?? 0;
+    const assault = army[1] ?? 0;
+    const air = army[2] ?? 0;
+    const naval = army[3] ?? 0;
+    return updateTerritory(uniqueId, {
+        infantryForCurrentTerritory: infantry,
+        assaultForCurrentTerritory: assault,
+        airForCurrentTerritory: air,
+        navalForCurrentTerritory: naval,
+        armyForCurrentTerritory:
+            infantry
+            + (assault * vehicleArmyPersonnelWorth.assault)
+            + (air * vehicleArmyPersonnelWorth.air)
+            + (naval * vehicleArmyPersonnelWorth.naval)
+    });
+}
+
 export function setTerritoryOwner(uniqueId, owner, country = owner) {
     return updateTerritory(uniqueId, { owner: owner, dataName: country });
 }

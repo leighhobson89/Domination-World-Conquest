@@ -362,6 +362,25 @@ export const ids = Object.freeze({
     battleUIRow3: "battleUIRow3",
     battleUIRow4: "battleUIRow4",
     battleUIRow5: "battleUIRow5",
+    //Battle overhaul B.6.3. The itemised dice-and-modifier ledger: the row that says WHY the
+    //two sides roll what they roll.
+    battleLedger: "battleLedger",
+    battleLedgerAttacker: "battleLedgerAttacker",
+    battleLedgerDefender: "battleLedgerDefender",
+    //Battle overhaul B.6.4. The scrolling record of rounds fought. `battleRoundLogList` is what
+    //scrolls; the panel around it does not, so the heading stays put.
+    battleRoundLog: "battleRoundLog",
+    battleRoundLogList: "battleRoundLogList",
+    battleRoundLogToggle: "battleRoundLogToggle",
+    //Battle overhaul B.6.7. The itemised dice preview in the ATTACK window: the dice you would
+    //roll, the modifiers that made them, and an honest forecast -- all before INVADE!.
+    attackPreview: "attackPreview",
+    attackPreviewAttacker: "attackPreviewAttacker",
+    attackPreviewDefender: "attackPreviewDefender",
+    attackPreviewForecast: "attackPreviewForecast",
+    //Battle overhaul B.7. The two mid-battle decisions that are not "press on" or "withdraw".
+    digInButton: "digInButton",
+    reservesButton: "reservesButton",
     battleUIRow4Col1: "battleUIRow4Col1",
     battleUIRow4Col1IconProbabilityTurnsSiege: "battleUIRow4Col1IconProbabilityTurnsSiege",
     // The BATTLE UI's probability / siege-turns readout. See `percentageAttack`.

@@ -463,7 +463,7 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 7 | `upgrade-territory/` | P1 | §2.3 | ✅ 28 |
 | 8 | `transfer/` | P1 | §2.3 | ✅ 13 |
 | 9 | `attack/` | P1 | §2.2, §2.3 | ✅ 15 |
-| 10 | `battle/` | P1 | §2.2, §2.3 | ✅ 17 |
+| 10 | `battle/` | P1 | §2.2, §2.3 | ✅ 33 — battle overhaul B.10 |
 | 11 | `siege/` | P2 | §2.2, §3.7 | ✅ 11 — Phase 5.8 |
 | 12 | `ai-turn/` | P2 | §2.2, §3.7 | ✅ 4 — Phase 5.8 |
 | 13 | `info-panels/` | P2 | §2.3 | ✅ 5 — Phase 5.8 |
@@ -605,22 +605,53 @@ Coarse-grained only; formulas belong in unit tests (§4).
 
 ### 5.10 `battle/` — P1
 
-Requires the seeded RNG (§2.2) — every assertion here is otherwise non-deterministic.
+**Rewritten for the dice model** (battle overhaul B.4.8). Every spec here used to describe the
+five-round skirmish model; all of its terminal conditions changed by design. See
+[battle_overhaul.md](./battle_overhaul.md) §4.
 
 | Spec | Covers |
 |---|---|
-| `rounds.spec.js` | Advance runs one round of the 5; losses appear on both sides; the round counter and probability bar update; totals only ever decrease |
-| `attacker-wins.spec.js` | Defenders reduced to 0 → territory changes owner, survivors garrison it, the path repaints to the player colour, and the results screen offers "Accept Victory!" |
-| `defender-wins.spec.js` | Attackers reduced to 0 → ownership unchanged, results offer "Accept Defeat!", the source territories do **not** get their units back |
-| `rout.spec.js` | ✅ Defender combined force < 5 % of its **starting** force → territory captured **and half the surviving defenders join the attacker**, asserted exactly. Delivered in Phase 5.8. Reaching the band takes composition, not attrition: a defender made mostly of naval units (20,000 personnel each) loses almost all of its combined force when the ships go down while its infantry are still standing |
-| `massive-assault.spec.js` | Defender < 15 % → the final-push option appears and costs 20 % of the attacking survivors |
-| `attacker-routed.spec.js` | Attacker < 10 % of starting force → attack fails, survivors lost |
-| `fight-again.spec.js` | No terminal condition after 5 rounds → another 5 rounds begin with the attacker 5 % smaller (desertion) |
-| `retreat.spec.js` | Retreating mid-battle returns survivors to their source territories in the sent proportions, via the retrieval array, after the expected delay |
-| `mismatched-unit-types.spec.js` | ✅ An all-infantry attack against an all-naval defender resolves rather than stalling. audit §5.2 K, fixed in Phase 3.15 with the matchup matrix; asserted in `battle/known-broken.spec.js` |
-| `results-screen.spec.js` | Kills, losses, captured, survived, rounds and siege stats on the results screen match `__game`; accepting closes it and restores the map |
+| `rounds.spec.js` | One press is one round; losses appear on both sides; the round counter and odds update; totals only ever decrease |
+| `outcomes.spec.js` | The attacker takes it and garrisons it; the defender holds and the attackers do not return; the last push is OFFERED and costs a fifth if taken; an even fight grinds without resolving; the source is debited exactly once |
+| `rout.spec.js` | Declining the push and rolling on routs the defender below `BREAK_THRESHOLD`: the territory is captured **and half the surviving defenders join**, per unit type, asserted exactly |
+| `mid-battle-decisions.spec.js` | Dig In and Reserves are hidden until a round has been fought; digging in is armed by a class, is spent by its round, and costs the defender nothing; reserves debit the source at once and arrive a round later; the button says so when there is nothing to send |
+| `ledger-and-log.spec.js` | The three panels that make the mechanic visible (B.6.3 / B.6.4 / B.6.7): the attack window's dice preview appears only once force is committed, itemises both sides, forecasts an honest take probability and is STABLE across a rebuild of the same allocation; the ledger names both sides' dice; the round log starts collapsed, counts, orders newest-first, and is empty again for the next battle |
+| `defender-playback.spec.js` | Watching a battle you DEFENDED (B.8.4): the queue drains silently when "always skip" is set; the window opens with the sides REVERSED — the player's own garrison in the YOU column; the bar is one Skip button and pressing it ends the playback; two queued defences play in order; and a real battle opened afterwards has its whole bar back |
+| `known-broken.spec.js` | The `test.fixme` register |
 
----
+**Five things worth knowing before writing a spec here.**
+
+- **"Inert" is `aria-disabled`, never the `disabled` property.** The battle container installs a
+  CAPTURE listener that has to see every click over the window in order to settle the dice, so a
+  truly disabled control — which swallows the event — would break that. Two consequences for the
+  harness, and both were regressions once: Playwright refuses to click an `aria-disabled` element,
+  so `BattlePage` passes `force: true`; and `GameDriver.fightToResolution()` reads `aria-disabled`
+  to decide an attack has been destroyed, because reading `.disabled` is a question about the
+  battle answered by a DOM property, which is the exact shape the state machine removed.
+- **Defender playback is reachable without a seed lottery.** `window.__game.queueDefence(record)`
+  is the same call `doAttack()` makes once it has fought the battle, and the record is the WHOLE
+  input to the playback — nothing is read back off the world when it draws. So it bypasses the AI
+  turn and nothing else. The fixture sets `battlePlayback.alwaysSkip` for every spec (replaying an
+  animation at the end of every AI phase would add seconds to every spec that ends a turn), so a
+  spec that wants to watch one calls `window.__game.setAlwaysSkipPlayback(false)` first. That is
+  the player's own setting rather than a harness-only path.
+
+- **The first press of the advance button starts the battle and does not fight a round.** Every
+  press after it is one round. Checking for a mid-battle control after a single click finds it
+  correctly hidden, which is exactly the failure this cost once.
+- **Which winning ending you get is not stable, and mostly should not be asserted.** The break
+  test runs before annihilation can matter, so a garrison of any size is ROUTED long before it is
+  wiped out — "Victory!" is reachable only for a handful of units. Assert the conquest, or accept
+  any of `Victory! | Rout The Enemy | Massive Assault`. Exact terminal-state arithmetic belongs in
+  `tests/unit/rules-battle-model.spec.js`, where it can be set up precisely.
+- **`fightToResolution()` DECLINES the last push by default.** The band sits directly above the
+  break threshold, so the offer appears on the way to almost every rout; taking it automatically
+  would mean no spec could ever observe one. Pass `{ takeLastPush: true }` to take it.
+
+**Casualties are proportional across unit types**, so composition survives attrition and a fleet
+is never selectively destroyed. Scenarios that used to reach a band "by composition" reach it by
+plain attrition now.
+
 
 ### 5.11 `siege/` — P2
 

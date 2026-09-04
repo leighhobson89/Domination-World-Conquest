@@ -15,12 +15,17 @@
 // ids are meaningless and Phase 6.8 replaces them; the `STAT_CELLS` table here
 // is what makes that a rename rather than an archaeology exercise.
 //
-// The buttons' listeners stay in ui.js. Advance in particular walks a state
-// machine over rounds, sieges and routs, and moving it would mean moving the
-// battle.
+// Battle overhaul B.6.2. This file still BUILDS the window; what each of the five
+// bottom-bar buttons says, whether it responds, how wide it is and what colour it
+// goes moved to `src/ui/battle/BattleWindow.js`, over a state derived by the pure
+// `buttonState.js`. The click HANDLERS stay in ui.js -- opening a battle, resolving
+// a round, garrisoning a conquest are turn-loop work -- but they are registered
+// through `battleWindow.create()` and branch on the state rather than on a label.
 
 import { ids, indexedIds } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
+import { forceLedger } from "../battle/ForceLedger.js";
+import { roundLog } from "../battle/RoundLog.js";
 
 /** Attacker infantry/assault/air/naval, then the defender's four. */
 const UNIT_ICONS = ["infantry", "assault", "air", "naval", "infantry", "assault", "air", "naval"];
@@ -178,8 +183,24 @@ export function create() {
         el("div", { id: ids.battleUIRow4Col2, class: "battleUIRow4Col2" }, statCells),
     ]);
 
-    // Row 5 -- the three buttons. ui.js installs their listeners.
+    // Row 5 -- the bottom bar. `BattleWindow.create()` installs the listeners, once.
+    //
+    // Battle overhaul B.7 took this from three buttons to five, and they are NOT all up at once:
+    // `battleBarWidths()` in src/ui/battle/buttonState.js shares the width between whichever are
+    // visible. Dig In and Commit Reserves appear once a round has been fought, and the third
+    // button carries either "Assault!" (resuming out of a siege) or "Last Push!" (the offer),
+    // never both -- which is `ThirdButton` on the window's state rather than a convention.
     const retreatButton = el("button", { id: ids.retreatButton, class: "retreatButton" });
+    const digInButton = el("button", {
+        id: ids.digInButton,
+        class: ["battleBarButton", "digInButton"],
+        html: "Dig In",
+    });
+    const reservesButton = el("button", {
+        id: ids.reservesButton,
+        class: ["battleBarButton", "reservesButton"],
+        html: "Reserves",
+    });
     const advanceButton = el("button", { id: ids.advanceButton, class: "advanceButton" });
     const assaultButton = el("button", {
         id: ids.siegeBottomBarButton,
@@ -188,11 +209,23 @@ export function create() {
     });
     const row5 = el("div", { id: ids.battleUIRow5, class: ["battleUIRow", "battleUIRow5"] }, [
         retreatButton,
+        digInButton,
+        reservesButton,
         advanceButton,
         assaultButton,
     ]);
 
-    root = el("div", { class: ["battleContainer", "blur-background"] }, [row1, row2, row3, row4, row5]);
+    //Battle overhaul B.6.3. The ledger sits directly under the probability bar and above the
+    //army figures, because it explains the first and predicts the second.
+    const ledger = forceLedger.create();
+
+    //B.6.4. The round log goes UNDER the ledger and above the army figures, collapsed. Ledger
+    //then log is explanation then history, which is the order they are wanted in; and because it
+    //is collapsed by default it costs one line of height until the player asks for it.
+    const log = roundLog.create();
+
+    root = el("div", { class: ["battleContainer", "blur-background"] },
+        [row1, row2, ledger, log, row3, row4, row5]);
     parts = {
         flagLeft,
         flagRight,
@@ -204,6 +237,8 @@ export function create() {
         retreatButton,
         advanceButton,
         assaultButton,
+        digInButton,
+        reservesButton,
     };
 
     mount(ids.battleContainer, root);
@@ -228,11 +263,31 @@ export function isVisible() {
     return container()?.style.display !== "none";
 }
 
-/** The buttons, for the handlers that still live in ui.js. */
+/**
+ * The buttons.
+ *
+ * Battle overhaul B.6.2: `src/ui/battle/BattleWindow.js` reaches them through the registry rather
+ * than through this, so this exists for the two places in ui.js that still need a handle. Do not
+ * write a label or a background colour onto one -- that is the window's job, and a second writer
+ * is how the label and the state came to disagree in the first place.
+ */
 export function buttons() {
     if (!parts) return null;
-    const { retreatButton, advanceButton, assaultButton, siegeButton } = parts;
-    return { retreat: retreatButton, advance: advanceButton, assault: assaultButton, siege: siegeButton };
+    const {
+        retreatButton, advanceButton, assaultButton, siegeButton, digInButton, reservesButton
+    } = parts;
+    return {
+        retreat: retreatButton,
+        advance: advanceButton,
+        assault: assaultButton,
+        siege: siegeButton,
+        //Battle overhaul B.7. Omitting these two here was a real bug and worth recording: ui.js
+        //destructures this object in its `DOMContentLoaded` block and immediately calls
+        //`addEventListener` on each, so a missing key is not a missing button -- it is a
+        //TypeError that stops bootstrap dead, before the main menu, with the whole game blank.
+        digIn: digInButton,
+        reserves: reservesButton
+    };
 }
 
 export function elements() {

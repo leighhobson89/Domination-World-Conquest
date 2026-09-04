@@ -1,29 +1,35 @@
 import { test, expect } from "../../support/fixtures.js";
-import { battleOutcomeEffects } from "../../../src/config/balance.js";
+import { battleOutcomeEffects, BREAK_THRESHOLD } from "../../../src/config/balance.js";
 
-// How a battle ENDS, one spec per terminal condition. `rout.spec.js` next door owns the
-// fifth, because a rout has arithmetic of its own worth a file.
+// How a battle ENDS, one spec per terminal condition. `rout.spec.js` next door owns the rout,
+// because it has arithmetic of its own worth a file.
 //
-// The e2e plan (section 5.10) listed `attacker-wins`, `defender-wins`, `massive-assault`,
-// `attacker-routed` and `fight-again` as specs that "need a battle to reach a SPECIFIC
-// terminal condition, which is a seed lottery on the live map". Two things closed that:
-// the scenario loader (Phase 4), and taking cosmetic randomness off the game's RNG stream
-// so that `?seed=` actually repeats (audit 5.3 Y, Phase 5.5).
+// REWRITTEN FOR THE DICE MODEL (battle overhaul B.4.8). What these specs used to assert was the
+// five-round skirmish model's endings, and every one of them changed by design:
 //
-// Every scenario here attacks with NAVAL units, for one reason worth knowing:
-// `chooseDefendingUnitTypeIndex()` engages its own type first, so a fleet reliably sinks the
-// defending fleet before it touches anything else -- and a naval unit is worth 20,000
-// personnel against an infantryman's one. Composing the defender out of ships and foot
-// soldiers is what makes each threshold reachable on purpose rather than by luck.
+//   * a battle is no longer five rounds, so "five rounds settle nothing" describes nothing;
+//   * one symmetric BREAK_THRESHOLD replaces the 5% / 15% / 10% trio, so the bands moved;
+//   * a side is BROKEN below the threshold rather than annihilated, so "the attackers are simply
+//     gone" is no longer what a defeat looks like -- there are survivors, they just left;
+//   * the last push is an OFFER on the bottom bar rather than an outcome that fires by itself.
+//
+// One consequence decides what CAN be tested here. The break test runs before annihilation can
+// ever matter, so a garrison of any size is routed long before it is wiped out: `DEFENDER_WIPED`
+// is reachable only for a handful of units. Annihilation is therefore asserted in
+// `tests/unit/rules-battle-model.spec.js`, where it can be set up exactly, and these specs assert
+// the journey the player actually sees.
+//
+// Every scenario attacks with NAVAL units. A naval unit is worth 20,000 personnel against an
+// infantryman's one, so composing the defender out of ships and foot soldiers is what makes a
+// threshold reachable on purpose rather than by luck: sinking the fleet takes most of the
+// defender's combined force with it while its infantry are still standing.
 //
 // docs/04-e2e-test-plan.md section 5.10.
 
 test.describe("how a battle ends", () => {
     test.setTimeout(180_000);
 
-    test("attacker wins: the defenders are destroyed and the survivors garrison it", async ({
-        game,
-    }) => {
+    test("the attacker takes the territory and its survivors garrison it", async ({ game }) => {
         await game.start({ country: "Germany", seed: "outcome-win" });
         const report = await game.loadScenario("outright-conquest");
         expect(report.errors).toEqual([]);
@@ -32,23 +38,25 @@ test.describe("how a battle ends", () => {
         expect(committed).toBe(300);
 
         const { ending, live } = await game.fightToResolution();
-        expect(ending).toBe("Victory!");
-        expect(live.defenders, "nothing of the defender is left").toEqual([0, 0, 0, 0]);
+        expect(
+            ["Victory!", "Rout The Enemy", "Massive Assault"],
+            "an overwhelming attack must end in one of the winning states"
+        ).toContain(ending);
 
-        const survivors = live.attackers[3];
-        expect(survivors).toBeGreaterThan(0);
+        expect(live.attackers[3], "the attacker keeps a fleet").toBeGreaterThan(0);
 
         await expect.poll(async () => game.battle.resultsShown()).toBe(true);
         await game.battle.acceptResult();
 
         const captured = await game.territory("France");
         expect(captured.owner).toBe("Player");
-        expect(captured.navalForCurrentTerritory).toBe(survivors);
-        // A clean win absorbs nobody -- that is what separates it from a rout.
-        expect(captured.infantryForCurrentTerritory).toBe(0);
+        expect(
+            captured.navalForCurrentTerritory,
+            "the survivors garrison what they took"
+        ).toBeGreaterThan(0);
     });
 
-    test("defender wins: ownership is unchanged and the attackers are simply gone", async ({
+    test("the defender holds: ownership is unchanged and the attackers do not come back", async ({
         game,
     }) => {
         await game.start({ country: "Germany", seed: "outcome-lose" });
@@ -58,8 +66,14 @@ test.describe("how a battle ends", () => {
         expect(committed).toBe(6);
 
         const { ending, live } = await game.fightToResolution();
-        expect(ending).toBe("attackerDestroyed");
-        expect(live.attackers).toEqual([0, 0, 0, 0]);
+        expect(ending, "a hopeless attack reaches no winning state").toBe("attackerDestroyed");
+
+        // BROKEN, not annihilated. The attacker is below the break threshold and may still have
+        // units on the field -- that is the difference the new model makes, and asserting exactly
+        // zero is what used to make this spec describe the old one.
+        const startingForce = 6 * 20000;
+        const remaining = live.attackers[3] * 20000 + live.attackers[0];
+        expect(remaining).toBeLessThan(startingForce * BREAK_THRESHOLD);
 
         const defender = await game.territory("France");
         expect(defender.owner, "a failed attack changes nothing about ownership").not.toBe(
@@ -67,12 +81,12 @@ test.describe("how a battle ends", () => {
         );
         expect(defender.infantryForCurrentTerritory).toBe(400000);
 
-        // The committed units do NOT come back. That is what separates a defeat from a
-        // retreat, which queues them through the retrieval array instead.
+        // The committed units do NOT come back. That is what separates a defeat from a retreat,
+        // which queues them through the retrieval array instead.
         expect(await game.retrievals()).toEqual([]);
     });
 
-    test("last push: the defender breaks below 15% and the final push costs a fifth", async ({
+    test("the last push is offered, and taking it costs a fifth of the survivors", async ({
         game,
     }) => {
         await game.start({ country: "Germany", seed: "outcome-push" });
@@ -80,17 +94,29 @@ test.describe("how a battle ends", () => {
 
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
 
-        const { ending, live } = await game.fightToResolution();
-        expect(ending, "sinking the fleet should put the defender in the last-push band").toBe(
-            "Massive Assault"
-        );
-        // The band is between the 5% rout threshold and the 15% last-push threshold, and it
-        // is reached by composition: the ships are gone, the infantry are not.
-        expect(live.defenders[3]).toBe(0);
-        expect(live.defenders[0]).toBeGreaterThan(0);
+        // Roll until the offer appears on the bottom bar. It is an OFFER: the advance button still
+        // reads "Next Round" and rolling on is a legitimate choice, which is what rout.spec.js
+        // does instead.
+        let offered = false;
+        for (let click = 0; click < 30; click += 1) {
+            offered = await game.battle.lastPushOffered();
+            if (offered) {
+                break;
+            }
+            await game.battle.advanceRound();
+            await game.page.waitForTimeout(80);
+        }
+        expect(offered, "the defender should reach the last-push band").toBe(true);
 
-        const beforeThePush = live.attackers[3];
+        const before = await game.page.evaluate(() => window.__game.battle());
+        const beforeThePush = before.attackers[3];
 
+        await game.battle.takeLastPush();
+
+        // Taking the push does not raise the results screen by itself: it resolves the battle and
+        // puts the advance button into its "Massive Assault" accept state, exactly as a clean win
+        // does. One more press is what shows the results.
+        await game.battle.advanceRound();
         await expect.poll(async () => game.battle.resultsShown()).toBe(true);
         await game.battle.acceptResult();
 
@@ -102,25 +128,27 @@ test.describe("how a battle ends", () => {
         ).toBe(Math.floor(beforeThePush * battleOutcomeEffects.lastPushSurvivorShare));
     });
 
-    test("evenly matched: five rounds settle nothing and the fight goes on", async ({ game }) => {
+    test("an even fight grinds: neither side breaks quickly and nothing resolves", async ({
+        game,
+    }) => {
         await game.start({ country: "Germany", seed: "outcome-grind" });
         await game.loadScenario("evenly-matched");
 
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
 
-        // Two full rounds of five, and neither side has reached a threshold: the button is
-        // still offering another round rather than a terminal option.
-        for (let click = 0; click < 14; click += 1) {
+        // Four rounds of an even fight. The defender wins ties, so the attacker is losing -- but
+        // nothing has reached a threshold yet and the button is still offering another round
+        // rather than a terminal option.
+        for (let click = 0; click < 4; click += 1) {
             await game.battle.advanceRound();
-            await game.page.waitForTimeout(60);
+            await game.page.waitForTimeout(80);
         }
         const state = await game.page.evaluate(() => ({
             label: document.getElementById("advanceButton")?.innerText,
-            disabled: !!document.getElementById("advanceButton")?.disabled,
             results: getComputedStyle(document.getElementById("battleResultsContainer")).display,
         }));
-        expect(state.results, "an even fight does not resolve").toBe("none");
-        expect(["Next Skirmish", "End Round", "Start Attack!"]).toContain(state.label);
+        expect(state.results, "an even fight does not resolve in four rounds").toBe("none");
+        expect(["Next Round", "Start Attack!"]).toContain(state.label);
 
         const live = await game.page.evaluate(() => window.__game.battle());
         expect(live.attackers[3], "both fleets are still afloat").toBeGreaterThan(0);

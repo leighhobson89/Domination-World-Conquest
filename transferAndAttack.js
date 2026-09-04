@@ -7,8 +7,15 @@ import {
     oilRequirements
 } from './resourceCalculations.js';
 import {
-    calculateProbabilityPreBattle
+    calculateProbabilityPreBattle,
+    preBattleSetup
 } from './battle.js';
+//Battle overhaul B.6.7. The itemised dice preview -- section 4.9 of docs/battle_overhaul.md.
+//It imports nothing from here and reads nothing off the DOM; it is handed the same setup the
+//odds bar was computed from.
+import {
+    attackPreview
+} from './src/ui/battle/AttackPreview.js';
 // NOTE: this module and ui.js sit in an import cycle. getLastClickedPath used to
 // be pulled in via `setTimeout(..., 1000)` before a dynamic import(), which is a
 // race: on a slow load the binding was still undefined when first used. A plain
@@ -127,6 +134,11 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
                 preAttackArray.length = 0;
                 setAttackProbabilityOnUI(probability, 0);
+                //B.6.7. The dice this allocation would roll, and why -- redrawn on every plus and
+                //minus press, which is the point: the bands are what make "forty thousand more
+                //infantry gets me a fourth die" a threshold the player can see coming. The
+                //forecast inside it runs on its own rng and never touches the game's stream.
+                attackPreview.update(preBattleSetup());
             }
         });
 

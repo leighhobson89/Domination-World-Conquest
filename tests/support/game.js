@@ -241,7 +241,15 @@ export class GameDriver {
      * none`, so it can cover the move button and swallow the click; a swallowed click leaves
      * the attack window open and is indistinguishable from "the battle never opened".
      */
-    async launchWholeGarrison({ from, to, unit = "naval" }) {
+    /**
+     * Aim `from` at `to` and open the ATTACK window, without committing anything.
+     *
+     * Split out of `launchWholeGarrison()` at battle overhaul B.6.7, because the attack window
+     * itself is now worth asserting on: the itemised dice preview lives in it and redraws on
+     * every plus and minus press, so a spec has to be able to stand in the window rather than
+     * pass through it.
+     */
+    async openAttackWindow({ from, to }) {
         await this.endBuyPhase();
         await this.selectOnMap(from);
         await this.selectOnMap(to);
@@ -257,6 +265,10 @@ export class GameDriver {
             ids.transferAttackWindowContainer,
             { timeout: 30_000 }
         );
+    }
+
+    async launchWholeGarrison({ from, to, unit = "naval" }) {
+        await this.openAttackWindow({ from, to });
 
         await this.transferAttack.plus(from, unit, 1);
         const committed = await this.transferAttack.quantity(from, unit);
@@ -283,28 +295,52 @@ export class GameDriver {
      * report the label it stopped on with the armies as they stood just before the click
      * that ended it.
      *
-     * The advance button walks "Begin War!" -> "Next Skirmish" x5 -> "End Round" ->
+     * The advance button walks "Begin War!" -> "Next Round" until a side breaks ->
      * "Start Attack!" and round again, so a round of five costs about seven clicks. It
      * stops on one of "Victory!", "Rout The Enemy", "Massive Assault", or by becoming
      * disabled -- which is how a defeat presents, with the retreat button reading "Defeat!".
      */
-    async fightToResolution({ maxClicks = 80 } = {}) {
+    /**
+     * Click the battle through to a terminal state and report which one.
+     *
+     * `takeLastPush` decides what to do with the OFFER. The last-push band sits above the break
+     * threshold, so it is crossed on the way to almost every rout -- taking the offer whenever it
+     * appears would mean a spec could never observe a rout at all. Declining is the default
+     * because it is the outcome the model reaches on its own.
+     */
+    async fightToResolution({ maxClicks = 80, takeLastPush = false } = {}) {
         const terminal = ["Victory!", "Rout The Enemy", "Massive Assault"];
         let live = null;
         for (let i = 0; i < maxClicks; i += 1) {
             if (await this.battle.resultsShown()) {
                 return { ending: "results", live };
             }
-            const state = await this.page.evaluate((buttonId) => ({
-                label: document.getElementById(buttonId)?.innerText ?? "",
-                disabled: !!document.getElementById(buttonId)?.disabled,
-            }), ids.advanceButton);
+            const state = await this.page.evaluate((buttonIds) => {
+                const push = document.getElementById(buttonIds.push);
+                const advance = document.getElementById(buttonIds.advance);
+                return {
+                    label: advance?.innerText ?? "",
+                    //Battle overhaul B.6.6. This read `advance.disabled`, the PROPERTY. The bar
+                    //records "inert" as `aria-disabled` plus a class instead -- deliberately, so
+                    //the battle container's capture listener still sees the click and can settle
+                    //the dice -- so the property is always false now and this loop would have
+                    //pressed a dead button until it ran out of clicks.
+                    disabled: !!advance && advance.getAttribute("aria-disabled") === "true",
+                    pushOffered: !!push && getComputedStyle(push).display !== "none"
+                        && push.innerText.trim() === "Last Push!",
+                };
+            }, { advance: ids.advanceButton, push: ids.siegeBottomBarButton });
             const snapshot = await this.page.evaluate(() => window.__game.battle());
             if (snapshot) {
                 live = snapshot;
             }
             if (state.disabled) {
                 return { ending: "attackerDestroyed", live };
+            }
+            if (state.pushOffered && takeLastPush) {
+                await this.battle.takeLastPush();
+                await this.page.waitForTimeout(80);
+                continue;
             }
             await this.battle.advanceRound();
             await this.page.waitForTimeout(80);

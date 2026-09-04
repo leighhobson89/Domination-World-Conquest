@@ -1,0 +1,35 @@
+{
+  "name": "reserve-force",
+  "description": "A grinding infantry fight with a reserve left behind. Germany holds 900,000 infantry against France's 500,000 and no fortifications, so a partial commitment leads to a battle that lasts several rounds while a substantial reserve is still sitting at home. INFANTRY on purpose: vehicles are gated by the oil capacity of wherever they stand, so `useableNaval` is recomputed the moment a force leaves the territory and a naval reserve can be grounded at the instant it is asked for -- which is correct behaviour and useless for testing the reserve path itself. Infantry is never gated, so what the territory holds is exactly what it can send.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "infantryForCurrentTerritory": 900000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "armyForCurrentTerritory": 900000
+      }
+    },
+    {
+      "territory": "France",
+      "patch": {
+        "infantryForCurrentTerritory": 500000,
+        "assaultForCurrentTerritory": 0,
+        "useableAssault": 0,
+        "airForCurrentTerritory": 0,
+        "useableAir": 0,
+        "navalForCurrentTerritory": 0,
+        "useableNaval": 0,
+        "armyForCurrentTerritory": 500000,
+        "fortsBuilt": 0,
+        "defenseBonus": 0,
+        "mountainDefenseFactor": 0
+      }
+    }
+  ]
+}

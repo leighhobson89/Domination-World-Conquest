@@ -1,8 +1,15 @@
 import {
+    battleOutcomeEffects,
+    DIE_MODIFIERS,
     PROBABILITY_THRESHOLD_FOR_SIEGE
 } from './src/config/balance.js';
 import {
-    scoreDifferenceFor
+    defenderDiceCountFor,
+    diceCountFor
+} from './src/rules/military/dice.js';
+import {
+    scoreDifferenceFor,
+    siegeHitProbability
 } from './src/rules/military/siege.js';
 import {
     cosmeticRandom
@@ -48,7 +55,6 @@ import {
     totalGoldPrice,
     totalPopulationCost,
     totalPurchaseGoldPrice,
-    vehicleArmyPersonnelWorth,
     writeBottomTableInformation
 } from './resourceCalculations.js';
 import {
@@ -69,7 +75,6 @@ import {
     aiSiegeWarsList,
     calculateSiegeScore,
     defendingArmyRemaining,
-    defendingTerritory,
     getAttackingArmyRemaining,
     getCurrentRound,
     getCurrentWarId,
@@ -79,12 +84,12 @@ import {
     getResolution,
     getRoutStatus,
     getSiegeObjectFromPlayerSiegeList,
-    getUpdatedProbability,
     historicWars,
     historicAiWars,
     playerSiegeWarsList,
     playerTurnsDeactivatedArray,
     processRound,
+    takeLastPush,
     proportionsOfAttackArray,
     setBattleResolutionOnHistoricWarArrayAfterSiege,
     setCurrentRound,
@@ -98,8 +103,43 @@ import {
     setRoutStatus,
     setupBattle,
     setValuesForBattleFromSiegeObject,
-    skirmishesPerRound
 } from './battle.js';
+import {
+    diceStage
+} from './src/ui/battle/DiceStage.js';
+import {
+    forceLedger
+} from './src/ui/battle/ForceLedger.js';
+import {
+    defenderPlayback
+} from './src/ui/battle/DefenderPlayback.js';
+//Battle overhaul B.6.2 / B.6.6. The bottom bar's state machine. What a press MEANS still lives in
+//this file -- it is turn-loop work with the whole game behind it -- but what each button says,
+//whether it responds, how wide it is and what colour it goes are all derived from one state over
+//there, and the labels are never read back.
+import {
+    AdvanceMode,
+    ReservesState,
+    RetreatMode,
+    ThirdButton,
+    battleWindow
+} from './src/ui/battle/BattleWindow.js';
+import {
+    roundLog
+} from './src/ui/battle/RoundLog.js';
+import {
+    attackPreview
+} from './src/ui/battle/AttackPreview.js';
+import {
+    pendingDefences
+} from './src/state/battlePlayback.js';
+import {
+    closeBattle,
+    currentBattle,
+    defeatType as defeatTypeFromBattle,
+    pendingReserves,
+    queueReserves
+} from './src/state/battleState.js';
 import {
     removeCanvasIfExist
 } from "./dices.js";
@@ -127,7 +167,8 @@ import {
     setGreyedOutCountries,
     clearGreyedOutCountries,
     setAttackableTerritories,
-    clearAttackableTerritories
+    clearAttackableTerritories,
+    setTerritoryArmy
 } from './src/state/mutations.js';
 import {
     Phase
@@ -435,7 +476,8 @@ export let transferAttackButtonDisplayed = false;
 export let transferAttackWindowOnScreen = false;
 export let attackTextCurrentlyDisplayed = false;
 export let battleResultsDisplayed = false;
-export let battleUIDisplayed = false;
+export let digInNextRound = false;
+let battleUIDisplayed = false;
 //Phase 6.7. `territoryAboutToBeAttackedOrSieged` was a module-level `let`, and the
 //attack marker was a separate <image> that six call sites removed by hand -- which is
 //audit 5.2 AE, the marker surviving a cancel. They are one fact now, owned by
@@ -445,10 +487,12 @@ export let transferToTerritory;
 export let battleUIState = 0;
 
 //BATTLE UI STATES
-export let retreatButtonState;
-export let advanceButtonState;
+//
+//Battle overhaul B.6.6. `retreatButtonState` and `advanceButtonState` -- two exported numbers
+//that every call site set alongside a SEPARATE label number -- are gone. There is one state, it
+//lives in src/ui/battle/BattleWindow.js, and both the label and the behaviour are derived from
+//it. Read it with `battleWindow.battleButtons()`.
 let battleStart;
-let firstSetOfRounds = true;
 
 let defendingTerritoryCopyStart;
 let defendingTerritoryCopyEnd;
@@ -1248,6 +1292,9 @@ document.addEventListener("DOMContentLoaded", function() {
     //Phase 6.3. The shell moved to src/ui/components/TransferAttackWindow.js.
     //What goes IN the table is still drawAndHandleTransferAttackTable(), which
     //Phase 6.5 splits into a transfer renderer and an attack renderer.
+    //Battle overhaul B.6.7. The dice preview mounts into the attack window's container and is
+    //shown only in ATTACK mode -- there are no dice in a transfer.
+    attackPreview.create();
     transferAttackWindow.create({
         onClose() {
             if ((transferAttackButtonState === 0 && transferAttackButton.innerHTML === "CONFIRM") || (transferAttackButtonState === 1 && (transferAttackButton.innerHTML === "CONFIRM" || transferAttackButton.innerHTML === "INVADE!" || transferAttackButton.innerHTML === "CANCEL"))) {
@@ -1275,9 +1322,18 @@ document.addEventListener("DOMContentLoaded", function() {
     //Phase 6.3. Moved to src/ui/components/BattleUI.js. The buttons' listeners
     //stay here -- Advance walks a state machine over rounds, sieges and routs,
     //and moving that would mean moving the battle itself.
+    //
+    //Battle overhaul B.6.6: the six handles this used to destructure out of `battleUI.buttons()`
+    //are gone. `BattleWindow` reaches the elements through the registry, and nothing in this
+    //block writes a label, a width or a colour onto one any more -- a second writer is how the
+    //label and the state came to disagree in the first place.
     battleUI.create();
-    const { retreat: retreatButton, advance: advanceButton, assault: siegeBottomBarButton, siege: siegeButton } =
-        battleUI.buttons();
+
+    //A click anywhere over the battle window settles the dice at once. They are decoration -- the
+    //round is already decided -- so a player who does not want to watch never has to.
+    document.getElementById(ids.battleContainer)?.addEventListener("click", function() {
+        diceStage.skip();
+    }, true);
 
     //BATTLE RESULTS WINDOW
     //Phase 6.3. Moved to src/ui/components/BattleResults.js, where the three
@@ -1286,43 +1342,19 @@ document.addEventListener("DOMContentLoaded", function() {
     //depends on whether the battle was won.
     battleResults.create();
 
-    retreatButton.addEventListener('mouseover', function() {
-        if (!retreatButton.disabled) {
-            retreatButton.style.backgroundColor = "rgb(151, 68, 68)";
-        }
-    });
+    //Battle overhaul B.10.2. Six mouseover / mouseout listeners stood here, writing four colour
+    //literals between them to do what `.retreatButton:hover:not(.is-disabled)` in style.css
+    //already does -- and doing it WRONG, because each one guarded on the `disabled` property
+    //while the buttons are made inert with a class. They are deleted; the stylesheet owns hover.
 
-    retreatButton.addEventListener('mouseout', function() {
-        if (!retreatButton.disabled) {
-            retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
-        }
-    });
+    //Battle overhaul B.6.6. The bottom bar's listeners are installed ONCE, here, through
+    //`battleWindow.create()`. What a press MEANS is still this file's job -- opening a battle,
+    //resolving a round, garrisoning a conquest, queueing a retrieval, lifting a siege are all
+    //turn-loop work with the whole game behind them. What changed is that the branch is taken on
+    //the window's STATE, rather than on a second number set alongside a label, or on the label.
+    battleWindow.create({
+        siege: function() {
 
-    advanceButton.addEventListener('mouseover', function() {
-        if (!advanceButton.disabled) {
-            advanceButton.style.backgroundColor = "rgb(30,158,30)";
-        }
-    });
-
-    advanceButton.addEventListener('mouseout', function() {
-        if (!advanceButton.disabled) {
-            advanceButton.style.backgroundColor = "rgb(0,128,0)";
-        }
-    });
-
-    siegeButton.addEventListener('mouseover', function() {
-        if (!siegeButton.disabled) {
-            siegeButton.style.backgroundColor = "rgb(144,118,78)";
-        }
-    });
-
-    siegeButton.addEventListener('mouseout', function() {
-        if (!siegeButton.disabled) {
-            siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
-        }
-    });
-
-    siegeButton.addEventListener('click', function() {
         let currentWarAlreadyInSiegeMode = false;
         let currentWarId = getCurrentWarId();
 
@@ -1362,10 +1394,13 @@ document.addEventListener("DOMContentLoaded", function() {
             clearAttackTarget();
 
         }
-    });
+        //B.3. The battle has become a siege; it is no longer a battle in progress. The siege
+        //object holds the two armies from here on.
+        closeBattle();
+        },
 
-    //click handler for retreat button
-    retreatButton.addEventListener('click', function() {
+        retreat: function(mode) {
+
         for (let i = 0; i < allTerritories().length; i++) {
             if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
                 setColorOnMap(allTerritories()[i]);
@@ -1386,8 +1421,8 @@ document.addEventListener("DOMContentLoaded", function() {
         let defeatType;
         let currentWarId = getCurrentWarId();
         let warArrayToRetrieveLater = addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsOfAttackArray);
-        switch (retreatButtonState) {
-            case 0: //before battle or between rounds of 5 - no penalty
+        switch (mode) {
+            case RetreatMode.FREE: //before the first round -- free withdrawal
                 defeatType = "retreat"; //also pull out from siege before starting assault
                 //A no-penalty retreat returns the committed army whether or not this
                 //battle was opened from INVADE!. Before audit 5.1 AD was closed the
@@ -1396,12 +1431,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 1);
                 if (!battleStart) {
                     proportionsOfAttackArray.length = 0;
-                    defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
-                    defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
-                    defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
-                    defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-                    defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                    //update top table army value when leaving battle
+                    //B.4.6: through mutations.js, which also keeps `armyForCurrentTerritory`
+                    //in step with the four counts it is supposed to total.
+                    setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining);
 
                 } else {
                     addWarToHistoricWarArray("Retreat", 0, true);
@@ -1419,42 +1451,44 @@ document.addEventListener("DOMContentLoaded", function() {
                 //update bottom table for defender
                 bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
-            case 1: //scatter during round of 5, 30% penalty
+            case RetreatMode.SCATTER: //after a round has been fought, at a penalty
                 defeatType = "scatter";
                 for (let i = 0; i < attackingArmyRemaining.length; i++) {
                     attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
                 }
                 setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 2);
                 proportionsOfAttackArray.length = 0;
-
-                defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
-                defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
-                defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
-                defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-                defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining); //B.4.6
 
                 bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
-            case 2: //defeat
-                if (defendingArmyRemaining[4] === 0) { //all out defeat
-                    defeatType = "defeat";
-                    defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0];
-                    defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1];
-                    defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2];
-                    defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3];
-                    defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                    //update bottom table for defender
-                    bottomTable.update({ army: formatNumbersToKMB(defendingTerritory.armyForCurrentTerritory, 0) });
-                } else if (defendingArmyRemaining[4] === 1) { //routing defeat
-                    defeatType = "defeat";
-                    defendingTerritoryRetreatClick.infantryForCurrentTerritory = defendingArmyRemaining[0] + (Math.floor(attackingArmyRemaining[0] * 0.5));
-                    defendingTerritoryRetreatClick.assaultForCurrentTerritory = defendingArmyRemaining[1] + (Math.floor(attackingArmyRemaining[1] * 0.5));
-                    defendingTerritoryRetreatClick.airForCurrentTerritory = defendingArmyRemaining[2] + (Math.floor(attackingArmyRemaining[2] * 0.5));
-                    defendingTerritoryRetreatClick.navalForCurrentTerritory = defendingArmyRemaining[3] + (Math.floor(attackingArmyRemaining[3] * 0.5));
-                    defendingTerritoryRetreatClick.armyForCurrentTerritory = defendingTerritoryRetreatClick.infantryForCurrentTerritory + (defendingTerritoryRetreatClick.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (defendingTerritoryRetreatClick.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (defendingTerritoryRetreatClick.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-                    //update bottom table for defender
-                    bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
+            case RetreatMode.DEFEAT: //the attack is over and lost
+                //Battle overhaul B.4.5 / B.4.6. Two things changed here.
+                //
+                //The branch used to be `defendingArmyRemaining[4] === 0` / `=== 1` -- a defeat
+                //TYPE smuggled into slot 4 of a four-slot army array by
+                //`handleWarEndingsAndOptions()`. It is `defeatType()` on the battle in the store
+                //now, and the army array is four long again.
+                //
+                //And the four hand-written writes per branch -- three unit counts, then
+                //`armyForCurrentTerritory` rebuilt by multiplying out the personnel worths --
+                //went through `state/mutations.js` instead. Every retreat used to be a state-guard
+                //violation, and the personnel formula appeared four times in this one handler,
+                //which is exactly how a territory ends up with an army total that disagrees with
+                //its own unit counts.
+                defeatType = "defeat";
+                if (defeatTypeFromBattle() === "routed") {
+                    //A routed attacker: half of what was left is captured and joins the defender.
+                    setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, [
+                        defendingArmyRemaining[0] + Math.floor(attackingArmyRemaining[0] * battleOutcomeEffects.routCaptureShare),
+                        defendingArmyRemaining[1] + Math.floor(attackingArmyRemaining[1] * battleOutcomeEffects.routCaptureShare),
+                        defendingArmyRemaining[2] + Math.floor(attackingArmyRemaining[2] * battleOutcomeEffects.routCaptureShare),
+                        defendingArmyRemaining[3] + Math.floor(attackingArmyRemaining[3] * battleOutcomeEffects.routCaptureShare)
+                    ]);
+                } else {
+                    setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining);
                 }
+                bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
         }
         toggleDiceCanvas(false);
@@ -1471,15 +1505,29 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
         addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
-    });
+        //Battle overhaul B.3. The battle is over, so the store stops holding one. Without this
+        //every later save would capture a finished battle as though it were in flight.
+        closeBattle();
+        },
 
-    //click handler for advance button
-    advanceButton.addEventListener('click', function() {
+        digIn: function(armed) {
+            playSoundClip("button");
+            //`digInNextRound` is what `processRound()` reads. The button's own armed look is the
+            //window's business and it has already toggled it.
+            digInNextRound = armed;
+        },
+
+        reserves: function() {
+            //Reports what it managed to send, and the window turns that into "In transit" or
+            //"None left" -- a button that silently did nothing read as broken.
+            return commitReserves();
+        },
+
+        advance: function(mode) {
+
         let currentRound = getCurrentRound();
-        let attackingArmyRemaining = getAttackingArmyRemaining();
-        console.log("firstSetOfRounds was: " + firstSetOfRounds);
-        switch (advanceButtonState) {
-            case 0: //before battle to start it
+        switch (mode) {
+            case AdvanceMode.BEGIN: //nothing fought yet -- open the battle
                 removeCanvasIfExist();
                 toggleDiceCanvas(true);
                 playSoundClip("button");
@@ -1506,75 +1554,50 @@ document.addEventListener("DOMContentLoaded", function() {
                     setFinalAttackArray(siegeAttackArray);
                     setupBattle(probability, getFinalAttackArray(), allTerritories());
                 }
-                advanceButtonState = 1;
-                setAdvanceButtonText(advanceButtonState, advanceButton);
-                retreatButtonState = 1;
-                setRetreatButtonText(retreatButtonState, retreatButton);
+                //One state, one write. `advanceButtonState = 1` plus
+                //`setAdvanceButtonText(1, ...)` plus `retreatButtonState = 1` plus
+                //`setRetreatButtonText(...)` plus `enableDisableSiegeButton(1)` was five
+                //calls that all had to agree; it is one now, and the labels follow.
+                battleWindow.setBattleButtons({
+                    advance: AdvanceMode.ROUND,
+                    retreat: RetreatMode.SCATTER,
+                    siegeEnabled: false
+                });
                 roundCounterForStats++;
-                enableDisableSiegeButton(1);
                 break;
-            case 1: //progress through rounds
-                if (!firstSetOfRounds && currentRound === 0) { //have clicked End Round
-                    removeCanvasIfExist();
-                    retreatButton.disabled = false;
-                    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
-                    retreatButtonState = 0;
-                    setRetreatButtonText(retreatButtonState, retreatButton);
-                    setAdvanceButtonText(0, advanceButton);
-                    setCurrentRound(1);
-                    let attackArrayText = [...attackingArmyRemaining, ...defendingArmyRemaining];
-                    let defendingUniqueId = getFinalAttackArray();
-                    defendingUniqueId = defendingUniqueId[0];
-                    setArmyTextValues(attackArrayText, 1, defendingUniqueId);
-                    let updatedProbability = getUpdatedProbability();
-                    setAttackProbabilityOnUI(updatedProbability, 1);
-                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
-                    if (hasSiegedBefore) {
-                        enableDisableSiegeButton(1);
-                    } else if (updatedProbability >= PROBABILITY_THRESHOLD_FOR_SIEGE) {
-                        enableDisableSiegeButton(0);
-                    } else {
-                        enableDisableSiegeButton(1);
-                    }
-                } else { //start new round
-                    //The two dice WAVs are gone, and with them the cosmetic coin-flip
-                    //that chose between them (audit 5.3 Y kept that draw off the game's
-                    //stream; nothing now draws here at all). Every round of a battle is
-                    //a button press inside a window, so it sounds like one.
-                    playSoundClip("button");
-                    if (advanceButton.innerHTML === "Start Attack!" || advanceButton.innerHTML === "Begin War!") {
-                        roundCounterForStats++;
-                        enableDisableSiegeButton(1);
-                    }
-                    advanceButtonState = 1;
-                    setAdvanceButtonText(advanceButtonState, advanceButton);
-                    retreatButtonState = 1;
-                    setRetreatButtonText(retreatButtonState, retreatButton);
-                    let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
-                    if (hasSiegedBefore) {
-                        let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
-                        let siegeAttackArray = [];
-                        siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
-                        siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
-                        for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
-                            siegeAttackArray.push(war.attackingArmyRemaining[i]);
-                        }
-                        processRound(currentRound,
-                            siegeAttackArray,
-                            attackingArmyRemaining,
-                            defendingArmyRemaining,
-                            skirmishesPerRound);
-                    } else {
-                        processRound(currentRound,
-                            getFinalAttackArray(),
-                            attackingArmyRemaining,
-                            defendingArmyRemaining,
-                            skirmishesPerRound);
-                    }
-
-                }
+            case AdvanceMode.ROUND: //one round of dice per click
+                //Battle overhaul B.4. One press is one ROUND, and rounds run until a side breaks.
+                //
+                //What was here: a branch on `!firstSetOfRounds && currentRound === 0` that
+                //handled the "End Round" state between two sets of five, and two near-identical
+                //calls to processRound() that differed only in building a synthetic attack array
+                //out of the siege record so its first element could name the target. Both are
+                //gone -- there are no sets of five, and processRound() reads the target from the
+                //battle in the store.
+                //The label check that stood here -- `advanceButton.innerHTML ===
+                //"Start Attack!"` -- is gone with the two vocabularies that needed it. It
+                //asked a question about the battle by parsing the DOM, and it could never be
+                //true, because nothing ever wrote that string.
+                playSoundClip("button");
+                battleWindow.setBattleButtons({
+                    advance: AdvanceMode.ROUND,
+                    retreat: RetreatMode.SCATTER
+                });
+                processRound({ attackerDigsIn: digInNextRound });
+                //Both controls are per-round. Digging in is spent the moment it is used, and the
+                //reserves button comes back once whatever is in transit has arrived.
+                digInNextRound = false;
+                battleWindow.setBattleButtons({
+                    digInArmed: false,
+                    midBattleControls: true,
+                    //Reserves come back the moment what was in transit has arrived.
+                    reserves: pendingReserves().length === 0
+                        ? ReservesState.READY : battleWindow.battleButtons().reserves
+                });
+                //B.6.4. The round that just resolved joins the log.
+                roundLog.update(currentBattle()?.records ?? []);
                 break;
-            case 2: //accept victory
+            case AdvanceMode.ACCEPT: //bank the win
                 toggleDiceCanvas(false);
                 playSoundClip("button");
                 addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
@@ -1583,8 +1606,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 toggleBattleResults(true);
                 battleResultsDisplayed = true;
                 populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false); //won
+                closeBattle(); //B.3, as in the retreat handler
                 break;
-            case 3: //continue siege
+            case AdvanceMode.SIEGE: //close the window; the siege stands
                 playSoundClip("button");
                 toggleBattleUI(false, true);
                 battleUIDisplayed = false;
@@ -1600,9 +1624,14 @@ document.addEventListener("DOMContentLoaded", function() {
         if (attackTargetPath()) {
             currentWarFlagString = pathCountry(attackTargetPath());
         }
-    });
+        },
 
-    siegeBottomBarButton.addEventListener('click', function() {
+        lastPush: function() {
+            playSoundClip("button");
+            takeLastPush();
+        },
+
+        assault: function() {
 
         //"assault" i.e. return to battle state
         //remove siege status
@@ -1614,7 +1643,7 @@ document.addEventListener("DOMContentLoaded", function() {
         removeSiegeImageFromPath(attackTargetPath());
         //siege removed from the store above; `underSiege` follows (Phase 4.4)
         //setup  battle to conquer territory
-        enableDisableSiegeButton(1); //disable siege button at start
+        battleWindow.setBattleButtons({ siegeEnabled: false }); //no siege before a round
         let siegeAttackArray = [];
         siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
         siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of playerSiegeWarsList
@@ -1623,6 +1652,16 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         setupBattleUI(siegeAttackArray);
+        },
+
+        //Battle overhaul B.8.2, and this is a FIX rather than a move. The replay's Skip button
+        //was drawn but never wired: the label was written straight onto the advance button and
+        //the press still fell into the battle state machine, where it did whatever the last real
+        //battle had left behind. Skip is a mode of this machine now, so the press reaches the
+        //playback.
+        skip: function() {
+            defenderPlayback.skip(defencePlaybackDeps());
+        }
     });
 
     let confirmButtonBattleResults = battleResults.confirmButton();
@@ -2367,7 +2406,7 @@ function installMoveButtonHandlers() {
 
                     } else if (transferAttackButtonState === 2) { //click view siege button //button says VIEW SIEGE
                         setValuesForBattleFromSiegeObject(lastClickedPath, false);
-                        enableDisableAssaultButton(0);
+                        battleWindow.setBattleButtons({ third: ThirdButton.ASSAULT });
                         toggleBattleUI(true, false);
                         battleUIDisplayed = true;
                         toggleTransferAttackButton(false, false);
@@ -2406,17 +2445,28 @@ function installMoveButtonHandlers() {
                             toggleTransferAttackWindow(false);
                             transferAttackWindowOnScreen = false;
                             toggleBattleUI(true, false);
-                            if (probability < PROBABILITY_THRESHOLD_FOR_SIEGE) {
-                                enableDisableSiegeButton(1);
-                            } else {
-                                enableDisableSiegeButton(0);
-                            }
-
                             toggleTransferAttackButton(false, false);
                             transferAttackButtonDisplayed = false;
                             attackTextCurrentlyDisplayed = false;
                             setupBattle(probability, getFinalAttackArray(), allTerritories());
                             setupBattleUI(getFinalAttackArray());
+                            //ORDER MATTERS, and it did not before. The siege offer is decided
+                            //AFTER `setupBattleUI()`, because that call now resets the whole
+                            //bottom bar to the state a fresh attack opens in -- which includes
+                            //`siegeEnabled: false`. Deciding it first, as this block used to,
+                            //worked only while `enableDisableSiegeButton()` wrote a colour
+                            //straight onto the element and nothing else ever touched it; against
+                            //a derived bar it is a write that the next line silently discards.
+                            //The symptom is not subtle: Siege Territory is inert on every attack,
+                            //so a siege cannot be laid at all.
+                            //
+                            //A siege is offered when the odds are at or ABOVE the threshold, not
+                            //below it -- it commits an army for many turns, so it is for a target
+                            //you have a real chance of finishing, not a hopeless one. The AI
+                            //agrees (`ai/goals.js` pushes a Siege goal on the same comparison).
+                            battleWindow.setBattleButtons({
+                                siegeEnabled: probability >= PROBABILITY_THRESHOLD_FOR_SIEGE
+                            });
                             //audit 5.1 AD: take the committed units out of the territories
                             //that supplied them, now, rather than reconciling when the war
                             //resolves. Before Phase 4.7 there was no single territory to
@@ -2649,6 +2699,8 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         document.getElementById(ids.percentageAttack).style.display = "none";
         document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "none";
         document.getElementById(ids.colorBarAttackOverlayGreen).style.display = "none";
+        //A transfer has no fight in it, so no dice.
+        attackPreview.clear();
         document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "0px";
 
         attackingOrTransferring = "Transferring to:";
@@ -2672,6 +2724,9 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     } else if (buttonState === 1) {
         document.getElementById(ids.percentageAttack).style.display = "flex";
         document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "flex";
+        //Cleared rather than shown: nothing is allocated yet, and the preview draws itself the
+        //moment the first unit is committed.
+        attackPreview.clear();
         document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "47px";
         attackingOrTransferring = "Attacking:";
 
@@ -3025,6 +3080,9 @@ function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
         svg.style.pointerEvents = 'none';
     } else if (!turnOnTransferAttackWindow) {
         transferAttackWindow.hide();
+        //B.6.7. Closing the window forgets the allocation, so the preview must not survive it --
+        //otherwise the next attack opens showing the last one's dice.
+        attackPreview.clear();
         svg.style.pointerEvents = 'auto';
     }
     //set height of colorBars for attack
@@ -3115,10 +3173,6 @@ function setupSiegeUI(territory) {
     battleUIState = 1;
     const siegeObjectElement = getSiegeObjectFromPath(territory);
 
-    const retreatButton = document.getElementById(ids.retreatButton);
-    const advanceButton = document.getElementById(ids.advanceButton);
-    const siegeBottomBarButton = document.getElementById(ids.siegeBottomBarButton);
-
     const attackerCountry = playerCountryName();
     const defenderTerritory = siegeObjectElement.defendingTerritory.dataName;
 
@@ -3149,6 +3203,17 @@ function setupSiegeUI(territory) {
     //SET SIEGE TURNS TEXT
     setSiegeTurnsText(siegeObjectElement);
 
+    //Battle overhaul B.9.1. The siege screen speaks the same dice vocabulary as open battle, so
+    //the two halves of the war model read as one game.
+    //
+    //It is PRESENTATION of the existing siege maths, not a second model. `siegeHitProbability()`
+    //is the number a siege turn is actually scored on, and it is fed straight through the SAME
+    //band table open battle uses -- so "four dice against two" means the same thing on both
+    //screens. The siege rules in src/rules/military/siege.js are untouched; a siege stays a slow
+    //per-turn squeeze, which is what makes it a different strategic option rather than a slow
+    //attack.
+    showSiegeLedger(siegeObjectElement);
+
     //SET SIEGE ROW 4
     let siegeScore = calculateSiegeScore(siegeObjectElement);
     setSiegeScoreText(siegeScore, 0);
@@ -3169,21 +3234,13 @@ function setupSiegeUI(territory) {
     setRow4(1);
 
     //INITIALISE BUTTONS
-    retreatButton.style.display = "flex";
-    advanceButton.style.display = "flex";
-    siegeBottomBarButton.style.display = "flex";
-
-    retreatButton.style.width = "33%";
-    advanceButton.style.width = "33%";
-    siegeBottomBarButton.style.width = "34%";
-
-    advanceButton.innerHTML = "Continue Siege";
-    advanceButtonState = 3;
-
-    retreatButtonState = setRetreatButtonText(0, retreatButton);
-    retreatButton.innerHTML = "Pull Out";
-    retreatButton.disabled = false;
-    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
+    //Battle overhaul B.6.6. Eleven statements -- three displays, three widths, two labels, two
+    //state numbers and a colour literal -- are one call. The widths in particular were written
+    //out as 33/33/34 here and 50/50 in `setupBattleUI()`, so adding Dig In and Reserves in B.7
+    //meant a third hand-written set; `battleBarWidths()` shares the bar between whichever
+    //buttons are actually up.
+    roundLog.reset();
+    battleWindow.resetForSiege();
 }
 
 function setupBattleUI(attackArray) {
@@ -3195,19 +3252,14 @@ function setupBattleUI(attackArray) {
     }
     setCurrentRound(0);
 
-    const retreatButton = document.getElementById(ids.retreatButton);
-    const advanceButton = document.getElementById(ids.advanceButton);
-
-    retreatButton.classList.remove("battleUIRowButtonsGreyBg");
-    advanceButton.classList.remove("battleUIRowButtonsGreyBg");
-
-    retreatButton.classList.add("battleUIRowButtonsRedBg");
-    advanceButton.classList.add("battleUIRowButtonsGreenBg");
-    retreatButton.style.backgroundColor = "rgb(131, 38, 38)";
-    advanceButton.style.backgroundColor = "rgb(0, 128, 0)";
-
-    retreatButton.disabled = false;
-    advanceButton.disabled = false;
+    //Battle overhaul B.10.2 / B.6.6. Three dead classes (`battleUIRowButtonsGreyBg`,
+    //`...RedBg`, `...GreenBg` -- none of them declared anywhere in style.css), two colour
+    //literals and two `disabled` writes stood here. The bar's whole appearance is derived from
+    //one state now, and `resetForAttack()` is the state a fresh attack opens in: Begin War /
+    //Retreat, no siege, no mid-battle controls, no last push.
+    digInNextRound = false;
+    roundLog.reset();
+    battleWindow.resetForAttack();
 
     let flagStringAttacker;
     let flagStringDefender;
@@ -3283,17 +3335,10 @@ function setupBattleUI(attackArray) {
     setSiegeScoreText(0, 1);
     setRow4(0);
 
-    //INITIALISE BUTTONS
-    retreatButton.style.display = "flex";
-    advanceButton.style.display = "flex";
-    document.getElementById(ids.siegeBottomBarButton).style.display = "none";
+    //INITIALISE BUTTONS -- see `resetForAttack()` at the top of this function. Which buttons
+    //are up and how wide they are is derived from the window's state, so nothing is written here.
 
-    retreatButton.style.width = "50%";
-    advanceButton.style.width = "50%";
-
-    retreatButtonState = setRetreatButtonText(0, retreatButton);
-    advanceButtonState = 0;
-    setAdvanceButtonText(6, advanceButton);
+    //The bar was reset at the top of this function; nothing further to say about it here.
 
     attackCountry = getTerritory(attackArray[1])?.dataName;
     defendTerritory = getTerritory(attackArray[0]);
@@ -3449,61 +3494,14 @@ export function reduceKeywords(str) {
     return reducedWords.join(' ');
 }
 
-export function setRetreatButtonText(situation, button) {
-    switch (situation) {
-        case 0: //open battle / start of attack round of 5
-            button.innerHTML = "Retreat!";
-            break;
-        case 1: // midway through round of 5
-            button.innerHTML = "Scatter!";
-            break;
-        case 2: // midway through round of 5
-            button.innerHTML = "Defeat!";
-            break;
-    }
-
-    return situation;
-}
-
-export function setAdvanceButtonText(situation, button) {
-    switch (situation) {
-        case 0: //start of attack round of 5
-            button.innerHTML = "Start Attack!";
-            break;
-        case 1: // midway through round of 5
-            button.innerHTML = "Next Skirmish";
-            break;
-        case 2: // win war outright
-            button.innerHTML = "Victory!";
-            break;
-        case 3: // massive assault win
-            button.innerHTML = "Massive Assault";
-            break;
-        case 4: // routing win
-            button.innerHTML = "Rout The Enemy";
-            break;
-        case 5: // end round
-            button.innerHTML = "End Round";
-            break;
-        case 6: // start of war
-            button.innerHTML = "Begin War!";
-            break;
-    }
-
-    return situation;
-}
-
-export function setAdvanceButtonState(value) {
-    return advanceButtonState = value;
-}
-
-export function setRetreatButtonState(value) {
-    return retreatButtonState = value;
-}
-
-export function setFirstSetOfRounds(value) {
-    return firstSetOfRounds = value;
-}
+//Battle overhaul B.6.6. `setRetreatButtonText()`, `setAdvanceButtonText()`,
+//`setAdvanceButtonState()` and `setRetreatButtonState()` stood here: two `switch`es mapping a
+//number to a string, and two setters for a DIFFERENT number that decided behaviour. Every call
+//site wrote one of each and they agreed only by convention, which is why case 5 of the label
+//switch ("End Round") had to be kept after B.4 made it unreachable -- deleting it would have
+//shifted the numbering of the cases either side. Both vocabularies are one state in
+//src/ui/battle/buttonState.js now, the labels are derived from it, and the state machine is
+//unit-tested in `tests/unit/ui-battle-buttons.spec.js`.
 
 export function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType, arrayIfArrest) {
 
@@ -3632,7 +3630,9 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
     }
 
 
-    if ((retreatButtonState !== 2 && situation === 1) || (situation === 0)) { //if not outright defeat
+    //"not an outright defeat", asked of the window's state rather than of a loose number.
+    if ((battleWindow.battleButtons().retreat !== RetreatMode.DEFEAT && situation === 1)
+        || (situation === 0)) {
         attackingSurvived = attackingArmyRemaining;
     }
 
@@ -3821,16 +3821,9 @@ export function setDefendingTerritoryCopyEnd(array) {
     return defendingTerritoryCopyEnd = [...array]; //copies object not just reference it
 }
 
-export function enableDisableSiegeButton(enableOrDisable) {
-    let siegeButton = document.getElementById(ids.siegeButton);
-    if (enableOrDisable === 0) { //enable
-        siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
-        siegeButton.disabled = false;
-    } else if (enableOrDisable === 1) { //disable
-        siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
-        siegeButton.disabled = true;
-    }
-}
+//Battle overhaul B.10.2. `enableDisableSiegeButton()` took 0 for enable and 1 for disable --
+//backwards from every truthiness convention in the file -- and recorded the answer as a
+//background colour. It is `battleWindow.setBattleButtons({ siegeEnabled })` now.
 
 export function getSiegeObjectFromPath(territory) {
     if (territory.getAttribute("territory-name") in playerSiegeWarsList) {
@@ -3860,6 +3853,9 @@ export function getHistoricWarObject(ai, territory) {
 function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
     const battleUIRow2 = document.getElementById(ids.battleUIRow2);
     const probabilityColumnBox = document.getElementById(ids.probabilityColumnBox);
+
+    //B.6.3: the ledger is about open battle's dice. A siege has none, so it goes.
+    forceLedger.show(siegeOrAttack === 0);
 
     if (siegeOrAttack === 0) { // Attack
         probabilityColumnBox.style.display = "flex";
@@ -4726,12 +4722,20 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
             defendingTerritory.defenseBonusColor = colorGreen;
         }
 
+        //Battle overhaul B.10.2. These two ladders had no `else`, so a territory above 75% of
+        //its starting food or population left the field UNDEFINED -- and
+        //`style.color = undefined` leaves whatever the last siege painted. It happened to look
+        //right only because `addRemoveWarSiegeObject()` seeded the field with a green literal on
+        //the way past; deleting that literal is what made the gap visible. A ladder that decides
+        //a colour has to decide it in every band.
         if (foodCapacityPercentage <= 25) {
             defendingTerritory.foodCapacityColor = colorRed;
         } else if (foodCapacityPercentage > 25 && foodCapacityPercentage <= 50) {
             defendingTerritory.foodCapacityColor = colorOrange;
         } else if (foodCapacityPercentage > 50 && foodCapacityPercentage <= 75) {
             defendingTerritory.foodCapacityColor = colorYellow;
+        } else {
+            defendingTerritory.foodCapacityColor = colorGreen;
         }
 
         if (productiveTerritoryPopPercentage <= 25) {
@@ -4740,6 +4744,8 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
             defendingTerritory.productiveTerritoryPopColor = colorOrange;
         } else if (productiveTerritoryPopPercentage > 50 && productiveTerritoryPopPercentage <= 75) {
             defendingTerritory.productiveTerritoryPopColor = colorYellow;
+        } else {
+            defendingTerritory.productiveTerritoryPopColor = colorGreen;
         }
 
         // Calculate the percentages for defendingArmyRemaining
@@ -4823,6 +4829,194 @@ function setSiegeScoreText(siegeScore, situation) {
     }
 }
 
+/**
+ * Show or hide the "Last Push!" offer on the bottom bar's third button.
+ *
+ * The third button is the one that reads "Assault!" when a battle is resumed out of a siege; it
+ * is hidden in an ordinary attack, which is why it is free to carry this. When it is up the bar
+ * reads Retreat / Next Round / Last Push! and the widths go back to thirds.
+ */
+/**
+ * Share the bottom bar between whichever buttons are up.
+ *
+ * The bar carries between two and four controls depending on where the battle is, so the widths
+ * cannot be constants. They used to be -- `33%`/`33%`/`34%` written at three call sites -- which
+ * is why adding Dig In and Reserves needed this.
+ */
+//Battle overhaul B.6.6. `layoutBattleButtons()` and `setMidBattleControlsVisible()` were here.
+//The first measured which buttons were up by reading `style.display` back off the DOM and divided
+//100% between them; the second wrote two displays and called the first. Both are derived now --
+//`battleBarWidths()` in src/ui/battle/buttonState.js -- and the mid-battle pair is a field of the
+//window's state, which is what makes "they are meaningless before a round has been fought" a rule
+//rather than a convention two call sites happen to follow.
+
+/**
+ * Commit whatever the attack's ORIGINAL source territories still have.
+ *
+ * Reserves come from the front that launched the attack rather than from anywhere on the map,
+ * which is what makes this one button rather than a second trip through the attack window. The
+ * force is debited immediately -- the same rule INVADE! follows (audit 5.1 AD) -- and joins the
+ * battle at the start of the next round.
+ *
+ * @returns {number[]|null} what was committed, or null if there was nothing to send
+ */
+export function commitReserves() {
+    const battle = currentBattle();
+    if (!battle || pendingReserves().length > 0) {
+        return null;
+    }
+
+    //The same flat shape `transferArmyOutOfTerritoryOnStartingInvasion()` takes:
+    //[targetId, sourceId, infantry, assault, air, naval, sourceId, ...].
+    const reserveArray = [attackTargetPath()?.getAttribute("uniqueid")];
+    const total = [0, 0, 0, 0];
+
+    for (const entry of proportionsOfAttackArray) {
+        const territory = allTerritories().find((candidate) => candidate.uniqueId === String(entry[0]));
+        if (!territory) {
+            continue;
+        }
+        //USEABLE counts for the vehicles: a grounded aircraft cannot reinforce anything, and
+        //committing one would put an army in the field that the battle cannot field.
+        const army = [
+            territory.infantryForCurrentTerritory,
+            territory.useableAssault,
+            territory.useableAir,
+            territory.useableNaval
+        ];
+        if (army.every((count) => count <= 0)) {
+            continue;
+        }
+        reserveArray.push(entry[0], ...army);
+        for (let slot = 0; slot < total.length; slot++) {
+            total[slot] += army[slot];
+        }
+    }
+
+    if (total.every((count) => count <= 0)) {
+        return null;
+    }
+
+    transferArmyOutOfTerritoryOnStartingInvasion(reserveArray, allTerritories());
+    queueReserves(total, battle.round + 1);
+    addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
+    return total;
+}
+
+/**
+ * Draw the ledger for a SIEGE, in the same vocabulary open battle uses.
+ *
+ * The siege train's dice come from the hit probability -- the one number a siege turn is scored
+ * on -- put through the same band table as a battle's share. The fortress gets the complement.
+ * Both the forts and the grinding are listed, because both are things the player can act on:
+ * bring more hardware, or wait.
+ */
+function showSiegeLedger(siege) {
+    const territory = siege.defendingTerritory;
+    const score = calculateSiegeScore(siege);
+    const difference = scoreDifferenceFor(score, territory);
+    const hitChance = siegeHitProbability(difference);
+
+    const fortification = (territory.defenseBonus ?? 0) + (territory.mountainDefenseBonus ?? 0);
+    const fortBand = DIE_MODIFIERS.fortification.find((band) => fortification >= band.minimumBonus);
+
+    const besiegerRows = [];
+    if (fortBand) {
+        besiegerRows.push({ key: "fortification", label: "their fortifications", value: 0, dice: -fortBand.dice });
+    }
+    const grindingSteps = Math.min(
+        Math.floor((siege.turnsInSiege ?? 0) / DIE_MODIFIERS.siegeGrindingTurnsPerStep),
+        DIE_MODIFIERS.siegeGrindingCap);
+    if (grindingSteps > 0) {
+        besiegerRows.push({
+            key: "siegeGrinding",
+            label: `${siege.turnsInSiege} turns of grinding`,
+            value: grindingSteps,
+            dice: 0
+        });
+    }
+
+    forceLedger.show(true);
+    forceLedger.update({
+        attackerDice: diceCountFor(hitChance),
+        defenderDice: defenderDiceCountFor(1 - hitChance),
+        modifiers: {
+            attacker: { rows: besiegerRows, total: grindingSteps, diceChange: -(fortBand?.dice ?? 0) },
+            defender: { rows: [], total: 0, diceChange: 0 }
+        }
+    });
+}
+
+//Battle overhaul B.6.6. `setLastPushButtonVisible()` was here. It is
+//`battleWindow.setLastPushOffered()` now, called from `battle.js`'s `offerLastPush()` /
+//`withdrawLastPushOffer()`, which is where the model decides whether the offer stands.
+
+
+/**
+ * Show the player every battle the AI fought against them this turn.
+ *
+ * Battle overhaul B.8. The battles were fought and applied during the AI phase; this is a replay
+ * of the record. It auto-advances on a timer and needs no input, because the AI moves in its own
+ * phase and a step that waited on a click would stall the turn loop.
+ *
+ * Awaited by `handleAITurn()`, so the player's turn begins once they have seen it. That is a wait
+ * on a TIMER and never on the player -- and it is skippable, and remembered.
+ */
+/**
+ * What `defenderPlayback` needs from this file, in one place.
+ *
+ * Battle overhaul B.8.2. It was an object literal inside `showQueuedDefences()`, which meant the
+ * Skip handler had nothing to pass and so was never wired at all -- the button was drawn, the
+ * label was written straight onto the advance button, and the press fell through into the battle
+ * state machine. Naming the dependencies is what makes the control reachable from the bar.
+ */
+function defencePlaybackDeps() {
+    return {
+        setArmyTextValues,
+        attackerColour: undefined,
+        openWindow: () => {
+            toggleBattleUI(true, false);
+            battleUIDisplayed = true;
+            toggleBottomLeftPaneWithTurnAdvance(false);
+            toggleUIButton(false);
+            toggleMapModeButton(false);
+            prepareProbabilityBar(0, true);
+            //A replay has no decisions in it, so the bar is one full-width Skip. Five hide calls
+            //and a width used to be written here by hand, which left the other four buttons
+            //hidden for the NEXT real battle until something happened to show them again.
+            roundLog.reset();
+            battleWindow.setBattleButtons({ advance: AdvanceMode.SKIP });
+        },
+        setTitle: (battle) => {
+            setFlag(battle.attackerCountry, 4);
+            setFlag(battle.defenderCountry, 5);
+            document.getElementById(ids.battleUITitleTitleLeft).innerHTML =
+                reduceKeywords(battle.attackerCountry);
+            document.getElementById(ids.battleUITitleTitleCenter).innerHTML = "attacks";
+            document.getElementById(ids.battleUITitleTitleRight).innerHTML =
+                reduceKeywords(battle.territoryName);
+        },
+        closeWindow: () => {
+            toggleBattleUI(false, true);
+            battleUIDisplayed = false;
+            toggleBottomLeftPaneWithTurnAdvance(true);
+            toggleUIButton(true);
+            toggleMapModeButton(true);
+            //Back to the bar a fresh attack opens with, rather than to whichever labels and
+            //widths the replay happened to leave behind.
+            battleWindow.resetForAttack();
+            diceStage.hide();
+        }
+    };
+}
+
+export async function showQueuedDefences() {
+    if (pendingDefences() === 0) {
+        return;
+    }
+    await defenderPlayback.playQueuedDefences(defencePlaybackDeps());
+}
+
 export function toggleDiceCanvas(value) {
     if (value) {
         document.getElementById(ids.threeCanvasForDice).style.display = "block";
@@ -4833,7 +5027,7 @@ export function toggleDiceCanvas(value) {
 
 export function routeSiegeUIProcesses() {
     battleUIState = 0;
-    enableDisableAssaultButton(1);
+    battleWindow.setBattleButtons({ third: ThirdButton.NONE });
     toggleBattleUI(true, false);
     battleUIDisplayed = true;
     toggleBottomLeftPaneWithTurnAdvance(false);
@@ -4844,18 +5038,10 @@ export function routeSiegeUIProcesses() {
     mapModeButtonCurrentlyOnScreen = false;
 }
 
-function enableDisableAssaultButton(enableDisable) {
-    const siegeButton = document.getElementById(ids.siegeBottomBarButton)
-    switch (enableDisable) {
-        case 0: //enable
-            siegeButton.disabled = false;
-            siegeButton.style.backgroundColor = "rgb(114, 88, 48)";
-            break;
-        case 1: //disable
-            siegeButton.disabled = true;
-            siegeButton.style.backgroundColor = "rgb(128, 128, 128)";
-    }
-}
+//Battle overhaul B.10.2. `enableDisableAssaultButton()` was here, writing the same two colour
+//literals as `enableDisableSiegeButton()` onto a different element. The third slot in the bar is
+//`ThirdButton` on the window's state now: NONE, ASSAULT or LAST_PUSH, which also states the thing
+//neither function did -- that the two jobs are mutually exclusive.
 
 function shiftPath(pathElement, amountRight, amountDown) {
     if (shiftedPath === null) {

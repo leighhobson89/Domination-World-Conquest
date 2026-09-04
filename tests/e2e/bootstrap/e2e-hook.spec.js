@@ -41,12 +41,23 @@ test.describe("?e2e=1 state hook", () => {
                 "isReady",
                 "musicPlaying",
                 "pathAreaComputations",
+                //Battle overhaul B.8.4. The four playback hooks. Playing back a battle the player
+                //DEFENDED needs an AI country to attack a chosen territory on a chosen turn,
+                //which is a seed lottery -- but nothing about the PLAYBACK needs the AI turn, so
+                //`queueDefence()` supplies the same record `doAttack()` builds and the queue, the
+                //reversed sides, the ledger, the timer and the Skip control are all the real path.
+                //`setAlwaysSkipPlayback()` reaches the player's own preference, which the fixture
+                //turns ON for every spec so a replay does not add seconds to every ended turn.
+                "pendingDefences",
                 "phase",
+                "playQueuedDefences",
+                "queueDefence",
                 "randomEventProbability",
                 "ready",
                 "recordActivity",
                 "retrievals",
                 "seed",
+                "setAlwaysSkipPlayback",
                 "setAudio",
                 "siegeAt",
                 "sieges",

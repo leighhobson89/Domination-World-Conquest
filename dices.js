@@ -1,3 +1,38 @@
+// The 3D dice: a physical roll that shows numbers the RULES already chose.
+//
+// Battle overhaul B.6.5. The order is the whole design and it is not negotiable:
+//
+//   1. `src/rules/military/dice.js` rolls the faces, on the game's seeded stream.
+//   2. This file throws real dice, from the COSMETIC stream, and lets them tumble.
+//   3. Before they are shown, each die's MESH is rotated by one of the 24 rotations of a cube
+//      so that the face landing upwards is the face the rules chose.
+//
+// A cube is invariant under those 24 rotations, so step 3 changes nothing physical -- the
+// collision shape, the trajectory and the resting pose are identical. The player watches a
+// genuine tumble; the result was decided before it started. Anything else is unseedable, and
+// `tests/e2e` asserts exact combat outcomes.
+//
+// This is not the design the plan started with. `tools/dice-spike.mjs` was written to time a
+// SEARCH for a throw that lands on the required faces, and found the search unnecessary. Its
+// header carries the measurements.
+//
+// THREE THINGS THE SPIKE FOUND THAT ARE FIXED HERE.
+//
+//  * The dice were BADLY BIASED. `createDice()` gave every die `Box(new Vec3(.3, .3, .5))` -- a
+//    0.6 x 0.6 x 1.0 cuboid under a 1 x 1 x 1 cube mesh. A square prism rests on one of its four
+//    long sides, so over 3,600 rolls faces 3 and 4 came up 6% each against 17% for the others
+//    (chi-square 738 against 7.9 for a cube). A cuboid also has only 8 rotational symmetries, so
+//    it could not carry an arbitrary face onto an arbitrary target -- the relabelling in step 3
+//    REQUIRES a cube.
+//  * `throwDice()` drew from `Math.random`, which is the game's stream. Cosmetic randomness must
+//    never touch it (CLAUDE.md; audit 5.3 Y), so the throw draws from `cosmeticRandom()`.
+//  * `world.fixedStep()` derives its elapsed time from `performance.now()`, so in a headless loop
+//    it runs zero substeps and the world never advances. The pre-run in step 3 must call
+//    `world.step(1/60)`.
+//
+// FACE NUMBERING is dictated by the pips carved in `createBoxGeometry()`:
+//   +Y = 1, +X = 2, +Z = 3, -Z = 4, -X = 5, -Y = 6.  Opposite faces sum to 7.
+
 import {
     convertHexValueToRGBOrViceVersa
 } from './src/ui/map/colouring.js';
@@ -5,93 +40,185 @@ import {
     playerColour
 } from './src/state/selectors.js';
 import {
-    ids,
-    sel
+    cosmeticRandom
+} from './src/platform/cosmeticRng.js';
+import {
+    ids
 } from './src/ui/core/registry.js';
+//Battle overhaul B.10.3. THREE and CANNON are no longer loaded by `index.html`; they arrive the
+//first time a die is rolled. See the header of that file for why they are still classic scripts
+//setting globals rather than imports.
+import {
+    loadDiceRuntime
+} from './src/platform/vendor/diceRuntime.js';
 
-let canvasElement = document.querySelector(sel.canvas);
-let scoreResultArray = [];
+let canvasElement = null;
 
 const params = {
-    numberOfDice: 2,
     segments: 40,
     edgeRadius: .07,
     notchRadius: .12,
     notchDepth: .1,
 };
 
+/** Half-extent of the collision cube. Must stay a CUBE -- see the header. */
+const DIE_HALF_EXTENT = 0.5;
+
+/** Local outward normal of each face, indexed by pip value minus one. */
+const FACE_NORMALS = [
+    [0, 1, 0],   // 1
+    [1, 0, 0],   // 2
+    [0, 0, 1],   // 3
+    [0, 0, -1],  // 4
+    [-1, 0, 0],  // 5
+    [0, -1, 0]   // 6
+];
+
 const diceArray = [];
 
-let renderer, scene, camera, diceMesh, physicsWorld;
-let diceAnimationFinished = false;
-const wallBodyMaterial = new CANNON.Material("wallMaterial");
+let renderer, scene, camera, physicsWorld;
+let animationHandle = null;
+let settleResolve = null;
 
-export function callDice(enemyColor) {
+/**
+ * Roll dice on screen that land showing `faces`.
+ *
+ * @param {number[]} faces        the pip values the rules chose, attacker's first
+ * @param {number} attackerCount  how many of `faces` belong to the attacker
+ * @param {string} enemyColour    the defender's colour, as an rgb() string
+ * @returns {Promise<void>} resolves when the dice have settled or the roll was skipped
+ */
+export async function rollDiceOnScreen(faces, attackerCount, enemyColour) {
+    //Battle overhaul B.10.3. The ~785 KB of physics and rendering runtime is fetched HERE, on the
+    //first roll of the session, rather than on every page view. It resolves immediately
+    //afterwards, so only the first battle pays -- and the round has already been decided by the
+    //time this is called, so waiting for it delays an animation and nothing else.
+    await loadDiceRuntime();
+    ensureStage();
+    clearDice();
 
-    document.getElementById(ids.battleContainer).style.pointerEvents = "none"; //disable all UI until dice run
+    for (let index = 0; index < faces.length; index++) {
+        diceArray.push(createDice(index < attackerCount ? playerColour() : enemyColour));
+    }
 
-    removeCanvasIfExist();
-    createCanvas();
+    //Throw, then run the WHOLE roll headlessly to see where it lands. Only then is the mesh
+    //offset known, and only then is anything drawn -- so the first frame the player sees is
+    //already showing the right numbers.
+    const throwState = throwDice();
+    const landed = simulateToRest();
+    applyFaceOffsets(landed, faces);
 
-    diceAnimationFinished = false;
-    scoreResultArray = [0, 0];
+    //Replay the identical throw. Same bodies, same impulses, same order of operations, so the
+    //physics repeats exactly and the dice come to rest in the pose just measured.
+    restoreThrow(throwState);
+
+    startRendering();
+
     return new Promise((resolve) => {
-        initPhysics();
-        initScene();
-
-        function initScene() {
-            renderer = new THREE.WebGLRenderer({
-                alpha: true,
-                antialias: true,
-                canvas: canvasElement
-            });
-            renderer.shadowMap.enabled = true
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 4));
-
-            scene = new THREE.Scene();
-
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, .1, 300)
-            camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
-            camera.rotation.set(-0.4, 0, 0);
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, .8);
-            scene.add(ambientLight);
-            const topLight = new THREE.PointLight(0xffffff, .5);
-            topLight.position.set(10, 15, 0);
-            topLight.castShadow = true;
-            topLight.shadow.mapSize.width = 2048;
-            topLight.shadow.mapSize.height = 2048;
-            topLight.shadow.camera.near = 5;
-            topLight.shadow.camera.far = 400;
-            scene.add(topLight);
-
-            createFloor();
-            createWall();
-
-            for (let i = 0; i < params.numberOfDice; i++) {
-                diceMesh = createDiceMesh(i, enemyColor);
-                diceArray.push(createDice());
-                addDiceEvents(diceArray[i], i);
-            }
-
-            throwDice();
-
-            render();
-        }
-
-        const checkAnimationComplete = () => {
-            if (diceAnimationFinished) {
-                diceArray.length = 0;
-                document.getElementById(ids.battleContainer).style.pointerEvents = "auto";
-                resolve(scoreResultArray);
-            } else {
-                setTimeout(checkAnimationComplete, 100);
-            }
-        };
-        checkAnimationComplete();
+        settleResolve = resolve;
+        waitForRest();
     });
 }
 
+/**
+ * Build the renderer, scene and world ONCE.
+ *
+ * A fresh `WebGLRenderer` per roll leaks a GL context, and browsers cap those at around sixteen
+ * -- a battle is five to eight rounds, so two battles would exhaust them and the canvas would go
+ * blank with a console warning rather than an error. The stage is permanent; only the dice come
+ * and go.
+ */
+function ensureStage() {
+    if (renderer) {
+        return;
+    }
+    removeCanvasIfExist();
+    createCanvas();
+    initPhysics();
+
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, canvas: canvasElement });
+    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 4));
+
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, .1, 300);
+    camera.position.set(0.5, .08, 1.8).multiplyScalar(7);
+    camera.rotation.set(-0.4, 0, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, .8));
+    const topLight = new THREE.PointLight(0xffffff, .5);
+    topLight.position.set(10, 15, 0);
+    topLight.castShadow = true;
+    topLight.shadow.mapSize.width = 2048;
+    topLight.shadow.mapSize.height = 2048;
+    topLight.shadow.camera.near = 5;
+    topLight.shadow.camera.far = 400;
+    scene.add(topLight);
+
+    createFloor();
+    createWall();
+}
+
+/** Take the previous round's dice out of both the scene and the physics world. */
+function clearDice() {
+    for (const dice of diceArray) {
+        scene.remove(dice.pivot);
+        physicsWorld.removeBody(dice.body);
+        dice.mesh.traverse((node) => {
+            if (node.geometry) node.geometry.dispose();
+            if (node.material) node.material.dispose();
+        });
+    }
+    diceArray.length = 0;
+    settleResolve = null;
+}
+
+/** Tear the whole stage down -- when the battle window closes. */
+export function disposeDiceStage() {
+    if (animationHandle !== null) {
+        cancelAnimationFrame(animationHandle);
+        animationHandle = null;
+    }
+    if (scene) {
+        clearDice();
+    }
+    if (renderer) {
+        renderer.dispose();
+        renderer = null;
+    }
+    scene = null;
+    camera = null;
+    physicsWorld = null;
+    removeCanvasIfExist();
+}
+
+function startRendering() {
+    if (animationHandle === null) {
+        render();
+    }
+}
+
+/** Stop the roll and show the result immediately. */
+export function skipRoll() {
+    for (const dice of diceArray) {
+        dice.body.velocity.setZero();
+        dice.body.angularVelocity.setZero();
+        dice.body.sleep();
+    }
+}
+
+function waitForRest() {
+    const asleep = diceArray.length > 0
+        && diceArray.every((dice) => dice.body.sleepState === CANNON.Body.SLEEPING);
+    if (asleep) {
+        const resolve = settleResolve;
+        settleResolve = null;
+        if (resolve) resolve();
+        return;
+    }
+    setTimeout(waitForRest, 80);
+}
 
 function initPhysics() {
     physicsWorld = new CANNON.World({
@@ -99,10 +226,10 @@ function initPhysics() {
         gravity: new CANNON.Vec3(0, -65, 5),
     })
 
-    physicsWorld.defaultContactMaterial.restitution = .3
-    const wallContactMaterial = new CANNON.ContactMaterial(wallBodyMaterial, {
-        restitution: .8
-    });
+    physicsWorld.defaultContactMaterial.restitution = .3;
+    //A `ContactMaterial` for the walls was built here and never added to the world, so it did
+    //nothing. Dropped rather than wired up: the walls only need to stop dice leaving the tray,
+    //and giving them a bouncier restitution makes the roll take longer to settle.
 }
 
 
@@ -149,7 +276,6 @@ function createWall() {
     const wallBody1 = new CANNON.Body({
         type: CANNON.Body.STATIC,
         shape: wallShape1,
-        material: wallBodyMaterial,
     });
     wallBody1.position.copy(wallMesh1.position);
     wallBody1.quaternion.copy(wallMesh1.quaternion);
@@ -222,30 +348,16 @@ function createWall() {
     physicsWorld.addBody(wallBody4);
 }
 
-function createDiceMesh(diceNumber, enemyColor) {
-    let boxMaterialOuter;
-    let boxMaterialInner;
-    if (diceNumber === 0) {
-        boxMaterialOuter = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(playerColour(), 1),
-        })
-        boxMaterialInner = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(playerColour()), 1),
-            roughness: 0,
-            shininess: 2,
-            side: THREE.DoubleSide
-        })
-    } else if (diceNumber === 1) {
-        boxMaterialOuter = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(enemyColor, 1),
-        })
-        boxMaterialInner = new THREE.MeshStandardMaterial({
-            color: convertHexValueToRGBOrViceVersa(pickContrastingColor(enemyColor), 1),
-            roughness: 0,
-            shininess: 2,
-            side: THREE.DoubleSide
-        })
-    }
+function createDiceMesh(colour) {
+    const boxMaterialOuter = new THREE.MeshStandardMaterial({
+        color: convertHexValueToRGBOrViceVersa(colour, 1),
+    });
+    const boxMaterialInner = new THREE.MeshStandardMaterial({
+        color: convertHexValueToRGBOrViceVersa(pickContrastingColor(colour), 1),
+        roughness: 0,
+        shininess: 2,
+        side: THREE.DoubleSide
+    });
 
     const diceMesh = new THREE.Group();
     const innerMesh = new THREE.Mesh(createInnerGeometry(), boxMaterialInner);
@@ -256,21 +368,122 @@ function createDiceMesh(diceNumber, enemyColor) {
     return diceMesh;
 }
 
-function createDice() {
-    const mesh = diceMesh.clone();
-    scene.add(mesh);
+/**
+ * One die: a body, and a mesh held inside a PIVOT.
+ *
+ * The pivot is what makes the relabelling possible. The body's orientation is copied onto the
+ * pivot every frame; the mesh sits inside it carrying a fixed extra rotation. So the die tumbles
+ * exactly as the physics says while showing whichever face it has been told to show.
+ */
+function createDice(colour) {
+    const pivot = new THREE.Group();
+    const mesh = createDiceMesh(colour);
+    pivot.add(mesh);
+    scene.add(pivot);
 
     const body = new CANNON.Body({
         mass: 1,
-        shape: new CANNON.Box(new CANNON.Vec3(.3, .3, .5)),
+        //A CUBE. See the header: the shipped 0.6 x 0.6 x 1.0 cuboid biased the roll badly and
+        //has only 8 rotational symmetries, which is too few to relabel an arbitrary face.
+        shape: new CANNON.Box(new CANNON.Vec3(DIE_HALF_EXTENT, DIE_HALF_EXTENT, DIE_HALF_EXTENT)),
         sleepTimeLimit: .1
     });
     physicsWorld.addBody(body);
 
-    return {
-        mesh,
-        body
-    };
+    return { pivot, mesh, body };
+}
+
+/**
+ * Which face is up, from the body's orientation.
+ *
+ * Rotate each local face normal and take whichever points most nearly upwards. This replaces the
+ * euler-angle ladder the file used to carry, which tested six angle windows on a 0.5 radian
+ * tolerance and gave up ("landed on edge") when none matched -- which happens routinely, because
+ * dice come to rest leaning on each other. A dot product always has an answer.
+ */
+function faceUp(body) {
+    let best = 1;
+    let bestY = -Infinity;
+    for (let face = 0; face < FACE_NORMALS.length; face++) {
+        const [x, y, z] = FACE_NORMALS[face];
+        const rotated = body.quaternion.vmult(new CANNON.Vec3(x, y, z));
+        if (rotated.y > bestY) {
+            bestY = rotated.y;
+            best = face + 1;
+        }
+    }
+    return best;
+}
+
+/** Run the world forward until every die is asleep, and report the faces. Nothing is drawn. */
+function simulateToRest(maxSteps = 2000) {
+    for (let step = 0; step < maxSteps; step++) {
+        //`world.step(1/60)`, NOT `fixedStep()`: fixedStep reads the wall clock, so in this loop
+        //it would run zero substeps and the world would never move. See the header.
+        physicsWorld.step(1 / 60);
+        if (diceArray.every((dice) => dice.body.sleepState === CANNON.Body.SLEEPING)) {
+            break;
+        }
+    }
+    return diceArray.map((dice) => faceUp(dice.body));
+}
+
+/**
+ * Rotate each die's MESH so the face that landed shows the face the rules chose.
+ *
+ * One of the 24 rotations of a cube, found by trying each until it maps landed onto wanted. The
+ * collision shape is unchanged by any of them, which is the whole trick.
+ */
+function applyFaceOffsets(landed, wanted) {
+    const rotations = cubeRotations();
+    diceArray.forEach((dice, index) => {
+        const from = landed[index];
+        const to = wanted[index] ?? from;
+        const match = rotations.find((rotation) => rotation.permutation[from - 1] === to);
+        dice.mesh.quaternion.copy(match ? match.quaternion : new THREE.Quaternion());
+    });
+}
+
+/** The 24 rotations of a cube, each with the face permutation it produces. */
+function cubeRotations() {
+    const axes = [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(0, 0, 1)
+    ];
+    const seen = new Set();
+    const unique = [];
+    for (const axisA of axes) {
+        for (let a = 0; a < 4; a++) {
+            for (const axisB of axes) {
+                for (let b = 0; b < 4; b++) {
+                    const quaternion = new THREE.Quaternion()
+                        .setFromAxisAngle(axisA, a * Math.PI / 2)
+                        .multiply(new THREE.Quaternion().setFromAxisAngle(axisB, b * Math.PI / 2));
+                    const permutation = FACE_NORMALS.map(([x, y, z]) => {
+                        const rotated = new THREE.Vector3(x, y, z).applyQuaternion(quaternion);
+                        let best = 1;
+                        let bestDot = -Infinity;
+                        for (let face = 0; face < FACE_NORMALS.length; face++) {
+                            const [nx, ny, nz] = FACE_NORMALS[face];
+                            const dot = rotated.x * nx + rotated.y * ny + rotated.z * nz;
+                            if (dot > bestDot) {
+                                bestDot = dot;
+                                best = face + 1;
+                            }
+                        }
+                        return best;
+                    });
+                    const key = permutation.join(",");
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        unique.push({ quaternion, permutation });
+                    }
+                }
+            }
+        }
+    }
+    return unique;
 }
 
 function createBoxGeometry() {
@@ -372,91 +585,62 @@ function createInnerGeometry() {
     ], false);
 }
 
-function addDiceEvents(dice, id) {
-    dice.body.addEventListener('sleep', (e) => {
-
-        dice.body.allowSleep = false;
-
-        const euler = new CANNON.Vec3();
-        e.target.quaternion.toEuler(euler);
-
-        const eps = .5;
-        let isZero = (angle) => Math.abs(angle) < eps;
-        let isHalfPi = (angle) => Math.abs(angle - .5 * Math.PI) < eps;
-        let isMinusHalfPi = (angle) => Math.abs(.5 * Math.PI + angle) < eps;
-        let isPiOrMinusPi = (angle) => (Math.abs(Math.PI - angle) < eps || Math.abs(Math.PI + angle) < eps);
-
-
-        if (isZero(euler.z)) {
-            if (isZero(euler.x)) {
-                showRollResults(1, id);
-            } else if (isHalfPi(euler.x)) {
-                showRollResults(4, id);
-            } else if (isMinusHalfPi(euler.x)) {
-                showRollResults(3, id);
-            } else if (isPiOrMinusPi(euler.x)) {
-                showRollResults(6, id);
-            } else {
-                // landed on edge => wait to fall on side and fire the event again
-                dice.body.allowSleep = true;
-            }
-        } else if (isHalfPi(euler.z)) {
-            showRollResults(2, id);
-        } else if (isMinusHalfPi(euler.z)) {
-            showRollResults(5, id);
-        } else {
-            // landed on edge => wait to fall on side and fire the event again
-            dice.body.allowSleep = true;
-        }
-    });
-}
-
-function showRollResults(score, id) {
-    if (scoreResultArray[0] === 0 && scoreResultArray[1] === 0) {
-        id === 0 ? scoreResultArray[0] = score : scoreResultArray[1] = score;
-    } else {
-        if (id === 0 && scoreResultArray[0] === 0) {
-            scoreResultArray[0] = score;
-        }
-        if (id === 1 && scoreResultArray[1] === 0) {
-            scoreResultArray[1] = score;
-        }
-        diceAnimationFinished = true;
-    }
-}
-
 function render() {
     physicsWorld.fixedStep();
 
     for (const dice of diceArray) {
-        dice.mesh.position.copy(dice.body.position)
-        dice.mesh.quaternion.copy(dice.body.quaternion)
+        //The PIVOT follows the body. The mesh inside it keeps the fixed rotation applied by
+        //`applyFaceOffsets()`, which is what makes the die show the face the rules chose while
+        //tumbling exactly as the physics dictates.
+        dice.pivot.position.copy(dice.body.position);
+        dice.pivot.quaternion.copy(dice.body.quaternion);
     }
 
     renderer.render(scene, camera);
-    requestAnimationFrame(render);
+    animationHandle = requestAnimationFrame(render);
 }
 
+/**
+ * Throw every die, and return enough to repeat the throw exactly.
+ *
+ * Draws from `cosmeticRandom()`, never `Math.random`. A draw per die on the game's stream would
+ * make the battle depend on how many dice were on screen, which is audit 5.3 Y all over again.
+ *
+ * The dice are spread ACROSS the tray. The original started every die at `(6, index * 1.5, 0)` --
+ * y is up, so with the two dice it was written for that is one above the other, and with nine it
+ * is a nine-high column dropped from twelve units.
+ */
 function throwDice() {
-    diceArray.forEach((d, dIdx) => {
-
-        d.body.velocity.setZero();
-        d.body.angularVelocity.setZero();
-
-        d.body.position = new CANNON.Vec3(6, dIdx * 1.5, 0);
-        d.mesh.position.copy(d.body.position);
-
-        d.mesh.rotation.set(2 * Math.PI * Math.random(), 0, 2 * Math.PI * Math.random())
-        d.body.quaternion.copy(d.mesh.quaternion);
-
-        const force = 3 + 5 * Math.random();
-        d.body.applyImpulse(
-            new CANNON.Vec3(-force, force, 0),
-            new CANNON.Vec3(0, 0, .3)
-        );
-
-        d.body.allowSleep = true;
+    const thrown = [];
+    diceArray.forEach((dice, index) => {
+        const column = index % 3;
+        const row = Math.floor(index / 3);
+        const position = new CANNON.Vec3(7 + column * 1.4, 1 + row * 1.6, 1 + column * 0.6 - row * 1.2);
+        const euler = {
+            x: 2 * Math.PI * cosmeticRandom(),
+            y: 2 * Math.PI * cosmeticRandom(),
+            z: 2 * Math.PI * cosmeticRandom()
+        };
+        const force = 3 + 5 * cosmeticRandom();
+        thrown.push({ position, euler, force });
+        applyThrow(dice, { position, euler, force });
     });
+    return thrown;
+}
+
+/** Put every die back exactly where the recorded throw started it. */
+function restoreThrow(thrown) {
+    diceArray.forEach((dice, index) => applyThrow(dice, thrown[index]));
+}
+
+function applyThrow(dice, { position, euler, force }) {
+    dice.body.velocity.setZero();
+    dice.body.angularVelocity.setZero();
+    dice.body.wakeUp();
+    dice.body.position.copy(position);
+    dice.body.quaternion.setFromEuler(euler.x, euler.y, euler.z);
+    dice.body.applyImpulse(new CANNON.Vec3(-force, force, 0), new CANNON.Vec3(0, 0, .3));
+    dice.body.allowSleep = true;
 }
 
 export function pickContrastingColor(rgbColor) {
@@ -475,9 +659,9 @@ export function pickContrastingColor(rgbColor) {
 
 export function removeCanvasIfExist() {
     const canvasContainer = document.getElementById(ids.threeCanvasForDice);
-    const canvasElement = document.getElementById(ids.canvas);
-    if (canvasElement) {
-        canvasContainer.removeChild(canvasElement);
+    const existing = document.getElementById(ids.canvas);
+    if (existing && canvasContainer) {
+        canvasContainer.removeChild(existing);
     }
 }
 

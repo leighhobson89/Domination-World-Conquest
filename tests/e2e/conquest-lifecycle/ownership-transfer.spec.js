@@ -3,12 +3,23 @@ import { test, expect } from "../../support/fixtures.js";
 // The full arc from taking a territory to using it normally.
 // docs/04-e2e-test-plan.md section 5.15.
 
-/** Take France with an overwhelming fleet and accept the victory. */
+/**
+ * Take France with an overwhelming fleet and accept the victory.
+ *
+ * The ending is asserted as "one of the winning states" rather than "Victory!" specifically.
+ * Battle overhaul B.4 replaced the old 5% / 15% / 10% thresholds with one symmetric
+ * `BREAK_THRESHOLD`, and the break test runs before annihilation can matter -- so a garrison of
+ * any size is ROUTED long before it is wiped out, and "Victory!" (a total wipe) is reachable only
+ * for a handful of units. What this helper is actually for is the arc AFTER the win, so which of
+ * the three winning states got there is not its business.
+ */
+const WINNING_ENDINGS = ["Victory!", "Rout The Enemy", "Massive Assault"];
+
 async function conquerFrance(game) {
     await game.loadScenario("outright-conquest");
     await game.launchWholeGarrison({ from: "Germany", to: "France" });
     const { ending } = await game.fightToResolution();
-    expect(ending).toBe("Victory!");
+    expect(WINNING_ENDINGS).toContain(ending);
     await expect.poll(async () => game.battle.resultsShown()).toBe(true);
     await game.battle.acceptResult();
     await expect.poll(async () => (await game.territory("France")).owner).toBe("Player");

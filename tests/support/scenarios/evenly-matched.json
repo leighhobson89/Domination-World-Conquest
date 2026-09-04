@@ -1,6 +1,6 @@
 {
   "name": "evenly-matched",
-  "description": "Two fleets of the same size, so five rounds pass without either side reaching a threshold. That is WarOutcome.FIGHT_AGAIN: another five rounds begin and the attacker pays war weariness for the stalemate.",
+  "description": "Two fleets of the same size. Under the dice model this is a GRIND: at equal strength both sides roll four dice and ties go to the defender, so the attacker is slowly losing and neither side reaches the break threshold for many rounds. Used wherever a spec needs a battle that is still running after several presses.",
   "territories": [
     {
       "territory": "Germany",

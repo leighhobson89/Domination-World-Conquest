@@ -6,8 +6,17 @@ import {
     toggleTransferAttackButton,
     paths,
     svg,
-    setColorOnMap
+    setColorOnMap,
+    showQueuedDefences
 } from './ui.js';
+//Battle overhaul B.8.4. The playback queue and its preference, for the ?e2e=1 hooks below.
+import {
+    pendingDefences,
+    recordDefence
+} from './src/state/battlePlayback.js';
+import {
+    defenderPlayback
+} from './src/ui/battle/DefenderPlayback.js';
 import {
     setZoomLevel,
     zoomMap
@@ -245,6 +254,20 @@ installTestHooks({
         }
         forcedRandomEvent = name;
         return name;
+    },
+    //Battle overhaul B.8.4. The playback path, reachable without waiting for an AI country to
+    //attack a chosen territory on a chosen turn. `queueDefence()` is the same call `doAttack()`
+    //makes; everything after it -- the queue, the reversed sides, the ledger, the timer, the
+    //Skip control -- is the real path.
+    queueDefence: (record) => {
+        recordDefence(record);
+        return pendingDefences();
+    },
+    pendingDefences: () => pendingDefences(),
+    playQueuedDefences: () => showQueuedDefences(),
+    setAlwaysSkipPlayback: (value) => {
+        defenderPlayback.setAlwaysSkip(Boolean(value));
+        return defenderPlayback.alwaysSkip();
     },
     battle: () => {
         const attackers = getAttackingArmyRemaining();
@@ -876,6 +899,13 @@ async function handleAITurn() {
     summaryWarsArray.length = 0;
     summaryWarsLostArray.length = 0;
     console.log("AI DONE!"); // Placeholder message for AI turn completed
+
+    //Battle overhaul B.8. Anything the AI did to a PLAYER territory this phase is replayed now,
+    //before the player's turn begins. It is a rendering of battles already fought and applied, so
+    //it can be skipped and cannot change anything -- and it waits on a timer, never on a click,
+    //which is what keeps it out of the turn engine's way.
+    await showQueuedDefences();
+
     initialiseNewPlayerTurn();
 
 }

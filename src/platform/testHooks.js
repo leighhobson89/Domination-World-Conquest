@@ -162,6 +162,23 @@ export function installTestHooks(accessors) {
         // entry goes through `recordActivity()` and the panel re-renders from the
         // event, so what the spec then reads is the real rendering path.
         recordActivity: (entry) => snapshot(accessors.recordActivity(entry)),
+
+        // Battle overhaul B.8.4. Queue a battle the player DEFENDED and play it back.
+        //
+        // The alternative was a seed lottery. Playback needs an AI country to attack a
+        // PARTICULAR player territory on a PARTICULAR turn, which no scenario can arrange and
+        // which is the reason B.8 shipped without an end-to-end test at all. What can be
+        // arranged is the record: `recordDefence()` is exactly what `doAttack()` calls, and the
+        // record is the whole input to the playback -- nothing is read back off the world when
+        // it draws, deliberately, because by then the territory may have changed hands.
+        //
+        // So this bypasses the AI turn and NOTHING else. The queue, the reversed sides, the
+        // ledger, the timer, the Skip control and the window's restoration afterwards are all
+        // the real path, which is the half that had never been exercised.
+        queueDefence: (record) => accessors.queueDefence(record),
+        pendingDefences: () => accessors.pendingDefences(),
+        playQueuedDefences: () => accessors.playQueuedDefences(),
+        setAlwaysSkipPlayback: (value) => accessors.setAlwaysSkipPlayback(value),
     };
 }
 

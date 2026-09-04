@@ -366,6 +366,14 @@ export const battle = {
     advance: sel.advanceButton,
     retreat: sel.retreatButton,
     siege: sel.siegeButton,
+    // Battle overhaul B.7. The bottom bar's third button carries "Assault!" when resuming out of
+    // a siege and "Last Push!" while the decisive round is on offer, so the selector is the same
+    // element and the LABEL is what says which job it is doing.
+    lastPush: sel.siegeBottomBarButton,
+    lastPushId: registryIds.siegeBottomBarButton,
+    digIn: sel.digInButton,
+    digInId: registryIds.digInButton,
+    reserves: sel.reservesButton,
     // TWO probabilities, written by the same `setAttackProbabilityOnUI(probability,
     // situation)`: situation 0 is the ATTACK WINDOW's bar, situation 1 is the BATTLE UI's.
     // They are different elements and only one of them is live at a time -- the attack
@@ -381,6 +389,20 @@ export const battle = {
     survived: sel.battleResultsRow3Row2Survived,
     rounds: sel.battleResultsRow3Row3RoundsCount,
     siegeStats: sel.battleResultsRow3Row3SiegeStats,
+    // Battle overhaul B.6.3 / B.6.4 / B.6.7. The three panels the overhaul added.
+    ledger: sel.battleLedger,
+    ledgerAttacker: sel.battleLedgerAttacker,
+    ledgerDefender: sel.battleLedgerDefender,
+    roundLog: sel.battleRoundLog,
+    roundLogList: sel.battleRoundLogList,
+    roundLogToggle: sel.battleRoundLogToggle,
+    attackPreview: sel.attackPreview,
+    attackPreviewAttacker: sel.attackPreviewAttacker,
+    attackPreviewDefender: sel.attackPreviewDefender,
+    attackPreviewForecast: sel.attackPreviewForecast,
+    advanceId: registryIds.advanceButton,
+    retreatId: registryIds.retreatButton,
+    reservesId: registryIds.reservesButton,
 };
 
 /** Phase indices, as `currentTurnPhase` / `window.__game.phase()` reports them. */
