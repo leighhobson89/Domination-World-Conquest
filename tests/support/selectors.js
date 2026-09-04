@@ -396,6 +396,13 @@ export const battle = {
     roundLog: sel.battleRoundLog,
     roundLogList: sel.battleRoundLogList,
     roundLogToggle: sel.battleRoundLogToggle,
+    roundSummary: sel.battleRoundSummary,
+    //The pairing animation. It lives OUTSIDE the battle window -- see the header of
+    //src/ui/battle/ClashPanel.js -- so a spec that scopes a query to `#battleContainer` will
+    //not find it.
+    clashPanel: sel.battleClashPanel,
+    clashPairs: sel.battleClashPairs,
+    clashSummary: sel.battleClashSummary,
     attackPreview: sel.attackPreview,
     attackPreviewAttacker: sel.attackPreviewAttacker,
     attackPreviewDefender: sel.attackPreviewDefender,

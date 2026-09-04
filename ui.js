@@ -108,6 +108,9 @@ import {
     diceStage
 } from './src/ui/battle/DiceStage.js';
 import {
+    clashPanel
+} from './src/ui/battle/ClashPanel.js';
+import {
     forceLedger
 } from './src/ui/battle/ForceLedger.js';
 import {
@@ -1329,10 +1332,17 @@ document.addEventListener("DOMContentLoaded", function() {
     //label and the state came to disagree in the first place.
     battleUI.create();
 
-    //A click anywhere over the battle window settles the dice at once. They are decoration -- the
-    //round is already decided -- so a player who does not want to watch never has to.
+    //The pairing animation lives in its own layer over the dice canvas, so it is built here
+    //alongside the window it belongs to rather than lazily on the first round.
+    clashPanel.create();
+
+    //A click anywhere over the battle window settles the dice AND finishes the clash at once.
+    //Both are decoration -- the round is already decided -- so a player who does not want to
+    //watch never has to. `finish()` does not dismiss the panel: a player who skipped the
+    //animation still wants to read what it was saying.
     document.getElementById(ids.battleContainer)?.addEventListener("click", function() {
         diceStage.skip();
+        clashPanel.finish();
     }, true);
 
     //BATTLE RESULTS WINDOW
@@ -5006,6 +5016,7 @@ function defencePlaybackDeps() {
             //widths the replay happened to leave behind.
             battleWindow.resetForAttack();
             diceStage.hide();
+            clashPanel.hide();
         }
     };
 }
@@ -5022,6 +5033,12 @@ export function toggleDiceCanvas(value) {
         document.getElementById(ids.threeCanvasForDice).style.display = "block";
     } else {
         document.getElementById(ids.threeCanvasForDice).style.display = "none";
+        //The clash panel is a sibling of the canvas and not a child of the battle window, so it
+        //does not go down with either of them. Every call site that puts the dice away is a call
+        //site that has finished with the round they showed -- a battle banked, a retreat, a
+        //defeat -- and a pairing animation left playing over the results screen is the one thing
+        //this panel must never do.
+        clashPanel.hide();
     }
 }
 

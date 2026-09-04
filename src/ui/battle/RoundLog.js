@@ -107,8 +107,17 @@ export function create() {
     });
     const list = el("div", { id: ids.battleRoundLogList, class: "battleRoundLogList" });
 
-    root = el("div", { id: ids.battleRoundLog, class: "battleRoundLog" }, [toggle, list]);
-    parts = { toggle, list };
+    //The last round, in a sentence, next to the toggle.
+    //
+    //The clash panel over the dice is TRANSIENT by design -- it plays, it fades, and the window
+    //is back to numbers. That is right for an animation and wrong as the only account of the
+    //round: a player who looked away, or who skipped, is left with two army totals that changed
+    //and no statement of why. This line stays up until the next round replaces it, and it is the
+    //same facts in the same words.
+    const summary = el("div", { id: ids.battleRoundSummary, class: "battleRoundSummary" });
+
+    root = el("div", { id: ids.battleRoundLog, class: "battleRoundLog" }, [toggle, summary, list]);
+    parts = { toggle, summary, list };
 
     toggle.addEventListener("click", (event) => {
         //The battle container listens in CAPTURE for a click anywhere to settle the dice, which is
@@ -164,12 +173,47 @@ export function update(records) {
     parts.toggle.innerHTML = expanded
         ? `Rounds ▾ (${rows.length})`
         : `Rounds ▸ (${rows.length})`;
+
+    parts.summary.innerHTML = rows.length === 0 ? "" : describeRound(rows[rows.length - 1]);
+}
+
+/**
+ * The last round in one sentence.
+ *
+ * Derived here rather than stored, for the reason the activity feed records: a record holding
+ * phrasing bakes today's wording into every save file. It says the three things the numbers on
+ * their own do not -- how many dice each side rolled, how many pairings each side took, and
+ * whether any of them were unanswered, which is the rule a player is least likely to guess.
+ */
+export function describeRound(record) {
+    if (!record) {
+        return "";
+    }
+    if (record.lastPush) {
+        return "Last push — the territory was taken outright.";
+    }
+    const won = record.defenderLosses ?? 0;
+    const lost = record.attackerLosses ?? 0;
+    const unanswered = Array.isArray(record.pairings)
+        ? record.pairings.filter((pairing) => pairing.unmatched).length
+        : 0;
+
+    let sentence = `R${record.round}: `
+        + `${record.attackerDice}v${record.defenderDice} dice — `
+        + `you won ${won}, lost ${lost}`;
+    if (unanswered > 0) {
+        sentence += `, ${unanswered} unanswered`;
+    }
+    return `${sentence}.`;
 }
 
 /** Empty it. Called when a battle opens, so the previous one's rounds do not carry over. */
 export function reset() {
     setExpanded(false);
     update([]);
+    if (parts) {
+        parts.summary.innerHTML = "";
+    }
 }
 
 export function show() {
@@ -188,5 +232,5 @@ export function destroy() {
 }
 
 export const roundLog = {
-    create, mountInto, update, reset, setExpanded, isExpanded, show, hide, destroy
+    create, mountInto, update, reset, setExpanded, isExpanded, show, hide, destroy, describeRound
 };

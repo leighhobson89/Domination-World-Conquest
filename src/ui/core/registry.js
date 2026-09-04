@@ -372,6 +372,17 @@ export const ids = Object.freeze({
     battleRoundLog: "battleRoundLog",
     battleRoundLogList: "battleRoundLogList",
     battleRoundLogToggle: "battleRoundLogToggle",
+    //The pairing animation: which die met which, who took the pairing, and why. It has its OWN
+    //container rather than living inside the battle window, because `#battleContainer` is
+    //transformed and a transform creates a stacking context -- see the header of ClashPanel.js.
+    battleClashContainer: "battle-clash-container",
+    battleClashPanel: "battleClashPanel",
+    battleClashTitle: "battleClashTitle",
+    battleClashPairs: "battleClashPairs",
+    battleClashSummary: "battleClashSummary",
+    //The one-line plain-English account of the round just fought, in the round log's bar. The
+    //clash animation is transient; this stays up until the next round replaces it.
+    battleRoundSummary: "battleRoundSummary",
     //Battle overhaul B.6.7. The itemised dice preview in the ATTACK window: the dice you would
     //roll, the modifiers that made them, and an honest forecast -- all before INVADE!.
     attackPreview: "attackPreview",

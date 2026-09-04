@@ -81,6 +81,10 @@
     <canvas id="canvas">
     </canvas>
 </div>
+<!-- The pairing animation. AFTER the dice canvas on purpose: `#battleContainer` is
+     transformed, so nothing inside it can paint over the canvas, and document order is
+     what puts this on top. See src/ui/battle/ClashPanel.js. -->
+<div id="battle-clash-container"></div>
 <div id="battleResultsContainer"></div>
 <div class="top-table-container" id="top-table-container">
 </div>

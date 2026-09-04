@@ -206,3 +206,48 @@ describe("the two resource windows are one design", () => {
         expect(lonely.map((s) => s.trim()), "one window styled without the other").toEqual([]);
     });
 });
+
+describe("the clash panel gives nothing away before the dice land", () => {
+    // The rules decide a round before a die is thrown -- that is what makes a battle
+    // reproducible under `?seed=` and it is not going to change. The consequence the
+    // player must never see is the ANSWER arriving while the dice are still in the
+    // air, which turns the roll into an animation played over a decision they have
+    // already been given.
+    //
+    // `src/ui/battle/ClashPanel.js` handles that by opening blank and filling in on
+    // `reveal()`, which `battle.js` chains to the dice coming to rest. But what makes
+    // "blank" actually blank is three rules in this stylesheet, and every one of them
+    // is a `:not(.is-revealed)` that a later edit could quietly drop without any test
+    // noticing -- the panel would still work, still animate, and simply tell the
+    // player the result two seconds early.
+
+    it("withholds the pips until the panel is revealed", () => {
+        expect(CODE).toMatch(
+            /\.clashPanel:not\(\.is-revealed\)\s+\.clashPip\.is-on\s*\{[^}]*background-color:\s*transparent/);
+    });
+
+    it("withholds the modifier badges too", () => {
+        // A badge says a die is fighting at +1. On a blank die that is the only number
+        // on screen, and it is a number about a roll that has not happened.
+        expect(CODE).toMatch(
+            /\.clashPanel:not\(\.is-revealed\)\s+\.clashDieBadge\s*\{[^}]*opacity:\s*0/);
+    });
+
+    it("withholds the summary, and reserves its space so the panel does not jump", () => {
+        // The summary is the whole result in three lines -- who won the round, how many
+        // pairings, what it cost both sides. `visibility`, not `display`: hiding it by
+        // display would collapse the panel and it would grow again on reveal, which
+        // reads as a glitch at exactly the moment the player is being asked to look.
+        expect(CODE).toMatch(
+            /\.clashPanel:not\(\.is-revealed\)\s+\.clashSummary\s*\{[^}]*visibility:\s*hidden/);
+    });
+
+    it("keeps the dice themselves visible, so it is the numbers that are withheld", () => {
+        // The empty dice and sockets ARE information: four against one, three of them
+        // unanswered, is the shape of the round and it is true before anything is
+        // rolled. Hiding the dice as well would leave an empty box.
+        const die = CODE.match(/\n\.clashDie \{([^}]*)\}/);
+        expect(die, "style.css has no .clashDie rule").not.toBeNull();
+        expect(die[1]).toMatch(/opacity:\s*1/);
+    });
+});

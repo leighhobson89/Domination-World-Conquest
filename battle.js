@@ -125,6 +125,9 @@ import {
     diceStage
 } from './src/ui/battle/DiceStage.js';
 import {
+    clashPanel
+} from './src/ui/battle/ClashPanel.js';
+import {
     forceLedger
 } from './src/ui/battle/ForceLedger.js';
 import {
@@ -815,7 +818,27 @@ export async function processRound(choices = {}) {
     //`countryColor` and not the path's stroke: the stroke is selection chrome and is black most
     //of the time. When the defender has no colour, DiceStage resolves a theme token itself -- a
     //literal here would be a colour decision made outside the layer that draws.
-    diceStage.showRound(record, defendingTerritory.countryColor);
+    const rolled = diceStage.showRound(record, defendingTerritory.countryColor);
+
+    //And then what the dice MEANT -- but only once they have landed on it.
+    //
+    //The panel goes up EMPTY straight away: both countries, their dice counts, one row per
+    //pairing, every face blank. `reveal()` fills the faces in and plays the comparison out, and it
+    //is chained to the dice coming to REST rather than to a timer. A fixed lead was tried and is
+    //wrong in both directions -- too short and the account covers the roll, too long and the
+    //player watches a settled pile do nothing -- and worse, either way it can print the result
+    //while the dice are still in the air, which makes the roll look like an animation played over
+    //an answer the game had already given.
+    //
+    //This is NOT the round waiting on a render loop. Nothing above this line is deferred; the
+    //battle window's numbers, the ledger, the round log and the outcome are all already correct.
+    //`showRound()` resolves immediately when the dice cannot be drawn at all -- no GPU, a lost
+    //context -- so the reveal still happens, just at once.
+    clashPanel.play(record, {
+        attacker: playerCountryName(),
+        defender: defendingTerritory.dataName
+    });
+    rolled?.finally?.(() => clashPanel.reveal());
 
     //The odds shown are now the honest question -- "will I take it" -- measured by playing the
     //rest of the battle out five hundred times on a stream of its own. The old number was the

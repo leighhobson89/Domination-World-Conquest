@@ -769,42 +769,18 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                 {
                     id: "terrain-and-defence",
                     title: "Terrain and Defence",
-                    summary: "Mountains, coasts, forts, and the multiplier that decides battles.",
+                    summary: "Mountains, coasts, forts, and what fortification actually does to an attack.",
                     body: [
                         p(
-                            "A defender's army is multiplied before a battle is scored. This is " +
-                                "the most important number on this page and the least visible " +
-                                "one in the game."
+                            "Fortification is the one defensive investment you can make, and it " +
+                                "does TWO different things depending on what is being fought. " +
+                                "Knowing which is which is most of knowing when to build a fort."
                         ),
-                        h("The defence multiplier"),
+                        h("The fortification bonus"),
                         p(
-                            "Add the territory's fort bonus to its mountain bonus, divide by " +
-                                "15, and round UP. That is what the defender's army is " +
-                                "multiplied by."
+                            "Every territory has one number: its fort bonus plus its mountain " +
+                                "bonus. Everything on this page is a band on that number."
                         ),
-                        table(
-                            ["Total bonus", "Defender's army is multiplied by"],
-                            [
-                                ["0", "0 — no defence at all"],
-                                ["1 to 15", "2×"],
-                                ["16 to 30", "3×"],
-                                ["31 to 45", "4×"],
-                                ["and so on", "one more per 15 points"],
-                            ]
-                        ),
-                        p(
-                            "Read the first row again. A coastal territory with no forts and no " +
-                                "mountains has a total bonus of zero, and therefore defends at " +
-                                "zero — any attack on it succeeds outright regardless of how " +
-                                "large its garrison is. Your territories start with no forts."
-                        ),
-                        p(
-                            "So: the first fort in a territory is not an incremental " +
-                                "improvement. It is the difference between a garrison that " +
-                                "fights and a garrison that does not. Build one everywhere " +
-                                "before you build anything else anywhere."
-                        ),
-                        h("Where the bonus comes from"),
                         ul(
                             "FORTS — the fort bonus is forts × (forts + 1) × 10, scaled by the " +
                                 "development index. Quadratic, so five forts are worth far more " +
@@ -814,6 +790,51 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "map, free, and permanent. It cannot be destroyed by a siege, " +
                                 "which forts can.",
                             "BEING LANDLOCKED — a flat 10 points for any non-coastal territory."
+                        ),
+                        h("In an open battle, fortification takes DICE off the attacker"),
+                        table(
+                            ["Fort bonus + mountain bonus", "Effect on an attacker"],
+                            [
+                                ["under 25", "none"],
+                                ["25 to 99", "rolls 1 fewer die, all battle"],
+                                ["100 or more", "rolls 2 fewer dice, all battle"],
+                            ]
+                        ),
+                        p(
+                            "Dice, not strength — and that is the strongest form the bonus could " +
+                                "take. A die the attacker does not roll is a pairing they cannot " +
+                                "contest, and no amount of force wins it back. One fort is a " +
+                                "nuisance, two is a die, three is a fortress."
+                        ),
+                        p(
+                            "Note what this means for an unfortified territory: it defends with " +
+                                "its garrison and nothing else. A large garrison in a flat, " +
+                                "coastal, fortless territory is not defenceless — it simply " +
+                                "brings no terrain to the fight, and an attacker with comparable " +
+                                "force will roll comparable dice."
+                        ),
+                        h("In a SIEGE, fortification is the whole contest"),
+                        p(
+                            "A siege compares the besieger's siege score against this same " +
+                                "number. Forts are literally what keeps a siege alive: a siege " +
+                                "cannot take a territory until its forts are gone, and building " +
+                                "one more fort under siege is the only move that directly lowers " +
+                                "the besieger's margin."
+                        ),
+                        h("The multiplier, and where it still applies"),
+                        p(
+                            "There is an older figure the game still uses in two places: the " +
+                                "bonus divided by 15 and rounded UP, applied as a multiplier to " +
+                                "the defending army. It appears in the odds bar on the attack " +
+                                "screen and in the AI's threat assessment. It does NOT appear in " +
+                                "the dice model, so it decides no open battle — which is why the " +
+                                "bar and the dice preview can disagree with each other."
+                        ),
+                        planned(
+                            "Two representations of one idea is one too many. The dice model is " +
+                                "the one that fights, so the bar should eventually be derived " +
+                                "from it rather than from the multiplier — at which point the " +
+                                "attack screen would show one number that means one thing."
                         ),
                         h("The area term"),
                         p(
@@ -1146,7 +1167,7 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                 {
                     id: "unit-types",
                     title: "Unit Types",
-                    summary: "Infantry, assault, air and naval — and which is a trap.",
+                    summary: "Infantry, assault, air and naval — what each is worth, and which is a trap.",
                     body: [
                         table(
                             ["Unit", "Gold", "Manpower", "Oil/turn", "Counts as", "Siege value"],
@@ -1159,67 +1180,76 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("Read the 'counts as' column carefully"),
                         p(
-                            "An army's strength in battle is the sum of what its units count " +
-                                "as. One naval unit is worth twenty thousand infantry in that " +
-                                "sum — and costs twenty naval units' worth of gold to buy, which " +
-                                "is to say 200 gold against the 200,000 gold that twenty " +
-                                "thousand infantry would cost."
+                            "An army's FORCE is the sum of what its units count as, and force " +
+                                "is the only thing that decides how many dice you roll. One " +
+                                "naval unit is worth twenty thousand infantry in that sum — and " +
+                                "costs 200 gold against the 200,000 gold that twenty thousand " +
+                                "infantry would cost."
                         ),
                         p(
                             "Infantry are therefore very nearly worthless to buy. One infantry " +
                                 "unit costs a thousand productive population and adds one point " +
-                                "of strength, while one assault unit costs the same thousand " +
-                                "people and adds a thousand points. The infantry you have are " +
-                                "the infantry you started with and the infantry you capture."
+                                "of force, while one assault unit costs the same thousand people " +
+                                "and adds a thousand points. The infantry you have are the " +
+                                "infantry you started with and the infantry you capture."
                         ),
                         planned(
                             "The intent was clearly that infantry are bought in troops of a " +
                                 "thousand — the manpower price is literally named for it — and " +
-                                "the strength conversion counts them as one. Fixing the mismatch " +
+                                "the force conversion counts them as one. Fixing the mismatch " +
                                 "changes the value of every army on the map, so it belongs to a " +
                                 "deliberate balance pass. Until then, treat infantry as a " +
                                 "garrison you inherit rather than a unit you buy."
                         ),
-                        h("The matchup matrix"),
+                        h("What composition actually does in a battle"),
                         p(
-                            "Any unit type can fight any other. How well it does is scaled by " +
-                                "this table — the row is the attacking type, the column the " +
-                                "defending one. 1.0 is neutral, and same against same is always " +
-                                "1.0."
+                            "Force decides your DICE COUNT. What your army is MADE OF decides " +
+                                "your die MODIFIERS — a flat bonus or penalty added to every " +
+                                "die you roll. There are only three composition rules and they " +
+                                "are the same for both sides:"
                         ),
                         table(
-                            ["Attacker \\ Defender", "vs Infantry", "vs Assault", "vs Air", "vs Naval"],
+                            ["Rule", "Who gets it", "Effect"],
                             [
-                                ["Infantry", "1.0", "0.6", "0.4", "0.5"],
-                                ["Assault", "1.4", "1.0", "0.5", "0.7"],
-                                ["Air", "1.5", "1.6", "1.0", "1.4"],
-                                ["Naval", "0.8", "0.7", "0.5", "1.0"],
+                                ["Air superiority", "has air, they have none — or 3× theirs", "+1 to every die"],
+                                ["No armour against armour", "has no assault units, they have some", "−1 to every die"],
+                                ["Naval landing", "attacker ≥ ¼ naval, coastal target", "+1 to every die"],
                             ]
                         ),
                         p(
-                            "Air is the best attacker in the game against everything and the " +
-                                "hardest thing to attack: nothing scores better than 0.5 against " +
-                                "it. Naval is the weakest attacker per unit but by far the " +
-                                "strongest thing to have in a sum, and the best besieger."
+                            "That is the whole of it. There is no per-unit matchup: an air unit " +
+                                "does not fight an assault unit at some multiple. Air matters " +
+                                "because HAVING air and denying it to the enemy is worth +1 on " +
+                                "every die, which is worth about seventeen points on every " +
+                                "pairing you contest."
                         ),
                         h("What to build"),
                         ul(
-                            "AIR if you intend to attack. Best matchups in the game, and the " +
-                                "best value per point of manpower after naval.",
-                            "NAVAL if you intend to besiege, or to hold a lot of strength in " +
-                                "one place. Bear the 1,000 oil a turn in mind before you buy the " +
-                                "first one.",
-                            "ASSAULT as the general-purpose unit. Cheap in manpower, cheap in " +
-                                "oil, good against infantry, and the AI's armies are mostly " +
-                                "infantry.",
-                            "INFANTRY: do not buy. Keep what you inherit."
+                            "AIR, always some. A single air unit against an enemy with none is " +
+                                "+1 on every die you roll, for the rest of the battle. It is the " +
+                                "cheapest modifier in the game and the only one you can carry to " +
+                                "a target rather than having to find there.",
+                            "ASSAULT as the bulk of an army. Cheap in manpower, cheap in oil, " +
+                                "and having ANY of it is what stops the enemy's armour costing " +
+                                "you −1 on every die.",
+                            "NAVAL for force and for sieges. Twenty thousand points of force per " +
+                                "unit is the fastest way to cross a dice band, and it is the best " +
+                                "besieger by a distance. Bear the 1,000 oil a turn in mind first.",
+                            "INFANTRY: do not buy. Keep what you inherit and what you capture."
+                        ),
+                        h("Grounded vehicles do not fight"),
+                        p(
+                            "Vehicles need oil. A territory short of oil defends with only the " +
+                                "units it can still run, and the attack screen already counts it " +
+                                "that way. A target whose oil you can see is short is much softer " +
+                                "than its army column suggests — and the same is true of you."
                         ),
                     ],
                 },
                 {
                     id: "declaring-an-attack",
                     title: "Declaring an Attack",
-                    summary: "Choosing a target, reading the odds, and what INVADE costs.",
+                    summary: "Choosing a target, gathering an army, and what INVADE costs before a die is rolled.",
                     body: [
                         p(
                             "An attack is armed in two steps: click the territory you are " +
@@ -1234,37 +1264,75 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "game that concentrates force across a frontier, and it is how a " +
                                 "hard target is taken."
                         ),
-                        h("The probability bar"),
-                        p("It updates as you add units. What it is computing:"),
-                        ul(
-                            "Your side: the total strength of the units you have committed, " +
-                                "multiplied by the average development index of the territories " +
-                                "they came from, multiplied by how hard the defender's continent " +
-                                "is to invade.",
-                            "Their side: the total strength of the defender's USEABLE units " +
-                                "— grounded vehicles do not defend — multiplied by the " +
-                                "territory's defence multiplier, and adjusted for its area.",
-                            "The bar is your share of the total."
+                        h("The three numbers on the attack screen, and why they differ"),
+                        p(
+                            "They answer three different questions and they are all honest. " +
+                                "Reading one as an answer to another is the commonest way to " +
+                                "lose an army."
+                        ),
+                        table(
+                            ["Shown", "What it is", "Good for"],
+                            [
+                                ["The bar", "a broad strength comparison", "a rough feel, nothing more"],
+                                ["The dice preview", "the dice both sides will roll", "the fight itself"],
+                                ["The forecast", "the battle played out 500 times", "will I take it?"],
+                            ]
                         ),
                         p(
-                            "Note the asymmetry: your development index helps you, and theirs " +
-                                "does not help them directly. And note that the defender's " +
-                                "grounded units do not fight — a target whose oil you can see is " +
-                                "short is much softer than its army column suggests."
+                            "The bar and the dice preview can disagree, and when they do the " +
+                                "preview is the one that happens. The bar carries two thumbs on " +
+                                "the scale that the dice model does not use: an attacker's " +
+                                "multiplier of 1.44, and the defender's fort multiplier. Those " +
+                                "belong to the siege calculation, which is a different model — " +
+                                "see \"How a Battle Is Fought\". Take the bar as a mood and the " +
+                                "preview as a fact."
+                        ),
+                        h("What goes into the dice preview"),
+                        ul(
+                            "Your side: the force you have committed, multiplied by the average " +
+                                "development index of the territories it came from, multiplied by " +
+                                "how hard the defender's continent is to invade.",
+                            "Their side: the force of the defender's USEABLE units, adjusted for " +
+                                "the territory's area.",
+                            "That ratio picks each side's number of dice from a table. Forts, " +
+                                "air, armour and a naval landing then appear as named modifiers " +
+                                "underneath, because those are the parts you can do something " +
+                                "about."
+                        ),
+                        p(
+                            "It is live: it re-itemises on every plus and minus press, from the " +
+                                "same functions that will resolve the battle — not a summary of " +
+                                "them. If it says four dice against three, that is what will " +
+                                "happen."
+                        ),
+                        p(
+                            "Add units until the preview gains a die. That is the moment worth " +
+                                "spending for, it is worth far more than the same units spent " +
+                                "anywhere inside a band, and it is visible before you commit " +
+                                "anything."
                         ),
                         h("What INVADE! costs immediately"),
                         p(
-                            "The units you committed leave their home territories the moment " +
-                                "you press it. They are gone from the map, gone from those " +
+                            "The units you committed leave their home territories the moment you " +
+                                "press it. They are gone from the map, gone from those " +
                                 "territories' defence, and gone from the top bar. If you retreat " +
-                                "cleanly they come back one turn later; if you scatter, two " +
-                                "turns later and 30% fewer."
+                                "before the first round they come back one turn later; if you " +
+                                "scatter, two turns later and 30% fewer."
                         ),
                         p(
                             "The consequence is worth stating plainly: an attack launched from " +
                                 "your only fortified territory leaves that territory undefended " +
-                                "for at least two turns, during the AI phase, while it is " +
-                                "holding your border."
+                                "for at least two turns, during the AI phase, while it is holding " +
+                                "your border."
+                        ),
+                        h("The three things worth checking before every attack"),
+                        ul(
+                            "How many FORTS does the target have? Forts do not make the defender " +
+                                "stronger — they take dice off YOU, and a die you do not roll " +
+                                "cannot be won back by anything.",
+                            "Do they have air, and do I? Air superiority is ±1 on every die of " +
+                                "the battle and it is decided before the first roll.",
+                            "What am I leaving behind? The units go the moment you press INVADE."
                         ),
                         h("The siege option"),
                         p(
@@ -1280,91 +1348,263 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "siege is a commitment, and the game will not let you commit an " +
                                 "army to one you cannot win."
                         ),
+                        p(
+                            "Besiege a FORTRESS. An assault against three forts rolls two fewer " +
+                                "dice for the whole battle; a siege attacks the forts themselves " +
+                                "and destroys them one at a time. A heavily fortified territory " +
+                                "is a bad assault and a good siege, provided you bring naval and " +
+                                "air to make the siege margin positive."
+                        ),
                     ],
                 },
                 {
                     id: "resolving-a-battle",
-                    title: "Resolving a Battle",
-                    summary: "Rounds, skirmishes, and the six ways a battle can end.",
+                    title: "How a Battle Is Fought",
+                    summary: "The whole dice model in order: force, dice, modifiers, pairings, casualties, and the five ways it ends.",
                     body: [
-                        h("The structure"),
                         p(
-                            "A battle is five rounds. The total number of skirmishes is the " +
-                                "smaller of the two armies' unit counts, divided evenly across " +
-                                "the five rounds."
+                            "This is the complete rule. Every battle in the game — yours, the " +
+                                "AI's, and the ones you are shown a replay of — is resolved by " +
+                                "exactly what follows, with no separate model anywhere."
                         ),
+                        h("One press of the button is one ROUND"),
                         p(
-                            "Each skirmish is one unit against one unit, and exactly one of " +
-                                "them dies — there are no partial casualties. Your chance of " +
-                                "winning a skirmish is the probability bar, multiplied by the " +
-                                "matchup between the two unit types, capped at 65%."
+                            "A round is: both sides roll dice, the dice are paired off, the " +
+                                "loser of each pairing takes casualties. Then the state of the " +
+                                "two armies is checked. Rounds continue until one side breaks — " +
+                                "there is no fixed number of them, and a battle typically runs " +
+                                "five to eight."
                         ),
+                        h("Step 1 — force becomes a SHARE"),
                         p(
-                            "That cap is the reason a battle is never a formality. A ten-to-one " +
-                                "attacker still loses roughly a third of its exchanges, and will " +
-                                "take real casualties taking an undefended-looking territory."
+                            "Both armies are weighed in people (see Unit Types). Your total is " +
+                                "multiplied by your territories' development and by the " +
+                                "defender's continent modifier; theirs is adjusted for the " +
+                                "territory's area. Your share is your total over the two totals, " +
+                                "and it is what the bar shows."
                         ),
-                        h("Within a round"),
+                        h("Step 2 — the share becomes a number of DICE"),
                         p(
-                            "Your unit types engage in a RANDOM order, and each type fights " +
-                                "until it is spent or the round's skirmish budget runs out. If " +
-                                "the first type drawn has nothing left, the round stops there. " +
-                                "So a round in which your empty unit type is drawn first is a " +
-                                "quiet round — this is a real source of variance and it is " +
-                                "deliberate."
+                            "This is the heart of the game and it is a table, not a curve. Each " +
+                                "side looks up its OWN share:"
                         ),
-                        p(
-                            "Between rounds the probability is recalculated from the survivors, " +
-                                "so a battle going badly gets worse."
-                        ),
-                        h("The six outcomes"),
                         table(
-                            ["Outcome", "Condition", "Result"],
+                            ["Your share of the two strengths", "Dice you roll"],
                             [
-                                ["You win", "every defender dead", "territory taken, survivors garrison it"],
-                                ["You lose", "every attacker dead", "attack fails"],
-                                [
-                                    "Defender routed",
-                                    "defender below 5% of its starting strength",
-                                    "territory taken AND half the surviving defenders join you",
-                                ],
-                                [
-                                    "Last push",
-                                    "defender below 15% of its starting strength",
-                                    "you may take it at the cost of 20% of your survivors",
-                                ],
-                                [
-                                    "You are routed",
-                                    "you are below 10% of your starting strength",
-                                    "attack fails",
-                                ],
-                                [
-                                    "Fight again",
-                                    "none of the above",
-                                    "another five rounds, and you lose 5% to desertion",
-                                ],
+                                ["70% or more", "5"],
+                                ["50% to 70%", "4"],
+                                ["35% to 50%", "3"],
+                                ["20% to 35%", "2"],
+                                ["under 20%", "1"],
                             ]
                         ),
                         p(
-                            "The rout is the outcome worth playing for. Absorbing half of a " +
-                                "beaten garrison is the only way in the game to GAIN army " +
-                                "without paying gold and manpower for it."
+                            "Two consequences follow, and between them they are most of the " +
+                                "strategy in this game."
                         ),
-                        h("Your buttons"),
                         ul(
-                            "ADVANCE — fight the next round.",
-                            "RETREAT — leave. Free between rounds, costly mid-round. See " +
-                                "\"Retreating\".",
-                            "SIEGE — convert the attack into a standing siege, if your odds " +
-                                "were 15% or better and you have not besieged this target before."
+                            "BANDS MEAN THRESHOLDS. Going from 49% to 51% is worth a whole die. " +
+                                "Going from 51% to 68% is worth nothing at all. The dice preview " +
+                                "on the attack screen is where you find the edge you are near.",
+                            "THE UNDERDOG ALWAYS ROLLS. The bottom band is one die, never zero, " +
+                                "so overwhelming force never buys a free round — it buys the " +
+                                "maximum of five dice and no more."
                         ),
-                        h("A known imprecision"),
                         p(
-                            "The rout and last-push thresholds are measured against the armies " +
-                                "as they stood at the START of the round, not after that round's " +
-                                "casualties — a full round of lag. It is logged as known issue " +
-                                "AP; correcting it moves every threshold by one round, which is " +
-                                "a balance change."
+                            "The defender is capped at FOUR dice however strong it is. At even " +
+                                "strength both sides sit in the same band and both roll four, so " +
+                                "the cap does nothing there; it bites only when the defender is " +
+                                "the stronger side, and it is what stops a heavily garrisoned " +
+                                "territory being untouchable. You can always attack it. You will " +
+                                "just do it very badly."
+                        ),
+                        h("Step 3 — terrain and composition become MODIFIERS"),
+                        p(
+                            "A modifier is one of two completely different things, and the " +
+                                "battle screen labels which:"
+                        ),
+                        ul(
+                            "A FACE bonus adds to every die that side rolls. It changes who wins " +
+                                "the pairings you are contesting.",
+                            "A DICE change alters how many dice a side rolls at all. This is " +
+                                "strictly stronger, because only a dice change can do anything " +
+                                "about the opponent's unmatched dice."
+                        ),
+                        table(
+                            ["Modifier", "Applies to", "Effect"],
+                            [
+                                ["Their fortifications", "fort + mountain ≥ 25", "attacker rolls 1 fewer DIE"],
+                                ["Their fortifications", "fort + mountain ≥ 100", "attacker rolls 2 fewer DICE"],
+                                ["Air superiority", "either side", "+1 to every die"],
+                                ["No armour against armour", "either side", "−1 to every die"],
+                                ["Naval landing", "attacker, coastal, ≥ ¼ naval", "+1 to every die"],
+                                ["Dug in", "the round after digging in", "+1 to every die"],
+                                ["Siege has worn them down", "assaulting out of a siege", "+1 per 3 turns, max +2"],
+                            ]
+                        ),
+                        p(
+                            "Face bonuses are summed and CAPPED AT ±2 either way. Neither side " +
+                                "can ever be reduced below one die."
+                        ),
+                        h("Why forts take dice instead of adding faces"),
+                        p(
+                            "Because a face bonus cannot answer an unmatched die. A 2-to-1 " +
+                                "attacker rolls five dice against the defender's two: three of " +
+                                "those five are unanswered and are automatic hits every single " +
+                                "round, and +2 on the defender's two dice does not touch them. " +
+                                "Fortification as a face bonus was measured and a 2-to-1 attacker " +
+                                "took a fortress 100% of the time. Terrain that cannot be " +
+                                "answered by terrain is not terrain."
+                        ),
+                        h("Step 4 — the dice are PAIRED"),
+                        p(
+                            "This is the part that decides the battle, and it is the part " +
+                                "nothing on screen used to explain. It works like this:"
+                        ),
+                        ul(
+                            "Each side adds its face modifier to every one of its dice.",
+                            "Each side SORTS its dice from highest to lowest.",
+                            "The two highest are paired against each other, then the two second " +
+                                "highest, and so on.",
+                            "In each pairing the higher value wins. TIES GO TO THE DEFENDER.",
+                            "Any die the other side has nothing left to pair against is an " +
+                                "AUTOMATIC HIT."
+                        ),
+                        p(
+                            "So if you roll a 6 and they roll a 1, you have won that pairing: " +
+                                "their die is destroyed and they take casualties for it. Your 6 " +
+                                "does not carry over, does not fight twice, and is not worth more " +
+                                "than a 2 would have been. A pairing is won or lost — by how much " +
+                                "is irrelevant."
+                        ),
+                        h("Ties go to the defender, and this is the defender's whole advantage"),
+                        p(
+                            "There is no separate defence bonus in the dice model. Instead, an " +
+                                "even pairing is a defender's pairing. On unmodified dice the " +
+                                "attacker wins a contested pairing 15 times in 36 — about 42% — " +
+                                "which is why the bar and your chance of winning are not the same " +
+                                "number. It is also why +1 to a die is worth so much: it takes a " +
+                                "contested pairing from 15 in 36 to 21 in 36."
+                        ),
+                        h("Unmatched dice: what happens to the extra ones"),
+                        p(
+                            "They are not discarded, and they are not held over. Each of them is " +
+                                "an automatic hit on the other side, every round, with no roll " +
+                                "involved. Four dice against three is not a small edge — it is " +
+                                "one guaranteed casualty per round plus three contests."
+                        ),
+                        p(
+                            "This is the single most important thing to understand about the " +
+                                "model. Bringing enough force to cross a band edge is worth more " +
+                                "than any modifier in the game, because it converts a coin flip " +
+                                "into a certainty."
+                        ),
+                        h("Step 5 — casualties"),
+                        p(
+                            "Each pairing a side LOSES costs it 10% of the force it has at that " +
+                                "moment. They compound rather than adding up, so a side losing " +
+                                "all five pairings of a round keeps 0.9⁵ — about 59% — of what it " +
+                                "had, not half."
+                        ),
+                        p(
+                            "Losses are taken proportionally across all four unit types, so an " +
+                                "army that starts combined-arms stays combined-arms and does not " +
+                                "lose its air superiority after one bad round. A side that lost a " +
+                                "pairing always loses at least one unit."
+                        ),
+                        h("Step 6 — how the round ends the battle"),
+                        p(
+                            "Checked after the casualties, against each side's own force at the " +
+                                "START of the battle:"
+                        ),
+                        table(
+                            ["Outcome", "Condition", "Result"],
+                            [
+                                ["Victory", "every defender destroyed", "territory taken, survivors garrison it"],
+                                ["Rout", "defender below 20% of its start", "taken, AND half their survivors join you"],
+                                ["Last push offered", "defender at 20–30% of its start", "take it now for 20% of your survivors"],
+                                ["Defeat", "every attacker destroyed", "the attack fails"],
+                                ["Broken", "you below 20% of your start", "the attack fails"],
+                            ]
+                        ),
+                        p(
+                            "The ROUT is the outcome worth playing for. Absorbing half of a " +
+                                "beaten garrison is the only way in the game to GAIN army without " +
+                                "paying gold and manpower for it — and note that it triggers " +
+                                "before the defender is wiped out, so pressing on past a rout is " +
+                                "not merely unnecessary, it destroys the prize."
+                        ),
+                        h("Your four buttons, and what each one actually does"),
+                        table(
+                            ["Button", "Available", "What it does"],
+                            [
+                                ["NEXT ROUND", "always", "fights one round"],
+                                ["DIG IN", "after round 1", "inflict nothing, take half — then +1 next round"],
+                                ["RESERVES", "after round 1", "sends more units; they fight in a round's time"],
+                                ["LAST PUSH!", "defender at 20–30%", "take it now for 20% of your survivors"],
+                                ["RETREAT / SCATTER", "always", "leave — free before round 1, then 30%"],
+                            ]
+                        ),
+                        p(
+                            "DIG IN and RESERVES are real controls that change how the next " +
+                                "round is fought; they are quieter on the bar than NEXT ROUND " +
+                                "because they modify a round rather than ending a battle, not " +
+                                "because they are unavailable."
+                        ),
+                        h("When digging in is worth it"),
+                        p(
+                            "It costs you a round of offence and buys a round of half casualties " +
+                                "plus +1 on every die afterwards. That is a good trade when you " +
+                                "are losing pairings and expect the battle to go long, and a bad " +
+                                "one when you are ahead — a round in which you inflict nothing is " +
+                                "a round the defender spends recovering nothing, so it only pays " +
+                                "if the +1 changes who wins pairings."
+                        ),
+                        h("Retreating, and what it costs"),
+                        table(
+                            ["Button reads", "When", "Cost", "Army returns"],
+                            [
+                                ["RETREAT!", "before round 1", "nothing", "next turn"],
+                                ["SCATTER!", "once a round has been fought", "30% of the army", "in two turns"],
+                                ["DEFEAT!", "the battle is lost", "whatever is left", "—"],
+                            ]
+                        ),
+                        p(
+                            "The free window is BEFORE the first round only. Once you have " +
+                                "pressed NEXT ROUND once, every way out costs 30%. Look at the " +
+                                "dice preview before that first press, because it is the last " +
+                                "free decision in the battle."
+                        ),
+                        p(
+                            "A retreating army goes back to the territories it came from, in the " +
+                                "proportions it left in, arriving at the start of a turn before " +
+                                "you act. The turn or two while it is in transit is the most " +
+                                "dangerous window in the game, and nothing on screen tells you it " +
+                                "is open."
+                        ),
+                        planned(
+                            "Armies in transit should be visible — a count in the top bar, or a " +
+                                "marker on the territories expecting them. At present the only " +
+                                "record is internal."
+                        ),
+                        h("Reading the battle screen"),
+                        ul(
+                            "THE LEDGER, under the bar: how many dice each side rolls this " +
+                                "round and every modifier that made it that number.",
+                            "THE DICE: the real roll. The numbers were chosen by the rules " +
+                                "before the dice were thrown, so what lands is what counted.",
+                            "THE CLASH: after the dice settle, each pairing is shown closing, " +
+                                "colliding, and the losing die shattering. An unmatched die is " +
+                                "shown against an empty socket. This is the round, drawn.",
+                            "THE ROUND LINE, beside the Rounds toggle: the last round in one " +
+                                "sentence, which stays up after the animation has gone.",
+                            "THE ROUND LOG: every round of this battle, newest first. Click " +
+                                "Rounds to open it."
+                        ),
+                        p(
+                            "Clicking anywhere over the battle window settles the dice and " +
+                                "finishes the clash immediately. Both are a drawing of a result " +
+                                "that has already been decided, so skipping them changes nothing."
                         ),
                     ],
                 },
@@ -1374,18 +1614,18 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                     summary: "Surrounding a territory instead of storming it.",
                     body: [
                         p(
-                            "A siege is the slow half of the war model. An open battle is five " +
-                                "rounds resolved in one sitting; a siege is one roll per turn, " +
-                                "for as many turns as it takes, and it is won by starving a " +
-                                "territory rather than by beating its army."
+                            "A siege is the slow half of the war model. An open battle is a " +
+                                "handful of rounds resolved in one sitting; a siege is one roll " +
+                                "per turn, for as many turns as it takes, and it is won by " +
+                                "starving a territory rather than by beating its army."
                         ),
                         h("Sieges are won with hardware, not bodies"),
                         p(
-                            "A besieging army's siege score is: naval 10 each, air 5, assault " +
-                                "3, infantry 0.0001. An infantry-only besieger can sit outside a " +
+                            "A besieging army's siege score is: naval 10 each, air 5, assault 3, " +
+                                "infantry 0.0001. An infantry-only besieger can sit outside a " +
                                 "fortified territory forever without ever landing a hit. This is " +
-                                "deliberate — a siege is broken by artillery and blockade, not " +
-                                "by numbers."
+                                "deliberate — a siege is broken by artillery and blockade, not by " +
+                                "numbers."
                         ),
                         h("The one number the whole thing turns on"),
                         p(
@@ -1419,33 +1659,35 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("How a siege ends"),
                         ul(
-                            "THE TERRITORY FALLS — the defender's army drops below 5% of what " +
-                                "it started with AND it has no forts left. The siege becomes an " +
-                                "outright rout victory for the besieger. Forts are literally " +
-                                "what keep a siege going.",
+                            "THE TERRITORY FALLS — the defender's army drops below 5% of what it " +
+                                "started with AND it has no forts left. The siege becomes an " +
+                                "outright rout victory for the besieger. Forts are literally what " +
+                                "keep a siege going.",
                             "YOUR ARMY IS ARRESTED — on a negative margin, a landed hit has a " +
                                 "40% chance of the besieging force being rounded up. Half of it " +
                                 "joins the defender. Do not besiege something you do not outgun.",
                             "YOU ASSAULT — click the besieged territory and VIEW SIEGE, then " +
-                                "fight it as a normal battle. The defender is already worn down.",
+                                "ASSAULT! and fight it as a normal battle. The defender is worn " +
+                                "down, and you carry +1 on every die for each three turns the " +
+                                "siege has run, to a maximum of +2.",
                             "YOU LIFT IT — retreat from the siege screen. Your army comes home.",
                             "SOMEBODY PAYS YOU TO LEAVE — see \"Diplomacy\"."
                         ),
                         h("Being besieged"),
                         p(
-                            "The territory earns nothing, its food capacity is being destroyed " +
-                                "a slice at a time, and its garrison has a 30% chance each turn " +
-                                "of starving at ten times the normal rate. Your options are to " +
-                                "build more forts there — the margin is measured against them, " +
-                                "and a fort is the only thing that lowers it — or to attack the " +
+                            "The territory earns nothing, its food capacity is being destroyed a " +
+                                "slice at a time, and its garrison has a 30% chance each turn of " +
+                                "starving at ten times the normal rate. Your options are to build " +
+                                "more forts there — the margin is measured against them, and a " +
+                                "fort is the only thing that lowers it — or to attack the " +
                                 "besieging army's home territory and give it something else to " +
                                 "worry about."
                         ),
                         h("Sieges dominate, and that is a problem"),
                         p(
                             "The AI besieges far more than it can finish. Measured over a " +
-                                "fourteen-turn game, concurrent AI sieges went from 17 to 67: " +
-                                "new ones are launched much faster than existing ones resolve, " +
+                                "fourteen-turn game, concurrent AI sieges went from 17 to 67: new " +
+                                "ones are launched much faster than existing ones resolve, " +
                                 "because a siege only ends on an arrest or a conquest and the AI " +
                                 "has no notion of committing enough force to finish one."
                         ),
@@ -1453,62 +1695,8 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "A siege needs a natural end — a turn limit, an attrition on the " +
                                 "besieging army, or a supply cost the besieger has to keep " +
                                 "paying. Any of the three would stop the map silting up with " +
-                                "sieges nobody is winning. This is the change most likely to " +
-                                "make the whole game feel different."
-                        ),
-                    ],
-                },
-                {
-                    id: "retreating",
-                    title: "Retreating",
-                    summary: "Getting an army back, and what it costs.",
-                    body: [
-                        p(
-                            "Committed units are gone from their home territories until they " +
-                                "are returned. Retreating is how they are returned, and when you " +
-                                "press it decides what it costs."
-                        ),
-                        table(
-                            ["Button reads", "When", "Cost", "Army returns"],
-                            [
-                                ["RETREAT!", "before the battle, or between rounds of five", "nothing", "next turn"],
-                                ["SCATTER!", "part-way through a round of five", "30% of the committed army", "in two turns"],
-                                ["DEFEAT!", "after the battle is lost", "whatever is left", "—"],
-                            ]
-                        ),
-                        h("The round boundary is the whole trick"),
-                        p(
-                            "A free retreat is available before the first round and between " +
-                                "rounds. Once a round is under way the only way out is a " +
-                                "scatter. So the decision to keep going is made five times per " +
-                                "battle, and each of those five moments is free — take them " +
-                                "seriously rather than clicking through."
-                        ),
-                        h("Where an army goes"),
-                        p(
-                            "Back to the territories it came from, in the proportions it left " +
-                                "in. An attack gathered from four territories is returned to " +
-                                "those four. It arrives at the start of the turn, before you get " +
-                                "to act, so a retreat on turn 7 means those units defend turn 8."
-                        ),
-                        h("Lifting a siege"),
-                        p(
-                            "Retreating from a siege is the same operation: the siege object is " +
-                                "removed, the marker comes off the map and the army is queued " +
-                                "for return. There is no penalty for lifting a siege you started."
-                        ),
-                        h("The gap between the two halves"),
-                        p(
-                            "The turn or two while an army is in transit is the most dangerous " +
-                                "window in the game and there is nothing on screen that tells " +
-                                "you it is open. If you retreat from a failed attack and the AI " +
-                                "moves before your units land, the territories they came from " +
-                                "are defended by whatever you left behind."
-                        ),
-                        planned(
-                            "Armies in transit should be visible — a count in the top bar, or " +
-                                "a marker on the territories expecting them. At present the only " +
-                                "record is internal."
+                                "sieges nobody is winning. This is the change most likely to make " +
+                                "the whole game feel different."
                         ),
                     ],
                 },
@@ -1575,62 +1763,6 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "Do not start a siege you cannot outgun. A negative margin means a " +
                                 "40% chance per landed hit of losing the whole besieging army, " +
                                 "half of it to the enemy."
-                        ),
-                    ],
-                },
-                {
-                    id: "reading-the-odds",
-                    title: "Reading the Odds",
-                    summary: "What the probability bar is not telling you.",
-                    body: [
-                        p(
-                            "The bar is honest about what it computes. It is what it leaves out " +
-                                "that costs battles."
-                        ),
-                        h("70% does not mean 70%"),
-                        p(
-                            "The bar is your chance of winning ONE skirmish, and it is capped " +
-                                "at 65% no matter how favourable it gets. A battle is dozens of " +
-                                "skirmishes across five rounds, with the probability " +
-                                "recalculated between rounds. A 70% bar is a comfortable battle; " +
-                                "it is not a safe one, and you will take real casualties."
-                        ),
-                        h("Composition is not in the bar"),
-                        p(
-                            "The bar weighs both armies by head count and multipliers. It does " +
-                                "not account for the matchup matrix, which is applied per " +
-                                "skirmish. An air-heavy attack against an assault-heavy defender " +
-                                "fights at 1.6× the bar; a naval attack against an air defender " +
-                                "fights at 0.5×."
-                        ),
-                        p(
-                            "So two attacks showing the same 55% can be a comfortable win and a " +
-                                "disaster. Check what they have before you check the bar."
-                        ),
-                        h("Their grounded units are already gone"),
-                        p(
-                            "The defender's strength uses their USEABLE units. A territory " +
-                                "short of oil is defending with a fraction of what its army " +
-                                "column shows — and the bar already knows, which is why an " +
-                                "apparently strong target sometimes shows favourable odds. " +
-                                "Believe the bar in that direction."
-                        ),
-                        h("The three things worth checking before every attack"),
-                        ul(
-                            "How many FORTS does the target have? The defence multiplier is " +
-                                "the biggest single term in the calculation and it steps in " +
-                                "whole numbers.",
-                            "What is my army made of, and what is theirs? Matchups swing a " +
-                                "battle further than ten points on the bar.",
-                            "What am I leaving behind? The units go the moment you press INVADE."
-                        ),
-                        h("When to besiege instead"),
-                        p(
-                            "Against forts. An assault fights the defence multiplier at full " +
-                                "strength; a siege attacks the forts themselves, destroying them " +
-                                "one at a time and lowering the multiplier as it goes. A heavily " +
-                                "fortified territory is a bad assault and a good siege, provided " +
-                                "you bring naval and air units to make the margin positive."
                         ),
                     ],
                 },
@@ -1806,8 +1938,11 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("Treating the bar as the answer"),
                         p(
-                            "Skirmish odds are capped at 65%. Composition matters more than the " +
-                                "last ten points on the bar."
+                            "The bar decides how many DICE you roll and nothing else. Because " +
+                                "ties go to the defender, an even bar is a battle you will " +
+                                "probably lose. The forecast under it is the number that answers " +
+                                "\"will I take this\" — and the dice preview is where you find " +
+                                "the band edge that is worth another unit."
                         ),
                         h("Ignoring the siege markers"),
                         p(
@@ -2084,8 +2219,14 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "ARRESTED — a besieging army that failed on a negative margin. It " +
                                 "is destroyed and half of it joins the defender.",
                             "COMBINED FORCE — an army expressed as one number: infantry count " +
-                                "as 1 each, assault 1,000, air 5,000, naval 20,000. Every rout " +
-                                "threshold is measured against it.",
+                                "as 1 each, assault 1,000, air 5,000, naval 20,000. It is what " +
+                                "the dice bands and every break threshold are measured against.",
+                            "DICE BAND — the table that turns a side's share of the two " +
+                                "strengths into a number of dice: 70% or more is five, 50% is " +
+                                "four, 35% is three, 20% is two, below that is one. The defender " +
+                                "is capped at four.",
+                            "DIG IN — forfeiting a round's offence for half casualties that " +
+                                "round and +1 on every die the next.",
                             "DEACTIVATED — a territory conquered in the last one to three turns. " +
                                 "It cannot attack or transfer.",
                             "DEFENCE MULTIPLIER — forts plus mountains, divided by 15, rounded " +
@@ -2094,26 +2235,37 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "DEVELOPMENT INDEX — a fixed per-territory number between roughly " +
                                 "0.4 and 0.95. Multiplies income, cuts building costs, " +
                                 "strengthens forts, helps you attack and reduces famine deaths.",
-                            "LAST PUSH — an outcome where the defender is nearly broken and you " +
-                                "may take the territory at the cost of a fifth of your survivors.",
+                            "FACE BONUS — a modifier added to every die a side rolls, capped at " +
+                                "±2. It changes who wins a contested pairing; it can do nothing " +
+                                "about an unmatched one.",
+                            "LAST PUSH — an offer made while the defender sits between 20% and " +
+                                "30% of its starting force: take the territory now for a fifth " +
+                                "of your survivors, or keep rolling.",
                             "MARGIN — a siege's score minus the territory's forts and mountains. " +
                                 "Every probability in a siege turn is a band on it.",
+                            "PAIRING — one of your dice against one of theirs, after both sides " +
+                                "have sorted highest first. The higher value wins it; a tie goes " +
+                                "to the defender. Losing one costs that side a tenth of its " +
+                                "remaining force.",
                             "PRODUCTIVE POPULATION — 45% of a territory's population, scaled by " +
                                 "the development index. The manpower that crews everything you " +
                                 "buy.",
-                            "ROUT — an outcome where the defender collapses below 5% of its " +
-                                "starting strength. You take the territory AND absorb half the " +
+                            "ROUT — an outcome where the defender falls below 20% of its " +
+                                "starting force. You take the territory AND absorb half the " +
                                 "survivors.",
-                            "SCATTER — a retreat taken part-way through a round. Costs 30% of " +
-                                "the committed army and takes two turns to come home.",
+                            "SCATTER — a retreat taken once any round has been fought. Costs 30% " +
+                                "of the committed army and takes two turns to come home.",
+                            "SHARE — a side's fraction of the two sides' strengths, 0 to 1. It " +
+                                "is what the probability bar shows and it is the input to the " +
+                                "dice band. It is NOT your chance of winning.",
                             "SIEGE SCORE — a besieging army weighted for siege work: naval 10, " +
                                 "air 5, assault 3, infantry 0.0001.",
-                            "SKIRMISH — one unit against one unit; exactly one of them dies.",
+                            "UNMATCHED DIE — a die the other side has none left to pair against. " +
+                                "It is an automatic hit, every round, with no roll. This is what " +
+                                "makes crossing a dice band worth more than any modifier.",
                             "USEABLE — the part of an army a territory has the oil to fuel. Only " +
                                 "useable units fight, and only useable units are billed for " +
-                                "upkeep.",
-                            "WAR WEARINESS — the 5% of the attacking army lost when a battle " +
-                                "goes to a second set of five rounds."
+                                "upkeep."
                         ),
                     ],
                 },

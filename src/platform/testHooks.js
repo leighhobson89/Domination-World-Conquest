@@ -134,6 +134,12 @@ export function installTestHooks(accessors) {
         // read-only, deep-copied surface as every other accessor here.
         battle: () => snapshot(accessors.battle()),
 
+        // The faces the 3D dice are actually SHOWING, in roll order. Not what the rules rolled --
+        // `battle()` and the round log both carry that -- but what a player looking at the table
+        // would read off it. The two are supposed to be the same list, and for as long as the dice
+        // have existed they were not; see `facesShowing()` in dices.js.
+        diceFaces: () => snapshot(accessors.diceFaces?.() ?? []),
+
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/04-e2e-test-plan.md 3.7.

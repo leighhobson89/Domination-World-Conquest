@@ -2314,44 +2314,114 @@ td {
 
 /* Battle overhaul B.7 -- the two mid-battle decisions.
    Both start hidden: they mean nothing before a round has been fought, and
-   `setMidBattleControlsVisible()` brings them up once one has. Widths are NOT set here --
-   `layoutBattleButtons()` shares the bar between whichever buttons are visible, because the bar
-   carries between two and four of them depending on where the battle is. */
+   `setMidBattleControlsVisible()` brings them up once one has. Widths are NOT set
+   here -- `battleBarWidths()` shares the bar between whichever buttons are
+   visible, because the bar carries between two and five of them depending on
+   where the battle is.
+
+   THEY LOOK LIKE BUTTONS NOW, AND THAT IS THE POINT. Both were
+   `background-color: var(--surface-panel)` with no border, no hover and no
+   font-size of their own -- so they took the window's 0.9rem body text and sat on
+   the window's own background, flush against a 2.3rem bright green ADVANCE and a
+   bright red RETREAT. Two live controls rendered as flat label text between two
+   shouting ones: the reasonable reading is that they are captions, and the second
+   reasonable reading is that they are disabled. They are neither, and pressing
+   one changes how the next round is fought.
+
+   So the bar now says what kind of choice each button is, and it says it with the
+   game's own tokens rather than with brightness alone:
+
+     ADVANCE    --positive     the default, "keep going"
+     RETREAT    --negative     the way out
+     LAST PUSH  --siege-amber  an offer with a price on it, taken once
+     DIG IN     --surface-control, raised, with an armed state
+     RESERVES   --surface-control, raised, and it says when it is spent
+
+   The two in the middle are deliberately quieter than the three either side --
+   they are modifiers on a round, not ways to end a battle -- but quieter is not
+   the same as invisible, and the separator, the border, the hover and the press
+   are what make the difference. */
 .battleBarButton {
   display: none;
   align-items: center;
   justify-content: center;
-  border: none;
   cursor: pointer;
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   letter-spacing: var(--display-tracking);
   text-transform: var(--display-transform);
-  color: var(--text-on-accent);
-}
-
-.digInButton {
-  background-color: var(--surface-panel);
+  /* Was unset, so these inherited the window's 0.9rem body size beside a 2.3rem
+     neighbour. Smaller than the three that end a battle, and unmistakably a
+     control rather than a caption. */
+  font-size: 1.45rem;
+  background-color: var(--surface-control);
   color: var(--text-primary);
+  /* A hairline top edge and a divider between them: the bar reads as five
+     buttons rather than as two buttons with words between them. */
+  border: none;
+  border-top: 2px solid var(--border-strong);
   border-right: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 0 var(--border-color);
+  transition: background-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.18s ease;
 }
 
+.digInButton,
 .reservesButton {
-  background-color: var(--surface-panel);
-  color: var(--text-primary);
-  border-right: 1px solid var(--border-color);
+  background-color: var(--surface-control);
+  /* Accent, not body ink. On a bar where the two loud buttons carry their meaning
+     in a saturated fill, the quiet ones need SOMETHING saturated of their own or
+     they read as a caption between two controls -- which is exactly how they
+     read. Coloured text plus the raised surface plus the hover is enough to say
+     "press me" without competing with the two that end a battle. */
+  color: var(--accent);
 }
 
-/* Armed: the choice is made and will apply to the next round. It is a CLASS and not a
-   picture -- Phase 7.11's rule -- so the state can be read back and asserted. */
+.battleBarButton:hover:not(.is-disabled) {
+  background-color: var(--surface-control-hover);
+  box-shadow: inset 0 0 24px -6px var(--glow);
+}
+
+.battleBarButton:active:not(.is-disabled) {
+  box-shadow: inset 0 2px 6px -1px var(--glow);
+}
+
+.battleBarButton:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* Armed: the choice is made and will apply to the next round. It is a CLASS and
+   not a picture -- Phase 7.11's rule -- so the state can be read back and
+   asserted. The glow is what tells a player mid-battle that DIG IN is currently
+   ON, which the label change alone did not: "Dig In" and "Digging In" are one
+   word apart at a glance. */
 .battleBarButton.is-armed {
   background-color: var(--accent);
   color: var(--text-on-accent);
   font-weight: bold;
+  box-shadow: inset 0 0 26px -6px var(--glow);
 }
 
-.battleBarButton:disabled {
-  opacity: 0.55;
+.battleBarButton.is-armed:hover {
+  background-color: var(--accent-strong);
+}
+
+/* Inert. The same vocabulary the rest of the bar uses -- a class and
+   `aria-disabled`, never the `disabled` property, because the battle container's
+   capture listener has to see every click over the window in order to settle the
+   dice. RESERVES reaches this when there is nothing left to send. */
+.battleBarButton.is-disabled {
+  background-color: var(--surface-raised);
+  color: var(--text-muted);
+  opacity: 0.5;
   cursor: default;
+  box-shadow: none;
+}
+
+.battleBarButton.is-disabled:hover {
+  background-color: var(--surface-raised);
+  box-shadow: none;
 }
 
 /* Battle overhaul B.6.3 -- the dice-and-modifier ledger.
@@ -2438,6 +2508,21 @@ td {
   width: 100%;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--surface-control);
+}
+
+/* The last round in a sentence, beside the Rounds toggle.
+   The clash animation over the dice is transient by design; this is not. A player
+   who looked away, or who clicked through the animation, would otherwise be left
+   with two army totals that changed and no statement of why -- which is the whole
+   complaint the pairing panel exists to answer, reappearing two seconds later. */
+.battleRoundSummary {
+  margin-left: auto;
+  padding: 0 0.7rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .battleRoundLogToggle {
@@ -2847,12 +2932,22 @@ td {
   background-color: var(--positive);
 }
 
+/* The third slot, carrying either "Assault!" (resuming out of a siege) or
+   "Last Push!" (the offer at the break band). It was `--surface-control`, which
+   is the colour of a button at REST -- next to a saturated green ADVANCE and a
+   saturated red RETREAT, a resting grey button reads as a disabled one, and the
+   single most consequential press in the game was the one that looked switched
+   off. Amber is the game's own third state (`--siege-amber`, the token the
+   activity feed uses for a territory that has neither fallen nor held), it is
+   used nowhere else on this bar, and what it means here is the same thing: a
+   decision with a price on it, offered once. */
 .siegeBottomBarButton {
   /* Hidden until the attack becomes a siege -- `display` is written by the
      battle UI, so the shared block above must not be what sets it. */
   display: none;
   border-bottom-right-radius: var(--radius);
-  background-color: var(--surface-control);
+  background-color: var(--siege-amber);
+  color: var(--text-on-accent);
 }
 
 .retreatButton:hover:not(.is-disabled),
@@ -3141,20 +3236,45 @@ td {
 
 /*----------------------------------------------------DICE----------------------------------------------------*/
 
+/* The dice stage. These two sizes MUST match `STAGE_WIDTH` / `STAGE_HEIGHT` in
+   dices.js: the renderer is told its drawing-buffer size explicitly, because
+   `WebGLRenderer` infers nothing from the canvas element, and if the two disagree
+   the browser scales one to the other -- which is exactly the blur that made the
+   dice look like a low-resolution image blown up. They were 300x150 against 800x600
+   for as long as the dice have existed. */
 #threeCanvasForDice {
   position: absolute;
   left: 50%;
-  top: 50%;
+  /* Below dead centre, deliberately. The clash panel is anchored to the top of the
+     battle window and the dice come to rest under it; at 50% the settled pile sat
+     behind the panel and only the strays were visible. The tumble happens before
+     the panel opens, so the flight is unobstructed either way. */
+  top: 55%;
   transform: translate(-50%, -50%);
-  width: 800px;
-  height: 600px;
+  width: 900px;
+  height: 680px;
   display: none;
   pointer-events: none;
+  /* ABOVE the clash panel at 9600, and that ordering is the point. The dice are
+     the thing that just happened; the panel is the commentary on it, and
+     commentary must not cover the event. Once the dice have settled and been
+     read they fade instead of being covered -- `is-settled`, below. */
+  z-index: 9700;
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+
+/* Settled, read, and out of the way. Written by `src/ui/battle/DiceStage.js` two
+   seconds after the roll comes to rest, so the clash panel underneath becomes the
+   thing in focus. Opacity rather than `display`, so it is a fade and not a cut,
+   and the canvas keeps its GL context either way. */
+#threeCanvasForDice.is-settled {
+  opacity: 0;
 }
 
 #canvas {
-  width: 800px;
-  height: 600px;
+  width: 900px;
+  height: 680px;
   position: absolute;
   top: 0;
   left: 0;
@@ -5739,4 +5859,523 @@ td {
 
 .ai-tone-siege .ai-game-line-text {
   color: var(--siege-amber);
+}
+
+/* =========================================================================
+   THE CLASH PANEL -- src/ui/battle/ClashPanel.js
+   =========================================================================
+   The animated account of one round's pairings: which die met which, who took
+   the pairing and why. It is its own layer over the dice canvas rather than a
+   row of the battle window, because `#battleContainer` is transformed and a
+   transform creates a stacking context -- nothing inside it can paint over
+   `#threeCanvasForDice`.
+
+   Everything here is a token. The two things that carry meaning are the pairing
+   verdicts, and they use the game's own `--positive` and `--negative`, so that
+   "took it" and "destroyed" read the same in this panel as they do on the bottom
+   bar and in the activity feed.
+   ========================================================================= */
+
+/* ZERO AREA, deliberately. The container exists only to own a stacking context
+   above the dice canvas; the panel inside it is `position: fixed` and places
+   itself. An `inset: 0` container would be a full-viewport layer sitting over
+   the whole game for the entire session -- `pointer-events: none` makes that
+   harmless in a browser and Playwright honours it too, but a permanent invisible
+   sheet over everything is the kind of thing that is only ever harmless until it
+   is not. A box with no area cannot be in the way of anything.
+
+   Above the map chrome at 9000 and above the dice canvas, below the modal band at
+   10000 so a battle-results screen still opens over it. */
+#battle-clash-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 9600;
+  pointer-events: none;
+}
+
+.clashPanel {
+  position: fixed;
+  left: 50%;
+  /* Above the tray the dice land in, so a settled roll stays readable underneath
+     the account of it. */
+  top: 9vh;
+  transform: translate(-50%, -14px);
+  width: min(640px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem 1rem 0.9rem;
+  box-sizing: border-box;
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  opacity: 0;
+  /* A MARKER MUST NEVER INTERCEPT A CLICK. The same rule the siege overlays and
+     `#tooltip` follow, and for the same reason: this is a drawing of a result
+     that has already been decided, it sits over the middle of the battle window
+     for several seconds, and the click it would swallow is the one that closes
+     the results screen underneath it. Skipping is handled by the battle
+     container's capture listener, which sees the click regardless. */
+  pointer-events: none;
+  transition: opacity 0.26s ease, transform 0.26s ease;
+}
+
+.clashPanel.is-open {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* --- the header: who, and with how many dice ---------------------------- */
+
+.clashTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clashTitleSide {
+  display: flex;
+  flex-direction: column;
+  width: 34%;
+  min-width: 0;
+}
+
+.clashTitleSide-defender {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.clashTitleName {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.clashTitleDice {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.clashTitleRound {
+  font-family: var(--font-display);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* --- the pairings ------------------------------------------------------- */
+
+.clashPairs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.clashPair {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+}
+
+.clashSide {
+  position: relative;
+  display: flex;
+  width: 28%;
+  /* The two sides face each other: the attacker's die sits on the inside edge of
+     the left column and the defender's on the inside edge of the right, so the
+     gap between them is the gap they close. */
+  justify-content: flex-end;
+}
+
+.clashSide-defender {
+  justify-content: flex-start;
+}
+
+/* --- one die ------------------------------------------------------------ */
+
+.clashDie {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 2px solid var(--border-strong);
+  border-radius: 10px;
+  background-color: var(--surface-control);
+  /* The dice start APART and blank, and are closed in. `is-closed` on the row is
+     what removes the offset, so a pairing visibly comes together before it
+     resolves. They are visible from the moment the panel opens -- it is the PIPS
+     that are withheld, not the dice, so the panel shows the shape of the round
+     (four against one, three of them unanswered) while the real dice are still in
+     the air, and fills in the numbers only once those have landed on them. */
+  transform: translateX(-42px) rotate(-12deg);
+  opacity: 1;
+  transition: transform 0.22s cubic-bezier(0.3, 0.9, 0.4, 1), opacity 0.18s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clashSide-defender .clashDie {
+  transform: translateX(42px) rotate(12deg);
+}
+
+.clashPair.is-closed .clashDie {
+  transform: translateX(0) rotate(0deg);
+  opacity: 1;
+}
+
+.clashDiePips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.clashPip {
+  border-radius: 50%;
+}
+
+.clashPip.is-on {
+  background-color: var(--text-primary);
+  transition: background-color 0.2s ease;
+}
+
+/* BLANK UNTIL THE DICE HAVE LANDED.
+
+   The rules decide a round before a die is thrown -- that is what makes the roll
+   reproducible and it is not going to change. But a panel that prints the answer
+   while the dice are still tumbling says so out loud, and turns the roll into an
+   animation played over a decision the player has already been told. Withholding
+   the faces until `reveal()` (which the caller fires when the dice come to REST)
+   puts the same information in the order that makes it a roll: the dice land, and
+   then the numbers they landed on are compared.
+
+   The summary goes with them, and `visibility` rather than `display` so the panel
+   does not change height when it arrives. */
+.clashPanel:not(.is-revealed) .clashPip.is-on {
+  background-color: transparent;
+}
+
+.clashPanel:not(.is-revealed) .clashDieBadge {
+  opacity: 0;
+}
+
+.clashPanel:not(.is-revealed) .clashSummary {
+  visibility: hidden;
+}
+
+/* A modifier badge: what this die FIGHTS with, against what it shows. The
+   distinction is the whole reason the badge exists -- a 3 that beats a 4 is
+   otherwise indistinguishable from a bug. */
+.clashDieBadge {
+  transition: opacity 0.2s ease;
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background-color: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 0.72rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* The empty socket opposite an unmatched die. It is drawn, and drawn as an
+   absence, because "they had nothing to answer this with" is a rule and not a
+   rendering accident: an unanswered die is a free hit every round, which is the
+   entire reason bringing more dice is worth anything. */
+.clashDieEmpty {
+  border-style: dashed;
+  border-color: var(--border-color);
+  background-color: transparent;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+}
+
+.clashDieSocket {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* --- the middle: the impact and the verdict ----------------------------- */
+
+.clashMiddle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.clashVerdict {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  opacity: 0;
+  transition: opacity 0.2s ease 0.12s, color 0.2s ease;
+}
+
+.clashPair.is-struck .clashVerdict {
+  opacity: 1;
+}
+
+.clashPair.is-struck.clashPair-attacker .clashVerdict {
+  color: var(--positive);
+}
+
+.clashPair.is-struck.clashPair-defender .clashVerdict {
+  color: var(--negative);
+}
+
+/* The impact itself: a ring expanding out of the point the two dice meet. It is
+   what makes the moment a COLLISION rather than two things arriving. */
+.clashFlash {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.clashPair.is-struck .clashFlash {
+  animation: clashImpact 0.42s ease-out forwards;
+}
+
+@keyframes clashImpact {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(5.5);
+  }
+}
+
+/* --- winning and losing a pairing --------------------------------------- */
+
+/* The winner is marked and stays.
+
+   ACCENT, not `--positive`, and the distinction is worth stating because the
+   first version got it wrong. Green and red mean "good for you" and "bad for
+   you" everywhere else in this game, and the verdict line under each pairing
+   uses them that way. Marking the SURVIVING die green as well overloads the
+   colour: a defender's die surviving a tie was drawn in green next to a red
+   "tie — defender holds", which is one row saying two opposite things. Accent
+   means "this one is still standing" and nothing about whose side it is on.
+
+   `:not(.clashDieEmpty)` matters on both of these: an unmatched die's opponent
+   is an empty socket, and a socket must not be marked or shattered -- there was
+   nothing there to break. */
+.clashPair-attacker.is-struck .clashSide-attacker .clashDie:not(.clashDieEmpty),
+.clashPair-defender.is-struck .clashSide-defender .clashDie:not(.clashDieEmpty) {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px -2px var(--glow);
+}
+
+.clashPair-attacker.is-struck .clashSide-defender .clashDie:not(.clashDieEmpty),
+.clashPair-defender.is-struck .clashSide-attacker .clashDie:not(.clashDieEmpty) {
+  animation: clashShatter 0.45s ease-in forwards;
+  border-color: var(--negative);
+}
+
+@keyframes clashShatter {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  22% {
+    transform: translateX(0) scale(1.14) rotate(-6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(0.35) rotate(22deg);
+    opacity: 0;
+  }
+}
+
+/* The fragments the loser breaks into: six plain divs over the die, inert until
+   the row is struck. They take `--negative` rather than the die's own colour
+   because what they mean is "this one was destroyed", which is the same fact the
+   verdict line and the casualty count are reporting. */
+.clashShards {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.clashShard {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4px 0 0 -4px;
+  background-color: var(--negative);
+  opacity: 0;
+}
+
+.clashPair-attacker.is-struck .clashShards-defender .clashShard,
+.clashPair-defender.is-struck .clashShards-attacker .clashShard {
+  animation: clashShardFly 0.55s ease-out forwards;
+}
+
+/* Six fixed directions rather than one animation with a random angle: this panel
+   has no business drawing from any random stream, cosmetic or otherwise, and a
+   fixed spray is indistinguishable at this size and duration. */
+.clashShard-1 {
+  --shard-x: -34px;
+  --shard-y: -26px;
+}
+
+.clashShard-2 {
+  --shard-x: 30px;
+  --shard-y: -30px;
+}
+
+.clashShard-3 {
+  --shard-x: 38px;
+  --shard-y: 10px;
+}
+
+.clashShard-4 {
+  --shard-x: -30px;
+  --shard-y: 22px;
+}
+
+.clashShard-5 {
+  --shard-x: 6px;
+  --shard-y: 36px;
+}
+
+.clashShard-6 {
+  --shard-x: -12px;
+  --shard-y: -38px;
+}
+
+@keyframes clashShardFly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--shard-x), var(--shard-y)) rotate(160deg) scale(0.4);
+  }
+}
+
+/* An unmatched pairing is not a contest, so it gets no impact ring: it gets a
+   quieter treatment and says what it is in words.
+
+   And no SHARDS. The shard layers are per side and the shatter rule fires on
+   whichever side lost -- which on an unmatched pairing is the side holding an
+   empty socket. The die itself is already excluded by `:not(.clashDieEmpty)`,
+   but the shards sit in their own layer beside it and were still flying, so an
+   unanswered die appeared to smash a socket that was drawn as containing
+   nothing. */
+.clashPair-unmatched .clashFlash {
+  display: none;
+}
+
+/* FIVE class selectors, and it has to be: the shatter rule above is four
+   (`.clashPair-attacker.is-struck .clashShards-defender .clashShard`), and
+   specificity beats source order, so the obvious two-class form lost and the
+   shards flew anyway. */
+.clashPair.clashPair-unmatched.is-struck .clashShards .clashShard {
+  animation: none;
+  opacity: 0;
+}
+
+.clashPair-unmatched {
+  border: 1px dashed var(--border-color);
+}
+
+/* --- the summary -------------------------------------------------------- */
+
+.clashSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.clashHeadline {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.clashDetail {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.clashCost {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+/* A player who has asked not to be animated at gets the finished panel and no
+   motion. The information is in the end state, not in the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .clashDie,
+  .clashPanel {
+    transition: none;
+  }
+
+  .clashPair.is-struck .clashFlash,
+  .clashPair-attacker.is-struck .clashSide-defender .clashDie:not(.clashDieEmpty),
+  .clashPair-defender.is-struck .clashSide-attacker .clashDie:not(.clashDieEmpty),
+  .clashPair-attacker.is-struck .clashShards-defender .clashShard,
+  .clashPair-defender.is-struck .clashShards-attacker .clashShard {
+    animation: none;
+  }
 }

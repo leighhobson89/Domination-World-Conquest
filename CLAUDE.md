@@ -139,9 +139,17 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `BuyWindow` and `UpgradeWindow` are two specs over one `ResourceWindow` builder.
 - **The Dominapedia is the manual, and its catalogue is data** (Phase 7.6). The main menu's
   Help button is gone: it is `dominapediaBtn` now, and it opens a full-screen window built by
-  `src/ui/components/Dominapedia.js` from `src/ui/dominapedia/topics.js` — six main topics,
-  twenty-three sub-topics, all frozen, importing nothing and touching no DOM. Writing a page
-  is one entry in `topics.js` and no change to the component. **A body is BLOCKS**
+  `src/ui/components/Dominapedia.js` from `src/ui/dominapedia/topics.js` — seven main topics,
+  twenty-nine sub-topics, all frozen, importing nothing and touching no DOM. Writing a page
+  is one entry in `topics.js` and no change to the component. **The manual quotes real numbers,
+  so a balance change is a `topics.js` change**: the whole War section was rewritten after the
+  dice model shipped because it still described the deleted five-round skirmish model — a 65%
+  per-skirmish cap, a matchup matrix that nothing reads any more, rout at 5%, and a free retreat
+  "between rounds" that has not existed since the round limit went. A manual that is confidently
+  wrong is worse than no manual, and none of it was caught by a test, because no test asserts
+  prose. **Table cells are `white-space: nowrap` except the first column**, so a cell carrying a
+  sentence forces the whole table into a horizontal scroller — keep them short and put the
+  explanation in a paragraph. **A body is BLOCKS**
   (`{ kind: "p" | "h" | "ul" | "todo" }`), never markup — content that carried HTML would carry
   the panel's styling decisions with it. **Previous / Next walk sub-topics and WRAP**, so
   neither is ever disabled; the walk is pure and `tests/unit/ui-dominapedia-topics.spec.js`
@@ -361,6 +369,84 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   as a cuboid it both biased the roll badly (faces 3 and 4 at 6% against 17%) and had too few
   symmetries to relabel an arbitrary face. And `world.fixedStep()` reads the wall clock, so the
   headless pre-run must call `world.step(1/60)` or the world never advances.
+- **`applyFaceOffsets()` searches for its rotation in the direction that carries the WANTED face
+  onto the LANDED one** — `permutation[to - 1] === from`, never the reverse. It was the reverse
+  for as long as the dice have existed, and the consequence is the one thing the whole
+  arrangement exists to prevent: **the dice showed numbers the battle was not fought with.** The
+  mesh sits inside the pivot, so a local normal is drawn at `Q_body * R * n`; the physics has put
+  `n_landed` upwards, so for the player to SEE `wanted` the mesh rotation must send `n_wanted` to
+  where `n_landed` is. The inverted search showed `permutation⁻¹(landed)`, which is right only
+  when the first rotation the search finds is its own inverse for that pair — measured over four
+  rounds, one matched. It survived because it has no textual signature at all: nothing throws,
+  the battle window's numbers are right, every outcome is correct and reproducible under `?seed=`,
+  and the only witness is a person looking at the table. `window.__game.diceFaces()` reports what
+  is actually drawn and `tests/e2e/battle/clash.spec.js` asserts it against the round's pairings;
+  that is the only place the invariant can be checked, because it is a question about a physics
+  pose composed with a mesh rotation inside a canvas.
+- **The faces are re-derived at REST as well as from the pre-run.** The pre-run makes the right
+  face show from the first frame; the correction in `waitForRest()` is what makes it true even
+  when the visible replay diverges from it — a frame long enough for `fixedStep()` to drop
+  physics, or a skip. **`skipRoll()` steps the world to rest and only then forces sleep**: it used
+  to zero the velocities and `sleep()` where the dice stood, which on an early skip is in mid-air,
+  showing a face nobody chose. Forcing sleep after stepping is also what guarantees the roll's
+  promise resolves at all — a die wedged against a wall never satisfies the sleep test, and
+  everything chained to the settle (the fade, the clash panel's reveal) then never happens.
+- **Every dice spawn gap must exceed a die's width.** The collision shape is a unit cube, so two
+  dice overlap unless they are more than 1.0 apart on at least one axis — and an overlap at spawn
+  is two solid bodies interpenetrating, which the solver resolves by firing them apart at whatever
+  speed separates them in one step. Dice leaving the tray and rolls that never came to rest were
+  both this. The `TRAY` bounds in `dices.js` are likewise not a matter of taste: they are the
+  floor area the camera can actually see, so anything that changes the camera's position, pitch,
+  field of view or the canvas aspect changes them too.
+- **`STAGE_WIDTH` / `STAGE_HEIGHT` in `dices.js` must match `#threeCanvasForDice` in
+  `style.css`, and `renderer.setSize()` must be called.** `WebGLRenderer` infers NOTHING from
+  the canvas element: with no `setSize()` the drawing buffer stays at the WebGL default of
+  300×150 while the stylesheet stretches the canvas to its declared size, and the browser
+  upscales. That is what "the dice are blurred, like low-res and scaled up" was, for as long as
+  the dice have existed, and `setPixelRatio` could not help because it multiplies a size that was
+  never set. The camera's aspect must be the CANVAS's too — it read `window.innerWidth /
+  innerHeight`, so every die was also the wrong SHAPE, by a different amount on each machine.
+- **The dice are thrown ACROSS the tray, not dropped into it, and the tray is a real box.** The
+  old throw started them above the tray and applied an impulse of `(-force, +force, 0)` against a
+  gravity of 65: the die rose half a unit and fell eight, which reads as a drop however much spin
+  is on it. It is a flat delivery down the −x axis now, with `velocity` and `angularVelocity` SET
+  rather than an off-centre impulse (so `restoreThrow()` reproduces the measured throw by
+  assignment rather than by accumulating into a cleared state), and friction on the default
+  contact material is what converts forward speed into tumbling — without it a spinning die
+  slides. Three numbers are coupled and were chosen together, not by eye: gravity 42, friction
+  0.38 and a delivery of 12–15 put the pile in the middle of the tray every time. **The walls
+  must stay tall.** They were 2 units high on a floor at −7, which was enough for a die dropped
+  inside them and is not enough for one thrown across; a die that leaves the world never sleeps,
+  and a roll that never settles never resolves its promise.
+- **The clash panel is the pairing rules, drawn** (`src/ui/battle/ClashPanel.js`). After the dice
+  settle it shows each pairing closing, colliding, and the losing die shattering, with an
+  unmatched die drawn against an empty socket. Four things about it. **It is not inside the battle
+  window and it cannot be**: `#battleContainer` carries a `transform`, which creates a stacking
+  context, so no descendant can paint over `#threeCanvasForDice` — hence its own container after
+  the canvas in `index.html`, and hence that showing and hiding it is explicit rather than
+  inherited (`toggleDiceCanvas(false)` is the one place that covers every ending). **It carries
+  `pointer-events: none`**, the same rule the siege markers and `#tooltip` follow: it sits over
+  the middle of the screen for several seconds and the click it would otherwise swallow is the one
+  that closes the results screen underneath it. **It is transient, so the durable account of a
+  round is the one-line summary beside the Rounds toggle** — a player who looked away or clicked
+  through is otherwise back to two totals that changed and no reason. And **both sentences are
+  pure functions over the round's record** (`summaryFor()`, `describeRound()`), unit-tested in
+  `tests/unit/ui-battle-round-account.spec.js`, so the wording is pinned where it is cheap and no
+  e2e spec has to assert prose.
+- **The DICE sit above the clash panel and then fade; the panel outlives them.** `#threeCanvasForDice`
+  is z-index 9700 against the panel's 9600, because the roll is the event and the panel is the
+  commentary — commentary must not cover the event. Two seconds after the dice come to REST
+  (`SETTLED_LINGER_MS` in `DiceStage.js`) the canvas takes `.is-settled` and fades to transparent,
+  so the panel underneath becomes the thing in focus. Three things hold that sequence together and
+  all three were arrived at by measuring it, not by eye. **The roll is CAPPED** at `MAX_ROLL_MS`:
+  the physics runs in real time off `fixedStep()`, and five dice settling against one another ran
+  to three and a half seconds, which pushed the fade past the point where the panel was still up —
+  the dice got out of the way just as the thing they were getting out of the way of disappeared.
+  Past the cap they are settled by `skipRoll()`, the same path a player's click takes. **The
+  panel's `LINGER_MS` must stay well clear of the dice fade**, or the last step of the sequence is
+  a fifth of a second long. And **the two are NOT synchronised on purpose**: the dice are never
+  awaited, so tying the panel's lifetime to the settle promise would make it depend on a render
+  loop — and on a machine where WebGL fails outright, on a promise that resolves instantly.
 - **No army array is ever five long.** Two sites used to push a discriminant into slot 4 of a
   four-slot array — the battle's defeat type and a siege's arrest flag. They are `defeatType()` on
   the battle state and `siege.arrested` now. Do not reintroduce the pattern.

@@ -20,6 +20,60 @@ import { ids } from "../core/registry.js";
 let rolling = false;
 
 /**
+ * How long the settled dice stay at full strength before they fade, in milliseconds.
+ *
+ * The dice are ON TOP of the clash panel, deliberately -- they are the thing that just happened
+ * and the panel is the explanation of it, so the roll must not be obscured by its own commentary.
+ * But the moment they have settled the roll is over and the explanation is what matters, and a
+ * pile of dice sitting over the pairings is then just clutter. So they hold for a beat, long
+ * enough to read the faces, and then get out of the way.
+ *
+ * It is counted from the dice coming to REST, not from the round resolving, because how long a
+ * throw takes to settle varies with how many dice are in it and what they hit on the way down. A
+ * skip settles them early and the beat starts early with it, which is the right behaviour: a
+ * player who skipped the animation is asking to get on with it.
+ */
+const SETTLED_LINGER_MS = 2000;
+
+/**
+ * The longest a throw may take to come to rest, in milliseconds.
+ *
+ * A CAP, not a target. The physics runs in real time -- `render()` drives the world from
+ * `fixedStep()`, which reads the wall clock -- so how long a roll takes is whatever the dice
+ * happen to do, and measured throws ran to three and a half seconds while the dice nudged each
+ * other around the tray. Damping and friction shorten the skid but cannot bound the tail, because
+ * what makes a roll long is five dice settling against each other rather than any one of them
+ * travelling far.
+ *
+ * Everything downstream is timed off the settle -- the two-second hold, the fade, and the clash
+ * panel underneath waiting to be read -- so an unbounded tail is not a cosmetic problem, it is the
+ * sequence coming apart. Past the cap the dice are settled the same way a click settles them, and
+ * `skipRoll()` is used rather than a second mechanism precisely because that path is the one the
+ * player exercises every time they click through an animation.
+ */
+const MAX_ROLL_MS = 2200;
+
+/** The pending fade, so a new roll can cancel one that has not fired yet. */
+let fadeTimer = null;
+
+/** The pending cap, so a roll that settles on its own does not get stopped afterwards. */
+let capTimer = null;
+
+function cancelCap() {
+    if (capTimer !== null) {
+        clearTimeout(capTimer);
+        capTimer = null;
+    }
+}
+
+function cancelFade() {
+    if (fadeTimer !== null) {
+        clearTimeout(fadeTimer);
+        fadeTimer = null;
+    }
+}
+
+/**
  * The colour to roll in when the caller has none -- an unowned defender, or a replay whose
  * attacker colour was not passed.
  *
@@ -39,19 +93,37 @@ function neutralColour() {
     return value || "#808080";
 }
 
-/** Show the canvas. */
+/** Show the canvas, at full strength. */
 function showCanvas() {
+    cancelFade();
     const container = document.getElementById(ids.threeCanvasForDice);
     if (container) {
         container.style.display = "block";
+        //A previous round may have left it faded out. The class is the whole of the state, so
+        //taking it off is the whole of the reset -- and it has to happen BEFORE the new dice are
+        //drawn, or the first frame of the next roll is invisible.
+        container.classList.remove("is-settled");
+    }
+}
+
+/** Fade the settled dice away, leaving the clash panel to be read. */
+function fadeCanvas() {
+    fadeTimer = null;
+    const container = document.getElementById(ids.threeCanvasForDice);
+    //Only if nothing has started rolling in the meantime. Two rounds clicked quickly would
+    //otherwise have the first round's fade land on the second round's dice.
+    if (container && !rolling) {
+        container.classList.add("is-settled");
     }
 }
 
 /** Hide it. */
 function hideCanvas() {
+    cancelFade();
     const container = document.getElementById(ids.threeCanvasForDice);
     if (container) {
         container.style.display = "none";
+        container.classList.remove("is-settled");
     }
 }
 
@@ -69,6 +141,13 @@ export function showRound(record, enemyColour) {
     }
     showCanvas();
     rolling = true;
+    cancelCap();
+    capTimer = setTimeout(() => {
+        capTimer = null;
+        if (rolling) {
+            skipRoll();
+        }
+    }, MAX_ROLL_MS);
     return rollDiceOnScreen(faces, record.attackerFaces.length, enemyColour || neutralColour())
         .catch((error) => {
             //A dice roll must never be able to take the battle down with it. WebGL can fail for
@@ -78,6 +157,10 @@ export function showRound(record, enemyColour) {
         })
         .finally(() => {
             rolling = false;
+            cancelCap();
+            //Settled. Hold the faces for a beat, then get out of the clash panel's way.
+            cancelFade();
+            fadeTimer = setTimeout(fadeCanvas, SETTLED_LINGER_MS);
         });
 }
 
@@ -96,12 +179,15 @@ export function isRolling() {
 /** Close the stage down: the battle is over. */
 export function hide() {
     rolling = false;
+    cancelCap();
     hideCanvas();
 }
 
 /** Release the GL context. Called when the battle window is destroyed. */
 export function destroy() {
     rolling = false;
+    cancelCap();
+    cancelFade();
     disposeDiceStage();
     hideCanvas();
 }

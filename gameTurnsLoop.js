@@ -91,6 +91,9 @@ import {
     referenceDefendingTerritory
 } from "./src/state/sieges.js";
 import {
+    facesShowing
+} from './dices.js';
+import {
     installTestHooks,
     installAdjacencyTestHooks,
     signalReady
@@ -285,6 +288,11 @@ installTestHooks({
             probability: getUpdatedProbability() ?? null
         };
     },
+    //What the DICE ON SCREEN are showing, as opposed to what the rules rolled. The two must be
+    //the same list and there is no way to check that from the DOM: the dice are drawn into a
+    //canvas by a physics pose and a mesh rotation. See `facesShowing()` in dices.js for the bug
+    //this exists to keep closed.
+    diceFaces: () => facesShowing(),
     greyedOutCountries: () => [...greyedOutCountryNames()],
     wars: () => historicWarsList().map(war => ({
         warId: war.warId,
