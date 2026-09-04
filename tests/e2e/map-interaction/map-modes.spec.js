@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { map } from "../../support/selectors.js";
 
 // The continent-view button: one control, three views (Phase 7.4).
-// docs/04-e2e-test-plan.md section 5.4.
+// docs/03-e2e-test-plan.md section 5.4.
 //
 //     normal     political map, no continent boundaries
 //     physical   relief map + continent boundaries

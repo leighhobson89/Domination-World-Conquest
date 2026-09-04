@@ -9,7 +9,7 @@ import { containers } from "../../support/selectors.js";
 // stream (audit 5.3 Y), so these pin invariants -- units leave their source, the
 // battle opens, cancelling returns everything -- and battle/ does the same.
 //
-// docs/04-e2e-test-plan.md section 5.9.
+// docs/03-e2e-test-plan.md section 5.9.
 
 /** Aim at a reachable enemy of `source` and open the attack window. */
 async function openAttackFrom(game, source) {

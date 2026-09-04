@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { battle } from "../../support/selectors.js";
 
 // What a turn does to a siege, and what a siege does to the territory under it.
-// docs/04-e2e-test-plan.md section 5.11.
+// docs/03-e2e-test-plan.md section 5.11.
 
 /** Put France under a player siege and return once it is in the store. */
 async function besiegeFrance(game, page) {
@@ -79,7 +79,7 @@ test.describe("a siege over time", () => {
         game,
         page,
     }) => {
-        // This is a DESIGN problem, logged for Phase 7 in docs/05-known-issues.md section 6,
+        // This is a DESIGN problem, logged for Phase 7 in docs/04-known-issues.md section 6,
         // not a defect to fix here. The gold, oil and construction-material lines in the
         // siege branch are commented out under "uncomment other features if decided to
         // involve them in sieges", so a besieged territory earns nothing for as long as the

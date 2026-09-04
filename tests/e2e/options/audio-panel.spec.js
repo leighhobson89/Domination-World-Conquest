@@ -12,7 +12,7 @@ import { audio, containers, ids, phaseBar } from "../../support/selectors.js";
 // follows the map chrome, the panel is not a modal, and a setting changed here survives a
 // save and a load. Those cannot be asserted anywhere else.
 //
-// docs/04-e2e-test-plan.md -- `options/`.
+// docs/03-e2e-test-plan.md -- `options/`.
 
 /**
  * The settings as the running game holds them.

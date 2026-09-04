@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { containers, sel } from "../../support/selectors.js";
 
 // The info panel auto-opens at the start of each turn while the checkbox is on.
-// docs/04-e2e-test-plan.md section 5.3.
+// docs/03-e2e-test-plan.md section 5.3.
 
 /**
  * Play one turn and report whether the panel opened.

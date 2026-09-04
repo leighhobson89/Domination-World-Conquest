@@ -4,7 +4,7 @@
 // `underSiege`, `greyedOut` and `attackableTerritory` -- used to BE the game state.
 // Code wrote them, other code read them back, and the territory model held a second
 // copy that had to be assigned on the next line and often was not. See
-// docs/01-codebase-audit.md section 3 and docs/03-refactor-plan.md Phase 4.4.
+// docs/01-codebase-audit.md section 3 and docs/archived/03-refactor-plan.md Phase 4.4.
 //
 // Since Phase 4 the store is the truth and these attributes are output. This module
 // is the one place that writes them, driven by `state/events.js`, so:

@@ -59,7 +59,7 @@ export default [
 
       // --- Hygiene. Warnings so the errors above stay legible in the output.
       // These are expected to be noisy against the pre-refactor codebase; the
-      // baseline count is recorded in docs/03-refactor-plan.md Phase 0.
+      // baseline count is recorded in docs/archived/03-refactor-plan.md Phase 0.
       "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }],
       "no-empty": ["warn", { allowEmptyCatch: true }],
       eqeqeq: ["warn", "smart"],

@@ -178,7 +178,7 @@ export function planArmyStarvation(territory, populationChange) {
             survivors[field] -= lost;
             remaining -= lost * worth;
         } else {
-            //KNOWN DEFECT, preserved deliberately (docs/05-known-issues.md, Phase 5.2 note).
+            //KNOWN DEFECT, preserved deliberately (docs/04-known-issues.md, Phase 5.2 note).
             //`remaining === 0` reaches this branch, so a famine that exactly matches the
             //infantry wipes out every vehicle as well. The extraction is behaviour-
             //preserving by design; fixing it is a balance change and belongs in its own

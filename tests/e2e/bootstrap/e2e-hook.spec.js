@@ -1,6 +1,6 @@
 import { test, expect, GameDriver } from "../../support/fixtures.js";
 
-// refactor Phase 1.6. Everything in docs/04-e2e-test-plan.md depends on these two
+// refactor Phase 1.6. Everything in docs/03-e2e-test-plan.md depends on these two
 // hooks existing: a state accessor, so numeric assertions read the model rather
 // than parsing "1.2M" out of a table cell, and a seeded RNG, so combat is
 // reproducible.

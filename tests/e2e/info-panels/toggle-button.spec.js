@@ -15,7 +15,7 @@ import { containers, infoTable } from "../../support/selectors.js";
 // that is hidden, because it looks available and does nothing -- so the test clicks
 // it rather than merely asserting it is visible.
 //
-// docs/04-e2e-test-plan.md -- `info-panels/`.
+// docs/03-e2e-test-plan.md -- `info-panels/`.
 
 test.describe("territory panel toggle button", () => {
     test.setTimeout(180_000);

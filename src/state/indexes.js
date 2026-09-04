@@ -14,7 +14,7 @@
 // uniqueId and by name, which is exactly what `GameState` does now, so keeping it
 // would have meant two Maps over the same objects and a second thing to rebuild.
 // Territory lookups are `getTerritory()` and `getTerritoryByName()` in
-// `state/selectors.js`. See docs/03-refactor-plan.md Phase 4.1.
+// `state/selectors.js`. See docs/archived/03-refactor-plan.md Phase 4.1.
 //
 // This module imports nothing.
 

@@ -11,7 +11,7 @@ import { menu, options } from "../../support/selectors.js";
 // bug away from each other, because a preview that persisted would have made
 // Cancel meaningless.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `options/`.
+// docs/03-e2e-test-plan.md -- new functional area, `options/`.
 
 /** The computed background of the menu panel, which every theme changes. */
 async function panelBackground(page) {

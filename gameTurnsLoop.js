@@ -91,6 +91,14 @@ import {
     referenceDefendingTerritory
 } from "./src/state/sieges.js";
 import {
+    emit,
+    Events,
+    on
+} from "./src/state/events.js";
+import {
+    checkForVictory
+} from "./src/rules/victoryCheck.js";
+import {
     facesShowing
 } from './dices.js';
 import {
@@ -345,6 +353,8 @@ let gameInitialisation;
  *        BEFORE this runs rather than after -- see the note on that ordering below.
  */
 export async function initialiseGame({ spectator = false } = {}) {
+    //A new game has not been decided yet, whatever the last one did.
+    resetVictoryLatch();
     setZoomLevel(1);
     zoomMap("init");
     svg.style.pointerEvents = 'none';
@@ -371,7 +381,7 @@ export async function initialiseGame({ spectator = false } = {}) {
             }
         }
     }
-    //Bootstrap ordering, and it is NOT an accident -- see docs/05-known-issues.md section 2.
+    //Bootstrap ordering, and it is NOT an accident -- see docs/04-known-issues.md section 2.
     //The CPU leaders and the AI's starting forts are created by the confirm handler in
     //ui.js AFTER this function resolves, which is after `turnEngine.start()` has run turn 1.
     //Turn 1 therefore plans and earns over a world with no leaders and no forts, which is
@@ -417,7 +427,7 @@ export async function initialiseGame({ spectator = false } = {}) {
  * This used to be an awaited loop that re-fetched and re-parsed the 19 MB
  * closestPathsData.json once per territory -- 359 fetches and roughly 6.8 GB of
  * JSON.parse before turn 1 could start. It is now one 77 KB load and a synchronous
- * pass. See docs/01-codebase-audit.md section 4.1 and docs/03-refactor-plan.md
+ * pass. See docs/01-codebase-audit.md section 4.1 and docs/archived/03-refactor-plan.md
  * Phase 1.1-1.2.
  *
  * Purely a function of the map, so a loaded game rebuilds it rather than carrying
@@ -493,6 +503,8 @@ function installAdjacencyHooks() {
  * @param {number} phase  the `Phase` the save was taken in
  */
 export async function resumeSavedGame(phase) {
+    //A loaded game is one that was still being played when it was saved.
+    resetVictoryLatch();
     setZoomLevel(1);
     zoomMap("init");
     svg.style.pointerEvents = 'none';
@@ -547,6 +559,67 @@ export async function resumeSavedGame(phase) {
  * engine calls it -- which also means the start of a turn is one thing that can be reasoned
  * about, rather than the first forty lines of a recursive function.
  */
+/**
+ * The end of a turn: decide whether the game is over, then advance the counter.
+ *
+ * The ORDER is the whole of it. `advanceTurn` used to be the `endTurn` hook by itself, so
+ * this is where the check has to go -- and it has to go BEFORE the counter moves, or a
+ * timed game with a limit of 200 would be scored on turn 201 and the ending would be off
+ * by one against every number the player had been reading all game.
+ *
+ * It asks once. `gameDecided` latches, because the condition stays met after it has been
+ * met: without the latch a won game would announce itself again at the end of every
+ * subsequent turn, and the victory screen this event is going to drive would reopen over
+ * whatever the player did next.
+ */
+function endTurn() {
+    if (!gameDecided) {
+        const result = checkForVictory({
+            turn: currentTurn(),
+            //Spectator mode has no player, and `checkForVictory` reports `DECIDED` rather
+            //than a defeat when it is told so. Passing the string "Player" from a game
+            //nobody is playing would make the AI's win look like the player's loss.
+            playerCountry: isAiGameActive() ? null : playerCountryName()
+        });
+        if (result) {
+            gameDecided = true;
+            emit(Events.GAME_OVER, result);
+        }
+    }
+    advanceTurn();
+}
+
+/**
+ * Has this game already been decided? Reset by New Game and by a load, both of which go
+ * through `resetVictoryLatch()`.
+ */
+let gameDecided = false;
+
+/** New Game and Resume both need the latch cleared, or the previous game's ending sticks. */
+export function resetVictoryLatch() {
+    gameDecided = false;
+}
+
+/**
+ * The first and, for now, only subscriber to GAME_OVER.
+ *
+ * The console line is a LISTENER rather than the mechanism, which is what lets the victory
+ * and defeat screens be added without touching the rule that decided the game. It is
+ * `console.log` deliberately: a `console.error` fails every e2e spec.
+ */
+on(Events.GAME_OVER, (result) => {
+    const outcome = result.outcome === "VICTORY"
+        ? "YOU HAVE WON!"
+        : result.outcome === "DEFEAT"
+            ? "You have lost."
+            : "The game has been decided.";
+    console.log("=== GAME OVER === " + outcome
+        + " Winner: " + (result.winner ?? "nobody")
+        + ". Condition: " + result.condition.kind
+        + ". Reason: " + result.reason
+        + ". Turn: " + result.turn + ".");
+});
+
 function beginTurn() {
     activateAllPlayerTerritoriesForNewTurn();
     activateAiTerritoriesForNewTurn();
@@ -671,7 +744,7 @@ const turnEngine = createTurnEngine({
             run: handleAITurn
         }
     ],
-    endTurn: advanceTurn,
+    endTurn: endTurn,
     onError: (error, context) => {
         //The old loop had no catch at all, so this was a dead game. It is now a lost step.
         console.error("Turn engine: the " + (context.step ?? context.stage) + " stage threw; " +

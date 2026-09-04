@@ -17,7 +17,7 @@ import { dominapedia, menu } from "../../support/selectors.js";
 //   * both columns scroll independently and the panel itself does not, which is
 //     what keeps the title bar and the two buttons on screen.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `dominapedia/`.
+// docs/03-e2e-test-plan.md -- new functional area, `dominapedia/`.
 
 /** The topic id of the page currently showing, read from the contents column. */
 async function currentTopic(page) {

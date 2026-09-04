@@ -6,7 +6,7 @@ defender, two concurrent sieges, a territory at zero food.
 Each file is applied through `state/mutations.js` — the same path the game writes by — so a
 scenario cannot produce a world the game could not have produced itself. See
 [../../../src/platform/scenarios.js](../../../src/platform/scenarios.js) and
-[docs/04-e2e-test-plan.md](../../../docs/04-e2e-test-plan.md) section 3.7.
+[docs/03-e2e-test-plan.md](../../../docs/03-e2e-test-plan.md) section 3.7.
 
 Load one from a spec with `await game.loadScenario("two-sieges")`. The JSON is read in Node
 and handed to `window.__game.applyScenario()`, because the preview server serves `build/`

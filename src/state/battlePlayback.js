@@ -2,7 +2,7 @@
 //
 // Battle overhaul B.8. Until now an AI attack on a player territory resolved entirely inside
 // `doAttack()` and the player was handed a results screen with no account of how it went. That is
-// complaint five in docs/battle_overhaul.md section 2 -- "the player never sees the world change"
+// complaint five in docs/archived/battle_overhaul.md section 2 -- "the player never sees the world change"
 // -- in its sharpest form: the one battle whose outcome the player cares most about is the one
 // they are shown least about.
 //

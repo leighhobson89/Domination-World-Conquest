@@ -3,7 +3,7 @@ import { bottomTableCells, sel, tables, topTableCells } from "../selectors.js";
 // Both tables are one <tr> of alternating icon/value cells addressed by index.
 // The values are KMB-formatted ("1.2M"), so these page objects exist to assert
 // what is VISIBLE. Numeric assertions go through window.__game -- see
-// docs/04-e2e-test-plan.md section 8.3.
+// docs/03-e2e-test-plan.md section 8.3.
 
 class CellTable {
     constructor(page, tableSelector, cellMap) {

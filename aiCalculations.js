@@ -1506,7 +1506,7 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
     //
     //It is `resolveBattle()` from src/rules/military/battleModel.js now, played headlessly with
     //the AI's seeded rng: the identical function the player's battle steps through one round per
-    //click. See docs/battle_overhaul.md section 1.1 and phase B.5.
+    //click. See docs/archived/battle_overhaul.md section 1.1 and phase B.5.
     const defenders = [
         mainArrayEnemyTerritoryCopy.infantryForCurrentTerritory,
         mainArrayEnemyTerritoryCopy.useableAssault,

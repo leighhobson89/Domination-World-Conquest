@@ -8,7 +8,7 @@ import { test, expect } from "../../support/fixtures.js";
 // cannot be loaded into a Node-side spec. They become a real import at refactor
 // Phase 5.1, when the numbers move into `config/balance.js`.
 //
-// docs/04-e2e-test-plan.md section 5.6.
+// docs/03-e2e-test-plan.md section 5.6.
 
 const armyGoldPrices = { infantry: 10, assault: 50, air: 100, naval: 200 };
 const armyProdPopPrices = { infantry: 1000, assault: 1000, air: 5000, naval: 20000 };

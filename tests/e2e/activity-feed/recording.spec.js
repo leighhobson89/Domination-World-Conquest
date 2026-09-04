@@ -9,7 +9,7 @@ import { test, expect } from "../../support/fixtures.js";
 // costs is that the whole path runs through two modules and an event bus, and
 // nothing throws if it is not wired up. Hence this file.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `activity-feed/`.
+// docs/03-e2e-test-plan.md -- new functional area, `activity-feed/`.
 
 /** Every entry in the log, flattened out of its turn groups. */
 async function entries(game) {

@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // Wheel zoom, its clamps, the two SVG layers staying in register, and the world
-// bounds. docs/04-e2e-test-plan.md section 5.4.
+// bounds. docs/03-e2e-test-plan.md section 5.4.
 //
 // Phase 6.7 changed two things about zoom deliberately, at the developer's request,
 // and this file changed with them:

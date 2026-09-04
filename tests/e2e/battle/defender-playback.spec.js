@@ -21,7 +21,7 @@ import { battle as battleSelectors, ids } from "../../support/selectors.js";
 // all -- a player watching their own defeat labelled as their attack would trust nothing else in
 // the window.
 //
-// docs/battle_overhaul.md section 4.11.
+// docs/archived/battle_overhaul.md section 4.11.
 
 /**
  * A record of two rounds, shaped exactly as `doAttack()` builds one.

@@ -1,7 +1,7 @@
 # Refactor Plan — Domination: World Conquest
 
 **Baseline:** commit `b7ae0af`
-**Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) · [02-game-design-document.md](./02-game-design-document.md) · [04-e2e-test-plan.md](./04-e2e-test-plan.md)
+**Companion documents:** [../01-codebase-audit.md](../01-codebase-audit.md) · [../02-game-design-document.md](../02-game-design-document.md) · [../03-e2e-test-plan.md](../03-e2e-test-plan.md)
 
 ---
 
@@ -20,7 +20,7 @@ the step is wrong.
 4. **Behaviour is preserved unless a defect is being fixed deliberately.** Bug fixes get their
    own commits, separate from moves and renames, so a regression can be bisected.
 5. **Characterisation tests before surgery.** Before restructuring a module, land e2e coverage
-   for its functional area (see [04-e2e-test-plan.md](./04-e2e-test-plan.md)). Otherwise the
+   for its functional area (see [../03-e2e-test-plan.md](../03-e2e-test-plan.md)). Otherwise the
    refactor has nothing to prove itself against.
 6. **No new dependencies without a reason.** Plain ES modules, Vite for dev/build, Playwright
    for e2e, Vitest for unit. That is the whole intended toolchain.
@@ -91,7 +91,7 @@ src/
     audio.js  storage.js         save/load (NEW)
 tests/
   unit/                          Vitest, mirrors src/rules and src/ai
-  e2e/                           Playwright — see 04-e2e-test-plan.md
+  e2e/                           Playwright — see 03-e2e-test-plan.md
 tools/
   precompute-areas.mjs           bake path areas to JSON
   build-adjacency.mjs            rebuild/compact closestPathsData
@@ -266,7 +266,7 @@ casually**.
 | 1.3 | Compact the adjacency data. It is 19 MB largely because of full float coordinate pairs. Emitting `uniqueId` + rounded closest-point pairs should land under 2 MB. Ship `tools/build-adjacency.mjs` to regenerate it. | §2.3 | ✅ |
 | 1.4 | Precompute path areas to `data/pathAreas.json` via `tools/precompute-areas.mjs`; fall back to live computation if the SVG changes (checksum guard). Removes 359 × 80 `getPointAtLength` calls per load. | §4.2 | ✅ |
 | 1.5 | Build `uniqueId → territory` and `uniqueId → path` index maps once at load. Replace the ~90 linear-scan lookup loops progressively. | §4.2 | ✅ |
-| 1.6 | **Add a test harness hook.** Behind `?e2e=1`, expose `window.__game = { state, commands, ready }` and a `window.__seedRandom(seed)` that installs a seeded `Math.random` before any module runs. | Prerequisite for [04](./04-e2e-test-plan.md) | ✅ |
+| 1.6 | **Add a test harness hook.** Behind `?e2e=1`, expose `window.__game = { state, commands, ready }` and a `window.__seedRandom(seed)` that installs a seeded `Math.random` before any module runs. | Prerequisite for [04](../03-e2e-test-plan.md) | ✅ |
 | 1.7 | Kill the three `setTimeout(…, 1000)` dynamic-import hacks by moving the shared state they reach for into `data/` (which imports nothing). `manualAdjacencyExceptions` becomes a plain exported table keyed by **territory name**, resolved to ids lazily. | §3.1 — removes a real race | ✅ |
 
 **Exit criteria:** cold start < 3 s; no `setTimeout`-gated imports remain; `window.__game` available under `?e2e=1`. — **all met.**
@@ -338,7 +338,7 @@ two runs with the same seed diverge. `the same seed produces the same world` is 
 injected RNG for game logic and leaves cosmetics on the global `Math.random`.
 **Until that lands, no test may assert an exact combat or economy outcome across runs.**
 
-**Harness note (see [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3.5)**
+**Harness note (see [../03-e2e-test-plan.md](../03-e2e-test-plan.md) §3.5)**
 
 The brief asked for up to 8 headless workers. Measured here, **8 is not stable for this
 suite**: the run drops from 27/28 to 15/28, with pages failing to finish building the
@@ -358,7 +358,7 @@ takes ~2000 ms instead of ~550 ms — contention, not regression.
 
 | Step | Action | Status |
 |---|---|---|
-| 2.1 | Stand up the Playwright harness exactly as specified in [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3 — config, runner, `--slow`, worker policy, fixtures. | ✅ |
+| 2.1 | Stand up the Playwright harness exactly as specified in [../03-e2e-test-plan.md](../03-e2e-test-plan.md) §3 — config, runner, `--slow`, worker policy, fixtures. | ✅ |
 | 2.2 | Write the **P0 specs** (bootstrap, country-selection, turn-loop, map-interaction). These are the ones every other test depends on. | ✅ |
 | 2.3 | Write **P1 specs** (resources-economy, buy-military, upgrade-territory, transfer, attack, battle). | ✅ |
 | 2.4 | Wire `npm test` → unit + e2e, and add a CI workflow that runs headless × 8 workers. | ✅ |
@@ -392,7 +392,7 @@ takes ~2000 ms instead of ~550 ms — contention, not regression.
 **Six defects the suite found, none of which were in the audit**
 
 Writing the specs was worth more than running them. Full write-ups are in
-[01-codebase-audit.md](./01-codebase-audit.md); in order of severity:
+[../01-codebase-audit.md](../01-codebase-audit.md); in order of severity:
 
 | Ref | Defect | Found by |
 |---|---|---|
@@ -419,7 +419,7 @@ nothing multi-turn can be tested at all.
   touched it, which is worse than useless in a characterisation suite. 359 comparisons in a
   test-only accessor cost nothing. This is the only change to shipped code in Phase 2, and it
   changes no game behaviour.
-- **Two numbers in [04-e2e-test-plan.md](./04-e2e-test-plan.md) are wrong** and the specs
+- **Two numbers in [../03-e2e-test-plan.md](../03-e2e-test-plan.md) are wrong** and the specs
   follow the code instead: `devIndex` is 0.326–0.962 (§5.1's "0.4–0.95"), and upgrade cost is
   **quadratic** in the running total, so a high-`devIndex` territory pays *more*, not less
   (§5.7). Both are settled properly at Phase 5.1 when the numbers move into
@@ -489,7 +489,7 @@ Order matters — these are sequenced by blast radius.
 
 Every critical and every high-severity defect in the register is closed, plus five more that
 only became **reachable** once the others were fixed. The live status of everything is now in
-[05-known-issues.md](./05-known-issues.md), which this section should be read alongside.
+[../04-known-issues.md](../04-known-issues.md), which this section should be read alongside.
 
 **Order mattered more than the plan expected.** 3.1a first, as written — but fixing it did not
 make the game survive ten turns, it made the game survive long enough to reach the *next*
@@ -509,7 +509,7 @@ it got that far, and **B**/**C** meant conquests rarely wrote back to the right 
 those let the AI actually take and lose territory — and let sieges, famine and AI attacks on
 the player happen at all. Every one of the five was found by the same spec, the ten-turn
 `long-run`, which is the clearest possible argument for it existing. All five are written up in
-[01-codebase-audit.md](./01-codebase-audit.md).
+[../01-codebase-audit.md](../01-codebase-audit.md).
 
 **AJ is the one to remember.** §5.1 F was a one-character fix — `-` to `+` — and it turned a
 branch that had never executed into one that executes routinely, exposing three further faults
@@ -520,7 +520,7 @@ subject disagreeing**. Add that to the list of things to look for in every later
 the most common defect shape in this codebase.
 
 **Three fixes were design decisions, not restorations of intent.** Each was measured before
-being chosen, and the reasoning is in [05-known-issues.md](./05-known-issues.md) §4:
+being chosen, and the reasoning is in [../04-known-issues.md](../04-known-issues.md) §4:
 
 - **3.15 (K)** — the cross-type matchup matrix, as the plan recommended. Same-type
   effectiveness is 1, so a conventional battle fights exactly as it always did, and
@@ -616,7 +616,7 @@ now lives in the suite as `turn-loop/long-run.spec.js`, un-`fixme`d.
   (Phase 4) is what stops it being stale.
 
 **Two design problems Phase 3 made visible** — see
-[05-known-issues.md](./05-known-issues.md) §6. Neither is a defect to patch, and both are
+[../04-known-issues.md](../04-known-issues.md) §6. Neither is a defect to patch, and both are
 Phase 7 work, but they are what a player will feel first:
 
 - **The AI besieges far more than it can finish.** Over 14 turns, concurrent AI sieges went
@@ -949,7 +949,7 @@ on every AI turn, to print two lines nobody reads — together with the two modu
 that fed it, both getters, and `setDebugArraysToZero()`.
 
 **What 5.8 deliberately did NOT do.** The bootstrap-ordering item in the register
-([05](./05-known-issues.md) §2) named Phase 5.7 as its owner: CPU leaders and the AI's starting
+([05](../04-known-issues.md) §2) named Phase 5.7 as its owner: CPU leaders and the AI's starting
 forts are created *after* `initialiseGame()` resolves, which is after the engine has already run
 turn 1, so turn 1 plans and earns over a world with no leaders and no forts. Moving that setup
 inside `initialiseGame()` was implemented and **measured**: the ten-turn `long-run` went from
@@ -1008,7 +1008,7 @@ New in 6.4–6.8, every one of them under 300 lines: `src/ui/map/{MapView,camera
 `src/ui/moveButton/deriveMoveButtonState.js`.
 
 **Four defects closed, all structural rather than arithmetic** — recorded in
-[05-known-issues.md](./05-known-issues.md) §9:
+[../04-known-issues.md](../04-known-issues.md) §9:
 
 - audit §5.2 **AE**, the attack marker surviving a cancel — the last 🔴 in the register, and
   the last `test.fixme` in the suite;
@@ -1121,7 +1121,7 @@ over 400 lines.
 ### Phase 7 — Close the game-design gaps (3–5 days)
 
 **Goal:** make it a finishable game. Ordered by player-felt impact
-(cross-reference [02-game-design-document.md](./02-game-design-document.md) §11).
+(cross-reference [../02-game-design-document.md](../02-game-design-document.md) §11).
 
 | Step | Feature | Notes |
 |---|---|---|
@@ -1521,7 +1521,7 @@ country that would never, under any circumstances, attack anything.
 
 **Six defects, five of them the same species** — a decision taken and then silently discarded
 by a second rule that could not see the first. They are written up as **BA–BF** in
-[05-known-issues.md](./05-known-issues.md) §10b: the posture deadlock, a fighting posture with
+[../04-known-issues.md](../04-known-issues.md) §10b: the posture deadlock, a fighting posture with
 a budget of zero attacks, a planner and an executor fighting two different battles, sieges
 thrown away by a private odds gate inside `setSiege()`, an allocation loop that could hang the
 browser outright with no error at all, and New Game inheriting the previous world's plans.

@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { territoryNames } from "../../support/territories.js";
 
 // What the AI phase does, and that it does the same thing twice.
-// docs/04-e2e-test-plan.md section 5.12.
+// docs/03-e2e-test-plan.md section 5.12.
 
 test.describe("the AI turn", () => {
     test.setTimeout(300_000);

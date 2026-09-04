@@ -9,7 +9,7 @@
 // A throwing listener must not abort the mutation that emitted, nor stop the other
 // listeners, so each handler is called inside a try/catch and reported.
 //
-// See docs/03-refactor-plan.md Phase 4.3.
+// See docs/archived/03-refactor-plan.md Phase 4.3.
 
 /** @type {Map<string, Set<Function>>} */
 const listeners = new Map();
@@ -34,7 +34,18 @@ export const Events = Object.freeze({
      * `{ entry: null, cleared: true }` / `{ entry: null, restored: true }` when
      * the whole log was replaced.
      */
-    ACTIVITY_LOGGED: "activityLogged"
+    ACTIVITY_LOGGED: "activityLogged",
+    /**
+     * The game has been decided -- somebody met the victory condition, or the player was
+     * eliminated, or a timed game reached its limit.
+     *
+     * Emitted once per game from the turn loop's `endTurn`, carrying the
+     * `VictoryResult` from `src/rules/victoryCheck.js`. It is an EVENT rather than a
+     * direct call into the UI so that the victory and defeat screens are a second
+     * subscriber rather than a change to the rule that decided the game -- today the
+     * only subscriber writes a line to the console.
+     */
+    GAME_OVER: "gameOver"
 });
 
 /**

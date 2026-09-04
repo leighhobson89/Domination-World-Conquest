@@ -16,7 +16,7 @@ import { containers, sel } from "../../support/selectors.js";
 // That is what makes the bar collapse DOWNWARDS -- it is anchored by its bottom
 // edge, so the rows above the button are the ones that travel.
 //
-// docs/04-e2e-test-plan.md -- `ui-layout/`.
+// docs/03-e2e-test-plan.md -- `ui-layout/`.
 
 const PHASE_BAR = ".popup-with-confirm-container";
 

@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { containers } from "../../support/selectors.js";
 
 // Hovering lightens the path and shows the owner tooltip.
-// docs/04-e2e-test-plan.md section 5.4.
+// docs/03-e2e-test-plan.md section 5.4.
 
 /** rgb(r,g,b) -> [r,g,b], whatever the spacing. */
 function channels(fill) {

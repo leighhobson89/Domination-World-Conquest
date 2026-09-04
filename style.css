@@ -2269,7 +2269,15 @@ td {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 90%;
+  /* 72%, which is 90% less a fifth. The battle window and the battle-results screen are
+     one size and must stay one size -- they are the same panel at two moments, and a
+     player who watched a battle resolve into a results screen half an inch wider would
+     read the jump as the window having moved. Centring is not affected: the panel is
+     anchored at left: 50% and pulled back by half its own width, so the width may change
+     without anything else being touched. The clash panel is deliberately NOT part of this
+     -- it is a separate overlay outside the window, for the stacking-context reason
+     recorded beside it. */
+  width: 72%;
   height: 80vh;
   background-color: var(--surface-panel);
   border: var(--border-width) solid var(--border-color);
@@ -3003,7 +3011,8 @@ td {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 90%;
+  /* Must match #battleContainer's width -- see the note there. */
+  width: 72%;
   height: 80vh;
   background-color: var(--surface-panel);
   border: var(--border-width) solid var(--border-color);

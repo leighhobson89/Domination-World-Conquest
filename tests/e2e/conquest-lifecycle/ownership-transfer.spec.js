@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // The full arc from taking a territory to using it normally.
-// docs/04-e2e-test-plan.md section 5.15.
+// docs/03-e2e-test-plan.md section 5.15.
 
 /**
  * Take France with an overwhelming fleet and accept the victory.

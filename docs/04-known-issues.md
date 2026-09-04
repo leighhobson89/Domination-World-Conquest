@@ -2,7 +2,7 @@
 
 **Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) ·
 [02-game-design-document.md](./02-game-design-document.md) ·
-[03-refactor-plan.md](./03-refactor-plan.md) · [04-e2e-test-plan.md](./04-e2e-test-plan.md)
+[archived/03-refactor-plan.md](./archived/03-refactor-plan.md) · [03-e2e-test-plan.md](./03-e2e-test-plan.md)
 
 This is the **register**: every defect found so far, in one table, with its current status, the
 code that is wrong today, the test that covers it, and the refactor phase that closes it.
@@ -345,7 +345,7 @@ Two things are worth keeping from it:
   (`~~like this~~`) and say in plain text what closed it and where the code is now. Strike the
   *description of the broken behaviour*, not the explanation of the fix — a reader skimming for
   what is still true should be able to read the un-struck text and get only the present tense.
-  The same convention applies to [04-e2e-test-plan.md](./04-e2e-test-plan.md).
+  The same convention applies to [03-e2e-test-plan.md](./03-e2e-test-plan.md).
 - **Add a new issue to both places at once**: a line in `Currently open`, and an entry with its
   detail in the section that will own it.
 - **Never renumber an id.** They are cited by the e2e specs and by the refactor plan.

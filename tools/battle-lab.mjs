@@ -9,7 +9,7 @@
 // hundred turns of a real world, in a real page, with real adjacency and a real economy. It is
 // also two minutes and a dev server. This is the cheap check that comes first: it imports
 // `src/rules/military/` directly (every rule runs in Node -- refactor Phase 5) and prints the
-// matchup table that docs/battle_overhaul.md section 4.6 predicts, in about a second.
+// matchup table that docs/archived/battle_overhaul.md section 4.6 predicts, in about a second.
 //
 // It answers three questions and no others:
 //
@@ -131,7 +131,7 @@ for (const matchup of MATCHUPS) {
         + padStart(forecast.stalemateRate > 0 ? `${(forecast.stalemateRate * 100).toFixed(1)}%` : "-", 7));
 }
 
-console.log("\nTargets from docs/battle_overhaul.md section 4.6:");
+console.log("\nTargets from docs/archived/battle_overhaul.md section 4.6:");
 console.log("  even 1:1 should FAIL for the attacker and run 5-8 rounds");
 console.log("  2:1 should succeed in about 3 rounds");
 console.log("  overwhelming should succeed in about 2 rounds");

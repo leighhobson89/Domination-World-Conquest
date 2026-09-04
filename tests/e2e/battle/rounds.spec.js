@@ -11,7 +11,7 @@ import { test, expect } from "../../support/fixtures.js";
 // takes an injected RNG -- the canary is
 // `bootstrap/e2e-hook.spec.js`'s "the same seed produces the same world".
 //
-// docs/04-e2e-test-plan.md section 5.10.
+// docs/03-e2e-test-plan.md section 5.10.
 
 /** Attack a reachable enemy of `source` with everything the window will allow. */
 async function startBattleFrom(game, source, { units = "infantry" } = {}) {

@@ -27,7 +27,7 @@ assertion in this folder rests on that.
   was not found left the sentinel *string* `"no match"`, which the write-back wrote into the
   model, and every later arithmetic on that slot came out `NaN`.
 - **The AI besieges far more than it can finish**
-  ([docs/05-known-issues.md](../../../docs/05-known-issues.md) §6). "The world is not the same
+  ([docs/04-known-issues.md](../../../docs/04-known-issues.md) §6). "The world is not the same
   after a turn" counts new sieges as movement for exactly that reason: a conquest is not
   guaranteed within two turns, but activity is.
 

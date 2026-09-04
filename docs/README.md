@@ -1,16 +1,24 @@
 # Documentation — Domination: World Conquest
 
-Planning and reference documents. The audit and the E2E plan were written against commit
-`b7ae0af`; the register (5) is kept current. Read them in order — each builds on the one before,
-and 5 is the one to check first if you only read one.
+Planning and reference documents. **These are breathing documents** — they are edited as work
+lands, and they describe the code as it is today. Finished plans move to
+[archived/](./archived/README.md) rather than being left in the sequence to go stale.
+
+The audit (1) was written against commit `b7ae0af` and is the analysis behind the register;
+the register (4) is the one to check first if you only read one.
 
 | # | Document | What it answers |
 |---|---|---|
 | 1 | [Codebase Audit](./01-codebase-audit.md) | What is here, how it is put together, and everything that is wrong with it — every catalogued defect with file and line references, and the analysis behind each one |
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
-| 3 | [Refactor Plan](./03-refactor-plan.md) | Target architecture and an eight-phase sequence to get there without ever breaking the build |
-| 4 | [E2E Test Plan](./04-e2e-test-plan.md) | 15 functional areas and the Playwright harness that runs them. P0, P1 and P2 are delivered: **281 specs in 49 files**, plus 306 unit tests, and **no `test.fixme` left** |
-| 5 | [Known Issues](./05-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
+| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — 397 specs, plus 767 unit tests, and **no `test.fixme` left** |
+| 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
+| 5 | [Goals and Victory](./05-goals-and-victory.md) | **Current work.** What winning means, the five goals a player chooses between, how the AI pursues each one, and the end-game trigger |
+| 6 | [Goals and Victory Checklist](./06-goals-and-victory-checklist.md) | The task breakdown for 5, in four quarters, each ending with the game playable |
+
+Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, and the
+battle overhaul and its checklist. They record why the code is shaped as it is; they do not
+describe outstanding work.
 
 ---
 
@@ -32,22 +40,22 @@ that except the last item on the list. There is **one** territory state
 Phase 6 decomposed the UI into nineteen modules under `src/ui/`, and the map now renders
 purely from state — but **`ui.js` still exists at 4,290 lines** and `resourceCalculations.js`
 at 4,057, so Phase 6's "no file over 400 lines" is not met. A **Phase 6.9** finishing those two
-is the honest next step; see [Refactor §2](./03-refactor-plan.md).
+is the honest next step; see [Refactor §2](./archived/03-refactor-plan.md).
 
 **The three things that were blocking all progress** — all three are fixed:
 
 1. **Cold start parses a 19 MB JSON once per territory** — about 6.8 GB of redundant parsing
    before the first turn. Nothing can be iterated on or tested until this is fixed.
-   ([Audit §4.1](./01-codebase-audit.md), [Refactor 1.1](./03-refactor-plan.md))
+   ([Audit §4.1](./01-codebase-audit.md), [Refactor 1.1](./archived/03-refactor-plan.md))
 2. **Circular imports resolved by racing timers** — behaviour differs between machines and
    silently disables the island adjacency rules.
-   ([Audit §3.1](./01-codebase-audit.md), [Refactor 1.7](./03-refactor-plan.md))
+   ([Audit §3.1](./01-codebase-audit.md), [Refactor 1.7](./archived/03-refactor-plan.md))
 3. **No single source of truth for territory state** — every feature had to sync three copies,
    and each sync was a place to get it wrong. Closed by Phase 4: `mainGameArray` is gone.
-   ([Audit §3.2](./01-codebase-audit.md), [Refactor Phase 4](./03-refactor-plan.md))
+   ([Audit §3.2](./01-codebase-audit.md), [Refactor Phase 4](./archived/03-refactor-plan.md))
 
 **The three defects most likely behind "it doesn't play very well"** — all three fixed in
-Phase 3; see [Known Issues](./05-known-issues.md) for the live status of everything:
+Phase 3; see [Known Issues](./04-known-issues.md) for the live status of everything:
 
 - Territory upgrade capacity bonuses **compounded catastrophically** — a 5th farm applied +50 %,
   not +10 %, on top of an already-inflated figure ([Audit §5.1 A](./01-codebase-audit.md)).
@@ -73,36 +81,46 @@ was allowed to assert an exact combat or economy outcome (audit §5.3 Y). It has
 now. That single change let five whole functional areas be written — `siege/`, `ai-turn/`,
 `conquest-lifecycle/`, `info-panels/`, `random-events/` — and writing them found seven further
 defects, including a battle debiting its source territory **twice** and an empty battle-results
-screen appearing at the start of almost every turn ([Known Issues §8](./05-known-issues.md)).
+screen appearing at the start of almost every turn ([Known Issues §8](./04-known-issues.md)).
 
 **There is no 🔴 left in the register.** Phase 6.7 closed the last one — audit §5.2 AE, the
 attack marker surviving a cancel — by making the marker and the target it draws one fact, and
 with it went the last `test.fixme` in the suite. Phase 6 also deleted the colour snapshot the
 map had been restored from at ~30 call sites, so map colour is now derived from the store, and
 removed the accumulating click listener on the move button that `eventHandlerExecuted` and four
-`setTimeout(…, 200)` calls had been suppressing ([Known Issues §9](./05-known-issues.md)).
+`setTimeout(…, 200)` calls had been suppressing ([Known Issues §9](./04-known-issues.md)).
 
 **What is outstanding is now one list**, at the top of
-[Known Issues](./05-known-issues.md#currently-open) — one line per open issue, deleted when it
+[Known Issues](./04-known-issues.md#currently-open) — one line per open issue, deleted when it
 closes. Everything on it is Phase 7 or Phase 6.9.
 
 What Phase 3 started — sieges, famine, AI conquest actually running — surfaced two *design*
 problems that are now the most player-visible things left: the AI besieges far more than it can
 finish, and a besieged territory earns nothing indefinitely. Both are Phase 7 work
-([Known Issues §6](./05-known-issues.md)), and Phase 5.8 added a third to the same list: giving
+([Known Issues §6](./04-known-issues.md)), and Phase 5.8 added a third to the same list: giving
 the AI a fully-formed first turn eliminates a single-territory player within ten turns, which
 is why the bootstrap-ordering fix was measured, reverted and re-sequenced there.
 
-**Immediate next three actions** ([Refactor §5](./03-refactor-plan.md)):
+**What is being worked on now.** [Goals and Victory](./05-goals-and-victory.md) — the largest
+open question the game has, and the one entry on the Dominapedia's own list of faults that is
+not a balance question. The game does not end; nothing checks whether the player has conquered
+the world or been wiped off it. Half of the answer already exists, because the AI needed
+something to play for, so what this phase adds is the screen on which a player chooses between
+five goals, the AI actually *pursuing* that choice rather than merely being aware of it, and
+the moment the game stops and says who won. The breakdown is in
+[the checklist](./06-goals-and-victory-checklist.md).
 
-1. **Phase 6.9** — finish `ui.js` and `resourceCalculations.js`, and do the inline-styling
-   sweep 6.8 left. Measure the styling work against screenshots, not blind.
-2. **Phase 7.1** — win / lose conditions and a victory/defeat screen. Without them a full
-   playthrough still cannot be tested.
-3. **Phase 7.2 / 7.3** — New Game and save/load. `TurnEngine.reset()` exists and `GameState`
-   is a plain serialisable object, so both are now small.
+**Still outstanding after it**, in rough order:
 
-Before any of them, take the measurement Phase 6 deferred: `generateDistinctRGBs()` in
-`src/ui/map/colouring.js` is dead code held in place only by the `Math.random` draws it makes
-on the game's stream. Deleting it moves four exact-outcome specs, so it and the re-baseline
-are one change.
+1. **Continent bonuses**, the mid-game goal layer. It interacts with Continental Supremacy —
+   neither blocks the other, but they should be balanced together.
+2. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
+   refactor's "no file over 400 lines" is not met. Finishing them was Phase 6.9.
+3. **The two design problems Phase 3 surfaced** — the AI besieges far more than it can finish,
+   and a besieged territory earns nothing indefinitely
+   ([Known Issues §6](./04-known-issues.md)).
+
+One measurement is still owed and should be taken before anything touches map colour:
+`generateDistinctRGBs()` in `src/ui/map/colouring.js` is dead code held in place only by the
+`Math.random` draws it makes on the game's stream. Deleting it moves four exact-outcome specs,
+so it and the re-baseline are one change.

@@ -4,7 +4,7 @@ import { activityPanel, containers } from "../../support/selectors.js";
 // The activity panel as a WINDOW: where its button lives, how it opens and
 // closes, how its per-turn sections behave, and when it raises itself.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `activity-feed/`.
+// docs/03-e2e-test-plan.md -- new functional area, `activity-feed/`.
 
 /** A conquest on the far side of the map, filed under a turn of the caller's choosing. */
 function distantConquest(turn, territory = "Balearic Islands") {

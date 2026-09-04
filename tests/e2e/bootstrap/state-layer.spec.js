@@ -12,7 +12,7 @@ import { test, expect } from "../../support/fixtures.js";
 // siege list. That disagreement is exactly what `normalizeSiegeState()` existed to
 // paper over, and it is what Phase 4.5 deleted.
 //
-// docs/03-refactor-plan.md Phase 4.4-4.5.
+// docs/archived/03-refactor-plan.md Phase 4.4-4.5.
 
 /** Every territory path's state-bearing attributes, read straight from the SVG. */
 async function attributesFromMap(page) {

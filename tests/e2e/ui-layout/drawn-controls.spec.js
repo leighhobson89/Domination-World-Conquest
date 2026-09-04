@@ -18,7 +18,7 @@ import { cls, sel } from "../../support/selectors.js";
 // onto the root element, and a picture of a grey plus sign is a picture of a
 // grey plus sign in all six themes.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `ui-layout/`.
+// docs/03-e2e-test-plan.md -- new functional area, `ui-layout/`.
 
 /** Every `<img>` inside a container, by src. */
 async function imagesIn(page, selector) {

@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { phaseBar } from "../../support/selectors.js";
 
 // The five strongest countries are LOCKED on the selection screen -- audit 5.2 Z, and
-// the design decision recorded in docs/05-known-issues.md section 4.
+// the design decision recorded in docs/04-known-issues.md section 4.
 //
 // This file is the regression test for how that lock was enforced before Phase 5.8. The
 // guard at the top of `selectCountry()` closes before the block that offers the confirm

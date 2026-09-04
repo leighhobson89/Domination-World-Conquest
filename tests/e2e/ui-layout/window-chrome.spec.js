@@ -10,7 +10,7 @@ import { cls, containers, infoTable, sel } from "../../support/selectors.js";
 // not, so the fourth of four rows was drawn underneath the bottom bar. Nothing
 // in the source looks wrong. Only a measurement finds it.
 //
-// docs/04-e2e-test-plan.md -- new functional area, `ui-layout/`.
+// docs/03-e2e-test-plan.md -- new functional area, `ui-layout/`.
 
 /**
  * Is every child row fully inside its scroll container?

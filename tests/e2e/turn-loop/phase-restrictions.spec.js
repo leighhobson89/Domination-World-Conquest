@@ -9,7 +9,7 @@ import { containers, moveButton } from "../../support/selectors.js";
 // What is available in which phase. The buy/upgrade buttons are gated on
 // `currentTurnPhase === 0`, and the transfer/attack button on phase 1.
 //
-// docs/04-e2e-test-plan.md section 5.3.
+// docs/03-e2e-test-plan.md section 5.3.
 
 test.describe("phase restrictions", () => {
     test("offers buy and upgrade in Buy/Upgrade", async ({ startedGame: game }) => {

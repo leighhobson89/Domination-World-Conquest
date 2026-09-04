@@ -4,7 +4,7 @@ import { battle } from "../../support/selectors.js";
 // The siege marker on the map: that there is exactly one, that it does not intercept the
 // click it sits on top of, and that it goes away with the siege.
 //
-// docs/04-e2e-test-plan.md sections 5.4 and 5.11.
+// docs/03-e2e-test-plan.md sections 5.4 and 5.11.
 
 /**
  * Every siege overlay in the map document, by id.
@@ -132,7 +132,7 @@ test.describe("siege markers", () => {
             }
         }
         // Still besieged after three turns is a legitimate outcome -- the AI besieges far
-        // more than it can finish (docs/05-known-issues.md section 6). The invariant that
+        // more than it can finish (docs/04-known-issues.md section 6). The invariant that
         // matters either way is that the marker and the state agree.
         expect(await overlayIds(page)).toContain("siegeImage_Germany");
         expect(await game.map.attribute("Germany", "underSiege")).toBe("true");

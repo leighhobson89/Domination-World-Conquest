@@ -8,7 +8,7 @@ import { test, expect } from "../../support/fixtures.js";
 // Selecting an owned territory in the Military phase highlights what it can
 // reach and decides what the move button offers.
 //
-// docs/04-e2e-test-plan.md section 5.8.
+// docs/03-e2e-test-plan.md section 5.8.
 
 test.describe("selecting an owned territory in the Military phase", () => {
     test("offers a live TRANSFER when there is somewhere to send units", async ({ game }) => {

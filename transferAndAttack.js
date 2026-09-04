@@ -10,7 +10,7 @@ import {
     calculateProbabilityPreBattle,
     preBattleSetup
 } from './battle.js';
-//Battle overhaul B.6.7. The itemised dice preview -- section 4.9 of docs/battle_overhaul.md.
+//Battle overhaul B.6.7. The itemised dice preview -- section 4.9 of docs/archived/battle_overhaul.md.
 //It imports nothing from here and reads nothing off the DOM; it is handed the same setup the
 //odds bar was computed from.
 import {
@@ -21,7 +21,7 @@ import {
 // race: on a slow load the binding was still undefined when first used. A plain
 // static import is correct because getLastClickedPath is a hoisted function
 // declaration, so it is initialised before any module body runs.
-// See docs/03-refactor-plan.md Phase 1.7.
+// See docs/archived/03-refactor-plan.md Phase 1.7.
 import {
     getLastClickedPath,
     setAttackProbabilityOnUI,

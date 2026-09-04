@@ -1,13 +1,13 @@
 # E2E Test Implementation Plan — Domination: World Conquest
 
 **Baseline:** commit `b7ae0af`
-**Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) · [02-game-design-document.md](./02-game-design-document.md) · [03-refactor-plan.md](./03-refactor-plan.md)
+**Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) · [02-game-design-document.md](./02-game-design-document.md) · [archived/03-refactor-plan.md](./archived/03-refactor-plan.md)
 
 ---
 
 ## 1. Purpose and shape
 
-This suite exists to make the refactor in [03-refactor-plan.md](./03-refactor-plan.md) safe.
+This suite exists to make the refactor in [archived/03-refactor-plan.md](./archived/03-refactor-plan.md) safe.
 It is a **characterisation suite first, a regression suite second**: it pins down what the
 game does today so that moving code cannot silently change behaviour.
 
@@ -607,7 +607,7 @@ Coarse-grained only; formulas belong in unit tests (§4).
 
 **Rewritten for the dice model** (battle overhaul B.4.8). Every spec here used to describe the
 five-round skirmish model; all of its terminal conditions changed by design. See
-[battle_overhaul.md](./battle_overhaul.md) §4.
+[archived/battle_overhaul.md](./archived/battle_overhaul.md) §4.
 
 | Spec | Covers |
 |---|---|
@@ -846,12 +846,12 @@ per cancel route.
 plus the one wall-clock budget spec that skips outside a single-worker run — and 82 Vitest
 unit tests. Full headless suite at four workers: **2 m 30 s**.~~ Each folder's `README.md`
 carries its own spec table and its own out-of-scope note; the phase write-up is in
-[03-refactor-plan.md](./03-refactor-plan.md#phase-2--land-the-safety-net-23-days--complete).
+[archived/03-refactor-plan.md](./archived/03-refactor-plan.md#phase-2--land-the-safety-net-23-days--complete).
 
 **Phase 6 added and changed these:**
 
 - `map-interaction/zoom-pan.spec.js` was rewritten. Zoom is instant and cursor-anchored now
-  (see [03-refactor-plan.md](./03-refactor-plan.md) §6.7), so the helper that polled for the
+  (see [archived/03-refactor-plan.md](./archived/03-refactor-plan.md) §6.7), so the helper that polled for the
   500 ms animation to settle is gone, and three specs are new: every wheel event is applied,
   the zoom anchors on the pointer, and nothing outside the world is ever shown.
 - `attack/attack-window.spec.js` gained the two **AE** specs.

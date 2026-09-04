@@ -495,7 +495,7 @@ describe("resolveBattle", () => {
         //
         // This is the defender's whole built-in advantage, stated as a test: at even strength,
         // with no terrain and no composition edge, attacking is a losing proposition. That is
-        // deliberate (docs/battle_overhaul.md section 4.3) and it is what ATTACK_ADVANTAGE has
+        // deliberate (docs/archived/battle_overhaul.md section 4.3) and it is what ATTACK_ADVANTAGE has
         // to overcome by moving the share into a higher dice band.
         const evenFight = () => ({
             attackers: [400000, 0, 0, 0],

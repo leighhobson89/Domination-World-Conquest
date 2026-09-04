@@ -1,6 +1,6 @@
 // The round log: every round of this battle, newest first.
 //
-// Battle overhaul B.6.4. The last of the four things section 2 of docs/battle_overhaul.md says is
+// Battle overhaul B.6.4. The last of the four things section 2 of docs/archived/battle_overhaul.md says is
 // wrong with the old window. The ledger explains the round about to be fought; this is the record
 // of the ones already fought, and it is what turns "the numbers got smaller" into an account:
 //

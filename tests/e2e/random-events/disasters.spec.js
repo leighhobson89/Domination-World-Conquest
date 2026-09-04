@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { RANDOM_EVENTS, randomEventLikelihood } from "../../../src/config/balance.js";
 
 // The four disasters, and the rising chance of one.
-// docs/04-e2e-test-plan.md section 5.14.
+// docs/03-e2e-test-plan.md section 5.14.
 //
 // A random event cannot be reached by clicking and cannot be reached by seeding either: it
 // is a band on the MEAN of five draws, so no seed puts a chosen disaster on a chosen turn,

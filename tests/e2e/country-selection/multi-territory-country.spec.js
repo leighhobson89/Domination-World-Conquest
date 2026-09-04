@@ -4,7 +4,7 @@ import { startingTerritoryCount } from "../../support/territories.js";
 // Picking a country gives the player ALL of its territories, not just the one
 // clicked. Derived from resources/svgMaster.svg, which is what the running game
 // reads.
-// docs/04-e2e-test-plan.md section 5.2.
+// docs/03-e2e-test-plan.md section 5.2.
 
 // Japan, not the United States: the US is above COUNTRY_GREYOUT_RANK and is no
 // longer selectable (audit 5.2 Z, fixed in refactor Phase 3). Japan has five

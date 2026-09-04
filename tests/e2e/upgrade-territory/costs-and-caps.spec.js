@@ -21,7 +21,7 @@ import { test, expect } from "../../support/fixtures.js";
 // Vitest unit test. What belongs here is that the window quotes and then charges
 // the same number.
 //
-// docs/04-e2e-test-plan.md section 5.7.
+// docs/03-e2e-test-plan.md section 5.7.
 
 // Hokkaido (Japan), not Alaska (United States): since refactor Phase 3 the country
 // selection strength gate actually fires (audit 5.2 Z), and the United States is above

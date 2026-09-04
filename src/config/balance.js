@@ -353,7 +353,7 @@ export const conquestLockout = { minTurns: 1, maxTurns: 3 };
 
 // --- battle: dice ----------------------------------------------------------
 //
-// Battle overhaul B.1. See docs/battle_overhaul.md section 4 for the reasoning; this is the
+// Battle overhaul B.1. See docs/archived/battle_overhaul.md section 4 for the reasoning; this is the
 // numeric half of it.
 //
 // The shape of the model in one paragraph: force ratio produces a SHARE, the share produces a
@@ -363,7 +363,7 @@ export const conquestLockout = { minTurns: 1, maxTurns: 3 };
 // CURRENT force. Rounds run until one side falls below `BREAK_THRESHOLD` of what it started
 // with.
 //
-// Nothing here is measured yet. The table in docs/battle_overhaul.md section 4.6 is modelled,
+// Nothing here is measured yet. The table in docs/archived/battle_overhaul.md section 4.6 is modelled,
 // and section 6 is explicit that no constant in this block ships on judgement: each one is
 // measured with tools/ai-sim.mjs on a fixed seed before and after. `tools/battle-lab.mjs`
 // is the cheap version of that check -- it runs the model headlessly and prints the matchup
@@ -379,7 +379,7 @@ export const conquestLockout = { minTurns: 1, maxTurns: 3 };
  *   At 1.44, a raw-EVEN fight -- identical armies, no terrain, no composition edge -- was won
  *   by the ATTACKER 88.3% of the time.
  *
- * That is the exact opposite of what docs/battle_overhaul.md section 4.3 designs, and the cause
+ * That is the exact opposite of what docs/archived/battle_overhaul.md section 4.3 designs, and the cause
  * is banding. 1.44 moves the attacker's share from 0.500 to 0.590, which crosses a band edge, so
  * the attacker rolls FOUR dice against THREE -- and a spare die is not a small edge, it is an
  * unmatched die, which is a guaranteed casualty every single round. A continuous probability
@@ -514,7 +514,7 @@ export const DIE_MODIFIERS = Object.freeze({
  * below zero by arithmetic.
  *
  * This is the pacing dial. It, and the band edges above, are what set the "5-8 rounds" in
- * docs/battle_overhaul.md section 3. Raising it makes every battle shorter and bloodier.
+ * docs/archived/battle_overhaul.md section 3. Raising it makes every battle shorter and bloodier.
  */
 export const PAIRING_CASUALTY_SHARE = 0.10;
 
@@ -672,22 +672,53 @@ export const randomEventLikelihood = {
 // every reachable enemy territory, ranked the results by its leader's personality and
 // executed the list, which is why it started far more sieges than it could ever finish
 // and why it fought equally hard for a Caribbean island and for the last territory it
-// needed to own a continent outright. See docs/05-known-issues.md section 6.
+// needed to own a continent outright. See docs/04-known-issues.md section 6.
 
 /**
  * The default victory condition, and the one the AI campaigns towards until the player
  * chooses otherwise. CONTINENTAL: hold every territory on this many continents.
  *
- * The Dominapedia's "Goals and Victory" page is the design this comes from. The player-
- * facing chooser is still to come; `setVictoryCondition()` is the seam it will use.
+ * The Dominapedia's "Goals and Victory" page is the design this comes from, and
+ * docs/05-goals-and-victory.md is the phase that implements it. Each condition now has a
+ * TIER LIST as well as a default -- the goal chooser offers the tiers, and everything that
+ * reads the single value keeps reading the default, so adding the tiers changed nothing.
  */
 export const CONTINENTS_REQUIRED_FOR_VICTORY = 3;
+
+/** What the chooser offers for CONTINENTAL. The default must be one of these. */
+export const CONTINENTAL_TIERS = Object.freeze([2, 3, 4]);
 
 /** Fraction of the world's land area a DOMINATION victory requires. */
 export const DOMINATION_LAND_SHARE = 0.6;
 
-/** The turn a TURN_LIMIT game is scored on. */
-export const VICTORY_TURN_LIMIT = 100;
+/** What the chooser offers for DOMINATION. */
+export const DOMINATION_TIERS = Object.freeze([0.4, 0.6, 0.8]);
+
+/**
+ * The turn a TURN_LIMIT game is scored on.
+ *
+ * This was 100 and is 200, because 100 was not a game. `tools/ai-sim.mjs` puts the largest
+ * empire at roughly thirty territories of 359 after a hundred turns, so a game scored there
+ * would end before anything decisive had happened and would be won by whoever happened to
+ * have started biggest. The tiers below all sit above that measurement.
+ */
+export const VICTORY_TURN_LIMIT = 200;
+
+/** What the chooser offers for TURN_LIMIT. */
+export const TURN_LIMIT_TIERS = Object.freeze([200, 350, 500]);
+
+/**
+ * How many of the world's strongest countries a GREAT_POWERS victory asks you to break.
+ *
+ * The target set is the same five the country-selection screen locks -- `COUNTRY_GREYOUT_RANK`
+ * in `ui.js` is the other half of that number and the two must agree. They are separate
+ * because this module may not import the UI; the chooser is what reconciles them, freezing
+ * the five names into the condition at the moment a game starts.
+ */
+export const GREAT_POWERS_REQUIRED = 5;
+
+/** What the chooser offers for GREAT_POWERS: any three of the five, or all five. */
+export const GREAT_POWERS_TIERS = Object.freeze([3, 5]);
 
 /**
  * How often a country re-examines WHICH continents it is campaigning for.

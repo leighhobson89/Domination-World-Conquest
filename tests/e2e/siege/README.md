@@ -23,7 +23,7 @@ Laying a siege, what a turn does to it, and the marker that says it is there.
   Clicking the territory is the player's only route to `VIEW SIEGE`, so a besieged territory
   could not be opened at all. Same class of bug as `#tooltip`, which the page objects still
   work around.
-- **The plan's siege-offer rule is inverted.** [docs/04-e2e-test-plan.md](../../../docs/04-e2e-test-plan.md)
+- **The plan's siege-offer rule is inverted.** [docs/03-e2e-test-plan.md](../../../docs/03-e2e-test-plan.md)
   §5.9 says "when probability < 15 % the Siege button is enabled; at or above it is
   disabled". The shipped rule is the opposite, and so is the AI's — `ai/goals.js` pushes a
   Siege goal on `probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE`. A siege commits an
@@ -44,7 +44,7 @@ Laying a siege, what a turn does to it, and the marker that says it is there.
   run, and both armies. `__game.sieges()` only answers *which* territories are besieged.
 - **Do not assert that a besieged territory earns nothing** as though it were correct. It is
   a placeholder, logged for Phase 7 in
-  [docs/05-known-issues.md](../../../docs/05-known-issues.md) §6, and the spec that pins it
+  [docs/04-known-issues.md](../../../docs/04-known-issues.md) §6, and the spec that pins it
   says so.
 
 ## Out of scope here, and why

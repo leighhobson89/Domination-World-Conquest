@@ -1,6 +1,6 @@
 // The itemised dice preview, in the ATTACK window, before you commit.
 //
-// Battle overhaul B.6.7, and it is docs/battle_overhaul.md section 4.9 rendered:
+// Battle overhaul B.6.7, and it is docs/archived/battle_overhaul.md section 4.9 rendered:
 //
 //     YOU  ⚀⚀⚀⚀  4 dice                THEM  ⚀⚀⚀  3 dice
 //       air superiority        +1        their fortifications   -1 die

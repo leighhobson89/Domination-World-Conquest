@@ -151,7 +151,7 @@ export function convertHexValueToRGBOrViceVersa(value, direction) {
  * That is a balance change, and Phase 6 is a decomposition -- behaviour is preserved
  * unless a defect is being fixed deliberately. So the draws stay, isolated here with
  * the reason, and removing them is logged as a Phase 7 item in
- * docs/05-known-issues.md. When it goes, the exact-outcome specs are re-baselined in
+ * docs/04-known-issues.md. When it goes, the exact-outcome specs are re-baselined in
  * the same change, which is the only way that stays bisectable.
  *
  * It is the same species as audit 5.3 Y -- cosmetic randomness on the game's stream --

@@ -361,7 +361,7 @@ cannot see the world failing to consolidate.
 
 ### 7.1 The dice model ✅
 
-**Rewritten by the battle overhaul.** See [battle_overhaul.md](./battle_overhaul.md) for the
+**Rewritten by the battle overhaul.** See [archived/battle_overhaul.md](./archived/battle_overhaul.md) for the
 reasoning and the measurements; this is what the game does.
 
 One press of the advance button is one **round**. A round is a dice comparison, not an attrition
@@ -719,5 +719,5 @@ explicitly before the refactor bakes them in.
 ## 13. Cross-references
 
 - Defect detail and line numbers: [01-codebase-audit.md](./01-codebase-audit.md)
-- Sequencing for fixes and restructuring: [03-refactor-plan.md](./03-refactor-plan.md)
-- Functional areas and their test coverage: [04-e2e-test-plan.md](./04-e2e-test-plan.md)
+- Sequencing for fixes and restructuring: [archived/03-refactor-plan.md](./archived/03-refactor-plan.md)
+- Functional areas and their test coverage: [03-e2e-test-plan.md](./03-e2e-test-plan.md)

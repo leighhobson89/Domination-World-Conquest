@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { __resetStateForTests, seedTerritories } from "../../src/state/GameState.js";
 import {
     activeVictoryCondition,
+    captureVictoryCondition,
     continentStandingsFor,
     hasWon,
     resetVictoryCondition,
@@ -178,5 +179,166 @@ describe("the other two conditions", () => {
         //Brava holds 3,400 of area against Alba's 1,700, so Brava is the leader.
         expect(victoryProgress("Brava").fraction).toBe(1);
         expect(victoryProgress("Alba").fraction).toBeCloseTo(0.5);
+    });
+});
+
+/* ------------------------------------------------ the two new kinds (Goals & Victory) --- */
+
+// A second world, in which who OWNS a territory and who owned it ORIGINALLY differ. The
+// first fixture sets `originalOwner: owner` throughout, so it cannot tell a homeland from
+// a holding and cannot exercise GREAT_POWERS at all.
+//
+// Homelands: Alba 3 (all still Alba's), Brava 3 (Alba holds 2), Carda 2 (Alba holds both),
+// Delta 2 (Brava holds both). So Alba has broken Carda outright and is one short of Brava.
+function conqueredWorld() {
+    const rows = [
+        //name  continent  originalOwner  currentOwner  area
+        ["A1", "Europe", "Alba", "Alba", 100],
+        ["A2", "Europe", "Alba", "Alba", 100],
+        ["A3", "Europe", "Alba", "Alba", 100],
+        ["B1", "Europe", "Brava", "Alba", 100],
+        ["B2", "Africa", "Brava", "Alba", 100],
+        ["B3", "Africa", "Brava", "Brava", 100],
+        ["C1", "Africa", "Carda", "Alba", 100],
+        ["C2", "Africa", "Carda", "Alba", 100],
+        ["D1", "Asia", "Delta", "Brava", 100],
+        ["D2", "Asia", "Delta", "Brava", 100]
+    ];
+    return rows.map(([name, continent, originalOwner, owner, area], index) => ({
+        uniqueId: String(index + 1),
+        territoryName: name,
+        continent,
+        dataName: owner,
+        owner,
+        originalOwner,
+        area,
+        defenseBonus: 0
+    }));
+}
+
+function seedConqueredWorld() {
+    __resetStateForTests();
+    resetVictoryCondition();
+    seedTerritories(conqueredWorld());
+}
+
+describe("CONQUEST", () => {
+    it("is not won while anybody else holds a territory", () => {
+        setVictoryCondition({ kind: VictoryCondition.CONQUEST });
+        expect(hasWon("Alba")).toBe(false);
+        expect(hasWon("Brava")).toBe(false);
+    });
+
+    it("is won when no other country holds one", () => {
+        __resetStateForTests();
+        resetVictoryCondition();
+        seedTerritories(world().map(territory => ({ ...territory, dataName: "Alba", owner: "Alba" })));
+        setVictoryCondition({ kind: VictoryCondition.CONQUEST });
+        expect(hasWon("Alba")).toBe(true);
+    });
+
+    it("measures progress in territories, not area", () => {
+        setVictoryCondition({ kind: VictoryCondition.CONQUEST });
+        //Alba holds 6 of the 12 territories but only 1,700 of the 5,200 area.
+        expect(victoryProgress("Alba").fraction).toBeCloseTo(0.5);
+        expect(victoryProgress("Alba").label).toBe("Conquest: 6 of 12 territories");
+    });
+});
+
+describe("GREAT_POWERS", () => {
+    beforeEach(seedConqueredWorld);
+
+    it("counts a power broken only when its whole homeland is held", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Brava", "Carda", "Delta"],
+            greatPowersRequired: 3
+        });
+        const progress = victoryProgress("Alba");
+        //Carda only: Alba holds both of Carda's, two of Brava's three, none of Delta's.
+        expect(progress.detail.broken).toBe(1);
+        expect(hasWon("Alba")).toBe(false);
+    });
+
+    it("is won when enough powers have been broken", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Brava", "Carda", "Delta"],
+            greatPowersRequired: 1
+        });
+        expect(hasWon("Alba")).toBe(true);
+        //Carda has been driven off the map entirely and has broken nobody. Brava is NOT
+        //the country to check here: it holds the whole of Delta's homeland, so with one
+        //power required it has legitimately won too.
+        expect(hasWon("Carda")).toBe(false);
+    });
+
+    it("routes through a third party -- a homeland held by someone else still counts against you", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Delta"],
+            greatPowersRequired: 1
+        });
+        //Delta holds none of its own homeland, but Brava does -- so Alba has not broken it.
+        expect(hasWon("Alba")).toBe(false);
+        expect(hasWon("Brava")).toBe(true);
+    });
+
+    it("never lets a great power count its OWN homeland", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Alba", "Brava", "Carda", "Delta"],
+            greatPowersRequired: 4
+        });
+        //Alba holds all three of its own homeland. If that counted, Alba would be
+        //credited with a power it has not broken -- and on turn 1 every great power
+        //would start the game part-way to winning.
+        expect(victoryProgress("Alba").detail.broken).toBe(1);
+    });
+
+    it("caps the requirement at the number of powers a country can actually break", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Alba", "Carda"],
+            greatPowersRequired: 2
+        });
+        //Alba may only break Carda, so one is all that can be asked of it.
+        expect(victoryProgress("Alba").detail.required).toBe(1);
+        expect(hasWon("Alba")).toBe(true);
+    });
+
+    it("names the power it is closest to finishing", () => {
+        setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Brava", "Delta"],
+            greatPowersRequired: 2
+        });
+        //Brava at 2 of 3 is closer than Delta at 0 of 2.
+        expect(victoryProgress("Alba").label).toBe("Great Powers: 0 of 2 (Brava 2/3)");
+    });
+});
+
+describe("TURN_LIMIT is decided, not merely measured", () => {
+    it("is not won before the limit, however far ahead a country is", () => {
+        setVictoryCondition({ kind: VictoryCondition.TURN_LIMIT, turnLimit: 200 });
+        expect(hasWon("Brava", undefined, undefined, 199)).toBe(false);
+    });
+
+    it("hands the game to the largest empire by area at the limit", () => {
+        setVictoryCondition({ kind: VictoryCondition.TURN_LIMIT, turnLimit: 200 });
+        expect(hasWon("Brava", undefined, undefined, 200)).toBe(true);
+        expect(hasWon("Alba", undefined, undefined, 200)).toBe(false);
+    });
+});
+
+describe("the condition survives being captured", () => {
+    it("does not let a saved condition alias the live one's great powers", () => {
+        const live = setVictoryCondition({
+            kind: VictoryCondition.GREAT_POWERS,
+            greatPowers: ["Brava", "Carda"]
+        });
+        const saved = captureVictoryCondition();
+        live.greatPowers.push("Delta");
+        expect(saved.greatPowers).toEqual(["Brava", "Carda"]);
     });
 });

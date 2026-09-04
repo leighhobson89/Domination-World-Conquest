@@ -10,7 +10,7 @@
 //   2. it must not touch the DOM -- these have to keep working in Node so Phase 5's
 //      rules tests can use them.
 //
-// See docs/03-refactor-plan.md Phase 4.2.
+// See docs/archived/03-refactor-plan.md Phase 4.2.
 
 import { __store, isSeeded } from "./GameState.js";
 import { Phase } from "./phases.js";

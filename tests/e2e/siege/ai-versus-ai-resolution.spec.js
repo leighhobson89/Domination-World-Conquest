@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // A siege between two AI countries has to resolve between those two countries.
-// docs/04-e2e-test-plan.md section 5.11.
+// docs/03-e2e-test-plan.md section 5.11.
 
 test.describe("a siege the player is no party to", () => {
     test.setTimeout(300_000);

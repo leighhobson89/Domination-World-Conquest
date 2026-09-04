@@ -6,7 +6,7 @@
 //
 // This replaces `src/rules/military/battle.js` (five rounds of per-unit skirmishes) and
 // `doAttack()` in aiCalculations.js (a fight-to-the-death loop on combined force) with ONE
-// model, which is the largest single point of docs/battle_overhaul.md. Neither of those is
+// model, which is the largest single point of docs/archived/battle_overhaul.md. Neither of those is
 // touched yet: nothing imports this file until phase B.4.
 //
 // THE MODEL, in the order the functions appear:
@@ -90,7 +90,7 @@ export function attackerTookIt(state) {
  *
  * Note what is NOT here: `defenseMultiplierFor()`. Forts and mountains leave the strength
  * calculation entirely and become a die modifier in `modifiersFor()` instead. That is the split
- * described in docs/battle_overhaul.md section 4.4 -- diffuse multipliers shape the share,
+ * described in docs/archived/battle_overhaul.md section 4.4 -- diffuse multipliers shape the share,
  * actionable ones become itemised modifiers -- and counting them in both places is the one
  * mistake this arrangement makes easy. There is a unit test asserting they are not.
  *

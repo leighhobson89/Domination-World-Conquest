@@ -5,7 +5,7 @@
 // one of them is one line of state and a great many clicks, and hoping the live map
 // produces one is a seed lottery, not a test.
 //
-// docs/04-e2e-test-plan.md section 3.7 specifies this as a Phase 4 deliverable, because
+// docs/03-e2e-test-plan.md section 3.7 specifies this as a Phase 4 deliverable, because
 // it is only safe once there is a single state layer to write through. There is now:
 // everything here goes through `state/mutations.js`, the same path the game itself uses,
 // so a scenario cannot produce a world the game could not have produced.

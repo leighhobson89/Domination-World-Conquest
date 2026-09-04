@@ -374,7 +374,7 @@ export let pageLoaded = false;
 // svgMapLoaded() had usually run. Removing the poll without waiting for the map too
 // meant calculatePathAreas() ran against an empty `paths`, leaving allTerritories()
 // short and every later territory lookup returning undefined.
-// See docs/03-refactor-plan.md Phase 1.4.
+// See docs/archived/03-refactor-plan.md Phase 1.4.
 let resolveBootstrapReady;
 const bootstrapReadyPromise = new Promise(resolve => {
     resolveBootstrapReady = resolve;

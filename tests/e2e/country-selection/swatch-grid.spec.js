@@ -17,7 +17,7 @@ import { phaseBar } from "../../support/selectors.js";
 // therefore ACTIVATED the input as well as opening the grid, so the operating
 // system's dialog opened on top of the thing that was meant to replace it.
 //
-// docs/04-e2e-test-plan.md -- `country-selection/`.
+// docs/03-e2e-test-plan.md -- `country-selection/`.
 
 const MULTI = "United Kingdom";
 

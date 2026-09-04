@@ -4,7 +4,7 @@ import { containers, menu, map } from "../../support/selectors.js";
 // Page load through to a playable state. Everything else in the suite assumes
 // these hold, so a failure here should be read before any other failure.
 //
-// docs/04-e2e-test-plan.md section 5.1.
+// docs/03-e2e-test-plan.md section 5.1.
 
 const EXPECTED_TERRITORIES = 359;
 

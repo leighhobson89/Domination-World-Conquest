@@ -12,7 +12,7 @@
 //
 // This module imports nothing.
 //
-// See docs/03-refactor-plan.md Phase 4.6.
+// See docs/archived/03-refactor-plan.md Phase 4.6.
 
 export const Phase = Object.freeze({
     /** Buy and upgrade. The only phase in which territories may be developed. */

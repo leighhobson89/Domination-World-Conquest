@@ -36,7 +36,7 @@ import { battleOutcomeEffects } from "../../../src/config/balance.js";
 // an attacker big enough to win takes the defender from ~13% of its starting force to zero
 // in a single step, straight past the band.
 //
-// docs/04-e2e-test-plan.md section 5.10.
+// docs/03-e2e-test-plan.md section 5.10.
 
 test.describe("a rout", () => {
     test.setTimeout(180_000);

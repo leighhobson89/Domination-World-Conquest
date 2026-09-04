@@ -8,7 +8,7 @@ import { test, expect } from "../../support/fixtures.js";
 // Picking an enemy territory to attack: what the move button becomes, what the
 // banner says, and what the map shows.
 //
-// docs/04-e2e-test-plan.md section 5.9.
+// docs/03-e2e-test-plan.md section 5.9.
 
 /** Select an owned territory, then a reachable enemy of it. Returns the target's name. */
 async function aimAtEnemy(game, source) {

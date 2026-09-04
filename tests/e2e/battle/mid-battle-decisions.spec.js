@@ -3,7 +3,7 @@ import { test, expect } from "../../support/fixtures.js";
 // The two decisions a battle offers between rounds, other than "press on" and "withdraw".
 //
 // Battle overhaul B.7. Before this, the only thing a player could decide once a battle had
-// started was whether to stop -- which is complaint six in docs/battle_overhaul.md section 2.
+// started was whether to stop -- which is complaint six in docs/archived/battle_overhaul.md section 2.
 // Now the bottom bar carries:
 //
 //   Retreat | Dig In | Reserves | Next Round | (Last Push!)
@@ -12,7 +12,7 @@ import { test, expect } from "../../support/fixtures.js";
 // against and the odds have not moved. `layoutBattleButtons()` shares the bar between whichever
 // buttons are visible, which is why none of them has a width in the stylesheet.
 //
-// docs/battle_overhaul.md section 4.8.
+// docs/archived/battle_overhaul.md section 4.8.
 
 test.describe("mid-battle decisions", () => {
     test.setTimeout(180_000);

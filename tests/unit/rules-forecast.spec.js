@@ -107,7 +107,7 @@ describe("battleForecast", () => {
     });
 
     it("says an even attack is a losing proposition", () => {
-        // The design claim of docs/battle_overhaul.md section 4.3, as a test: at equal force,
+        // The design claim of docs/archived/battle_overhaul.md section 4.3, as a test: at equal force,
         // no terrain and no composition edge, the defender's tie advantage decides it.
         const forecast = battleForecast(evenFight(), { trials: 1000 });
         expect(forecast.takeProbability).toBeLessThan(0.5);

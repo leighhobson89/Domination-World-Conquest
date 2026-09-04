@@ -5,7 +5,7 @@ import { containers } from "../../support/selectors.js";
 // whichever panels were open. The handler is on the SVG document, so the map has
 // to hold focus for the key to reach it.
 //
-// docs/04-e2e-test-plan.md section 5.4.
+// docs/03-e2e-test-plan.md section 5.4.
 
 /** Escape is handled by a keydown listener on the map's own document. */
 async function pressEscapeOnMap(game) {

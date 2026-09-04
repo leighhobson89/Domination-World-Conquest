@@ -24,7 +24,7 @@ import { containers, draggableWindows, sel } from "../../support/selectors.js";
 //     every window while they all sat at the base -- so nothing could ever be
 //     raised, and nothing threw.
 //
-// docs/04-e2e-test-plan.md -- `ui-layout/`.
+// docs/03-e2e-test-plan.md -- `ui-layout/`.
 
 /**
  * Drag `handle` by (dx, dy) and return how far the window actually moved.

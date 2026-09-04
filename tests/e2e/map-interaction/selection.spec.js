@@ -3,9 +3,9 @@ import { sel } from "../../support/selectors.js";
 
 // Clicking a territory fills the bottom table from that territory's model entry.
 // The table is KMB-formatted, so the numbers are checked against __game rather
-// than parsed the other way round -- see docs/04-e2e-test-plan.md section 8.3.
+// than parsed the other way round -- see docs/03-e2e-test-plan.md section 8.3.
 //
-// docs/04-e2e-test-plan.md section 5.4.
+// docs/03-e2e-test-plan.md section 5.4.
 
 /**
  * formatNumbersToKMB mirrored, so the expectations read as numbers rather than

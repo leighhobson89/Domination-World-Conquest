@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // The turn counter, and the fact that turn 1 deliberately applies no income.
-// docs/04-e2e-test-plan.md section 5.3.
+// docs/03-e2e-test-plan.md section 5.3.
 
 test.describe("the turn counter", () => {
     test("increments once per full cycle, not once per phase", async ({ startedGame: game }) => {
@@ -35,7 +35,7 @@ test.describe("the turn counter", () => {
         expect(await game.turn()).toBe(2);
         // Gold accrues every turn regardless of the balance of the other
         // resources, so it is the honest signal that income ran at all. The exact
-        // figure is not asserted -- see docs/04-e2e-test-plan.md section 2.2.
+        // figure is not asserted -- see docs/03-e2e-test-plan.md section 2.2.
         //
         // This is also the spec that exposed audit 5.1 AB: read through the O(1)
         // territory index it reported no change at all, because the AI substitutes
@@ -50,7 +50,7 @@ test.describe("the turn counter", () => {
         // Territories start AT their oil and cons. mats capacity, so those two
         // legitimately do not move on turn 2 -- the regeneration rules only fire on
         // a gap. Food and population do move. Asserted as "the economy is running"
-        // rather than as figures: see docs/04-e2e-test-plan.md section 2.2.
+        // rather than as figures: see docs/03-e2e-test-plan.md section 2.2.
         const moved = await game.state(() => {
             const owned = window.__game.territoriesOwnedBy("Player")[0];
             return {

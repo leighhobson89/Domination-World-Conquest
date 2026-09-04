@@ -4,7 +4,7 @@
 // ones whose absence was visible in play:
 //
 //   * it opened sieges without counting the ones already running (17 rising to 67 over
-//     fourteen turns -- docs/05-known-issues.md section 6);
+//     fourteen turns -- docs/04-known-issues.md section 6);
 //   * it fought as hard for anything reachable as for the territory that would complete a
 //     continent, because it had no notion of a continent;
 //   * it decided attack-or-besiege with two coin flips against personality traits, so it

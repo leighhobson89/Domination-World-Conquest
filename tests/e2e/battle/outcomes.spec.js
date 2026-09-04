@@ -24,7 +24,7 @@ import { battleOutcomeEffects, BREAK_THRESHOLD } from "../../../src/config/balan
 // threshold reachable on purpose rather than by luck: sinking the fleet takes most of the
 // defender's combined force with it while its infantry are still standing.
 //
-// docs/04-e2e-test-plan.md section 5.10.
+// docs/03-e2e-test-plan.md section 5.10.
 
 test.describe("how a battle ends", () => {
     test.setTimeout(180_000);

@@ -21,7 +21,7 @@ import { test, expect } from "../../support/fixtures.js";
 // now test what was BOUGHT rather than what has ever been built, so a fort no
 // longer re-applies the farm, forest and oil bonuses.
 //
-// docs/04-e2e-test-plan.md section 5.7.
+// docs/03-e2e-test-plan.md section 5.7.
 
 /** Build one of something and return the territory before and after. */
 async function buildOne(game, building, territoryName = "Germany") {

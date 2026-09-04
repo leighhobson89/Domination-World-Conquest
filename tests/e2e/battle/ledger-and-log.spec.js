@@ -3,7 +3,7 @@ import { battle as battleSelectors } from "../../support/selectors.js";
 
 // The three panels the overhaul added to make the mechanic visible.
 //
-// Complaint two and complaint three in docs/battle_overhaul.md section 2 are "the mechanic is
+// Complaint two and complaint three in docs/archived/battle_overhaul.md section 2 are "the mechanic is
 // invisible" and "the modifiers are hidden". Three panels answer them, and all three are pure
 // renders of what the model already computed -- so what these specs really assert is that the
 // explanation and the battle cannot disagree:

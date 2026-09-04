@@ -8,7 +8,7 @@
 // Everything handed out is a deep copy: a test can never mutate live game state
 // through this surface.
 //
-// See docs/03-refactor-plan.md Phase 1.6 and docs/04-e2e-test-plan.md section 2.3.
+// See docs/archived/03-refactor-plan.md Phase 1.6 and docs/03-e2e-test-plan.md section 2.3.
 
 const ENABLED =
     typeof window !== "undefined" &&
@@ -142,7 +142,7 @@ export function installTestHooks(accessors) {
 
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
-        // game does. See src/platform/scenarios.js and docs/04-e2e-test-plan.md 3.7.
+        // game does. See src/platform/scenarios.js and docs/03-e2e-test-plan.md 3.7.
         applyScenario: (scenario) => snapshot(accessors.applyScenario(scenario)),
 
         // The military activity feed (Phase 7.4), as DATA rather than as rendered

@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // What the window says when a territory cannot pay, and which resource it blames.
-// docs/04-e2e-test-plan.md section 5.7.
+// docs/03-e2e-test-plan.md section 5.7.
 
 test.describe("when a territory cannot afford a building", () => {
     test("greys the row's plus button rather than allowing an overdraft", async ({

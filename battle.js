@@ -38,7 +38,7 @@ import { roundLog } from './src/ui/battle/RoundLog.js';
 // code worked around it with `setTimeout(..., 1000)` before a dynamic import(), which is
 // a race: on a slow load the binding was still undefined when first used. A plain static
 // import is correct because the imported symbols are hoisted function declarations, so
-// they are initialised before any module body runs. See docs/03-refactor-plan.md Phase 1.7.
+// they are initialised before any module body runs. See docs/archived/03-refactor-plan.md Phase 1.7.
 //
 // The `src/state/*` imports below are NOT in the cycle and must not be allowed to join it:
 // the state layer imports nothing from the game.
@@ -760,7 +760,7 @@ export async function processRound(choices = {}) {
     //Battle overhaul B.4. One click is one ROUND of dice, and the whole of a round is
     //`resolveBattleRound()` in src/rules/military/battleModel.js. What used to be here -- five
     //rounds of up to two hundred thousand per-unit coin flips, a war-weariness pass and a second
-    //set of five -- is gone. See docs/battle_overhaul.md sections 4.5 to 4.7.
+    //set of five -- is gone. See docs/archived/battle_overhaul.md sections 4.5 to 4.7.
     //
     //Three things follow that are worth knowing before changing anything here.
     //
@@ -939,7 +939,7 @@ function legacySituationFor(state) {
  * Offer the decisive final round, WITHOUT taking it.
  *
  * The offer goes on the assault button, so the bottom bar reads Retreat / Next Round / Last
- * Push! -- the three choices docs/battle_overhaul.md section 4.8 describes. Putting it on the
+ * Push! -- the three choices docs/archived/battle_overhaul.md section 4.8 describes. Putting it on the
  * ADVANCE button, which was the first attempt, made it compulsory: advance was the only way
  * forward, so "offering" a last push meant taking one. That matters more than it sounds, because
  * the last-push band sits ABOVE the break threshold and is therefore crossed on the way to
@@ -1390,7 +1390,7 @@ export function handleEndSiegeDueArrest(ai, siege) {
 
         //Phase 5.8. `setUpResultsOfWarExternal(true)` used to run for EVERY arrest, and only
         //the `!ai` branch below ever filled the screen in. The AI runs dozens of concurrent
-        //sieges against each OTHER (see docs/05-known-issues.md section 6), so at least one
+        //sieges against each OTHER (see docs/04-known-issues.md section 6), so at least one
         //was arrested on nearly every turn -- and the player was shown an EMPTY battle
         //results screen, on top of the phase button, at the start of almost every turn. An
         //arrest is only the player's business if they were besieging, or being besieged.

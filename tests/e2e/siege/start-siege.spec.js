@@ -3,7 +3,7 @@ import { PROBABILITY_THRESHOLD_FOR_SIEGE } from "../../../src/config/balance.js"
 import { battle } from "../../support/selectors.js";
 
 // Turning an attack into a standing siege, and when the game lets you.
-// docs/04-e2e-test-plan.md sections 5.9 and 5.11.
+// docs/03-e2e-test-plan.md sections 5.9 and 5.11.
 
 test.describe("laying a siege", () => {
     test.setTimeout(240_000);
@@ -12,7 +12,7 @@ test.describe("laying a siege", () => {
         game,
         page,
     }) => {
-        // NOTE ON THE PLAN. docs/04-e2e-test-plan.md section 5.9 states this the other way
+        // NOTE ON THE PLAN. docs/03-e2e-test-plan.md section 5.9 states this the other way
         // round -- "when probability < 15 % the Siege button is enabled; at or above it is
         // disabled". The shipped rule is the opposite, and so is the AI's: `ai/goals.js`
         // pushes a Siege goal on `probabilityOfWin >= PROBABILITY_THRESHOLD_FOR_SIEGE`. A

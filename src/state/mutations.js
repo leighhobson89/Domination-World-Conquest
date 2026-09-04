@@ -8,7 +8,7 @@
 // This module imports nothing from the game, only its two siblings, so it stays
 // loadable in Node.
 //
-// See docs/03-refactor-plan.md Phase 4.2.
+// See docs/archived/03-refactor-plan.md Phase 4.2.
 
 import { vehicleArmyPersonnelWorth } from "../config/balance.js";
 import { __store, openWriteWindow, closeWriteWindow } from "./GameState.js";

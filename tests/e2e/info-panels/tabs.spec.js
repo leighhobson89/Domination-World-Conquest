@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { battle, containers, tables } from "../../support/selectors.js";
 
 // The main info panel: Summary / Territories / Army / Wars & Sieges.
-// docs/04-e2e-test-plan.md section 5.13.
+// docs/03-e2e-test-plan.md section 5.13.
 
 test.describe("the info panel", () => {
     test.setTimeout(240_000);

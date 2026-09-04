@@ -11,7 +11,7 @@ import { test, expect } from "../../support/fixtures.js";
 // all: 11 territories, several of them mutually reachable. Germany owns one, so
 // its TRANSFER button is correctly dead (valid-destinations.spec.js).
 //
-// docs/04-e2e-test-plan.md section 5.8.
+// docs/03-e2e-test-plan.md section 5.8.
 
 /** Open the transfer window from a source territory the player owns. */
 async function openTransferFrom(game, source) {

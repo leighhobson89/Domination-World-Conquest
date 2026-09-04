@@ -6,7 +6,7 @@ import { test, expect } from "../../support/fixtures.js";
 // bundler rewrites them; vite.config.mjs copies resources/ verbatim for exactly
 // this reason. This spec is what catches a copy that did not happen.
 //
-// docs/04-e2e-test-plan.md section 5.1.
+// docs/03-e2e-test-plan.md section 5.1.
 
 /** Fetch a batch of URLs from inside the page and report the ones that are not 200. */
 async function missingAssets(page, urls) {

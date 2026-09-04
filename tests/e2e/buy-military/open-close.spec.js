@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { buyWindow, containers } from "../../support/selectors.js";
 
 // The buy window: how it opens, and that closing it spends nothing.
-// docs/04-e2e-test-plan.md section 5.6.
+// docs/03-e2e-test-plan.md section 5.6.
 
 test.describe("the buy window", () => {
     test("opens from the Army tab for an owned territory", async ({ startedGame: game, page }) => {

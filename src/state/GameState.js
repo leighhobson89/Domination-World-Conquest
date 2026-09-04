@@ -18,7 +18,7 @@
 // The store is deliberately plain and serialisable: Phase 7.3 (save/load) is a
 // `JSON.stringify` away once the last territory copies are gone.
 //
-// See docs/03-refactor-plan.md Phase 4.1.
+// See docs/archived/03-refactor-plan.md Phase 4.1.
 
 import { Phase } from "./phases.js";
 

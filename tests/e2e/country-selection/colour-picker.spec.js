@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 
 // The colour picker repaints the pending country before the game starts, and
 // every player-owned territory afterwards.
-// docs/04-e2e-test-plan.md section 5.2.
+// docs/03-e2e-test-plan.md section 5.2.
 
 const RED = "#ff0000";
 const RED_RGB = "rgb(255,0,0)";

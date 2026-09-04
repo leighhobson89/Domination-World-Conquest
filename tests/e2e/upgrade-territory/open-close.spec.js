@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { containers, upgradeWindow } from "../../support/selectors.js";
 
 // The upgrade window: how it opens, and that closing it spends nothing.
-// docs/04-e2e-test-plan.md section 5.7.
+// docs/03-e2e-test-plan.md section 5.7.
 
 test.describe("the upgrade window", () => {
     test("opens from the Territories tab for an owned territory", async ({

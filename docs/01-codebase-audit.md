@@ -726,4 +726,4 @@ Three things block all progress and should be fixed before anything else:
 2. **Circular imports and the 1-second `setTimeout` hacks** (§3.1) — these make behaviour non-deterministic across machines.
 3. **Single source of truth for territory state** (§3.2) — until this exists, defects like §5.1 A–H will keep reappearing in new forms.
 
-Detailed remediation sequencing is in [03-refactor-plan.md](./03-refactor-plan.md).
+Detailed remediation sequencing is in [archived/03-refactor-plan.md](./archived/03-refactor-plan.md).

@@ -21,7 +21,7 @@ import { territoryNames } from "../../support/territories.js";
 // rather than left to flake. The single-turn specs stay green, so the loop still
 // has a guard while the defect stands.
 //
-// docs/04-e2e-test-plan.md section 5.3.
+// docs/03-e2e-test-plan.md section 5.3.
 
 const TURNS = 10;
 const SAFE_TURNS = 2;

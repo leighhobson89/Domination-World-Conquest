@@ -16,7 +16,7 @@ import { test, expect } from "../../support/fixtures.js";
 // lines later and captures the wrong fill, so every subsequent
 // `restoreMapColorState()` replayed it.
 //
-// The AI besieges heavily and unprompted (docs/05-known-issues.md section 6), so a
+// The AI besieges heavily and unprompted (docs/04-known-issues.md section 6), so a
 // handful of turns is enough to produce dozens of AI-vs-AI sieges without the
 // player doing anything but end turns.
 

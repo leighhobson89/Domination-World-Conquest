@@ -17,12 +17,22 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   probably already logged, with the reason.
 - [docs/02-game-design-document.md](./docs/02-game-design-document.md) — what each mechanic
   does, and what is implemented vs. missing.
-- [docs/03-refactor-plan.md](./docs/03-refactor-plan.md) — the phased plan. Work follows it.
-- [docs/04-e2e-test-plan.md](./docs/04-e2e-test-plan.md) — functional areas and the test
+- [docs/03-e2e-test-plan.md](./docs/03-e2e-test-plan.md) — functional areas and the test
   harness.
-- [docs/05-known-issues.md](./docs/05-known-issues.md) — the live defect register:
+- [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register:
   every issue found so far, its status, where it is in the code **today**, and the phase that
   closes it. This is the one that stays current; the audit is the analysis behind it.
+- [docs/05-goals-and-victory.md](./docs/05-goals-and-victory.md) — **the current phase.** What
+  winning means, the five goals, how the AI pursues each, and the end-game trigger. Its task
+  breakdown is [docs/06-goals-and-victory-checklist.md](./docs/06-goals-and-victory-checklist.md).
+
+The numbered documents are **breathing** — they are edited as work lands and describe the code
+as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
+going stale in the sequence: the eight-phase
+[refactor plan](./docs/archived/03-refactor-plan.md) and the
+[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist are there. They record
+why the code is shaped as it is, but they do not describe outstanding work — where one
+contradicts a numbered document, the numbered document wins.
 
 ## Commands
 
@@ -278,7 +288,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   do not "harmonise" them with a palette, because a debug control that matches the theme
   is a debug control somebody ships.
 - **Combat is the DICE MODEL now** (battle overhaul B.1–B.9; see
-  [docs/battle_overhaul.md](./docs/battle_overhaul.md) and its checklist). One press of the
+  [docs/archived/battle_overhaul.md](./docs/archived/battle_overhaul.md) and its checklist). One press of the
   advance button is one ROUND: `share` (force only) picks how many dice each side rolls from a
   band table, terrain and composition become named modifiers, sorted dice pair high against high,
   **ties go to the defender**, dice the other side cannot match are automatic hits, and each lost
@@ -641,14 +651,14 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
 - **Scenarios beat clicking** for anything the UI cannot reach — a rout, an all-naval
   defender, two concurrent sieges. `await game.loadScenario("two-sieges")` in a spec;
   the JSON lives in `tests/support/scenarios/` and is applied through `state/mutations.js`.
-  See [docs/04-e2e-test-plan.md](./docs/04-e2e-test-plan.md) §3.7.
+  See [docs/03-e2e-test-plan.md](./docs/03-e2e-test-plan.md) §3.7.
 - **Since Phase 3 the AI actually conquers — and attacks the player.** A turn can end with a
   battle results screen sitting on top of the phase button, and it can appear a beat AFTER the
   turn counter advances. `GameDriver.dismissBlockingPanels()` and `withBlockersCleared()` handle
   it in the harness; anything new that drives the turn loop has to as well.
 - **A besieged territory earns no gold, oil or construction materials**, and the AI besieges far
   more than it can finish (17 → 67 concurrent sieges over 14 turns). Both are design problems
-  logged for Phase 7 in [docs/05-known-issues.md](./docs/05-known-issues.md) §6 — do not "fix"
+  logged for Phase 7 in [docs/04-known-issues.md](./docs/04-known-issues.md) §6 — do not "fix"
   either as a bug.
 - **Do not move the CPU-leader and starting-fort setup earlier in bootstrap.** It looks wrong —
   `initialiseGame()` starts turn 1 before either exists, which is why `newTurnResources()` skips

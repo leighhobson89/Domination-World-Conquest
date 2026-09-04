@@ -9,7 +9,7 @@
 // WHY NOT THE OLD PROBABILITY BAR. `winProbability()` answers "what is the attacker's share of
 // the two strengths", and today that one number does two jobs: it is shown to the player AND it
 // is the per-skirmish coin-flip odds. It is honest at neither. A 62% bar over a battle the
-// attacker loses two times in three is exactly what docs/battle_overhaul.md section 2.3 is
+// attacker loses two times in three is exactly what docs/archived/battle_overhaul.md section 2.3 is
 // about. Here the two jobs are separated: `shareFor()` picks dice counts, and this file answers
 // the player's actual question, which is "will I take it, how long will it take, and what will
 // I have left".

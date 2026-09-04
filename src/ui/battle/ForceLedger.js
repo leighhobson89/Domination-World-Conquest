@@ -1,7 +1,7 @@
 // The ledger: how many dice each side rolls, and why.
 //
 // Battle overhaul B.6.3. This is the answer to the second complaint in
-// docs/battle_overhaul.md section 2 -- "the mechanic is invisible". The old battle window gave
+// docs/archived/battle_overhaul.md section 2 -- "the mechanic is invisible". The old battle window gave
 // the player one percentage and four defender statistics with nothing connecting them. This says,
 // in the player's own units:
 //

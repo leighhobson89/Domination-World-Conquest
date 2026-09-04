@@ -14,7 +14,7 @@ import { audio, menu, options } from "../../support/selectors.js";
 // disagree, in both directions, and that Cancel means cancel here as it already did
 // for the theme.
 //
-// docs/04-e2e-test-plan.md -- `options/`.
+// docs/03-e2e-test-plan.md -- `options/`.
 
 /** The settings as the running game holds them, through `window.__game`. */
 function settings(page) {

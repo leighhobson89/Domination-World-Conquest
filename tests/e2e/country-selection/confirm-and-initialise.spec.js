@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { Phase, containers, phaseBar, phaseButtonLabel, sel } from "../../support/selectors.js";
 
 // Confirming a country runs initialisation and lands in Buy/Upgrade of turn 1.
-// docs/04-e2e-test-plan.md section 5.2.
+// docs/03-e2e-test-plan.md section 5.2.
 
 test.describe("confirming a country", () => {
     test("lands in Buy/Upgrade of turn 1 with the phase button reading MILITARY", async ({

@@ -2,7 +2,7 @@
 // run N turns. Specs never click the phase button directly; setup goes through
 // here and only the thing under test is driven by hand.
 //
-// See docs/04-e2e-test-plan.md section 3.6.
+// See docs/03-e2e-test-plan.md section 3.6.
 
 import {
     MenuPage,
@@ -383,7 +383,7 @@ export class GameDriver {
      * Put the world into a named state that clicking cannot reach -- a rout, an
      * all-naval defender, two concurrent sieges. Scenarios live in
      * `tests/support/scenarios/*.json` and are applied through `state/mutations.js`,
-     * the same path the game writes by. See docs/04-e2e-test-plan.md section 3.7.
+     * the same path the game writes by. See docs/03-e2e-test-plan.md section 3.7.
      *
      * The JSON is read here rather than fetched by the page, because the preview
      * server serves `build/` and not the repository.

@@ -8,7 +8,7 @@
         // Test-only, and only with ?e2e=1. A classic inline script so it runs before
         // the deferred module scripts below -- the game seeds RNG at module-evaluation
         // time (initial gold, starting forts, leader generation), so anything later
-        // would be too late. See docs/03-refactor-plan.md Phase 1.6.
+        // would be too late. See docs/archived/03-refactor-plan.md Phase 1.6.
         (function () {
             var params = new URLSearchParams(window.location.search);
             if (!params.has("e2e")) return;

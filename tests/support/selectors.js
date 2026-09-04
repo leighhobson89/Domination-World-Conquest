@@ -8,7 +8,7 @@
 //
 // What stays here is the suite's own knowledge -- column indices, phase labels,
 // row orderings -- because those are facts about the assertions, not about the
-// DOM. See docs/04-e2e-test-plan.md section 7.
+// DOM. See docs/03-e2e-test-plan.md section 7.
 
 import {
     cls,

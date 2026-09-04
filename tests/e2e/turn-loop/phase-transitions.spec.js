@@ -4,7 +4,7 @@ import { phaseBar, Phase } from "../../support/selectors.js";
 // Buy/Upgrade -> Military -> AI -> Buy/Upgrade. The spine of the game: every
 // other area assumes these transitions are right.
 //
-// docs/04-e2e-test-plan.md section 5.3.
+// docs/03-e2e-test-plan.md section 5.3.
 
 test.describe("phase transitions", () => {
     test("starts in Buy/Upgrade with the button offering MILITARY", async ({

@@ -10,7 +10,7 @@ const DEV_INDEX_MAX = Math.max(...devIndices);
 // DOM: the numeric truth of this game lives in mainGameArray, not in a
 // KMB-formatted table cell.
 //
-// docs/04-e2e-test-plan.md section 5.1.
+// docs/03-e2e-test-plan.md section 5.1.
 
 const EXPECTED_TERRITORIES = 359;
 

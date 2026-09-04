@@ -54,7 +54,7 @@ re-fetched and re-parsed a 19 MB adjacency file once per territory.)
 ## Layout
 
 Source files currently live at the repository root. The target structure is in
-[docs/03-refactor-plan.md](./docs/03-refactor-plan.md) §1.
+[docs/archived/03-refactor-plan.md](./docs/archived/03-refactor-plan.md) §1.
 
 | Path | Contents |
 |---|---|
@@ -89,8 +89,8 @@ code that no bundler rewrites.
 |---|---|
 | [Codebase Audit](./docs/01-codebase-audit.md) | Architecture, performance, and 20 catalogued defects with line references |
 | [Game Design Document](./docs/02-game-design-document.md) | Every mechanic, marked implemented / buggy / partial / missing |
-| [Refactor Plan](./docs/03-refactor-plan.md) | Target architecture and an eight-phase sequence |
-| [E2E Test Plan](./docs/04-e2e-test-plan.md) | 17 functional areas, ~105 specs, the Playwright harness |
+| [Refactor Plan](./docs/archived/03-refactor-plan.md) | Target architecture and an eight-phase sequence |
+| [E2E Test Plan](./docs/03-e2e-test-plan.md) | 17 functional areas, ~105 specs, the Playwright harness |
 
 ## Generated data
 

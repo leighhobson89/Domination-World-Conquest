@@ -878,7 +878,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
 //The disaster damage is still a direct write to the territory rather than a delta, because
 //it is a REPLACEMENT of the stock and the four callers below all add their return value to
 //that same stock. Making it a delta too is the last step of the write-guard work and is
-//tracked in docs/05-known-issues.md.
+//tracked in docs/04-known-issues.md.
 
 /** The turn's disaster state, in the shape rules/economy expects. */
 function economyContext(isSimulation) {

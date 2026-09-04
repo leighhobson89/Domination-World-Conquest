@@ -412,7 +412,7 @@ describe("planArmyStarvation", () => {
     });
 
     it("wipes out every vehicle when the losses exactly match the infantry", () => {
-        //KNOWN DEFECT, preserved deliberately (docs/05-known-issues.md, the Phase 5.2 note):
+        //KNOWN DEFECT, preserved deliberately (docs/04-known-issues.md, the Phase 5.2 note):
         //`remaining === 0` falls into the else branch, so a famine that exactly matches the
         //infantry destroys the whole fleet as well. Fixing it is a balance change.
         const garrison = territory({

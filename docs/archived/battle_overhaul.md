@@ -5,7 +5,7 @@ from a full audit of the battle UI and the battle system, and from thirteen desi
 with Leigh (recorded verbatim in §3).
 
 This document is the spec and the phase order that replaced open battle. It supersedes
-[02-game-design-document.md](./02-game-design-document.md) §7.1–7.3 and §7.7, which now describe
+[../02-game-design-document.md](../02-game-design-document.md) §7.1–7.3 and §7.7, which now describe
 the dice model. The live tracker, with what each phase deliberately left out and why, is
 [battle_overhaul_checklist.md](./battle_overhaul_checklist.md).
 
@@ -663,7 +663,7 @@ Visible dice on the siege screen; the siege-grinding modifier carried into the a
 every colour literal is out of `battle.js` — the logs because what they narrated is now on screen
 in the ledger and the round log, the literals because "inert" became a class. `dist/` came off the
 critical path: ~785 KB of physics and rendering runtime is fetched on the first dice roll of a
-session instead of on every page view. GDD §7, `05-known-issues.md` and `04-e2e-test-plan.md`
+session instead of on every page view. GDD §7, `04-known-issues.md` and `03-e2e-test-plan.md`
 updated.
 
 **Four things B.10 found that were not on its list**, all of them consequences of removing a
@@ -741,9 +741,9 @@ almost every assertion in §8.1 costs a second.
 
 ## 10. Cross-references
 
-- Current behaviour: [02-game-design-document.md](./02-game-design-document.md) §7
-- Defect register: [05-known-issues.md](./05-known-issues.md) — **AP**, **AR**, and the
+- Current behaviour: [../02-game-design-document.md](../02-game-design-document.md) §7
+- Defect register: [../04-known-issues.md](../04-known-issues.md) — **AP**, **AR**, and the
   `dices.js` row under §6
-- Harness and scenarios: [04-e2e-test-plan.md](./04-e2e-test-plan.md) §3.7
+- Harness and scenarios: [../03-e2e-test-plan.md](../03-e2e-test-plan.md) §3.7
 - The one dial: `ATTACK_ADVANTAGE` in [src/config/balance.js](../src/config/balance.js), and
   the measurement recorded in GDD §7.0

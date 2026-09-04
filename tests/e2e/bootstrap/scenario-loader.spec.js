@@ -7,7 +7,7 @@ import { test, expect } from "../../support/fixtures.js";
 // specs trust, so it gets its own coverage: a loader that silently does nothing turns
 // every spec built on it into a spec that asserts nothing.
 //
-// docs/04-e2e-test-plan.md section 3.7 (a refactor Phase 4 deliverable).
+// docs/03-e2e-test-plan.md section 3.7 (a refactor Phase 4 deliverable).
 
 test.describe("the scenario loader", () => {
     test("applies a territory patch through the state layer", async ({ startedGame: game }) => {

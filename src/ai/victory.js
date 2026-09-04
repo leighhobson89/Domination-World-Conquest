@@ -26,18 +26,30 @@
 import {
     CONTINENTS_REQUIRED_FOR_VICTORY,
     DOMINATION_LAND_SHARE,
+    GREAT_POWERS_REQUIRED,
     VICTORY_TURN_LIMIT
 } from "../config/balance.js";
 import { allTerritories } from "../state/selectors.js";
 
-/** The four conditions from the design. Only CONTINENTAL and DOMINATION shape AI play. */
+/**
+ * What a player may choose between, plus the defeat condition.
+ *
+ * ELIMINATION is deliberately NOT one of the five a player picks. It was written as a
+ * victory condition and it never was one -- it is what losing means, and it now runs
+ * underneath every goal rather than being an alternative to them. `hasWon()` therefore
+ * always answers `false` for it; `src/rules/victoryCheck.js` is what acts on it.
+ */
 export const VictoryCondition = Object.freeze({
+    /** Hold every territory on the map. The severe definition. */
+    CONQUEST: "CONQUEST",
     /** Hold every territory on `continentsRequired` continents outright. */
     CONTINENTAL: "CONTINENTAL",
     /** Hold `landShare` of the world's land AREA -- area, not territory count. */
     DOMINATION: "DOMINATION",
     /** Hold no territories at all and you have lost. The defeat condition; needs no goal. */
     ELIMINATION: "ELIMINATION",
+    /** Hold the whole HOMELAND of `greatPowersRequired` of the named `greatPowers`. */
+    GREAT_POWERS: "GREAT_POWERS",
     /** At `turnLimit`, the largest empire by land area wins. */
     TURN_LIMIT: "TURN_LIMIT"
 });
@@ -46,7 +58,17 @@ const DEFAULT_CONDITION = Object.freeze({
     kind: VictoryCondition.CONTINENTAL,
     continentsRequired: CONTINENTS_REQUIRED_FOR_VICTORY,
     landShare: DOMINATION_LAND_SHARE,
-    turnLimit: VICTORY_TURN_LIMIT
+    turnLimit: VICTORY_TURN_LIMIT,
+    /**
+     * The countries a GREAT_POWERS game is about, frozen at the moment the game starts.
+     *
+     * They are carried on the condition rather than read back from the store's
+     * `greyedOutCountries` for three reasons: this module stays pure and runnable in Node,
+     * the list survives the powers being conquered and disappearing from the map, and it
+     * rides into the save slice that already exists. Empty under every other condition.
+     */
+    greatPowers: Object.freeze([]),
+    greatPowersRequired: GREAT_POWERS_REQUIRED
 });
 
 let activeCondition = { ...DEFAULT_CONDITION };
@@ -71,19 +93,26 @@ export function setVictoryCondition(condition) {
         kind,
         continentsRequired: positiveOr(condition?.continentsRequired, DEFAULT_CONDITION.continentsRequired),
         landShare: positiveOr(condition?.landShare, DEFAULT_CONDITION.landShare),
-        turnLimit: positiveOr(condition?.turnLimit, DEFAULT_CONDITION.turnLimit)
+        turnLimit: positiveOr(condition?.turnLimit, DEFAULT_CONDITION.turnLimit),
+        //Copied, not adopted: a caller that kept its array would otherwise be able to
+        //rewrite the live condition after the fact.
+        greatPowers: namesOr(condition?.greatPowers, DEFAULT_CONDITION.greatPowers),
+        greatPowersRequired: positiveOr(
+            condition?.greatPowersRequired, DEFAULT_CONDITION.greatPowersRequired)
     };
     return activeCondition;
 }
 
 /** Back to CONTINENTAL at three continents. Called by New Game and by the unit tests. */
 export function resetVictoryCondition() {
-    activeCondition = { ...DEFAULT_CONDITION };
+    activeCondition = { ...DEFAULT_CONDITION, greatPowers: [] };
     return activeCondition;
 }
 
 export function captureVictoryCondition() {
-    return { ...activeCondition };
+    //The spread alone would hand the save the LIVE array, so a later change to the
+    //condition would silently rewrite a snapshot that had already been taken.
+    return { ...activeCondition, greatPowers: [...activeCondition.greatPowers] };
 }
 
 export function restoreVictoryCondition(data) {
@@ -92,6 +121,11 @@ export function restoreVictoryCondition(data) {
 
 function positiveOr(value, fallback) {
     return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/** A copy of a list of country names, or the fallback. Never the caller's own array. */
+function namesOr(value, fallback) {
+    return Array.isArray(value) ? value.filter(name => typeof name === "string") : [...fallback];
 }
 
 /**
@@ -110,6 +144,12 @@ function positiveOr(value, fallback) {
 export function worldStandings() {
     const continents = new Map();
     const byCountry = new Map();
+    /**
+     * Who a territory ORIGINALLY belonged to, and who holds it now -- the index
+     * GREAT_POWERS is measured from. Built in this same pass because the alternative is
+     * a second walk of 359 territories per country per turn.
+     */
+    const homelands = new Map();
     let worldArea = 0;
     let worldTerritories = 0;
 
@@ -117,6 +157,16 @@ export function worldStandings() {
         const name = territory.continent ?? "Unknown";
         const area = Number(territory.area) || 0;
         const owner = territory.dataName;
+        //`originalOwner` is historical and `dataName` is the current owner; conflating the
+        //two is a recurring source of bugs in this codebase, so the fallback is explicit.
+        const homeland = territory.originalOwner ?? owner;
+
+        if (!homelands.has(homeland)) {
+            homelands.set(homeland, { country: homeland, total: 0, heldBy: new Map() });
+        }
+        const home = homelands.get(homeland);
+        home.total += 1;
+        home.heldBy.set(owner, (home.heldBy.get(owner) ?? 0) + 1);
 
         if (!continents.has(name)) {
             continents.set(name, { continent: name, total: 0, area: 0, held: new Map() });
@@ -142,7 +192,76 @@ export function worldStandings() {
         country.area += area;
     }
 
-    return { continents, worldArea, worldTerritories, byCountry };
+    return { continents, worldArea, worldTerritories, byCountry, homelands };
+}
+
+/**
+ * How far `country` has got through the great powers it is being asked to break.
+ *
+ * One row per target power, best first. A power is BROKEN when this country holds every
+ * territory that power originally owned -- which routes through third parties on purpose:
+ * if another country took half of the United States first, those territories have to be
+ * taken from THAT country instead, and the objective becomes a different war rather than
+ * an impossible one.
+ *
+ * Two rules that are easy to get wrong and are both here:
+ *
+ *   * **A country never counts its own homeland.** Every great power holds its own on turn
+ *     1, so without the filter each of them would begin a five-power game already a fifth
+ *     of the way to winning. The player can never be a great power, so this would only ever
+ *     have gone wrong for the AI -- which is exactly why it would not have been noticed.
+ *   * **The requirement is capped at the number of powers a country can actually break.**
+ *     A great power has only four others to go after, so "all five" asks it for four.
+ */
+export function greatPowerStandingsFor(country, condition = activeVictoryCondition(),
+    standings = worldStandings()) {
+    const rows = (condition.greatPowers ?? [])
+        .filter(power => power !== country)
+        .map(power => {
+            const home = standings.homelands.get(power);
+            const total = home?.total ?? 0;
+            const held = home?.heldBy.get(country) ?? 0;
+            return {
+                power,
+                total,
+                held,
+                share: total === 0 ? 0 : held / total,
+                complete: total > 0 && held === total
+            };
+        });
+
+    rows.sort((a, b) => b.share - a.share || a.power.localeCompare(b.power));
+
+    const broken = rows.filter(row => row.complete).length;
+    const required = Math.min(
+        positiveOr(condition.greatPowersRequired, DEFAULT_CONDITION.greatPowersRequired),
+        rows.length
+    );
+    return { rows, broken, required };
+}
+
+/**
+ * The largest empire by land AREA, with the tie-break spelled out.
+ *
+ * A TURN_LIMIT game is decided by this, so "they were equal" is not an acceptable answer:
+ * area first, then territory count, then the name, which makes a seeded run reproduce its
+ * own ending.
+ */
+export function leadingCountry(standings = worldStandings()) {
+    let leader = null;
+    let best = null;
+
+    for (const [country, holding] of standings.byCountry) {
+        if (best === null
+            || holding.area > best.area
+            || (holding.area === best.area && holding.territories > best.territories)
+            || (holding.area === best.area && holding.territories === best.territories
+                && country.localeCompare(leader) < 0)) {
+            leader = country;
+            best = holding;
+        }
+    }
+    return leader;
 }
 
 /**
@@ -202,11 +321,42 @@ export function continentStandingsFor(country, standings = worldStandings()) {
  *
  * @returns {{kind: string, fraction: number, label: string, detail: object}}
  */
-export function victoryProgress(country, condition = activeVictoryCondition(), standings = worldStandings()) {
+export function victoryProgress(country, condition = activeVictoryCondition(),
+    standings = worldStandings(), turn = 0) {
     const rows = continentStandingsFor(country, standings);
     const holding = standings.byCountry.get(country) ?? { territories: 0, area: 0 };
 
     switch (condition.kind) {
+        case VictoryCondition.CONQUEST: {
+            //Territories, not area. Conquest asks for every territory on the map, so the
+            //number a player watches should be the one the condition is written in --
+            //"84% of the land" beside eleven territories still in enemy hands would read
+            //as a bug rather than as the last mile.
+            const total = standings.worldTerritories;
+            return {
+                kind: condition.kind,
+                fraction: total === 0 ? 0 : clamp01(holding.territories / total),
+                label: "Conquest: " + holding.territories + " of " + total + " territories",
+                detail: { held: holding.territories, total }
+            };
+        }
+
+        case VictoryCondition.GREAT_POWERS: {
+            const { rows: powers, broken, required } = greatPowerStandingsFor(
+                country, condition, standings);
+            //The nearest power still standing, named. The aggregate on its own tells a
+            //player nothing useful here -- "1 of 3" is the same sentence whether the next
+            //one is a province away or untouched, and this is the goal whose whole value
+            //is that it has antagonists.
+            const next = powers.find(row => !row.complete);
+            const suffix = next ? " (" + next.power + " " + next.held + "/" + next.total + ")" : "";
+            return {
+                kind: condition.kind,
+                fraction: required === 0 ? 0 : clamp01(broken / required),
+                label: "Great Powers: " + broken + " of " + required + suffix,
+                detail: { broken, required, powers }
+            };
+        }
         case VictoryCondition.DOMINATION: {
             const share = standings.worldArea === 0 ? 0 : holding.area / standings.worldArea;
             return {
@@ -262,17 +412,54 @@ export function victoryProgress(country, condition = activeVictoryCondition(), s
     }
 }
 
-/** Has this country met the active condition outright? Nothing acts on this yet. */
-export function hasWon(country, condition = activeVictoryCondition(), standings = worldStandings()) {
-    if (condition.kind === VictoryCondition.CONTINENTAL) {
-        return continentStandingsFor(country, standings)
-            .filter(row => row.complete).length >= condition.continentsRequired;
+/**
+ * Has this country met the active condition outright?
+ *
+ * `turn` is a PARAMETER rather than something this module reads from `state/phases.js`,
+ * which keeps the whole file a pure function of its inputs -- a unit test can play out a
+ * turn-limit game without a store, and nothing here has to know that the turn counter
+ * exists. It is only consulted by TURN_LIMIT.
+ *
+ * ELIMINATION always answers `false`: it is the defeat condition, not a goal, and
+ * `src/rules/victoryCheck.js` is what acts on it.
+ */
+export function hasWon(country, condition = activeVictoryCondition(),
+    standings = worldStandings(), turn = 0) {
+    switch (condition.kind) {
+        case VictoryCondition.CONQUEST: {
+            const holding = standings.byCountry.get(country) ?? { territories: 0 };
+            //An exact integer test, deliberately, rather than DOMINATION at a land share of
+            //1.0 -- a float comparison against the whole world is fragile at exactly the
+            //boundary this condition is entirely about.
+            return standings.worldTerritories > 0
+                && holding.territories === standings.worldTerritories;
+        }
+
+        case VictoryCondition.CONTINENTAL:
+            return continentStandingsFor(country, standings)
+                .filter(row => row.complete).length >= condition.continentsRequired;
+
+        case VictoryCondition.DOMINATION: {
+            const holding = standings.byCountry.get(country) ?? { area: 0 };
+            return standings.worldArea > 0
+                && holding.area / standings.worldArea >= condition.landShare;
+        }
+
+        case VictoryCondition.GREAT_POWERS: {
+            const { broken, required } = greatPowerStandingsFor(country, condition, standings);
+            //`required > 0` matters: a condition naming no powers, or naming only this
+            //country, would otherwise be met by everybody the moment the game began.
+            return required > 0 && broken >= required;
+        }
+
+        case VictoryCondition.TURN_LIMIT:
+            //Nobody wins a timed game early, however far ahead they are -- and at the
+            //limit exactly one country does, which is what makes this answerable at all.
+            return turn >= condition.turnLimit && leadingCountry(standings) === country;
+
+        default:
+            return false;
     }
-    if (condition.kind === VictoryCondition.DOMINATION) {
-        const holding = standings.byCountry.get(country) ?? { area: 0 };
-        return standings.worldArea > 0 && holding.area / standings.worldArea >= condition.landShare;
-    }
-    return false;
 }
 
 function clamp01(value) {

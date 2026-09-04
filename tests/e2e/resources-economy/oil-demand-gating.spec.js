@@ -7,7 +7,7 @@ import { test, expect } from "../../support/fixtures.js";
 // Per unit, per turn: naval 1,000 · air 300 · assault 100. Infantry needs none.
 // Units are taken out of service naval first, then air, then assault.
 //
-// docs/04-e2e-test-plan.md section 5.5.
+// docs/03-e2e-test-plan.md section 5.5.
 
 const oilRequirements = { assault: 100, air: 300, naval: 1000 };
 

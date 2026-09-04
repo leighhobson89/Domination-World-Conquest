@@ -507,7 +507,7 @@ function calculatePriorityScore(row, leaderTraits, rng, campaign) {
  *
  * This is the direct fix for the AI opening far more sieges than it can finish -- measured
  * at 17 rising to 67 concurrent over fourteen turns, most of them on a negative margin and
- * therefore armies standing still waiting to be arrested (docs/05-known-issues.md section
+ * therefore armies standing still waiting to be arrested (docs/04-known-issues.md section
  * 6). The budget counts the sieges ALREADY running, so a country that is over-committed
  * gets a budget of zero and spends the turn reinforcing and building instead.
  *

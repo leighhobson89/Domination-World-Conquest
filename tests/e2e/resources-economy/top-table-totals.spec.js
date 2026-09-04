@@ -10,9 +10,9 @@ import { test, expect } from "../../support/fixtures.js";
 //
 // Numbers come from __game; the table is checked for the fact that it CHANGED,
 // not for its formatted text -- parsing "1.2M" back into a number tests the
-// formatter, not the economy (docs/04-e2e-test-plan.md section 8.3).
+// formatter, not the economy (docs/03-e2e-test-plan.md section 8.3).
 //
-// docs/04-e2e-test-plan.md section 5.5.
+// docs/03-e2e-test-plan.md section 5.5.
 
 /** Within a tenth of a percent -- loose enough for float noise, tight enough to catch a desync. */
 function agrees(a, b) {
