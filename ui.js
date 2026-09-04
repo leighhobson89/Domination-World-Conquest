@@ -609,10 +609,16 @@ export function svgMapLoaded() {
                 //you want is the one whose territory you just pointed at. Read through
                 //`pathCountry()` rather than off `data-name`: this is the CURRENT owner
                 //and a conquest is exactly the moment the two could disagree.
+                //
+                //`exact` because this NAMES a country rather than searching for one.
+                //The filter is otherwise a substring, which is right for typing and
+                //wrong here: clicking anything American showed the United States and
+                //the United States Virgin Islands, two countries that merely share a
+                //prefix.
                 if (isAiGameActive()) {
                     const owner = pathCountry(e.target);
                     if (owner) {
-                        aiGameConsole.setFilter(owner);
+                        aiGameConsole.setFilter(owner, { exact: true });
                     }
                 }
                 document.getElementById(ids.popupConfirm).style.opacity = "1";

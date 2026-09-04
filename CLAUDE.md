@@ -34,8 +34,9 @@ npm run lint           # ESLint (baseline: 86 errors, 294 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
 npm run test:unit      # Vitest, 437 tests, ~1s
 npm run test:e2e       # Playwright, 397 tests, 4 workers headless, ~7-14 min
-npm run test:e2e:categories   # list the functional areas and their spec counts
-npm run test:e2e:category -- turn-loop   # one area
+node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
+node tests/run-e2e.mjs turn-loop         # one area
+node tests/run-e2e.mjs attack turn-loop  # several areas, one run
 npm run test:e2e:slow  # one visible browser, 500ms between actions
 npm run build:data     # regenerate adjacency.json + pathAreas.json + music/tracks.json
 npm run build:music    # just the music folder listing (Vite also does it on start/build)
@@ -234,10 +235,10 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `getTurnEngine().reset()`**, never after: `stop()` waits for the running step to return
   and the AI step is blocked in the pacing gate, so stopping the mode is what releases it.
   **The speed slider is a track of POSITIONS, not seconds**, in two geometric halves
-  pinned to three anchors — fifty countries a second at the left, one second dead centre,
-  five seconds at the right. A linear track in seconds would bury the whole readable
-  range in its first pixel, because the span is a factor of two hundred and fifty and the
-  pace anybody watches at sits well under a hundredth of the way along it.
+  pinned to three anchors — a hundred countries a second at the left, one second dead
+  centre, five seconds at the right. A linear track in seconds would bury the whole
+  readable range in its first pixel, because the span is a factor of five hundred and the
+  pace anybody watches at sits a five-hundredth of the way along it.
   And **the console is a flat append-only log, not the activity feed** — the feed's
   collapsible per-turn sections are the wrong shape for watching, so a turn is a rule
   ACROSS the log, the DOM is trimmed from the front to the same bound the ring uses, and

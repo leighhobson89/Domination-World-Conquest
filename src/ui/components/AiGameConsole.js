@@ -111,6 +111,17 @@ let rendered = [];
 /** The filter as typed, lower-cased. Ignored until MIN_FILTER_LENGTH characters. */
 let filterText = "";
 
+/**
+ * Whether the filter names a country rather than searching for one.
+ *
+ * Set only by `setFilter(name, { exact: true })`, which is what clicking a territory on
+ * the map does. Typing in the box goes through the plain form and clears it, which is
+ * how a click that filtered to the United States alone widens to include the United
+ * States Virgin Islands the moment the reader edits the name themselves. See the note
+ * in src/debug/aiGameFilter.js.
+ */
+let filterExact = false;
+
 /** Injected: the click sound, so this component does not import the audio layer. */
 let playSound = null;
 
@@ -144,12 +155,12 @@ export function create({ onSound, onStop: stopHandler } = {}) {
         toggleAiGamePaused();
     });
 
-    // The track is POSITIONS, not seconds. The useful range spans a factor of two
-    // hundred and fifty and the pace anybody watches at -- one second -- sits well
-    // under a hundredth of the way along it, so a slider measured in seconds would
-    // bury everything readable in its first pixel. `secondsForSliderPosition()` puts
-    // 1s dead centre, fifty countries a second at the left and five seconds each at
-    // the right; see the note on it in src/debug/aiGameMode.js.
+    // The track is POSITIONS, not seconds. The useful range spans a factor of five
+    // hundred and the pace anybody watches at -- one second -- sits a five-hundredth
+    // of the way along it, so a slider measured in seconds would bury everything
+    // readable in its first pixel. `secondsForSliderPosition()` puts 1s dead centre,
+    // a hundred countries a second at the left and five seconds each at the right;
+    // see the note on it in src/debug/aiGameMode.js.
     speedSlider = el("input", {
         id: ids.aiGameSpeedSlider,
         class: "ai-game-speed-slider",
@@ -195,6 +206,10 @@ export function create({ onSound, onStop: stopHandler } = {}) {
     // `input` rather than `change`, so the log narrows as the name is typed. The pass
     // it triggers is a loop over at most MAX_BLOCKS_KEPT rows setting one property,
     // which is cheaper than the layout the browser was going to do anyway.
+    // Both of these deliberately pass no options, so anything the reader types is a
+    // SEARCH -- a substring, the way it has always been. Only the map click names a
+    // country exactly, and editing what the click put in the box drops back to
+    // searching, which is what makes the exception discoverable rather than sticky.
     filterInput.addEventListener("input", () => setFilter(filterInput.value));
     // A search field's clear button fires `search`, not `input`, in some browsers.
     filterInput.addEventListener("search", () => setFilter(filterInput.value));
@@ -363,12 +378,19 @@ function filterIsActive() {
 
 /** Does this country pass the filter as it stands? */
 function countryMatchesFilter(country) {
-    return matchesCountryFilter(country, filterText);
+    return matchesCountryFilter(country, filterText, filterExact);
 }
 
-/** Set the filter and re-run the visibility pass. */
-export function setFilter(text) {
+/**
+ * Set the filter and re-run the visibility pass.
+ *
+ * @param {string} text
+ * @param {{exact?: boolean}} [options]  `exact` means the filter NAMES one country --
+ *        the map was clicked -- rather than searching for a substring of a name.
+ */
+export function setFilter(text, { exact = false } = {}) {
     filterText = normaliseFilter(text);
+    filterExact = exact && filterText !== "";
     refreshVisibility();
     if (filterInput && filterInput.value !== text) {
         filterInput.value = text ?? "";
@@ -589,6 +611,7 @@ export function destroy() {
     lastTurnDrawn = null;
     rendered = [];
     filterText = "";
+    filterExact = false;
     following = true;
 }
 

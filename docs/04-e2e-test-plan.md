@@ -16,7 +16,7 @@ game does today so that moving code cannot silently change behaviour.
 area needs no registry edit — the runner discovers folders.
 
 **Conventions deliberately mirror the `theCave` harness** (same author, same machine): a
-`scripts/run-tests.cjs` wrapper, `--headed` / `--slow` / `--category` / `--list-categories`,
+`tests/run-e2e.mjs` wrapper, `--headed` / `--slow` / `--list`,
 timestamped run folders with a rolling history, and a markdown summary per run. The
 differences are the two the brief calls for: **8 workers headless** (theCave uses 4 for
 stability — see §3.5) and **`--slow` defaults to 500 ms**.
@@ -197,8 +197,7 @@ tests/
       battleResults.js  infoTable.js  aiDialogue.js  topTable.js  bottomTable.js
     selectors.js         re-exports ui/core/registry.js + test-only helpers
     territories.js       loads tests/uniqueIdLookup.json → name ⇄ uniqueId
-scripts/
-  run-tests.cjs          the wrapper described below
+  run-e2e.mjs            the wrapper described below
 playwright.config.js
 test-reports/
   history.md
@@ -255,15 +254,27 @@ module.exports = defineConfig({
 });
 ```
 
-### 3.3 `scripts/run-tests.cjs` — responsibilities
+### 3.3 `tests/run-e2e.mjs` — responsibilities
 
-Consumes three flags itself and forwards everything else to `playwright test` verbatim:
+**A bare word is a folder under `tests/e2e/`, and every extra word is another folder added to
+the same run** — `node tests/run-e2e.mjs attack turn-loop` runs both. A word that is not a
+folder there is forwarded to Playwright as a path or regex if it can only be one (it contains
+a slash, a dot or a colon) and is otherwise **rejected with the area list**, so a typo cannot
+quietly run nothing and report a pass.
+
+Beyond the positional areas it consumes three flags itself and forwards everything else to
+`playwright test` verbatim:
 
 | Flag | Behaviour |
 |---|---|
 | `--slow` / `--slow=<ms>` | Sets `DWC_SLOWMO`. **Default 500 ms.** Pauses between every Playwright action. |
-| `--category <name>` / `--category=<name>` | Resolves `tests/e2e/<name>` and forwards it as a forward-slash path (backslashes break Playwright's positional regex on Windows). Errors with the category list if the name is wrong or the folder has no specs. |
-| `--list-categories` | Prints every folder under `tests/e2e/` with its spec count, non-empty first. |
+| `--category <name>` / `--category=<name>` | The older spelling of a bare word, kept working. Same resolution and the same errors. |
+| `--list` (`--list-categories`) | Prints every folder under `tests/e2e/` with its spec count, non-empty first. |
+
+Areas resolve to forward-slash paths (`tests/e2e/attack`), because backslashes break
+Playwright's positional regex on Windows, and the argv-to-arguments translation is unit-tested
+in `tests/unit/run-e2e-args.spec.js` — a mistake there runs the wrong specs, or none, and
+Playwright reports that as a pass.
 
 It also:
 
@@ -285,11 +296,11 @@ It also:
 {
   "test":                  "npm run test:unit && npm run test:e2e",
   "test:unit":             "vitest run",
-  "test:e2e":              "node scripts/run-tests.cjs",
-  "test:e2e:category":     "node scripts/run-tests.cjs --category",
-  "test:e2e:categories":   "node scripts/run-tests.cjs --list-categories",
-  "test:e2e:headed":       "node scripts/run-tests.cjs --headed",
-  "test:e2e:slow":         "node scripts/run-tests.cjs --headed --slow",
+  "test:e2e":              "node tests/run-e2e.mjs",
+  "test:e2e:category":     "node tests/run-e2e.mjs",
+  "test:e2e:categories":   "node tests/run-e2e.mjs --list",
+  "test:e2e:headed":       "node tests/run-e2e.mjs --headed",
+  "test:e2e:slow":         "node tests/run-e2e.mjs --headed --slow",
   "test:e2e:ui":           "playwright test --ui",
   "test:e2e:debug":        "playwright test --debug",
   "test:report":           "playwright show-report test-reports/runs/adhoc/html"
@@ -304,8 +315,10 @@ npm run test:e2e:categories                   # list functional areas + spec cou
 npm run test:e2e:category -- siege            # one folder
 npm run test:e2e:headed                       # 1 visible browser, full speed
 npm run test:e2e:slow                         # 1 visible browser, 500ms per action
-node scripts/run-tests.cjs --slow=1000 --category battle
-node scripts/run-tests.cjs --headed --slow tests/e2e/attack/multi-territory.spec.js:42
+node tests/run-e2e.mjs attack                 # one folder
+node tests/run-e2e.mjs attack turn-loop siege # three folders, one run
+node tests/run-e2e.mjs --slow=1000 battle
+node tests/run-e2e.mjs --headed --slow tests/e2e/attack/multi-territory.spec.js:42
 DWC_WORKERS=4 npm run test:e2e                # back off if the box struggles
 ```
 
@@ -782,7 +795,7 @@ reasonable time. What it does not bypass is the panel: the entry goes through
 | Step | Work | Output | Status |
 |---|---|---|---|
 | E0 | Refactor 1.1–1.2 (fast init), 1.6 (`?e2e=1`, seeded RNG) | Prerequisites met | ✅ |
-| E1 | Harness: `playwright.config.js`, `scripts/run-tests.cjs`, fixtures, `GameDriver`, page objects for menu / map / phase bar / bottom table | `npm run test:e2e` runs, 0 specs | ✅ |
+| E1 | Harness: `playwright.config.js`, `tests/run-e2e.mjs`, fixtures, `GameDriver`, page objects for menu / map / phase bar / bottom table | `npm run test:e2e` runs, 0 specs | ✅ |
 | E2 | `bootstrap/`, `country-selection/` | ~14 specs | ✅ |
 | E3 | `turn-loop/`, `map-interaction/` | ~11 specs · **P0 complete** | ✅ |
 | E4 | `resources-economy/`, `buy-military/`, `upgrade-territory/` | ~17 specs | ✅ |

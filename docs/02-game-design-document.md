@@ -247,10 +247,15 @@ hand. A frequent source of the UI being in a phase the game logic is not.
 ### 7.0 The attacker's advantage — the one dial ✅
 
 `ATTACK_ADVANTAGE` in [src/config/balance.js](../src/config/balance.js) is a flat multiplier
-on **attacking** strength, currently **1.2**. It is the single number that makes attacking
+on **attacking** strength, currently **1.44**. It is the single number that makes attacking
 easier or harder across the whole game, and it exists because the world was not changing
 hands: forty headless turns of `tools/ai-sim.mjs` left 156 of 207 countries alive with about
 two conquests a turn on a 359-territory map.
+
+It has been raised twice, twenty per cent each time, **compounded rather than added** —
+1.0 → 1.2 → 1.44. That is the arithmetic a multiplier implies: another twenty per cent on
+top of an attack that was already twenty per cent better. It is why the number is 1.44 and
+not 1.4.
 
 The cause is structural rather than timidity on the AI's part. `defenseMultiplierFor()` takes
 the **ceiling** of `(defenceBonus + mountainBonus) / 15`, so a single fort — or a mountain, or
@@ -260,18 +265,19 @@ The ceiling is load-bearing (it is what makes the *first* fort worth building), 
 unpick it the attacker is given a multiplier at the one point the two sides are compared.
 
 **What "20 % easier" means here.** The multiplier improves the attack-to-defence **ratio** by
-20 % at every point on the scale. It is *not* 20 % added to the win probability. Because the
-probability is a share, `attack / (attack + defence)`:
+its own amount at every point on the scale. It is *not* a fixed number of points added to the
+win probability. Because the probability is a share, `attack / (attack + defence)`:
 
-| Before | After | |
-|---|---|---|
-| 25 % | 28.6 % | a losing attack stays losing |
-| 50 % | 54.5 % | an even fight tilts |
-| 75 % | 78.3 % | a winning attack cannot run away with it |
+| At 1.0 | at 1.2 | at 1.44 | |
+|---|---|---|---|
+| 25 % | 28.6 % | 32.4 % | a losing attack stays losing |
+| 50 % | 54.5 % | 59.0 % | an even fight tilts |
+| 75 % | 78.3 % | 81.2 % | a winning attack cannot run away with it |
 
 That is the well-behaved form: it can never push a probability past 100, it cannot make a
-hopeless attack look winnable, and raising the dial again is another 20 % rather than another
-20 points. Multiplying the *probability* would do all three of those things wrong.
+hopeless attack look winnable, and raising the dial again is another proportional step rather
+than another fixed number of points. Multiplying the *probability* would do all three of
+those things wrong.
 
 **Where it is read.** Exactly two places, one per form of attack:
 
@@ -298,20 +304,32 @@ comparisons and moving them would double-count:
 - `siegeScore()` itself — that figure is shown to the player on the siege screen and is a
   fact about the army, not about the contest.
 
-**Measured.** `node tools/ai-sim.mjs --turns=40 --seed=baseline`, the same seed either side:
+**Measured.** `node tools/ai-sim.mjs --turns=40 --seed=baseline`, the same seed throughout:
 
-| | 1.0 (before) | 1.2 (now) |
-|---|---|---|
-| Countries surviving after 40 turns | 156 | 153 |
-| Conquests | 175 | 201 |
-| Failed attacks | 128 | 154 |
-| Sieges laid / won | 13 / 10 | 18 / 15 |
+| | 1.0 | 1.2 | **1.44 (now)** |
+|---|---|---|---|
+| Countries surviving after 40 turns | 156 | 153 | **145** |
+| Largest empire | 50 | 49 | **52** |
+| Conquests | 175 | 201 | **284** |
+| Failed attacks | 128 | 154 | **179** |
+| Sieges laid / won | 13 / 10 | 18 / 15 | **22 / 18** |
+| Attack win rate | 58 % | 57 % | **61 %** |
+| Idle player survives 40 turns | yes | yes | **eliminated on turn 21** |
 
-Conquests are up 15 % and sieges won by half. The attack *win rate* is flat (58 % → 57 %),
-which is the expected shape rather than a disappointment: the AI's odds floors let more
-marginal attacks through, so the extra conquests come with extra failures rather than from
-the same attacks succeeding more often. **Re-run that comparison after any change to this
-number.** The unit suite pins the rule but cannot see the world failing to consolidate.
+The first step to 1.2 bought 15 % more conquests at a flat win rate — the AI's odds floors
+let more marginal attacks through, so the extra conquests arrived with extra failures. The
+second step to 1.44 is where the shape changes: conquests are up **62 %** on the original
+and the win rate finally moves, because enough attacks have crossed from "below the floor"
+to "worth making" that the average attack is a better one.
+
+The last row is the cost and is worth watching. `ai-sim`'s player does *nothing at all* — it
+never buys a unit, never reinforces, never defends — so being eliminated in 21 idle turns is
+not the same as a real player being overrun, and `tests/e2e/turn-loop/long-run.spec.js` (ten
+turns) still passes. But it is the first sign that the dial is being felt, and it is the
+measurement to look at before any third step.
+
+**Re-run this comparison after any change to this number.** The unit suite pins the rule but
+cannot see the world failing to consolidate.
 
 ### 7.1 Pre-battle probability ✅⚠️
 

@@ -17,6 +17,15 @@
 // pixel value whatever the stylesheet wrote -- and shifts it. The transform is
 // left completely alone.
 //
+// **A window anchored by its RIGHT edge is converted to a left anchor before the
+// first move.** The drag only ever writes `left`/`top`, so on a window the
+// stylesheet positioned with `right` (the AI game console is the one) both edges
+// end up pinned -- and because its width is `auto`, pinning both edges is a
+// resize, not a move: the window stretched across the whole screen as it was
+// dragged. `releaseOppositeAnchors()` writes the measured `left`/`top` and clears
+// `right`/`bottom` in the same breath, which is geometrically a no-op at that
+// instant and leaves the element in the one anchor convention the drag can move.
+//
 // That is not merely tidy, it is load-bearing. `.title-transfer-attack-window` and
 // `.content-transfer-header-row` are `position: fixed` INSIDE the transfer window,
 // and a fixed child is positioned against the nearest ancestor with a transform.
@@ -177,6 +186,7 @@ export function makeDraggable(element, handle, { edgeMargin = 60 } = {}) {
         const style = getComputedStyle(element);
         startLeft = parseFloat(style.left) || 0;
         startTop = parseFloat(style.top) || 0;
+        releaseOppositeAnchors(element, startLeft, startTop);
         startX = event.clientX;
         startY = event.clientY;
 
@@ -285,6 +295,34 @@ function clamp(value, low, high) {
 }
 
 /**
+ * Pin the window by its top-left corner, whatever the stylesheet pinned it by.
+ *
+ * Called once at the start of every drag. `left` and `top` are written to the
+ * values just measured off the computed style, so nothing moves; `right` and
+ * `bottom` are then cleared, so nothing is anchored on the far side any more.
+ *
+ * That second half is the point. The drag writes `left`/`top` and nothing else, so
+ * a window the stylesheet placed with `right: 24px` and no width finishes the first
+ * pointer move with BOTH horizontal edges specified -- and for an absolutely
+ * positioned box with `width: auto` that is a resize, not a move. The AI game
+ * console stretched from wherever it was dragged to all the way back to 24px off
+ * the right edge of the screen, redrawing its border across the whole viewport.
+ *
+ * Done unconditionally rather than behind a test for which edges are set, because
+ * there is nothing reliable to test: `getComputedStyle().right` on a positioned
+ * element returns the USED value in pixels whether the stylesheet said `24px` or
+ * `auto`, so "is this window right-anchored?" cannot be asked of the computed
+ * style at all. Writing `auto` over an anchor that was already `auto` costs
+ * nothing.
+ */
+function releaseOppositeAnchors(element, left, top) {
+    element.style.left = left + "px";
+    element.style.top = top + "px";
+    element.style.right = "auto";
+    element.style.bottom = "auto";
+}
+
+/**
  * Put a window back where the stylesheet puts it.
  *
  * A drag writes inline `left`/`top`, which outlive the window being closed and
@@ -298,6 +336,12 @@ export function clearDragPosition(element) {
     }
     element.style.removeProperty("left");
     element.style.removeProperty("top");
+    //The other half of `releaseOppositeAnchors()`. Dropping only `left`/`top` would
+    //leave `right: auto` written on a window the stylesheet anchors by its right
+    //edge, so a "reset to where the stylesheet puts it" would put it somewhere the
+    //stylesheet does not.
+    element.style.removeProperty("right");
+    element.style.removeProperty("bottom");
 }
 
 /**

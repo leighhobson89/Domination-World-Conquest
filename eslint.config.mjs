@@ -68,13 +68,13 @@ export default [
     },
   },
 
-  // Node-side tooling: config files, scripts, and (later) the Playwright runner.
+  // Node-side tooling: config files, generators, and the Playwright runner.
   {
     files: [
       "*.config.js",
       "*.config.mjs",
       "*.config.cjs",
-      "scripts/**",
+      "tests/run-e2e.mjs",
       "tools/**",
       "app.js",
       "webpack-*.config.js",

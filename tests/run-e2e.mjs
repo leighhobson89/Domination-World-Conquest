@@ -4,26 +4,36 @@
 // keeps a rolling history of recent runs.
 //
 // Usage:
-//   node scripts/run-tests.cjs                          # whole suite
-//   node scripts/run-tests.cjs tests/e2e/bootstrap      # one folder by path
-//   node scripts/run-tests.cjs --category bootstrap     # one folder by name
-//   node scripts/run-tests.cjs --list-categories        # what exists, and how many specs
-//   node scripts/run-tests.cjs --headed                 # watch it in a real browser
-//   node scripts/run-tests.cjs --headed --slow          # ...500ms between actions
-//   node scripts/run-tests.cjs --slow=1000              # custom pause, in ms
+//   node tests/run-e2e.mjs                          # whole suite
+//   node tests/run-e2e.mjs attack                   # one area
+//   node tests/run-e2e.mjs attack turn-loop siege   # several areas, in one run
+//   node tests/run-e2e.mjs --list                   # what exists, and how many specs
+//   node tests/run-e2e.mjs --headed                 # watch it in a real browser
+//   node tests/run-e2e.mjs --headed --slow          # ...500ms between actions
+//   node tests/run-e2e.mjs --slow=1000              # custom pause, in ms
+//   node tests/run-e2e.mjs attack/multi-territory.spec.js:42   # one test
 //
-// Everything after the script name is forwarded to `playwright test` verbatim,
-// except --slow[=ms], --category <name> and --list-categories, which this script
-// consumes itself.
+// A bare word is a FOLDER under tests/e2e/, and every extra word is another folder
+// added to the same run. A word that is not a folder there is forwarded to
+// Playwright as a path/regex if it looks like one (it contains a slash, a dot or a
+// colon) and is otherwise rejected with the list of areas, so a typo cannot quietly
+// run nothing.
+//
+// Everything else is forwarded to `playwright test` verbatim, except --slow[=ms],
+// --list (--list-categories) and --category <name>, which this script consumes.
 //
 // Adding a coverage area needs no code change: create tests/e2e/<name>/, drop
-// .spec.js files in it, and --category / --list-categories pick it up.
+// .spec.js files in it, and it is runnable by name at once.
 
-const { spawnSync } = require("child_process");
-const fs = require("fs");
-const path = require("path");
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const PROJECT_ROOT = path.resolve(__dirname, "..");
+const require = createRequire(import.meta.url);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(HERE, "..");
 const REPORTS_ROOT = path.join(PROJECT_ROOT, "test-reports");
 const RUNS_ROOT = path.join(REPORTS_ROOT, "runs");
 const E2E_ROOT = path.join(PROJECT_ROOT, "tests", "e2e");
@@ -53,17 +63,18 @@ function listCategories() {
 function printCategories() {
     const categories = listCategories();
     if (!categories.length) {
-        console.log("No categories found under tests/e2e/.");
+        console.log("No test areas found under tests/e2e/.");
         return;
     }
     const width = Math.max(...categories.map((c) => c.name.length));
-    console.log(`Categories under tests/e2e/ (${categories.length}):\n`);
+    console.log(`Test areas under tests/e2e/ (${categories.length}):\n`);
     for (const { name, specCount } of categories) {
         const label =
             specCount === 0 ? "(empty)" : `${specCount} spec${specCount === 1 ? "" : "s"}`;
         console.log(`  ${name.padEnd(width)}   ${label}`);
     }
-    console.log(`\nRun one:   node scripts/run-tests.cjs --category <name>`);
+    console.log(`\nRun one:     node tests/run-e2e.mjs <name>`);
+    console.log(`Run several: node tests/run-e2e.mjs <name> <name> ...`);
 }
 
 /** 2026-08-23T13-05-04 -- sorts chronologically, and is legal on Windows. */
@@ -259,67 +270,134 @@ function writeHistoryIndex(retained) {
     fs.writeFileSync(path.join(REPORTS_ROOT, "history.md"), lines.join("\n"), "utf8");
 }
 
-function main() {
-    const rawArgs = process.argv.slice(2);
+/** A bare word only reaches Playwright as a path if it cannot be an area name. */
+function looksLikeAPath(word) {
+    return word.includes("/") || word.includes("\\") || word.includes(".") || word.includes(":");
+}
 
-    if (rawArgs.includes("--list-categories")) {
-        printCategories();
-        process.exit(0);
+/**
+ * Splits argv into the areas to run and the flags to forward. Bare words are area
+ * names; --category <name> / --category=<name> is kept as an alias for them so the
+ * older command line still works.
+ */
+function parseArgs(rawArgs) {
+    const areas = [];
+    const forwarded = [];
+    const unknown = [];
+
+    for (let i = 0; i < rawArgs.length; i += 1) {
+        const arg = rawArgs[i];
+
+        if (arg === "--category" || arg.startsWith("--category=")) {
+            const inline = arg.startsWith("--category=") ? arg.slice("--category=".length) : "";
+            const next = rawArgs[i + 1];
+            let name = inline;
+            if (!name && next && !next.startsWith("-")) {
+                name = next;
+                i += 1;
+            }
+            if (!name) unknown.push("(none given)");
+            else if (isArea(name)) areas.push(name);
+            else unknown.push(name);
+            continue;
+        }
+
+        if (arg.startsWith("-")) {
+            forwarded.push(arg);
+            continue;
+        }
+
+        if (isArea(arg)) areas.push(arg);
+        else if (looksLikeAPath(arg)) forwarded.push(arg);
+        else unknown.push(arg);
     }
 
-    // --category <name> / --category=<name>
-    const categoryIndex = rawArgs.findIndex(
-        (a) => a === "--category" || a.startsWith("--category=")
+    return { areas: [...new Set(areas)], forwarded, unknown };
+}
+
+export function isArea(name) {
+    return (
+        Boolean(name) &&
+        fs.existsSync(path.join(E2E_ROOT, name)) &&
+        fs.statSync(path.join(E2E_ROOT, name)).isDirectory()
     );
-    let categoryPathArg = null;
-    let args = rawArgs;
-    if (categoryIndex !== -1) {
-        const inline = rawArgs[categoryIndex].split("=")[1];
-        const separate =
-            !inline && rawArgs[categoryIndex + 1] && !rawArgs[categoryIndex + 1].startsWith("-");
-        const name = inline || (separate ? rawArgs[categoryIndex + 1] : "");
-        const consumed = inline ? 1 : separate ? 2 : 1;
+}
 
-        if (!name || !fs.existsSync(path.join(E2E_ROOT, name))) {
-            console.error(`No such category: "${name || "(none given)"}"\n`);
-            printCategories();
-            process.exit(1);
-        }
-        if (countSpecs(path.join(E2E_ROOT, name)) === 0) {
-            console.error(`Category "${name}" exists but has no .spec.js files yet.`);
-            process.exit(1);
-        }
-        // Playwright treats positional args as regexes over forward-slash paths, even
-        // on Windows. path.join would emit backslashes, which a regex reads as escape
-        // sequences and silently drops.
-        categoryPathArg = `tests/e2e/${name}`;
-        args = [...rawArgs.slice(0, categoryIndex), ...rawArgs.slice(categoryIndex + consumed)];
-    }
-
-    // The bootstrap category contains wall-clock budget assertions, which are only
-    // meaningful with the machine to ourselves.
-    const perfOnly = categoryPathArg === "tests/e2e/bootstrap";
-
-    const stamp = runStamp();
-    const runDir = path.join(RUNS_ROOT, stamp);
-    fs.mkdirSync(runDir, { recursive: true });
+/**
+ * Everything the run needs, worked out from argv alone: which areas, what to hand
+ * Playwright, and how many workers. Separated from main() so the unit suite can
+ * assert the command line without starting a browser.
+ */
+export function planRun(rawArgs, env = process.env) {
+    const { areas, forwarded, unknown } = parseArgs(rawArgs);
+    const empty = areas.filter((name) => countSpecs(path.join(E2E_ROOT, name)) === 0);
 
     // --slow / --slow=<ms> is ours, not Playwright's.
-    const slowArg = args.find((a) => a === "--slow" || a.startsWith("--slow="));
-    const forwarded = args.filter((a) => a !== slowArg);
-    if (categoryPathArg) forwarded.push(categoryPathArg);
+    const slowArg = forwarded.find((a) => a === "--slow" || a.startsWith("--slow="));
+    const playwrightArgs = forwarded.filter((a) => a !== slowArg);
+
+    // Playwright treats positional args as regexes over forward-slash paths, even
+    // on Windows. path.join would emit backslashes, which a regex reads as escape
+    // sequences and silently drops.
+    playwrightArgs.push(...areas.map((name) => `tests/e2e/${name}`));
+
     const slowMo = slowArg
         ? Number(slowArg.split("=")[1]) || DEFAULT_SLOW_MS
-        : Number(process.env.DWC_SLOWMO) || 0;
+        : Number(env.DWC_SLOWMO) || 0;
 
     // Playwright's own --headed cannot reach the `workers` expression in the config,
     // which would leave eight visible browsers racing. Detect it and set the env var
     // the config reads, so headed always means one browser.
     const isHeaded =
-        forwarded.includes("--headed") ||
-        process.env.DWC_HEADED === "1" ||
-        process.env.DWC_HEADED === "true";
+        playwrightArgs.includes("--headed") || env.DWC_HEADED === "1" || env.DWC_HEADED === "true";
 
+    return {
+        areas,
+        unknown,
+        empty,
+        playwrightArgs,
+        slowMo,
+        isHeaded,
+        // The bootstrap area contains wall-clock budget assertions, which are only
+        // meaningful with the machine to ourselves -- and only when it is the whole run.
+        perfOnly: areas.length === 1 && areas[0] === "bootstrap",
+    };
+}
+
+function main() {
+    const rawArgs = process.argv.slice(2);
+
+    if (rawArgs.includes("--list") || rawArgs.includes("--list-categories")) {
+        printCategories();
+        process.exit(0);
+    }
+
+    const { areas, unknown, empty, playwrightArgs, slowMo, isHeaded, perfOnly } = planRun(rawArgs);
+
+    if (unknown.length) {
+        console.error(`No such test area: ${unknown.map((a) => `"${a}"`).join(", ")}\n`);
+        printCategories();
+        process.exit(1);
+    }
+
+    if (empty.length) {
+        console.error(
+            `${empty.map((a) => `"${a}"`).join(", ")} ` +
+                `exist${empty.length === 1 ? "s" : ""} but ha${empty.length === 1 ? "s" : "ve"} ` +
+                `no .spec.js files yet.`
+        );
+        process.exit(1);
+    }
+
+    const stamp = runStamp();
+    const runDir = path.join(RUNS_ROOT, stamp);
+    fs.mkdirSync(runDir, { recursive: true });
+
+    if (areas.length) {
+        console.log(
+            `Running ${areas.length} area${areas.length === 1 ? "" : "s"}: ${areas.join(", ")}`
+        );
+    }
     if (isHeaded) {
         console.log(
             `Headed mode: one worker, ${slowMo ? `${slowMo}ms between actions` : "full speed"}.`
@@ -337,7 +415,7 @@ function main() {
     const startedAt = Date.now();
     // Run Playwright's CLI under the current Node binary rather than shelling out to
     // npx: on Windows, Node refuses to spawn .cmd shims without a shell.
-    const result = spawnSync(process.execPath, [playwrightCli, "test", ...forwarded], {
+    const result = spawnSync(process.execPath, [playwrightCli, "test", ...playwrightArgs], {
         cwd: PROJECT_ROOT,
         stdio: "inherit",
         env: {
@@ -383,4 +461,6 @@ function main() {
     process.exit(exitCode);
 }
 
-main();
+// Only when run as a command. tests/unit/run-e2e-args.spec.js imports this file to
+// assert the command line it builds, and importing must not start a browser.
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) main();

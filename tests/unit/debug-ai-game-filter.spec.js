@@ -79,3 +79,42 @@ describe("matchesCountryFilter", () => {
         expect(matchesCountryFilter("Russia", "  RUS ")).toBe(true);
     });
 });
+
+describe("an exact filter -- a country NAMED rather than searched for", () => {
+    // Clicking a territory sets the filter to whoever owns it, and there a substring is
+    // the wrong rule: clicking anything American showed the United States AND the United
+    // States Virgin Islands, two countries that merely share a prefix. Typing the same
+    // text must still find both, so the mode travels with the filter rather than being a
+    // property of the text.
+    it("keeps a country whose name shares a prefix out of the results", () => {
+        const american = ["United States", "United States Virgin Islands"];
+        expect(american.filter((c) => matchesCountryFilter(c, "united states", true)))
+            .toEqual(["United States"]);
+        //...and the same text typed into the box still finds both.
+        expect(american.filter((c) => matchesCountryFilter(c, "united states")))
+            .toEqual(american);
+    });
+
+    it("still ignores case and surrounding space", () => {
+        expect(matchesCountryFilter("United States", "  UNITED STATES ", true)).toBe(true);
+    });
+
+    it("does not match a country the named one is a substring OF, or vice versa", () => {
+        expect(matchesCountryFilter("United States Virgin Islands", "united states", true))
+            .toBe(false);
+        expect(matchesCountryFilter("United States", "united states virgin islands", true))
+            .toBe(false);
+    });
+
+    it("is still no filter at all below the length threshold", () => {
+        // The threshold is checked BEFORE the mode. Otherwise naming a two-letter
+        // country would hide the entire log, where every other too-short filter shows
+        // everything -- the opposite behaviour from the same rule.
+        expect(matchesCountryFilter("Fiji", "fi", true)).toBe(true);
+        expect(matchesCountryFilter("Chad", "fi", true)).toBe(true);
+    });
+
+    it("handles a country name that is not a string", () => {
+        expect(matchesCountryFilter(undefined, "france", true)).toBe(false);
+    });
+});

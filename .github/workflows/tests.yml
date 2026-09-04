@@ -70,7 +70,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run the suite
-        # scripts/run-tests.cjs builds, serves the build, runs Playwright into a
+        # tests/run-e2e.mjs builds, serves the build, runs Playwright into a
         # timestamped folder and writes summary.md. `npm run test:e2e` is exactly
         # what a developer runs locally, so CI and local runs cannot drift.
         run: npm run test:e2e

@@ -19,11 +19,11 @@
     "build:vendor:cannon": "webpack --config webpack-cannon.config.cjs",
     "build:vendor:three": "webpack --config webpack-three.config.cjs",
     "build:vendor:buffer-utils": "webpack --config webpack-buffer-utils.config.cjs",
-    "test:e2e": "node scripts/run-tests.cjs",
-    "test:e2e:category": "node scripts/run-tests.cjs --category",
-    "test:e2e:categories": "node scripts/run-tests.cjs --list-categories",
-    "test:e2e:headed": "node scripts/run-tests.cjs --headed",
-    "test:e2e:slow": "node scripts/run-tests.cjs --headed --slow",
+    "test:e2e": "node tests/run-e2e.mjs",
+    "test:e2e:category": "node tests/run-e2e.mjs",
+    "test:e2e:categories": "node tests/run-e2e.mjs --list",
+    "test:e2e:headed": "node tests/run-e2e.mjs --headed",
+    "test:e2e:slow": "node tests/run-e2e.mjs --headed --slow",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:report": "playwright show-report test-reports/runs/adhoc/html",
@@ -34,7 +34,7 @@
     "build:music": "node tools/build-music-manifest.mjs",
     "build:music:check": "node tools/build-music-manifest.mjs --check",
     "build:data": "npm run build:adjacency && npm run build:areas && npm run build:music",
-    "test:e2e:perf": "node scripts/run-tests.cjs --category bootstrap"
+    "test:e2e:perf": "node tests/run-e2e.mjs bootstrap"
   },
   "repository": {
     "type": "git",

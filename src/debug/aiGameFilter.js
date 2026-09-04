@@ -19,6 +19,15 @@
 // Cyprus, and that is wanted -- somebody watching a border does not know in advance
 // which of the two names they half-remember is the one in the log.
 //
+// **...unless the filter was NAMED rather than typed.** Clicking a territory sets the
+// filter to whoever owns it, and there the substring rule is wrong: clicking anything
+// American showed the United States AND the United States Virgin Islands, which are two
+// countries that merely share a prefix. A typed "united states" should still find both --
+// that is somebody searching -- but a click is not a search, it is a country being
+// pointed at, and the answer to "show me this one" is one country. So the mode travels
+// with the filter: `exact` compares the whole name, and typing anything in the box drops
+// back to a substring because the input handler sets the filter without it.
+//
 // **Matching is on the country alone.** Not on the leader, the posture or the text of
 // the report: a filter that also matched the body would show France because Spain was
 // mentioned in its plan, which is the opposite of narrowing.
@@ -44,15 +53,22 @@ export function filterIsActive(normalised) {
 /**
  * Does this country pass the filter?
  *
+ * The length threshold is checked BEFORE the mode, so an exact filter that is too short
+ * is no filter either -- otherwise clicking a country whose name is one or two characters
+ * would hide the whole log rather than showing everything, which is the opposite of what
+ * every other too-short filter does.
+ *
  * @param {string} country     a `dataName`, as stored on a log block
  * @param {string} normalised  the filter, already through `normaliseFilter()`
+ * @param {boolean} [exact]    match the whole name rather than any substring of it
  */
-export function matchesCountryFilter(country, normalised) {
+export function matchesCountryFilter(country, normalised, exact = false) {
     // Normalised again rather than trusted. The console does normalise once at the
     // keystroke -- but a comparison that silently answers "no match" when handed the
     // raw text is the kind of asymmetry that survives review and then explains a
     // filter that "only works sometimes".
     const filter = normaliseFilter(normalised);
     if (filter.length < MIN_FILTER_LENGTH) return true;
-    return String(country ?? "").toLowerCase().includes(filter);
+    const name = String(country ?? "").toLowerCase();
+    return exact ? name === filter : name.includes(filter);
 }

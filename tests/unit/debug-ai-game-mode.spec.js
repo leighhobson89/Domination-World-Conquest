@@ -111,9 +111,9 @@ describe("the speed slider", () => {
         expect(secondsForSliderPosition(SPEED_SLIDER_STEPS)).toBe(MAX_SECONDS_PER_COUNTRY);
     });
 
-    it("reaches fifty countries a second at the fast end, and says so", () => {
-        expect(1 / secondsForSliderPosition(0)).toBe(50);
-        expect(describeAiGameSpeed(secondsForSliderPosition(0))).toBe("50 countries/s");
+    it("reaches a hundred countries a second at the fast end, and says so", () => {
+        expect(1 / secondsForSliderPosition(0)).toBe(100);
+        expect(describeAiGameSpeed(secondsForSliderPosition(0))).toBe("100 countries/s");
     });
 
     it("gets slower with every step, never faster", () => {

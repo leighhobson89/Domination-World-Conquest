@@ -3,14 +3,14 @@ import { defineConfig } from "@playwright/test";
 
 const ROOT = import.meta.dirname;
 
-// Where this run's reports are written. `npm run test:e2e` (scripts/run-tests.cjs)
+// Where this run's reports are written. `npm run test:e2e` (tests/run-e2e.mjs)
 // points this at a timestamped folder under test-reports/runs/ and keeps a rolling
 // history; running `npx playwright test` directly falls back to
 // test-reports/runs/adhoc so it never overwrites a recorded run.
 const REPORT_DIR = process.env.DWC_REPORT_DIR || path.join(ROOT, "test-reports", "runs", "adhoc");
 
 // Headed mode. `--headed` on the CLI also works, but it cannot reach the `workers`
-// expression below, so scripts/run-tests.cjs detects it and sets this too.
+// expression below, so tests/run-e2e.mjs detects it and sets this too.
 const HEADED = process.env.DWC_HEADED === "1" || process.env.DWC_HEADED === "true";
 
 // Milliseconds to pause between actions. Only useful with a visible browser -- at 0
