@@ -34,8 +34,18 @@
 // pacing be unit-tested with fake timers.
 
 /** Slowest and fastest the slider goes, in seconds per AI country. */
-/** Fastest: a hundred countries a second -- a whole turn of 206 in about two seconds. */
-export const MIN_SECONDS_PER_COUNTRY = 0.01;
+/**
+ * Fastest: five hundred countries a second -- a whole turn of 206 in well under half a second of
+ * PACING.
+ *
+ * Raised from 0.01 (a hundred a second) to be five times faster still. Worth knowing what that
+ * does and does not buy: this number is only the gate between countries, so beyond a point the
+ * turn is no longer limited by it but by how long the AI actually takes to think. Dragging to the
+ * far left now means "do not wait at all between countries" rather than a pace anybody could
+ * follow, which is the intent -- it is the setting for getting through turns, not for watching
+ * them.
+ */
+export const MIN_SECONDS_PER_COUNTRY = 0.002;
 /** Slowest: five seconds on each one. */
 export const MAX_SECONDS_PER_COUNTRY = 5;
 /** One second a country, and it is the MIDDLE of the slider -- see below. */
@@ -48,14 +58,21 @@ export const SPEED_SLIDER_STEPS = 100;
  * Where the slider sits versus how long a country gets.
  *
  * A linear track cannot do what is wanted here. The useful range spans a factor of
- * fifty -- a tenth of a second at one end, five seconds at the other -- and one
- * second, which is the pace anybody actually watches at, sits a fiftieth of the way
- * along it. Linear would bury the whole readable range in the first two pixels.
+ * two and a half THOUSAND -- two thousandths of a second at one end, five seconds at
+ * the other -- and one second, which is the pace anybody actually watches at, sits a
+ * five-hundredth of the way along it. Linear would bury the whole readable range in
+ * the first pixel.
  *
- * So the track is TWO geometric halves pinned to three anchors: 0.01s at the left,
+ * So the track is TWO geometric halves pinned to three anchors: 0.002s at the left,
  * 1s exactly at the middle, 5s at the right. Each half moves by a constant ratio per
  * step, which is what makes dragging feel the same in the slow half as in the fast
- * half even though one covers a hundredfold change and the other a fivefold one.
+ * half even though one covers a five-hundredfold change and the other a fivefold one.
+ *
+ * The two halves are deliberately NOT balanced in range, and making the fast end five
+ * times faster stretched that further: the lower half now covers a factor of 500 in
+ * fifty steps (about 13% per step) against the upper half's factor of 5. That is
+ * right for what each half is for -- the slow half is where a speed is CHOSEN and
+ * wants fine control, the fast half is where the slider is simply thrown to the end.
  *
  * @param {number} position  0..SPEED_SLIDER_STEPS
  * @returns {number} seconds per country
@@ -72,9 +89,15 @@ export function secondsForSliderPosition(position) {
         // Rounded finer the faster it gets, because the same absolute step means
         // much more down there: a twentieth of a second is a rounding error at 0.8s,
         // the difference between six and ten countries a second at 0.12s, and the
-        // whole fast third of the track below 0.1s. All three grids land the
+        // whole fast third of the track below 0.1s. All four grids land the
         // anchors exactly, which matters -- the fast end has to actually BE the
-        // hundred a second the label claims.
+        // five hundred a second the label claims.
+        //
+        // The tenth-of-a-millisecond band is what the 0.002 fast end needs. On the
+        // millisecond grid the first several positions all collapsed onto 0.002 and
+        // 0.003, so the bottom of the track went dead -- dragging moved the thumb and
+        // changed nothing.
+        if (seconds < 0.01) return Math.round(seconds * 10000) / 10000;
         if (seconds < 0.1) return Math.round(seconds * 1000) / 1000;
         return seconds < 0.5
             ? Math.round(seconds * 100) / 100
@@ -119,7 +142,7 @@ export function sliderPositionForSeconds(seconds) {
  *
  * Below a second, "0.15s per country" is the wrong unit: at that pace the countries
  * are what you are counting, not the seconds. So the label flips to a rate, which is
- * also how the fast end was asked for -- a hundred countries a second.
+ * also how the fast end was asked for -- five hundred countries a second.
  */
 export function describeAiGameSpeed(seconds) {
     const value = Number(seconds) || DEFAULT_SECONDS_PER_COUNTRY;

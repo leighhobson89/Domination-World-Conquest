@@ -155,12 +155,16 @@ export function create({ onSound, onStop: stopHandler } = {}) {
         toggleAiGamePaused();
     });
 
-    // The track is POSITIONS, not seconds. The useful range spans a factor of five
-    // hundred and the pace anybody watches at -- one second -- sits a five-hundredth
-    // of the way along it, so a slider measured in seconds would bury everything
-    // readable in its first pixel. `secondsForSliderPosition()` puts 1s dead centre,
-    // a hundred countries a second at the left and five seconds each at the right;
-    // see the note on it in src/debug/aiGameMode.js.
+    // The track is POSITIONS, not seconds. The useful range spans a factor of two and
+    // a half thousand and the pace anybody watches at -- one second -- sits a
+    // five-hundredth of the way along it, so a slider measured in seconds would bury
+    // everything readable in its first pixel. `secondsForSliderPosition()` puts 1s dead
+    // centre, five hundred countries a second at the left and five seconds each at the
+    // right; see the note on it in src/debug/aiGameMode.js.
+    //
+    // The element needs no numbers of its own: `min` is 0 and `max` is
+    // `SPEED_SLIDER_STEPS`, so changing what the ends MEAN is a change to the two
+    // constants and the mapping, never to this markup.
     speedSlider = el("input", {
         id: ids.aiGameSpeedSlider,
         class: "ai-game-speed-slider",

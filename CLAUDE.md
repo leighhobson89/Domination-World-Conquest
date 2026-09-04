@@ -236,9 +236,9 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `getTurnEngine().reset()`**, never after: `stop()` waits for the running step to return
   and the AI step is blocked in the pacing gate, so stopping the mode is what releases it.
   **The speed slider is a track of POSITIONS, not seconds**, in two geometric halves
-  pinned to three anchors — a hundred countries a second at the left, one second dead
+  pinned to three anchors — five hundred countries a second at the left, one second dead
   centre, five seconds at the right. A linear track in seconds would bury the whole
-  readable range in its first pixel, because the span is a factor of five hundred and the
+  readable range in its first pixel, because the span is a factor of two and a half thousand and the
   pace anybody watches at sits a five-hundredth of the way along it.
   And **the console is a flat append-only log, not the activity feed** — the feed's
   collapsible per-turn sections are the wrong shape for watching, so a turn is a rule
