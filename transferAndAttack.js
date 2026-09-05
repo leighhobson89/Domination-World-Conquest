@@ -10,18 +10,9 @@ import {
     calculateProbabilityPreBattle,
     preBattleSetup
 } from './battle.js';
-//Battle overhaul B.6.7. The itemised dice preview -- section 4.9 of docs/archived/battle_overhaul.md.
-//It imports nothing from here and reads nothing off the DOM; it is handed the same setup the
-//odds bar was computed from.
 import {
     attackPreview
 } from './src/ui/battle/AttackPreview.js';
-// NOTE: this module and ui.js sit in an import cycle. getLastClickedPath used to
-// be pulled in via `setTimeout(..., 1000)` before a dynamic import(), which is a
-// race: on a slow load the binding was still undefined when first used. A plain
-// static import is correct because getLastClickedPath is a hoisted function
-// declaration, so it is initialised before any module body runs.
-// See docs/archived/03-refactor-plan.md Phase 1.7.
 import {
     getLastClickedPath,
     setAttackProbabilityOnUI,
@@ -56,34 +47,13 @@ import {
 } from './src/ui/transferAttack/AttackTable.js';
 import { setCellEnabled } from './src/ui/controls/steppers.js';
 
-//`selectedTerritoryUniqueId` moved into TransferTable.js in Phase 6.5 -- it is the
-//window's selection, so it lives for exactly as long as one render of the window.
-export const territoryUniqueIds = []; //attack only
+export const territoryUniqueIds = [];
 export let probability;
 let preAttackArray = [];
 const disabledFlagsAttack = [];
 
-//`const tooltip = document.getElementById(ids.tooltip)` stood here and was never read.
-//It resolved at MODULE LOAD, before Tooltip.create() exists, so it was always null --
-//a live example of why the tooltip is reached through its component handle now.
-
 export let transferQuantitiesArray = [];
 
-// Declare multipleValuesArray outside the drawTransferAttackTable function
-/**
- * Fill the transfer/attack window's table with one of its two modes.
- *
- * Phase 6.5. This was 710 lines: two modes, one function, and eighty lines of
- * identical DOM construction written out twice. The row is built once now
- * (`src/ui/transferAttack/ArmyAllocationRow.js`), the multiplier cycle is one table
- * rather than six `if` chains (`multiples.js`), and each mode is its own module.
- *
- * What is left here is the wiring, for the same reason as `drawUITable()` in
- * `resourceCalculations.js`: this module holds the per-window scratch state -- the
- * allocation arrays, the pre-battle probability, the flat disabled-cell flags -- and
- * the two table modules are handed callbacks that write it. They import nothing from
- * the model, so they added no edge to a module graph that already has a cycle in it.
- */
 export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTerritories, territoriesAbleToAttackTarget, transferOrAttack) {
     table.innerHTML = "";
 
@@ -110,10 +80,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     }
 
     if (transferOrAttack === 1) {
-        //A territory locked out after a conquest cannot join an attack. Filtering
-        //rather than splicing while iterating: the original walked the array forwards
-        //and decremented its own index on every removal, which is the shape that
-        //produced audit 5.1 AA elsewhere in this codebase.
         const attackers = territoriesAbleToAttackTarget.filter(path => !pathIsDeactivated(path));
         territoriesAbleToAttackTarget.length = 0;
         territoriesAbleToAttackTarget.push(...attackers);
@@ -134,10 +100,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                 probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
                 preAttackArray.length = 0;
                 setAttackProbabilityOnUI(probability, 0);
-                //B.6.7. The dice this allocation would roll, and why -- redrawn on every plus and
-                //minus press, which is the point: the bands are what make "forty thousand more
-                //infantry gets me a fourth die" a threshold the player can see coming. The
-                //forecast inside it runs on its own rng and never touches the game's stream.
                 attackPreview.update(preBattleSetup());
             }
         });
@@ -146,11 +108,6 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
     }
 }
 
-
-//getNextMultipleValue() and getInnerColumnId() moved to src/ui/transferAttack/ --
-//the multiplier cycle to multiples.js, the row structure to ArmyAllocationRow.js.
-
-// Helper function to get the current main array value based on armyColumnIndex
 function getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, allRowCheck, buttonState) {
     if (allRowCheck) {
         const values = [];
@@ -243,7 +200,6 @@ function updateMultipleTextBox(newMultipleValue, armyTypeColumn, mainArrayElemen
 
     let arrayOfMainArrayValues;
 
-    // Adjust quantityTextBox value based on the newMultipleValue and mainArrayElement
     if (transferAttackButtonState === 0) {
         arrayOfMainArrayValues = getCurrentMainArrayValue(mainArrayElement, armyColumnIndex, false, 0);
     } else if (transferAttackButtonState === 1) {
@@ -291,7 +247,7 @@ function updateAttackArray(mainArrayElements, quantityTextBoxes) {
 
     const attackedTerritoryUniqueId = getLastClickedPath().getAttribute("uniqueid");
 
-    preAttackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))]; //change this line first
+    preAttackArray = [attackedTerritoryUniqueId, ...attackQuantitiesArray.flat().map((value) => parseInt(value))];
 }
 
 function checkAndSetButtonAsConfirmOrCancel(quantity) {
@@ -310,16 +266,16 @@ function checkAndSetButtonAsConfirmOrCancel(quantity) {
     }
 }
 
-export function transferArmyToNewTerritory(transferArray) { //will move new army, available immediately
+export function transferArmyToNewTerritory(transferArray) {
     console.log("To: " + transferArray[0] + " From: " + transferArray[1] + " Infantry: " + transferArray[2] + ", Assault: " + transferArray[3] + ", Air: " + transferArray[4] + ", Naval: " + transferArray[5]);
     let newArmyValueTo = 0;
     let newArmyValueFrom = 0;
     let originalArmyValue;
 
     for (let i = 0; i < allTerritories().length; i++) {
-        if (parseInt(allTerritories()[i].uniqueId) === transferArray[0]) { //To
+        if (parseInt(allTerritories()[i].uniqueId) === transferArray[0]) {
             for (let j = 0; j < allTerritories().length; j++) {
-                if (parseInt(allTerritories()[j].uniqueId) === transferArray[1]) { //From
+                if (parseInt(allTerritories()[j].uniqueId) === transferArray[1]) {
                     allTerritories()[i].infantryForCurrentTerritory += transferArray[2];
                     newArmyValueTo += transferArray[2];
                     allTerritories()[i].assaultForCurrentTerritory += transferArray[3];
@@ -363,13 +319,6 @@ export function transferArmyToNewTerritory(transferArray) { //will move new army
     }
 }
 
-//Takes the committed units out of the territories that supplied them. `attackArray` is
-//the defending uniqueId followed by [uniqueId, infantry, assault, air, naval] per source.
-//
-//Closes audit 5.1 AD. This is called at INVADE! now, not only when a battle is converted
-//into a siege, so a garrison cannot be committed to two attacks in the same turn and an
-//attack that fails actually costs something. The army comes back through
-//`retrievalArray` on a no-penalty retreat, so the round trip balances.
 export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainArrayOfTerritoriesAndResources) {
     for (let i = 1; i < attackArray.length; i += 5) {
         const uniqueId = attackArray[i].toString();
@@ -390,9 +339,6 @@ export function transferArmyOutOfTerritoryOnStartingInvasion(attackArray, mainAr
         matchingTerritory.assaultForCurrentTerritory -= assault;
         matchingTerritory.airForCurrentTerritory -= air;
         matchingTerritory.navalForCurrentTerritory -= naval;
-        //BUG FIX: this was `-=` the sum of what REMAINS, which subtracts the whole
-        //garrison a second time and drives armyForCurrentTerritory negative. The army
-        //total is the sum of the units, so it is an assignment.
         matchingTerritory.armyForCurrentTerritory = matchingTerritory.infantryForCurrentTerritory + (matchingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (matchingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (matchingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
 
         matchingTerritory.oilDemand = ((oilRequirements.assault * matchingTerritory.assaultForCurrentTerritory) + (oilRequirements.air * matchingTerritory.airForCurrentTerritory) + (oilRequirements.naval * matchingTerritory.navalForCurrentTerritory));
@@ -427,22 +373,15 @@ function disableAttackScreenOptions(table, territoryUniqueIds) {
         });
     });
 
-    // Loop through the disabledFlags array to find if there are any true elements
     for (let index = 0; index < disabledFlagsAttack.length; index++) {
         const isDisabled = disabledFlagsAttack[index];
         if (isDisabled) {
-            // Calculate row and column positions from the index
             const rowPosition = Math.floor(index / 4);
             const columnPosition = index % 4;
 
-            // Get the targeted armyColumn using row and column positions
             const targetedArmyColumn = table.querySelector(`.transfer-table-row:nth-child(${rowPosition + 1}) .army-type-column:nth-child(${columnPosition + 1})`);
 
             if (targetedArmyColumn) {
-                //Phase 7.11. Five writes stood here: two inline `style.color = "grey"`
-                //and three image-source swaps to a `Grey.png` twin. All five said the
-                //same thing -- this unit type cannot contribute to this attack -- in a
-                //form nothing could read back and no theme could reach. One call now.
                 setCellEnabled(targetedArmyColumn, false);
             }
         }

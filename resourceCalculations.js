@@ -122,16 +122,11 @@ import {
     totalCapacities,
     totalDemands
 } from './src/rules/economy/capacity.js';
-//Economy stage 1. One definition of what an upgrade costs and what it does, shared with
-//aiCalculations.js -- see docs/05-economy-audit.md section 4 E1/E2/E4/E5, which are all the
-//same defect: an upgrade was a thing each caller re-implemented.
 import {
     applyUpgrade,
     upgradeOrderPriceFor,
     upgradePriceFor
 } from './src/rules/economy/upgrades.js';
-//Economy stage 3.2. The two commodity seeds are a rule now, not an inline formula in this
-//file -- `tools/econ-lab.mjs` imports the same function rather than copying it.
 import {
     initialConsMatsCapacityFor,
     initialOilCapacityFor
@@ -226,7 +221,6 @@ export let turnGainsArrayPlayer = {
 
 export let turnGainsArrayAi = {};
 
-/** A zeroed turn-gains record. The same sixteen fields as turnGainsArrayPlayer. */
 function createEmptyTurnGains() {
     return {
         changeConsMats: 0,
@@ -248,10 +242,6 @@ function createEmptyTurnGains() {
     };
 }
 
-//Phase 5.1: these are balance numbers and now live in src/config/balance.js, which imports
-//nothing and loads in Node. They are re-exported here because ui.js, battle.js,
-//transferAndAttack.js, aiCalculations.js and three e2e specs import them from this module;
-//call sites move to the config path as their owning file moves into src/.
 export {
     INFANTRY_IN_A_TROOP,
     armyGoldPrices,
@@ -267,7 +257,7 @@ export {
     maxForts
 } from './src/config/balance.js';
 
-const dummyAttackerObject = { //for a use case where need to split types of siege on line 886
+const dummyAttackerObject = {
     infantryForCurrentTerritory: 0,
     useableAssault: 0,
     useableAir: 0,
@@ -280,25 +270,7 @@ const dummyAttackerObject = { //for a use case where need to split types of sieg
 export const totalPlayerResources = [];
 export const countryResourceTotals = {};
 let continentModifier;
-//audit E4: `simulatedCostsAll` used to live here, at module scope. It held the cost of one
-//more of each upgrade, written by whichever upgrade table was rendered LAST and read by
-//`calculateAvailableUpgrades()` -- which runs BEFORE the loop that fills it. So the "Can
-//Build" label and the plus button's enabled state were decided from a price belonging to a
-//different territory. It is a local of `populateUpgradeTable()` now, recomputed from
-//`upgradePriceFor()` rather than by simulating a click, and nothing outside one render of
-//one table can see it.
 let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infantry, armyGoldPrices.assault, armyProdPopPrices.assault, armyGoldPrices.air, armyProdPopPrices.air, armyGoldPrices.naval, armyProdPopPrices.naval];
-
-/* const turnLabel = document.getElementById('turn-label'); */
-// Memoised path-area computation. Declared here, above the bootstrap block below,
-// because that block calls calculatePathAreasWhenPageLoaded() at module-evaluation
-// time -- a `let` declared further down the file is in the temporal dead zone at
-// that point and throws.
-//
-// This is called from two places (the bootstrap Promise.all and
-// createArrayOfInitialData), and each call used to start its own 800ms poller AND
-// re-run the 80-samples-per-path sweep over all 359 paths -- so the ~230ms area
-// computation happened twice and up to 1.6s was spent idling.
 let pathAreasPromise = null;
 let pathAreaComputations = 0;
 
@@ -307,15 +279,8 @@ let pathAreaComputations = 0;
         .then(([pathAreas, armyArray]) => {
             randomiseInitialGold(allTerritories());
             countryStrengthsArray = calculateTerritoryStrengths(allTerritories());
-            //From here the SVG path attributes are OUTPUT: the store is the truth and this
-            //renders it. Started once both halves exist -- the path index is built by
-            //svgMapLoaded(), which whenPageLoaded() above has already waited for, and the
-            //territory model was seeded by createArrayOfInitialData(). See Phase 4.4.
             startMapAttributeSync();
             enableNewGameButton();
-            //Phase 7.2. The pristine world, captured the moment it exists and before
-            //anybody has played it. "New Game" from inside a running game restores it
-            //-- Restart is a load. See src/platform/storage.js.
             captureNewGameBaseline();
         })
         .catch(error => {
@@ -335,9 +300,8 @@ export function getPlayerTerritories() {
 }
 
 export function populateBottomTableWhenSelectingACountry(countryPath) {
-    // Update the table with the response data
     bottomTable.create();
-    setFlag(pathCountry(countryPath), 2); //set flag for territory clicked on (bottom table)
+    setFlag(pathCountry(countryPath), 2);
 
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === countryPath.getAttribute("uniqueid")) {
@@ -352,10 +316,6 @@ function calculatePathAreasWhenPageLoaded() {
         pathAreasPromise = whenPageLoaded()
             .then(() => loadPrecomputedPathAreas())
             .then(() => {
-                // Prefer the precomputed geometry, but only if it still describes
-                // the SVG the page actually loaded. precomputedAreasFor() returns
-                // null on any mismatch and we fall back to sampling, so an edited
-                // map is slow rather than wrong. See src/data/pathAreas.js.
                 const cached = precomputedAreasFor(paths, svgByteLength());
                 const pathAreas = cached ?? calculatePathAreas();
                 if (!cached) {
@@ -368,22 +328,10 @@ function calculatePathAreasWhenPageLoaded() {
     return pathAreasPromise;
 }
 
-/** Test seam for the ?e2e=1 harness: how many times the area sweep actually ran. */
 export function getPathAreaComputations() {
     return pathAreaComputations;
 }
 
-// Byte length of the SVG document the browser actually fetched, used to detect a
-// map that has been edited since the areas were precomputed. Read from resource
-// timing so it costs nothing; returns -1 if unavailable, which fails the guard
-// closed and falls back to recomputing.
-// O(1) territory lookup.
-//
-// The find()-inside-a-loop pattern this replaces ran ~129,000 comparisons per call
-// in addUpAllTerritoryResourcesForCountryAndWriteToTopTable alone, once per turn.
-// See docs/01-codebase-audit.md section 4.2. Since Phase 4 the index is the store's
-// own Map, built by seedTerritories(), so there is no window in which it is missing
-// and no scan to fall back to.
 function territoryByUniqueId(uniqueId) {
     return getTerritory(uniqueId);
 }
@@ -443,12 +391,8 @@ function calculatePathAreas() {
 }
 
 function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState) {
-    // Built locally and handed to seedTerritories(). Phase 4.1 deliberately leaves the
-    // calculation alone -- only its destination changes, from a module-level `let` that
-    // anything could reassign to the store.
     const territories = [];
 
-    // Loop through each element in pathAreas array
     for (let i = 0; i < pathAreas.length; i++) {
         let uniqueId = pathAreas[i].uniqueId;
         let dataName = pathAreas[i].dataName;
@@ -456,7 +400,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         let territoryName;
         let area = pathAreas[i].area;
 
-        // Find matching country in armyArray
         let matchingCountry = dataTableCountriesInitialState.find(function(country) {
             return country.country === dataName;
         });
@@ -473,8 +416,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let continent = matchingCountry.continent;
             let dev_index = matchingCountry.dev_index;
             let percentOfWholeArea = 0;
-
-            // Calculate percentOfWholeArea based on number of paths per dataName
             let numPaths = pathAreas.filter(function(path) {
                 return path.dataName === dataName;
             }).length;
@@ -494,9 +435,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 percentOfWholeArea = areaForTerritoryId / areaSum;
             }
 
-            //Starting gold only. Overwritten every turn from turn 2 by `continentModifiers`
-            //(a different table, in balance.js), which is what the strength score reads.
-            //audit E7: this was an inline if-chain and one of three that were invisible.
             continentModifier = startingGoldContinentModifiers[continent];
 
             let initialCalculationTerritory;
@@ -512,20 +450,14 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                     initialCalculationTerritory = path;
                     isCoastal = path.getAttribute("isCoastal");
                     isCoastal = (isCoastal === "true");
-                    isLandLockedBonus = isCoastal ? 0 : 10; //defense bonus for landlocked
+                    isLandLockedBonus = isCoastal ? 0 : 10
                     mountainDefense = parseInt(path.getAttribute("mountainDefenseFactor"));
-                    //Read from the SVG, not from the store: this IS the seeding pass, and
-                    //the store has no territories yet. `owner` and `originalOwner` are the
-                    //map's initial political state, and after this they are the store's.
                     owner = path.getAttribute("owner");
                     originalOwner = path.getAttribute("originalOwner");
                 }
             }
 
-            // Calculate population of each territory based on the startingPop for the whole country it belongs to
             territoryPopulation = startingPop * percentOfWholeArea;
-
-            // Calculate new army value for current element
             let armyForCurrentTerritory = totalArmyForCountry * percentOfWholeArea;
             let goldForCurrentTerritory = Math.max((totalGoldForCountry * ((area / 8000000) * dev_index) + (percentOfWholeArea * (territoryPopulation / 50000)) * continentModifier), 300);
 
@@ -538,25 +470,11 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let armyAdjustment = calculateGoldChange(adjustmentArray, true, true);
             let bigEnoughToGetMin = armyAdjustment >= INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ;
             armyAdjustment -= initialArmyAdjustmentCost(armyForCurrentTerritory);
-            // console.log("Pre reduce for " + territoryName) + ":"
-            // console.log (armyForCurrentTerritory, armyAdjustment);
             if (armyAdjustment < INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ && bigEnoughToGetMin) {
                 armyForCurrentTerritory = reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment);
             }
             let armyAdjustmentTest = calculateGoldChange(adjustmentArray, true, true);
             armyAdjustmentTest -= initialArmyAdjustmentCost(armyForCurrentTerritory);
-            // console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
-            //Economy stage 3.2. The arithmetic moved to `src/rules/economy/seeding.js`, which
-            //is pure and runs in Node -- `tools/econ-lab.mjs` used to carry its own copy of it
-            //because this file imports the UI, and a measuring instrument holding a copy of the
-            //thing it measures will eventually measure the copy.
-            //
-            //The cons-mats seed now takes the territory's POPULATION as well as its area, and
-            //carries its own floor (`MIN_CONS_MATS_CAPACITY`, which replaced the bare 500 that
-            //used to sit here). That is audit D7: construction materials buy upgrades and
-            //nothing else, so a ceiling set by area alone decided who was allowed into the
-            //upgrade tree at all -- Germany needed eighty turns of regeneration to fill one
-            //territory's slots and China needed one.
             const territorySeed = {
                 area: area, devIndex: dev_index, continent: continent,
                 population: territoryPopulation
@@ -569,13 +487,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let oilWellsBuilt = 0;
             let forestsBuilt = 0;
             let fortsBuilt = 0;
-            //known-issues AQ. This read
-            //`Math.ceil(f * (f + 1) * 10) * dev + landlocked`, with the ceiling around the
-            //fort term instead of around the whole expression -- different brackets from the
-            //three other sites, and so a different answer. It never actually diverged,
-            //because `fortsBuilt` is 0 here and both forms then reduce to the land-locked
-            //bonus, but a fourth copy of the formula is how the divergence would arrive.
-            //There is one copy now, and it is unit-tested.
             let defenseBonus = defenseBonusFor({
                 fortsBuilt: fortsBuilt,
                 devIndex: dev_index,
@@ -583,7 +494,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             });
             let mountainDefenseBonus = mountainDefense * MOUNTAIN_DEFENSE_SCALE;
             let initialArmyDistributionArray = calculateInitialAssaultAirNavalForTerritory(armyForCurrentTerritory, oilForCurrentTerritory, initialCalculationTerritory);
-            // console.log(territoryName + ": " + initialArmyDistributionArray.infantry + ", " + initialArmyDistributionArray.assault + ", " + initialArmyDistributionArray.air + ", " + initialArmyDistributionArray.naval);
             let assaultForCurrentTerritory = initialArmyDistributionArray.assault;
             let useableAssault = assaultForCurrentTerritory;
             let airForCurrentTerritory = initialArmyDistributionArray.air;
@@ -592,11 +502,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let useableNaval = navalForCurrentTerritory;
             let infantryForCurrentTerritory = initialArmyDistributionArray.infantry;
 
-            armyForCurrentTerritory = (navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval) + (airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + infantryForCurrentTerritory; //get correct value after any rounding by calculations
-
-            //Phase 5.5: the productive-population formula was written out inline in five
-            //places, twice with a different sign on the population (audit 5.1 F). This is the
-            //last of them.
+            armyForCurrentTerritory = (navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval) + (airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + infantryForCurrentTerritory;
             productiveTerritoryPop =
                 productivePopulationFor(territoryPopulation, dev_index) - armyForCurrentTerritory;
             let foodForCurrentTerritory =
@@ -604,7 +510,6 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let foodCapacity = territoryPopulation + armyForCurrentTerritory;
             let foodConsumption = territoryPopulation + armyForCurrentTerritory;
             let isDeactivated = false;
-            // Add updated path data to the new array
             territories.push({
                 uniqueId: uniqueId,
                 dataName: dataName,
@@ -649,15 +554,9 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
         }
     }
 
-    territories.sort(function(a, b) { //console out defense bonus
+    territories.sort(function(a, b) {
         return b.defenseBonus - a.defenseBonus;
     });
-
-    // for (let i = 0; i < allTerritories().length; i++) {
-    //     const territory = allTerritories()[i];
-    //     console.log(territory.defenseBonus + ", " + territory.territoryName);
-    // }
-
 
     return territories;
 }
@@ -665,12 +564,7 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
 function createArrayOfInitialData() {
     return calculatePathAreasWhenPageLoaded().then(pathAreas => {
         return new Promise((resolve, reject) => {
-            //The one place the store is seeded. Everything downstream reads it through
-            //state/selectors.js; nothing else may replace the territory list.
             seedTerritories(assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState));
-            /* for (let i = 0; i < allTerritories().length; i++) {
-                console.log('"' + allTerritories()[i].territoryName + '": ' + '"' + allTerritories()[i].uniqueId + '",');
-            } */
             resolve(allTerritories());
         });
     });
@@ -691,7 +585,6 @@ function randomiseInitialGold(mainArrayOfTerritoriesAndResources) {
 }
 
 export function newTurnResources() {
-    //calculate new array data and set it
     if (currentTurn() !== 1) {
         calculateTerritoryResourceIncomesEachTurn();
     }
@@ -730,27 +623,6 @@ export function newTurnResources() {
     }
 }
 
-//todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
-
-/**
- * Give a territory back the food capacity a finished siege destroyed.
- *
- * Known-issue BP. This used to be `foodCapacity = war.startingFoodCapacity` -- the ceiling as it
- * stood when the war began, ASSIGNED over whatever the ceiling is now. That is a wholesale
- * overwrite rather than a repair, so **a farm bought during the siege was silently undone the
- * moment the siege lifted**, with the gold and construction materials already spent. Nothing
- * reported it: the upgrade window had taken the money, `farmsBuilt` still said the farm was
- * there, and only the ceiling quietly went back to what it had been.
- *
- * The siege records what it actually destroyed, tick by tick (`battle.js`), so the repair adds
- * exactly that much back and leaves anything built meanwhile alone. The result is the same
- * number as before whenever nothing was built, which is the common case -- so this is a defect
- * fix and not a balance change.
- *
- * A war from a save taken before the phase has no `foodCapacityDestroyed`, and falls back to the
- * old assignment: wrong in the same way it has always been wrong, rather than restoring nothing
- * at all.
- */
 function repairFoodCapacityAfterSiege(territory, war) {
     if (typeof war.foodCapacityDestroyed === "number") {
         territory.foodCapacity += war.foodCapacityDestroyed;
@@ -768,8 +640,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
     let changeProdPop;
     let changeProdPopTemp;
 
-    //Continent modifier, reset every turn so a future upgrade can override it for one turn
-    //without the override sticking. The table is in src/config/balance.js (Phase 5.1).
     for (let i = 0; i < allTerritories().length; i++) {
         const modifier = continentModifiers[allTerritories()[i].continent];
         if (modifier !== undefined) {
@@ -777,9 +647,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
         }
     }
 
-    //audit 5.1 G: zero every AI country gains entry once, here, at the start of the turn
-    //income pass. Mutated in place rather than reassigned so that battle.js, which holds a
-    //reference to the same object, keeps writing into the live one.
     for (const countryName of Object.keys(turnGainsArrayAi)) {
         delete turnGainsArrayAi[countryName];
     }
@@ -788,15 +655,10 @@ function calculateTerritoryResourceIncomesEachTurn() {
         for (let i = 0; i < allTerritories().length; i++) {
             const defendingTerritoryId = allTerritories()[i].uniqueId;
 
-            // Update values only if territory is not defending against a siege war
             if (
                 !Object.values(playerSiegeWarsList).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId) &&
                 !Object.values(aiSiegeWarsList).some(obj => obj.defendingTerritory?.uniqueId === defendingTerritoryId)
             ) {
-                //audit 5.2 I: these two loops used `i`, shadowing the territory index of the
-                //enclosing loop, so the post-siege food-capacity reset landed on whichever
-                //territory happened to sit at the WAR index in allTerritories(). `w` and `k`
-                //keep the two indexes apart; ESLint no-shadow stops it coming back.
                 for (let w = 0; w < historicWars.length; w++) {
                     if (historicWars[w].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[w].resetStatsAfterWar) {
                         if (historicWars[w].turnsInSiege !== null) {
@@ -816,28 +678,18 @@ function calculateTerritoryResourceIncomesEachTurn() {
 
                 if (path.getAttribute("uniqueid") === defendingTerritoryId) {
                     changeGold = calculateGoldChange(allTerritories()[i], false, false);
-                    //audit 5.2 R: re-enabled. calculateArmyMaintenanceCostPerTurn was fully
-                    //implemented and used during initial army sizing, but commented out
-                    //here -- so standing armies were free, which removed the principal
-                    //economic brake on militarisation and made permanent sieges costless.
                     changeGold -= armyMaintenanceFor(allTerritories()[i]);
                     changeOil = calculateOilChange(allTerritories()[i], false);
                     changeFood = calculateFoodChange(allTerritories()[i], false, false);
                     changeConsMats = calculateConsMatsChange(allTerritories()[i], false);
                     changePop = calculatePopulationChange(allTerritories()[i], false, null);
                     changeProdPopTemp = productivePopulationOf(allTerritories()[i]);
-
-                    //Upkeep can exceed a turn income, so the change can be negative. Nothing
-                    //in the game models debt -- a negative balance would flow straight into
-                    //the AI spending calculations -- so a territory can be broke but never
-                    //overdrawn. What an unpayable army SHOULD cost you (desertion) is a
-                    //design question for Phase 7, not a defect fix.
                     allTerritories()[i].goldForCurrentTerritory = Math.max(0, allTerritories()[i].goldForCurrentTerritory + changeGold);
                     allTerritories()[i].oilForCurrentTerritory += changeOil;
                     allTerritories()[i].foodForCurrentTerritory += changeFood;
                     allTerritories()[i].foodConsumption = foodConsumptionOf(allTerritories()[i]);
                     allTerritories()[i].consMatsForCurrentTerritory += changeConsMats;
-                    allTerritories()[i].territoryPopulation = Math.max(0, allTerritories()[i].territoryPopulation + changePop); //audit 5.2 AJ
+                    allTerritories()[i].territoryPopulation = Math.max(0, allTerritories()[i].territoryPopulation + changePop);
                     allTerritories()[i].productiveTerritoryPop = productivePopulationOf(allTerritories()[i]);
 
                     changeProdPop = productivePopulationOf(allTerritories()[i]);
@@ -854,14 +706,9 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         turnGainsArrayPlayer.changeProdPop += changeProdPop;
                         break;
                     } else if (countryName !== null) {
-                        //audit 5.1 G: this assignment used to be unconditional, so a fresh
-                        //zeroed object replaced the running total on EVERY territory and each
-                        //AI country ended the turn showing only its last-processed territory.
-                        //The whole map is zeroed once per turn at the top of this function.
                         if (!turnGainsArrayAi[countryName]) {
                             turnGainsArrayAi[countryName] = createEmptyTurnGains();
                         }
-                        // Update turn gains for the AI country
                         turnGainsArrayAi[countryName].changeGold += changeGold;
                         turnGainsArrayAi[countryName].changeOil += changeOil;
                         turnGainsArrayAi[countryName].changeFood += changeFood;
@@ -870,58 +717,20 @@ function calculateTerritoryResourceIncomesEachTurn() {
                         turnGainsArrayAi[countryName].changeProdPop += changeProdPop;
                     }
                 }
-            } else if (path.getAttribute("uniqueid") === defendingTerritoryId) { //uncomment other features if decided to involve them in sieges and add true flag at end to say it's from a siege
-                //audit 5.2 J: this branch used to be gated on a `changeDuringAnySiege` latch
-                //declared outside the loop and set false on first use, so only ONE besieged
-                //territory per turn got its siege-time food and population processing.
-                //
-                //Dropping the latch alone is not enough: this whole block is nested inside
-                //`for (const path of paths)`, and unlike the income branch beside it this
-                //branch never checked which path it was looking at -- so it would have run
-                //359 times per besieged territory per turn. The path check is what makes
-                //"once per besieged territory, every turn" true.
-                //Phase 4.7: the siege references this very territory, so the four-line
-                //write-back that used to sit at the bottom of this block -- copying food,
-                //consumption, population and productive population from the model into the
-                //siege's own copy -- has nothing left to copy. It also means the productive
-                //population below is derived from the population as just updated, which is
-                //what the income branch beside this one already did; the copy made it lag a
-                //turn here.
+            } else if (path.getAttribute("uniqueid") === defendingTerritoryId) {
                 const besiegedTerritory = allTerritories()[i];
                 const playerSiege = playerSiegeWarsList[besiegedTerritory.territoryName];
                 const siegeTerritory = playerSiege ?? aiSiegeWarsList[besiegedTerritory.territoryName];
                 if (!siegeTerritory) {
                     continue;
                 }
-
-                //Which side is besieging is a property of THIS siege, and the only place it
-                //can be read from is the list the siege is in. It used to be a bare `ai`
-                //declared above both loops and assigned only in the branch beside this one,
-                //from the post-siege food-capacity reset -- so by the time a siege was
-                //processed it held whatever an unrelated historic war had left there, and on
-                //most turns it was still `undefined`. `undefined` is falsy, which means every
-                //AI-versus-AI siege that starved its garrison out below resolved down the
-                //PLAYER's branch: `handleWarEndingsAndOptions` raised the rout screen and
-                //handed the conquered territory to the player, who was no party to the war,
-                //and the siege was then removed from the player's list -- where it was not --
-                //so it stood in the AI's list for the rest of the game. Same family as
-                //known-issue AT: an AI-versus-AI siege reaching a player-only code path.
                 const siegeIsAi = !playerSiege;
-
-                //changeGold = calculateGoldChange(siegeTerritory, false);
-                //changeOil = calculateOilChange(siegeTerritory, false);
                 changeFood = calculateFoodChange(siegeTerritory, false, true, siegeIsAi);
-                //changeConsMats = calculateConsMatsChange(siegeTerritory, false);
                 changePop = calculatePopulationChange(siegeTerritory, true, siegeIsAi);
-
                 changeProdPopTemp = productivePopulationOf(besiegedTerritory);
-
-                //besiegedTerritory.goldForCurrentTerritory += changeGold;
-                //besiegedTerritory.oilForCurrentTerritory += changeOil;
                 besiegedTerritory.foodForCurrentTerritory += changeFood;
                 besiegedTerritory.foodConsumption = foodConsumptionOf(besiegedTerritory);
-                //besiegedTerritory.consMatsForCurrentTerritory += changeConsMats;
-                besiegedTerritory.territoryPopulation = Math.max(0, besiegedTerritory.territoryPopulation + changePop); //audit 5.2 AJ
+                besiegedTerritory.territoryPopulation = Math.max(0, besiegedTerritory.territoryPopulation + changePop);
                 besiegedTerritory.productiveTerritoryPop = productivePopulationOf(besiegedTerritory);
 
                 changeProdPop = besiegedTerritory.productiveTerritoryPop - changeProdPopTemp;
@@ -933,28 +742,6 @@ function calculateTerritoryResourceIncomesEachTurn() {
     }
 }
 
-//Phase 5.2: the arithmetic below lives in src/rules/economy/*, which is pure and runs in
-//Node. What is left here is the bridge: build the turn context, apply the disaster damage to
-//the live territory, and hand the delta back to the caller that writes it.
-//
-//The disaster damage is still a direct write to the territory rather than a delta, because
-//it is a REPLACEMENT of the stock and the four callers below all add their return value to
-//that same stock. Making it a delta too is the last step of the write-guard work and is
-//tracked in docs/04-known-issues.md.
-
-/**
- * The turn's disaster state and this territory's continent bonus, in the shape
- * rules/economy expects.
- *
- * The bonus arrives HERE rather than being looked up inside `income.js`, exactly as the
- * random event does, which is what keeps every game rule a pure function of its inputs and
- * runnable in Node. Both multipliers are read from `src/state/continentBonus.js`, which
- * memoises one walk of the map and drops it whenever a territory changes hands -- so this
- * costs a Map lookup per call rather than a pass over 359 territories.
- *
- * A missing territory answers "no bonus" rather than throwing: `calculateGoldChange()` and
- * friends are also called to cost hypothetical purchases.
- */
 function economyContext(isSimulation, territory) {
     return {
         randomEventHappening: randomEventHappening,
@@ -965,14 +752,6 @@ function economyContext(isSimulation, territory) {
     };
 }
 
-/**
- * Apply this turn's disaster to one territory, and log what it cost.
- *
- * `ownEvent` is the one disaster this caller is responsible for. Each of the four resource
- * functions damages its own stock and no other, so exactly one of them acts on any given
- * turn -- without that the four would each roll against the same active event and a mutiny
- * would be charged four times.
- */
 function applyRandomEventDamage(territory, context, ownEvent) {
     const damage = context.randomEvent === ownEvent
         ? randomEventDamageFor(territory, context)
@@ -1011,33 +790,13 @@ function calculateOilChange(territory, isSimulation) {
 
 function calculateFoodChange(territory, isSimulation, cameFromSiege, ai) {
     if (cameFromSiege) {
-        territory = territory.defendingTerritory; //a siege is passed in place of its territory
+        territory = territory.defendingTerritory;
     }
     const context = economyContext(isSimulation, territory);
     applyRandomEventDamage(territory, context, "Food Disaster");
     return foodChangeFor(territory, context);
 }
 
-
-/**
- * One territory's DERIVED economy: what it would earn this turn, and the ceilings it is
- * earning towards, with the continent bonus already in both.
- *
- * It exists because the continent bonus cannot otherwise be measured. Nothing about it is
- * stored -- that is the whole design -- so there is no field a spec can read to find out
- * whether a continent held whole is paying, and the numbers a player sees are formatted
- * ("1.2M") and spread across three panels. Leigh's instruction is the reason it is a hook
- * rather than a browser check: a mechanic that only appears once a whole continent has been
- * conquered is too far into a playthrough for anyone to verify by hand, so it has to be
- * something a spec can assert.
- *
- * The four `calculate*Change()` functions above are deliberately NOT used. Each applies this
- * turn's disaster damage to the territory as a side effect, so calling them to take a
- * reading would change the world being read. These are the pure rules with a simulated
- * context, which is exactly what the tooltips ask for.
- *
- * @param {object} territory
- */
 export function derivedEconomyFor(territory) {
     if (!territory) {
         return null;
@@ -1047,7 +806,6 @@ export function derivedEconomyFor(territory) {
         territory: territory.territoryName,
         owner: territory.dataName,
         continent: territory.continent ?? "Unknown",
-        //The two multipliers in force for this territory, as the rules see them.
         bonus: {
             gold: context.continentBonus,
             capacity: context.continentCapacityBonus
@@ -1058,8 +816,6 @@ export function derivedEconomyFor(territory) {
             food: foodChangeFor(territory, context),
             consMats: consMatsChangeFor(territory, context)
         },
-        //Effective, not stored. The stored ones are still on the territory for a spec that
-        //wants to prove nothing was written back.
         capacities: {
             oil: effectiveCapacityFor(territory, "oil", context.continentCapacityBonus),
             food: effectiveCapacityFor(territory, "food", context.continentCapacityBonus),
@@ -1073,19 +829,6 @@ export function derivedEconomyFor(territory) {
     };
 }
 
-
-/**
- * How much a territory's civilian population changes this turn, and what happens when the
- * answer is "the army starves first".
- *
- * Phase 5.2: the arithmetic is in src/rules/economy/population.js, which is pure. What is
- * left here is the part that is not arithmetic -- rolling the siege's army-starvation
- * chance, ending a hopeless siege, and telling the UI. A besieged territory is passed as its
- * SIEGE, not as its territory, which is why the first thing this does is drill into it.
- *
- * Returns 0 when the army starved instead: the civilians are untouched in that case, and
- * the caller adds the return value to territoryPopulation.
- */
 function calculatePopulationChange(territory, cameFromSiege, ai) {
     let siegeObject;
     if (cameFromSiege) {
@@ -1094,16 +837,11 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
     }
 
     if (randomEventHappening) {
-        //A disaster turn costs nobody their life immediately, so the player has a turn to
-        //react to the loss before the famine it causes arrives.
         return 0;
     }
 
     let populationChange = populationChangeFor(territory);
 
-    //A besieged garrison can be the one that goes hungry even when the civilians could have
-    //absorbed the shortfall. Rolled only while starving and only under siege, which is what
-    //the legacy code did and what keeps the draw count per turn unchanged.
     const siegeHitsArmy = cameFromSiege && isStarving(territory) &&
         Math.random() > populationBalance.siegeArmyStarvationChance;
 
@@ -1123,19 +861,14 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
         return 0;
     }
 
-    //The garrison is spent and holds no forts: the siege is over and the besieger has won.
     const warId = siegeObject.warId;
     if (!ai) {
         setCurrentWarFlagString(siegeObject.defendingTerritory.dataName);
         addRemoveWarSiegeObject(1, siegeObject.warId, false);
     } else {
-        //doesn't need the attacker, but the function sets variables from it before it can
-        //branch, so a dummy stands in.
         addRemoveWarSiegeObjectAi(1, siegeObject.warId, siegeObject, dummyAttackerObject);
     }
 
-    //Ending the siege above clears `underSiege` on its own -- it is derived from the siege
-    //lists (Phase 4.4/4.5) -- so only the overlay is left.
     const siegedPath = getPathByUniqueId(territory.uniqueId);
     if (siegedPath) {
         removeSiegeImageFromPath(ai, siegedPath);
@@ -1148,13 +881,6 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
     return 0;
 }
 
-/**
- * Take the units a famine costs.
- *
- * Phase 5.2: which units are lost is decided by `planArmyStarvation()`, which is pure and
- * returns absolute counts. This writes them, and -- because a besieged territory used to be
- * a separate copy -- no longer scans all 359 territories to write the same numbers twice.
- */
 function applyArmyStarvation(territory, populationChange) {
     const survivors = planArmyStarvation(territory, populationChange);
     territory.infantryForCurrentTerritory = survivors.infantryForCurrentTerritory;
@@ -1191,10 +917,6 @@ export function formatNumbersToKMB(number, place) {
     }
 }
 
-//Phase 5.2: both of these used to be a 359 x N nested scan producing an array of pairs and
-//then reducing it. The summation is in src/rules/economy/capacity.js and is pure; what is
-//left is turning the player path list into the territories it names.
-
 function playerTerritoryModels() {
     const owned = new Set(playerOwnedTerritories.map(path => path.getAttribute("uniqueid")));
     return allTerritories().filter(territory => owned.has(territory.uniqueId));
@@ -1205,16 +927,12 @@ export function calculateAllTerritoryDemandsForPlayerCountry() {
 }
 
 function calculateAllTerritoryCapacitiesForPlayerCountry() {
-    //The country totals are the sum of the EFFECTIVE capacities, so the top table and the
-    //info panel's Country Summary show the same ceilings the income pass is regenerating
-    //towards. Summing the stored ones instead would make the two disagree by exactly the
-    //bonus, which is the sort of gap a player reads as a bug in the economy.
     return totalCapacities(playerTerritoryModels(), continentCapacityBonusFor);
 }
 
 
 
-export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn) { //situation means if selected territory is a player owned territory 0 if yes 1 if no
+export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn) {
     let totalGold = 0;
     let totalOil = 0;
     let totalFood = 0;
@@ -1233,12 +951,10 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
 
     for (const path of paths) {
         const territoryOwner = pathOwner(path);
-        // Skip territories with no owner
         if (!territoryOwner) {
             continue;
         }
 
-        // If it's the player territory, calculate the player resource totals
         if (territoryOwner === "Player") {
             const territoryData = territoryByUniqueId(path.getAttribute("uniqueid"));
             if (territoryData) {
@@ -1277,11 +993,7 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
                 totalUseableNaval: 0,
             };
 
-            // Calculate the resource totals for the current territory and add to the country's total
             const territoryData = territoryByUniqueId(path.getAttribute("uniqueid"));
-            //the `if (territoryData)` guard below was written one line too late: this
-            //dereference happened first, so a path with no territory threw instead of
-            //being skipped. Kept as a guard clause so the intent is unambiguous.
             if (!territoryData) {
                 continue;
             }
@@ -1328,7 +1040,6 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
         totalUseableNaval: totalUseableNaval
     });
 
-    //write new data to top table
     topTable.update({
         gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
         oil: Math.ceil(totalPlayerResources[0].totalOil).toString(),
@@ -1338,11 +1049,6 @@ export function addUpAllTerritoryResourcesForCountryAndWriteToTopTable(endOfTurn
         area: formatNumbersToKMB(totalPlayerResources[0].totalArea, 0) + " (km²)",
         army: formatNumbersToKMB(totalPlayerResources[0].totalArmy, 0),
     });
-
-    // console.log ("player:");
-    // console.log(totalPlayerResources);
-    // console.log ("ai:");
-    // console.log(countryResourceTotals);
 }
 
 export function writeBottomTableInformation(territory, userClickingANewTerritory, countryPath) {
@@ -1359,7 +1065,7 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
             area: formatNumbersToKMB(territory.area, 0) + " (km²)",
             army: formatNumbersToKMB(territory.armyForCurrentTerritory, 0),
         });
-    } else { //turn update resources for selected territory
+    } else {
         colourTableText(bottomTable.element(), territory);
         bottomTable.update({
             name: reduceKeywords(countryPath.getAttribute("territory-name")) + " (" + reduceKeywords(territory.continent) + ")",
@@ -1375,22 +1081,6 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     }
 }
 
-
-/**
- * Fill the info panel with one of its four tabs.
- *
- * Phase 6.4. This was 920 lines: four tables built by one function, with the
- * differences between them expressed as sixteen `switch (j)` statements and some
- * thirty `if (summaryTerritoryArmySiegesTable === n)` tests threaded through the
- * construction. What each tab CONTAINS is now data -- `src/ui/infoTable/columns.js` --
- * and how a row is BUILT is one pair of functions in `src/ui/infoTable/tableDom.js`.
- *
- * What is left here is the wiring: this module has the economy in scope and the
- * renderer has none of it, so everything the tables read is passed in. That is
- * deliberate and it is the same shape the Phase 6.3 components use -- it means
- * `src/ui/infoTable/` adds no edge to a module graph in which `ui.js` and this file
- * already import each other.
- */
 export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     playerOwnedTerritories.sort((a, b) => {
         const idA = parseInt(a.getAttribute("territory-id"));
@@ -1400,9 +1090,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
 
     renderInfoTable(uiTableContainer, summaryTerritoryArmySiegesTable, {
         formatNumber: formatNumbersToKMB,
-        //The naval columns and the whole territories/army tabs call the formatter
-        //with one argument, where the rest pass an explicit 0. The two differ for a
-        //sub-1000 figure, so they are kept apart rather than unified.
         formatNumberDefault: (value) => formatNumbersToKMB(value),
         playerCountryName,
         reduceKeywords,
@@ -1410,9 +1097,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         gains: turnGainsArrayLastTurn,
         totals: totalPlayerResources[0],
         capacities: capacityArray,
-        //The per-territory capacities are derived at the point of use rather than read off
-        //the territory, so a continent lost is simply the next render's answer -- there is
-        //no stored bonus and therefore no inverse write to forget.
         capacityOf: (territory, resource) =>
             effectiveCapacityFor(territory, resource, continentCapacityBonusFor(territory)),
         continentsHeldLine: describeContinentsHeld(continentsHeldBy(playerCountryName())),
@@ -1435,16 +1119,6 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     });
 }
 
-/**
- * Arm or disarm one of the two windows' bottom-bar buttons.
- *
- * Phase 7.11. Ten copies of a five-line block stood where the calls to this now
- * are, and each wrote `style.backgroundColor` and then added a FRESH pair of
- * mouseover / mouseout listeners -- so a player who clicked plus forty times
- * left eighty listeners on one button, every one of them writing a literal
- * `rgba(...)` no theme could reach. The class says what the button MEANS and
- * `style.css` decides what green is.
- */
 function setConfirmArmed(buttonId, armed) {
     const button = document.getElementById(buttonId);
     if (button) {
@@ -1452,18 +1126,10 @@ function setConfirmArmed(buttonId, armed) {
     }
 }
 
-/** Is this territory's own action button live right now? */
 function territoryActionsEnabled(path) {
     return currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(path);
 }
 
-/**
- * The upgrade button in the territories tab.
- *
- * Greyed out and inert outside the Buy/Upgrade phase, and for a territory still
- * locked out after a conquest. Both halves test the same condition, which is why it
- * is named once above rather than repeated four times as it was.
- */
 function buildUpgradeButton(path, territoryData) {
     return territoryActionButton({
         kind: "upgrade",
@@ -1478,7 +1144,6 @@ function buildUpgradeButton(path, territoryData) {
     });
 }
 
-/** The buy button in the army tab. Same shape as the upgrade button above. */
 function buildBuyButton(path, territoryData) {
     return territoryActionButton({
         kind: "buy",
@@ -1493,11 +1158,7 @@ function buildBuyButton(path, territoryData) {
     });
 }
 
-//setGainsRowTextColor() moved to src/ui/infoTable/tableDom.js as applyGainColour(),
-//where the two columns that want the colour of the NEGATED value say so.
-
 function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
-    // Get the coordinates of the mouse cursor
     const x = event.clientX;
     const y = event.clientY;
 
@@ -1512,7 +1173,6 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
 
     const buyRow = event.currentTarget.closest('.buy-row');
     if (!buyRow) {
-        // No parent row found, exit the function
         return;
     }
 
@@ -1521,7 +1181,6 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     const purchaseType = buyTypeColumn.innerHTML.trim();
 
     if (!purchaseType) {
-        // No upgrade type found, exit the function
         return;
     }
 
@@ -1563,7 +1222,6 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
             effectOnOilDemand = oilRequirements.naval;
             break;
         default:
-            // Invalid purchase type, exit the function
             return;
     }
 
@@ -1600,15 +1258,12 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     `;
 
     tooltip.setContent(tooltipContent);
-
-    // Temporarily show the tooltip to calculate its height
     tooltip.show();
 
     const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
     const windowHeight = window.innerHeight;
 
-    // Hide the tooltip again
     tooltip.hide();
 
     if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
@@ -1617,12 +1272,10 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
         tooltip.moveTo(x - 40, y + 25);
     }
 
-    // Show the tooltip
     tooltip.show();
 }
 
 function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
-    // Get the coordinates of the mouse cursor
     const x = event.clientX;
     const y = event.clientY;
 
@@ -1637,7 +1290,6 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     const upgradeRow = event.currentTarget.closest('.upgrade-row');
     if (!upgradeRow) {
-        // No parent row found, exit the function
         return;
     }
 
@@ -1646,13 +1298,9 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     const upgradeType = upgradeTypeColumn.innerHTML.trim();
 
     if (!upgradeType) {
-        // No upgrade type found, exit the function
         return;
     }
 
-    //Economy stage 1. The row's kind, what is already built, and what one MORE would cost.
-    //The cost used to be read out of the module-level `simulatedCostsAll` (audit E4); it is
-    //asked for directly now, so the tooltip cannot be showing another territory's price.
     const rowSpec = {
         "Farm": { kind: "farm", built: "farmsBuilt", index: 0 },
         "Forest": { kind: "forest", built: "forestsBuilt", index: 1 },
@@ -1660,7 +1308,6 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         "Fort": { kind: "fort", built: "fortsBuilt", index: 3 }
     }[upgradeType];
     if (!rowSpec) {
-        // Invalid upgrade type, exit the function
         return;
     }
     type = upgradeType;
@@ -1681,12 +1328,6 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     let simulatedEffect;
 
     if (type === "Fort") {
-        //audit E9. This was a SEVENTH copy of the defence formula and it disagreed with the
-        //one the game uses: an extra `1 +`, and the mountain bonus folded in -- which
-        //`defenseBonusFor()` deliberately keeps separate, because a battle adds
-        //`mountainDefenseBonus` itself. So the left-hand side of the arrow was the territory's
-        //real defence bonus and the right-hand side was defence-plus-mountain, and the tooltip
-        //promised a fort was worth several times what it is. One formula now, both sides.
         simulatedEffect = defenseBonusFor({ ...territoryData, fortsBuilt: simulatedTotal });
         currentEffect = currentDefenseBonus + " -> ";
     } else {
@@ -1724,14 +1365,12 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     tooltip.setContent(tooltipContent);
 
-    // Temporarily show the tooltip to calculate its height
     tooltip.show();
 
     const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
     const windowHeight = window.innerHeight;
 
-    // Hide the tooltip again
     tooltip.hide();
 
     if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
@@ -1740,22 +1379,15 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         tooltip.moveTo(x - 40, y + 25);
     }
 
-    // Show the tooltip
     tooltip.show();
 }
 
 function tooltipUIArmyRow(row, territoryData, event) {
-    // Get the coordinates of the mouse cursor
     const x = event.clientX;
     const y = event.clientY;
-
-    // Set the content of the tooltip based on the territory data
     const territoryName = row.querySelector(".ui-table-column").textContent;
     const prodPopulation = territoryData.productiveTerritoryPop;
     const gold = row.querySelector(".ui-table-column:nth-child(7)").textContent;
-    //The EFFECTIVE capacity, continent bonus included -- this is the figure the income pass
-    //regenerates towards, so showing the stored one here would tell the player a ceiling the
-    //game is not using. `effectiveCapacityFor()` derives it; nothing writes it back.
     const oilCap = effectiveCapacityFor(territoryData, "oil",
         continentCapacityBonusFor(territoryData));
     let oilDemand;
@@ -1790,8 +1422,6 @@ function tooltipUIArmyRow(row, territoryData, event) {
     let greenStyle = "font-weight: bold; color: rgb(0,235,0);";
     let redStyle = "font-weight: bold; color: rgb(235,0,0);";
 
-    /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
-
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === territoryData.uniqueId) {
             oilDemand = allTerritories()[i].oilDemand;
@@ -1815,10 +1445,8 @@ function tooltipUIArmyRow(row, territoryData, event) {
         <div>Naval: <span style="${whiteStyle}">${territoryData.navalForCurrentTerritory}</span> (<span style="${numberUseableStyleNaval}">${territoryData.useableNaval} useable</span>)</div>
     `;
 
-    // Get the last div in the row
     const lastDiv = row.querySelector(".ui-table-column:last-child img");
 
-    // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
         if (currentPhase() === Phase.BUY_UPGRADE) {
             for (let i = 0; i < paths.length; i++) {
@@ -1842,11 +1470,8 @@ function tooltipUIArmyRow(row, territoryData, event) {
             }
         }
     } else {
-        // Set the content of the tooltip based on the territory data
         tooltip.setContent(tooltipContent);
     }
-
-    //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
     const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
@@ -1858,19 +1483,11 @@ function tooltipUIArmyRow(row, territoryData, event) {
         tooltip.moveTo(x - 40, 25 + y);
     }
 
-    // Show the tooltip
     tooltip.show();
 
     row.style.cursor = "pointer";
 }
 
-/**
- * The continent line on a territory tooltip, or nothing when there is nothing to say.
- *
- * Drawn in the bonus colour when the continent is held whole and in plain text when it is
- * not, because the difference between "you have this" and "you could have this" is the one
- * thing the line exists to make obvious.
- */
 function continentBonusTooltipLine(territoryData) {
     const holding = continentHoldingFor(territoryData);
     const sentence = describeContinentHolding(holding);
@@ -1884,18 +1501,14 @@ function continentBonusTooltipLine(territoryData) {
 }
 
 function tooltipUITerritoryRow(row, territoryData, event) {
-    // Get the coordinates of the mouse cursor
     const x = event.clientX;
     const y = event.clientY;
-
-    // Set the content of the tooltip based on the territory data
     const territoryName = row.querySelector(".ui-table-column").textContent;
     const army = row.querySelector(".ui-table-column:nth-child(2)").textContent;
     const prodPopulation = territoryData.productiveTerritoryPop;
     const popNextTurnValue = calculatePopulationChange(territoryData, false, null);
     const area = row.querySelector(".ui-table-column:nth-child(4)").textContent;
     const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
-    /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
     const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
     const capacityBonus = continentCapacityBonusFor(territoryData);
     const oilCap = effectiveCapacityFor(territoryData, "oil", capacityBonus);
@@ -1905,7 +1518,6 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const consMatsCap = effectiveCapacityFor(territoryData, "consMats", capacityBonus);
     const foodConsumption = territoryData.foodConsumption;
 
-    /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
     let whiteStyle = "font-weight: bold; color: white;";
     let popNextTurnStyle = "font-weight: bold; color: white;";
     let oilNextTurnStyle = "font-weight: bold; color: white;";
@@ -1918,12 +1530,6 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     } else if (popNextTurnValue < 0) {
         popNextTurnStyle = "font-weight: bold; color: rgb(235,0,0);";
     }
-
-    /* if (goldNextTurnValue > 0) {
-        goldNextTurnStyle = "color: rgb(0,235,0);";
-    } else if (goldNextTurnValue < 0) {
-        goldNextTurnStyle = "color: rgb(235,160,160);";
-    } */
 
     if (oilNextTurnValue > 0) {
         oilNextTurnStyle = "font-weight: bold; color: rgb(0,235,0);";
@@ -1977,10 +1583,8 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         ${continentBonusTooltipLine(territoryData)}
     `;
 
-    // Get the last div in the row
     const lastDiv = row.querySelector(".ui-table-column:last-child img[alt='Upgrade Territory']");
 
-    // Check if the mouse is hovering over the last div
     if (event.target === lastDiv) {
         if (currentPhase() === Phase.BUY_UPGRADE) {
             for (let i = 0; i < paths.length; i++) {
@@ -2004,11 +1608,8 @@ function tooltipUITerritoryRow(row, territoryData, event) {
             }
         }
     } else {
-        // Set the content of the tooltip based on the territory data
         tooltip.setContent(tooltipContent);
     }
-
-    //<div>Gold Next Turn: <span style="${goldNextTurnStyle}">${goldNextTurnValue}</span></div>
 
     const tooltipHeight = tooltip.height();
     const verticalThreshold = tooltipHeight + 25;
@@ -2020,27 +1621,22 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         tooltip.moveTo(x - 40, 25 + y);
     }
 
-
-    // Show the tooltip
     tooltip.show();
 
     row.style.cursor = "pointer";
 }
 
 export function colourTableText(table, territory) {
-    /* let changeGold = calculateGoldChange(territory); */
     let changeOil = calculateOilChange(territory, true);
     let changeFood = calculateFoodChange(territory, true);
     let changeConsMats = calculateConsMatsChange(territory, true);
     let changePop = calculatePopulationChange(territory, false, null);
 
-    /* const goldCell = table.rows[0].cells[3]; */
     const oilCell = table.rows[0].cells[5];
     const foodCell = table.rows[0].cells[7];
     const consMatsCell = table.rows[0].cells[9];
     const popCell = table.rows[0].cells[11];
 
-    /* goldCell.style.color = "white"; */
     popCell.style.color = "white";
     oilCell.style.color = "white";
     foodCell.style.color = "white";
@@ -2085,7 +1681,6 @@ function calculateAvailablePurchases(territory) {
     const hasEnoughProdPopForAir = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.air;
     const hasEnoughProdPopForNaval = totalPlayerResources[0].totalProdPop >= armyProdPopPrices.naval;
 
-    // Create the upgrade row objects based on the availability and gold/consMats conditions
     if (hasEnoughGoldForInfantry && hasEnoughProdPopForInfantry) {
         availablePurchases.push({
             type: 'Infantry',
@@ -2201,20 +1796,6 @@ function calculateAvailablePurchases(territory) {
     return availablePurchases;
 }
 
-/**
- * The four upgrade rows for one territory: what each costs NEXT, and whether it can be built.
- *
- * Economy stage 1.7. The price is `upgradePriceFor(kind, built + 1, devIndex)` -- the real
- * ladder price of the next one. It used to be the n=1 price with no quadratic term, floored by
- * a module-level cache belonging to whichever table was rendered last (audit E4), so a
- * territory with four farms standing was told a farm cost what a first farm costs and the plus
- * button was enabled on the strength of it.
- *
- * The four rows were 165 lines of near-identical `if`/`else if` chains before this. What
- * differs between them is data and is in `UPGRADE_ROWS`; the availability logic is stated once,
- * in the order it was always evaluated in: affordable and under the cap, then short of gold,
- * then short of materials, then capped.
- */
 const UPGRADE_ROWS = Object.freeze([
     Object.freeze({ kind: "farm", type: "Farm", built: "farmsBuilt", max: maxFarms,
         effect: "Food cap. +10%", capped: "Max Farms Reached" }),
@@ -2258,7 +1839,6 @@ export function calculateAvailableUpgrades(territory) {
 function populateBuyTable(territory) {
     const multiplierValues = ["x1", "x10", "x100", "x1k"];
 
-    //reset confirm button status and totals when opening upgrade window
     document.getElementById(ids.subtitleBuyWindow).innerHTML = territory.territoryName;
     document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = "0";
     document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = "0";
@@ -2270,23 +1850,19 @@ function populateBuyTable(territory) {
     let totalSimulatedPurchaseGoldPrice = 0;
     let totalSimulatedProdPopPrice = 0;
 
-    // Calculate available upgrades
     let availablePurchases = calculateAvailablePurchases(territory);
     buyTable.innerHTML = "";
 
-    // Populate the table with available upgrade rows
     availablePurchases.forEach((purchaseRow) => {
         const buyRow = document.createElement("div");
         buyRow.classList.add("buy-row");
 
-        // Create and populate the image column
         const imageBuyColumn = document.createElement("div");
         imageBuyColumn.classList.add("buy-column");
         let buyImage = document.createElement("img");
-        buyImage.src = getImagePath(purchaseRow.type, purchaseRow.condition, territory, 1); // Call a function to get the image path based on the upgrade type
+        buyImage.src = getImagePath(purchaseRow.type, purchaseRow.condition, territory, 1);
         imageBuyColumn.appendChild(buyImage);
 
-        // Create and populate other columns
         const buyColumn1 = document.createElement("div");
         buyColumn1.classList.add("buy-column");
         buyColumn1.textContent = purchaseRow.type;
@@ -2350,7 +1926,6 @@ function populateBuyTable(territory) {
         });
         buyColumn5C.appendChild(buyImagePlus);
 
-        // Add columns to the row
         buyRow.appendChild(imageBuyColumn);
         buyRow.appendChild(buyColumn1);
         buyRow.appendChild(buyColumn2);
@@ -2432,7 +2007,6 @@ function populateBuyTable(territory) {
                     document.getElementById(ids.pricesBuyInfoColumn2).innerHTML = totalPurchaseGoldPrice;
                     document.getElementById(ids.pricesBuyInfoColumn4).innerHTML = totalPopulationCost;
 
-                    //code to check greying out here
                     checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "minus");
 
                     if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
@@ -2488,13 +2062,6 @@ function populateBuyTable(territory) {
                 totalSimulatedPurchaseGoldPrice = simulatedCostsAllMilitary[0] + simulatedCostsAllMilitary[2] + simulatedCostsAllMilitary[4] + simulatedCostsAllMilitary[6];
                 totalSimulatedProdPopPrice = simulatedCostsAllMilitary[1] + simulatedCostsAllMilitary[3] + simulatedCostsAllMilitary[5] + simulatedCostsAllMilitary[7];
 
-                /*         console.log(simulatedCostsAllMilitary);
-                        console.log("Total Gold Price:", totalPurchaseGoldPrice);
-                        console.log("Total Population Cost:", totalPopulationCost);
-                        console.log("Total SimGold Price:", totalSimulatedPurchaseGoldPrice);
-                        console.log("Total SimProdPop:", totalSimulatedProdPopPrice); */
-
-                //code to check greying out here
                 checkPurchaseRowsForGreyingOut(totalPurchaseGoldPrice, totalPopulationCost, simulatedCostsAllMilitary, buyTable, "plus");
 
                 if (atLeastOneRowWithValueGreaterThanOneForPurchases(buyTable)) {
@@ -2509,7 +2076,6 @@ function populateBuyTable(territory) {
 }
 
 function populateUpgradeTable(territory) {
-    //reset confirm button status and totals when opening upgrade window
     document.getElementById(ids.subtitleUpgradeWindow).innerHTML = territory.territoryName;
     document.getElementById(ids.pricesInfoColumn2).innerHTML = "0";
     document.getElementById(ids.pricesInfoColumn4).innerHTML = "0";
@@ -2517,28 +2083,22 @@ function populateUpgradeTable(territory) {
     setConfirmArmed(ids.bottomBarConfirmButton, false);
 
     const upgradeTable = document.getElementById(ids.upgradeTable);
-    //Local to this render, not module state. See `nextUpgradeCostsFor()` and audit E4.
     let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
     let totalSimulatedGoldPrice = 0;
     let totalSimulatedConsMatsPrice = 0;
-
-    // Calculate available upgrades
     const availableUpgrades = calculateAvailableUpgrades(territory);
     upgradeTable.innerHTML = "";
 
-    // Populate the table with available upgrade rows
     availableUpgrades.forEach((upgradeRow) => {
         const row = document.createElement("div");
         row.classList.add("upgrade-row");
 
-        // Create and populate the image column
         const imageColumn = document.createElement("div");
         imageColumn.classList.add("upgrade-column");
         let image = document.createElement("img");
-        image.src = getImagePath(upgradeRow.type, upgradeRow.condition, territory, 0); // Call a function to get the image path based on the upgrade type
+        image.src = getImagePath(upgradeRow.type, upgradeRow.condition, territory, 0);
         imageColumn.appendChild(image);
 
-        // Create and populate other columns
         const column1 = document.createElement("div");
         column1.classList.add("upgrade-column");
         column1.textContent = upgradeRow.type;
@@ -2587,8 +2147,6 @@ function populateUpgradeTable(territory) {
         });
         column5C.appendChild(imagePlus);
 
-
-        // Add columns to the row
         row.appendChild(imageColumn);
         row.appendChild(column1);
         row.appendChild(column2);
@@ -2630,7 +2188,6 @@ function populateUpgradeTable(territory) {
                     document.getElementById(ids.pricesInfoColumn2).innerHTML = totalGoldPrice;
                     document.getElementById(ids.pricesInfoColumn4).innerHTML = totalConsMats;
 
-                    //code to check greying out here
                     checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "minus", upgradeRow.type);
 
                     if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
@@ -2658,13 +2215,6 @@ function populateUpgradeTable(territory) {
                 totalSimulatedGoldPrice = simulatedCostsAll[0] + simulatedCostsAll[2] + simulatedCostsAll[4] + simulatedCostsAll[6];
                 totalSimulatedConsMatsPrice = simulatedCostsAll[1] + simulatedCostsAll[3] + simulatedCostsAll[5] + simulatedCostsAll[7];
 
-                /* console.log(simulatedCostsAll);
-                console.log("Total Gold Price:", totalGoldPrice);
-                console.log("Total ConsMats:", totalConsMats);
-                console.log("Total SimGold Price:", totalSimulatedGoldPrice);
-                console.log("Total SimConsMats:", totalSimulatedConsMatsPrice); */
-
-                //code to check greying out here
                 checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, "plus", upgradeRow.type);
 
                 if (atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable)) {
@@ -2761,32 +2311,17 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
         prodPopCostElement.textContent = formatNumbersToKMB(prodPopCost, 1);
     }
 
-    // Simulate next increment and store costs in array
     currentValueQuantityTemp += Math.abs(increment);
     const simulatedPurchaseGoldCost = purchaseGoldCost + purchaseGoldBaseCost;
     const simulatedProdPopCost = prodPopCost + prodPopBaseCost;
     const simulatedPurchaseType = purchaseType;
     simulationPurchaseCosts.push(simulatedPurchaseGoldCost);
     simulationPurchaseCosts.push(simulatedProdPopCost);
-    simulationPurchaseCosts.push(simulatedPurchaseType); // Include the purchase type in the array
+    simulationPurchaseCosts.push(simulatedPurchaseType);
 
     return simulationPurchaseCosts;
 }
 
-/**
- * Step one upgrade row up or down, and rewrite its two cost cells.
- *
- * Economy stage 1.6. The price is `upgradeOrderPriceFor()` -- one definition, shared with the
- * AI, the availability check and the tooltip. There were six copies of this formula and one of
- * them disagreed (audit E5).
- *
- * Note that the ORDER is priced at the last one in it and not as the sum of the ladder. That is
- * what this function has always charged and it is preserved deliberately; it is a balance
- * number, it is audit E8, and stage 1 changes none.
- *
- * It no longer returns anything. It used to return the cost of a further simulated click so the
- * caller could file it in `simulatedCostsAll`; the caller asks `upgradePriceFor()` instead.
- */
 function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
     let currentValueQuantity = parseInt(textField.value) + increment;
     if (currentValueQuantity < 0) {
@@ -2808,7 +2343,6 @@ function incrementDecrementUpgrades(textField, increment, upgradeType, territory
     consMatsCostElement.textContent = price.consMats;
 }
 
-/** The upgrade table renders a display name; the rules speak in kinds. One map, two readers. */
 const UPGRADE_KIND_BY_TYPE = Object.freeze({
     "Farm": "farm", "Forest": "forest", "Oil Well": "oilWell", "Fort": "fort"
 });
@@ -2816,13 +2350,6 @@ const UPGRADE_BUILT_FIELD_BY_TYPE = Object.freeze({
     "Farm": "farmsBuilt", "Forest": "forestsBuilt", "Oil Well": "oilWellsBuilt", "Fort": "fortsBuilt"
 });
 
-/**
- * What one MORE of each upgrade would cost this territory, in the eight-slot shape
- * `checkUpgradeRowsForGreyingOut()` reads: [farmGold, farmMats, forestGold, forestMats, ...].
- *
- * Recomputed from the rules rather than accumulated by simulating clicks, and passed in rather
- * than held at module scope -- which is the whole of audit E4.
- */
 function nextUpgradeCostsFor(territory, upgradeTable) {
     const costs = [0, 0, 0, 0, 0, 0, 0, 0];
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
@@ -2838,7 +2365,7 @@ function nextUpgradeCostsFor(territory, upgradeTable) {
 }
 
 function getImagePath(type, condition, territory, mode) {
-    if (mode === 0) { //upgrade images
+    if (mode === 0) {
         const maxFarms = 5;
         const maxForests = 5;
         const maxOilWells = 5;
@@ -2869,7 +2396,7 @@ function getImagePath(type, condition, territory, mode) {
                 return 'resources/fortIconGrey.png';
             }
         }
-    } else if (mode === 1) { //buy military images
+    } else if (mode === 1) {
         if (type === "Infantry") {
             if (condition === "Can Build") {
                 return 'resources/infantryIcon.png';
@@ -2899,8 +2426,6 @@ function getImagePath(type, condition, territory, mode) {
     }
 }
 
-
-// Function to calculate the total gold price for all rows
 function calculateTotalGoldPrice(upgradeTable) {
     let totalGold = 0;
     const goldElements = upgradeTable.querySelectorAll(".upgrade-column:nth-child(4)");
@@ -2911,26 +2436,6 @@ function calculateTotalGoldPrice(upgradeTable) {
     return totalGold;
 }
 
-/**
- * The buy window's two running totals, from the QUANTITIES and the price table.
- *
- * Both used to be read back out of the DOM cells they had just been written into -- the gold one
- * with `parseInt(cell.textContent)`, the population one with a hand-written "k"/"M" un-formatter
- * over `formatNumbersToKMB()`'s output. That is a question about game rules answered by parsing
- * the screen, which CLAUDE.md already forbids for the battle bar's buttons and for the stepper
- * images, and it failed here in exactly the way that pattern always fails.
- *
- * **It was invisible while every population price was a round multiple of a thousand.** Economy
- * stage 4.1 set assault to 600, so two of them is 1,200, which the cell renders as `"1.2k"`,
- * which `parseInt` reads as 1 and the un-formatter multiplies back up to **1,000**. The running
- * total under-reported by 200 people, and `checkPurchaseRowsForGreyingOut()` gates the plus
- * button on that figure -- so the window would have let a player commit to an army it could not
- * quite crew. The CONFIRMED purchase was always right, because `addPlayerPurchases()` works from
- * the quantities, which is why `buy-military/purchase.spec.js`'s deduction test passed while its
- * running-totals test failed.
- *
- * The row order is the one `calculateAvailablePurchases()` emits.
- */
 const BUY_ROW_TYPES = ["infantry", "assault", "air", "naval"];
 
 function buyRowQuantities(buyTable) {
@@ -2953,8 +2458,6 @@ function calculateTotalPopulationCost(buyTable) {
         (total, row) => total + (row.quantity * armyProdPopPrices[row.type]), 0);
 }
 
-
-// Function to calculate the total consMats for all rows
 function calculateTotalConsMats(upgradeTable) {
     let totalConsMats = 0;
     const consMatsElements = upgradeTable.querySelectorAll(".upgrade-column:nth-child(5)");
@@ -2995,7 +2498,6 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                 const buyRowIndex = index + 1;
                 const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
 
-                // Get the image element in the first column
                 const imageElement = buyRow.querySelector('.buy-column:first-child img');
                 if (imageElement) {
                     if (!imageElement.src.includes('Grey.png')) {
@@ -3003,7 +2505,6 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                     }
                 }
 
-                // Get the plus button image in the fifth column
                 const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
                 if (plusButton) {
                     setStepperEnabled(plusButton, false);
@@ -3031,14 +2532,12 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                 const buyRowIndex = index + 1;
                 const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
 
-                // Get the image element in the first column
                 const imageElement = buyRow.querySelector('.buy-column:first-child img');
                 if (imageElement) {
                     if (!imageElement.src.includes('Grey.png')) {
                         imageElement.src = imageElement.src.replace('.png', 'Grey.png');
                     }
                 }
-                // Get the plus button image in the fifth column
                 const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
                 if (plusButton) {
                     setStepperEnabled(plusButton, false);
@@ -3070,10 +2569,8 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
             const buyRowIndex = index + 1;
             const buyRow = buyTable.querySelector(`.buy-row:nth-child(${buyRowIndex})`);
 
-            // Get the image element in the first column
             const imageElement = buyRow.querySelector('.buy-column:first-child img');
 
-            // Get the plus button image in the fifth column
             const plusButton = buyRow.querySelector('.buyColumn5C .stepper-button');
 
             if (
@@ -3081,7 +2578,6 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
                 Math.ceil(totalPlayerResources[0].totalProdPop) >= totalProdPopCost + amountToAdd
             ) {
 
-                // All conditions are true, ungrey the row
                 if (imageElement && imageElement.src.includes('Grey.png')) {
                     imageElement.src = imageElement.src.replace('Grey.png', '.png');
                 }
@@ -3092,10 +2588,6 @@ function checkPurchaseRowsForGreyingOut(totalGoldPrice, totalProdPopCost, simula
 }
 
 function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats, simulatedCostsAll, upgradeTable, button, type) {
-    //Phase 7.11. `column5CPlus` is a `<button>` now, not an `<img>`: the row's
-    //ARTWORK (`firstRowImage`) is still a PNG and still swaps to its `Grey.png`
-    //twin, because that art is the farm/forest/oil-well/fort illustration and is
-    //deliberately kept. The plus button is drawn, so its disabled state is a class.
     let column5CPlus;
     let firstRowImage;
     const simulatedGoldElements = [simulatedCostsAll[0], simulatedCostsAll[2], simulatedCostsAll[4], simulatedCostsAll[6]];
@@ -3107,7 +2599,6 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 const rowIndex = index + 1;
                 const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
 
-                // Get the image element in the first column
                 const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
                 if (imageElement) {
                     if (!imageElement.src.includes('Grey.png')) {
@@ -3115,7 +2606,6 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                     }
                 }
 
-                // Get the plus button image in the fifth column
                 const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
                 if (plusButton) {
                     setStepperEnabled(plusButton, false);
@@ -3127,14 +2617,12 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 const rowIndex = index + 1;
                 const upgradeRow = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex})`);
 
-                // Get the image element in the first column
                 const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
                 if (imageElement) {
                     if (!imageElement.src.includes('Grey.png')) {
                         imageElement.src = imageElement.src.replace('.png', 'Grey.png');
                     }
                 }
-                // Get the plus button image in the fifth column
                 const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
                 if (plusButton) {
                     setStepperEnabled(plusButton, false);
@@ -3186,10 +2674,8 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
             const upgradeRowTextField = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .column5B input`);
             const upgradeRowType = upgradeTable.querySelector(`.upgrade-row:nth-child(${rowIndex}) .upgrade-column:nth-child(2)`);
 
-            // Get the image element in the first column
             const imageElement = upgradeRow.querySelector('.upgrade-column:first-child img');
 
-            // Get the plus button image in the fifth column
             const plusButton = upgradeRow.querySelector('.column5C .stepper-button');
 
             const simulatedConsMatsElement = simulatedConsMatsElements[index];
@@ -3213,7 +2699,6 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
                 territory.consMatsForCurrentTerritory - totalConsMats >= simulatedConsMatsElement
             ) {
 
-                // All conditions are true, ungrey the row
                 if (imageElement && imageElement.src.includes('Grey.png')) {
                     imageElement.src = imageElement.src.replace('Grey.png', '.png');
                 }
@@ -3223,7 +2708,6 @@ function checkUpgradeRowsForGreyingOut(territory, totalGoldPrice, totalConsMats,
     }
 }
 
-// Function to check if at least one row has a textField value greater than 1
 function atLeastOneRowWithValueGreaterThanOneForUpgrades(upgradeTable) {
     const rows = upgradeTable.getElementsByClassName("upgrade-row");
     for (let i = 0; i < rows.length; i++) {
@@ -3269,7 +2753,6 @@ function allRowsWithValueZeroForPurchases(buyTable) {
 }
 
 export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProdPopCost) {
-    //push purchases in table to an array
     let purchaseArray = [];
     const buyRows = buyTable.getElementsByClassName("buy-row");
     for (let i = 0; i < buyRows.length; i++) {
@@ -3283,7 +2766,6 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     turnGainsArrayPlayer.changeGold += -totalGoldCost;
     turnGainsArrayPlayer.changeProdPop += -totalProdPopCost;
 
-    //update total player resources
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalProdPop -= totalProdPopCost;
     totalPlayerResources[0].totalArmy += parseInt(purchaseArray[0]);
@@ -3292,14 +2774,8 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     totalPlayerResources[0].totalAir += parseInt(purchaseArray[2]);
     totalPlayerResources[0].totalNaval += parseInt(purchaseArray[3]);
 
-    //update main array
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
-            //audit 5.1 AC: the cost is NOT deducted here. `territory` is the same object as
-            //allTerritories()[i], and the two checkForMinusAndTransfer... helpers below each end
-            //by deducting their own cost -- that is where a purchase is paid for. Deducting
-            //here as well charged the player exactly twice for every military purchase while
-            //the buy window quoted the correct, single price.
             allTerritories()[i].infantryForCurrentTerritory += parseInt(purchaseArray[0]);
             allTerritories()[i].assaultForCurrentTerritory += parseInt(purchaseArray[1]);
             allTerritories()[i].airForCurrentTerritory += parseInt(purchaseArray[2]);
@@ -3319,16 +2795,12 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
     turnGainsArrayPlayer.changeAir += parseInt(purchaseArray[2]);
     turnGainsArrayPlayer.changeNaval += parseInt(purchaseArray[3]);
 
-
-    //Borrow from the player's other territories if this one is short, then charge the
-    //cost -- once. See audit 5.1 AC and the comment in the loop above.
     checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, totalGoldCost);
     checkForMinusAndTransferProdPopFromPopulatedEnoughTerritories(territory, totalProdPopCost);
 
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
             if (allTerritories()[i].uniqueId === currentSelectedPath.getAttribute("uniqueid")) {
-                //update bottom table for selected territory
                 bottomTable.update({
                     gold: Math.ceil(territory.goldForCurrentTerritory).toString(),
                     population: formatNumbersToKMB(territory.productiveTerritoryPop) + " (" + formatNumbersToKMB(territory.territoryPopulation) + ")",
@@ -3339,7 +2811,6 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
         }
     }
 
-    //update top table for selected territory
     topTable.update({
         gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
         population: formatNumbersToKMB(totalPlayerResources[0].totalProdPop) + " (" + formatNumbersToKMB(totalPlayerResources[0].totalPop) + ")",
@@ -3358,7 +2829,6 @@ export function addPlayerPurchases(buyTable, territory, totalGoldCost, totalProd
 }
 
 export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalConsMatsCost) {
-    //push upgrades in table to an array
     let upgradeArray = [];
 
     let totalOilCapacityTemp = territory.oilCapacity;
@@ -3372,27 +2842,16 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
         textField.value = "0";
     }
 
-    //update total player resources
     totalPlayerResources[0].totalGold -= totalGoldCost;
     totalPlayerResources[0].totalConsMats -= totalConsMatsCost;
 
     turnGainsArrayPlayer.changeGold += -totalGoldCost;
     turnGainsArrayPlayer.changeConsMats += -totalConsMatsCost;
 
-    //update main array
     for (let i = 0; i < allTerritories().length; i++) {
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
-            allTerritories()[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
-            allTerritories()[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
-            //Economy stage 1.3. `applyUpgrade()` is the one definition of what an upgrade
-            //does, and the AI goes through the same one -- which is what closes audit E1 and
-            //E2 by construction rather than by two parallel fixes.
-            //
-            //audit 5.1 A, preserved by that function and pinned by a unit test: each building
-            //bought in THIS transaction is worth +10% of the capacity the territory had BEFORE
-            //the transaction. It used to read `territory.farmsBuilt` -- the same object,
-            //already incremented -- and apply the running total as a multiplier against the
-            //already-boosted capacity, so a 5th farm applied +50% on top of an inflated figure.
+            allTerritories()[i].goldForCurrentTerritory -= totalGoldCost;
+            allTerritories()[i].consMatsForCurrentTerritory -= totalConsMatsCost;
             const target = allTerritories()[i];
             const boughtByKind = {
                 farm: parseInt(upgradeArray[0]) || 0,
@@ -3424,13 +2883,11 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
         }
     }
 
-    //update top table for selected territory
     topTable.update({
         gold: Math.ceil(totalPlayerResources[0].totalGold).toString(),
         consMats: Math.ceil(totalPlayerResources[0].totalConsMats).toString(),
     });
 
-    //close upgrade window for selected territory
     totalGoldPrice = 0;
     totalConsMats = 0;
 
@@ -3448,12 +2905,10 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         infantry: 0,
     };
 
-    // Allocate 10% of the initialValue to infantry
     const infantryAllocation = Math.floor(initialValue * initialArmyDistribution.infantryShare);
     initialDistribution.infantry = infantryAllocation;
     let remainingArmyValue = initialValue - infantryAllocation;
 
-    // Allocate naval units based on available oil (limited to 20% of oilTerritory and 30% of remainingArmyValue)
     const maxNavalOil = Math.floor(oilTerritory * initialArmyDistribution.naval.oilShare);
     const maxNavalArmy = Math.floor(remainingArmyValue * initialArmyDistribution.naval.armyShare);
     if (territory.getAttribute("isCoastal") === "true") {
@@ -3467,7 +2922,6 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         remainingArmyValue -= initialDistribution.naval * vehicleArmyPersonnelWorth.naval;
     }
 
-    // Allocate air units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
     const maxAirOil = Math.floor(oilTerritory * initialArmyDistribution.air.oilShare);
     const maxAirArmy = Math.floor(remainingArmyValue * initialArmyDistribution.air.armyShare);
     initialDistribution.air = Math.min(
@@ -3478,8 +2932,6 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
         Math.floor(remainingArmyValue / vehicleArmyPersonnelWorth.air)
     );
     remainingArmyValue -= initialDistribution.air * vehicleArmyPersonnelWorth.air;
-
-    // Allocate assault units based on available oil (limited to 20% of oilTerritory and 20% of remainingArmyValue)
     const maxAssaultOil = Math.floor(oilTerritory * initialArmyDistribution.assault.oilShare);
     const maxAssaultArmy = Math.floor(remainingArmyValue * initialArmyDistribution.assault.armyShare);
     initialDistribution.assault = Math.min(
@@ -3491,22 +2943,11 @@ function calculateInitialAssaultAirNavalForTerritory(armyTerritory, oilTerritory
     );
     remainingArmyValue -= initialDistribution.assault * vehicleArmyPersonnelWorth.assault;
 
-    // Add the remainingArmyValue to the infantry
     initialDistribution.infantry += Math.floor(remainingArmyValue);
 
     return initialDistribution;
 }
 
-/**
- * Recompute which of a territory's vehicles it can fuel, and roll the answer up into the
- * player's totals.
- *
- * Phase 5.2: the gating itself is useableUnitsFor() in src/rules/economy/capacity.js and is
- * pure. This is the part that is not: writing the answer onto the territory and refreshing
- * the two table cells that show it. The three scans of all 359 territories the legacy
- * version did -- one to read the territory, one to write it back, one to total the player up
- * -- are a lookup and a single pass.
- */
 export function setPlayerUseableNotUseableWeaponsDueToOilDemand(mainArray, territory) {
     const target = mainArray.find(candidate => candidate.uniqueId === territory.uniqueId);
     if (!target) {
@@ -3548,9 +2989,6 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
     let descendingGoldArray = [];
 
     if (territory.goldForCurrentTerritory < goldCost) {
-        /*         console.log("Territory needs to borrow money");
-                console.log("Here's the descending list of gold in the player owned territories:"); */
-
         for (let i = 0; i < allTerritories().length; i++) {
             for (let j = 0; j < playerOwnedTerritories.length; j++) {
                 if (allTerritories()[i].uniqueId !== territory.uniqueId && allTerritories()[i].uniqueId === playerOwnedTerritories[j].getAttribute("uniqueid")) {
@@ -3560,12 +2998,7 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
         }
 
         descendingGoldArray.sort((a, b) => b[0] - a[0]);
-        /*         console.log(descendingGoldArray);
-
-                console.log("Here is the shortfall:") */
         let remainingGold = goldCost - territory.goldForCurrentTerritory;
-        /*         console.log(remainingGold); */
-
         for (const [goldAmount, uniqueId] of descendingGoldArray) {
             const transferAmount = Math.min(
                 remainingGold,
@@ -3575,23 +3008,17 @@ function checkForMinusAndTransferMoneyFromRichEnoughTerritories(territory, goldC
 
             for (let i = 0; i < allTerritories().length; i++) {
                 if (allTerritories()[i].uniqueId === uniqueId) {
-                    /* console.log(transferAmount + "was taken from " + allTerritories()[i].territoryName); */
                     allTerritories()[i].goldForCurrentTerritory -= transferAmount;
-                    /* console.log("and added to " + territory.territoryName); */
                     territory.goldForCurrentTerritory += transferAmount;
                 }
             }
 
             remainingGold = goldCost - territory.goldForCurrentTerritory;
-            /* console.log("now there is a shortfall of " + remainingGold + " gold."); */
 
             if (remainingGold <= 0) {
-                /* console.log("balancing complete, exiting function."); */
                 break;
             }
         }
-    } else {
-        /* console.log("Territory does not need to borrow money"); */
     }
 
     territory.goldForCurrentTerritory = Math.max(0, territory.goldForCurrentTerritory - goldCost);
@@ -3681,7 +3108,6 @@ export function calculateTerritoryStrengths(territories) {
 }
 
 function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrentTerritory, consMatsForCurrentTerritory, foodForCurrentTerritory, devIndex, territoryPopulation, continentModifier, armyForCurrentTerritory) {
-    // Define scaling factors for each factor
     const areaScale = territoryStrengthScales.area;
     const resourceScale = territoryStrengthScales.resources;
     const devIndexScale = territoryStrengthScales.devIndex;
@@ -3689,7 +3115,6 @@ function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrent
     const continentModifierScale = territoryStrengthScales.continentModifier;
     const armyScale = territoryStrengthScales.army;
 
-    // Calculate the scaled values for each factor
     const scaledArea = area * areaScale;
     const scaledResources = (goldForCurrentTerritory + oilForCurrentTerritory + consMatsForCurrentTerritory + foodForCurrentTerritory) * resourceScale;
     const scaledDevIndex = devIndex * devIndexScale;
@@ -3697,10 +3122,7 @@ function calculateTerritoryStrength(area, goldForCurrentTerritory, oilForCurrent
     const scaledContinentModifier = continentModifier * continentModifierScale;
     const scaledArmy = armyForCurrentTerritory * armyScale;
 
-    // Calculate the strength value based on the scaled factors
     const strengthValue = scaledArea + scaledResources + scaledDevIndex + scaledPopulation + scaledContinentModifier + scaledArmy;
-
-    // Round the strength value to the nearest integer
     const roundedStrength = Math.round(strengthValue);
 
     return roundedStrength;
@@ -3714,7 +3136,7 @@ function calculateStartingArmy(territory) {
     let army = (territory.startingPop * startingArmy.populationRate) * parseFloat(territory.dev_index);
 
     if (startingArmy.moderatedCountries.includes(territory.country)) {
-        army = Math.floor(army / startingArmy.moderationDivisor); //their starting populations dwarf everyone else's
+        army = Math.floor(army / startingArmy.moderationDivisor);
     }
     return army;
 }
@@ -3729,26 +3151,21 @@ export function addRandomFortsToAllNonPlayerTerritories() {
         const isPlayerTerritory = playerOwnedTerritories.some(playerTerritory => playerTerritory.getAttribute("uniqueid") === element.uniqueId);
         const wasPlayerTerritory = isPlayerTerritory ? "was" : "was not";
 
-        // console.log(`${element.territoryName} now has ${element.fortsBuilt} and it ${wasPlayerTerritory} a player territory.  Incidentally, their defense bonus is now ${element.defenseBonus}`);
     });
 }
 
 function allWorkaroundOnSiegeTable() {
-    const warTable = document.getElementById(ids.uiTable); // Assuming you have a reference to the warTable element
+    const warTable = document.getElementById(ids.uiTable);
 
-    // Iterate through each warRow element
     const warRows = warTable.getElementsByClassName("ui-table-row-war");
     for (let i = 0; i < warRows.length; i++) {
         const warRow = warRows[i];
         const warRowChildren = warRow.children;
 
-        // Iterate through each child element of warRow
         for (let j = 0; j < warRowChildren.length; j++) {
             const child = warRowChildren[j];
 
-            // Check if the child's index is between 5 and 8 (inclusive)
             if (j >= 5 && j <= 8 && child.innerHTML.includes("All")) {
-                // Change any "0" values to "All / All"
                 if (child.innerHTML.includes("0")) {
                     child.innerHTML = "All / All";
                 }
@@ -3775,13 +3192,8 @@ function checkIfWouldBeARoutAndPossiblyLeaveSiege(siegeObject) {
 
     const result = fortsRemaining === 0 ? (remainingDefenseTotal <= startingDefenseTotal * SIEGE_ROUT_THRESHOLD) : false;
     console.log("Would be a rout: " + result);
-    return result; //true leaves siege
+    return result;
 }
-
-//Phase 5.2: army upkeep is src/rules/economy/maintenance.js. armyMaintenanceFor() is
-//imported directly at the two call sites.
-
-
 
 function reduceArmyByAdjustment(armyForCurrentTerritory, armyAdjustment) {
     let multiple = armyCostPerTurn.infantry * 1000000;
@@ -3851,12 +3263,11 @@ function findBuyRowPosition(inputElement) {
     }
 
     if (currentElement) {
-        // Calculate the nth-child position
         const nthChildPosition = Array.from(currentElement.parentElement.children).indexOf(currentElement) + 1;
         return nthChildPosition;
     }
 
-    return null; // Input element is not within a .buy-row
+    return null;
 }
 
 function adjustValueIfOverMax(topTableGold, topTableProdPop, rowIndex, currentValueQuantity, totalGoldSpentSoFar, totalProdPopSpentSoFar) {
@@ -3896,22 +3307,7 @@ function adjustValueIfOverMax(topTableGold, topTableProdPop, rowIndex, currentVa
     }
     return currentValueQuantity;
 }
-//--- save/load ------------------------------------------------------------
-//
-//Phase 7.3. Everything below is derived -- it is what newTurnResources() and
-//calculateTerritoryStrengths() compute at the top of a turn -- but a load does not
-//re-run the top of a turn. Re-running it would grant the turn's income a second
-//time, which is the whole reason a restored game resumes INSIDE the saved turn
-//rather than by replaying it. So the derived tables are saved rather than
-//recalculated.
-//
-//`totalPlayerResources` and `countryResourceTotals` are `export const`, imported by
-//reference in five files, so they are refilled in place. The rest are `export let`,
-//so an assignment here reaches every importer through its live binding.
-//
-//`playerOwnedTerritories` is deliberately NOT saved: it holds SVG path elements,
-//which do not serialise, and getPlayerTerritories() rebuilds it from the map in a
-//single pass.
+
 registerSaveSlice("economy", {
     capture: () => ({
         capacities: capacityArray ?? null,
