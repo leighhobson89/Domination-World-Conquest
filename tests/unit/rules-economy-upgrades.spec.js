@@ -23,8 +23,11 @@ import {
 import { defenseBonusFor } from "../../src/rules/economy/capacity.js";
 import {
     maxFarms,
+    maxOilWells,
+    oilRequirements,
     territoryUpgradeBaseCostsConsMats,
-    territoryUpgradeBaseCostsGold
+    territoryUpgradeBaseCostsGold,
+    upgradeFlatCapacityGain
 } from "../../src/config/balance.js";
 
 /** The formula exactly as `incrementDecrementUpgrades()` wrote it before this module. */
@@ -137,17 +140,20 @@ describe("upgradeOrderPriceFor", () => {
 describe("applyUpgrade", () => {
     it("raises the ceiling by 10% of what it was BEFORE the transaction, per unit", () => {
         // audit 5.1 A. This compounded once, and a fifth farm applied +50% on top of an
-        // already-inflated figure. Three farms is +30%, never 1.1^3 (+33.1%).
+        // already-inflated figure. Three farms is +30%, never 1.1^3 (+33.1%). Stage 3 added a
+        // FLAT term beside the percentage; the percentage half is still measured against the
+        // ceiling as it stood before the transaction, and is still not compounded.
+        const flat = upgradeFlatCapacityGain.food;
         const patch = applyUpgrade(territory({ foodCapacity: 1000 }), "farm", 3);
         expect(patch.farmsBuilt).toBe(3);
-        expect(patch.foodCapacity).toBeCloseTo(1300, 6);
-        expect(patch.foodCapacity).not.toBeCloseTo(1000 * Math.pow(1.1, 3), 6);
+        expect(patch.foodCapacity).toBeCloseTo(1300 + (3 * flat), 6);
+        expect(patch.foodCapacity).not.toBeCloseTo(1000 * Math.pow(1.1, 3) + (3 * flat), 6);
     });
 
     it("adds to what is already built rather than replacing it", () => {
         const patch = applyUpgrade(territory({ farmsBuilt: 2, foodCapacity: 1210 }), "farm", 1);
         expect(patch.farmsBuilt).toBe(3);
-        expect(patch.foodCapacity).toBeCloseTo(1210 * 1.1, 6);
+        expect(patch.foodCapacity).toBeCloseTo((1210 * 1.1) + upgradeFlatCapacityGain.food, 6);
     });
 
     it("touches only the ceiling that upgrade acts on", () => {
@@ -220,5 +226,75 @@ describe("the upgrade table", () => {
 
     it("states the capacity gain once", () => {
         expect(CAPACITY_GAIN_PER_UPGRADE).toBe(0.1);
+    });
+});
+
+// --- economy stage 3: nudge the small without taxing the large -------------------------------
+
+describe("the flat component of an upgrade (economy stage 3.1)", () => {
+    // The governing principle of the whole phase, in Leigh's words: "larger territories should
+    // not be penalised for their size ... but smaller countries get a little nudge so that they
+    // are not just a total waste of time". So the lever is the BENEFIT and never the price, and
+    // what is asserted here is the SHAPE of that benefit rather than any one number: the flat
+    // part dominates at the bottom of the map, the percentage swamps it at the top, and nothing
+    // anywhere is taxed to pay for it.
+
+    it("gives every economic upgrade a flat term as well as its 10%", () => {
+        for (const [kind, resource] of [
+            ["farm", "food"], ["forest", "consMats"], ["oilWell", "oil"]
+        ]) {
+            const field = UPGRADES[kind].capacity;
+            const patch = applyUpgrade(territory({ [field]: 0 }), kind, 1);
+            expect(patch[field]).toBeCloseTo(upgradeFlatCapacityGain[resource], 6);
+        }
+    });
+
+    it("is the whole of the gain on the smallest territory on the map", () => {
+        // Vatican City's food ceiling is its population plus its army: 801 people. Ten per cent
+        // of that is 80, which is the reason a farm there paid back in thirteen thousand turns.
+        const patch = applyUpgrade(territory({ foodCapacity: 801 }), "farm", 1);
+        const percentagePart = 801 * CAPACITY_GAIN_PER_UPGRADE;
+        expect(patch.foodCapacity - 801).toBeGreaterThan(percentagePart * 100);
+    });
+
+    it("is swamped by the percentage on the largest, so size still pays", () => {
+        // China's food ceiling is about 1.45 billion. The flat term must be a rounding error
+        // there, or "being large is good" has quietly stopped being true.
+        const chinaCeiling = 1.455e9;
+        const patch = applyUpgrade(territory({ foodCapacity: chinaCeiling }), "farm", 1);
+        const gain = patch.foodCapacity - chinaCeiling;
+        expect(upgradeFlatCapacityGain.food / gain).toBeLessThan(0.01);
+        // ...and the large territory's gain is still far larger in ABSOLUTE terms, which is the
+        // thing the principle actually protects.
+        const smallPatch = applyUpgrade(territory({ foodCapacity: 801 }), "farm", 1);
+        expect(gain).toBeGreaterThan((smallPatch.foodCapacity - 801) * 100);
+    });
+
+    it("scales with the number bought and is never compounded", () => {
+        const one = applyUpgrade(territory({ oilCapacity: 500 }), "oilWell", 1).oilCapacity;
+        const three = applyUpgrade(territory({ oilCapacity: 500 }), "oilWell", 3).oilCapacity;
+        expect(three - 500).toBeCloseTo((one - 500) * 3, 6);
+    });
+
+    it("gives a fort nothing, because a fort raises no ceiling", () => {
+        const patch = applyUpgrade(territory(), "fort", 1);
+        expect(patch.foodCapacity).toBeUndefined();
+        expect(patch.oilCapacity).toBeUndefined();
+        expect(patch.consMatsCapacity).toBeUndefined();
+    });
+
+    it("names one flat term per ceiling and no more", () => {
+        expect(Object.keys(upgradeFlatCapacityGain).sort())
+            .toEqual(["consMats", "food", "oil"]);
+        for (const value of Object.values(upgradeFlatCapacityGain)) {
+            expect(value).toBeGreaterThan(0);
+        }
+    });
+
+    it("makes five oil wells fuel one warship anywhere on the map", () => {
+        // The legible statement of the oil nudge, and the reason the number is what it is: an
+        // island whose oil ceiling is two barrels can currently fuel nothing at all, so the oil
+        // gate reads to that player as "vehicles are not for you" rather than as a decision.
+        expect(upgradeFlatCapacityGain.oil * maxOilWells).toBe(oilRequirements.naval);
     });
 });

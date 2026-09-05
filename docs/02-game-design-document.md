@@ -82,14 +82,25 @@ just sums over owned territories, and spending is scoped to the territory you ar
 
 | Resource | Produced by | Consumed by | Capacity mechanic |
 |---|---|---|---|
-| **Gold** | Productive population × development index × continent modifier | Buying units, building upgrades | No cap |
-| **Oil** | Territory area + starting reserves | *Demand* from assault/air/naval units | `oilCapacity`, raised 10 % per Oil Well |
-| **Food** | Territory | Population + army (`foodConsumption`) | `foodCapacity`, raised 10 % per Farm |
-| **Construction materials** | Territory area | Building upgrades | `consMatsCapacity`, raised 10 % per Forest |
+| **Gold** | `TERRITORY_BASE_INCOME` (44.44) **plus** productive population × development index × continent modifier | Buying units, building upgrades, army upkeep | No cap |
+| **Oil** | Territory area + starting reserves | *Demand* from assault/air/naval units | `oilCapacity`, +10 % **and a flat 200** per Oil Well |
+| **Food** | Territory | Population + army (`foodConsumption`) | `foodCapacity`, +10 % **and a flat 100,000** per Farm |
+| **Construction materials** | Territory area, **population and development**, floored at `MIN_CONS_MATS_CAPACITY` (2,500) | Building upgrades, and nothing else | `consMatsCapacity`, +10 % **and a flat 500** per Forest |
 
 **Regeneration toward capacity** (per turn, on the gap between stock and capacity):
 oil **+30 %**, construction materials **+25 %**, food **+20 %**.
 **Decay above capacity**: all three at **−10 %** per turn.
+
+**Gold income has two halves, and the base is large** (economy stage 2.1). Every territory earns
+44.44 gold a turn whatever it is — about 65 % of what a MEDIAN territory earns in total — and on
+top of that it earns from what it actually is. That base is the direct answer to "why would
+anyone upgrade": below roughly a million productive population, income was 97 % constant.
+
+**Every economic upgrade grants a flat amount as well as its ten per cent** (economy stage 3.1).
+On a large territory the percentage swamps the flat term; on a small one the flat term IS the
+upgrade. It is the whole of stage 3's lever, and it moves the BENEFIT rather than the price
+because being large has to keep paying — audit §6 Stage 3 records why the obvious fix (price
+each upgrade against the territory's own income) was turned down.
 
 ### 3.2 Population ✅⚠️
 
@@ -111,13 +122,28 @@ If a territory's oil stock cannot cover total demand, units become **not useable
 still exist and still count as population, but they cannot attack, defend or contribute to
 combat strength. This is the game's most distinctive economic constraint.
 
-### 3.4 Army maintenance 🚧
+### 3.4 Army maintenance ✅
 
-`calculateArmyMaintenanceCostPerTurn` exists (infantry 0.0005, assault 0.5, air 2.5, naval 10
-gold per unit per turn) and is used **only** during initial army sizing at game start. The
-per-turn call site is commented out at [resourceCalculations.js:583](../resourceCalculations.js#L583),
-so **standing armies are currently free to maintain**. This removes the main brake on
-military snowballing.
+`armyMaintenanceFor()` in [src/rules/economy/maintenance.js](../src/rules/economy/maintenance.js)
+is charged every turn against the territory that garrisons the units. Grounded vehicles are not
+billed — a unit you cannot fuel is not also a unit you pay for.
+
+| Unit | Gold per turn | Per 1,000 force |
+|---|---:|---:|
+| Infantry | 0.00005 | 0.050 |
+| Assault | 0.08 | 0.080 |
+| Air | 0.5 | 0.100 |
+| Naval | 3 | 0.150 |
+
+The last column is the one that means anything, and until economy stage 4.1 it read **0.050 for
+all four** — upkeep did not discriminate between unit types at all, so a fleet cost exactly what
+the infantry it displaced cost to keep. It now rises with the platform, as the counterweight to a
+vehicle needing far fewer people (§4.1).
+
+The infantry rate was deliberately cut to a tenth of its original value when maintenance was
+re-enabled: at the original rates every major power on the map was bankrupt inside forty turns
+with no way to respond. **Unpaid upkeep still has no consequence** — a broke territory keeps its
+army for free, and desertion is an open design item in the register rather than a defect.
 
 ### 3.5 Continent modifiers ✅
 
@@ -214,14 +240,27 @@ Dominapedia's "Income and Upkeep" page carries the rule and the numbers.
 
 ### 4.1 The four unit types ✅
 
-| Unit | Gold cost | Manpower cost | Oil demand | Counts as N people | Siege value |
-|---|---:|---:|---:|---:|---:|
-| Infantry | 10 | 1,000 | 0 | 1 | 0.0001 |
-| Assault | 50 | 1,000 | 100 | 1,000 | 3 |
-| Air | 100 | 5,000 | 300 | 5,000 | 5 |
-| Naval | 200 | 20,000 | 1,000 | 20,000 | 10 |
+| Unit | Gold cost | Manpower cost | Oil demand | Upkeep/turn | Counts as N people | Siege value |
+|---|---:|---:|---:|---:|---:|---:|
+| Infantry | 10 | 1,000 | 0 | 0.00005 | 1 | 0.0001 |
+| Assault | 50 | 600 | 100 | 0.08 | 1,000 | 3 |
+| Air | 100 | 2,500 | 300 | 0.5 | 5,000 | 5 |
+| Naval | 200 | 8,000 | 1,000 | 3 | 20,000 | 10 |
 
-`INFANTRY_IN_A_TROOP = 1000` — infantry are bought in troops of 1,000.
+`INFANTRY_IN_A_TROOP = 1000` — infantry are bought in troops of 1,000, and
+`armyProdPopPrices.infantry` is that troop size rather than a tuning dial. **The player and the
+AI disagree about it** and that is register item **BR**: the AI adds a thousand soldiers per
+purchase, the player adds one.
+
+**Economy stage 4.1 (audit D4) made the manpower and upkeep columns mean something.** Before it,
+prod-pop cost exactly 1.00 per unit of force and upkeep exactly 0.050 per thousand force for
+every one of the four types, so nothing but the die modifiers and the siege score distinguished a
+rifleman from a battleship, and infantry strictly dominated naval in open battle. A vehicle is
+crewed rather than manned now: it buys force with 1.67 – 2.50 times fewer PEOPLE than infantry
+and pays for it in upkeep and oil. The **gold** prices are deliberately untouched, which is what
+preserves the one economic decision the military layer already had — vehicles 5–6× better per
+gold in a siege and no better than infantry in the open. `node tools/econ-lab.mjs units` is the
+table.
 
 **Combined force** (used for battle strength and rout thresholds) is
 `infantry + assault×1,000 + air×5,000 + naval×20,000`.

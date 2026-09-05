@@ -31,6 +31,8 @@ const balance = await load("src/config/balance.js");
 const income = await load("src/rules/economy/income.js");
 const population = await load("src/rules/economy/population.js");
 const maintenance = await load("src/rules/economy/maintenance.js");
+const upgrades = await load("src/rules/economy/upgrades.js");
+const seeding = await load("src/rules/economy/seeding.js");
 
 const QUIET = income.QUIET_TURN;
 
@@ -38,20 +40,12 @@ const QUIET = income.QUIET_TURN;
 //
 // The three starting-continent tables used to be copied here, because they were written inline
 // in `resourceCalculations.js` and there was nothing to import. Stage 1.13 moved them into
-// `balance.js`, so this reads the same numbers the game does -- which is the point: a
-// measuring instrument carrying its own copy of the thing it measures will eventually measure
-// the copy.
+// `balance.js` and stage 3.2 moved the arithmetic that uses two of them into
+// `src/rules/economy/seeding.js` -- so nothing in this file re-implements the game any more.
+// That is the point: a measuring instrument carrying its own copy of the thing it measures will
+// eventually measure the copy, and this file's whole job is that its numbers are the game's.
 
 const SEED_GOLD_CONTINENT = balance.startingGoldContinentModifiers;
-const SEED_OIL_CONTINENT = balance.startingOilContinentModifiers;
-const SEED_CONSMATS_CONTINENT = balance.startingConsMatsContinentModifiers;
-
-/** The shared three-term shape both `initialOilCalculation()` and its cons-mats twin use. */
-function seedStock(area, devIndex, continentModifier) {
-    return Math.abs(Math.pow(area / 1000, 1.5) * devIndex * (continentModifier - 1) * 0.1) +
-        (Math.pow(area / 1000, 0.5) * devIndex * 50) +
-        (Math.pow(area / 1000, 0.5) * continentModifier * 10);
-}
 
 function territoryFor(country) {
     const devIndex = parseFloat(country.dev_index);
@@ -79,9 +73,10 @@ function territoryFor(country) {
         goldForCurrentTerritory: Math.max(
             (country.res_gold * ((area / 8000000) * devIndex)) +
             ((territoryPopulation / 50000) * SEED_GOLD_CONTINENT[country.continent]), 300),
-        oilCapacity: seedStock(area, devIndex, SEED_OIL_CONTINENT[country.continent]),
-        consMatsCapacity: Math.max(
-            seedStock(area, devIndex, SEED_CONSMATS_CONTINENT[country.continent]), 500),
+        oilCapacity: seeding.initialOilCapacityFor({ area, devIndex, continent: country.continent }),
+        consMatsCapacity: seeding.initialConsMatsCapacityFor({
+            area, devIndex, continent: country.continent, population: territoryPopulation
+        }),
         foodCapacity: territoryPopulation + army,
         farmsBuilt: 0, forestsBuilt: 0, oilWellsBuilt: 0, fortsBuilt: 0,
         isLandLockedBonus: 0, oilDemand: 0
@@ -89,21 +84,13 @@ function territoryFor(country) {
 }
 
 /**
- * The price the game actually charges, from `incrementDecrementUpgrades()`.
+ * The price the game actually charges -- `upgradePriceFor()`, imported and not copied.
  *
- * QUADRATIC in `nth`, not linear -- `balance.js` says "the Nth costs N times this" and is
- * wrong by a whole power (audit section 4 E6). `nth` is the number STANDING AFTER the purchase.
+ * QUADRATIC in `nth`, not linear (audit section 4 E6). `nth` is the number STANDING AFTER the
+ * purchase. This was a local copy of the formula until stage 3, which is the same trap the
+ * continent tables were: a copy that agrees today and is measuring the wrong game a year later.
  */
-function upgradePrice(kind, nth, devIndex) {
-    const consMatsMultiplier = kind === "farm" ? 1.1 : 1.05;
-    return {
-        gold: Math.ceil(
-            balance.territoryUpgradeBaseCostsGold[kind] * nth * (nth * 1.05) * (devIndex / 4)),
-        consMats: Math.ceil(
-            balance.territoryUpgradeBaseCostsConsMats[kind] * nth * (nth * consMatsMultiplier) *
-            (devIndex / 4))
-    };
-}
+const upgradePrice = upgrades.upgradePriceFor;
 
 const territories = COUNTRIES.map(territoryFor);
 const pad = (value, width, places = 1) =>
@@ -198,8 +185,12 @@ function reportUpgrades() {
     }
 
     console.log("=== WHAT A FARM PAYS BACK ===");
-    console.log("A farm is +10% food capacity; population equilibrates to the food ceiling, so");
-    console.log("N farms is 1.1^N population, and population is the input to gold income.\n");
+    console.log("A farm is +10% of the food ceiling PLUS a flat " +
+        `${balance.upgradeFlatCapacityGain.food.toLocaleString("en-GB")} (economy stage 3.1);`);
+    console.log("population equilibrates to the ceiling, and population is the input to gold");
+    console.log("income. The flat term is the whole of the gain at the bottom of the map and a");
+    console.log("rounding error at the top, which is how the small are nudged without the large");
+    console.log("being taxed to pay for it.\n");
 
     const goldAtPopulation = (territory, multiplier) => income.goldChangeFor({
         continent: territory.continent,
@@ -209,6 +200,23 @@ function reportUpgrades() {
             territory.territoryPopulation * multiplier, territory.devIndex) -
             territory.armyForCurrentTerritory
     }, QUIET);
+
+    //What N farms multiply a territory's population by. The ceiling is the population plus the
+    //army, and `applyUpgrade()` adds `(0.1 * ceiling + flat)` per farm without compounding --
+    //so this is the same arithmetic the game does, expressed as a multiplier.
+    const populationMultiplierAfterFarms = (territory, nth) => {
+        const ceiling = territory.foodCapacity;
+        const gain = ((ceiling * upgrades.CAPACITY_GAIN_PER_UPGRADE) +
+            balance.upgradeFlatCapacityGain.food) * nth;
+        return (ceiling + gain) / ceiling;
+    };
+
+    const paybackOfFirstFarm = (territory) => {
+        const base = goldAtPopulation(territory, 1);
+        const gain =
+            goldAtPopulation(territory, populationMultiplierAfterFarms(territory, 1)) - base;
+        return gain > 0 ? upgradePrice("farm", 1, territory.devIndex).gold / gain : Infinity;
+    };
 
     const samples = ["China", "Brazil", "Germany", "Nigeria", "Chad", "Fiji", "Vatican City"];
     for (const name of samples) {
@@ -222,7 +230,8 @@ function reportUpgrades() {
         let cumulativeGold = 0;
         for (let nth = 1; nth <= 5; nth++) {
             cumulativeGold += upgradePrice("farm", nth, territory.devIndex).gold;
-            const gain = goldAtPopulation(territory, Math.pow(1.1, nth)) - base;
+            const gain =
+                goldAtPopulation(territory, populationMultiplierAfterFarms(territory, nth)) - base;
             const payback = gain > 0 ? `${Math.round(cumulativeGold / gain)} turns` : "never";
             console.log(`   farm ${nth}:  +${pad(gain, 9, 2)} gold/turn` +
                 `   cumulative cost ${String(cumulativeGold).padStart(6)}g` +
@@ -230,8 +239,22 @@ function reportUpgrades() {
         }
         console.log();
     }
-    console.log("The same upgrade, at nearly the same price, pays back in under one turn and");
-    console.log("in thirteen thousand. Audit section 4 D2 is what follows from that.");
+    //Checklist 3.4 wants this across the WHOLE map and not over seven hand-picked names,
+    //because the claim being tested is about a SPREAD: it must collapse to roughly one order of
+    //magnitude and NOT to zero. A flat payback curve would mean size had stopped paying, which
+    //is the thing stage 3 exists to avoid.
+    console.log("=== THE FIRST FARM, ACROSS THE WHOLE MAP ===");
+    console.log("turns for one farm to pay for itself, every territory in the sample:\n");
+    const paybacks = territories.map(paybackOfFirstFarm)
+        .filter(Number.isFinite).sort((a, b) => a - b);
+    const percentile = (fraction) => paybacks[Math.floor(fraction * (paybacks.length - 1))];
+    console.log(`  min ${pad(percentile(0), 8, 1)}   p25 ${pad(percentile(0.25), 8, 1)}` +
+        `   median ${pad(percentile(0.5), 8, 1)}   p95 ${pad(percentile(0.95), 8, 1)}` +
+        `   max ${pad(percentile(1), 8, 1)}`);
+    console.log(`  spread: ${(Math.log10(percentile(1) / percentile(0))).toFixed(2)} orders of ` +
+        "magnitude, min to max");
+    console.log("\nBefore stage 3 that read min 0.8, median 14.1, p95 472.5, max 3,780.0 --");
+    console.log("4.49 orders of magnitude, and audit section 4 D2 is what followed from it.");
 }
 
 // --- units -------------------------------------------------------------------------------
@@ -263,26 +286,32 @@ function reportUnits() {
             `${pad((upkeep / force) * 1000, 16, 3)}${pad(siege / gold, 12, 4)}`);
     }
 
-    console.log("\nThree things fall out of that table:");
-    console.log("  - productive population costs exactly 1 per unit of force for EVERY type,");
-    console.log("    so prod-pop is an army-size cap and never decides WHICH unit to buy;");
-    console.log("  - upkeep per 1,000 force is identical for every type, so upkeep does not");
-    console.log("    discriminate either;");
-    console.log("  - infantry and naval are identical on gold, prod-pop and upkeep per unit of");
-    console.log("    force, and naval additionally burns 1,000 oil a turn. In OPEN BATTLE,");
-    console.log("    infantry strictly dominates naval.");
-    console.log("\nThe one real economic decision the military layer offers is siege versus");
-    console.log("battle: vehicles are 5-6x better per gold in a siege and worse in the open.");
-    console.log("Anything that changes unit costs has to preserve that.");
+    console.log("\nEconomy stage 4.1 (audit D4). Before it, the last four columns read");
+    console.log("1.00 force per person and 0.050 upkeep per thousand force for EVERY type --");
+    console.log("so prod-pop was a pure army-size cap, upkeep did not discriminate, and");
+    console.log("infantry strictly DOMINATED naval in open battle: same force per gold, same");
+    console.log("force per person, same upkeep, and no oil bill. Nothing but the die modifiers");
+    console.log("and the siege score told a rifleman from a battleship.");
+    console.log("\nNow the two middle columns pull against each other. A vehicle is CREWED");
+    console.log("rather than manned -- 1.67 to 2.50 units of force per person against");
+    console.log("infantry\u2019s 1.00 -- and pays for it in gold, in upkeep, and in oil. So a poor");
+    console.log("populous country and a rich thinly-peopled one field different armies, which");
+    console.log("is the decision the economy was not offering.");
+    console.log("\nThe GOLD prices are deliberately untouched, and that is what preserves the");
+    console.log("one economic decision the military layer already had: vehicles are 5-6x better");
+    console.log("per gold in a siege and no better than infantry in the open. Oil is what prices");
+    console.log("that split. Anything that changes unit costs again has to preserve it.");
 }
 
 // --- construction materials ---------------------------------------------------------------
 
 function reportConsMats() {
     console.log("=== CONSTRUCTION MATERIALS: the currency upgrades are priced in ===\n");
-    console.log("Cons. mats. buy upgrades and nothing else. The capacity is set at world");
-    console.log("creation from AREA, almost entirely -- so a small developed country is locked");
-    console.log("out of its own upgrade tree at any price (audit section 4 D7).\n");
+    console.log("Cons. mats. buy upgrades and nothing else, so this ceiling decides who is");
+    console.log("allowed into the upgrade tree at all. It was set at world creation from AREA");
+    console.log("almost entirely, which locked a small developed country out of its own economy");
+    console.log("at any price -- audit section 4 D7. Economy stage 3.2 added a POPULATION term");
+    console.log("and raised the floor, so the ceiling answers to people as well as to land.\n");
 
     console.log("territory          consMats cap   regen/turn   full ladder   turns of regen");
     for (const name of ["China", "Brazil", "Chad", "Nigeria", "Germany", "Fiji", "Vatican City"]) {
@@ -301,8 +330,23 @@ function reportConsMats() {
         console.log(`  ${name.padEnd(17)}${pad(capacity, 12, 0)}${pad(regeneration, 13, 0)}` +
             `${pad(ladder, 14, 0)}${pad(ladder / regeneration, 17, 0)}`);
     }
-    console.log("\nGermany is the one to look at: rich, developed, high income, and eighty");
-    console.log("turns of saving to fill one territory's upgrade slots. China needs one.");
+    const allTurns = territories.map((territory) => {
+        let ladder = 0;
+        for (const kind of ["farm", "forest", "oilWell", "fort"]) {
+            for (let nth = 1; nth <= 5; nth++) {
+                ladder += upgradePrice(kind, nth, territory.devIndex).consMats;
+            }
+        }
+        return ladder /
+            (territory.consMatsCapacity * balance.resourceRegeneration.consMats.growth);
+    }).sort((a, b) => a - b);
+    const at = (fraction) => allTurns[Math.floor(fraction * (allTurns.length - 1))];
+    console.log(`\nwhole map:  min ${at(0).toFixed(0)}   p25 ${at(0.25).toFixed(0)}` +
+        `   median ${at(0.5).toFixed(0)}   p95 ${at(0.95).toFixed(0)}   max ${at(1).toFixed(0)}`);
+    console.log("Before stage 3.2 that read min 1, median 108, p95 193, max 203 -- and Germany,");
+    console.log("rich and developed and the highest income in Europe, sat at eighty turns while");
+    console.log("China sat at one. The spread does not close to nothing and must not: China");
+    console.log("still fills its slots in a turn and an island still needs thirty.");
 }
 
 // --- the continent bonus, against the base income --------------------------------------------

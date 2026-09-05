@@ -19,10 +19,17 @@
 
 import { applyGainColour, useableOverTotal } from "./tableDom.js";
 
+//Economy stage 4.2, audit D5. The gold label used to read "Gold(+/-)" on all three of the
+//summary tab's tables, including the per-territory one -- and a gold figure in a territory's own
+//row is read as a purse belonging to that territory. It is not one: buying UNITS charges the
+//whole country's gold and moves whatever the buying territory is short of in from the richest
+//territories automatically, instantly and at no cost. That pooling is deliberate and stays (a
+//conquest anywhere should fund a war anywhere); what it should stop doing is implying otherwise.
+//The label is the header's tooltip and the icon's alt text, so this is where the panel says so.
 const RESOURCE_LABELS = [
     "Territory",
     "Population(+/-)",
-    "Gold(+/-)",
+    "Gold(+/-) — one pooled treasury; units are bought from all of it",
     "Oil(+/-)",
     "Oil Capacity",
     "Oil Demand",
@@ -194,15 +201,19 @@ export const territoryResourceColumns = summaryColumns(
 
 // --- the territories tab ---------------------------------------------------
 
+//The Gold and Construction Materials labels differ on purpose, and the difference is the whole
+//of audit D5 as a player sees it: units are bought out of one pooled treasury wearing 359
+//labels, and BUILDINGS are the exception -- a farm is paid for by the territory it stands on,
+//out of that territory's own gold and its own materials, which are never pooled at all.
 const TERRITORY_LABELS = [
     "Territory",
     "Productive Population",
     "Population",
     "Area",
-    "Gold",
+    "Gold — held here; pooled when buying units, not when building",
     "Oil",
     "Food",
-    "Construction Materials",
+    "Construction Materials — spent where they sit, never pooled",
     "Upgrade"
 ];
 const TERRITORY_ICONS = [

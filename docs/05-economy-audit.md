@@ -5,16 +5,27 @@ which parts of it are broken, which parts are working-as-written but make no dec
 player, and what to do about each. The task breakdown is
 [06-economy-checklist.md](./06-economy-checklist.md).
 
-**Stages 1 and 2 are delivered and measured** — every **E** item below is closed except E8, which is a
-balance number and is deliberately preserved. The before/after over five goals and 150 turns
-each is in the checklist. It turned up one thing this document did not predict and which now
-shapes everything after it: **with the defects fixed, no continent is completed in a 150-turn
-game any more**, so the continent bonus the previous phase shipped is currently unreachable.
-§4 E-summary says why.
+**All four stages are delivered and measured.** Every **E** item below is closed except E8, which
+is a balance number and is deliberately preserved (see §4 and the register). Every **D** item is
+closed, acted on or recorded as a decision: D1 by stage 2, **D2, D3 and D7 by stage 3**, **D4 and
+D5 by stage 4**, and D6 and D8 as decisions not to act. The before/after over five goals and 150
+turns each is in the checklist, once for stage 1 and once for stages 3 and 4.
+
+Stage 1 turned up one thing this document did not predict and which shaped everything after it:
+with the defects fixed, **no continent was completed in a 150-turn game any more**, so the
+continent bonus the previous phase shipped was unreachable. §4 E-summary says why, and the
+stage 3–4 measurement in the checklist says what happened to it.
 
 Stage 2 split the income floor out as `TERRITORY_BASE_INCOME` and moved no money doing it; what
-that buys is that D1 below is now a dial rather than a discovery. The three defects the two
-stages turned up along the way — E8, E9 and the siege one — are in §4 with the rest.
+that bought is that D1 became a dial rather than a discovery. Stage 3 then used it: **the lever
+is the BENEFIT and never the price**, so an upgrade grants a flat amount alongside its ten per
+cent, and the construction-materials ceiling — which decides who is allowed into the upgrade tree
+at all — answers to population as well as to land. Stage 4 gave the four unit types different
+economics for the first time, in manpower and upkeep, deliberately leaving the gold prices alone
+so that the siege-versus-battle split §5 protects is untouched.
+
+The defects these stages turned up along the way — E8, E9, the siege one and **BR** (the player
+and the AI buy infantry in different sizes) — are in §4 and in the register.
 
 Everything numeric below was **measured**, not read off the source — a headless harness over
 `src/rules/economy/` and `initialData.js`, reproduced by `node tools/econ-lab.mjs`.
@@ -35,18 +46,27 @@ Four resources, all held **per territory**. Three are stocks with a ceiling; one
 | **Cons. mats.** | stock → `consMatsCapacity` | regenerates 25% of the shortfall per turn | **upgrades, and nothing else** |
 
 Four upgrades, capped at five each per territory. Three of them raise a ceiling by 10% of what
-it was before the transaction; the fourth is military.
+it was before the transaction **plus a flat amount** (stage 3.1); the fourth is military.
 
 | Upgrade | Base gold | Base mats | Effect |
 |---|---|---|---|
-| Farm | 200 | 500 | `foodCapacity` × 1.1 |
-| Forest | 200 | 500 | `consMatsCapacity` × 1.1 |
-| Oil well | 1100 | 200 | `oilCapacity` × 1.1 |
+| Farm | 200 | 500 | `foodCapacity` + 10% + **100,000** |
+| Forest | 200 | 500 | `consMatsCapacity` + 10% + **500** |
+| Oil well | 1100 | 200 | `oilCapacity` + 10% + **200** |
 | Fort | 1000 | 600 | `defenseBonus` = `ceil(f(f+1)·10·devIndex) + landlocked` |
 
 The **price ladder is quadratic**, not linear:
 `ceil(base · n · (n · 1.05) · devIndex / 4)`, where `n` is the number that will be standing
 after the purchase. The fifth of a kind costs about 26 times the first.
+
+**The flat term is the whole of stage 3's lever, and it is on the BENEFIT side on purpose.**
+Ten per cent of a ceiling is a rounding error on a territory of eight hundred people and a
+fortune on China, which is why the same upgrade at the same price paid back in under a turn in
+one place and in thirteen thousand in another (§3.3). Pricing the upgrade against the
+territory's own income would have closed that too — by taxing the large — and was turned down;
+§6 Stage 3 records why, because it is the obvious fix and will be proposed again. The two
+ceilings a small territory can actually reach are also seeded differently now
+(`src/rules/economy/seeding.js`, §4 D7).
 
 Four unit types, bought with gold **and** productive population, gated at use-time by oil.
 
@@ -149,6 +169,32 @@ food ceiling, so N farms is 1.1^N population):
 **The payback on the same upgrade spans four orders of magnitude, and the price barely moves.**
 A farm in Vatican City costs 43 gold and a farm in China costs 41.
 
+**After stage 3.1**, the same table with the flat term added to every farm. The costs are
+identical — no price moved — and the last two rows are what the whole stage was for:
+
+| Territory | 1st farm | 5th farm (cumulative) |
+|---|---|---|
+| China | +333 g/t, payback **<1 turn** | +2,013 g/t, payback 1 turn |
+| Germany | +84 g/t, payback 1 turn | +504 g/t, payback 5 turns |
+| Nigeria | +19 g/t, payback 2 turns | +114 g/t, payback 14 turns |
+| Chad | +1.0 g/t, payback 22 turns | +4.9 g/t, payback **232 turns** |
+| Fiji | +1.6 g/t, payback **25 turns** (was 52) | +7.8 g/t, payback **271 turns** (was 462) |
+| Vatican City | +23.8 g/t, payback **2 turns** (was 1,290) | +103.8 g/t, payback **23 turns** (was 13,202) |
+
+Across the whole map, the FIRST farm's payback — which is the decision a player actually makes —
+went from `min 0.8 / median 14.1 / p95 472.5 / max 3,780` to
+`min 0.1 / median 11.9 / p95 60.6 / max 202.5`. Between the 25th and 95th percentiles that is a
+spread of about one order of magnitude, which was the target; min to max it is 3.2 orders rather
+than the 4.5 it was, and it is not meant to reach zero. **China's farm is still worth fourteen
+times Vatican City's in absolute gold**, which is the principle the stage is governed by:
+conquering big rich land has to keep being the better move.
+
+Chad is the case the flat term does not reach, and it is worth naming: Chad is not small, it is
+POOR — 17 million people over 1.28 million km² at development 0.394, earning 54.6 gold against a
+floor of 44.44. Its payback is long because its income barely responds to population at all,
+which is D1 and not D2. Raising `TERRITORY_BASE_INCOME` would make that worse rather than better.
+`node tools/econ-lab.mjs upgrades` is the measurement.
+
 ### 3.4 What a gold buys, in combat
 
 | purchase | gold | prodPop | force | oil/turn | upkeep/turn | force/gold | force/prodPop | upkeep per 1,000 force | siege value/gold |
@@ -188,6 +234,25 @@ construction materials and in turns of that territory's own regeneration:
 Note Germany: a rich, high-development, high-income country whose construction-materials
 capacity is 1,244 because the initial figure is driven almost entirely by **area**. Germany
 needs eighty turns of saving to develop one territory. China needs one.
+
+**After stage 3.2**, with the ceiling seeded from population and development as well as area and
+floored at `MIN_CONS_MATS_CAPACITY`:
+
+| Territory | consMats capacity | turns of regen (before → after) |
+|---|---|---|
+| China | 64,316 → 110,509 | 1 → **1** |
+| Brazil | 52,542 → 70,016 | 2 → 1 |
+| Nigeria | 1,659 → 14,048 | 34 → 4 |
+| Chad | 1,716 → 4,299 | 24 → 10 |
+| Germany | 1,244 → **14,893** | **80 → 7** |
+| Fiji | 500 → 2,500 | 154 → 31 |
+| Vatican City | 500 → 2,500 | 171 → 34 |
+
+Whole map: `min 1 / median 108 / p95 193 / max 203` became `min 1 / median 19 / p95 36 / max 40`.
+**Every ceiling on the map went UP** — nothing was taken from the large to pay the small, which
+is the same rule stage 3.1 follows. China still fills its slots in one turn and an island still
+needs thirty, so land still pays; what has gone is a small developed country being locked out of
+its own economy at any price. `node tools/econ-lab.mjs consmats` is the measurement.
 
 ---
 
@@ -342,26 +407,26 @@ the gold at all**. Farms, population growth, the continent bonus's 1.5× on a nu
 almost entirely floor: all of it moves an income that is 97% constant. This is the direct answer
 to *"players have no reason to upgrade"*: on most of the map, they are correct not to.
 
-**D2. The price of an upgrade is unrelated to its benefit.** §3.3: identical price, payback from
+**D2. The price of an upgrade is unrelated to its benefit.** **CLOSED, stage 3.1 — by moving the BENEFIT, not the price.** An upgrade now grants a flat amount alongside its ten per cent, so the first farm's payback across the whole map went from 0.8 – 3,780 turns to 0.8 – 202, and the 95th percentile from 472 turns to 61. It did not flatten and must not: China's first farm is still worth 333 gold a turn against Vatican City's 24. The original text stands below because it is the measurement that justified the change. §3.3: identical price, payback from
 under one turn to 13,202 turns. The price is a function of `devIndex` alone; the benefit is a
 function of population and area, which vary by six orders of magnitude across the map. For a
 large country the whole upgrade ladder is free money and therefore not a decision; for a small
 one it is a trap.
 
-**D3. And the price scales the wrong way.** `devIndex / 4` means a *developed* territory pays
+**D3. And the price scales the wrong way.** **CLOSED as an observation, stage 3.1a — deliberately not acted on.** The price ladder keeps its shape, quadratic in the count and scaled by `devIndex`. It is a real effect and it is small next to the count, and it is not what made the payback spread four orders of magnitude — the benefit was. `devIndex / 4` means a *developed* territory pays
 more for the same building. Development is already correlated with income, so this is a
 progressive tax on the territories that need the least help — but it is also the *only* thing
 resembling a scaling term, and it does not scale with the thing that actually determines the
 benefit (population, capacity, area).
 
-**D4. Unit choice is almost never an economic decision.** §3.4: prod-pop per force and upkeep
+**D4. Unit choice is almost never an economic decision.** **CLOSED, stage 4.1.** Prod-pop per unit of force is now 1.00 for infantry, 1.67 for assault, 2.00 for air and 2.50 for naval, and upkeep per thousand force 0.050 / 0.080 / 0.100 / 0.150 — a vehicle is crewed rather than manned, and pays for it every turn. The GOLD prices were deliberately left alone, which is what preserves §5's siege-versus-battle split byte for byte. `node tools/econ-lab.mjs units` is the table. The paragraph below is the measurement that justified it. §3.4: prod-pop per force and upkeep
 per force are constant across all four types, and infantry ties naval for the best force per
 gold while costing no oil. Nothing except the die modifiers and the siege score distinguishes
 them. Since one assault unit is enough to avoid the armour penalty, the optimal army in open
 battle is: infantry, plus a token vehicle or two. The genuine tension is siege-versus-battle
 (§5) and it is currently the only one.
 
-**D5. Per-territory gold is a fiction for the player.**
+**D5. Per-territory gold is a fiction for the player.** **CLOSED, stage 4.2 — the pooling STAYS and the panels stopped implying otherwise.** The info panel's gold labels now say the treasury is pooled when buying units, and its construction-materials label says the opposite, because materials are never pooled at all; the Dominapedia's "Income and Upkeep" carries the rule in full. **BUILDINGS are the exception and are real**: a farm is paid for by the territory it stands on, out of that territory's own gold, and no transfer runs on that path — which is precisely the thing the panel used to leave a player to guess at.
 `checkForMinusAndTransferMoneyFromRichEnoughTerritories()` and its prod-pop twin move resources
 from the richest territories to the buying one, instantly, in unlimited quantity, at no cost and
 with no adjacency requirement. So the player's economy is one pooled treasury wearing 359 labels
@@ -369,7 +434,7 @@ with no adjacency requirement. So the player's economy is one pooled treasury we
 and E3. This is not necessarily wrong (it is a real convenience) but it should be a *decision*,
 and the UI presents the opposite.
 
-**D6. Nothing raises a development index, ever.** There is no write to `devIndex` anywhere in
+**D6. Nothing raises a development index, ever.** **CLOSED as a decision (Q3): it stays, and the player may never buy it.** There is no write to `devIndex` anywhere in
 the codebase. It is set once from `initialData.js` and read forever, in seven different rules
 including attacking strength. The Dominapedia already tells the player this outright
 (*"nothing raises a development index and nothing changes a continent"*). It is a defensible
@@ -377,7 +442,7 @@ design — development is something you conquer, not something you build — but
 economic verb the game offers is *expand*, which is the same shape as the over-extension problem
 named in the Design Notes.
 
-**D7. Construction materials are the real bottleneck and their ceiling is set by area alone.**
+**D7. Construction materials are the real bottleneck and their ceiling is set by area alone.** **CLOSED, stage 3.2, and it was the larger half of that stage.** `src/rules/economy/seeding.js` seeds the ceiling from population and development as well as area, with `MIN_CONS_MATS_CAPACITY` under it. Measured: the turns of a territory's own regeneration needed to fill its twenty upgrade slots fell from a spread of 1 – 203 to 1 – 40, median 108 to 19; Germany from 80 turns to 7, and Vatican City from 171 to 34, while China still needs one. `forestWorkAround` — the plaster in `aiCalculations.js` this item named — is deleted (stage 3.3), which is the test of whether the fix reached the AI.
 §3.5. Germany needs 80 turns of construction-material regeneration to fill one territory's
 upgrade slots; China needs one. Because the initial capacity is `f(area, devIndex, continent)`
 and the price ladder is `f(devIndex)`, a small developed country is locked out of its own
@@ -386,7 +451,7 @@ upgrade tree while a large one is not. The AI's `forestWorkAround` in
 in consMats is too much for the country when it has max consmats, so this helps it out"* — is a
 plaster over exactly this.
 
-**D8. There is no economic reason to hold ground you are not fighting from.** The continent
+**D8. There is no economic reason to hold ground you are not fighting from.** **DEFERRED again (Q6), and deliberately not folded into this phase.** The continent
 bonus is the one exception and it is all-or-nothing. Between "one territory" and "a whole
 continent" there is no shape at all, which is the same gap the archived continent-bonus plan
 named and the same one the over-extension counterweight is meant to close from the other side.
@@ -422,7 +487,7 @@ Listed because an overhaul is exactly when good mechanics get thrown out with ba
 Four stages. Each ends with the game playable, and stages 1 and 2 are separable from 3 and 4 so
 that a bug fix never lands inside a balance change — the register stays bisectable.
 
-### Stage 1 — Make the economy do what it says (E1–E7)
+### Stage 1 — Make the economy do what it says (E1–E7) — **DELIVERED**
 
 Pure defect work. **No balance number changes.** The expectation is that this alone moves the
 world measurably, because E1 and E2 have been silently taxing all 206 AI countries.
@@ -440,7 +505,7 @@ world measurably, because E1 and E2 have been silently taxing all 206 AI countri
 after, reported against the archived Goals and Victory §5 table. Expect the AI's fort counts and
 capacities to rise and its gold to fall.
 
-### Stage 2 — Make income respond to what a player does (D1) — **DECIDED**
+### Stage 2 — Make income respond to what a player does (D1) — **DECIDED, DELIVERED**
 
 Leigh's call: **split the floor out as an explicit named constant.** A `TERRITORY_BASE_INCOME`
 added after normalisation, with the normalisation window re-cut around zero so today's total
@@ -457,7 +522,7 @@ Rejected, and recorded because both will be proposed again: **lowering the floor
 one-territory start unplayable, and **replacing it entirely with earned income** takes the nudge
 too far — see Stage 3 for the principle that governs both.
 
-### Stage 3 — Nudge the small without taxing the large (D2, D3, D7) — **DECIDED, and not what this section first proposed**
+### Stage 3 — Nudge the small without taxing the large (D2, D3, D7) — **DECIDED, DELIVERED, and not what this section first proposed**
 
 The first draft of this stage proposed pricing every upgrade against the territory's own income,
 so that the payback period would be constant across the map. **That was rejected**, and the
@@ -492,7 +557,7 @@ So the lever moves from the PRICE to the BENEFIT:
   player cannot buy the thing at any price. Re-base the capacity against something other than
   area alone.
 
-### Stage 4 — Give unit choice an economic edge (D4) — **DECIDED**
+### Stage 4 — Give unit choice an economic edge (D4) — **DECIDED, DELIVERED**
 
 Wanted. Prod-pop per force and upkeep per force are identical across all four unit types today,
 so nothing but the die modifiers distinguishes them and infantry strictly dominates naval in
@@ -504,6 +569,20 @@ populous one field visibly different armies.
 **The constraint that decides it:** vehicles must stay 5–6× better per gold in a siege and worse
 in open battle. That split is the one genuine economic decision the military layer currently
 offers, and it is what makes oil matter at all.
+
+**What shipped, and why it is both candidates rather than one.** Prod-pop per unit of force is
+1.00 / 1.67 / 2.00 / 2.50 and upkeep per thousand force 0.050 / 0.080 / 0.100 / 0.150, infantry
+through naval. The population discount is the reading this section preferred — a vehicle is
+crewed rather than manned — and the upkeep rise is its counterweight, because a discount with no
+price attached is not a decision. **The constraint is met by construction and not by tuning**:
+the gold prices were not touched at all, so force per gold and siege value per gold are what they
+were, and `tests/unit/balance-unit-economics.spec.js` asserts them as RATIOS so that a later pass
+cannot undo the split without a red test.
+
+`armyProdPopPrices.infantry` was left at `INFANTRY_IN_A_TROOP` and is not a dial — the AI adds
+that many soldiers per purchase, so for infantry the constant is a troop size. Which is how
+**BR** was found: the player adds ONE soldier for the same money. Every force-per-gold figure in
+§3.4 is therefore the AI's rate, not the player's.
 
 ### Not in this phase — three decided and closed
 
@@ -563,6 +642,18 @@ criteria are measurements, not a playthrough.
 3. **`tests/e2e/resources-economy/`** — the area that already owns the continent bonus. A
    before/after on an upgrade's effect, and a spec asserting the AI's capacity actually rises,
    which today it does not.
+
+   Worth recording, because it is the shape to expect from any balance change: **the stage 3–4
+   full run failed six specs and every one of them was a spec pinning a number the stage had
+   deliberately moved** — five asserting an upgrade raises a ceiling by "exactly ten percent",
+   and one asserting a purchase's running total against a hard-coded copy of `armyProdPopPrices`
+   whose own comment had said, since Phase 5, that it should be an import. The copy is an import
+   now. **The sixth failure was hiding a real defect**: the buy window's running totals were
+   computed by parsing the formatted text back out of the DOM cells they had just been written
+   into, so `1,200` rendered as `"1.2k"` and read back as 1,000. It was invisible while every
+   population price was a round multiple of a thousand, and stage 4.1's assault price of 600
+   exposed it. That is the CLAUDE.md rule about never reading a label back to decide something,
+   collected with interest.
 4. **The Dominapedia is part of the deliverable, not documentation of it.** The manual quotes
    real numbers, and the War section had to be rewritten wholesale when the dice model shipped
    because it was confidently describing a deleted model. Any price or income change is a

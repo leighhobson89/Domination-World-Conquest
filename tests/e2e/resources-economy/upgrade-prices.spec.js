@@ -1,5 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 import { upgradePriceFor } from "../../../src/rules/economy/upgrades.js";
+import { upgradeFlatCapacityGain } from "../../../src/config/balance.js";
 
 // Upgrades, end to end: the price the player is SHOWN is the price the player is CHARGED, and
 // an upgrade the AI buys actually raises a ceiling.
@@ -156,7 +157,12 @@ test.describe("the price shown is the price charged", () => {
         await game.upgradeWindow.submit();
 
         const after = await game.territory("Germany");
-        expect(after.foodCapacity).toBeCloseTo(before.foodCapacity * 1.1, 4);
+        //Economy stage 3.1: the gain is ten per cent of the ceiling PLUS a flat term, and the
+        //flat term is what makes an upgrade worth buying at the bottom of the map. Imported
+        //rather than written out -- a balance number copied into a spec is a spec that asserts
+        //last month's game.
+        expect(after.foodCapacity).toBeCloseTo(
+            before.foodCapacity + (before.foodCapacity * 0.1) + upgradeFlatCapacityGain.food, 4);
         expect(after.oilCapacity).toBeCloseTo(before.oilCapacity, 6);
         expect(after.consMatsCapacity).toBeCloseTo(before.consMatsCapacity, 6);
     });

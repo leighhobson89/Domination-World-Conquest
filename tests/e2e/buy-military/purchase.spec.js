@@ -2,20 +2,23 @@ import { test, expect } from "../../support/fixtures.js";
 
 // Steppers, prices, and what confirming a purchase actually moves.
 //
-// Prices are COPIES of resourceCalculations.js's `armyGoldPrices`,
-// `armyProdPopPrices`, `oilRequirements` and `INFANTRY_IN_A_TROOP`, not imports:
-// that module calls `document.getElementById` at module-evaluation time, so it
-// cannot be loaded into a Node-side spec. They become a real import at refactor
-// Phase 5.1, when the numbers move into `config/balance.js`.
+// The four price tables were COPIES here until economy stage 4.1, because
+// `resourceCalculations.js` calls `document.getElementById` at module-evaluation
+// time and cannot be loaded into a Node-side spec. The comment they carried said
+// they would become a real import once the numbers moved into
+// `config/balance.js`, which refactor Phase 5 did -- and stage 4.1 is what
+// collected the debt: it changed `armyProdPopPrices` and the copy went on
+// asserting the old figures, so this spec failed while telling the truth about
+// nothing. They are imported now.
 //
 // docs/03-e2e-test-plan.md section 5.6.
 
-const armyGoldPrices = { infantry: 10, assault: 50, air: 100, naval: 200 };
-const armyProdPopPrices = { infantry: 1000, assault: 1000, air: 5000, naval: 20000 };
-const oilRequirements = { assault: 100, air: 300, naval: 1000 };
-
-/** One "infantry" row buys a troop of 1,000, not one soldier. */
-const INFANTRY_IN_A_TROOP = 1000;
+import {
+    INFANTRY_IN_A_TROOP,
+    armyGoldPrices,
+    armyProdPopPrices,
+    oilRequirements
+} from "../../../src/config/balance.js";
 
 test.describe("quantity steppers", () => {
     test("cycle the multiplier x1 -> x10 -> x100 -> x1k and wrap", async ({

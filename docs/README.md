@@ -11,9 +11,9 @@ the register (4) is the one to check first if you only read one.
 |---|---|---|
 | 1 | [Codebase Audit](./01-codebase-audit.md) | What is here, how it is put together, and everything that is wrong with it — every catalogued defect with file and line references, and the analysis behind each one |
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
-| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~420 specs, plus 884 unit tests, and **no `test.fixme` left** |
+| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Economy Audit](./05-economy-audit.md) | **Current work.** What the economy is, what of it reaches the military and the dice, the measured numbers, and the defects and design gaps in each |
+| 5 | [Economy Audit](./05-economy-audit.md) | **Delivered, all four stages.** What the economy is, what of it reaches the military and the dice, the measured numbers, and the defects and design gaps in each |
 | 6 | [Economy Checklist](./06-economy-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
@@ -112,40 +112,53 @@ underneath every goal. What is left of that item is the victory/defeat **screen*
 carries the outcome, the winner, the reason and the turn, and its only subscriber today is a
 `console.log`.
 
-**What is being worked on now.** [The Economy](./05-economy-audit.md). Continent Bonuses is
-delivered and archived, and the question it left behind is the one underneath it: does the
-economy give a player any reason to spend gold on anything but an army? The audit says mostly
-not, and it says so with numbers. **Every territory on the map earns 44.44 gold a turn for
-existing**, which is 65% of what a median territory earns in total — so on most of the 359
-territories, nothing the player does moves the income at all. The same farm pays for itself in
-under one turn in China and in 13,202 turns in Vatican City, at the same price, because the
-price is a function of the development index alone and the benefit is a function of population
-and area. And **the AI's economy upgrades have never worked**: `farmsBuilt` is incremented and
-the gold is taken, but no capacity is ever raised and no fort ever changes a defence bonus, so
-all 206 computer countries have been paying a quadratic price ladder for nothing. That last one
-is a defect and was measured first, on its own, because it changes what every AI country can
-afford and nothing else in the phase can be measured over the top of it.
+**What was worked on last.** [The Economy](./05-economy-audit.md), and **all four stages are
+delivered and measured**. Continent Bonuses had left the question underneath it: does the economy
+give a player any reason to spend gold on anything but an army? The audit said mostly not, and it
+said so with numbers. **Every territory on the map earns 44.44 gold a turn for existing**, which
+is 65% of what a median territory earns in total. The same farm paid for itself in under one turn
+in China and in 13,202 turns in Vatican City, at the same price. And **the AI's economy upgrades
+had never worked**: the gold was taken, no capacity was ever raised and no fort ever changed a
+defence bonus, so all 206 computer countries had been paying a quadratic price ladder for
+nothing.
 
-**Stage 1 is delivered, and it moved the world further than expected.** One price and one
-upgrade application now serve both the player and the AI; seven copies of two formulas are
-gone. Measured over 150 headless turns per goal, before and after: world food capacity rises in
-every run where before it never moved once across 1,487 upgrades. But with the AI paying full
-price for infantry and its six hundred forts finally taking dice off attackers, **the largest
-empire fell in four goals of five — Continental from 104 territories to 35 — and no continent
-is completed in a 150-turn game any more.** Two of the defects had been flattering the world.
-That is now the register's most consequential open item (**BO**): the continent bonus the
-previous phase shipped, measured and documented does not arrive in a played game.
+**Stages 1 and 2 were the defect half, and they moved the world further than expected.** One
+price and one upgrade application serve both the player and the AI; seven copies of two formulas
+are gone; the 44.44 floor is a named constant that moves no money. Measured over 150 headless
+turns per goal: world food capacity rose in every run where before it never moved once across
+1,487 upgrades. But with the AI paying full price for infantry and its six hundred forts finally
+taking dice off attackers, **the largest empire fell in four goals of five — Continental from 104
+territories to 35 — and no continent was completed in a 150-turn game at all.** Two of the
+defects had been flattering the world.
+
+**Stages 3 and 4 were the tuning half, and they moved it back further still.** Stage 3 put a FLAT
+term alongside every upgrade's ten per cent and re-based the construction-materials ceiling — the
+one that decides who may upgrade at all — on population as well as land; Stage 4 gave the four
+unit types different economics for the first time, in manpower and upkeep, leaving the gold
+prices alone so that the siege-versus-battle split survives untouched. Measured the same way:
+mean surviving countries 87 → **58**, mean largest empire 52 → **110**, and **six continents are
+now held outright across the five runs where none were held in any of them** — including Oceania,
+65 islands and the hardest continent on the map. **BO is not closed**, because two goals of five
+still finish nothing, but the mechanic the continent-bonus phase built is reachable again.
+
+Both halves are tabled in [the checklist](./06-economy-checklist.md), and **the measurement is
+the deliverable — the diff is not.**
 
 The six design questions the audit raised are answered and recorded in its §7. The one that
 shaped the plan most: **being large must stay good.** The obvious fix for an upgrade that pays
 back in one turn in China and 13,202 in Vatican City is to price it against the territory's own
 income — and that was turned down, because conquering a big rich territory is supposed to be
-visibly better than conquering a small one. The lever moves to the benefit side instead: small
-territories get a nudge so that developing them is a real but hard decision, and the large are
-not taxed to pay for it.
+visibly better than conquering a small one. The lever moved to the benefit side instead, and the
+measurement holds it there: the payback spread closed from 4.5 orders of magnitude to 3.2, and
+China's farm is still worth fourteen times Vatican City's in absolute gold.
 
 **Still outstanding after it**, in rough order:
 
+0. **Somebody has to play the world the economy phase produced.** A largest empire of 133
+   territories out of 359 at turn 150 is a different game from one of 59, and the movement came
+   from four stages that were each individually justified. If it needs pulling back, the dial is
+   in the attack model and not in the economy: `DICE_ATTACK_ADVANTAGE` owns open battle and
+   `ATTACK_ADVANTAGE` owns sieges, and CLAUDE.md records why there may never be a third.
 1. **The victory and defeat screen.** The game decides itself correctly; it just tells the
    console rather than the player. One new subscriber to `GAME_OVER`.
 2. **The over-extension counterweight.** A cost for scattered land, paired with the bonus for

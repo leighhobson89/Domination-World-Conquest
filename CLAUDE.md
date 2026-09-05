@@ -26,12 +26,15 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   same change that closes it** — never struck through and left, and never batched up for a
   tidy-up later. Ids are permanent and survive the move, because source comments cite them.
   This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-economy-audit.md](./docs/05-economy-audit.md) — **the current phase.** What the
-  economy is, which five places it actually reaches the military and the dice, the measured
-  numbers behind every claim, and the split between defects (**E1–E7**, the economy not doing
-  what the code says) and design (**D1–D8**, the economy doing exactly what it says and
-  producing no decision). §5 is the list of what is RIGHT and must survive the phase. Its task
-  breakdown is [docs/06-economy-checklist.md](./docs/06-economy-checklist.md).
+- [docs/05-economy-audit.md](./docs/05-economy-audit.md) — **the most recent phase, all four
+  stages delivered.** What the economy is, which five places it actually reaches the military and
+  the dice, the measured numbers behind every claim, and the split between defects (**E1–E7**,
+  the economy not doing what the code says) and design (**D1–D8**, the economy doing exactly what
+  it says and producing no decision). §5 is the list of what is RIGHT and had to survive the
+  phase; it still is. Its task breakdown is
+  [docs/06-economy-checklist.md](./docs/06-economy-checklist.md), which carries **two** before/
+  after measurements — one for the defect half (stages 1–2) and one for the tuning half
+  (stages 3–4) — and those measurements are the deliverable, not the diff.
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
@@ -56,9 +59,9 @@ the control run, and the reason a slow economic mechanic cannot be judged by pla
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 81 errors, 290 warnings)
+npm run lint           # ESLint (baseline: 73 errors, 270 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 884 tests, ~1.5s
+npm run test:unit      # Vitest, 980 tests, ~1.7s
 npm run test:e2e       # Playwright, ~420 tests, 4 workers headless, ~7-14 min
 node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
 node tests/run-e2e.mjs turn-loop         # one area
@@ -68,7 +71,9 @@ node tools/econ-lab.mjs                  # the economy, measured: income spread 
                                          # 44.44 gold floor, the quadratic upgrade ladder and
                                          # what a farm pays back, unit value per gold, and the
                                          # cons-mats bottleneck. Takes a section name to narrow
-                                         # it: income | upgrades | units | consmats
+                                         # it: income | upgrades | units | consmats | bonus.
+                                         # It IMPORTS the rules it measures -- never re-copy a
+                                         # formula into it (see the seeding gotcha below)
 npm run build:data     # regenerate adjacency.json + pathAreas.json + music/tracks.json
 npm run build:music    # just the music folder listing (Vite also does it on start/build)
 ```
@@ -143,6 +148,58 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   **`nth` is the number STANDING AFTER the purchase**, which is what every correct copy meant.
   And **the capacity gain is +10% of the ceiling BEFORE the transaction, per unit, never
   compounded** (audit 5.1 A, a catastrophic bug once already).
+- **AN UPGRADE'S GAIN HAS TWO TERMS, AND THE FLAT ONE IS THE WHOLE OF ECONOMY STAGE 3.**
+  `applyUpgrade()` adds `((ceiling · 0.10) + flat) · bought`, with neither half compounded.
+  `upgradeFlatCapacityGain` in `balance.js` is **one number per CEILING** — food 100,000,
+  cons-mats 500, oil 200 — because the three are in three different units and one constant
+  across them would be three unrelated balance decisions wearing one name. The oil figure is
+  the legible one and a unit test pins the identity: `oil × maxOilWells` is exactly
+  `oilRequirements.naval`, so **five oil wells fuel one warship anywhere on the map**. Why a
+  flat term at all: ten per cent of a ceiling is eighty people on Vatican City and a fortune on
+  China, so the same upgrade at the same price paid back in under a turn in one place and in
+  **13,202 turns** in another. **The lever is the BENEFIT and never the PRICE**, and that is a
+  decision, not an oversight — pricing each upgrade against the territory's own income closes
+  the same gap by taxing the large, and Leigh turned it down: *"larger territories should not be
+  penalised for their size … but smaller countries get a little nudge so that they are not just
+  a total waste of time."* Anyone who reads the payback table without that sentence will propose
+  it again. Measured, `node tools/econ-lab.mjs upgrades`: the first farm's payback across the
+  map went from `0.8 / 14.1 / 472.5 / 3,780` to `0.1 / 11.9 / 60.6 / 202.5` and **must not go to
+  zero** — China's farm is still worth fourteen times Vatican City's in absolute gold.
+- **CONSTRUCTION-MATERIALS CAPACITY DECIDES WHO MAY UPGRADE AT ALL, and it is a RULE now.**
+  `src/rules/economy/seeding.js` — pure, Node-runnable — holds `initialOilCapacityFor()` and
+  `initialConsMatsCapacityFor()`; `resourceCalculations.js` calls them and **`tools/econ-lab.mjs`
+  IMPORTS them** rather than carrying the copy it used to, because a measuring instrument holding
+  its own copy of the thing it measures will eventually measure the copy. Materials buy upgrades
+  and nothing else, and the ceiling was `f(area)` almost entirely: Germany needed **eighty turns**
+  of its own regeneration to fill one territory's twenty slots and China needed **one** (audit
+  D7). It takes a population term now (`sqrt(pop/1000) · devIndex · CONS_MATS_POPULATION_SCALE`)
+  and a floor (`MIN_CONS_MATS_CAPACITY`, 2,500, which replaced a bare inline 500). **The square
+  root is what makes it a nudge and not a subsidy** — Germany ×12, China ×1.7 — and every ceiling
+  on the map went UP, so nothing was taken from the large to pay the small. `forestWorkAround` in
+  `aiCalculations.js` was the plaster over this and is deleted; if it ever has to come back, D7 is
+  not fixed. **Oil is deliberately NOT re-based**: oil is a thing the ground has or has not, and
+  the small territory's nudge arrives through the oil well instead.
+- **THE FOUR UNIT TYPES ARE ECONOMICALLY DIFFERENT, AND THE DIALS ARE PROD-POP AND UPKEEP —
+  NEVER GOLD.** Until economy stage 4.1 every type cost exactly 1.00 productive population per
+  unit of force and exactly 0.050 gold of upkeep per thousand force, so nothing but the die
+  modifiers and the siege score told a rifleman from a battleship and **infantry strictly
+  dominated naval in open battle**. It is 1.00 / 1.67 / 2.00 / 2.50 force per person and
+  0.050 / 0.080 / 0.100 / 0.150 upkeep per thousand force now: a vehicle is crewed rather than
+  manned, and pays for it every turn. **The gold prices were left alone on purpose**, and that is
+  what preserves the one economic decision the military layer already had — vehicles 5–6× better
+  per gold in a SIEGE and no better than infantry in the OPEN, with oil pricing the split.
+  `tests/unit/balance-unit-economics.spec.js` asserts both as RATIOS rather than numbers, so a
+  later tuning pass cannot quietly undo them. **`armyProdPopPrices.infantry` is not a dial**: it
+  is `INFANTRY_IN_A_TROOP`, and `bolsterArmy()` adds that many soldiers per purchase.
+- **THE PLAYER'S TREASURY IS POOLED FOR UNITS AND NOT FOR BUILDINGS**, and the two halves are
+  reached by different code. Buying units runs
+  `checkForMinusAndTransferMoneyFromRichEnoughTerritories()` and its prod-pop twin, so a
+  conquest anywhere funds a war anywhere — deliberate, and audit D5 keeps it. Buying a farm does
+  NOT: `addPlayerUpgrades()` debits the territory alone and `calculateAvailableUpgrades()` gates
+  the plus button on that territory's own gold. So a per-territory gold figure is half fiction
+  and half load-bearing, which is worse than either — the info panel's labels and the
+  Dominapedia now say which is which, and that (stage 4.2) is the whole of what D5 left.
+  Construction materials are never pooled at all.
 - **`upgradeOrderPriceFor()` charges an order at the LAST one in it, and that is preserved on
   purpose.** Five farms in one transaction cost `price(5)`; five bought one a turn cost
   `price(1) + … + price(5)`, about 2.2× more — so bulk buying is cheap and the AI, which buys
@@ -155,6 +212,14 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   150-turn game any more** — so the continent bonus the previous phase shipped does not arrive.
   Two defects had been flattering the world. `tools/ai-sim.mjs`'s `upg` / `forts` / `gold` /
   `foodCap` columns exist to catch exactly this, and known-issue **BO** is the open item.
+  **Stages 3 and 4 then moved it back the other way, further and in one step**: mean surviving
+  countries 87 → 58, mean largest empire 52 → 110, and six continents held outright across the
+  five runs where none were held in any of them. Both movements are larger than either stage
+  predicted, in opposite directions, and neither was a defect — which is the actual lesson. **A
+  balance change in this game is not judged by reading the diff.** Same invocation both times:
+  `tools/ai-sim.mjs --turns=150 --seed=goals --every=25 --goal=KIND`, five goals, tabled in the
+  checklist. If the world now consolidates too much, the dial is `DICE_ATTACK_ADVANTAGE` or
+  `ATTACK_ADVANTAGE` and never a third one — see the two-attack-dials note below.
 - **A continent held whole pays, and the payment is DERIVED.** `src/state/continents.js` is
   the pure walk — `continentControl()`, `holdsContinentOutright()`, `continentsHeldOutrightBy()`
   — and it imports nothing at all, so it runs in Node and takes its territories as an argument.

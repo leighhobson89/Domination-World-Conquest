@@ -89,8 +89,6 @@ import {
     maxForts,
     continentModifiers,
     startingGoldContinentModifiers,
-    startingOilContinentModifiers,
-    startingConsMatsContinentModifiers,
     population as populationBalance,
     territoryStrengthScales,
     startingArmy,
@@ -132,6 +130,12 @@ import {
     upgradeOrderPriceFor,
     upgradePriceFor
 } from './src/rules/economy/upgrades.js';
+//Economy stage 3.2. The two commodity seeds are a rule now, not an inline formula in this
+//file -- `tools/econ-lab.mjs` imports the same function rather than copying it.
+import {
+    initialConsMatsCapacityFor,
+    initialOilCapacityFor
+} from './src/rules/economy/seeding.js';
 import {
     continentCapacityBonusFor,
     continentGoldBonusFor,
@@ -542,9 +546,24 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
             let armyAdjustmentTest = calculateGoldChange(adjustmentArray, true, true);
             armyAdjustmentTest -= initialArmyAdjustmentCost(armyForCurrentTerritory);
             // console.log(armyForCurrentTerritory + ", " + armyAdjustmentTest);
-            let oilForCurrentTerritory = initialOilCalculation(matchingCountry, area);
+            //Economy stage 3.2. The arithmetic moved to `src/rules/economy/seeding.js`, which
+            //is pure and runs in Node -- `tools/econ-lab.mjs` used to carry its own copy of it
+            //because this file imports the UI, and a measuring instrument holding a copy of the
+            //thing it measures will eventually measure the copy.
+            //
+            //The cons-mats seed now takes the territory's POPULATION as well as its area, and
+            //carries its own floor (`MIN_CONS_MATS_CAPACITY`, which replaced the bare 500 that
+            //used to sit here). That is audit D7: construction materials buy upgrades and
+            //nothing else, so a ceiling set by area alone decided who was allowed into the
+            //upgrade tree at all -- Germany needed eighty turns of regeneration to fill one
+            //territory's slots and China needed one.
+            const territorySeed = {
+                area: area, devIndex: dev_index, continent: continent,
+                population: territoryPopulation
+            };
+            let oilForCurrentTerritory = initialOilCapacityFor(territorySeed);
             let oilCapacity = oilForCurrentTerritory;
-            let consMatsForCurrentTerritory = Math.max(initialConsMatsCalculation(matchingCountry, area), 500);
+            let consMatsForCurrentTerritory = initialConsMatsCapacityFor(territorySeed);
             let consMatsCapacity = consMatsForCurrentTerritory;
             let farmsBuilt = 0;
             let oilWellsBuilt = 0;
@@ -1356,35 +1375,6 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     }
 }
 
-/**
- * The starting stock and capacity of one of the two area-driven commodities.
- *
- * audit E7. `initialOilCalculation()` and `initialConsMatsCalculation()` were two copies of
- * this arithmetic differing only in their continent table, and both tables were written inline
- * as an if-chain. They are in `balance.js` now and there is one function.
- *
- * The shape is worth reading, because audit D7 turns on it: `term2` and `term3` are both
- * `sqrt(area)`, and `term1` is `area^1.5` scaled by how far the continent modifier is from 1.
- * AREA dominates all three. That is why a small developed country's construction-materials
- * ceiling is low however developed it is, and why no change to an upgrade's PRICE can reach it.
- */
-function initialStockForArea(country, area, continentModifiers) {
-    const developmentIndex = parseFloat(country.dev_index);
-    const continentModifier = continentModifiers[country.continent];
-
-    const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
-    const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
-    const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
-    return term1 + term2 + term3;
-}
-
-function initialOilCalculation(path, area) {
-    return initialStockForArea(path, area, startingOilContinentModifiers);
-}
-
-function initialConsMatsCalculation(path, area) {
-    return initialStockForArea(path, area, startingConsMatsContinentModifiers);
-}
 
 /**
  * Fill the info panel with one of its four tabs.
@@ -2921,32 +2911,46 @@ function calculateTotalGoldPrice(upgradeTable) {
     return totalGold;
 }
 
-function calculateTotalPurchaseGoldPrice(buyTable) {
-    let totalGold = 0;
-    const goldElements = buyTable.querySelectorAll(".buy-column:nth-child(4)");
-    goldElements.forEach((goldElement) => {
-        const goldCost = parseInt(goldElement.textContent) || 0;
-        totalGold += goldCost;
+/**
+ * The buy window's two running totals, from the QUANTITIES and the price table.
+ *
+ * Both used to be read back out of the DOM cells they had just been written into -- the gold one
+ * with `parseInt(cell.textContent)`, the population one with a hand-written "k"/"M" un-formatter
+ * over `formatNumbersToKMB()`'s output. That is a question about game rules answered by parsing
+ * the screen, which CLAUDE.md already forbids for the battle bar's buttons and for the stepper
+ * images, and it failed here in exactly the way that pattern always fails.
+ *
+ * **It was invisible while every population price was a round multiple of a thousand.** Economy
+ * stage 4.1 set assault to 600, so two of them is 1,200, which the cell renders as `"1.2k"`,
+ * which `parseInt` reads as 1 and the un-formatter multiplies back up to **1,000**. The running
+ * total under-reported by 200 people, and `checkPurchaseRowsForGreyingOut()` gates the plus
+ * button on that figure -- so the window would have let a player commit to an army it could not
+ * quite crew. The CONFIRMED purchase was always right, because `addPlayerPurchases()` works from
+ * the quantities, which is why `buy-military/purchase.spec.js`'s deduction test passed while its
+ * running-totals test failed.
+ *
+ * The row order is the one `calculateAvailablePurchases()` emits.
+ */
+const BUY_ROW_TYPES = ["infantry", "assault", "air", "naval"];
+
+function buyRowQuantities(buyTable) {
+    const rows = buyTable.getElementsByClassName(classNames.buyRow);
+    return BUY_ROW_TYPES.map((type, index) => {
+        const field = rows[index]
+            ? rows[index].querySelector(`.${classNames.buyQuantity} input`)
+            : null;
+        return { type: type, quantity: parseInt(field && field.value) || 0 };
     });
-    return totalGold;
+}
+
+function calculateTotalPurchaseGoldPrice(buyTable) {
+    return buyRowQuantities(buyTable).reduce(
+        (total, row) => total + (row.quantity * armyGoldPrices[row.type]), 0);
 }
 
 function calculateTotalPopulationCost(buyTable) {
-    let totalProdPop = 0;
-    const prodPopElements = buyTable.querySelectorAll(".buy-column:nth-child(5)");
-    prodPopElements.forEach((prodPopElement) => {
-        const prodPopText = prodPopElement.textContent.trim();
-        let prodPopCost = parseInt(prodPopText) || 0;
-
-        if (prodPopText.endsWith("k")) {
-            prodPopCost *= 1000;
-        } else if (prodPopText.endsWith("M")) {
-            prodPopCost *= 1000000;
-        }
-
-        totalProdPop += prodPopCost;
-    });
-    return totalProdPop;
+    return buyRowQuantities(buyTable).reduce(
+        (total, row) => total + (row.quantity * armyProdPopPrices[row.type]), 0);
 }
 
 

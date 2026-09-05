@@ -951,14 +951,19 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         oilWell: {}
     };
 
-    let forestWorkAround = false; // sometimes the cost of a forest upgrade in consMats is too much for the country when it has max consmats, so this helps it out to allow it to reach max forests and reach its potential
+    //Economy stage 3.3: `forestWorkAround` stood here. It let a territory at its cons-mats
+    //ceiling spend its whole stock on one forest, because the quadratic price of a fourth or
+    //fifth forest exceeded everything a small country could ever hold -- a plaster over audit
+    //D7, and its own comment said so. D7 is fixed at the source in stage 3.2 (the cons-mats
+    //ceiling answers to population and has a floor under it), so the plaster comes off in the
+    //same change. If it ever has to go back, D7 is not fixed.
 
     if (farm.goldCost > goldToSpend && forest.goldCost > goldToSpend && oilWell.goldCost > goldToSpend) {
         couldNotAffordEconomy = true;
     }
     console.log("GOLD cost: Farm: " + farm.goldCost + " Forest: " + forest.goldCost + " OilWell: " + oilWell.goldCost);
     console.log("CONSMATS cost: Farm: " + farm.consMatsCost + " Forest: " + forest.consMatsCost + " OilWell: " + oilWell.consMatsCost);
-    while (!forestWorkAround && buildAgain && (farm.goldCost <= goldToSpend && farm.consMatsCost < consMatsToSpend) || (forest.goldCost <= goldToSpend && forest.consMatsCost < consMatsToSpend) || (oilWell.goldCost <= goldToSpend && oilWell.consMatsCost < consMatsToSpend)) {
+    while (buildAgain && (farm.goldCost <= goldToSpend && farm.consMatsCost < consMatsToSpend) || (forest.goldCost <= goldToSpend && forest.consMatsCost < consMatsToSpend) || (oilWell.goldCost <= goldToSpend && oilWell.consMatsCost < consMatsToSpend)) {
         let farm = availableUpgrades[0];
         let forest = availableUpgrades[1];
         let oilWell = availableUpgrades[2];
@@ -1025,11 +1030,6 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 selectedUpgrade = farm;
             } else if (largestDesire[0] === "forest") {
                 selectedUpgrade = forest;
-                if (effectiveConsMatsCap <= territory.consMatsForCurrentTerritory && consMatsToSpend < availableUpgrades[0].consMatsCost) {
-                    consMatsToSpend = territory.consMatsForCurrentTerritory; //work around to help blockage of consmats for AIs
-                    forestWorkAround = true;
-                    console.log("boosted consMats spending to get a forest!  This one will be the " + (territory.forestsBuilt + 1) + "th!");
-                }
             } else if (largestDesire[0] === "oilWell") {
                 selectedUpgrade = oilWell;
             }

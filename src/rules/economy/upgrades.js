@@ -27,7 +27,8 @@ import {
     maxForts,
     maxOilWells,
     territoryUpgradeBaseCostsConsMats,
-    territoryUpgradeBaseCostsGold
+    territoryUpgradeBaseCostsGold,
+    upgradeFlatCapacityGain
 } from "../../config/balance.js";
 import { defenseBonusFor } from "./capacity.js";
 
@@ -44,27 +45,40 @@ import { defenseBonusFor } from "./capacity.js";
  */
 export const UPGRADES = Object.freeze({
     farm: Object.freeze({
-        built: "farmsBuilt", capacity: "foodCapacity", max: maxFarms, consMatsExponentScale: 1.1
+        built: "farmsBuilt", capacity: "foodCapacity", resource: "food",
+        max: maxFarms, consMatsExponentScale: 1.1
     }),
     forest: Object.freeze({
-        built: "forestsBuilt", capacity: "consMatsCapacity", max: maxForests, consMatsExponentScale: 1.05
+        built: "forestsBuilt", capacity: "consMatsCapacity", resource: "consMats",
+        max: maxForests, consMatsExponentScale: 1.05
     }),
     oilWell: Object.freeze({
-        built: "oilWellsBuilt", capacity: "oilCapacity", max: maxOilWells, consMatsExponentScale: 1.05
+        built: "oilWellsBuilt", capacity: "oilCapacity", resource: "oil",
+        max: maxOilWells, consMatsExponentScale: 1.05
     }),
     //A fort raises no capacity. It is the one upgrade with a direct combat effect, and it is
     //applied as a recomputation of `defenseBonus` rather than as a delta -- there is one
     //defence formula (`defenseBonusFor()`), and known-issue AQ is what a second copy costs.
     fort: Object.freeze({
-        built: "fortsBuilt", capacity: null, max: maxForts, consMatsExponentScale: 1.05
+        built: "fortsBuilt", capacity: null, resource: null,
+        max: maxForts, consMatsExponentScale: 1.05
     })
 });
 
 /** The four kinds, in the order the upgrade table renders them. */
 export const UPGRADE_KINDS = Object.freeze(["farm", "forest", "oilWell", "fort"]);
 
-/** How much one upgrade raises the ceiling it acts on. */
+/** How much one upgrade raises the ceiling it acts on, as a fraction of that ceiling. */
 export const CAPACITY_GAIN_PER_UPGRADE = 0.10;
+
+/**
+ * The FLAT half of that gain -- economy stage 3.1, and the whole of stage 3's lever.
+ *
+ * Re-exported here rather than imported at the call site so that "what an upgrade does" has one
+ * address, the way "what an upgrade costs" does. The number itself, and the reason it is a flat
+ * term and not a re-priced ladder, are on `upgradeFlatCapacityGain` in `config/balance.js`.
+ */
+export const FLAT_CAPACITY_GAIN_PER_UPGRADE = upgradeFlatCapacityGain;
 
 /**
  * What the Nth of a kind costs on its own.
@@ -173,7 +187,20 @@ export function applyUpgrade(territory, kind, count) {
 
     if (spec.capacity) {
         const before = Number(territory[spec.capacity]) || 0;
-        patch[spec.capacity] = before + (before * CAPACITY_GAIN_PER_UPGRADE * bought);
+        //Economy stage 3.1. Two terms, and the second is why: a PERCENTAGE alone made the same
+        //upgrade pay back in under a turn on China and in thirteen thousand on Vatican City,
+        //because ten per cent of a ceiling of 801 is eighty people. The flat term is the whole
+        //of the gain at the bottom of the map and a rounding error at the top, so the small are
+        //nudged and the large are not taxed to pay for it -- which is the principle the stage
+        //was decided on, and the reason the obvious fix (price the upgrade against the
+        //territory's income) was turned down. See `upgradeFlatCapacityGain` in `balance.js`.
+        //
+        //Both halves are multiplied by `bought` and NEITHER is compounded: the percentage is of
+        //the ceiling as it stood BEFORE the transaction (audit 5.1 A, a catastrophic bug once
+        //already), and the flat term is per unit bought.
+        const flat = FLAT_CAPACITY_GAIN_PER_UPGRADE[spec.resource] || 0;
+        patch[spec.capacity] =
+            before + ((before * CAPACITY_GAIN_PER_UPGRADE) + flat) * bought;
         return patch;
     }
 

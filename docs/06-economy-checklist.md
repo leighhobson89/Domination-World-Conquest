@@ -3,16 +3,17 @@
 The task breakdown for [05-economy-audit.md](./05-economy-audit.md). Breathing document: ticked
 as work lands, and each item records what was *measured* rather than what was intended.
 
-**Stages 0, 1 and 2 are done and measured.** The before/after over five goals and 150 turns
-each is at the end of this document, and it is the deliverable — the diff is not. Read that
-section before starting Stage 2, because it turned up something the plan did not predict: no
-continent is completed in any run any more, so the continent bonus is currently unreachable.
+**All four stages are done and measured.** There are two before/after measurements at the end of
+this document — one for Stage 1 and one for Stages 3 and 4 — and they are the deliverable; the
+diff is not.
 
 **Stage 2 shipped with Stage 1 as one phase**, which was Leigh's call: the defect work changes
 what all 206 AI countries can afford, and the income floor is the direct answer to "no reason to
-upgrade", so they belong in front of him together. **Stages 3 and 4 wait until he has played
-it** — they are tuning, and tuning over a world that has just moved this far would be measuring
-the wrong thing.
+upgrade", so they belonged in front of him together. **Stages 3 and 4 then shipped as the second
+phase**, and they are tuning: Stage 3 moves the BENEFIT of an upgrade (never the price) and
+re-bases the construction-materials ceiling that decides who may upgrade at all; Stage 4 gives
+the four unit types different economics for the first time. Between them they answer the last
+six **D** items.
 
 House rules that apply to every item here:
 
@@ -221,15 +222,17 @@ the median territory's income, and it is why upgrading a small territory changes
       spend them. Only visible once BK was fixed. It is a design decision and belongs with the
       besieged-income item, not here.
 
-### Stages 1 + 2 exit — hand back to Leigh here
+### Stages 1 + 2 exit — handed back, and played
 
-- [ ] `npm run test:unit` green, three e2e areas green.
-- [ ] `ai-sim` 150 turns per goal against the §0.2 control, tabled in this document.
-- [ ] `econ-lab income` before/after showing the floor is now a named term and the totals did
-      not move.
-- [ ] Change set described for Leigh to commit, in the three groups named at the Stage 1 gate.
-- [ ] **Leigh plays it.** Stages 3 and 4 are tuning and are not started until he has — that is
-      the whole reason the phase splits here.
+- [x] `npm run test:unit` green, three e2e areas green.
+- [x] `ai-sim` 150 turns per goal against the §0.2 control, tabled in this document.
+- [x] `econ-lab income` before/after showing the floor is now a named term and the totals did
+      not move — min 44.5, p25 50.5, median 68.5, p75 131.2, max 3,500.8, identical to the
+      control.
+- [x] Change set described for Leigh to commit, in the three groups named at the Stage 1 gate.
+- [x] **Leigh played it**, and Stages 3 and 4 were started on his instruction. That is the whole
+      reason the phase split here, and the split did its job: the Stage 1 measurement is a clean
+      before for what follows, because no tuning number moved inside it.
 
 ---
 
@@ -247,25 +250,56 @@ principle that replaced it, in Leigh's words:
 that a small territory's upgrade stops being a rounding error while a large territory's stays
 worth having. Do not re-propose income-scaled pricing without reading audit §6 Stage 3 first.
 
-- [ ] **3.1** An upgrade grants a FLAT component alongside its 10%. On the smallest territories
-      the flat part is the whole of it; on China the percentage swamps it; neither is penalised.
-      One term, in `applyUpgrade()`, doing the whole job — and it is the same term as Stage 2's
-      `TERRITORY_BASE_INCOME` rather than a second one beside it.
-- [ ] **3.1a** The price ladder KEEPS its shape: quadratic in `n`, scaled by `devIndex`. Audit
-      D3 (developed territories pay more) stands as an observation and is deliberately not
-      acted on — it is small, and it is not what makes the payback spread four orders of
-      magnitude.
-- [ ] **3.2** **D7** — re-base `consMatsCapacity`. It is `f(area)` almost entirely, so Germany
-      needs 80 turns of regeneration to fill one territory's upgrade slots and China needs one.
-      Either it scales with something other than area, or the price does. Doing neither leaves
-      the Stage 3 price change academic for exactly the countries it is meant to help.
-- [ ] **3.3** Delete `forestWorkAround` in `aiCalculations.js`. It exists solely to paper over
-      D7 and should not survive the fix — if it still has to, D7 is not fixed.
-- [ ] **3.4** `econ-lab upgrades` across the whole map. The spread should collapse from four
-      orders of magnitude to roughly one — **not to zero.** A flat curve would mean size had
-      stopped paying, which is the thing this stage exists to avoid.
-- [ ] **3.5** `ai-sim` 150 turns per goal again. A price change that makes upgrades affordable
-      everywhere is a change to what every AI country can do with its turn.
+- [x] **3.1** An upgrade grants a FLAT component alongside its 10%, and it is one term in
+      `applyUpgrade()` doing the whole job: `before + ((before * 0.10) + flat) * bought`, with
+      neither half compounded. `upgradeFlatCapacityGain` in `balance.js` is **one number per
+      CEILING** — food 100,000, cons-mats 500, oil 200 — because the three ceilings are in three
+      different units and a single constant across them would be three unrelated balance
+      decisions wearing one name. The oil figure is the legible one: `oil × maxOilWells` is
+      exactly `oilRequirements.naval`, so **five oil wells fuel one warship anywhere on the map**,
+      and a unit test pins that identity. Measured: the first farm's payback across the whole map
+      went from `min 0.8 / median 14.1 / p95 472.5 / max 3,780` to
+      `min 0.1 / median 11.9 / p95 60.6 / max 202.5` — Vatican City from 1,290 turns to 2, Fiji
+      from 52 to 25, China unchanged at under one. **China's farm is still worth fourteen times
+      Vatican City's in absolute gold**, which is the whole of the principle.
+- [x] **3.1a** The price ladder KEEPS its shape: quadratic in `n`, scaled by `devIndex`. Audit
+      D3 stands as an observation and is deliberately not acted on. **E8 survives with it**, and
+      Stage 3 made E8 more reachable rather than less — 3.2 removed the cons-mats bottleneck that
+      used to make a five-in-one-transaction order rare, so the 2.2× bulk discount is now
+      available on most of the map and it is a PLAYER discount, because the AI still buys one at
+      a time. That is recorded on the register entry rather than fixed here: correcting an order
+      price is a balance change of its own and wants its own measurement.
+- [x] **3.2** **D7** — `consMatsCapacity` is re-based, and this was the larger half of the stage.
+      The arithmetic moved out of `resourceCalculations.js` into a new pure
+      `src/rules/economy/seeding.js`, which `tools/econ-lab.mjs` now IMPORTS rather than copying —
+      the harness had carried its own copy of the seed, and a measuring instrument holding a copy
+      of the thing it measures will eventually measure the copy. Two terms were added and they
+      are different in kind: a POPULATION term (`sqrt(population/1000) × devIndex ×
+      CONS_MATS_POPULATION_SCALE`), because materials are made by people and industry rather than
+      by land, and a FLOOR (`MIN_CONS_MATS_CAPACITY`, 2,500, replacing a bare inline 500) for the
+      territories that have neither land nor people. The square root is what makes it a nudge and
+      not a subsidy: Germany ×12, China ×1.7. Measured, turns of a territory's own regeneration
+      to fill its twenty upgrade slots: whole map `1 / 108 / 193 / 203` became `1 / 19 / 36 / 40`,
+      Germany 80 → 7, Vatican City 171 → 34, **China still 1**. Every ceiling on the map went UP;
+      nothing was taken from the large to pay the small.
+- [x] **3.3** `forestWorkAround` is deleted, and it is the test of whether 3.2 reached the AI
+      rather than only the player. It let a territory at its cons-mats ceiling spend its entire
+      stock on one forest, and its own comment said what it was for. Deleting it also removed the
+      `!forestWorkAround &&` term from the build loop's condition, which was its only exit.
+- [x] **3.4** `econ-lab upgrades` across the whole map, and the honest reading of it: **between
+      the 25th and 95th percentiles the spread is about one order of magnitude (4.6 to 60.6
+      turns), which was the target; min to max it is 3.2 orders rather than the 4.5 it was.** It
+      is deliberately not zero. The two ends are worth naming. The `min 0.1` end is China and the
+      United States paying for a farm in a tenth of a turn — that is size paying, and it is the
+      thing the stage exists to protect. The `max 202` end is **Chad, which is not small but
+      POOR**: 17 million people over 1.28 million km² at development 0.394, earning 54.6 gold
+      against a floor of 44.44. Its payback is long because its INCOME barely responds to
+      population at all, which is D1 and not D2, and no change to an upgrade's benefit can reach
+      it. That is the one thing this stage found that it could not fix.
+- [x] **3.5** `ai-sim` 150 turns per goal, tabled at the end of this document alongside Stage 4 —
+      the two shipped together and are measured together, because both change what every AI
+      country can do with its turn and neither can be attributed afterwards if run separately.
+      Every run played all 150 turns with zero page errors.
 
 ---
 
@@ -274,16 +308,72 @@ worth having. Do not re-propose income-scaled pricing without reading audit §6 
 **Decided (audit Q3–Q6).** Only one item survives; the other three closed as design decisions
 and are recorded at the end of this section so they are not re-opened by accident.
 
-- [ ] **4.1** **D4** — differentiate the unit types economically. Prod-pop per force and upkeep
-      per force are both exactly constant across all four types today, so nothing but the die
-      modifiers distinguishes them and infantry strictly dominates naval in open battle.
-      **Whatever is changed must preserve the siege-versus-battle tension** — vehicles 5–6×
-      better per gold in a siege, worse in open battle — which is the one genuine economic
-      decision the military layer currently offers.
-- [ ] **4.2** **D5 follow-up, the only work left from a closed decision.** The pooled treasury
-      STAYS — it is deliberate, so that conquering a rich country funds a war on the other side
-      of the map. What is left is that the panels imply per-territory treasuries and should stop
-      implying it. UI only; no rule changes.
+- [x] **4.1** **D4** — the unit types are economically different for the first time, and the
+      lever is PROD-POP and UPKEEP rather than gold. Per unit of force: prod-pop 1.00 / 1.67 /
+      2.00 / 2.50 and upkeep 0.050 / 0.080 / 0.100 / 0.150 for infantry / assault / air / naval,
+      where every one of those eight figures used to be identical across the four types. A
+      vehicle is crewed rather than manned — it buys force with far fewer people — and pays for
+      it every turn, for ever, in upkeep and in oil that infantry never owe.
+      **The gold prices were deliberately not touched, and that is what preserves the
+      constraint**: siege value per gold and force per gold are byte-for-byte what they were, so
+      vehicles are still 5–6× better per gold in a siege and still no better than infantry in the
+      open. `tests/unit/balance-unit-economics.spec.js` asserts both halves as a RATIO rather
+      than as a number, so a future tuning pass cannot undo the tension without a red test.
+      **`armyProdPopPrices.infantry` is not a dial** and stays at `INFANTRY_IN_A_TROOP`: the AI
+      adds that many soldiers per purchase, so for infantry it is a troop size and not a price.
+      Which is how **BR** was found — the player adds ONE soldier for the same money, a
+      thousandfold asymmetry in the AI's favour, now on the register.
+- [x] **4.2** **D5 follow-up.** The pooled treasury STAYS. What changed is that the panels stop
+      implying the opposite: the info panel's gold labels say the treasury is pooled when buying
+      units, and its construction-materials label says materials are **never** pooled, because
+      that is the distinction a player actually has to act on. The Dominapedia's "Income and
+      Upkeep" carries the rule in full under a new heading, and "Upgrading a Territory" says who
+      pays for a building. **The investigation turned up the fact the item was missing**: gold is
+      pooled for UNITS (`checkForMinusAndTransferMoneyFromRichEnoughTerritories()` runs on that
+      path) and is NOT pooled for BUILDINGS — `addPlayerUpgrades()` debits the territory alone,
+      and `calculateAvailableUpgrades()` gates the plus button on that territory's own gold. So
+      the per-territory figure was half fiction and half load-bearing, which is worse than either
+      and is exactly why a player could not reason about it. UI and manual only; no rule moved.
+
+### Stages 3 + 4 gate — measured, and what it cost to get green
+
+- [x] `npm run test:unit` green — **980 passing**, up from 951. Twenty-nine new: seven pinning
+      the flat capacity term and its shape, eight on `src/rules/economy/seeding.js`, eight on the
+      unit economics, four on the info panel's pooled-treasury labels, and two rewritten where
+      Stage 3.1 deliberately changed what a farm does.
+- [x] **`npm run test:e2e` green — 474 of 475, 0 failed, 1 skipped, 16m 52s.**
+- [x] `ai-sim` 150 turns per goal against the Stage 1 measurement, tabled below.
+- [x] `econ-lab upgrades` and `econ-lab consmats` before/after, in audit §3.3 and §3.5.
+- [x] Lint went DOWN, 345 problems to 343 and 75 errors to 73. Both baselines updated.
+- [x] Change set separable: **balance numbers** (`balance.js` and the two rules that read them),
+      **the D7 seed move** (`seeding.js`, and `econ-lab` importing it instead of copying it),
+      **one defect fix found by the suite** (the buy window's running totals), and **UI and
+      manual** (the info panel's labels and four Dominapedia pages). Four groups, so a regression
+      stays bisectable.
+
+#### The first full run failed six specs, and one of them was a real defect
+
+Worth recording, because it is the shape to expect from any balance change and five of the six
+were not interesting. Five specs asserted that an upgrade raises a ceiling by *exactly ten per
+cent* — the rule Stage 3.1 deliberately replaced — and they now assert the two-term rule, with
+the flat figure **imported** rather than written out. The sixth was
+`buy-military/purchase.spec.js`, whose prices were a hard-coded COPY carrying a comment saying it
+should become an import once the numbers reached `config/balance.js`. They reached it in Phase 5;
+Stage 4.1 is what collected the debt. It is an import now.
+
+**The sixth failure was hiding a genuine defect and the copy was masking it.** The buy window's
+running gold and manpower totals were computed by parsing the formatted text back out of the DOM
+cells they had just been written into — `parseInt(cell.textContent)` for gold, and a hand-written
+"k"/"M" un-formatter for population. That is invisible while every population price is a round
+multiple of a thousand. Stage 4.1 set assault to 600, so two of them is 1,200, which renders as
+`"1.2k"`, which reads back as **1,000** — and `checkPurchaseRowsForGreyingOut()` gates the plus
+button on that figure, so the window would have let a player commit to an army it could not quite
+crew. The confirmed purchase was always right, because `addPlayerPurchases()` works from the
+quantities, which is exactly why the deduction spec passed while the totals spec failed. Both
+totals are computed from the quantities and the price table now. It is the CLAUDE.md rule about
+never reading a label back to decide something, collected with interest.
+
+---
 
 ### Closed as design decisions — do not re-open
 
@@ -387,3 +477,109 @@ hardest five on the map to take.
 This is not an argument for reverting any of it. Every one of the four fixes makes the game do
 what its own rules say. It is an argument that **the attack side now has to be looked at with
 the economy**, and it should be weighed before Stages 3 and 4 spend any effort on prices.
+
+**What happened next, recorded here so this section is not read on its own:** Stages 3 and 4 did
+not touch the attack side at all, and moved this further than Stage 1 had — six continents are
+now completed across the five runs and the mean largest empire more than doubled. The next
+section is that measurement. Nothing here was reverted to get it.
+
+---
+
+## What Stages 3 and 4 measured
+
+`tools/ai-sim.mjs --turns=150 --seed=goals --every=25`, one run per goal, written to
+`test-reports/econ/stage34-*.json` beside the Stage 1 pair. The **before** column is the Stage 1
+"after" — the world Leigh played — so this is the second half of one continuous measurement and
+not a fresh baseline. Every run played all 150 turns with zero page errors, both times.
+
+Stages 3 and 4 shipped together and are measured together on purpose. Both change what all 206
+AI countries can do with a turn — Stage 3 by making upgrades affordable and worth having, Stage 4
+by changing what an army costs in people and in upkeep — and neither could be attributed
+afterwards if the two were run separately over the same 150 turns.
+
+### The world consolidates, hard
+
+| Goal | Countries left | Largest empire | Top-16 share |
+|---|---|---|---|
+| Continental | 93 → **71** | 35 → **116** | 74% → 82% |
+| Domination | 88 → **84** | 58 → **42** | 77% → 77% |
+| Great Powers | 99 → **53** | 47 → **131** | 74% → 89% |
+| Conquest | 71 → **38** | 59 → **133** | 82% → 94% |
+| Timed | 82 → **45** | 61 → **126** | 78% → 92% |
+
+Mean countries surviving 87 → **58**; mean largest empire 52 → **110**; mean top-sixteen share
+77% → **87%**. Four goals of five now produce a runaway empire where none did, and the fifth —
+Domination — is the one whose largest empire went *down*.
+
+**This is a larger movement than either stage predicted, and it is worth being clear about what
+caused it**, because "the economy got better so the AI conquered more" is too easy. Two things
+happened at once and both act on the ATTACKER:
+
+- **An AI country can now afford an army it could not afford before.** Stage 3.2 raised every
+  cons-mats ceiling on the map, so the upgrade loop that used to stall now runs — 1,974 to 2,223
+  upgrades standing at turn 150 against 1,387 to 1,422 at turn 25 of the same run — and Stage 3.1
+  made each of those upgrades worth more on exactly the small territories that make up most of
+  the map. Food capacity compounds into population, population into productive population, and
+  productive population into gold.
+- **Stage 4.1 made force cheaper in PEOPLE for whoever can pay gold for it.** Productive
+  population is the binding constraint on a large AI empire far more often than gold is, and a
+  vehicle now buys 1.67–2.50 units of force per person where everything used to buy 1.00. A rich
+  empire converts its gold into force at a better rate than it could a week ago; a poor one does
+  not, because it still has to find the gold.
+
+The second is the one to watch, and it is the honest risk in this phase: **it is a rich-get-
+richer term**, and the measurement is consistent with it having done exactly that. It is also
+the correct direction for the register's oldest open item.
+
+### Known-issue BO moves, and it is the headline
+
+**Continents are completed again.** Stage 1 left `cont` at 0 for all 150 turns of all five goals,
+with Continental's nearest continent frozen at 66% from turn 25 onward — so the mechanic the
+continent-bonus phase built, measured and documented never arrived in a played game.
+
+| Goal | Continents completed | Nearest |
+|---|---|---|
+| Continental | 0 | South America **98%** (was frozen at 66%) |
+| Domination | 0 | South America 67% |
+| Great Powers | **2** — Europe and North America, both United States | Europe 100% |
+| Conquest | **2** — Europe and North America, both United States | Europe 100% |
+| Timed | **2** — North America (United States) and **Oceania (Indonesia)** | North America 100% |
+
+Six continents are held outright across the five runs where none were held in any of them.
+**Oceania is the one to note**: 65 islands, almost every one needing a naval crossing, and by a
+wide margin the hardest continent on the map — the audit's own §2.4 argument for why the gold
+bonus multiplies the whole income rather than the earned part alone rests on it. It has now been
+completed in a headless run.
+
+**BO is not closed by this**, and should not be marked closed: two goals of five still finish
+nothing, and Domination's nearest continent sits at 67%. What has changed is that the mechanic is
+reachable, and that the item is now about the two goals that do not reach it rather than about
+all five.
+
+### What each stage was supposed to do, checked
+
+- **World food capacity rises further and faster.** 12,267M–13,204M at turn 150 against
+  11,865M–12,005M at turn 25 of the same runs, and Stage 1's turn-150 figures were 11,216M–11,572M.
+  That is Stage 3.1's flat term arriving on the small territories that most of the map is made of.
+- **Upgrades standing rose about 12%** on Stage 1's counts, and the fort count rose with them
+  (603–654 against 567–598) — Stage 3.2 unblocked the same loop for both.
+- **Gold held did NOT collapse**, which is the check on Stage 4.1's upkeep rise: 752k–2,951k
+  against Stage 1's world, so the higher vehicle upkeep is a real bill and not a bankruptcy. The
+  one low reading is Great Powers at 752k, which is also the run with the second-largest empire —
+  a country spending its income rather than banking it.
+
+### What this measurement did not settle
+
+- **Domination is the outlier and nothing here explains it.** Its largest empire fell 58 → 42
+  while every other goal's more than doubled, and its top-sixteen share did not move at all. A
+  doctrine that hunts a share of the world's land rather than a set of places may simply be the
+  one that gains least from a richer economy. It is one seed, and it is the first thing to look
+  at if this phase is revisited.
+- **Whether the world now consolidates TOO much.** A largest empire of 133 out of 359 at turn 150
+  is a different game from one of 59, and no one has played it. Stage 1's finding was that fixing
+  defects made the world harder; this one is the opposite movement and it is larger. The dial if
+  it needs pulling back is not in the economy — `DICE_ATTACK_ADVANTAGE` owns open battle and
+  `ATTACK_ADVANTAGE` owns sieges, and CLAUDE.md records why there may never be a third.
+- **BR, found while measuring Stage 4.1**: the player and the AI buy infantry in different sizes,
+  a thousandfold asymmetry in the AI's favour. It is on the register, unfixed, and it means every
+  force-per-gold figure in this phase's tables is the AI's rate rather than the player's.

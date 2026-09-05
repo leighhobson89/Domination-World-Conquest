@@ -30,12 +30,35 @@ export const armyGoldPrices = {
     naval: 200
 };
 
-/** Productive-population cost to buy one unit -- the people who crew it. */
+/**
+ * Productive-population cost to buy one unit -- the people who crew it.
+ *
+ * **Economy stage 4.1, closing audit D4.** These were 1,000 / 1,000 / 5,000 / 20,000, which is
+ * exactly `vehicleArmyPersonnelWorth` below -- so productive population cost exactly 1.00 per
+ * unit of FORCE for every one of the four types, and prod-pop was therefore a pure army-size cap
+ * that never once decided WHICH unit to buy. Combined with an identical upkeep per unit of force
+ * (see `armyCostPerTurn`), nothing but the die modifiers and the siege score distinguished an
+ * infantryman from a battleship, and infantry strictly DOMINATED naval in open battle: the same
+ * force per gold, the same force per person, the same upkeep, and no oil bill.
+ *
+ * A vehicle is crewed rather than manned, so it now buys its force with far fewer people:
+ * 1.00 per unit of force for infantry, 1.67 for assault, 2.00 for air, 2.50 for naval. That is
+ * a TRADE and not a ranking -- the vehicle pays for it in gold (unchanged, and still 2-5x
+ * infantry per unit of force), in upkeep, and in oil, which infantry does not owe at all.
+ *
+ * What it buys the game: a populous poor country and a rich thinly-peopled one field visibly
+ * different armies, which is the decision D4 said the economy was not offering. `node
+ * tools/econ-lab.mjs units` is the table.
+ *
+ * **Infantry must stay at `INFANTRY_IN_A_TROOP`** and is not a tuning dial: `bolsterArmy()` in
+ * `aiCalculations.js` adds `armyProdPopPrices.infantry` SOLDIERS per purchase and debits the
+ * same figure in people, so for infantry this constant is the size of a troop and not a price.
+ */
 export const armyProdPopPrices = {
     infantry: INFANTRY_IN_A_TROOP,
-    assault: 1000,
-    air: 5000,
-    naval: 20000
+    assault: 600,
+    air: 2500,
+    naval: 8000
 };
 
 /** Oil a unit demands per turn. Infantry demand none, which is why they are not listed. */
@@ -52,12 +75,27 @@ export const oilRequirements = {
 // turns, with no way to respond. At a tenth of that a normal standing army costs about what
 // its territory earns, so holding an army is sustainable and GROWING one is what has to be
 // paid for.
-/** Gold a unit costs to maintain per turn. */
+/**
+ * Gold a unit costs to maintain per turn.
+ *
+ * **Economy stage 4.1, the other half of audit D4.** These were 0.00005 / 0.05 / 0.25 / 1, which
+ * is 0.050 gold per thousand units of force for every one of the four types -- upkeep did not
+ * discriminate either, so a fleet cost exactly what the infantry it displaced cost to keep.
+ *
+ * It now rises with the platform: 0.050 gold per thousand force for infantry, 0.080 for assault,
+ * 0.100 for air, 0.150 for naval. A standing fleet is a permanent bill in a way a standing army
+ * is not, and it is the counterweight to the population discount above -- a rich country can
+ * buy force with fewer people, and then has to keep paying for it every turn.
+ *
+ * The infantry figure is untouched, and the paragraph above the previous version of this table
+ * still applies to it: it was cut to a tenth when maintenance was re-enabled, because at the
+ * original rates every major power was bankrupt inside forty turns with no way to respond.
+ */
 export const armyCostPerTurn = {
     infantry: 0.00005,
-    assault: 0.05,
-    air: 0.25,
-    naval: 1
+    assault: 0.08,
+    air: 0.5,
+    naval: 3
 };
 
 /**
@@ -112,6 +150,44 @@ export const territoryUpgradeBaseCostsConsMats = {
     forest: 500,
     oilWell: 200,
     fort: 600
+};
+
+/**
+ * What an upgrade adds to its ceiling ON TOP of the ten per cent -- economy stage 3.1.
+ *
+ * This is the whole of stage 3, and it is one term rather than a curve because of the
+ * principle the stage was decided on (docs/05-economy-audit.md section 6, Q2):
+ *
+ *   *"Larger territories should not be penalised for their size as it is a good thing to be
+ *   larger and players will try to conquer bigger territories to win their resources, but
+ *   smaller countries get a little nudge so that they are not just a total waste of time."*
+ *
+ * The obvious fix -- pricing an upgrade against the territory's own income, so that payback is
+ * uniform across the map -- was TURNED DOWN, and it will be proposed again by anyone who reads
+ * the payback table without the reason. It taxes the large to pay the small, and being large
+ * is a reward this game has to keep paying. So the lever is the BENEFIT and never the price.
+ *
+ * A flat term does the whole job by itself, because it is read entirely differently at the two
+ * ends of the map. Vatican City's food ceiling is 801 people, so ten per cent of it is eighty
+ * and a farm there paid back in thirteen thousand turns; the flat 100,000 IS the upgrade. China's
+ * ceiling is 1.45 billion, so the same 100,000 is a fourteen-thousandth of what its own ten per
+ * cent is worth and China notices nothing at all. Measured, `node tools/econ-lab.mjs upgrades`:
+ * the first farm's payback across the whole map goes from 0.8 - 3,780 turns to 0.8 - 202, and
+ * the 95th percentile from 472 turns to 61. It does not collapse to zero and it must not --
+ * a flat payback curve would mean size had stopped paying, which is the thing this stage exists
+ * to avoid.
+ *
+ * One number per CEILING, because the three ceilings are in three different units -- people,
+ * tonnes of construction material, barrels of oil -- and a single constant across them would be
+ * three unrelated balance decisions wearing one name. The oil figure is the legible one:
+ * `oil * maxOilWells` is exactly `oilRequirements.naval`, so five oil wells fuel one warship
+ * anywhere on the map, and an island whose oil ceiling is two barrels stops reading "vehicles
+ * are not for you".
+ */
+export const upgradeFlatCapacityGain = {
+    food: 100000,
+    consMats: 500,
+    oil: 200
 };
 
 /** How many of each upgrade a single territory may hold. */
@@ -220,6 +296,37 @@ export const startingConsMatsContinentModifiers = {
     "South America": 1.8,
     "Africa": 1.3
 };
+
+/**
+ * How much a territory's PEOPLE contribute to its starting construction materials.
+ *
+ * Economy stage 3.2, closing audit D7. The seed is `sqrt(population / 1000) * devIndex * this`,
+ * added to the three area terms that were the whole of it before. Construction materials are
+ * made by people and industry rather than by land, and until this stage the ceiling was
+ * `f(area)` almost entirely -- so Germany needed eighty turns of regeneration to fill one
+ * territory's upgrade slots and China needed one, which is a small developed country locked out
+ * of its own upgrade tree at any price.
+ *
+ * It is 50 because that is what lifts Germany by an order of magnitude (1,244 -> 14,893) while
+ * lifting China by well under one (64,316 -> 110,509). The square root is what makes those two
+ * numbers different; a linear term would have paid China most. `node tools/econ-lab.mjs consmats`
+ * is the measurement.
+ */
+export const CONS_MATS_POPULATION_SCALE = 50;
+
+/**
+ * The floor under a territory's construction-materials capacity.
+ *
+ * The same instrument as `TERRITORY_BASE_INCOME`, and there for the same reason. It was 500,
+ * written inline in `assignArmyAndResourcesToPaths()` beside the seed it floored. The population
+ * term above does nothing for a territory with 800 people on one square kilometre, and at 500 an
+ * island needed 171 turns of its own regeneration to fill its upgrade slots -- so this is what
+ * carries the very bottom of the map, where neither land nor people can.
+ *
+ * At 2,500 the worst territory on the map fills its slots in about forty turns, against China's
+ * one. That spread is deliberate and must not close: being large has to keep paying.
+ */
+export const MIN_CONS_MATS_CAPACITY = 2500;
 
 /**
  * What holding a WHOLE continent is worth: gold income, and the three capacities.

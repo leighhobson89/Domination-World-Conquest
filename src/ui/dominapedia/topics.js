@@ -953,24 +953,32 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         table(
                             ["Building", "Base gold", "Base materials", "What it does"],
                             [
-                                ["Farm", "200", "500", "+10% food capacity per farm"],
-                                ["Forest", "200", "500", "+10% construction-materials capacity per forest"],
-                                ["Oil Well", "1,100", "200", "+10% oil capacity per well"],
+                                ["Farm", "200", "500", "food cap. +10% and +100,000"],
+                                ["Forest", "200", "500", "materials cap. +10% and +500"],
+                                ["Oil Well", "1,100", "200", "oil cap. +10% and +200"],
                                 ["Fort", "1,000", "600", "defence bonus, quadratic in the count"],
                             ]
                         ),
                         h("What you actually pay"),
                         p(
-                            "The real price is the base figure multiplied by about 1.05 and " +
-                                "then by a quarter of the territory's development index. A " +
-                                "developed territory therefore builds much more cheaply than a " +
-                                "poor one — which is the reverse of what most players expect, " +
-                                "and it means the correct place to build is where you are " +
-                                "already strong."
+                            "The price RISES STEEPLY with the number already standing. It is " +
+                                "the base figure multiplied by the count, again by the count, " +
+                                "and then by a quarter of the territory's development index — " +
+                                "so the ladder is quadratic and the fifth of a kind costs about " +
+                                "twenty-six times the first, not five times."
                         ),
                         p(
-                            "The price does NOT rise with the number already built. The fifth " +
-                                "fort costs what the first did and is worth several times more."
+                            "The development index is the other term, and it scales the price " +
+                                "UP: a developed territory pays more for the same building than " +
+                                "a poor one. It is a small effect next to the count."
+                        ),
+                        p(
+                            "Buying several at once is cheaper than buying them one a turn. An " +
+                                "order is charged at the price of the LAST building in it, so " +
+                                "five farms in one transaction cost what a fifth farm costs, " +
+                                "where five bought over five turns cost the whole ladder — " +
+                                "about 2.2 times as much. The computer countries buy one at a " +
+                                "time and pay the full ladder."
                         ),
                         h("Capacity is not stock"),
                         p(
@@ -978,6 +986,30 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "regrows towards, and the regrowth then closes a fifth of the " +
                                 "gap each turn. A farm bought this turn shows up as income over " +
                                 "the next several."
+                        ),
+                        h("The flat half, and why a small territory is worth developing"),
+                        p(
+                            "Every economic upgrade grants a FLAT amount as well as its ten per " +
+                                "cent. On a large territory the percentage swamps it and you " +
+                                "will never notice it is there; on a small one the flat part IS " +
+                                "the upgrade. A farm on a territory of eight hundred people " +
+                                "raises its food ceiling by a hundred thousand and pays for " +
+                                "itself in a couple of turns, where ten per cent alone was " +
+                                "eighty people and thirteen thousand turns."
+                        ),
+                        p(
+                            "This does not make small territories equal to large ones and is " +
+                                "not meant to. China's first farm is still worth three hundred " +
+                                "gold a turn against Vatican City's twenty-four. Conquering big " +
+                                "rich land is still the fastest way to a big rich economy — the " +
+                                "flat term only means that developing what you already hold is " +
+                                "a real decision rather than a waste of materials."
+                        ),
+                        p(
+                            "The oil figure is the legible one: five oil wells add exactly the " +
+                                "thousand barrels a turn that one naval unit demands. An island " +
+                                "with almost no oil under it can fuel a warship if it builds " +
+                                "the wells for it."
                         ),
                         h("Which to build"),
                         ul(
@@ -999,12 +1031,15 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "already besieged, building more of them is throwing materials " +
                                 "into a fire."
                         ),
-                        h("A warning about capacity"),
+                        h("Who pays"),
                         p(
-                            "Capacity increases from purchases are known to compound more than " +
-                                "intended, so a heavily-upgraded territory's ceilings can climb " +
-                                "faster than the table above suggests. It is the most visible " +
-                                "economic oddity in the game and it is logged."
+                            "A building is paid for by the territory it stands on, out of that " +
+                                "territory's own gold and its own construction materials. This " +
+                                "is NOT how buying units works — units are paid for out of the " +
+                                "whole country's gold and productive population, wherever in " +
+                                "the world it happens to sit. So a rich empire can raise an " +
+                                "army anywhere and can only develop a territory that is itself " +
+                                "solvent."
                         ),
                     ],
                 },
@@ -1057,6 +1092,25 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "CONSTRUCTION MATERIALS build things, and only build things. " +
                                 "Unlike gold, they cannot be drawn from a neighbouring territory " +
                                 "— materials are spent where they sit."
+                        ),
+                        h("Where a materials ceiling comes from"),
+                        p(
+                            "A territory's construction-materials capacity is set once, at the " +
+                                "start of the game, from its LAND AREA, its POPULATION and its " +
+                                "development index, with a floor under it so that nowhere is " +
+                                "locked out entirely. Because materials buy upgrades and " +
+                                "nothing else, this ceiling decides how fast a territory can be " +
+                                "developed at all — a quarter of the shortfall regrows each " +
+                                "turn, so a low ceiling is a slow one."
+                        ),
+                        p(
+                            "Large land still fills its upgrade slots fastest: China needs one " +
+                                "turn of its own regrowth to pay for every building it is " +
+                                "allowed, where a small island needs about thirty. The " +
+                                "population term is what stops a small DEVELOPED country — " +
+                                "Germany, Japan, Singapore — from being ranked with an empty " +
+                                "desert of the same size and waiting eighty turns for its first " +
+                                "few buildings."
                         ),
                         h("Which runs out first"),
                         p(
@@ -1199,6 +1253,25 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "which continents you hold outright, and every capacity figure " +
                                 "shown anywhere in the game already includes the bonus."
                         ),
+                        h("One treasury, three hundred and fifty-nine labels"),
+                        p(
+                            "Gold is shown per territory everywhere in the game, and for buying " +
+                                "UNITS that display is a bookkeeping convenience rather than a " +
+                                "constraint. When you buy an army the cost is charged against " +
+                                "the whole country's gold and the whole country's productive " +
+                                "population, and whatever the buying territory is short of is " +
+                                "moved in from your richest territories automatically — " +
+                                "instantly, in any quantity, with no adjacency requirement and " +
+                                "no cost. Conquering a rich country on one side of the world " +
+                                "genuinely does pay for a war on the other."
+                        ),
+                        p(
+                            "BUILDINGS are the exception and are the one place the per-territory " +
+                                "figure is real. A farm, forest, oil well or fort is paid for " +
+                                "by the territory it stands on, out of that territory's own " +
+                                "gold and its own construction materials. Materials are never " +
+                                "pooled for anything: they are spent where they sit."
+                        ),
                         h("Army upkeep"),
                         p(
                             "Every unit costs gold every turn simply for existing, charged " +
@@ -1206,19 +1279,28 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "billed — a unit you cannot fuel is not also a unit you pay for."
                         ),
                         table(
-                            ["Unit", "Gold per turn", "Per 100 units"],
+                            ["Unit", "Gold per turn", "Per 100 units", "Per 1,000 force"],
                             [
-                                ["Infantry", "0.00005", "0.005"],
-                                ["Assault", "0.05", "5"],
-                                ["Air", "0.25", "25"],
-                                ["Naval", "1", "100"],
+                                ["Infantry", "0.00005", "0.005", "0.050"],
+                                ["Assault", "0.08", "8", "0.080"],
+                                ["Air", "0.5", "50", "0.100"],
+                                ["Naval", "3", "300", "0.150"],
                             ]
                         ),
                         p(
-                            "These rates were deliberately set at a tenth of their original " +
-                                "values. At the original rates every major power on the map went " +
-                                "bankrupt within forty turns with no way to respond. As they " +
-                                "stand, a normal standing army costs roughly what its territory " +
+                            "The last column is the one that matters, and it used to read " +
+                                "0.050 for all four — upkeep did not discriminate, so a fleet " +
+                                "cost exactly what the infantry it displaced cost to keep. It " +
+                                "now rises with the platform, and it is the counterweight to a " +
+                                "vehicle needing fewer people: you buy force cheaply in " +
+                                "manpower and then pay for it every turn for the rest of the " +
+                                "game."
+                        ),
+                        p(
+                            "The infantry rate was deliberately set at a tenth of its original " +
+                                "value. At the original rates every major power on the map went " +
+                                "bankrupt within forty turns with no way to respond. As it " +
+                                "stands, a normal standing army costs roughly what its territory " +
                                 "earns — so HOLDING an army is sustainable and GROWING one is " +
                                 "what has to be paid for."
                         ),
@@ -1338,13 +1420,38 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                     summary: "Infantry, assault, air and naval — what each is worth, and which is a trap.",
                     body: [
                         table(
-                            ["Unit", "Gold", "Manpower", "Oil/turn", "Counts as", "Siege value"],
+                            ["Unit", "Gold", "Manpower", "Oil/turn", "Upkeep/turn", "Counts as", "Siege value"],
                             [
-                                ["Infantry", "10", "1,000", "0", "1 person", "0.0001"],
-                                ["Assault", "50", "1,000", "100", "1,000 people", "3"],
-                                ["Air", "100", "5,000", "300", "5,000 people", "5"],
-                                ["Naval", "200", "20,000", "1,000", "20,000 people", "10"],
+                                ["Infantry", "10", "1,000", "0", "0.00005", "1 person", "0.0001"],
+                                ["Assault", "50", "600", "100", "0.08", "1,000 people", "3"],
+                                ["Air", "100", "2,500", "300", "0.5", "5,000 people", "5"],
+                                ["Naval", "200", "8,000", "1,000", "3", "20,000 people", "10"],
                             ]
+                        ),
+                        h("A vehicle is crewed, not manned"),
+                        p(
+                            "The manpower and upkeep columns used to be a formality: every one " +
+                                "of the four types cost exactly the same population per unit of " +
+                                "force and exactly the same upkeep per unit of force, so " +
+                                "nothing but the die modifiers and the siege score told a " +
+                                "rifleman from a battleship."
+                        ),
+                        p(
+                            "They now pull against each other. Per unit of force, a vehicle " +
+                                "costs far fewer PEOPLE than infantry — a warship 2.5 times " +
+                                "fewer, an aircraft twice, an assault unit two-thirds — and " +
+                                "pays for it in gold, in upkeep, and in oil that infantry never " +
+                                "owe at all. So the army you can afford depends on what your " +
+                                "country is short of. A populous poor country fields infantry " +
+                                "because it has people and no money; a rich thinly-peopled one " +
+                                "fields vehicles because it has money and no people."
+                        ),
+                        p(
+                            "The upkeep is the part that bites later. A standing fleet is a " +
+                                "permanent bill in a way a standing army is not: naval upkeep " +
+                                "is three times an aircraft's per unit of force and sixty times " +
+                                "infantry's. Buy the fleet you need for the war you are " +
+                                "fighting, not the fleet you can afford on the turn you buy it."
                         ),
                         h("Read the 'counts as' column carefully"),
                         p(
@@ -1397,12 +1504,14 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "+1 on every die you roll, for the rest of the battle. It is the " +
                                 "cheapest modifier in the game and the only one you can carry to " +
                                 "a target rather than having to find there.",
-                            "ASSAULT as the bulk of an army. Cheap in manpower, cheap in oil, " +
-                                "and having ANY of it is what stops the enemy's armour costing " +
-                                "you −1 on every die.",
+                            "ASSAULT as the bulk of an army. The cheapest vehicle in gold, in " +
+                                "oil and in upkeep, and having ANY of it is what stops the " +
+                                "enemy's armour costing you −1 on every die.",
                             "NAVAL for force and for sieges. Twenty thousand points of force per " +
                                 "unit is the fastest way to cross a dice band, and it is the best " +
-                                "besieger by a distance. Bear the 1,000 oil a turn in mind first.",
+                                "besieger by a distance. Bear the 1,000 oil AND the 3 gold a " +
+                                "turn in mind first — a fleet left standing is the largest " +
+                                "recurring bill in the game.",
                             "INFANTRY: do not buy. Keep what you inherit and what you capture."
                         ),
                         h("Grounded vehicles do not fight"),
