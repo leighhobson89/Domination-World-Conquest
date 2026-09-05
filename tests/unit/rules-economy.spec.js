@@ -53,6 +53,7 @@ import {
     RANDOM_EVENTS,
     armyCostPerTurn,
     goldIncome,
+    TERRITORY_BASE_INCOME,
     oilRequirements,
     randomEventLikelihood,
     randomEventSeverity,
@@ -158,16 +159,53 @@ describe("goldChangeFor", () => {
         expect(Number.isFinite(gold)).toBe(true);
     });
 
-    it("produces the window floor, not NaN, from an emptied territory -- audit 5.2 AJ", () => {
+    it("produces the base income, not NaN, from an emptied territory -- audit 5.2 AJ", () => {
         //`log10(0)` is -Infinity and `log10` of a negative is NaN; `log10(1)` is 0, so the
         //division below it was a division by zero. One NaN in a gold balance never recovers.
-        //The RAW figure for an emptied territory is 0; the normalisation window then maps 0
-        //onto its floor, which is the deliberate "lift small countries" behaviour and applies
-        //to every territory equally.
+        //The RAW figure for an emptied territory is 0, so it earns nothing and takes the base.
         const empty = territory({ productiveTerritoryPop: 0, area: 0 });
-        const windowFloor = (0 - goldIncome.normaliseMin) /
-            (goldIncome.normaliseMax - goldIncome.normaliseMin) * 100;
-        expect(goldChangeFor(empty)).toBe(windowFloor);
+        expect(goldChangeFor(empty)).toBe(TERRITORY_BASE_INCOME);
+    });
+
+    it("pays the base income to EVERY territory, whatever it is -- audit D1", () => {
+        //Economy stage 2.1. The floor used to be an unnamed consequence of a normalisation
+        //window (`normaliseMin: -800`), which is why nothing could tune it and nothing
+        //documented it. It is 65% of what a median territory earns, and that is the reason
+        //upgrading a small territory changed nothing.
+        const barren = { continent: "Africa", area: 0, devIndex: 0.3, productiveTerritoryPop: 0 };
+        const island = { continent: "Oceania", area: 260, devIndex: 0.78, productiveTerritoryPop: 400 };
+        expect(goldChangeFor(barren)).toBe(TERRITORY_BASE_INCOME);
+        expect(goldChangeFor(island)).toBeGreaterThanOrEqual(TERRITORY_BASE_INCOME);
+        expect(goldChangeFor(island)).toBeLessThan(TERRITORY_BASE_INCOME + 1);
+    });
+
+    it("is income-neutral against the normalisation window it replaced -- stage 2.2", () => {
+        //The whole claim of stage 2 is that it renames the floor and moves no money. This is
+        //where that is pinned: the old arithmetic, written out, against the new function.
+        const legacyGold = (t) => {
+            const continentModifier = { "Europe": 1, "North America": 1, "Asia": 0.5,
+                "Oceania": 0.8, "South America": 0.4, "Africa": 0.3 }[t.continent];
+            const areaScaling = Math.log10(Math.max(0, t.area) + 1);
+            const popScaling = Math.log10(Math.max(0, t.productiveTerritoryPop) + 1);
+            const areaBonus = Math.max(t.area / goldIncome.areaDivisor, 1);
+            const raw = areaBonus * parseFloat(t.devIndex) * continentModifier *
+                (t.productiveTerritoryPop * goldIncome.productivePopRate);
+            const modifier = areaScaling * popScaling;
+            const scaled = modifier > 0 ? Math.ceil(raw / modifier) * goldIncome.scale : 0;
+            return (scaled - (-800)) / (1000 - (-800)) * 100;
+        };
+
+        for (const sample of [
+            { continent: "Asia", area: 9706961, devIndex: 0.768, productiveTerritoryPop: 4e8 },
+            { continent: "Europe", area: 357022, devIndex: 0.942, productiveTerritoryPop: 3e7 },
+            { continent: "Africa", area: 923768, devIndex: 0.535, productiveTerritoryPop: 5e7 },
+            { continent: "Oceania", area: 18272, devIndex: 0.73, productiveTerritoryPop: 3e5 },
+            { continent: "South America", area: 12173, devIndex: 0.715, productiveTerritoryPop: 900 }
+        ]) {
+            //Within a hundredth of a gold piece: `TERRITORY_BASE_INCOME` is 44.44 where the
+            //window produced 44.444..., which is stated on the constant.
+            expect(goldChangeFor(sample)).toBeCloseTo(legacyGold(sample), 2);
+        }
     });
 
     it("survives a negative productive population without producing NaN", () => {

@@ -42,15 +42,25 @@ test.describe("a siege over time", () => {
 
         await game.endTurn();
 
+        // This asks the siege what it destroyed rather than diffing the territory's ceiling
+        // across the turn, and the difference is not pedantry. Until the economy phase, an AI
+        // country's upgrades raised no capacity at all (known-issue BK), so the only thing
+        // that could move `foodCapacity` was the siege and a net diff measured it exactly.
+        // They work now -- and a besieged territory can still build, so France answers a siege
+        // by putting up a farm, and +10% of a ceiling outweighs one tick of collateral damage.
+        // Measured here: 64,967,839 -> 65,032,807 over the turn the siege began, UP, with one
+        // farm built. The siege was doing its job the whole time.
+        const siege = await page.evaluate(() => window.__game.siegeAt("France"));
+        expect(siege.foodCapacityDestroyed, "a siege damages what it besieges")
+            .toBeGreaterThan(0);
+
         const after = await game.territory("France");
-        expect(after.foodCapacity, "a siege damages what it besieges").toBeLessThan(
-            before.foodCapacity
-        );
         // Never below zero and never non-finite: `calculateDamageDone()` left
         // `collateralDamage` undefined on one of its four paths, which made `foodCapacity`
         // NaN for the rest of the game (defect AK, fixed in Phase 4).
         expect(after.foodCapacity).toBeGreaterThanOrEqual(0);
         expect(Number.isFinite(after.foodCapacity)).toBe(true);
+        expect(Number.isFinite(siege.foodCapacityDestroyed)).toBe(true);
     });
 
     test("keeps the defender alive rather than emptying it", async ({ game, page }) => {

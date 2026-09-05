@@ -1333,7 +1333,19 @@ function runSiegeTurnFor(side) {
         }
 
         const territory = siege.defendingTerritory;
-        patchTerritory(territory.uniqueId, siegeDamageDeltas(territory, result.damage));
+        const patch = siegeDamageDeltas(territory, result.damage);
+        //Known-issue BP. A siege grinds `foodCapacity` down a bit each tick and the income pass
+        //puts it back when the siege lifts -- but it used to put it back by ASSIGNING
+        //`startingFoodCapacity`, the figure from when the war began. That is a wholesale
+        //overwrite rather than a repair, so a farm bought during the siege was silently undone
+        //the moment the siege ended, with the gold and materials already spent. Accumulating
+        //what was actually destroyed is what lets the repair ADD BACK exactly that much and
+        //leave anything built meanwhile alone.
+        if (typeof patch.foodCapacity === "number") {
+            siege.foodCapacityDestroyed =
+                (siege.foodCapacityDestroyed ?? 0) + (territory.foodCapacity - patch.foodCapacity);
+        }
+        patchTerritory(territory.uniqueId, patch);
         continueSiegeArray.push(true);
     }
 
@@ -1390,7 +1402,7 @@ export function handleEndSiegeDueArrest(ai, siege) {
 
         //Phase 5.8. `setUpResultsOfWarExternal(true)` used to run for EVERY arrest, and only
         //the `!ai` branch below ever filled the screen in. The AI runs dozens of concurrent
-        //sieges against each OTHER (see docs/04-known-issues.md section 6), so at least one
+        //sieges against each OTHER (see docs/04-known-issues.md, Design problems), so at least one
         //was arrested on nearly every turn -- and the player was shown an EMPTY battle
         //results screen, on top of the phase button, at the start of almost every turn. An
         //arrest is only the player's business if they were besieging, or being besieged.

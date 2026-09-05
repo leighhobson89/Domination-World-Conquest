@@ -88,6 +88,9 @@ import {
     maxOilWells,
     maxForts,
     continentModifiers,
+    startingGoldContinentModifiers,
+    startingOilContinentModifiers,
+    startingConsMatsContinentModifiers,
     population as populationBalance,
     territoryStrengthScales,
     startingArmy,
@@ -121,6 +124,14 @@ import {
     totalCapacities,
     totalDemands
 } from './src/rules/economy/capacity.js';
+//Economy stage 1. One definition of what an upgrade costs and what it does, shared with
+//aiCalculations.js -- see docs/05-economy-audit.md section 4 E1/E2/E4/E5, which are all the
+//same defect: an upgrade was a thing each caller re-implemented.
+import {
+    applyUpgrade,
+    upgradeOrderPriceFor,
+    upgradePriceFor
+} from './src/rules/economy/upgrades.js';
 import {
     continentCapacityBonusFor,
     continentGoldBonusFor,
@@ -265,7 +276,13 @@ const dummyAttackerObject = { //for a use case where need to split types of sieg
 export const totalPlayerResources = [];
 export const countryResourceTotals = {};
 let continentModifier;
-let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
+//audit E4: `simulatedCostsAll` used to live here, at module scope. It held the cost of one
+//more of each upgrade, written by whichever upgrade table was rendered LAST and read by
+//`calculateAvailableUpgrades()` -- which runs BEFORE the loop that fills it. So the "Can
+//Build" label and the plus button's enabled state were decided from a price belonging to a
+//different territory. It is a local of `populateUpgradeTable()` now, recomputed from
+//`upgradePriceFor()` rather than by simulating a click, and nothing outside one render of
+//one table can see it.
 let simulatedCostsAllMilitary = [armyGoldPrices.infantry, armyProdPopPrices.infantry, armyGoldPrices.assault, armyProdPopPrices.assault, armyGoldPrices.air, armyProdPopPrices.air, armyGoldPrices.naval, armyProdPopPrices.naval];
 
 /* const turnLabel = document.getElementById('turn-label'); */
@@ -473,20 +490,10 @@ function assignArmyAndResourcesToPaths(pathAreas, dataTableCountriesInitialState
                 percentOfWholeArea = areaForTerritoryId / areaSum;
             }
 
-            //for initial setup, modify later for per turn calculations
-            if (continent === "Europe") {
-                continentModifier = 15;
-            } else if (continent === "North America") {
-                continentModifier = 14;
-            } else if (continent === "Asia") {
-                continentModifier = 1;
-            } else if (continent === "Oceania") {
-                continentModifier = 1;
-            } else if (continent === "South America") {
-                continentModifier = 1.8;
-            } else if (continent === "Africa") {
-                continentModifier = 2;
-            }
+            //Starting gold only. Overwritten every turn from turn 2 by `continentModifiers`
+            //(a different table, in balance.js), which is what the strength score reads.
+            //audit E7: this was an inline if-chain and one of three that were invisible.
+            continentModifier = startingGoldContinentModifiers[continent];
 
             let initialCalculationTerritory;
             let isCoastal;
@@ -706,6 +713,33 @@ export function newTurnResources() {
 
 //todo : return a popup to the user with a confirm button to remove it, stating what the player gained that turn
 
+/**
+ * Give a territory back the food capacity a finished siege destroyed.
+ *
+ * Known-issue BP. This used to be `foodCapacity = war.startingFoodCapacity` -- the ceiling as it
+ * stood when the war began, ASSIGNED over whatever the ceiling is now. That is a wholesale
+ * overwrite rather than a repair, so **a farm bought during the siege was silently undone the
+ * moment the siege lifted**, with the gold and construction materials already spent. Nothing
+ * reported it: the upgrade window had taken the money, `farmsBuilt` still said the farm was
+ * there, and only the ceiling quietly went back to what it had been.
+ *
+ * The siege records what it actually destroyed, tick by tick (`battle.js`), so the repair adds
+ * exactly that much back and leaves anything built meanwhile alone. The result is the same
+ * number as before whenever nothing was built, which is the common case -- so this is a defect
+ * fix and not a balance change.
+ *
+ * A war from a save taken before the phase has no `foodCapacityDestroyed`, and falls back to the
+ * old assignment: wrong in the same way it has always been wrong, rather than restoring nothing
+ * at all.
+ */
+function repairFoodCapacityAfterSiege(territory, war) {
+    if (typeof war.foodCapacityDestroyed === "number") {
+        territory.foodCapacity += war.foodCapacityDestroyed;
+        return;
+    }
+    territory.foodCapacity = war.startingFoodCapacity;
+}
+
 function calculateTerritoryResourceIncomesEachTurn() {
     let changeGold;
     let changeOil;
@@ -747,8 +781,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 for (let w = 0; w < historicWars.length; w++) {
                     if (historicWars[w].defendingTerritory.uniqueId === defendingTerritoryId && !historicWars[w].resetStatsAfterWar) {
                         if (historicWars[w].turnsInSiege !== null) {
-                            //reset the stats here for food capacity after the siege is finished
-                            allTerritories()[i].foodCapacity = historicWars[w].startingFoodCapacity;
+                            repairFoodCapacityAfterSiege(allTerritories()[i], historicWars[w]);
                             historicWars[w].resetStatsAfterWar = true;
                         }
                     }
@@ -756,8 +789,7 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 for (let k = 0; k < historicAiWars.length; k++) {
                     if (historicAiWars[k].defendingTerritory.uniqueId === defendingTerritoryId && !historicAiWars[k].resetStatsAfterWar) {
                         if (historicAiWars[k].turnsInSiege !== null) {
-                            //reset the stats here for food capacity after the siege is finished
-                            allTerritories()[i].foodCapacity = historicAiWars[k].startingFoodCapacity;
+                            repairFoodCapacityAfterSiege(allTerritories()[i], historicAiWars[k]);
                             historicAiWars[k].resetStatsAfterWar = true;
                         }
                     }
@@ -1324,23 +1356,21 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     }
 }
 
-function initialOilCalculation(path, area) {
-    let developmentIndex = parseFloat(path.dev_index);
-    let continentModifier;
-
-    if (path.continent === "Europe") {
-        continentModifier = 1.4;
-    } else if (path.continent === "North America") {
-        continentModifier = 1.5;
-    } else if (path.continent === "Africa") {
-        continentModifier = 1.8;
-    } else if (path.continent === "South America") {
-        continentModifier = 1.6;
-    } else if (path.continent === "Oceania") {
-        continentModifier = 1.2;
-    } else if (path.continent === "Asia") {
-        continentModifier = 1.5;
-    }
+/**
+ * The starting stock and capacity of one of the two area-driven commodities.
+ *
+ * audit E7. `initialOilCalculation()` and `initialConsMatsCalculation()` were two copies of
+ * this arithmetic differing only in their continent table, and both tables were written inline
+ * as an if-chain. They are in `balance.js` now and there is one function.
+ *
+ * The shape is worth reading, because audit D7 turns on it: `term2` and `term3` are both
+ * `sqrt(area)`, and `term1` is `area^1.5` scaled by how far the continent modifier is from 1.
+ * AREA dominates all three. That is why a small developed country's construction-materials
+ * ceiling is low however developed it is, and why no change to an upgrade's PRICE can reach it.
+ */
+function initialStockForArea(country, area, continentModifiers) {
+    const developmentIndex = parseFloat(country.dev_index);
+    const continentModifier = continentModifiers[country.continent];
 
     const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
     const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
@@ -1348,28 +1378,12 @@ function initialOilCalculation(path, area) {
     return term1 + term2 + term3;
 }
 
+function initialOilCalculation(path, area) {
+    return initialStockForArea(path, area, startingOilContinentModifiers);
+}
+
 function initialConsMatsCalculation(path, area) {
-    let developmentIndex = parseFloat(path.dev_index);
-    let continentModifier;
-
-    if (path.continent === "Europe") {
-        continentModifier = 1.2;
-    } else if (path.continent === "North America") {
-        continentModifier = 1.6;
-    } else if (path.continent === "Africa") {
-        continentModifier = 1.3;
-    } else if (path.continent === "South America") {
-        continentModifier = 1.8;
-    } else if (path.continent === "Oceania") {
-        continentModifier = 0.8;
-    } else if (path.continent === "Asia") {
-        continentModifier = 1.8;
-    }
-
-    const term1 = (Math.abs(Math.pow(area / 1000, 1.5) * developmentIndex * (continentModifier - 1) * 0.1));
-    const term2 = (Math.pow(area / 1000, 0.5) * developmentIndex * 50);
-    const term3 = (Math.pow(area / 1000, 0.5) * continentModifier * 10);
-    return term1 + term2 + term3;
+    return initialStockForArea(path, area, startingConsMatsContinentModifiers);
 }
 
 /**
@@ -1646,43 +1660,26 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
         return;
     }
 
-    switch (upgradeType) {
-        case "Farm":
-            type = "Farm";
-            amountAlreadyBuilt = territoryData.farmsBuilt;
-            nextUpgradeCostGold = simulatedCostsAll[0];
-            nextUpgradeCostConsMats = simulatedCostsAll[1];
-            upgrade = availableUpgrades[0];
-            simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
-            break;
-        case "Forest":
-            type = "Forest";
-            amountAlreadyBuilt = territoryData.forestsBuilt;
-            nextUpgradeCostGold = simulatedCostsAll[2];
-            nextUpgradeCostConsMats = simulatedCostsAll[3];
-            upgrade = availableUpgrades[1];
-            simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
-            break;
-        case "Oil Well":
-            type = "Oil Well";
-            amountAlreadyBuilt = territoryData.oilWellsBuilt;
-            nextUpgradeCostGold = simulatedCostsAll[4];
-            nextUpgradeCostConsMats = simulatedCostsAll[5];
-            upgrade = availableUpgrades[2];
-            simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
-            break;
-        case "Fort":
-            type = "Fort";
-            amountAlreadyBuilt = territoryData.fortsBuilt;
-            nextUpgradeCostGold = simulatedCostsAll[6];
-            nextUpgradeCostConsMats = simulatedCostsAll[7];
-            upgrade = availableUpgrades[3];
-            simulatedTotal = amountAlreadyBuilt + parseInt(upgradeValueColumn.value);
-            break;
-        default:
-            // Invalid upgrade type, exit the function
-            return;
+    //Economy stage 1. The row's kind, what is already built, and what one MORE would cost.
+    //The cost used to be read out of the module-level `simulatedCostsAll` (audit E4); it is
+    //asked for directly now, so the tooltip cannot be showing another territory's price.
+    const rowSpec = {
+        "Farm": { kind: "farm", built: "farmsBuilt", index: 0 },
+        "Forest": { kind: "forest", built: "forestsBuilt", index: 1 },
+        "Oil Well": { kind: "oilWell", built: "oilWellsBuilt", index: 2 },
+        "Fort": { kind: "fort", built: "fortsBuilt", index: 3 }
+    }[upgradeType];
+    if (!rowSpec) {
+        // Invalid upgrade type, exit the function
+        return;
     }
+    type = upgradeType;
+    amountAlreadyBuilt = Number(territoryData[rowSpec.built]) || 0;
+    upgrade = availableUpgrades[rowSpec.index];
+    simulatedTotal = amountAlreadyBuilt + (parseInt(upgradeValueColumn.value) || 0);
+    const nextUpgradePrice = upgradePriceFor(rowSpec.kind, simulatedTotal + 1, territoryData.devIndex);
+    nextUpgradeCostGold = nextUpgradePrice.gold;
+    nextUpgradeCostConsMats = nextUpgradePrice.consMats;
 
     let currentEffect;
     if (amountAlreadyBuilt > 0) {
@@ -1694,7 +1691,13 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
     let simulatedEffect;
 
     if (type === "Fort") {
-        simulatedEffect = Math.ceil(1 + (simulatedTotal * (simulatedTotal + 1) * 10) * territoryData.devIndex + territoryData.isLandLockedBonus + (territoryData.mountainDefense) * 10);
+        //audit E9. This was a SEVENTH copy of the defence formula and it disagreed with the
+        //one the game uses: an extra `1 +`, and the mountain bonus folded in -- which
+        //`defenseBonusFor()` deliberately keeps separate, because a battle adds
+        //`mountainDefenseBonus` itself. So the left-hand side of the arrow was the territory's
+        //real defence bonus and the right-hand side was defence-plus-mountain, and the tooltip
+        //promised a fort was worth several times what it is. One formula now, both sides.
+        simulatedEffect = defenseBonusFor({ ...territoryData, fortsBuilt: simulatedTotal });
         currentEffect = currentDefenseBonus + " -> ";
     } else {
         simulatedEffect = simulatedTotal;
@@ -2208,168 +2211,58 @@ function calculateAvailablePurchases(territory) {
     return availablePurchases;
 }
 
+/**
+ * The four upgrade rows for one territory: what each costs NEXT, and whether it can be built.
+ *
+ * Economy stage 1.7. The price is `upgradePriceFor(kind, built + 1, devIndex)` -- the real
+ * ladder price of the next one. It used to be the n=1 price with no quadratic term, floored by
+ * a module-level cache belonging to whichever table was rendered last (audit E4), so a
+ * territory with four farms standing was told a farm cost what a first farm costs and the plus
+ * button was enabled on the strength of it.
+ *
+ * The four rows were 165 lines of near-identical `if`/`else if` chains before this. What
+ * differs between them is data and is in `UPGRADE_ROWS`; the availability logic is stated once,
+ * in the order it was always evaluated in: affordable and under the cap, then short of gold,
+ * then short of materials, then capped.
+ */
+const UPGRADE_ROWS = Object.freeze([
+    Object.freeze({ kind: "farm", type: "Farm", built: "farmsBuilt", max: maxFarms,
+        effect: "Food cap. +10%", capped: "Max Farms Reached" }),
+    Object.freeze({ kind: "forest", type: "Forest", built: "forestsBuilt", max: maxForests,
+        effect: "Cons Mats cap. +10%", capped: "Max Forests Reached" }),
+    Object.freeze({ kind: "oilWell", type: "Oil Well", built: "oilWellsBuilt", max: maxOilWells,
+        effect: "Oil cap. +10%", capped: "Max Oil Wells Reached" }),
+    Object.freeze({ kind: "fort", type: "Fort", built: "fortsBuilt", max: maxForts,
+        effect: "Increase Defense Bonus", capped: "Max Forts Reached" })
+]);
+
 export function calculateAvailableUpgrades(territory) {
-    const availableUpgrades = [];
+    return UPGRADE_ROWS.map((row) => {
+        const built = Number(territory[row.built]) || 0;
+        const price = upgradePriceFor(row.kind, built + 1, territory.devIndex);
+        const underCap = built < row.max;
+        const hasGold = territory.goldForCurrentTerritory >= price.gold;
+        const hasConsMats = territory.consMatsForCurrentTerritory >= price.consMats;
 
-    // Calculate the cost of upgrades
-    const farmGoldCost = Math.max(simulatedCostsAll[0], territoryUpgradeBaseCostsGold.farm * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const farmConsMatsCost = Math.max(simulatedCostsAll[1], territoryUpgradeBaseCostsConsMats.farm * 1.1 * (parseFloat(territory.devIndex) / 4));
-    const forestGoldCost = Math.max(simulatedCostsAll[2], territoryUpgradeBaseCostsGold.forest * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const forestConsMatsCost = Math.max(simulatedCostsAll[3], territoryUpgradeBaseCostsConsMats.forest * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const oilWellGoldCost = Math.max(simulatedCostsAll[4], territoryUpgradeBaseCostsGold.oilWell * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const oilWellConsMatsCost = Math.max(simulatedCostsAll[5], territoryUpgradeBaseCostsConsMats.oilWell * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const fortGoldCost = Math.max(simulatedCostsAll[6], territoryUpgradeBaseCostsGold.fort * 1.05 * (parseFloat(territory.devIndex) / 4));
-    const fortConsMatsCost = Math.max(simulatedCostsAll[7], territoryUpgradeBaseCostsConsMats.fort * 1.05 * (parseFloat(territory.devIndex) / 4));
+        let condition;
+        if (hasGold && hasConsMats && underCap) {
+            condition = "Can Build";
+        } else if (!hasGold && underCap) {
+            condition = "Not enough gold";
+        } else if (!hasConsMats && underCap) {
+            condition = "Not enough Cons. Mats.";
+        } else {
+            condition = row.capped;
+        }
 
-    // Check if the territory has enough gold and consMats for each upgrade
-    const hasEnoughGoldForFarm = territory.goldForCurrentTerritory >= farmGoldCost;
-    const hasEnoughGoldForForest = territory.goldForCurrentTerritory >= forestGoldCost;
-    const hasEnoughGoldForOilWell = territory.goldForCurrentTerritory >= oilWellGoldCost;
-    const hasEnoughGoldForFort = territory.goldForCurrentTerritory >= fortGoldCost;
-
-    const hasEnoughConsMatsForFarm = territory.consMatsForCurrentTerritory >= farmConsMatsCost;
-    const hasEnoughConsMatsForForest = territory.consMatsForCurrentTerritory >= forestConsMatsCost;
-    const hasEnoughConsMatsForOilWell = territory.consMatsForCurrentTerritory >= oilWellConsMatsCost;
-    const hasEnoughConsMatsForFort = territory.consMatsForCurrentTerritory >= fortConsMatsCost;
-
-    // Create the upgrade row objects based on the availability and gold/consMats conditions
-    if (hasEnoughGoldForFarm && hasEnoughConsMatsForFarm && (territory.farmsBuilt < maxFarms)) {
-        availableUpgrades.push({
-            type: 'Farm',
-            goldCost: farmGoldCost,
-            consMatsCost: farmConsMatsCost,
-            effect: "Food cap. +10%",
-            condition: 'Can Build'
-        });
-    } else if (!hasEnoughGoldForFarm && (territory.farmsBuilt < maxFarms)) {
-        availableUpgrades.push({
-            type: 'Farm',
-            goldCost: farmGoldCost,
-            consMatsCost: farmConsMatsCost,
-            effect: "Food cap. +10%",
-            condition: 'Not enough gold'
-        });
-    } else if (!hasEnoughConsMatsForFarm && (territory.farmsBuilt < maxFarms)) {
-        availableUpgrades.push({
-            type: 'Farm',
-            goldCost: farmGoldCost,
-            consMatsCost: farmConsMatsCost,
-            effect: "Food cap. +10%",
-            condition: 'Not enough Cons. Mats.'
-        });
-    } else {
-        availableUpgrades.push({
-            type: 'Farm',
-            goldCost: farmGoldCost,
-            consMatsCost: farmConsMatsCost,
-            effect: "Food cap. +10%",
-            condition: 'Max Farms Reached'
-        });
-    }
-
-    if (hasEnoughGoldForForest && hasEnoughConsMatsForForest && (territory.forestsBuilt < maxForests)) {
-        availableUpgrades.push({
-            type: 'Forest',
-            goldCost: forestGoldCost,
-            consMatsCost: forestConsMatsCost,
-            effect: "Cons Mats cap. +10%",
-            condition: 'Can Build'
-        });
-    } else if (!hasEnoughGoldForForest && (territory.forestsBuilt < maxForests)) {
-        availableUpgrades.push({
-            type: 'Forest',
-            goldCost: forestGoldCost,
-            consMatsCost: forestConsMatsCost,
-            effect: "Cons Mats cap. +10%",
-            condition: 'Not enough gold'
-        });
-    } else if (!hasEnoughConsMatsForForest && (territory.forestsBuilt < maxForests)) {
-        availableUpgrades.push({
-            type: 'Forest',
-            goldCost: forestGoldCost,
-            consMatsCost: forestConsMatsCost,
-            effect: "Cons Mats cap. +10%",
-            condition: 'Not enough Cons. Mats.'
-        });
-    } else {
-        availableUpgrades.push({
-            type: 'Forest',
-            goldCost: forestGoldCost,
-            consMatsCost: forestConsMatsCost,
-            effect: "Cons Mats cap. +10%",
-            condition: 'Max Forests Reached'
-        });
-    }
-
-    if (hasEnoughGoldForOilWell && hasEnoughConsMatsForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
-        availableUpgrades.push({
-            type: 'Oil Well',
-            goldCost: oilWellGoldCost,
-            consMatsCost: oilWellConsMatsCost,
-            effect: "Oil cap. +10%",
-            condition: 'Can Build'
-        });
-    } else if (!hasEnoughGoldForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
-        availableUpgrades.push({
-            type: 'Oil Well',
-            goldCost: oilWellGoldCost,
-            consMatsCost: oilWellConsMatsCost,
-            effect: "Oil cap. +10%",
-            condition: 'Not enough gold'
-        });
-    } else if (!hasEnoughConsMatsForOilWell && (territory.oilWellsBuilt < maxOilWells)) {
-        availableUpgrades.push({
-            type: 'Oil Well',
-            goldCost: oilWellGoldCost,
-            consMatsCost: oilWellConsMatsCost,
-            effect: "Oil cap. +10%",
-            condition: 'Not enough Cons. Mats.'
-        });
-    } else {
-        availableUpgrades.push({
-            type: 'Oil Well',
-            goldCost: oilWellGoldCost,
-            consMatsCost: oilWellConsMatsCost,
-            effect: "Oil cap. +10%",
-            condition: 'Max Oil Wells Reached'
-        });
-    }
-
-    if (hasEnoughGoldForFort && hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
-        availableUpgrades.push({
-            type: 'Fort',
-            goldCost: fortGoldCost,
-            consMatsCost: fortConsMatsCost,
-            effect: "Increase Defense Bonus",
-            condition: 'Can Build'
-        });
-    } else if (!hasEnoughGoldForFort && (territory.fortsBuilt < maxForts)) {
-        availableUpgrades.push({
-            type: 'Fort',
-            goldCost: fortGoldCost,
-            consMatsCost: fortConsMatsCost,
-            effect: "Increase Defense Bonus",
-            condition: 'Not enough gold'
-        });
-    } else if (!hasEnoughConsMatsForFort && (territory.fortsBuilt < maxForts)) {
-        availableUpgrades.push({
-            type: 'Fort',
-            goldCost: fortGoldCost,
-            consMatsCost: fortConsMatsCost,
-            effect: "Increase Defense Bonus",
-            condition: 'Not enough Cons. Mats.'
-        });
-    } else {
-        availableUpgrades.push({
-            type: 'Fort',
-            goldCost: fortGoldCost,
-            consMatsCost: fortConsMatsCost,
-            effect: "Increase Defense Bonus",
-            condition: 'Max Forts Reached'
-        });
-    }
-
-    return availableUpgrades;
+        return {
+            type: row.type,
+            goldCost: price.gold,
+            consMatsCost: price.consMats,
+            effect: row.effect,
+            condition: condition
+        };
+    });
 }
 
 function populateBuyTable(territory) {
@@ -2633,8 +2526,9 @@ function populateUpgradeTable(territory) {
     document.getElementById(ids.bottomBarConfirmButton).innerHTML = "Cancel";
     setConfirmArmed(ids.bottomBarConfirmButton, false);
 
-    let simulatedCosts;
     const upgradeTable = document.getElementById(ids.upgradeTable);
+    //Local to this render, not module state. See `nextUpgradeCostsFor()` and audit E4.
+    let simulatedCostsAll = [0, 0, 0, 0, 0, 0, 0, 0];
     let totalSimulatedGoldPrice = 0;
     let totalSimulatedConsMatsPrice = 0;
 
@@ -2731,50 +2625,14 @@ function populateUpgradeTable(territory) {
         totalGoldPrice += goldCost;
         totalConsMats += consMatsCost;
 
-        simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, true);
-
-        switch (simulatedCosts[2]) {
-            case "Farm":
-                simulatedCostsAll[0] = simulatedCosts[0];
-                simulatedCostsAll[1] = simulatedCosts[1];
-                break;
-            case "Forest":
-                simulatedCostsAll[2] = simulatedCosts[0];
-                simulatedCostsAll[3] = simulatedCosts[1];
-                break;
-            case "Oil Well":
-                simulatedCostsAll[4] = simulatedCosts[0];
-                simulatedCostsAll[5] = simulatedCosts[1];
-                break;
-            case "Fort":
-                simulatedCostsAll[6] = simulatedCosts[0];
-                simulatedCostsAll[7] = simulatedCosts[1];
-                break;
-        }
+        simulatedCostsAll = nextUpgradeCostsFor(territory, upgradeTable);
 
         imageMinus.addEventListener("click", (e) => {
             if (isStepperEnabled(imageMinus)) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
                 if (parseInt(textField.value) > 0) {
-                    simulatedCosts = incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory, false);
-                    switch (simulatedCosts[2]) {
-                        case "Farm":
-                            simulatedCostsAll[0] = simulatedCosts[0];
-                            simulatedCostsAll[1] = simulatedCosts[1];
-                            break;
-                        case "Forest":
-                            simulatedCostsAll[2] = simulatedCosts[0];
-                            simulatedCostsAll[3] = simulatedCosts[1];
-                            break;
-                        case "Oil Well":
-                            simulatedCostsAll[4] = simulatedCosts[0];
-                            simulatedCostsAll[5] = simulatedCosts[1];
-                            break;
-                        case "Fort":
-                            simulatedCostsAll[6] = simulatedCosts[0];
-                            simulatedCostsAll[7] = simulatedCosts[1];
-                            break;
-                    }
+                    incrementDecrementUpgrades(textField, -1, upgradeRow.type, territory);
+                    simulatedCostsAll = nextUpgradeCostsFor(territory, upgradeTable);
 
                     totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
                     totalConsMats = calculateTotalConsMats(upgradeTable);
@@ -2798,25 +2656,8 @@ function populateUpgradeTable(territory) {
         imagePlus.addEventListener("click", (e) => {
             if (isStepperEnabled(imagePlus)) {
                 tooltipUpgradeTerritoryRow(territory, availableUpgrades, e);
-                simulatedCosts = incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory, false);
-                switch (simulatedCosts[2]) {
-                    case "Farm":
-                        simulatedCostsAll[0] = simulatedCosts[0];
-                        simulatedCostsAll[1] = simulatedCosts[1];
-                        break;
-                    case "Forest":
-                        simulatedCostsAll[2] = simulatedCosts[0];
-                        simulatedCostsAll[3] = simulatedCosts[1];
-                        break;
-                    case "Oil Well":
-                        simulatedCostsAll[4] = simulatedCosts[0];
-                        simulatedCostsAll[5] = simulatedCosts[1];
-                        break;
-                    case "Fort":
-                        simulatedCostsAll[6] = simulatedCosts[0];
-                        simulatedCostsAll[7] = simulatedCosts[1];
-                        break;
-                }
+                incrementDecrementUpgrades(textField, 1, upgradeRow.type, territory);
+                simulatedCostsAll = nextUpgradeCostsFor(territory, upgradeTable);
 
                 totalGoldPrice = calculateTotalGoldPrice(upgradeTable);
                 totalConsMats = calculateTotalConsMats(upgradeTable);
@@ -2942,93 +2783,68 @@ function incrementDecrementPurchases(buyTextField, increment, purchaseType, simO
     return simulationPurchaseCosts;
 }
 
-function incrementDecrementUpgrades(textField, increment, upgradeType, territory, simOnly) {
-    let currentValueQuantity = parseInt(textField.value);
-    currentValueQuantity += increment;
-
+/**
+ * Step one upgrade row up or down, and rewrite its two cost cells.
+ *
+ * Economy stage 1.6. The price is `upgradeOrderPriceFor()` -- one definition, shared with the
+ * AI, the availability check and the tooltip. There were six copies of this formula and one of
+ * them disagreed (audit E5).
+ *
+ * Note that the ORDER is priced at the last one in it and not as the sum of the ladder. That is
+ * what this function has always charged and it is preserved deliberately; it is a balance
+ * number, it is audit E8, and stage 1 changes none.
+ *
+ * It no longer returns anything. It used to return the cost of a further simulated click so the
+ * caller could file it in `simulatedCostsAll`; the caller asks `upgradePriceFor()` instead.
+ */
+function incrementDecrementUpgrades(textField, increment, upgradeType, territory) {
+    let currentValueQuantity = parseInt(textField.value) + increment;
     if (currentValueQuantity < 0) {
         currentValueQuantity = 0;
     }
+    textField.value = currentValueQuantity.toString();
 
-    if (!simOnly) {
-        textField.value = currentValueQuantity.toString();
-    }
-
-    let currentValueQuantityTemp = currentValueQuantity;
-
-    // Update gold and consMats costs based on upgrade type and number of upgrades already built
+    const kind = UPGRADE_KIND_BY_TYPE[upgradeType];
     const upgradeRow = textField.parentNode.parentNode.parentNode.parentNode;
     const goldCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(4)");
     const consMatsCostElement = upgradeRow.querySelector(".upgrade-column:nth-child(5)");
 
-    let goldBaseCost;
-    let consMatsBaseCost;
+    const built = Number(territory[UPGRADE_BUILT_FIELD_BY_TYPE[upgradeType]]) || 0;
+    const price = currentValueQuantity === 0
+        ? { gold: 0, consMats: 0 }
+        : upgradeOrderPriceFor(kind, built, currentValueQuantity, territory.devIndex);
 
-    let farmsBuilt = territory.farmsBuilt;
-    let forestsBuilt = territory.forestsBuilt;
-    let oilWellsBuilt = territory.oilWellsBuilt;
-    let fortsBuilt = territory.fortsBuilt;
+    goldCostElement.textContent = price.gold;
+    consMatsCostElement.textContent = price.consMats;
+}
 
-    let goldCost;
-    let consMatsCost;
-    let simulationCosts = []; // Array to store simulated costs
+/** The upgrade table renders a display name; the rules speak in kinds. One map, two readers. */
+const UPGRADE_KIND_BY_TYPE = Object.freeze({
+    "Farm": "farm", "Forest": "forest", "Oil Well": "oilWell", "Fort": "fort"
+});
+const UPGRADE_BUILT_FIELD_BY_TYPE = Object.freeze({
+    "Farm": "farmsBuilt", "Forest": "forestsBuilt", "Oil Well": "oilWellsBuilt", "Fort": "fortsBuilt"
+});
 
-    switch (upgradeType) {
-        case "Farm":
-            currentValueQuantityTemp += farmsBuilt;
-            goldBaseCost = territoryUpgradeBaseCostsGold.farm;
-            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.farm;
-            farmsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.1)) * (territory.devIndex / 4));
-            break;
-        case "Forest":
-            currentValueQuantityTemp += forestsBuilt;
-            goldBaseCost = territoryUpgradeBaseCostsGold.forest;
-            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.forest;
-            forestsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            break;
-        case "Oil Well":
-            currentValueQuantityTemp += oilWellsBuilt;
-            goldBaseCost = territoryUpgradeBaseCostsGold.oilWell;
-            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.oilWell;
-            oilWellsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            break;
-        case "Fort":
-            currentValueQuantityTemp += fortsBuilt;
-            goldBaseCost = territoryUpgradeBaseCostsGold.fort;
-            consMatsBaseCost = territoryUpgradeBaseCostsConsMats.fort;
-            fortsBuilt += increment;
-            goldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            consMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (territory.devIndex / 4));
-            break;
-    }
-
-    if (currentValueQuantity === 0) {
-        goldCost = 0;
-        consMatsCost = 0;
-    }
-
-    if (!simOnly) {
-        goldCostElement.textContent = goldCost;
-        consMatsCostElement.textContent = consMatsCost;
-    }
-
-    // Simulate next increment and store costs in array
-    currentValueQuantityTemp += Math.abs(increment); //always simulate clicking plus i.e. upward direction
-    const consMatsMultiplier = (upgradeType === "Farm") ? 1.1 : 1.05;
-    const simulatedGoldCost = Math.ceil((goldBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * 1.05)) * (parseFloat(territory.devIndex) / 4));
-    const simulatedConsMatsCost = Math.ceil((consMatsBaseCost * currentValueQuantityTemp * (currentValueQuantityTemp * consMatsMultiplier)) * (parseFloat(territory.devIndex) / 4));
-    const simulatedUpgradeType = upgradeType;
-    simulationCosts.push(simulatedGoldCost);
-    simulationCosts.push(simulatedConsMatsCost);
-    simulationCosts.push(simulatedUpgradeType); // Include the upgrade type in the array
-
-    return simulationCosts;
+/**
+ * What one MORE of each upgrade would cost this territory, in the eight-slot shape
+ * `checkUpgradeRowsForGreyingOut()` reads: [farmGold, farmMats, forestGold, forestMats, ...].
+ *
+ * Recomputed from the rules rather than accumulated by simulating clicks, and passed in rather
+ * than held at module scope -- which is the whole of audit E4.
+ */
+function nextUpgradeCostsFor(territory, upgradeTable) {
+    const costs = [0, 0, 0, 0, 0, 0, 0, 0];
+    const rows = upgradeTable.getElementsByClassName("upgrade-row");
+    UPGRADE_ROWS.forEach((row, index) => {
+        const field = rows[index]?.querySelector(".column5B input");
+        const inOrder = parseInt(field?.value ?? "0") || 0;
+        const built = Number(territory[row.built]) || 0;
+        const price = upgradePriceFor(row.kind, built + inOrder + 1, territory.devIndex);
+        costs[index * 2] = price.gold;
+        costs[(index * 2) + 1] = price.consMats;
+    });
+    return costs;
 }
 
 function getImagePath(type, condition, territory, mode) {
@@ -3564,38 +3380,31 @@ export function addPlayerUpgrades(upgradeTable, territory, totalGoldCost, totalC
         if (allTerritories()[i].uniqueId === territory.uniqueId) {
             allTerritories()[i].goldForCurrentTerritory -= totalGoldCost; //subtract gold from territory
             allTerritories()[i].consMatsForCurrentTerritory -= totalConsMatsCost; // subtract consMats from territory
-            //audit 5.1 A. Each building bought in THIS transaction is worth +10% of the
-            //capacity the territory had BEFORE the transaction. It used to read
-            //`territory.farmsBuilt` -- the same object, already incremented -- and apply
-            //the running total as a multiplier against the already-boosted capacity, so a
-            //5th farm applied +50% on top of an inflated figure. And because the guards
-            //tested the total built rather than what was bought, buying a fort re-applied
-            //the farm, forest and oil bonuses too.
-            const farmsBought = parseInt(upgradeArray[0]) || 0;
-            const forestsBought = parseInt(upgradeArray[1]) || 0;
-            const oilWellsBought = parseInt(upgradeArray[2]) || 0;
-            const fortsBought = parseInt(upgradeArray[3]) || 0;
+            //Economy stage 1.3. `applyUpgrade()` is the one definition of what an upgrade
+            //does, and the AI goes through the same one -- which is what closes audit E1 and
+            //E2 by construction rather than by two parallel fixes.
+            //
+            //audit 5.1 A, preserved by that function and pinned by a unit test: each building
+            //bought in THIS transaction is worth +10% of the capacity the territory had BEFORE
+            //the transaction. It used to read `territory.farmsBuilt` -- the same object,
+            //already incremented -- and apply the running total as a multiplier against the
+            //already-boosted capacity, so a 5th farm applied +50% on top of an inflated figure.
+            const target = allTerritories()[i];
+            const boughtByKind = {
+                farm: parseInt(upgradeArray[0]) || 0,
+                forest: parseInt(upgradeArray[1]) || 0,
+                oilWell: parseInt(upgradeArray[2]) || 0,
+                fort: parseInt(upgradeArray[3]) || 0
+            };
 
-            allTerritories()[i].farmsBuilt += farmsBought;
-            allTerritories()[i].forestsBuilt += forestsBought;
-            allTerritories()[i].oilWellsBuilt += oilWellsBought;
-            allTerritories()[i].fortsBuilt += fortsBought;
+            for (const [kind, bought] of Object.entries(boughtByKind)) {
+                const patch = applyUpgrade(target, kind, bought);
+                Object.assign(target, patch);
+            }
 
-            if (farmsBought > 0) {
-                allTerritories()[i].foodCapacity = totalFoodCapacityTemp + (totalFoodCapacityTemp * ((farmsBought * 10) / 100)); //calculate new foodCapacity
-                turnGainsArrayPlayer.changeFoodCapacity += allTerritories()[i].foodCapacity - totalFoodCapacityTemp;
-            }
-            if (forestsBought > 0) {
-                allTerritories()[i].consMatsCapacity = totalConsMatsTemp + (totalConsMatsTemp * ((forestsBought * 10) / 100)); //calculate new consMatsCapacity
-                turnGainsArrayPlayer.changeConsMatsCapacity += allTerritories()[i].consMatsCapacity - totalConsMatsTemp;
-            }
-            if (oilWellsBought > 0) {
-                allTerritories()[i].oilCapacity = totalOilCapacityTemp + (totalOilCapacityTemp * ((oilWellsBought * 10) / 100)); //calculate new oilCapacity
-                turnGainsArrayPlayer.changeOilCapacity += allTerritories()[i].oilCapacity - totalOilCapacityTemp;
-            }
-            if (allTerritories()[i].fortsBuilt > 0) {
-                allTerritories()[i].defenseBonus = defenseBonusFor(allTerritories()[i]);
-            }
+            turnGainsArrayPlayer.changeFoodCapacity += target.foodCapacity - totalFoodCapacityTemp;
+            turnGainsArrayPlayer.changeConsMatsCapacity += target.consMatsCapacity - totalConsMatsTemp;
+            turnGainsArrayPlayer.changeOilCapacity += target.oilCapacity - totalOilCapacityTemp;
         }
     }
 

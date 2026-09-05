@@ -123,8 +123,18 @@ price is a function of the development index alone and the benefit is a function
 and area. And **the AI's economy upgrades have never worked**: `farmsBuilt` is incremented and
 the gold is taken, but no capacity is ever raised and no fort ever changes a defence bonus, so
 all 206 computer countries have been paying a quadratic price ladder for nothing. That last one
-is a defect and is measured first, on its own, because it changes what every AI country can
+is a defect and was measured first, on its own, because it changes what every AI country can
 afford and nothing else in the phase can be measured over the top of it.
+
+**Stage 1 is delivered, and it moved the world further than expected.** One price and one
+upgrade application now serve both the player and the AI; seven copies of two formulas are
+gone. Measured over 150 headless turns per goal, before and after: world food capacity rises in
+every run where before it never moved once across 1,487 upgrades. But with the AI paying full
+price for infantry and its six hundred forts finally taking dice off attackers, **the largest
+empire fell in four goals of five — Continental from 104 territories to 35 — and no continent
+is completed in a 150-turn game any more.** Two of the defects had been flattering the world.
+That is now the register's most consequential open item (**BO**): the continent bonus the
+previous phase shipped, measured and documented does not arrive in a played game.
 
 The six design questions the audit raised are answered and recorded in its §7. The one that
 shaped the plan most: **being large must stay good.** The obvious fix for an upgrade that pays

@@ -86,6 +86,16 @@ function installSeededRandomSource(seed) {
 async function sampleWorld(page) {
     return page.evaluate(() => {
         const owners = new Map();
+        //The economy, summed over the whole world. These four exist because the economy's
+        //defects (docs/05-economy-audit.md section 4 E1, E2) change NO column this tool
+        //reported before: an AI country that buys a farm and receives no capacity looks
+        //identical, in countries/largest/conquests, to one that never bought it. `foodCap`
+        //is the direct witness -- it is flat across a whole run today, because the only
+        //upgrade-driven capacity write in the codebase is on the player's path.
+        let upgradesStanding = 0;
+        let fortsStanding = 0;
+        let goldHeld = 0;
+        let foodCapacity = 0;
         // uniqueIds are the SVG path ids, 0..N; territory() accepts either an id or a name.
         for (let id = 0; id < 400; id += 1) {
             const territory = window.__game.territory(String(id));
@@ -100,6 +110,13 @@ async function sampleWorld(page) {
             entry.territories += 1;
             entry.area += Number(territory.area) || 0;
             entry.army += Number(territory.armyForCurrentTerritory) || 0;
+
+            upgradesStanding += (Number(territory.farmsBuilt) || 0) +
+                (Number(territory.forestsBuilt) || 0) +
+                (Number(territory.oilWellsBuilt) || 0);
+            fortsStanding += Number(territory.fortsBuilt) || 0;
+            goldHeld += Number(territory.goldForCurrentTerritory) || 0;
+            foodCapacity += Number(territory.foodCapacity) || 0;
         }
 
         const ranked = [...owners.entries()]
@@ -137,6 +154,13 @@ async function sampleWorld(page) {
             largest: ranked[0]?.territories ?? 0,
             heldByTopSixteen: ranked.slice(0, 16).reduce((sum, row) => sum + row.territories, 0),
             player: ranked.find((row) => row.country === window.__simPlayerCountry)?.territories ?? 0,
+            //The economy. `upgradesStanding` and `fortsStanding` are what the world has
+            //BOUGHT; `foodCapacity` is what it has RECEIVED for it. The two diverging is
+            //the whole of audit E1 -- and it is not visible in any other column.
+            upgradesStanding,
+            fortsStanding,
+            goldHeld,
+            foodCapacity,
             continentsHeld: completed.length,
             //Named, not just counted: "two continents are complete" is a different world
             //from "one country holds two", and the snowball this phase is watching for is
@@ -267,6 +291,12 @@ function formatRow(sample, elapsedMs) {
         //and one stuck at "0 complete, 96% of Europe" are different findings.
         `cont ${pad(sample.continentsHeld, 2)}`,
         `best ${pad(Math.round((sample.closestContinent?.share ?? 0) * 100), 3)}%`,
+        //The economy. `upg` and `forts` are what the world bought; `foodCap` is what it got
+        //for it, and the two moving apart is audit section 4 E1 (docs/05-economy-audit.md).
+        `upg ${pad(sample.upgradesStanding ?? 0, 4)}`,
+        `forts ${pad(sample.fortsStanding ?? 0, 4)}`,
+        `gold ${pad(Math.round((sample.goldHeld ?? 0) / 1000), 6)}k`,
+        `foodCap ${pad(Math.round((sample.foodCapacity ?? 0) / 1e6), 6)}M`,
         `${pad(Math.round(elapsedMs / 1000), 4)}s`,
     ].join("  ");
 }
@@ -389,6 +419,25 @@ async function main() {
             `the largest holds ${last.largest} territories, ` +
             `the top sixteen hold ${Math.round((last.heldByTopSixteen / last.worldTerritories) * 100)}% of the map`
         );
+        const first = series[0];
+        console.log(
+            `economy: ${last.upgradesStanding} upgrades and ${last.fortsStanding} forts standing` +
+            ` (from ${first.upgradesStanding} and ${first.fortsStanding}), ` +
+            `world food capacity ${Math.round(last.foodCapacity / 1e6)}M ` +
+            `(from ${Math.round(first.foodCapacity / 1e6)}M), ` +
+            `gold held ${Math.round(last.goldHeld / 1000)}k`
+        );
+        //Upgrades bought but no capacity gained is the signature of audit E1. Say so here
+        //rather than leaving it to be spotted in a column, because it is the one finding
+        //this tool was extended to make.
+        if (last.upgradesStanding > first.upgradesStanding &&
+            last.foodCapacity <= first.foodCapacity * 1.001) {
+            console.log(
+                `  NOTE: ${last.upgradesStanding - first.upgradesStanding} upgrades were bought ` +
+                `and world food capacity did not move. That is audit E1 ` +
+                `(docs/05-economy-audit.md): an AI upgrade raises no ceiling.`
+            );
+        }
         console.log(
             `continents held outright: ${last.continentsHeld}` +
             (last.continentHolders.length > 0 ? ` -- ${last.continentHolders.join(", ")}` : "") +

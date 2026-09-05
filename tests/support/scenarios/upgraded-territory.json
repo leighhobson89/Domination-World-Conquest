@@ -1,0 +1,18 @@
+{
+  "name": "upgraded-territory",
+  "description": "Germany with three farms and two forts already standing, and enough gold and construction materials to buy anything. It exists because the upgrade window's price defect (docs/05-economy-audit.md section 4 E4) is invisible on a bare territory: the affordability check priced every upgrade as a FIRST one, which is the correct answer when none are built. A territory has to already have buildings for the quoted price and the charged price to be able to differ. The stored defenseBonus of 57 is what defenseBonusFor() gives two forts on Germany's development index, so the scenario is a world the game could have produced rather than one with a stale field in it.",
+  "territories": [
+    {
+      "territory": "Germany",
+      "patch": {
+        "farmsBuilt": 3,
+        "forestsBuilt": 0,
+        "oilWellsBuilt": 0,
+        "fortsBuilt": 2,
+        "goldForCurrentTerritory": 500000,
+        "consMatsForCurrentTerritory": 500000,
+        "defenseBonus": 57
+      }
+    }
+  ]
+}

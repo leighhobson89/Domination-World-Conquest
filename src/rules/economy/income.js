@@ -11,6 +11,7 @@
 
 import {
     FOOD_UNIT_SCALE,
+    TERRITORY_BASE_INCOME,
     goldContinentModifiers,
     goldIncome as goldIncomeBalance,
     resourceRegeneration
@@ -146,14 +147,23 @@ export function goldChangeFor(territory, context = QUIET_TURN) {
     const modifier = areaScalingFactor * populationScalingFactor;
     const scaled = modifier > 0 ? Math.ceil(raw / modifier) * goldIncomeBalance.scale : 0;
 
-    //Normalised onto a fixed window so that the gap between the smallest and largest
-    //economies stays playable. Without it a territory's income tracks its raw size, and
-    //the map's biggest countries snowball out of reach on turn one.
-    const normalised = (scaled - goldIncomeBalance.normaliseMin) /
-        (goldIncomeBalance.normaliseMax - goldIncomeBalance.normaliseMin);
+    //Economy stage 2.1. Income is a BASE plus an EARNED part, and until this phase those two
+    //were one expression: `(scaled + 800) / 1800 * 100`. The `+ 800` was an affine shift and
+    //not a clamp, so it was a flat 44.44 gold paid to every territory on the map every turn --
+    //65% of what a median territory earns in total, and therefore the reason nothing a player
+    //did to a small territory moved its income at all (audit section 4 D1). Naming the two
+    //halves changes no income; it is what makes either of them tunable.
+    //
+    //`scaled` cannot be negative: a territory with no productive population takes the
+    //`modifier > 0` guard above and earns zero, so this is a true floor with no branch below it.
+    const earned = scaled / goldIncomeBalance.earnedDivisor;
+
     //A continent held whole pays on every territory on it. Gold is the one income that is
-    //EARNED rather than stored, so a multiplier here is exactly what a player imagines a
-    //bonus to be -- and it is applied last, after the normalisation, so the bonus is a clean
-    //multiple of what the territory would otherwise have made.
-    return normalised * 100 * bonusMultiplier(context.continentBonus);
+    //EARNED rather than stored, so a multiplier here is exactly what a player imagines a bonus
+    //to be. It multiplies the WHOLE income, base included, and that is a decision rather than
+    //an accident of where the line sits -- see stage 2.4 in the checklist. In short: applying
+    //it to the earned part alone would make it nearly worthless on a continent of small
+    //territories, and Oceania -- 65 islands, the hardest continent on the map to complete -- is
+    //exactly such a continent. It would punish the hardest objective in the game for being hard.
+    return (TERRITORY_BASE_INCOME + earned) * bonusMultiplier(context.continentBonus);
 }

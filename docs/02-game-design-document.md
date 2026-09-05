@@ -196,7 +196,7 @@ there is no per-continent bonus table and there should not be one.
 ⚠️ Those counts come from the MODEL and not from the map. A territory's `continent` is its
 original owner's `continent` in `initialData.js`, never the `continent=` attribute on its SVG
 path, and the two disagree about Easter Island — Chilean, so South American to the game and
-Oceanian to the map data. See **BI** in [04-known-issues.md](./04-known-issues.md) §13.
+Oceanian to the map data. See **BI** in [04-known-issues.md](./04-known-issues.md).
 
 ⚠️ Oceania is the trap: 65 island territories, almost every one needing a naval crossing, and
 worth no more for being the hardest continent on the map to complete. That is a fact about

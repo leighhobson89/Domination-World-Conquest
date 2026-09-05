@@ -14,6 +14,7 @@
 //   node tools/econ-lab.mjs upgrades        the price ladder and what a farm pays back
 //   node tools/econ-lab.mjs units           what a gold buys in combat force
 //   node tools/econ-lab.mjs consmats        the construction-materials bottleneck
+//   node tools/econ-lab.mjs bonus           what a continent held whole is worth, per continent
 //
 // The sample is one territory per COUNTRY -- `percentOfWholeArea` is 1 for a single-path
 // country, so the reconstruction below is exact for those and representative for the rest.
@@ -35,23 +36,15 @@ const QUIET = income.QUIET_TURN;
 
 // --- reconstruct a territory the way assignArmyAndResourcesToPaths() does -----------------
 //
-// The three continent tables below are inline in `resourceCalculations.js` and are NOT in
-// balance.js -- that is known-issue BN's neighbour, audit section 4 E7, and checklist item
-// 1.13 moves them. They are copied here rather than imported for exactly that reason; when
-// 1.13 lands, import them instead and delete these.
+// The three starting-continent tables used to be copied here, because they were written inline
+// in `resourceCalculations.js` and there was nothing to import. Stage 1.13 moved them into
+// `balance.js`, so this reads the same numbers the game does -- which is the point: a
+// measuring instrument carrying its own copy of the thing it measures will eventually measure
+// the copy.
 
-const SEED_GOLD_CONTINENT = {
-    "Europe": 15, "North America": 14, "Asia": 1,
-    "Oceania": 1, "South America": 1.8, "Africa": 2
-};
-const SEED_OIL_CONTINENT = {
-    "Europe": 1.4, "North America": 1.5, "Africa": 1.8,
-    "South America": 1.6, "Oceania": 1.2, "Asia": 1.5
-};
-const SEED_CONSMATS_CONTINENT = {
-    "Europe": 1.2, "North America": 1.6, "Africa": 1.3,
-    "South America": 1.8, "Oceania": 0.8, "Asia": 1.8
-};
+const SEED_GOLD_CONTINENT = balance.startingGoldContinentModifiers;
+const SEED_OIL_CONTINENT = balance.startingOilContinentModifiers;
+const SEED_CONSMATS_CONTINENT = balance.startingConsMatsContinentModifiers;
 
 /** The shared three-term shape both `initialOilCalculation()` and its cons-mats twin use. */
 function seedStock(area, devIndex, continentModifier) {
@@ -149,14 +142,15 @@ function reportIncome() {
     console.log(`         max/median ${(sorted[sorted.length - 1] / at(0.5)).toFixed(1)}x` +
         `   max/min ${(sorted[sorted.length - 1] / sorted[0]).toFixed(1)}x`);
 
-    // The floor. A territory with nothing at all still earns this, every turn, forever --
-    // it is `normaliseMin` showing through, and audit section 4 D1 is what follows from it.
+    // The floor. A territory with nothing at all still earns this, every turn, forever. Since
+    // economy stage 2.1 it is a named constant rather than a side effect of a normalisation
+    // window; audit section 4 D1 is what follows from its size.
     const floor = income.goldChangeFor(
         { continent: "Africa", area: 0, devIndex: 0.3, productiveTerritoryPop: 0 }, QUIET);
     console.log(`\nTHE FLOOR: a territory with no population, no area and the worst continent`);
     console.log(`multiplier on the map earns ${floor.toFixed(2)} gold a turn.`);
-    console.log(`  = (0 - normaliseMin) / (normaliseMax - normaliseMin) x 100` +
-        `   [${balance.goldIncome.normaliseMin} .. ${balance.goldIncome.normaliseMax}]`);
+    console.log(`  TERRITORY_BASE_INCOME = ${balance.TERRITORY_BASE_INCOME}` +
+        `, plus scaled / ${balance.goldIncome.earnedDivisor} earned`);
     console.log(`  which is ${((floor / at(0.5)) * 100).toFixed(0)}% of what a MEDIAN ` +
         `territory earns in total.\n`);
 
@@ -311,13 +305,62 @@ function reportConsMats() {
     console.log("turns of saving to fill one territory's upgrade slots. China needs one.");
 }
 
+// --- the continent bonus, against the base income --------------------------------------------
+
+function reportBonus() {
+    console.log("=== THE CONTINENT BONUS, NOW THAT INCOME HAS TWO HALVES ===\n");
+    console.log("Economy stage 2.4. Income is TERRITORY_BASE_INCOME + earned. So a 1.5x gold");
+    console.log("bonus for holding a continent whole can multiply the WHOLE income or the");
+    console.log("EARNED part alone, and until stage 2.1 there was no line between them to");
+    console.log("choose. This is the measurement the choice was made on.\n");
+
+    const base = balance.TERRITORY_BASE_INCOME;
+    const multiplier = balance.CONTINENT_BONUS_GOLD;
+
+    const byContinent = new Map();
+    for (const territory of territories) {
+        const gold = income.goldChangeFor(territory, QUIET);
+        const earned = Math.max(0, gold - base);
+        if (!byContinent.has(territory.continent)) {
+            byContinent.set(territory.continent, []);
+        }
+        byContinent.get(territory.continent).push({ gold, earned });
+    }
+
+    console.log("continent        n   mean gold/turn   mean EARNED   whole-income bonus   earned-only bonus");
+    const rows = [...byContinent].sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [continent, list] of rows) {
+        const meanGold = list.reduce((t, r) => t + r.gold, 0) / list.length;
+        const meanEarned = list.reduce((t, r) => t + r.earned, 0) / list.length;
+        //What the bonus ADDS per territory per turn under each rule.
+        const whole = meanGold * (multiplier - 1);
+        const earnedOnly = meanEarned * (multiplier - 1);
+        console.log(`  ${continent.padEnd(15)}${pad(list.length, 3, 0)}` +
+            `${pad(meanGold, 17)}${pad(meanEarned, 14)}` +
+            `${pad(whole, 21)}${pad(earnedOnly, 20)}`);
+    }
+
+    console.log("\nThe column that decides it is the last one. Under an EARNED-ONLY rule the");
+    console.log("bonus is worth almost nothing on a continent of small territories -- and");
+    console.log("OCEANIA is exactly that: 65 islands, the second largest continent by count,");
+    console.log("almost every one of them needing a naval crossing, and by a wide margin the");
+    console.log("hardest continent on the map to complete. An earned-only rule would pay the");
+    console.log("least for the hardest objective in the game.");
+    console.log("\nSo the bonus multiplies the WHOLE income, base included. That is also the");
+    console.log("status quo, which means stage 2 moves no money at all -- but it is now a");
+    console.log("decision with a reason rather than an accident of where the line happened");
+    console.log("to sit. See known-issue BO before touching it: no continent is currently");
+    console.log("completed in a 150-turn game, so weakening this dial would be the wrong way.");
+}
+
 // --- main ---------------------------------------------------------------------------------
 
 const sections = {
     income: reportIncome,
     upgrades: reportUpgrades,
     units: reportUnits,
-    consmats: reportConsMats
+    consmats: reportConsMats,
+    bonus: reportBonus
 };
 
 const requested = process.argv.slice(2).filter((argument) => !argument.startsWith("-"));

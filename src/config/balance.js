@@ -81,7 +81,17 @@ export const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
 
 // --- territory upgrades ----------------------------------------------------
 
-/** Base gold price of one upgrade. The Nth of a kind costs N times this. */
+/**
+ * Base gold price of one upgrade.
+ *
+ * The Nth of a kind costs `ceil(base * N * (N * 1.05) * devIndex / 4)` -- **QUADRATIC in N**,
+ * so the fifth is about twenty-six times the first, not five times. This comment said "N times
+ * this" until the economy audit measured the ladder; it was the only description of the price
+ * law anywhere, and it was wrong by a whole power (docs/05-economy-audit.md section 4 E6).
+ *
+ * The formula itself is `upgradePriceFor()` in `src/rules/economy/upgrades.js`, which is the
+ * only copy -- there were six, and one of them disagreed.
+ */
 export const territoryUpgradeBaseCostsGold = {
     farm: 200,
     forest: 200,
@@ -89,7 +99,14 @@ export const territoryUpgradeBaseCostsGold = {
     fort: 1000
 };
 
-/** Base construction-materials price of one upgrade. */
+/**
+ * Base construction-materials price of one upgrade.
+ *
+ * Same quadratic ladder as the gold price, except that a FARM squares at 1.1 where the other
+ * three square at 1.05 -- so farms are the construction-materials-expensive upgrade even though
+ * their base is the same as a forest's. That difference is in every copy of the formula the
+ * codebase ever had, including the AI's, so it is behaviour and not a typo.
+ */
 export const territoryUpgradeBaseCostsConsMats = {
     farm: 500,
     forest: 500,
@@ -150,6 +167,60 @@ export const goldContinentModifiers = {
     "Africa": 0.3
 };
 
+// The three tables below are used ONCE EACH, at world creation, and they were written inline in
+// `resourceCalculations.js` until the economy phase moved them here (audit section 4 E7). Five
+// continent tables is defensible -- what a continent is worth to LIVE on, what it is worth to
+// EARN on, and what it is worth to have STARTED on are three different facts. Five tables of
+// which three were invisible is not, and it is the same species as known-issue BI: several
+// sources disagreeing about a continent, with nothing anywhere reconciling them.
+//
+// Note how far apart they are. Europe is 15 for starting gold and 1.4 for starting oil; Africa
+// is 2 and 1.8. They are not variations on one idea and must not be merged into one.
+
+/**
+ * Multiplies the population term of a territory's STARTING gold, once, at world creation.
+ *
+ * The largest spread of the five tables by a wide margin -- Europe and North America at 15 and
+ * 14 against 1 for Asia and Oceania. It is what gives the small, dense, developed countries an
+ * opening treasury at all; their populations are tiny next to China's and the per-turn income
+ * formula is dominated by population.
+ */
+export const startingGoldContinentModifiers = {
+    "Europe": 15,
+    "North America": 14,
+    "Asia": 1,
+    "Oceania": 1,
+    "South America": 1.8,
+    "Africa": 2
+};
+
+/** Continent term in a territory's STARTING oil stock and capacity, at world creation. */
+export const startingOilContinentModifiers = {
+    "Europe": 1.4,
+    "North America": 1.5,
+    "Asia": 1.5,
+    "Oceania": 1.2,
+    "South America": 1.6,
+    "Africa": 1.8
+};
+
+/**
+ * Continent term in a territory's STARTING construction materials, at world creation.
+ *
+ * Worth knowing when reading audit D7: this term is small next to the AREA term beside it, so
+ * construction-materials capacity is very nearly a function of land area alone -- which is why
+ * Germany needs eighty turns of regeneration to fill one territory's upgrade slots and China
+ * needs one.
+ */
+export const startingConsMatsContinentModifiers = {
+    "Europe": 1.2,
+    "North America": 1.6,
+    "Asia": 1.8,
+    "Oceania": 0.8,
+    "South America": 1.8,
+    "Africa": 1.3
+};
+
 /**
  * What holding a WHOLE continent is worth: gold income, and the three capacities.
  *
@@ -199,7 +270,34 @@ export const resourceRegeneration = {
     food: { growth: 0.2, decay: 0.1 }
 };
 
-/** Gold income. */
+/**
+ * What every territory earns for existing, before it earns anything for what it IS.
+ *
+ * Economy stage 2.1, and the number is not new -- it is 44.44 gold a turn and it has been paid
+ * to every territory on the map every turn since the game was written. It was **hidden inside a
+ * normalisation window**: income was `(scaled - normaliseMin) / (normaliseMax - normaliseMin)`
+ * with `normaliseMin` at -800, which is an affine transform and not a clamp, so the -800 was
+ * simply a constant added to everybody. Nothing named it and nothing could tune it.
+ *
+ * Why that mattered enough to be its own stage: it is **65% of what a MEDIAN territory earns in
+ * total** (median 68.5 gold a turn), so for anything below roughly a million productive
+ * population -- most of the 359 territories on the map -- income was very nearly constant and
+ * nothing the player did to a territory moved it. That is the direct answer to "players have no
+ * reason to upgrade": on most of the map they were right. See docs/05-economy-audit.md section
+ * 4 D1, and `node tools/econ-lab.mjs income` for the measurement.
+ *
+ * Splitting it out changes no income on the turn it lands -- deliberately, because stage 2 is a
+ * refactor of the floor and the tuning is stage 3. **It is 44.44 rather than the exact 44.444...
+ * the old window produced**, a difference of 0.0044 gold per territory per turn, which is 1.6
+ * gold a turn across the whole world and is the price of the constant being a readable number
+ * instead of a repeating decimal.
+ *
+ * Raising this makes a bad start survivable and makes upgrading matter less. Lowering it does
+ * the reverse, and at zero a one-territory country in Africa earns almost nothing at all.
+ */
+export const TERRITORY_BASE_INCOME = 44.44;
+
+/** Gold income, on top of `TERRITORY_BASE_INCOME`. */
 export const goldIncome = {
     /** Territory area is divided by this before being used as a multiplier, floored at 1. */
     areaDivisor: 10000000,
@@ -208,11 +306,15 @@ export const goldIncome = {
     /** Applied after the log-scaling division. */
     scale: 0.2,
     /**
-     * The raw figure is normalised onto this window and then multiplied by 100. Lowering
-     * `min` lifts small countries; raising `max` pushes large ones down.
+     * The scaled figure is divided by this to become gold. Raising it pushes the large
+     * economies down and leaves the small ones on the base income; lowering it spreads the
+     * world further apart.
+     *
+     * It is 18 because that is what the old window was: a span of 1800 followed by a
+     * multiplication by 100. **The window never clamped anything** -- China's scaled figure is
+     * about 61,400 against a `normaliseMax` of 1000 -- so nothing is lost by saying so plainly.
      */
-    normaliseMin: -800,
-    normaliseMax: 1000
+    earnedDivisor: 18
 };
 
 /** Population growth and starvation. */

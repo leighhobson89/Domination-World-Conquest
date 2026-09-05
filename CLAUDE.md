@@ -19,9 +19,13 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   does, and what is implemented vs. missing.
 - [docs/03-e2e-test-plan.md](./docs/03-e2e-test-plan.md) — functional areas and the test
   harness.
-- [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register:
-  every issue found so far, its status, where it is in the code **today**, and the phase that
-  closes it. This is the one that stays current; the audit is the analysis behind it.
+- [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register, and it
+  holds **only what is still open**: defects, design problems, what is missing, and hygiene.
+  An entry moves to
+  [docs/archived/04-known-issues-closed.md](./docs/archived/04-known-issues-closed.md) **in the
+  same change that closes it** — never struck through and left, and never batched up for a
+  tidy-up later. Ids are permanent and survive the move, because source comments cite them.
+  This is the one that stays current; the audit is the analysis behind it.
 - [docs/05-economy-audit.md](./docs/05-economy-audit.md) — **the current phase.** What the
   economy is, which five places it actually reaches the military and the dice, the measured
   numbers behind every claim, and the split between defects (**E1–E7**, the economy not doing
@@ -107,6 +111,50 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `"resources/flags/" + country + ".png"` at runtime. No bundler rewrites those, which is why
   `vite.config.mjs` copies `resources/` into the build verbatim. Moving `resources/` means
   editing every one of those strings.
+- **GOLD INCOME IS A BASE PLUS AN EARNED PART, and the base is large.**
+  `TERRITORY_BASE_INCOME` (44.44) is paid to every territory every turn whatever it is, and on
+  top of it a territory earns `scaled / earnedDivisor`. The number is not new — it was hidden
+  inside `(scaled - normaliseMin) / (normaliseMax - normaliseMin)` with `normaliseMin` at −800,
+  which is an **affine shift and not a clamp**, so the −800 was simply a constant added to
+  everybody and the word "normalisation" was part of why nobody noticed. `normaliseMax` never
+  clamped anything either: China's scaled figure is about 61,400 against a max of 1000. Two
+  consequences. **The base is 65% of what a MEDIAN territory earns** (median 68.5 gold), so
+  below about a million productive population nothing the player does moves the income at all —
+  that is the whole of "why would anyone upgrade", and `node tools/econ-lab.mjs income` is the
+  measurement. And **the continent bonus multiplies the WHOLE income, base included**, which is
+  a decision and not an accident of where the line sits: applied to the earned part alone it
+  roughly halves on Africa and South America — the poorest continents and the likeliest to be
+  finished — while barely touching North America, so it would pay least for the hardest
+  objective. `node tools/econ-lab.mjs bonus` is that measurement.
+- **AN UPGRADE HAS ONE PRICE AND ONE EFFECT, and both live in `src/rules/economy/upgrades.js`.**
+  `upgradePriceFor(kind, nth, devIndex)` and `applyUpgrade(territory, kind, count)`, pure, and
+  **the player and the AI both go through them** — the same rule the dice model established for
+  combat, arrived at the same way. Before the economy phase there were **six copies of the price
+  formula and a seventh of the defence formula**, and what they cost is worth remembering
+  because none of it threw: `calculateAvailableUpgrades()` priced everything as a FIRST one, so
+  the "Can Build" label and the plus button were decided from the wrong number; the AI's
+  upgrades **incremented `farmsBuilt` and raised no capacity at all**, so every farm, forest and
+  oil well all 206 countries ever bought was a pure cost up a quadratic ladder against a ceiling
+  that could not move; its forts **never recomputed `defenseBonus`**, so about six hundred forts
+  on the map took a die off nobody; and the fort tooltip's own copy of the defence formula
+  disagreed with the game's, promising a fort was worth several times what it is. Three rules
+  follow. **The price ladder is QUADRATIC** — `ceil(base · n · (n · 1.05) · devIndex / 4)`, the
+  fifth about 26× the first — and `balance.js` called it linear for as long as it existed.
+  **`nth` is the number STANDING AFTER the purchase**, which is what every correct copy meant.
+  And **the capacity gain is +10% of the ceiling BEFORE the transaction, per unit, never
+  compounded** (audit 5.1 A, a catastrophic bug once already).
+- **`upgradeOrderPriceFor()` charges an order at the LAST one in it, and that is preserved on
+  purpose.** Five farms in one transaction cost `price(5)`; five bought one a turn cost
+  `price(1) + … + price(5)`, about 2.2× more — so bulk buying is cheap and the AI, which buys
+  one at a time, pays full price. It is a balance number (known-issues, economy audit E8), it is
+  pinned by a unit test, and correcting it is a measured change and not a tidy-up.
+- **Fixing a defect can make the game harder, and the economy phase is the case in point.**
+  Stage 1 changed no balance number and moved the world a long way: with the AI finally paying
+  full price for its infantry and its forts finally defending, the largest empire fell in four
+  goals of five (Continental 104 territories to 35) and **no continent is completed in a
+  150-turn game any more** — so the continent bonus the previous phase shipped does not arrive.
+  Two defects had been flattering the world. `tools/ai-sim.mjs`'s `upg` / `forts` / `gold` /
+  `foodCap` columns exist to catch exactly this, and known-issue **BO** is the open item.
 - **A continent held whole pays, and the payment is DERIVED.** `src/state/continents.js` is
   the pure walk — `continentControl()`, `holdsContinentOutright()`, `continentsHeldOutrightBy()`
   — and it imports nothing at all, so it runs in Node and takes its territories as an argument.
@@ -846,7 +894,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   it in the harness; anything new that drives the turn loop has to as well.
 - **A besieged territory earns no gold, oil or construction materials**, and the AI besieges far
   more than it can finish (17 → 67 concurrent sieges over 14 turns). Both are design problems
-  logged for Phase 7 in [docs/04-known-issues.md](./docs/04-known-issues.md) §6 — do not "fix"
+  logged in [docs/04-known-issues.md](./docs/04-known-issues.md) under Design problems — do not "fix"
   either as a bug.
 - **Do not move the CPU-leader and starting-fort setup earlier in bootstrap.** It looks wrong —
   `initialiseGame()` starts turn 1 before either exists, which is why `newTurnResources()` skips

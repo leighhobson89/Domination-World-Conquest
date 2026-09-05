@@ -24,8 +24,6 @@ import {
     maxOilWells,
     oilRequirements,
     playerOwnedTerritories,
-    territoryUpgradeBaseCostsConsMats,
-    territoryUpgradeBaseCostsGold,
     vehicleArmyPersonnelWorth
 } from "./resourceCalculations.js";
 import {
@@ -73,6 +71,11 @@ import {
 } from './src/state/mutations.js';
 import { continentCapacityBonusFor } from './src/state/continentBonus.js';
 import { effectiveCapacityFor } from './src/rules/economy/capacity.js';
+//Economy stage 1. The AI and the player apply an upgrade through the SAME function now. Before
+//this, `addPlayerUpgrades()` was the only thing in the codebase that raised a capacity or
+//recomputed a defence bonus, so an AI country paid a quadratic price ladder and received
+//nothing at all -- docs/05-economy-audit.md section 4 E1 and E2.
+import { applyUpgrade } from './src/rules/economy/upgrades.js';
 import {
     getPathByUniqueId
 } from './src/state/indexes.js';
@@ -935,19 +938,10 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
     let forest = availableUpgrades[1];
     let oilWell = availableUpgrades[2];
 
-    let farmGoldBaseCost = territoryUpgradeBaseCostsGold.farm;
-    let farmConsMatsBaseCost = territoryUpgradeBaseCostsConsMats.farm;
-    let forestGoldBaseCost = territoryUpgradeBaseCostsGold.forest;
-    let forestConsMatsBaseCost = territoryUpgradeBaseCostsConsMats.forest;
-    let oilWellGoldBaseCost = territoryUpgradeBaseCostsGold.oilWell;
-    let oilWellConsMatsBaseCost = territoryUpgradeBaseCostsConsMats.oilWell;
-
-    availableUpgrades[0].goldCost = Math.ceil((farmGoldBaseCost * (territory.farmsBuilt + 1) * ((territory.farmsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-    availableUpgrades[0].consMatsCost = Math.ceil((farmConsMatsBaseCost * (territory.farmsBuilt + 1)  * ((territory.farmsBuilt + 1)  * 1.1)) * (territory.devIndex / 4));
-    availableUpgrades[1].goldCost = Math.ceil((forestGoldBaseCost * (territory.forestsBuilt + 1) * ((territory.forestsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-    availableUpgrades[1].consMatsCost = Math.ceil((forestConsMatsBaseCost * (territory.forestsBuilt + 1)  * ((territory.forestsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
-    availableUpgrades[2].goldCost = Math.ceil((oilWellGoldBaseCost * (territory.oilWellsBuilt + 1) * ((territory.oilWellsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-    availableUpgrades[2].consMatsCost = Math.ceil((oilWellConsMatsBaseCost * (territory.oilWellsBuilt + 1)  * ((territory.oilWellsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
+    //audit E5: four copies of the price formula used to be re-derived here and re-derived
+    //again after every build, because `calculateAvailableUpgrades()` priced everything as a
+    //FIRST one. It prices the NEXT one now -- the same `upgradePriceFor(kind, built + 1)` the
+    //player is charged -- so the overrides are simply gone.
 
     let buildAgain = aiRng() > 0.5;
 
@@ -1045,33 +1039,17 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
             consMatsToSpend -= selectedUpgrade.consMatsCost;
             territory.goldForCurrentTerritory -= selectedUpgrade.goldCost;
             territory.consMatsForCurrentTerritory -= selectedUpgrade.consMatsCost;
-            territory[objectProperty]++;
-            let newGoldCost;
-            let newConsMatsCost;
+            //audit E1, and this line is the whole of it. `territory[objectProperty]++` used to
+            //stand here alone: the count went up, the gold went out, and NO capacity was ever
+            //raised -- so every farm, forest and oil well the AI has ever built was a pure
+            //cost, and the "do I need another?" tests a few lines above compared a demand
+            //against a ceiling that could not move. `applyUpgrade()` is the same function the
+            //player's confirm button goes through.
+            Object.assign(territory, applyUpgrade(territory, largestDesire[0], 1));
 
-            if (largestDesire[0] === "farm") {
-                newGoldCost = Math.ceil((farmGoldBaseCost * (territory.farmsBuilt + 1) * ((territory.farmsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-                newConsMatsCost = Math.ceil((farmConsMatsBaseCost * (territory.farmsBuilt + 1) * ((territory.farmsBuilt + 1)  * 1.1)) * (territory.devIndex / 4));
-            } else if (largestDesire[0] === "forest") {
-                newGoldCost = Math.ceil((forestGoldBaseCost * (territory.forestsBuilt + 1) * ((territory.forestsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-                newConsMatsCost = Math.ceil((forestConsMatsBaseCost * (territory.forestsBuilt + 1) * ((territory.forestsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
-            } else if (largestDesire[0] === "oilWell") {
-                newGoldCost = Math.ceil((oilWellGoldBaseCost * (territory.oilWellsBuilt + 1) * ((territory.oilWellsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-                newConsMatsCost = Math.ceil((oilWellConsMatsBaseCost * (territory.oilWellsBuilt + 1)  * ((territory.oilWellsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
-            }
-
+            //Re-read at the new count, which now also re-prices: `calculateAvailableUpgrades()`
+            //quotes the NEXT one, so the hand-written re-price that used to follow is gone.
             availableUpgrades = calculateAvailableUpgrades(territory);
-
-            if (largestDesire[0] === "farm") {
-                availableUpgrades[0].goldCost = newGoldCost;
-                availableUpgrades[0].consMatsCost = newConsMatsCost;
-            } else if (largestDesire[0] === "forest") {
-                availableUpgrades[1].goldCost = newGoldCost;
-                availableUpgrades[1].consMatsCost = newConsMatsCost;
-            } else if (largestDesire[0] === "oilWell") {
-                availableUpgrades[2].goldCost = newGoldCost;
-                availableUpgrades[2].consMatsCost = newConsMatsCost;
-            }
 
             buildAgain = (aiRng() * 10 + 1) >= 5;
             if (buildList && buildList.length >= maxUpgrades) {
@@ -1117,26 +1095,46 @@ function calculateIfNeedsToSwitchOrderWithEconomy(mainArrayFriendlyTerritoryCopy
     return updated;
 }
 
+/**
+ * Build forts on one territory, while the leader still fancies it and the money lasts.
+ *
+ * Economy stage 1.5. Four defects were in the eleven lines this replaces (audit E2), and the
+ * first of them is the one that mattered:
+ *
+ *   - **`defenseBonus` was never recomputed**, so an AI fort moved nothing. Forts are the
+ *     economy's only direct line into the dice -- `DIE_MODIFIERS.fortification` bands the raw
+ *     `defenseBonus + mountainDefenseBonus` and takes a die off the attacker at 25 -- so every
+ *     fort every AI country has ever built was a pure cost, exactly like its farms.
+ *   - The price was computed once and never recalculated, so N forts all cost the price of the
+ *     first.
+ *   - `consMatsToSpend` was never decremented, so the materials test used a stale figure.
+ *   - `fortsBuilt` was incremented AFTER the loop, so the `< maxForts` guard read a stale count
+ *     and the cap could be exceeded within a single turn.
+ *
+ * The RNG draw sequence is deliberately unchanged -- one draw before the loop and one after
+ * each successful build -- because adding or removing a draw shifts every seeded outcome in the
+ * game.
+ */
 function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
-    let availableUpgrades = calculateAvailableUpgrades(territory);
-    let fort = availableUpgrades[3];
-
-    let fortBaseCostGold = territoryUpgradeBaseCostsGold.fort;
-    let fortBaseCostConsMats = territoryUpgradeBaseCostsConsMats.fort;
-
-    fort.goldCost = Math.ceil((fortBaseCostGold * (territory.fortsBuilt + 1) * ((territory.fortsBuilt + 1) * 1.05)) * (territory.devIndex / 4));
-    fort.consMatsCost = Math.ceil((fortBaseCostConsMats * (territory.fortsBuilt + 1)  * ((territory.fortsBuilt + 1)  * 1.05)) * (territory.devIndex / 4));
-
     let fortDesire = aiRng() > 0.5;
-
     let fortBuildCount = 0;
-    while ((territory.fortsBuilt < maxForts) && (fort.goldCost < goldToSpend) && (fort.consMatsCost < consMatsToSpend) && fortDesire) {
+
+    while (territory.fortsBuilt < maxForts && fortDesire) {
+        //Re-read every iteration: the price of the next fort is quadratic in how many are
+        //standing, and one more is standing than there was a moment ago.
+        const fort = calculateAvailableUpgrades(territory)[3];
+        if (fort.goldCost >= goldToSpend || fort.consMatsCost >= consMatsToSpend) {
+            break;
+        }
         fortBuildCount++;
         goldToSpend -= fort.goldCost;
+        consMatsToSpend -= fort.consMatsCost;
         territory.goldForCurrentTerritory -= fort.goldCost;
         territory.consMatsForCurrentTerritory -= fort.consMatsCost;
+        Object.assign(territory, applyUpgrade(territory, "fort", 1));
         fortDesire = aiRng() > 0.5;
     }
+
     if (fortBuildCount > 0) {
         console.log("Built " + fortBuildCount + " forts on this territory this turn!");
     } else if (fortDesire && territory.fortsBuilt < maxForts) {
@@ -1147,7 +1145,6 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
     }
     console.log("Territory has " + territory.fortsBuilt + " forts now");
 
-    territory.fortsBuilt += fortBuildCount;
     return goldToSpend;
 }
 
@@ -1235,10 +1232,14 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
 
         territory.oilDemand = territoryOilCap - territorySpareOil;
 
-        let finalInfantryQuantity = goldToSpend / armyGoldPrices.infantry
+        //audit E3. This debited `finalInfantryQuantity` -- the COUNT of thousand-strong troops
+        //bought -- where it meant the gold they cost, so the AI paid a tenth of the price and
+        //received 1,000 infantry per gold where the player receives 100. It is the LAST tranche
+        //of the turn, after vehicles, so on most turns it was the bulk of the budget; the first
+        //tranche forty lines above was charged correctly, which is why it read as fine.
         finalInfantryProdPop = (goldToSpend / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;
         if (prodPopToSpend >= finalInfantryProdPop) {
-            territory.goldForCurrentTerritory -= finalInfantryQuantity;
+            territory.goldForCurrentTerritory -= goldToSpend;
             territory.productiveTerritoryPop -= finalInfantryProdPop;
             territory.infantryForCurrentTerritory += finalInfantryProdPop;
         } else {

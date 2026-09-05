@@ -119,6 +119,15 @@ export function installTestHooks(accessors) {
                 attackingCountry: siege.attackingCountry,
                 attackingTerritory: siege.attackingTerritory,
                 turnsInSiege: siege.turnsInSiege,
+                //How much food capacity this siege has destroyed IN TOTAL, accumulated tick by
+                //tick. It exists because the net change in a territory's `foodCapacity` across
+                //a turn stopped being a measure of the siege the moment AI upgrades began
+                //working (known-issue BK): a besieged territory can still build a farm, and
+                //+10% of a ceiling outweighs one tick of collateral damage. A spec that wants
+                //to assert "a siege damages what it besieges" has to read the damage, not a
+                //net that two things write to. It is also what repairs the ceiling when the
+                //siege lifts -- see BP.
+                foodCapacityDestroyed: siege.foodCapacityDestroyed ?? 0,
                 attackingArmyRemaining: [...(siege.attackingArmyRemaining ?? [])],
                 defendingArmyRemaining: [...(siege.defendingArmyRemaining ?? [])],
                 defendingTerritory: siege.defendingTerritory?.territoryName ?? null

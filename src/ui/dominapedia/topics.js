@@ -1083,11 +1083,26 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                     body: [
                         h("Gold income"),
                         p(
-                            "Each territory earns from its productive population, scaled by its " +
-                                "development index, its area and its continent, and then " +
-                                "normalised so that the gap between the world's smallest and " +
-                                "largest economies stays playable. Without that normalisation " +
-                                "the biggest countries would snowball out of reach on turn one."
+                            "A territory's income has two halves. Every territory earns a flat " +
+                                "BASE INCOME simply for being yours, and on top of that it earns " +
+                                "from its productive population, scaled by its development index, " +
+                                "its area and its continent."
+                        ),
+                        p(
+                            "The base is worth knowing about, because it is large. It is about " +
+                                "65% of what a middling territory earns in total — so a small " +
+                                "territory earns very nearly the same whatever you do to it, " +
+                                "while a populous one earns many times the base. Fifty scattered " +
+                                "islands are a real income; they are just not an income you can " +
+                                "grow. If you want an economy that compounds, you need " +
+                                "POPULOUS land, and the food ceiling is what lets population " +
+                                "grow into it."
+                        ),
+                        p(
+                            "The earned half is deliberately compressed: it is divided down so " +
+                                "the gap between the world's smallest and largest economies " +
+                                "stays playable. Without that, the biggest countries would " +
+                                "snowball out of reach on turn one."
                         ),
                         p(
                             "The continent multiplier on gold is large enough to be a strategic " +

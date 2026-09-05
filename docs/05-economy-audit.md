@@ -5,6 +5,17 @@ which parts of it are broken, which parts are working-as-written but make no dec
 player, and what to do about each. The task breakdown is
 [06-economy-checklist.md](./06-economy-checklist.md).
 
+**Stages 1 and 2 are delivered and measured** — every **E** item below is closed except E8, which is a
+balance number and is deliberately preserved. The before/after over five goals and 150 turns
+each is in the checklist. It turned up one thing this document did not predict and which now
+shapes everything after it: **with the defects fixed, no continent is completed in a 150-turn
+game any more**, so the continent bonus the previous phase shipped is currently unreachable.
+§4 E-summary says why.
+
+Stage 2 split the income floor out as `TERRITORY_BASE_INCOME` and moved no money doing it; what
+that buys is that D1 below is now a dial rather than a discovery. The three defects the two
+stages turned up along the way — E8, E9 and the siege one — are in §4 with the rest.
+
 Everything numeric below was **measured**, not read off the source — a headless harness over
 `src/rules/economy/` and `initialData.js`, reproduced by `node tools/econ-lab.mjs`.
 Where a number appears in this document it is a number the game actually
@@ -188,7 +199,13 @@ says does not produce a decision.
 
 ### E — defects
 
+**All of these are CLOSED by stage 1 except E8**, which is a balance number and is preserved
+with a unit test pinning it. They are kept in full rather than struck through, because what they
+were is the reason the code is now shaped the way it is — and because two of them turned out to
+have been holding the world's balance up (see the E-summary at the end of this section).
+
 **E1. An AI country's economy upgrades raise no capacity at all.** *This is the big one.*
+**CLOSED, stage 1.4** — both sides call `applyUpgrade()` in `src/rules/economy/upgrades.js`.
 `analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild()` in
 [aiCalculations.js:1046](../aiCalculations.js#L1046) debits gold and construction materials and
 increments `farmsBuilt` / `forestsBuilt` / `oilWellsBuilt` — and never touches `foodCapacity`,
@@ -200,7 +217,7 @@ the AI's *desire* logic reads the effective capacity to decide what to build nex
 ceiling it is trying to raise never moves and it keeps buying the next one up a quadratic price
 ladder forever.
 
-**E2. An AI country's forts raise no defence bonus, and the fort loop is wrong three ways.**
+**E2. An AI country's forts raise no defence bonus, and the fort loop is wrong three ways.** **CLOSED, stage 1.5.**
 `analyzeAndBuildFortDefenses()` at [aiCalculations.js:1119](../aiCalculations.js#L1119):
 `defenseBonus` is never recomputed, so an AI fort contributes nothing to the die band that forts
 exist to move. Additionally, inside the loop the price is never recalculated (so N forts all
@@ -215,7 +232,7 @@ the world to consolidate) from the opposite direction to the one that has been i
 AI defenders are softer than they should be, AI economies are poorer than they should be, and
 the AI is burning its gold on nothing instead of on army.
 
-**E3. The AI buys its main tranche of infantry at a tenth of the price.**
+**E3. The AI buys its main tranche of infantry at a tenth of the price.** **CLOSED, stage 1.10.**
 [aiCalculations.js:1238](../aiCalculations.js#L1238):
 
 ```js
@@ -230,7 +247,7 @@ The infantry delivered is correct for spending `goldToSpend`; the gold debited i
 100. This is the *last* tranche, after vehicles, so on most turns it is the bulk of the budget.
 The first tranche a few lines above is charged correctly, which is why it is easy to miss.
 
-**E4. The affordability check and the price charged are computed by different formulas.**
+**E4. The affordability check and the price charged are computed by different formulas.** **CLOSED, stage 1.7.**
 `calculateAvailableUpgrades()` at
 [resourceCalculations.js:2215](../resourceCalculations.js#L2215) prices a farm at
 `base · 1.05 · devIndex/4` — **the n = 1 price, with no `n²` term** — floored by
@@ -241,26 +258,84 @@ the first upgrade window of a session the "Can Build" / "Not enough gold" condit
 enabled state of the plus button, are decided from the price of a *first* farm no matter how
 many are already standing; afterwards they are decided from the last territory's price.
 
-**E5. There are six copies of the upgrade price formula and one of them disagrees.** One in
+**E5. There are six copies of the upgrade price formula and one of them disagrees.** **CLOSED, stage 1.6 — there is one, `upgradePriceFor()`.** One in
 `incrementDecrementUpgrades()`, four in `aiCalculations.js` (farm/forest/well, then the same
 three again for the re-price, then forts), and the divergent one in
 `calculateAvailableUpgrades()`. `balance.js` holds only the base costs. A price is a rule and
 belongs in `src/rules/economy/`.
 
-**E6. `balance.js` states the wrong price law.** `territoryUpgradeBaseCostsGold` is documented
+**E6. `balance.js` states the wrong price law.** **CLOSED, stage 1.12.** `territoryUpgradeBaseCostsGold` is documented
 as *"The Nth of a kind costs N times this"*. It is `N² × 1.05 × devIndex/4`. The comment is the
 only description of the ladder anywhere and it is off by a whole power.
 
-**E7. Five different continent tables.** `continentModifiers` (balance.js, feeds only the
+**E7. Five different continent tables.** **CLOSED, stage 1.13 — all five are in `balance.js`.** `continentModifiers` (balance.js, feeds only the
 strength score), `goldContinentModifiers` (balance.js, feeds gold income), an inline
 15/14/1/1/1.8/2 table in `assignArmyAndResourcesToPaths()` used once for starting gold, and two
 more inline tables in `initialOilCalculation()` and `initialConsMatsCalculation()`. Only two of
 the five are in `balance.js`, and none of the three inline ones is documented anywhere. This is
 the same species as known-issue **BI**.
 
+**E8. An order is priced at the LAST one in it, not as the sum of the ladder.** **OPEN,
+deliberately — it is a balance number and stage 1 changed none.** Each upgrade row displays
+`upgradePriceFor(kind, built + quantity)` and the confirm button sums the four displayed cells,
+so five farms bought in ONE transaction cost `price(5)` — about 26× base — where five bought one
+a turn cost `price(1) + … + price(5)`, about 58×. **Bulk buying is 2.2 times cheaper**, and the
+AI, which buys one at a time in a loop, pays the full ladder. It is now stated once, in
+`upgradeOrderPriceFor()`, with the discrepancy named — where before it was an emergent property
+of a DOM cell. Correcting it belongs in stage 3, where it can be measured.
+
+**E9. The fort tooltip carried a SEVENTH copy of the defence formula, and it disagreed.**
+**CLOSED, stage 1.** `tooltipUpgradeTerritoryRow()` predicted a fort's effect with
+`ceil(1 + forts*(forts+1)*10*devIndex + landLocked + mountainDefense*10)` — an extra `1 +`, and
+the mountain bonus folded in, which `defenseBonusFor()` deliberately keeps separate because a
+battle adds `mountainDefenseBonus` itself. So the left of the arrow was the territory's real
+defence bonus and the right was defence-plus-mountain: the tooltip promised a fort was worth
+several times what it is, on the one upgrade whose whole purpose is a number the player is
+trying to reach. Same species as known-issue AQ, and found only because stage 1 went looking for
+copies of a formula.
+
+**E10. A siege erases any upgrade bought while it was in progress.** **OPEN, not fixed here —
+out of scope and it is not an economy defect so much as a siege one.** `siegeDamageFor()` grinds
+`foodCapacity` down by a collateral percentage every tick, and when the siege ends
+`calculateTerritoryResourceIncomesEachTurn()` restores it with
+`foodCapacity = historicWars[w].startingFoodCapacity` — the figure recorded when the war began.
+That is a wholesale overwrite, not a repair, so **a farm bought during the siege is silently
+undone the moment the siege lifts**, and the gold and materials are gone. Found by the stage 1
+e2e spec, which initially failed on exactly one territory in the world (Austria: `farmsBuilt`
+0→1 while `foodCapacity` fell 9,148,524 → 8,333,483) and turned out to be reporting this rather
+than E1.
+
+### E-summary: two of these were holding the balance up
+
+Worth stating plainly, because it is the most consequential thing stage 1 found and it is not
+in any single entry above. **E2 and E3 were flattering the world.**
+
+E3 let the AI buy its largest infantry tranche of the turn at a tenth of its price, which
+favoured whoever had the most gold — the empire that would otherwise have to earn its snowball.
+E2 meant that none of the roughly six hundred forts standing on the map defended anything, so
+`DIE_MODIFIERS.fortification` never took a die off any attacker anywhere in the world except on
+the player's own territories.
+
+Fix both and attacking gets harder and the runaway empires stop happening: measured over 150
+turns per goal, the largest empire falls in four goals of five and Continental's goes from 104
+territories to 35. **The world consolidates slightly MORE on average — 94 countries surviving
+before, 87 after — but nobody runs away with it.** And no continent is completed in any run any
+more, where two were before.
+
+That last one is the finding to act on. It is the register's oldest open item (attacking is too
+hard for the world to consolidate) arriving somewhere new, and it means **the continent bonus
+delivered by the previous phase does not arrive in a 150-turn game**. None of this is an
+argument for reverting a fix — each one makes the game do what its own rules say — but the
+attack side now has to be weighed together with the economy, and before stages 3 and 4 spend
+any effort on prices.
+
 ### D — design
 
-**D1. Most territories earn a participation fee, not an income.** The 44.44 floor of §3.2 is
+**D1. Most territories earn a participation fee, not an income.** **NAMED, stage 2.1 — it is
+`TERRITORY_BASE_INCOME` now, and still 44.44.** Splitting it out changed no income; what it
+changed is that the floor can be tuned, and that anyone reading `goldChangeFor()` can see there
+are two halves. Closing the gap it creates is Stage 3, by Leigh's decision moving the BENEFIT
+rather than the price. The 44.44 floor of §3.2 is
 65% of the median territory's total income. For anything smaller than about a million productive
 population — which is most of the 359 territories on the map — **nothing the player does changes
 the gold at all**. Farms, population growth, the continent bonus's 1.5× on a number that is

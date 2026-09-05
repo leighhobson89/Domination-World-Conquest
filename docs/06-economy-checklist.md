@@ -3,13 +3,16 @@
 The task breakdown for [05-economy-audit.md](./05-economy-audit.md). Breathing document: ticked
 as work lands, and each item records what was *measured* rather than what was intended.
 
-**Only §0.1 is done** — the measurement harness, built first so that every claim in the audit
-is reproducible rather than remembered.
+**Stages 0, 1 and 2 are done and measured.** The before/after over five goals and 150 turns
+each is at the end of this document, and it is the deliverable — the diff is not. Read that
+section before starting Stage 2, because it turned up something the plan did not predict: no
+continent is completed in any run any more, so the continent bonus is currently unreachable.
 
-**Stages 1 and 2 are one phase**, and that is Leigh's call: the defect work changes what all 206
-AI countries can afford, and the income floor is the direct answer to "no reason to upgrade", so
-they are worth having in front of him together. **Stages 3 and 4 wait until he has played it.**
-Every §7 question in the audit is now answered and nothing below is gated on a decision.
+**Stage 2 shipped with Stage 1 as one phase**, which was Leigh's call: the defect work changes
+what all 206 AI countries can afford, and the income floor is the direct answer to "no reason to
+upgrade", so they belong in front of him together. **Stages 3 and 4 wait until he has played
+it** — they are tuning, and tuning over a world that has just moved this far would be measuring
+the wrong thing.
 
 House rules that apply to every item here:
 
@@ -36,13 +39,19 @@ change no source file.
       economy rules import nothing but `config/` — do not add an import that breaks that.
       It carries copies of the three inline continent tables audit §4 E7 names, with a note
       saying to import them instead once §1.13 has moved them into `balance.js`.
-- [ ] **0.2** `--goal` control runs of `tools/ai-sim.mjs`, 150 turns, recorded in this file
-      before Stage 1 lands. Same five goals as the archived Goals and Victory §5 table, so the
-      two are directly comparable.
-- [ ] **0.3** Three new columns in `tools/ai-sim.mjs`: mean upgrades standing per country, mean
-      forts standing per country, and gold held against gold earned. Without them Stage 1's
-      effect is invisible — E1 and E2 are precisely failures that change no count anything
-      currently reports.
+- [x] **0.2** Control runs, `--turns=150 --seed=goals --every=25`, one per goal. Deliberately
+      the SAME invocation the archived Goals and Victory §5 table used, so the control could be
+      checked against a number already in the repository before being trusted: Domination came
+      back 96/79/76% against a recorded 96/79/76%, and Conquest 78/78/80% against 78/78/80%.
+      Continental and Great Powers have drifted since that table was taken, which is expected —
+      the continent-bonus phase landed in between. Written to `test-reports/econ/before-*.json`
+- [x] **0.3** Four new columns in `tools/ai-sim.mjs` — `upg` (upgrades standing), `forts`,
+      `gold` (held, world-wide) and `foodCap` (world food capacity). The last is the one that
+      matters and it replaced the planned "gold earned": capacity is what an upgrade BUYS, so
+      upgrades rising while capacity stays flat IS audit E1, stated in a single row. The tool
+      also prints that conclusion in words at the end of a run rather than leaving it to be
+      spotted in a column. Without these four, Stage 1's effect is invisible — E1 and E2 change
+      no count the tool reported before
 
 ---
 
@@ -53,7 +62,7 @@ been taxing all 206 AI countries since the AI was written.
 
 ### 1a. One definition of an upgrade
 
-- [ ] **1.1** New `src/rules/economy/upgrades.js`, pure, importing only `config/balance.js` and
+- [x] **1.1** New `src/rules/economy/upgrades.js`, pure, importing only `config/balance.js` and
       `capacity.js`. Two functions:
       - `upgradePriceFor(kind, nth, devIndex)` → `{gold, consMats}`. **The `nth` is the number
         that will be STANDING after the purchase**, which is what all five correct copies mean
@@ -62,7 +71,7 @@ been taxing all 206 AI countries since the AI was written.
         (`farmsBuilt`/`foodCapacity`, `forestsBuilt`/`consMatsCapacity`,
         `oilWellsBuilt`/`oilCapacity`, `fortsBuilt`/`defenseBonus`). Returns a patch rather than
         mutating, so the caller writes through `state/mutations.js`.
-- [ ] **1.2** Unit tests first, in `tests/unit/rules-economy-upgrades.spec.js`. The ones that
+- [x] **1.2** Unit tests first, in `tests/unit/rules-economy-upgrades.spec.js`. The ones that
       matter: the ladder is quadratic and the 5th costs ~26× the 1st; N bought in one
       transaction is +10% of the capacity BEFORE the transaction and not compounded (audit
       5.1 A, already fixed once — pin it); a fort recomputes `defenseBonus` through
@@ -72,52 +81,54 @@ been taxing all 206 AI countries since the AI was written.
 
 ### 1b. Both sides call it — closes E1, E2, E5
 
-- [ ] **1.3** `addPlayerUpgrades()` in `resourceCalculations.js` calls `applyUpgrade()` instead
+- [x] **1.3** `addPlayerUpgrades()` in `resourceCalculations.js` calls `applyUpgrade()` instead
       of its three inline capacity writes. Behaviour identical; this is the reference
       implementation the AI was missing.
-- [ ] **1.4** **E1** — `analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild()` calls
+- [x] **1.4** **E1** — `analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild()` calls
       `applyUpgrade()`. This is the fix that makes every farm, forest and oil well the AI has
       ever bought actually do something. Measure it on its own before touching E2 or E3: three
       simultaneous fixes to the AI's economy cannot be attributed afterwards.
-- [ ] **1.5** **E2** — `analyzeAndBuildFortDefenses()` calls `applyUpgrade()`, so an AI fort
+- [x] **1.5** **E2** — `analyzeAndBuildFortDefenses()` calls `applyUpgrade()`, so an AI fort
       finally moves the die band it exists to move. In the same function, three loop errors:
       the price is not recalculated between forts, `consMatsToSpend` is not decremented, and
       `fortsBuilt` is incremented after the loop so the cap can be exceeded within one turn.
-- [ ] **1.6** **E5** — delete the four price formulas in `aiCalculations.js` and the one in
+- [x] **1.6** **E5** — delete the four price formulas in `aiCalculations.js` and the one in
       `incrementDecrementUpgrades()`. `upgradePriceFor()` is the only one left.
 
 ### 1c. The player is told the right price — closes E4
 
-- [ ] **1.7** `calculateAvailableUpgrades()` prices from `upgradePriceFor(kind,
+- [x] **1.7** `calculateAvailableUpgrades()` prices from `upgradePriceFor(kind,
       territory[kind + "sBuilt"] + 1, devIndex)`. Today it uses the n = 1 formula floored by
       `simulatedCostsAll`, a module-level array left over from the *previously rendered*
       territory, so the "Can Build" label and the plus button's enabled state are decided from
       the wrong number.
-- [ ] **1.8** Delete `simulatedCostsAll` and the eight assignments that fill it. The
+- [x] **1.8** Delete `simulatedCostsAll` and the eight assignments that fill it. The
       "what does the next one cost" figure the tooltip wants is now a call, not a cache.
-- [ ] **1.9** An e2e spec in `tests/e2e/resources-economy/` that opens the upgrade window on a
+- [x] **1.9** An e2e spec in `tests/e2e/resources-economy/` that opens the upgrade window on a
       territory with buildings already standing and asserts the displayed price is the price
       charged. That divergence is invisible in a unit test because both halves are correct in
       isolation — it is a wiring fault, the same shape as the derived battle bar.
 
 ### 1d. The AI pays for its infantry — closes E3
 
-- [ ] **1.10** **E3** — `bolsterArmy()` debits `finalInfantryQuantity` (a troop COUNT) where it
+- [x] **1.10** **E3** — `bolsterArmy()` debits `finalInfantryQuantity` (a troop COUNT) where it
       means the gold cost, so the AI's largest infantry purchase of the turn costs a tenth of
       its price. Fix the debit, then re-run `ai-sim` — the AI's armies should get *smaller* and
       its gold reserves larger, and that is the correct direction.
-- [ ] **1.11** Check whether this is behind known-issue **BJ** (a large empire's
-      `armyForCurrentTerritory` going hugely negative, India at −6.5 billion after 150 turns).
-      It inflates army counts by 10× on the main purchase path, which is the kind of thing that
-      turns a signed-arithmetic slip elsewhere into a visible catastrophe. If it is not the
-      cause, say so in the register rather than leaving BJ implicitly attributed here.
+- [x] **1.11** Checked against known-issue **BJ**, and it is **not** the cause. Same seed, same
+      goal, largest negative army in the top eight after 150 turns: **−107,929,590 (Mexico)
+      before the fix and −29,085,461 after.** So paying the correct price for infantry shrinks
+      the number about fourfold — consistent with the AI having far less army to lose track of
+      — and does not remove it. Whatever subtracts more army than a territory has is still
+      there and is not the purchase path. Recorded on BJ itself so the entry is not left
+      implicitly attributed here.
 
 ### 1e. Say what the numbers are — closes E6, E7
 
-- [ ] **1.12** **E6** — correct the comment on `territoryUpgradeBaseCostsGold`: the ladder is
+- [x] **1.12** **E6** — correct the comment on `territoryUpgradeBaseCostsGold`: the ladder is
       `N² × 1.05 × devIndex / 4`, not `N ×`. It is the only description of the price law
       anywhere.
-- [ ] **1.13** **E7** — the three inline continent tables (starting gold in
+- [x] **1.13** **E7** — the three inline continent tables (starting gold in
       `assignArmyAndResourcesToPaths()`, `initialOilCalculation()`, `initialConsMatsCalculation()`)
       move into `balance.js` named for what they seed, alongside the two already there. Five
       tables is defensible; five tables of which three are invisible is not. Same species as
@@ -129,15 +140,22 @@ Stages 1 and 2 ship together, but Stage 1 has to be measured **on its own** firs
 simultaneous changes to what 206 AI countries can afford cannot be attributed afterwards, and
 Stage 2 moves the same numbers.
 
-- [ ] `npm run test:unit` green.
-- [ ] Three e2e areas: `resources-economy`, `ai-turn`, `turn-loop`.
-- [ ] `tools/ai-sim.mjs` 150 turns per goal against the §0.2 control, recorded here as a table.
+- [x] `npm run test:unit` green — **951 passing**, up from 931 (twenty new in
+      `tests/unit/rules-economy-upgrades.spec.js`).
+- [x] Three e2e areas green: `resources-economy` **27/27** (seven new specs), `ai-turn` and
+      `turn-loop` **32/32** between them.
+- [x] Lint went DOWN on the two files touched, 218 problems to 206 and 42 errors to 37. The
+      consolidation deleted more than it added; no new warning was introduced.
+- [x] `tools/ai-sim.mjs` 150 turns per goal against the §0.2 control — the table is at the
+      end of this document. **The prediction was half right**: capacities and the world's food
+      ceiling rose in every run, and the world consolidates slightly more on average; but the
+      largest empire SHRANK in four goals of five, and no continent is completed any more.
       **The measurement is the deliverable, not the diff.** The specific prediction to check:
       AI countries hold more capacity and more forts, spend more gold on units and less on
       nothing, and the world consolidates *further* than the control — which would make E1/E2 a
       partial answer to the register's oldest open item, and from a direction nobody has looked
       in (softer AI defenders and poorer AI economies, rather than the attack dials).
-- [ ] Keep the change set separable for Leigh: the price-formula consolidation is a MOVE, the
+- [x] Keep the change set separable for Leigh: the price-formula consolidation is a MOVE, the
       four AI fixes are behaviour, and Stage 2 is balance. Three groups, so a regression stays
       bisectable.
 
@@ -148,32 +166,60 @@ Stage 2 moves the same numbers.
 **Decided (audit Q1): split the floor out as a named constant.** It is 44.44 gold a turn, 65% of
 the median territory's income, and it is why upgrading a small territory changes nothing.
 
-- [ ] **2.1** `TERRITORY_BASE_INCOME` in `balance.js`, added in `goldChangeFor()` **after** the
-      normalisation, with `normaliseMin` / `normaliseMax` re-cut around zero. Written as a TERM
-      and not as a re-tuned window — the whole point is that it becomes a dial that can be read,
-      moved and reasoned about, where today it is an emergent consequence of a window nobody
-      would guess was a subsidy.
-- [ ] **2.2** Assert it is income-neutral on the turn it lands: `econ-lab income` before and
-      after must produce the same spread. This is a REFACTOR of the floor, not a nerf; anything
-      that changes a total here is a mistake, and the tuning happens in Stage 3 once Leigh has
-      played it.
-- [ ] **2.3** `econ-lab upgrades` re-run: the marginal gold per farm on a *small* territory has
-      to be a number a player can see move. State the target before tuning rather than after —
-      an upgrade wants to pay back inside roughly 10–25 turns for a mid-sized territory, and
-      "hard but not pointless" rather than "pays back" at the very bottom of the map.
-- [ ] **2.4** Decide whether `CONTINENT_BONUS_GOLD` multiplies the base income or only the
-      earned part. **This is a real design question, not a wiring detail**: 1.5× applied to a
-      number that is 97% participation fee is mostly a bonus for owning territories rather than
-      for holding a continent, which is not what the archived phase measured or intended. The
-      case for multiplying only the earned part is that it makes the bonus mean what its own
-      documentation says it means; the case against is that it silently weakens a dial that was
-      measured over 150 turns per goal. Measure both before choosing.
-- [ ] **2.5** `tests/e2e/resources-economy/continent-bonus.spec.js` still green — it asserts the
-      bonus lands exactly on the turn a continent completes, and that has to survive an income
-      change whichever way 2.4 goes.
-- [ ] **2.6** Dominapedia "Income and Upkeep" rewritten in the same change. It describes the
-      normalisation in prose and will be wrong the moment 2.1 lands. A manual that is
-      confidently wrong is worse than no manual.
+- [x] **2.1** `TERRITORY_BASE_INCOME = 44.44` in `balance.js`, added in `goldChangeFor()` as a
+      TERM: income is now `TERRITORY_BASE_INCOME + scaled / earnedDivisor`, where the divisor of
+      18 is what the old window's span of 1800 followed by `× 100` always was. **The window
+      never clamped anything** — China's scaled figure is about 61,400 against a `normaliseMax`
+      of 1000 — so `normaliseMin` / `normaliseMax` are gone rather than re-cut, and calling the
+      operation a "normalisation" was itself part of why nobody noticed the −800 was a subsidy
+      paid to every territory on the map.
+- [x] **2.2** Income-neutral, verified two ways. `econ-lab income` reports the identical spread
+      to the control — min 44.5, p25 50.5, median 68.5, p75 131.2, max 3500.8 — and a unit test
+      writes out the old arithmetic and asserts the new function agrees with it to within a
+      hundredth of a gold piece across five sample territories. The hundredth is real and is
+      stated on the constant: 44.44 against the window's 44.444…, which is 0.0044 gold per
+      territory per turn, or about 1.6 gold a turn across the whole world.
+- [x] **2.3** Target STATED rather than met, which is the honest position: an upgrade wants to
+      pay back inside roughly 10–25 turns for a mid-sized territory, and "hard but not
+      pointless" at the very bottom of the map. Stage 2 deliberately moves no money, so the
+      payback table is unchanged — `econ-lab upgrades` still spans one turn to 13,202. **Closing
+      that spread is Stage 3**, and by Leigh's decision it is done by moving the BENEFIT, not
+      the price.
+- [x] **2.4** **Decided: the continent bonus multiplies the WHOLE income, base included** — the
+      status quo, but now a decision with a measurement behind it rather than an accident of
+      where the line happened to sit. `node tools/econ-lab.mjs bonus` reports what the 1.5×
+      adds per territory per turn under each rule:
+
+      | Continent | whole-income | earned-only |
+      |---|---|---|
+      | Africa | 37.8 | **15.6** |
+      | South America | 38.6 | **16.4** |
+      | Oceania | 72.6 | 50.4 |
+      | Europe | 99.4 | 77.2 |
+      | Asia | 157.0 | 134.8 |
+      | North America | 319.2 | 297.0 |
+
+      An earned-only rule roughly HALVES the bonus on Africa and South America — the two poorest
+      continents, and the two most likely to actually be finished — while barely touching North
+      America. It would pay least for the hardest objectives. Known-issue **BO** settles it:
+      no continent is completed in a 150-turn game at all right now, so weakening this dial is
+      the wrong direction whatever the argument from tidiness.
+- [x] **2.5** `tests/e2e/resources-economy/continent-bonus.spec.js` green, 27/27 in the area.
+- [x] **2.6** Dominapedia "Income and Upkeep" rewritten. It described the normalisation in prose
+      and would have been wrong the moment 2.1 landed. It now says plainly that income has two
+      halves, that the base is about 65% of what a middling territory earns, and what follows
+      from that for the player: *"fifty scattered islands are a real income; they are just not
+      an income you can grow."*
+- [x] **2.7** **Known-issue BP fixed** — a siege erased any upgrade bought while it was in
+      progress. The siege accumulates what it actually destroyed and the income pass adds that
+      back when the siege lifts, instead of assigning `startingFoodCapacity` over whatever the
+      ceiling has since become. Same number as before whenever nothing was built, so it is a
+      defect fix and not a balance change; an older save's war has no accumulator and falls back
+      to the old assignment.
+- [x] **2.8** **Known-issue BQ opened, not fixed**: a besieged territory can still BUILD, and a
+      farm outruns the siege grinding it down. It cannot earn gold, oil or materials, but it can
+      spend them. Only visible once BK was fixed. It is a design decision and belongs with the
+      besieged-income item, not here.
 
 ### Stages 1 + 2 exit — hand back to Leigh here
 
@@ -270,3 +316,74 @@ turned down the obvious fix:
   better than conquering a small one — that is what makes a target worth a war. Small
   territories get a NUDGE so that developing them is a real but hard decision; they do not get
   parity, and the large are not taxed to pay for it. Move the benefit, not the price.
+
+---
+
+## What Stage 1 measured
+
+`tools/ai-sim.mjs --turns=150 --seed=goals --every=25`, one run per goal, before and after.
+Every run played all 150 turns with zero page errors, both times.
+
+### The defect closes, and it is visible in one column
+
+| Goal | Upgrades bought | World food capacity BEFORE | World food capacity AFTER |
+|---|---|---|---|
+| Continental | 351 → 431 | 8017M → **8012M** | 11331M → **11506M** |
+| Domination | 259 → 354 | 8010M → 8015M | 11004M → 11216M |
+| Great Powers | 319 → 379 | 8018M → **8018M** | 10899M → 11324M |
+| Conquest | 209 → 276 | 8017M → 8001M | 11152M → 11397M |
+| Timed | 349 → 442 | 8018M → 8017M | 11409M → 11572M |
+
+Before, **1,487 upgrades were bought across the five runs and world food capacity never moved
+once** — Great Powers is the cleanest, dead flat at 8018M for 150 turns. After, it rises in
+every run. The world's food ceiling at turn 25 is also 3,000M higher than it was, because the
+AI's upgrades now compound from turn one instead of evaporating.
+
+### And the world got HARDER to conquer, which was not the intention
+
+| Goal | Countries left (before → after) | Largest empire (before → after) | Top-16 share |
+|---|---|---|---|
+| Continental | 77 → 93 | **104 → 35** | 83% → 74% |
+| Domination | 96 → 88 | 79 → 58 | 76% → 77% |
+| Great Powers | 107 → 99 | 52 → 47 | 67% → 74% |
+| Conquest | 78 → 71 | 78 → 59 | 80% → 82% |
+| Timed | 114 → 82 | 51 → 61 | 65% → 78% |
+
+Read it in two halves, because they say different things.
+
+**The world consolidates slightly MORE on average** — 94 countries surviving before, 87 after,
+and the top-sixteen share is up in four goals of five. That is the intended direction.
+
+**But no country runs away with it any more.** The largest empire falls in four goals of five,
+and Continental's collapses from 104 territories to 35. That is not noise and it is not a
+regression in the ordinary sense — it is two of the four defects being removed:
+
+- **E3 was subsidising the AI's biggest armies.** The AI was buying its main infantry tranche at
+  a tenth of its price, so a country with a large income could field an army out of all
+  proportion to it. Correcting the debit takes that away from everyone, and it takes the most
+  away from whoever had the most gold — which is the empire that would otherwise have snowballed.
+- **E2 was disarming every AI defender.** An AI fort raised no `defenseBonus`, so it never
+  reached the band where `DIE_MODIFIERS.fortification` takes a die off the attacker. There are
+  about six hundred forts standing on the map at any time and until now not one of them defended
+  anything. They all do now.
+
+So the honest summary is that **the defects were flattering the world**: attacking was easier
+than the rules said, and the runaway empires were partly bought with money the AI never paid.
+
+### The finding that matters most, and it is not good news
+
+**No continent is completed in any of the five runs any more.** Before, Continental finished
+North America (United States) and Conquest finished South America (Mexico). After, `cont` is 0
+for all 150 turns of all five goals, and Continental's nearest continent freezes at 66% from
+turn 25 onward and never moves again.
+
+That bears directly on the phase that has just shipped: **the continent bonus is now unreachable
+in a 150-turn game**, so the mechanic the previous phase built, measured and documented does not
+arrive. It is the register's oldest open item — attacking is too hard for the world to
+consolidate — arriving in a new place, and Stage 1 has made it worse rather than better, because
+the forts that were inert are now real and the last five territories of a continent are the
+hardest five on the map to take.
+
+This is not an argument for reverting any of it. Every one of the four fixes makes the game do
+what its own rules say. It is an argument that **the attack side now has to be looked at with
+the economy**, and it should be weighed before Stages 3 and 4 spend any effort on prices.

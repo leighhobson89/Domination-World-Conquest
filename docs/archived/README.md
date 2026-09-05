@@ -4,7 +4,9 @@ These are finished. They are kept because they record *why* the code is shaped t
 several of the decisions in them are load-bearing and are referenced from source comments and
 from `CLAUDE.md` — but they are no longer edited, and they no longer describe outstanding work.
 
-Nothing here should be treated as current. Where one of these contradicts a document in
+Nothing here should be treated as current. The one file that is still added to is
+[04-known-issues-closed.md](./04-known-issues-closed.md), which receives each defect as it
+closes; it is a record of finished work like the rest, not a to-do list. Where one of these contradicts a document in
 [../](../), the numbered document wins.
 
 | Document | What it was | Why it is here |
@@ -16,6 +18,7 @@ Nothing here should be treated as current. Where one of these contradicts a docu
 | [06-goals-and-victory-checklist.md](./06-goals-and-victory-checklist.md) | The task breakdown for the above | Every item is ticked, and each records what was measured rather than what was intended. |
 | [05-continent-bonuses.md](./05-continent-bonuses.md) | What holding a whole continent is worth: an economic bonus paid through two dials, derived at the point of use and never written onto a territory | Delivered and measured over 150 headless turns per goal. The living description is the Dominapedia's "Continents" page, `docs/02` §3.6, and the continent-bonus gotcha in `CLAUDE.md`. |
 | [06-continent-bonuses-checklist.md](./06-continent-bonuses-checklist.md) | The task breakdown for the above | Every item is ticked. §4b records what had to be BUILT before the phase could be judged — `window.__game.continents()`, `economyFor()`, the nine e2e specs and the `cont`/`best` columns in `tools/ai-sim.mjs` — because the bonus is derived, stored nowhere, and forty turns into a playthrough. |
+| [04-known-issues-closed.md](./04-known-issues-closed.md) | Every defect that has been closed, with the analysis that found it and the record of how it was fixed | Split out of the live register, which had grown to ~870 lines of which the great majority described things that no longer existed. **Entries keep their original ids** — source comments and `CLAUDE.md` cite them by letter to explain why a piece of code is shaped oddly. The register's historical scoreboard is here too. Unlike everything else in this directory it is still WRITTEN TO: a closing issue is moved here in the same change that closes it. |
 
 ## What survived them
 
