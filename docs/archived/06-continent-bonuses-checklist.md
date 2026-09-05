@@ -294,7 +294,7 @@ they are too far in."*
       continent-bonus specs), plus `map-interaction` and `ai-turn`
 - [x] Verified by MEASUREMENT rather than in a browser, which is Leigh's call and the right
       one: completing a continent is forty turns of play away. §4b above is what replaced it
-- [ ] Change set described for Leigh to commit, with moves and renames kept separate from
+- [x] Change set described for Leigh to commit, with moves and renames kept separate from
       behaviour changes
 
 ---

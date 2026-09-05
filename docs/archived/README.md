@@ -14,6 +14,8 @@ Nothing here should be treated as current. Where one of these contradicts a docu
 | [battle_overhaul_checklist.md](./battle_overhaul_checklist.md) | The task breakdown for the above | Every item is ticked. |
 | [05-goals-and-victory.md](./05-goals-and-victory.md) | The five goals, the doctrine layer that makes an AI country play for the one that was chosen, the forced chooser, and the end-game trigger | Delivered as Q1–Q4. The game ends. The living description is the Dominapedia's "Goals and Victory" page, `docs/02` §6.6, and the gotchas in `CLAUDE.md`. **One thing it planned is deliberately not built: the victory/defeat screen**, which is one new subscriber to `GAME_OVER` and is listed in the register's open items. |
 | [06-goals-and-victory-checklist.md](./06-goals-and-victory-checklist.md) | The task breakdown for the above | Every item is ticked, and each records what was measured rather than what was intended. |
+| [05-continent-bonuses.md](./05-continent-bonuses.md) | What holding a whole continent is worth: an economic bonus paid through two dials, derived at the point of use and never written onto a territory | Delivered and measured over 150 headless turns per goal. The living description is the Dominapedia's "Continents" page, `docs/02` §3.6, and the continent-bonus gotcha in `CLAUDE.md`. |
+| [06-continent-bonuses-checklist.md](./06-continent-bonuses-checklist.md) | The task breakdown for the above | Every item is ticked. §4b records what had to be BUILT before the phase could be judged — `window.__game.continents()`, `economyFor()`, the nine e2e specs and the `cont`/`best` columns in `tools/ai-sim.mjs` — because the bonus is derived, stored nowhere, and forty turns into a playthrough. |
 
 ## What survived them
 
@@ -24,7 +26,14 @@ and the AI must fight the same battle, and from Goals and Victory: `doctrine.js`
 module allowed to switch on a victory condition kind, urgency never reaching the siege budget,
 and the ordering trap that makes the five locked countries and the five great powers one list.
 
-One measurement in `05-goals-and-victory.md` §5 is still live rather than historical: the
-150-turn table per goal is the **acceptance criterion for any change to `src/ai/`**, and it is
-what a continent bonus has to be measured against. It is cited from
-[../05-continent-bonuses.md](../05-continent-bonuses.md) §6 for that reason.
+From Continent Bonuses: there is ONE definition of holding a continent and `worldStandings()`
+folds through it, the bonus is DERIVED at the point of use and never written onto a territory,
+the two dials multiply a FLOW and three CEILINGS respectively and are not a rounding of taste,
+and a continent is the ORIGINAL OWNER's continent from `initialData.js` rather than the SVG's
+`continent=` attribute.
+
+Two measurements in these documents are still live rather than historical. The 150-turn table
+per goal in `05-goals-and-victory.md` §5 is the **acceptance criterion for any change to
+`src/ai/`**. And `05-continent-bonuses.md` §6 is the before/after method that criterion is
+applied WITH — the control run, the two columns added to `tools/ai-sim.mjs`, and the reason a
+continent bonus cannot be judged by playing.

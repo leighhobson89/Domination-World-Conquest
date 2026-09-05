@@ -22,18 +22,20 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 - [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register:
   every issue found so far, its status, where it is in the code **today**, and the phase that
   closes it. This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-continent-bonuses.md](./docs/05-continent-bonuses.md) — **the current phase.** What
-  holding a whole continent is worth, why it is an economic bonus and deliberately not a die,
-  and how it is measured — including §6, the before/after measurement over 150 headless turns
-  per goal, which is the acceptance criterion. Its task breakdown is
-  [docs/06-continent-bonuses-checklist.md](./docs/06-continent-bonuses-checklist.md).
+- [docs/05-economy-audit.md](./docs/05-economy-audit.md) — **the current phase.** What the
+  economy is, which five places it actually reaches the military and the dice, the measured
+  numbers behind every claim, and the split between defects (**E1–E7**, the economy not doing
+  what the code says) and design (**D1–D8**, the economy doing exactly what it says and
+  producing no decision). §5 is the list of what is RIGHT and must survive the phase. Its task
+  breakdown is [docs/06-economy-checklist.md](./docs/06-economy-checklist.md).
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
 going stale in the sequence: the eight-phase
 [refactor plan](./docs/archived/03-refactor-plan.md), the
-[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist, and
-[Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist are there. They
+[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
+[Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist, and
+[Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist are there. They
 record why the code is shaped as it is, but they do not describe outstanding work — where one
 contradicts a numbered document, the numbered document wins. **The numbers are reused when a
 plan is archived**, so `05` and `06` are the current phase and the archived pair keep the
@@ -41,7 +43,8 @@ numbers they were written under.
 
 One thing in the archived Goals and Victory is still live rather than historical: its §5 table
 of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
-it is the baseline a continent bonus has to be measured against.
+the archived Continent Bonuses §6 is the before/after METHOD that criterion is applied with —
+the control run, and the reason a slow economic mechanic cannot be judged by playing.
 
 ## Commands
 
@@ -57,6 +60,11 @@ node tests/run-e2e.mjs --list            # list the functional areas and their s
 node tests/run-e2e.mjs turn-loop         # one area
 node tests/run-e2e.mjs attack turn-loop  # several areas, one run
 npm run test:e2e:slow  # one visible browser, 500ms between actions
+node tools/econ-lab.mjs                  # the economy, measured: income spread and the
+                                         # 44.44 gold floor, the quadratic upgrade ladder and
+                                         # what a farm pays back, unit value per gold, and the
+                                         # cons-mats bottleneck. Takes a section name to narrow
+                                         # it: income | upgrades | units | consmats
 npm run build:data     # regenerate adjacency.json + pathAreas.json + music/tracks.json
 npm run build:music    # just the music folder listing (Vite also does it on start/build)
 ```

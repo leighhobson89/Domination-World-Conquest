@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 
 // The continent bonus, measured end to end.
 //
-// docs/05-continent-bonuses.md. A country that holds EVERY territory on a continent earns
+// docs/archived/05-continent-bonuses.md. A country that holds EVERY territory on a continent earns
 // 1.5x gold from every territory on it and holds 1.25x the oil, food and construction-
 // materials capacity. All or nothing, and derived every turn from ownership rather than
 // stored anywhere.

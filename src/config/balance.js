@@ -168,7 +168,7 @@ export const goldContinentModifiers = {
  * population, population gates productive population, and productive population is the input
  * to `goldChangeFor()` -- so a capacity multiplier arrives in the gold income a few turns
  * later on top of the gold multiplier. Equal numbers would not be equal effects, and the
- * measurement in docs/05-continent-bonuses.md section 6 has to be able to move one without
+ * measurement in docs/archived/05-continent-bonuses.md section 6 has to be able to move one without
  * the other.
  *
  * Neither number is final until that measurement has been taken.

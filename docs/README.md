@@ -13,12 +13,14 @@ the register (4) is the one to check first if you only read one.
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
 | 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~420 specs, plus 884 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Continent Bonuses](./05-continent-bonuses.md) | **Current work.** What holding a whole continent is worth, why it is an economic bonus and not a die, and how it is measured |
-| 6 | [Continent Bonuses Checklist](./06-continent-bonuses-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable |
+| 5 | [Economy Audit](./05-economy-audit.md) | **Current work.** What the economy is, what of it reaches the military and the dice, the measured numbers, and the defects and design gaps in each |
+| 6 | [Economy Checklist](./06-economy-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
-battle overhaul and its checklist, and Goals and Victory and its checklist. They record why the
-code is shaped as it is; they do not describe outstanding work.
+battle overhaul and its checklist, Goals and Victory and its checklist, and Continent Bonuses
+and its checklist. They record why the code is shaped as it is; they do not describe
+outstanding work. **The numbers are reused when a plan is archived**, so `05` and `06` are
+always the current phase.
 
 ---
 
@@ -110,15 +112,27 @@ underneath every goal. What is left of that item is the victory/defeat **screen*
 carries the outcome, the winner, the reason and the turn, and its only subscriber today is a
 `console.log`.
 
-**What is being worked on now.** [Continent Bonuses](./05-continent-bonuses.md) — the missing
-half of the goal layer. The long-term objective is a continent, the mid-term objective is a
-country and the short-term objective is a territory, but only the last of those pays: holding a
-whole continent grants nothing at all. So a player who finishes Africa and a player holding the
-same number of territories scattered over four continents have identical economies, and the
-middle game has no shape. It is an **economic** bonus and deliberately not a combat one — the
-model is banded, so a modifier either does nothing or moves a whole die, and the register's
-largest open item is that attacking is *already* too hard for the world to consolidate. The
-breakdown is in [the checklist](./06-continent-bonuses-checklist.md).
+**What is being worked on now.** [The Economy](./05-economy-audit.md). Continent Bonuses is
+delivered and archived, and the question it left behind is the one underneath it: does the
+economy give a player any reason to spend gold on anything but an army? The audit says mostly
+not, and it says so with numbers. **Every territory on the map earns 44.44 gold a turn for
+existing**, which is 65% of what a median territory earns in total — so on most of the 359
+territories, nothing the player does moves the income at all. The same farm pays for itself in
+under one turn in China and in 13,202 turns in Vatican City, at the same price, because the
+price is a function of the development index alone and the benefit is a function of population
+and area. And **the AI's economy upgrades have never worked**: `farmsBuilt` is incremented and
+the gold is taken, but no capacity is ever raised and no fort ever changes a defence bonus, so
+all 206 computer countries have been paying a quadratic price ladder for nothing. That last one
+is a defect and is measured first, on its own, because it changes what every AI country can
+afford and nothing else in the phase can be measured over the top of it.
+
+The six design questions the audit raised are answered and recorded in its §7. The one that
+shaped the plan most: **being large must stay good.** The obvious fix for an upgrade that pays
+back in one turn in China and 13,202 in Vatican City is to price it against the territory's own
+income — and that was turned down, because conquering a big rich territory is supposed to be
+visibly better than conquering a small one. The lever moves to the benefit side instead: small
+territories get a nudge so that developing them is a real but hard decision, and the large are
+not taxed to pay for it.
 
 **Still outstanding after it**, in rough order:
 
