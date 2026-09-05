@@ -71,6 +71,8 @@ import {
     setTerritoryOwner,
     updateTerritory as patchTerritory
 } from './src/state/mutations.js';
+import { continentCapacityBonusFor } from './src/state/continentBonus.js';
+import { effectiveCapacityFor } from './src/rules/economy/capacity.js';
 import {
     getPathByUniqueId
 } from './src/state/indexes.js';
@@ -967,27 +969,37 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         let forest = availableUpgrades[1];
         let oilWell = availableUpgrades[2];
 
+        //The AI weighs its upgrades against the EFFECTIVE ceilings, continent bonus included.
+        //Reading the stored ones would have it build farms it does not need on a continent
+        //it holds whole -- and, worse, would make the player and the AI disagree about what a
+        //territory's ceiling is, which is the same class of divergence that let the two
+        //fight different battles before the dice model.
+        const capacityBonus = continentCapacityBonusFor(territory);
+        const effectiveFoodCap = effectiveCapacityFor(territory, "food", capacityBonus);
+        const effectiveConsMatsCap = effectiveCapacityFor(territory, "consMats", capacityBonus);
+        const effectiveOilCap = effectiveCapacityFor(territory, "oil", capacityBonus);
+
         if (territory.farmsBuilt < maxFarms && farm.goldCost <= goldToSpend && farm.consMatsCost <= consMatsToSpend) {
             points.farm.value = aiRng() * 10 + 1;
-            if (territory.foodConsumption > territory.foodCapacity) {
+            if (territory.foodConsumption > effectiveFoodCap) {
                 points.farm.value += 10;
-            } else if (territory.foodConsumption <= territory.foodCapacity) {
+            } else if (territory.foodConsumption <= effectiveFoodCap) {
                 points.farm.value += 5;
             }
         }
         if (territory.forestsBuilt < maxForests && forest.goldCost <= goldToSpend && forest.consMatsCost <= consMatsToSpend) {
             points.forest.value = aiRng() * 10 + 1;
-            if (territory.consMatsCapacity < territory.consMatsForCurrentTerritory) {
+            if (effectiveConsMatsCap < territory.consMatsForCurrentTerritory) {
                 points.forest.value += 10
-            } else if (territory.consMatsCapacity >= territory.consMatsForCurrentTerritory) {
+            } else if (effectiveConsMatsCap >= territory.consMatsForCurrentTerritory) {
                 points.forest.value += 5
             }
         }
         if (territory.oilWellsBuilt < maxOilWells && oilWell.goldCost <= goldToSpend && oilWell.consMatsCost <= consMatsToSpend) {
             points.oilWell.value = aiRng() * 10 + 1;
-            if (territory.oilDemand > territory.oilCapacity) {
+            if (territory.oilDemand > effectiveOilCap) {
                 points.oilWell.value += 10;
-            } else if (territory.oilDemand <= territory.oilCapacity) {
+            } else if (territory.oilDemand <= effectiveOilCap) {
                 points.oilWell.value += 5;
             }
         }
@@ -1019,7 +1031,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 selectedUpgrade = farm;
             } else if (largestDesire[0] === "forest") {
                 selectedUpgrade = forest;
-                if (territory.consMatsCapacity <= territory.consMatsForCurrentTerritory && consMatsToSpend < availableUpgrades[0].consMatsCost) {
+                if (effectiveConsMatsCap <= territory.consMatsForCurrentTerritory && consMatsToSpend < availableUpgrades[0].consMatsCost) {
                     consMatsToSpend = territory.consMatsForCurrentTerritory; //work around to help blockage of consmats for AIs
                     forestWorkAround = true;
                     console.log("boosted consMats spending to get a forest!  This one will be the " + (territory.forestsBuilt + 1) + "th!");
@@ -1164,7 +1176,12 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
 
         const originalGoldToSpendAfterInitialInfantry = goldToSpend;
 
-        const territoryOilCap = territory.oilCapacity;
+        //Oil capacity is what decides how much of an army can actually FIGHT, so a continent
+        //held whole buys its owner a bigger fleet as well as a bigger income. The same figure
+        //is used for the write-back below -- taking the ceiling from one place and the demand
+        //from another would leave the territory permanently over or under its own limit.
+        const territoryOilCap = effectiveCapacityFor(
+            territory, "oil", continentCapacityBonusFor(territory));
         let territoryOilDemand = territory.oilDemand;
         let territorySpareOil = territoryOilCap - territoryOilDemand;
 
@@ -1216,7 +1233,7 @@ function bolsterArmy(territory, goldToSpend, prodPopToSpend) {
             iteratorCount = (iteratorCount % 3) + 1;
         }
 
-        territory.oilDemand = territory.oilCapacity - territorySpareOil;
+        territory.oilDemand = territoryOilCap - territorySpareOil;
 
         let finalInfantryQuantity = goldToSpend / armyGoldPrices.infantry
         finalInfantryProdPop = (goldToSpend / armyGoldPrices.infantry) * INFANTRY_IN_A_TROOP;

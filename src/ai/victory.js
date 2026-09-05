@@ -29,6 +29,7 @@ import {
     GREAT_POWERS_REQUIRED,
     VICTORY_TURN_LIMIT
 } from "../config/balance.js";
+import { accumulateContinent } from "../state/continents.js";
 import { allTerritories } from "../state/selectors.js";
 
 /**
@@ -154,7 +155,6 @@ export function worldStandings() {
     let worldTerritories = 0;
 
     for (const territory of allTerritories()) {
-        const name = territory.continent ?? "Unknown";
         const area = Number(territory.area) || 0;
         const owner = territory.dataName;
         //`originalOwner` is historical and `dataName` is the current owner; conflating the
@@ -168,21 +168,14 @@ export function worldStandings() {
         home.total += 1;
         home.heldBy.set(owner, (home.heldBy.get(owner) ?? 0) + 1);
 
-        if (!continents.has(name)) {
-            continents.set(name, { continent: name, total: 0, area: 0, held: new Map() });
-        }
-        const continent = continents.get(name);
-        continent.total += 1;
-        continent.area += area;
+        //The continent half comes from `src/state/continents.js` rather than being built
+        //here, so that "who holds a continent" has ONE definition -- the economy's bonus and
+        //this walk cannot drift apart. It is the per-territory fold rather than the whole
+        //walk because this loop is already walking 359 territories and building two other
+        //indexes at the same time; calling `continentControl()` would be a second pass.
+        accumulateContinent(continents, territory);
         worldArea += area;
         worldTerritories += 1;
-
-        if (!continent.held.has(owner)) {
-            continent.held.set(owner, { count: 0, area: 0 });
-        }
-        const holding = continent.held.get(owner);
-        holding.count += 1;
-        holding.area += area;
 
         if (!byCountry.has(owner)) {
             byCountry.set(owner, { territories: 0, area: 0 });

@@ -161,13 +161,18 @@ export const territoryResourceColumns = summaryColumns(
         numberCell(ctx => ctx.territory.territoryPopulation),
         numberCell(ctx => ctx.territory.goldForCurrentTerritory),
         numberCell(ctx => ctx.territory.oilForCurrentTerritory),
-        numberCell(ctx => ctx.territory.oilCapacity),
+        //The three capacities are the EFFECTIVE ones, continent bonus included, because that
+        //is the ceiling the income pass regenerates towards. `capacityOf` is injected like
+        //every other number this file reads -- the derivation lives in
+        //`src/rules/economy/capacity.js` and the bonus in `src/state/continentBonus.js`, and
+        //neither is imported here.
+        numberCell(ctx => ctx.capacityOf(ctx.territory, "oil")),
         numberCell(ctx => ctx.territory.oilDemand),
         numberCell(ctx => ctx.territory.foodForCurrentTerritory),
-        numberCell(ctx => ctx.territory.foodCapacity),
+        numberCell(ctx => ctx.capacityOf(ctx.territory, "food")),
         numberCell(ctx => ctx.territory.foodConsumption),
         numberCell(ctx => ctx.territory.consMatsForCurrentTerritory),
-        numberCell(ctx => ctx.territory.consMatsCapacity),
+        numberCell(ctx => ctx.capacityOf(ctx.territory, "consMats")),
         numberCell(ctx => ctx.territory.armyForCurrentTerritory),
         numberCell(ctx => ctx.territory.infantryForCurrentTerritory),
         useableCell(ctx => ctx.territory.useableAssault, ctx => ctx.territory.assaultForCurrentTerritory),

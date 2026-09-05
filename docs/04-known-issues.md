@@ -22,9 +22,12 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: two dice-rendering defects reported by the developer (BG and BH, §12), on top
-of Goals and Victory Q4 — the game can now be finished, so the register's
-oldest open item is closed.** Earlier revisions: Phase 7, on the developer's report of AZ (an
+**Last updated: the continent-bonus phase — one new finding, BI (§13): three sources disagree
+about which continent a territory is on, and Easter Island falls between them. Now that a
+continent held whole is worth 1.5x gold, that disagreement is visible at exactly the moment a
+player has planned a war around it.** Before that: two dice-rendering defects reported by the
+developer (BG and BH, §12), on top of Goals and Victory Q4 — the game can now be finished, so
+the register's oldest open item is closed. Earlier revisions: Phase 7, on the developer's report of AZ (an
 AI-versus-AI siege handing the player the territory); after Phase 7.2 / 7.3 (menu access, new
 game, save/load); end of Phase 6; the Phase 6.9 planning review; and 7.10 (themes).
 
@@ -56,6 +59,8 @@ below that owns it, struck through. If this list is empty, nothing is outstandin
 | ~~**AP**~~ | ~~Battle rout / last-push thresholds compare against each side's force as it stood at the START of the round~~ | **DONE in battle overhaul B.4** — one symmetric `BREAK_THRESHOLD`, checked AFTER the round's casualties, against each side's own starting force. The lag is gone by construction rather than by a guard |
 | **AR** — **CLOSED AS A DESIGN DECISION, battle overhaul B.10.4** | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the small-territory defence bonus does not exist and large territories are penalised instead. Measured, and **deliberately left as it is**: it is not a one-character fix and correcting it halves the largest empire over sixty turns. See the full entry below | — (decided) |
 | — | The bootstrap colour palette (`generateDistinctRGBs()` in `src/ui/map/colouring.js`) is dead code that is still CALLED, because its `Math.random` draws are on the game's stream and removing them moves every seeded outcome | 6.9.0 — the next change |
+| **BI** | **Three sources disagree about which continent a territory is on**, and one territory falls through the gap: Easter Island. See §13 | balance / data |
+| **BJ** | **A large empire's `armyForCurrentTerritory` goes hugely NEGATIVE** — India at −6.5 billion after 150 headless turns. Not caused by the continent-bonus phase; present identically with both dials at 1.0. See §13 | 7.x balance |
 
 ---
 
@@ -764,3 +769,96 @@ fourth defect, in the fixture itself: `defenceRecord()` wrote `pairings` as
 real record carries an ARRAY of pairing objects. Nothing read the field, so nothing said so. A
 fixture that does not have the shape of the thing it stands in for is a fixture that passes
 while the feature is broken.
+
+
+---
+
+## 13. Found during the continent-bonus phase
+
+### BI — three sources of "which continent", and Easter Island falls between them
+
+**Status: 🟡 open, and deliberately not fixed in this phase.** It is a data decision and it is
+Leigh's.
+
+Until continents were worth something, the question "which continent is this territory on?"
+had no consequence beyond a colour and a modifier, and the game answers it in three different
+places:
+
+| Source | Read by | Says Easter Island is |
+|---|---|---|
+| `initialData.js`, the owning COUNTRY's `continent` | the territory model, so the economy, the AI and every victory condition | South America |
+| `continent=` on the path in `resources/svgMaster.svg` | nothing today | Oceania |
+| `shadow=` on the coast-line path in `SVG_coastLines.svg` | the continent map view's boundaries and fills | (the boundary drawn) |
+
+A territory's `continent` is assigned in `assignArmyAndResourcesToPaths()` from
+`matchingCountry.continent` — the row for whoever ORIGINALLY owned it — and never from the
+path's own attribute. Easter Island is Chilean, so the model files it under South America
+while the map data files it under Oceania. The counts differ accordingly: the model has
+**Oceania 65 and South America 49** where the SVG attribute has 66 and 48. Every other
+territory on the map agrees.
+
+**Why it matters now.** The continent-bonus phase makes holding a continent whole worth 1.5×
+gold and 1.25× capacity, and the CONTINENTAL victory condition has always asked for every
+territory on a continent. Both read the MODEL. So a player who completes Oceania as the map
+draws it has completed Oceania as the game counts it — but a player who reads the map to work
+out what Oceania needs will be told about a territory that does not count, and a player
+finishing South America will be missing one nobody drew there. That is a small error with an
+outsized cost, because it appears exactly at the last territory of a continent, which is the
+one somebody has planned a war around.
+
+**Why it is not fixed here.** Both corrections are defensible and they are not equivalent:
+moving Chile's Easter Island to Oceania in the country table changes which continent a
+territory earns under (`goldContinentModifiers` pays Oceania 0.8 and South America 0.4), and
+changing the SVG attribute changes nothing in the game but leaves the country table saying
+something geographically odd. Either is a five-minute edit and neither is Claude's call.
+
+**What was done.** The Dominapedia quotes the MODEL's numbers, because those are the numbers
+the bonus is paid on. `tests/e2e/resources-economy/continent-bonus.spec.js` asserts the
+model's six continents sum to 359 and deliberately does not assert any individual total,
+with a note saying why. The map tooltip's continent line reads from the model too, so what a
+player is told matches what they are paid.
+
+### BJ — a large empire's army total goes hugely negative
+
+**Status: 🔴 open. Found while measuring the continent bonus, and NOT caused by it** — the
+control runs, with both dials at 1.0, show the same figures to within a fraction of a percent.
+
+`tools/ai-sim.mjs` sums `armyForCurrentTerritory` per country. Over 150 turns at seed `goals`,
+the countries that grow very large finish deeply negative:
+
+| Goal | Country | Territories | Army total |
+|---|---|---:|---:|
+| Continental Supremacy | India | 97 | −6,512,910,471 |
+| Continental Supremacy | United States | 55 | −134,488,701 |
+| Continental Supremacy | Indonesia | 60 | −25,890,171 |
+| World Conquest | Mexico | 78 | −108,726,166 |
+
+Two things say where to look. It is **scale-dependent** — a Timed Game, whose largest empire
+reaches 51 territories, has no negative army in its top eight at all, while every goal that
+produces an empire past about 55 does. And it is **monotonic**: Mexico's figure gets steadily
+worse from the turn it stops expanding, so it is an accumulation rather than a single bad
+write.
+
+`armyForCurrentTerritory` is a STORED total, not a derived one — `setTerritoryArmy()` in
+`mutations.js` computes it from the four unit counts, and `CLAUDE.md` already records that
+anything writing the units without writing the total makes the two disagree. A total that only
+ever falls, on territories owned by a country large enough to be fighting on many fronts at
+once, points at a subtraction applied on a path that does not also reduce the units — army
+maintenance, starvation, or a battle's casualties charged twice.
+
+**What it costs.** `armyTotalFor()` is what a battle weighs, so a territory carrying a negative
+total is a territory that cannot defend itself and whose odds calculation is meaningless. It
+may well be part of why a very large empire stops growing, which would make it a balance
+finding as much as a defect.
+
+Not investigated further here: it is outside the continent-bonus phase, and finding it was a
+side effect of running a control. `tools/ai-sim.mjs --goal=CONTINENTAL --turns=150 --seed=goals`
+reproduces it, and the per-country army totals are in the `top` array of every sample it writes.
+
+### Not a defect: the continent view and the model can still be told apart
+
+Worth stating because it is the obvious next report. The continent map view draws its
+boundaries from the coast-line layer, which is a second SVG document with its own strokes —
+the same arrangement `src/ui/siegeOverlay.js` records. Nothing in the continent-bonus phase
+draws into that document, which is why "show a continent held whole differently" is marked a
+stretch item in the checklist and was deferred.

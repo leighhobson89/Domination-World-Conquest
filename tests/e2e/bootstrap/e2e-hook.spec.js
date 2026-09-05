@@ -34,14 +34,24 @@ test.describe("?e2e=1 state hook", () => {
                 "audio",
                 "audioTracks",
                 "battle",
-                "currentTrack",
+                "continents",
                 "countryStrengths",
+                "currentTrack",
                 //What the 3D dice are SHOWING, as opposed to what the rules rolled. The two
                 //are supposed to be the same list and for as long as the dice have existed
                 //they were not, and the invariant cannot be checked from the DOM -- the dice
                 //are a physics pose composed with a mesh rotation inside a canvas.
                 "diceFaces",
+                //The continent bonus is derived and stored nowhere, so these two are the
+                //only way a spec can measure it. See the note in `testHooks.js`.
+                "economyFor",
                 "forceRandomEvent",
+                //Goals and Victory. The GAME_OVER events the turn loop emitted, in order.
+                //A spec cannot otherwise prove the ending is announced exactly ONCE -- the
+                //console line it writes today is not a thing a spec may read, since a
+                //`console.error` fails every spec and a `console.log` is not asserted
+                //anywhere. `tests/e2e/goal-selection/game-over.spec.js` is what reads it.
+                "gameOverEvents",
                 "greyedOutCountries",
                 "isReady",
                 "musicPlaying",

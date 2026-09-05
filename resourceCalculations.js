@@ -117,9 +117,20 @@ import {
     armyTotalFor,
     useableUnitsFor,
     defenseBonusFor,
+    effectiveCapacityFor,
     totalCapacities,
     totalDemands
 } from './src/rules/economy/capacity.js';
+import {
+    continentCapacityBonusFor,
+    continentGoldBonusFor,
+    continentHoldingFor,
+    continentsHeldBy
+} from './src/state/continentBonus.js';
+import {
+    describeContinentHolding,
+    describeContinentsHeld
+} from './src/ui/continents/continentBonusText.js';
 import {
     armyMaintenanceFor,
     initialArmyAdjustmentCost
@@ -880,12 +891,26 @@ function calculateTerritoryResourceIncomesEachTurn() {
 //that same stock. Making it a delta too is the last step of the write-guard work and is
 //tracked in docs/04-known-issues.md.
 
-/** The turn's disaster state, in the shape rules/economy expects. */
-function economyContext(isSimulation) {
+/**
+ * The turn's disaster state and this territory's continent bonus, in the shape
+ * rules/economy expects.
+ *
+ * The bonus arrives HERE rather than being looked up inside `income.js`, exactly as the
+ * random event does, which is what keeps every game rule a pure function of its inputs and
+ * runnable in Node. Both multipliers are read from `src/state/continentBonus.js`, which
+ * memoises one walk of the map and drops it whenever a territory changes hands -- so this
+ * costs a Map lookup per call rather than a pass over 359 territories.
+ *
+ * A missing territory answers "no bonus" rather than throwing: `calculateGoldChange()` and
+ * friends are also called to cost hypothetical purchases.
+ */
+function economyContext(isSimulation, territory) {
     return {
         randomEventHappening: randomEventHappening,
         randomEvent: randomEvent,
-        isSimulation: Boolean(isSimulation)
+        isSimulation: Boolean(isSimulation),
+        continentBonus: continentGoldBonusFor(territory),
+        continentCapacityBonus: continentCapacityBonusFor(territory)
     };
 }
 
@@ -916,19 +941,19 @@ function applyRandomEventDamage(territory, context, ownEvent) {
 }
 
 function calculateConsMatsChange(territory, isSimulation) {
-    const context = economyContext(isSimulation);
+    const context = economyContext(isSimulation, territory);
     applyRandomEventDamage(territory, context, "Warehouse Fire");
     return consMatsChangeFor(territory, context);
 }
 
 function calculateGoldChange(territory, isSimulation, gameStartAdjustment) {
-    const context = economyContext(isSimulation);
+    const context = economyContext(isSimulation, territory);
     applyRandomEventDamage(territory, context, "Mutiny");
     return goldChangeFor(territory, context);
 }
 
 function calculateOilChange(territory, isSimulation) {
-    const context = economyContext(isSimulation);
+    const context = economyContext(isSimulation, territory);
     applyRandomEventDamage(territory, context, "Oil Well Fire");
     return oilChangeFor(territory, context);
 }
@@ -937,9 +962,64 @@ function calculateFoodChange(territory, isSimulation, cameFromSiege, ai) {
     if (cameFromSiege) {
         territory = territory.defendingTerritory; //a siege is passed in place of its territory
     }
-    const context = economyContext(isSimulation);
+    const context = economyContext(isSimulation, territory);
     applyRandomEventDamage(territory, context, "Food Disaster");
     return foodChangeFor(territory, context);
+}
+
+
+/**
+ * One territory's DERIVED economy: what it would earn this turn, and the ceilings it is
+ * earning towards, with the continent bonus already in both.
+ *
+ * It exists because the continent bonus cannot otherwise be measured. Nothing about it is
+ * stored -- that is the whole design -- so there is no field a spec can read to find out
+ * whether a continent held whole is paying, and the numbers a player sees are formatted
+ * ("1.2M") and spread across three panels. Leigh's instruction is the reason it is a hook
+ * rather than a browser check: a mechanic that only appears once a whole continent has been
+ * conquered is too far into a playthrough for anyone to verify by hand, so it has to be
+ * something a spec can assert.
+ *
+ * The four `calculate*Change()` functions above are deliberately NOT used. Each applies this
+ * turn's disaster damage to the territory as a side effect, so calling them to take a
+ * reading would change the world being read. These are the pure rules with a simulated
+ * context, which is exactly what the tooltips ask for.
+ *
+ * @param {object} territory
+ */
+export function derivedEconomyFor(territory) {
+    if (!territory) {
+        return null;
+    }
+    const context = economyContext(true, territory);
+    return {
+        territory: territory.territoryName,
+        owner: territory.dataName,
+        continent: territory.continent ?? "Unknown",
+        //The two multipliers in force for this territory, as the rules see them.
+        bonus: {
+            gold: context.continentBonus,
+            capacity: context.continentCapacityBonus
+        },
+        income: {
+            gold: goldChangeFor(territory, context),
+            oil: oilChangeFor(territory, context),
+            food: foodChangeFor(territory, context),
+            consMats: consMatsChangeFor(territory, context)
+        },
+        //Effective, not stored. The stored ones are still on the territory for a spec that
+        //wants to prove nothing was written back.
+        capacities: {
+            oil: effectiveCapacityFor(territory, "oil", context.continentCapacityBonus),
+            food: effectiveCapacityFor(territory, "food", context.continentCapacityBonus),
+            consMats: effectiveCapacityFor(territory, "consMats", context.continentCapacityBonus)
+        },
+        storedCapacities: {
+            oil: territory.oilCapacity,
+            food: territory.foodCapacity,
+            consMats: territory.consMatsCapacity
+        }
+    };
 }
 
 
@@ -1074,7 +1154,11 @@ export function calculateAllTerritoryDemandsForPlayerCountry() {
 }
 
 function calculateAllTerritoryCapacitiesForPlayerCountry() {
-    return totalCapacities(playerTerritoryModels());
+    //The country totals are the sum of the EFFECTIVE capacities, so the top table and the
+    //info panel's Country Summary show the same ceilings the income pass is regenerating
+    //towards. Summing the stored ones instead would make the two disagree by exactly the
+    //bonus, which is the sort of gap a player reads as a bug in the economy.
+    return totalCapacities(playerTerritoryModels(), continentCapacityBonusFor);
 }
 
 
@@ -1322,6 +1406,12 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         gains: turnGainsArrayLastTurn,
         totals: totalPlayerResources[0],
         capacities: capacityArray,
+        //The per-territory capacities are derived at the point of use rather than read off
+        //the territory, so a continent lost is simply the next render's answer -- there is
+        //no stored bonus and therefore no inverse write to forget.
+        capacityOf: (territory, resource) =>
+            effectiveCapacityFor(territory, resource, continentCapacityBonusFor(territory)),
+        continentsHeldLine: describeContinentsHeld(continentsHeldBy(playerCountryName())),
         demands: demandArray,
 
         territoryPaths: playerOwnedTerritories,
@@ -1670,11 +1760,15 @@ function tooltipUIArmyRow(row, territoryData, event) {
     const territoryName = row.querySelector(".ui-table-column").textContent;
     const prodPopulation = territoryData.productiveTerritoryPop;
     const gold = row.querySelector(".ui-table-column:nth-child(7)").textContent;
-    const oilCap = territoryData.oilCapacity;
+    //The EFFECTIVE capacity, continent bonus included -- this is the figure the income pass
+    //regenerates towards, so showing the stored one here would tell the player a ceiling the
+    //game is not using. `effectiveCapacityFor()` derives it; nothing writes it back.
+    const oilCap = effectiveCapacityFor(territoryData, "oil",
+        continentCapacityBonusFor(territoryData));
     let oilDemand;
 
     let oilDemandStyle;
-    if (territoryData.oilDemand > territoryData.oilCapacity) {
+    if (territoryData.oilDemand > oilCap) {
         oilDemandStyle = "font-weight: bold; color: rgb(235,0,0);";
     } else {
         oilDemandStyle = "font-weight: bold; color: white;";
@@ -1777,6 +1871,25 @@ function tooltipUIArmyRow(row, territoryData, event) {
     row.style.cursor = "pointer";
 }
 
+/**
+ * The continent line on a territory tooltip, or nothing when there is nothing to say.
+ *
+ * Drawn in the bonus colour when the continent is held whole and in plain text when it is
+ * not, because the difference between "you have this" and "you could have this" is the one
+ * thing the line exists to make obvious.
+ */
+function continentBonusTooltipLine(territoryData) {
+    const holding = continentHoldingFor(territoryData);
+    const sentence = describeContinentHolding(holding);
+    if (!sentence) {
+        return "";
+    }
+    const style = holding.total > 0 && holding.held === holding.total
+        ? "font-weight: bold; color: rgb(0,235,0);"
+        : "font-weight: bold; color: white;";
+    return `<br /><div>Continent: <span style="${style}">${sentence}</span></div>`;
+}
+
 function tooltipUITerritoryRow(row, territoryData, event) {
     // Get the coordinates of the mouse cursor
     const x = event.clientX;
@@ -1791,11 +1904,12 @@ function tooltipUITerritoryRow(row, territoryData, event) {
     const gold = row.querySelector(".ui-table-column:nth-child(5)").textContent;
     /* const goldNextTurnValue = Math.ceil(calculateGoldChange(territoryData)); */
     const oilNextTurnValue = Math.ceil(calculateOilChange(territoryData, true));
-    const oilCap = territoryData.oilCapacity;
+    const capacityBonus = continentCapacityBonusFor(territoryData);
+    const oilCap = effectiveCapacityFor(territoryData, "oil", capacityBonus);
     const foodNextTurnValue = Math.ceil(calculateFoodChange(territoryData, true));
-    const foodCap = territoryData.foodCapacity;
+    const foodCap = effectiveCapacityFor(territoryData, "food", capacityBonus);
     const consMatsNextTurnValue = Math.ceil(calculateConsMatsChange(territoryData, true));
-    const consMatsCap = territoryData.consMatsCapacity;
+    const consMatsCap = effectiveCapacityFor(territoryData, "consMats", capacityBonus);
     const foodConsumption = territoryData.foodConsumption;
 
     /* let goldNextTurnValue = "font-weight: bold; color: black;"; */
@@ -1867,6 +1981,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         <div>Forests: <span style="${whiteStyle}">${territoryData.forestsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForests}%</span> Cons. Mats. Cap.)</div>
         <div>Oil Wells: <span style="${whiteStyle}">${territoryData.oilWellsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageOilWells}%</span> Oil Cap.)</div>
         <div>Forts: <span style="${whiteStyle}">${territoryData.fortsBuilt}</span> (<span style="color: rgb(0,235,0)">+${bonusPercentageForts}%</span> Def. Bonus)</div>
+        ${continentBonusTooltipLine(territoryData)}
     `;
 
     // Get the last div in the row

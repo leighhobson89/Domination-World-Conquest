@@ -22,17 +22,26 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
 - [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register:
   every issue found so far, its status, where it is in the code **today**, and the phase that
   closes it. This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-goals-and-victory.md](./docs/05-goals-and-victory.md) — **the current phase.** What
-  winning means, the five goals, how the AI pursues each, and the end-game trigger. Its task
-  breakdown is [docs/06-goals-and-victory-checklist.md](./docs/06-goals-and-victory-checklist.md).
+- [docs/05-continent-bonuses.md](./docs/05-continent-bonuses.md) — **the current phase.** What
+  holding a whole continent is worth, why it is an economic bonus and deliberately not a die,
+  and how it is measured — including §6, the before/after measurement over 150 headless turns
+  per goal, which is the acceptance criterion. Its task breakdown is
+  [docs/06-continent-bonuses-checklist.md](./docs/06-continent-bonuses-checklist.md).
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
 going stale in the sequence: the eight-phase
-[refactor plan](./docs/archived/03-refactor-plan.md) and the
-[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist are there. They record
-why the code is shaped as it is, but they do not describe outstanding work — where one
-contradicts a numbered document, the numbered document wins.
+[refactor plan](./docs/archived/03-refactor-plan.md), the
+[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist, and
+[Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist are there. They
+record why the code is shaped as it is, but they do not describe outstanding work — where one
+contradicts a numbered document, the numbered document wins. **The numbers are reused when a
+plan is archived**, so `05` and `06` are the current phase and the archived pair keep the
+numbers they were written under.
+
+One thing in the archived Goals and Victory is still live rather than historical: its §5 table
+of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
+it is the baseline a continent bonus has to be measured against.
 
 ## Commands
 
@@ -90,6 +99,53 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `"resources/flags/" + country + ".png"` at runtime. No bundler rewrites those, which is why
   `vite.config.mjs` copies `resources/` into the build verbatim. Moving `resources/` means
   editing every one of those strings.
+- **A continent held whole pays, and the payment is DERIVED.** `src/state/continents.js` is
+  the pure walk — `continentControl()`, `holdsContinentOutright()`, `continentsHeldOutrightBy()`
+  — and it imports nothing at all, so it runs in Node and takes its territories as an argument.
+  `src/state/continentBonus.js` is the live half: it memoises that walk over the real store and
+  drops the cache on `TERRITORY_CHANGED`, on `TURN_CHANGED`, and whenever the territory COUNT
+  changes (which is what covers the bootstrap window, since `seedTerritories()` emits nothing).
+  Six things follow. **There is ONE definition of holding a continent**: `worldStandings()` in
+  `src/ai/victory.js` folds through `accumulateContinent()` rather than rebuilding the map, so
+  the economy's bonus and the CONTINENTAL victory condition cannot drift — and it uses the
+  per-territory fold rather than the whole walk because that loop is already walking 359
+  territories and building two other indexes. **It lives in `state/` and not in `rules/` or
+  `ai/`**: `src/rules/victoryCheck.js` already imports `src/ai/victory.js`, so an `ai → rules`
+  edge would close a package-level cycle. **The bonus is NEVER written onto a territory** —
+  `effectiveCapacityFor(territory, resource, bonus)` in `src/rules/economy/capacity.js` derives
+  it at the point of use, because a stored bonus would need an exact inverse write when the
+  continent was lost and a player would keep a bonus for a continent they no longer held,
+  silently. **There are TWO dials and that is not a rounding of taste**: `CONTINENT_BONUS_GOLD`
+  (1.5) multiplies a FLOW, `CONTINENT_BONUS_CAPACITY` (1.25) multiplies three CEILINGS, and the
+  ceilings compound into the gold a few turns later while the gold compounds into nothing —
+  never multiply the regeneration DELTA instead, which makes a territory reach the same ceiling
+  slightly sooner and is worth nothing within a handful of turns. **The bonus arrives in the
+  ECONOMY CONTEXT**, exactly as the random event does, so `income.js` stays a pure function of
+  `(territory, context)`; `economyContext()` in `resourceCalculations.js` is where the world is
+  asked. And **a continent is the ORIGINAL OWNER's continent, from `initialData.js`** — never
+  the `continent=` attribute on the SVG path, which disagrees about Easter Island (Chilean, so
+  South American to the game and Oceanian to the map data). The model's counts are Asia 87,
+  Oceania 65, Africa 59, Europe 52, South America 49, North America 47; known-issues **BI**.
+- **The continent bonus is measured, not eyeballed.** It is derived and stored nowhere, and it
+  sits forty turns into a playthrough, so nobody reaches it by clicking. `window.__game`
+  therefore has two accessors that exist only for that: `continents()` (who holds what, the
+  same walk the rule reads) and `economyFor(territory)` (one territory's derived income and
+  EFFECTIVE capacities, with both multipliers stated and the STORED capacities alongside so a
+  spec can prove nothing was written back). `tests/e2e/resources-economy/continent-bonus.spec.js`
+  is the end-to-end measurement and `tools/ai-sim.mjs` reports `cont` (continents complete) and
+  `best` (how far along the nearest one is) on every sampled turn — a run stuck at "0 complete,
+  41%" and one stuck at "0 complete, 96%" are different findings.
+- **The continent view is the DEFAULT, and the cycle is `continent → physical → normal`.**
+  Swapped as the opening move of the continent-bonus phase: a continent is now a thing a player
+  wins something for holding, and a boundary a player has to go looking for is a boundary they
+  will not plan around. Three consequences. The default is **applied** at the end of
+  `svgMapLoaded()` rather than merely declared — the SVG ships with plain sea-coloured strokes,
+  so setting `continentView` alone would put the button in one state and the map in another,
+  which is the same species of mistake as anything made correct only as a side effect of a
+  click. `resetContinentView()` goes back to `DEFAULT_CONTINENT_VIEW` and **not** to the literal
+  `normal`, which are no longer the same view — otherwise the second game of a session opens on
+  a different map from the first. And `DEFAULT_CONTINENT_VIEW` is named once because three
+  places have to agree about it.
 - **The map is three modules under `src/ui/map/`** (Phase 6.7). `camera.js` owns zoom and pan:
   zoom is **instant** (no animation, so no latch that drops a fast second wheel event),
   anchored on the pointer in user coordinates, and clamped to the world bounds so nothing off
@@ -220,7 +276,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   The five goals produce visibly different worlds — 78 to 114 countries surviving, a largest
   empire of 51 to 97, a top-sixteen share of 65% to 81% — and none of them freezes one. The
   full table and a paragraph per goal are in
-  [docs/05-goals-and-victory.md](./docs/05-goals-and-victory.md) §5. That measurement is the
+  [docs/archived/05-goals-and-victory.md](./docs/archived/05-goals-and-victory.md) §5. That measurement is the
   acceptance criterion for any change to `src/ai/`, because the failure it catches has no
   textual signature: nothing throws, every turn completes, and the map quietly stops changing.
 - **`leadingCountry()` and `closestToVictory()` answer different questions and are not

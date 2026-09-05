@@ -1,7 +1,8 @@
 # goal-selection
 
 The screen every new game now opens on, and the ending it makes possible. Goals and Victory,
-Q4.2 — see [docs/05-goals-and-victory.md](../../../docs/05-goals-and-victory.md).
+Q4.2 — see
+[docs/archived/05-goals-and-victory.md](../../../docs/archived/05-goals-and-victory.md).
 
 | Spec | Covers |
 |---|---|
@@ -59,6 +60,6 @@ What needs a browser is what the pure layers cannot see:
 - What any page SAYS, and the order of the goals — `tests/unit/ui-goal-catalogue.spec.js`.
 - Whether the five goals produce five different worlds. That is a hundred and fifty headless
   turns per goal and is `tools/ai-sim.mjs --goal=KIND`; the numbers are recorded in
-  [docs/05-goals-and-victory.md](../../../docs/05-goals-and-victory.md) §5.
+  [docs/archived/05-goals-and-victory.md](../../../docs/archived/05-goals-and-victory.md) §5.
 - The goal surviving a save — that is `tests/e2e/save-load/goal-survives-a-load.spec.js`,
   with the rest of the save/load wiring.

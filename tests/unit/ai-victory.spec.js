@@ -12,6 +12,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { __resetStateForTests, seedTerritories } from "../../src/state/GameState.js";
 import {
+    continentControl,
+    continentsHeldOutrightBy,
+    holdsContinentOutright
+} from "../../src/state/continents.js";
+import { allTerritories } from "../../src/state/selectors.js";
+import {
     activeVictoryCondition,
     captureVictoryCondition,
     closestToVictory,
@@ -119,6 +125,40 @@ describe("standings", () => {
         const rows = continentStandingsFor("Nowhereland");
         expect(rows).toHaveLength(3);
         expect(rows.every(row => row.held === 0 && !row.complete)).toBe(true);
+    });
+});
+
+describe("one definition of holding a continent", () => {
+    //`worldStandings()` takes its continent half from `src/state/continents.js` rather than
+    //rebuilding it, so that the economy's bonus and the CONTINENTAL victory condition cannot
+    //drift apart. These assert that they have not: whatever `continentStandingsFor()` calls a
+    //completed continent, `holdsContinentOutright()` calls one too, and the reverse.
+    it("agrees with holdsContinentOutright, continent by continent, country by country", () => {
+        const control = continentControl(allTerritories());
+
+        for (const country of ["Alba", "Brava", "Carda", "Delta"]) {
+            for (const row of continentStandingsFor(country, worldStandings())) {
+                expect(row.complete,
+                    country + " on " + row.continent).toBe(
+                    holdsContinentOutright(country, row.continent, control));
+            }
+        }
+    });
+
+    it("agrees with continentsHeldOutrightBy on which continents are complete", () => {
+        const control = continentControl(allTerritories());
+
+        for (const country of ["Alba", "Brava", "Carda"]) {
+            const fromStandings = continentStandingsFor(country, worldStandings())
+                .filter(row => row.complete)
+                .map(row => row.continent)
+                .sort();
+            expect(continentsHeldOutrightBy(country, control)).toEqual(fromStandings);
+        }
+    });
+
+    it("builds the same continent map the pure walk does", () => {
+        expect(worldStandings().continents).toEqual(continentControl(allTerritories()));
     });
 });
 

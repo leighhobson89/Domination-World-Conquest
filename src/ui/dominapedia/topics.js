@@ -225,6 +225,23 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "countries grow steadily more reckless as the deadline nears, " +
                                 "because there is nothing left to conserve."
                         ),
+                        h("A continent held whole is worth something now"),
+                        p(
+                            "Holding every territory on a continent raises the gold income of " +
+                                "every territory on it by half, and the oil, food and " +
+                                "construction-materials capacities of each by a quarter. All " +
+                                "or nothing, and measured by exactly the threshold Continental " +
+                                "Supremacy is won at. The full rule and the per-continent " +
+                                "figures are under \"Income and Upkeep\"."
+                        ),
+                        p(
+                            "That makes Continental Supremacy the one goal whose objective and " +
+                                "whose reward are the same thing: a country that finishes its " +
+                                "first continent gets better at finishing its second. It is " +
+                                "worth taking seriously under the other four goals too — a " +
+                                "completed continent is the cheapest permanent economy in the " +
+                                "game, whatever you are ultimately playing for."
+                        ),
                         h("Where you stand"),
                         p(
                             "The phase bar carries one line of progress towards whatever you " +
@@ -1093,6 +1110,79 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "not optional — it is the only way the economy improves, because " +
                                 "nothing raises a development index and nothing changes a " +
                                 "continent."
+                        ),
+                        h("Holding a continent whole"),
+                        p(
+                            "A country that holds EVERY territory on a continent earns more " +
+                                "from every territory on it. It is all or nothing: a continent " +
+                                "you hold nine tenths of pays exactly what nine tenths of a " +
+                                "continent always paid. The threshold is the same one a " +
+                                "Continental Supremacy victory is measured against, so the " +
+                                "game only ever counts a continent one way."
+                        ),
+                        table(
+                            ["What", "Multiplier", "Kind"],
+                            [
+                                ["Gold income", "1.5", "Flow"],
+                                ["Oil capacity", "1.25", "Ceiling"],
+                                ["Food capacity", "1.25", "Ceiling"],
+                                ["Cons. mats. capacity", "1.25", "Ceiling"],
+                            ]
+                        ),
+                        p(
+                            "The two numbers differ on purpose. Gold is spent and gone; a raised " +
+                                "CAPACITY is a permanent gain that compounds — food capacity is " +
+                                "what a population and an army can be fed up to, a larger " +
+                                "population is a larger productive population, and productive " +
+                                "population is the input to gold income. A capacity bonus " +
+                                "therefore arrives in your gold a few turns later, on top of the " +
+                                "gold bonus. Equal numbers would not be equal effects."
+                        ),
+                        p(
+                            "It is derived from who owns what, every turn, and never stored. " +
+                                "Complete a continent and the bonus is there on the next income " +
+                                "pass; lose one territory of it and the bonus is gone on the " +
+                                "next. There is no grace period and no ramp."
+                        ),
+                        p(
+                            "The bonus applies to all 206 computer countries exactly as it " +
+                                "applies to you. A neighbour that has just finished a continent " +
+                                "has become permanently richer, and it will show in what it can " +
+                                "field two or three turns later rather than immediately."
+                        ),
+                        p(
+                            "It is an ECONOMIC bonus and deliberately not a combat one. Holding " +
+                                "a continent whole never adds a die, a face or a defensive " +
+                                "modifier to anything."
+                        ),
+                        table(
+                            ["Continent", "Territories", "Gold mult.", "Held whole"],
+                            [
+                                ["Asia", "87", "0.5", "0.75"],
+                                ["Oceania", "65", "0.8", "1.2"],
+                                ["Africa", "59", "0.3", "0.45"],
+                                ["Europe", "52", "1.0", "1.5"],
+                                ["South America", "49", "0.4", "0.6"],
+                                ["North America", "47", "1.0", "1.5"],
+                            ]
+                        ),
+                        p(
+                            "OCEANIA IS THE TRAP. It is 65 territories of islands — the second " +
+                                "largest continent by count, small in land area, and almost " +
+                                "every territory on it needs a naval crossing to reach. It is " +
+                                "by a wide margin the hardest continent on the map to complete " +
+                                "and it pays no more for being so, because the bonus is a " +
+                                "percentage and a percentage rewards the continent that was " +
+                                "already earning. If you want a continent bonus early, North " +
+                                "America and South America are the two that can be finished."
+                        ),
+                        p(
+                            "Where you can see it: the tooltip on any territory names its " +
+                                "continent and how much of it the owner holds, whoever the " +
+                                "owner is — so you can read an opponent's progress off the map " +
+                                "as easily as your own. The territory panel's Summary tab lists " +
+                                "which continents you hold outright, and every capacity figure " +
+                                "shown anywhere in the game already includes the bonus."
                         ),
                         h("Army upkeep"),
                         p(

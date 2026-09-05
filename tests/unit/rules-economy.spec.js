@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
     armyTotalFor,
     defenseBonusFor,
+    effectiveCapacityFor,
     oilDemandFor,
     totalCapacities,
     totalDemands,
@@ -44,6 +45,8 @@ import {
     selectRandomEvent
 } from "../../src/rules/events/randomEvents.js";
 import {
+    CONTINENT_BONUS_CAPACITY,
+    CONTINENT_BONUS_GOLD,
     FOOD_UNIT_SCALE,
     INITIAL_ARMY_ADJUSTMENT_COST_PER_UNIT,
     PRODUCTIVE_POP_PERCENT,
@@ -518,5 +521,122 @@ describe("rollRandomEventLikelihood", () => {
             return 0.9;
         });
         expect(draws).toBe(randomEventLikelihood.samples);
+    });
+});
+
+
+describe("the continent bonus -- gold is a FLOW", () => {
+    //Holding a whole continent multiplies the gold every territory on it earns. It arrives in
+    //the economy context exactly as the random event does, so `income.js` stays a pure
+    //function of `(territory, context)` and never asks the store who owns what.
+    it("defaults to no bonus at all, so a quiet turn is unchanged", () => {
+        expect(QUIET_TURN.continentBonus ?? 1).toBe(1);
+        expect(goldChangeFor(territory())).toBe(goldChangeFor(territory(), QUIET_TURN));
+    });
+
+    it("multiplies gold income by the bonus", () => {
+        const plain = goldChangeFor(territory(), QUIET_TURN);
+        const held = goldChangeFor(territory(),
+            { ...QUIET_TURN, continentBonus: CONTINENT_BONUS_GOLD });
+
+        expect(held).toBeCloseTo(plain * CONTINENT_BONUS_GOLD, 6);
+    });
+
+    it("ignores a nonsense bonus rather than earning NaN forever", () => {
+        //One NaN in a gold balance never recovers -- every later turn recomputes from what
+        //the last one left -- which is why the guard is here and not at the call site.
+        const plain = goldChangeFor(territory(), QUIET_TURN);
+
+        expect(goldChangeFor(territory(), { ...QUIET_TURN, continentBonus: Number.NaN }))
+            .toBeCloseTo(plain, 6);
+        expect(goldChangeFor(territory(), { ...QUIET_TURN, continentBonus: 0 }))
+            .toBeCloseTo(plain, 6);
+        expect(goldChangeFor(territory(), { ...QUIET_TURN, continentBonus: -2 }))
+            .toBeCloseTo(plain, 6);
+    });
+
+    it("still earns nothing at all during a mutiny", () => {
+        expect(goldChangeFor(territory(), {
+            randomEventHappening: true, randomEvent: "Mutiny",
+            continentBonus: CONTINENT_BONUS_GOLD
+        })).toBe(0);
+    });
+});
+
+describe("the continent bonus -- oil, food and cons. mats are STOCKS with a CEILING", () => {
+    //Multiplying the regeneration DELTA would make a territory reach the SAME ceiling
+    //slightly sooner and be worth nothing within a handful of turns. The ceiling is the lever.
+    it("raises the capacity a stock is regenerating towards", () => {
+        const land = territory({ oilForCurrentTerritory: 0, oilCapacity: 100 });
+        const context = { ...QUIET_TURN, continentCapacityBonus: 2 };
+
+        expect(oilChangeFor(land, QUIET_TURN)).toBe(Math.ceil(100 * resourceRegeneration.oil.growth));
+        expect(oilChangeFor(land, context)).toBe(Math.ceil(200 * resourceRegeneration.oil.growth));
+    });
+
+    it("raises the ceiling for construction materials and for food too", () => {
+        const stocked = territory({ consMatsForCurrentTerritory: 0, consMatsCapacity: 100 });
+        const context = { ...QUIET_TURN, continentCapacityBonus: 2 };
+        expect(consMatsChangeFor(stocked, context))
+            .toBe(Math.ceil(200 * resourceRegeneration.consMats.growth));
+
+        const land = territory({ foodForCurrentTerritory: 0, foodCapacity: FOOD_UNIT_SCALE * 100 });
+        expect(foodChangeFor(land, context))
+            .toBe(Math.ceil(FOOD_UNIT_SCALE * 200 * resourceRegeneration.food.growth) / FOOD_UNIT_SCALE);
+    });
+
+    it("turns a stock that was AT capacity into one that is now below it", () => {
+        //The point of raising a ceiling: a territory sitting still starts growing again.
+        const full = territory({ oilForCurrentTerritory: 100, oilCapacity: 100 });
+
+        expect(oilChangeFor(full, QUIET_TURN)).toBe(0);
+        expect(oilChangeFor(full, { ...QUIET_TURN, continentCapacityBonus: CONTINENT_BONUS_CAPACITY }))
+            .toBeGreaterThan(0);
+    });
+
+    it("suppresses regeneration on a disaster turn, bonus or not", () => {
+        const land = territory({ oilForCurrentTerritory: 0, oilCapacity: 100 });
+        expect(oilChangeFor(land, {
+            randomEventHappening: true, randomEvent: "Oil Well Fire", continentCapacityBonus: 2
+        })).toBe(0);
+    });
+});
+
+describe("effectiveCapacityFor", () => {
+    //DERIVED, never written back onto the territory. Writing the bonus into the stored
+    //capacity would need an exact inverse write when the continent is lost, the two would
+    //disagree the first time a path forgot, and a player would keep a bonus for a continent
+    //they no longer held -- silently, because nothing compares a stored capacity against
+    //what it should be.
+    it("scales the stored capacity without touching it", () => {
+        const land = territory({ oilCapacity: 200, foodCapacity: 400, consMatsCapacity: 80 });
+
+        expect(effectiveCapacityFor(land, "oil", 1.25)).toBe(250);
+        expect(effectiveCapacityFor(land, "food", 1.25)).toBe(500);
+        expect(effectiveCapacityFor(land, "consMats", 1.25)).toBe(100);
+        expect(land.oilCapacity).toBe(200);
+        expect(land.foodCapacity).toBe(400);
+        expect(land.consMatsCapacity).toBe(80);
+    });
+
+    it("defaults to the stored capacity when no bonus is given", () => {
+        const land = territory({ oilCapacity: 200 });
+        expect(effectiveCapacityFor(land, "oil")).toBe(200);
+    });
+
+    it("falls back to the stored capacity for a nonsense bonus", () => {
+        const land = territory({ oilCapacity: 200 });
+        expect(effectiveCapacityFor(land, "oil", Number.NaN)).toBe(200);
+        expect(effectiveCapacityFor(land, "oil", 0)).toBe(200);
+        expect(effectiveCapacityFor(land, "oil", -1)).toBe(200);
+    });
+
+    it("answers zero for an unknown resource or a missing territory", () => {
+        expect(effectiveCapacityFor(territory(), "uranium", 2)).toBe(0);
+        expect(effectiveCapacityFor(null, "oil", 2)).toBe(0);
+    });
+
+    it("treats a non-numeric stored capacity as zero rather than NaN", () => {
+        expect(effectiveCapacityFor(territory({ oilCapacity: undefined }), "oil", 2)).toBe(0);
     });
 });

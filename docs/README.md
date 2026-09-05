@@ -11,14 +11,14 @@ the register (4) is the one to check first if you only read one.
 |---|---|---|
 | 1 | [Codebase Audit](./01-codebase-audit.md) | What is here, how it is put together, and everything that is wrong with it — every catalogued defect with file and line references, and the analysis behind each one |
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
-| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — 397 specs, plus 767 unit tests, and **no `test.fixme` left** |
+| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~420 specs, plus 884 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Goals and Victory](./05-goals-and-victory.md) | **Current work.** What winning means, the five goals a player chooses between, how the AI pursues each one, and the end-game trigger |
-| 6 | [Goals and Victory Checklist](./06-goals-and-victory-checklist.md) | The task breakdown for 5, in four quarters, each ending with the game playable |
+| 5 | [Continent Bonuses](./05-continent-bonuses.md) | **Current work.** What holding a whole continent is worth, why it is an economic bonus and not a die, and how it is measured |
+| 6 | [Continent Bonuses Checklist](./06-continent-bonuses-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable |
 
-Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, and the
-battle overhaul and its checklist. They record why the code is shaped as it is; they do not
-describe outstanding work.
+Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
+battle overhaul and its checklist, and Goals and Victory and its checklist. They record why the
+code is shaped as it is; they do not describe outstanding work.
 
 ---
 
@@ -101,22 +101,35 @@ finish, and a besieged territory earns nothing indefinitely. Both are Phase 7 wo
 the AI a fully-formed first turn eliminates a single-territory player within ten turns, which
 is why the bootstrap-ordering fix was measured, reverted and re-sequenced there.
 
-**What is being worked on now.** [Goals and Victory](./05-goals-and-victory.md) — the largest
-open question the game has, and the one entry on the Dominapedia's own list of faults that is
-not a balance question. The game does not end; nothing checks whether the player has conquered
-the world or been wiped off it. Half of the answer already exists, because the AI needed
-something to play for, so what this phase adds is the screen on which a player chooses between
-five goals, the AI actually *pursuing* that choice rather than merely being aware of it, and
-the moment the game stops and says who won. The breakdown is in
-[the checklist](./06-goals-and-victory-checklist.md).
+**The game can now be finished.** [Goals and Victory](./archived/05-goals-and-victory.md) is
+delivered and archived: a player chooses one of five goals before their country on a screen that
+cannot be skipped, every one of the 206 AI countries plays for the same condition and adapts how
+it fights to suit it, the player's progress is on the phase bar, and the game is decided at the
+end of every turn — before the counter moves, and announced exactly once. Elimination runs
+underneath every goal. What is left of that item is the victory/defeat **screen**: `GAME_OVER`
+carries the outcome, the winner, the reason and the turn, and its only subscriber today is a
+`console.log`.
+
+**What is being worked on now.** [Continent Bonuses](./05-continent-bonuses.md) — the missing
+half of the goal layer. The long-term objective is a continent, the mid-term objective is a
+country and the short-term objective is a territory, but only the last of those pays: holding a
+whole continent grants nothing at all. So a player who finishes Africa and a player holding the
+same number of territories scattered over four continents have identical economies, and the
+middle game has no shape. It is an **economic** bonus and deliberately not a combat one — the
+model is banded, so a modifier either does nothing or moves a whole die, and the register's
+largest open item is that attacking is *already* too hard for the world to consolidate. The
+breakdown is in [the checklist](./06-continent-bonuses-checklist.md).
 
 **Still outstanding after it**, in rough order:
 
-1. **Continent bonuses**, the mid-game goal layer. It interacts with Continental Supremacy —
-   neither blocks the other, but they should be balanced together.
-2. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
+1. **The victory and defeat screen.** The game decides itself correctly; it just tells the
+   console rather than the player. One new subscriber to `GAME_OVER`.
+2. **The over-extension counterweight.** A cost for scattered land, paired with the bonus for
+   consolidated land. The Dominapedia's Design Notes calls it "the one design tension worth
+   naming": there is no pressure against growth, so the optimal play is always to expand.
+3. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
    refactor's "no file over 400 lines" is not met. Finishing them was Phase 6.9.
-3. **The two design problems Phase 3 surfaced** — the AI besieges far more than it can finish,
+4. **The two design problems Phase 3 surfaced** — the AI besieges far more than it can finish,
    and a besieged territory earns nothing indefinitely
    ([Known Issues §6](./04-known-issues.md)).
 

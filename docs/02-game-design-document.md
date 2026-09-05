@@ -137,6 +137,79 @@ Applied to gold income and, separately, to combat:
 
 ---
 
+### 3.6 Holding a continent whole ✅
+
+A country that holds **every** territory on a continent earns more from every territory on
+it. The table above is what a continent is worth to live on; this is what it is worth to own
+outright, and they are deliberately two tables — a later balance pass that retunes one should
+not have to retune both.
+
+| Dial | `src/config/balance.js` | Applies to |
+|---|---:|---|
+| `CONTINENT_BONUS_GOLD` | 1.5 | gold income of every territory on the continent |
+| `CONTINENT_BONUS_CAPACITY` | 1.25 | `oilCapacity`, `foodCapacity` and `consMatsCapacity` of each |
+
+**All or nothing.** A continent held nine tenths of pays exactly what nine tenths of a
+continent always paid. It is the only shape that creates a decision: under proportional
+credit a continent stops being an objective and becomes a slope, and the last territory of a
+continent stops being worth a war of its own. It is also the same threshold the CONTINENTAL
+victory condition asks for, so the game measures "holding a continent" exactly once.
+
+**Two dials rather than one**, because the two are not the same kind of thing. Gold is a
+FLOW: `goldChangeFor()` earns it fresh each turn and it compounds into nothing. Oil, food and
+construction materials are STOCKS with a CEILING — `regenerationTowardsCapacity()` moves the
+held amount towards a capacity — so multiplying the *change* would make a territory reach the
+same ceiling slightly sooner and be worth nothing within a handful of turns. The ceiling is
+the lever, and raising it compounds: food capacity gates population, population gates
+productive population, and productive population is the input to gold. A capacity bonus
+therefore arrives in the gold income a few turns later, on top of the gold bonus, which is
+why it is the smaller number.
+
+**Derived, never stored.** `src/state/continents.js` walks the territories and answers who
+holds what; `src/state/continentBonus.js` memoises that walk over the live store and drops it
+whenever a territory changes hands. Nothing writes a bonus onto a territory: doing so would
+need an exact inverse write when the continent was lost, the two would disagree the first
+time any path forgot, and a player would keep a bonus for a continent they no longer held —
+silently, because nothing in the game compares a stored capacity against what it should be.
+`effectiveCapacityFor()` in `src/rules/economy/capacity.js` is the one derivation every
+reader goes through.
+
+**Economy only, and deliberately not a die.** The dice model is BANDED — `share` picks a die
+count out of a table — so a combat modifier either does nothing or moves a whole die, and a
+whole extra die is an unmatched die, which is an automatic hit every round. There is no small
+version of it (§7.0). A defensive bonus would have been worse: the register's most
+consequential open item is that attacking is already too hard for the world to consolidate.
+
+**The continents are not equal, and a percentage self-weights.** Asia held whole is worth far
+more absolute gold than North America held whole, because more territories are earning it, so
+there is no per-continent bonus table and there should not be one.
+
+| Continent | Territories | Gold modifier | Held whole |
+|---|---:|---:|---:|
+| Asia | 87 | 0.5 | 0.75 |
+| Oceania | 65 | 0.8 | 1.2 |
+| Africa | 59 | 0.3 | 0.45 |
+| Europe | 52 | 1.0 | 1.5 |
+| South America | 49 | 0.4 | 0.6 |
+| North America | 47 | 1.0 | 1.5 |
+
+⚠️ Those counts come from the MODEL and not from the map. A territory's `continent` is its
+original owner's `continent` in `initialData.js`, never the `continent=` attribute on its SVG
+path, and the two disagree about Easter Island — Chilean, so South American to the game and
+Oceanian to the map data. See **BI** in [04-known-issues.md](./04-known-issues.md) §13.
+
+⚠️ Oceania is the trap: 65 island territories, almost every one needing a naval crossing, and
+worth no more for being the hardest continent on the map to complete. That is a fact about
+the map rather than a fault in the bonus, and the Dominapedia warns about it.
+
+**What the player is told.** The map tooltip names the continent and states the holding either
+way — "Europe: 31 of 52 held by France" — for every territory and not only the player's, so an
+opponent's progress is readable off the map. The info panel's territory tooltip carries the
+same line and the Summary tab lists which continents the player holds outright. The
+Dominapedia's "Income and Upkeep" page carries the rule and the numbers.
+
+---
+
 ## 4. Units
 
 ### 4.1 The four unit types ✅
@@ -672,7 +745,7 @@ the **attack** budget and deliberately cannot reach the siege budget.
 
 Measured over 150 headless turns per goal (`tools/ai-sim.mjs --goal=KIND`): 78–114 countries
 surviving, a largest empire of 51–97, a top-sixteen share of 65–81%, and no goal freezing the
-world. The table is in [05-goals-and-victory.md](./05-goals-and-victory.md) §5, and that
+world. The table is in [archived/05-goals-and-victory.md](./archived/05-goals-and-victory.md) §5, and that
 measurement is the acceptance criterion for any change to `src/ai/`.
 
 ❌ Still absent: **coordination and route planning.** Each country plans alone, has no model of
@@ -755,7 +828,7 @@ Things the game needs but does not have. Ordered roughly by how badly they are m
 | ✅ 6 | ~~**Long-term AI goals**~~ | **Done, refactor Phase 7.8 and Goals and Victory Q2.** Three horizons — continents, a country to absorb, a target this turn — all derived from the chosen goal (§8.5). Coordination and route planning are still absent. |
 | ❌ 7 | **AI diplomacy beyond the siege gold offer** | No alliances, no trade, no non-aggression, no war declarations. |
 | ✅ 8 | ~~**Player-visible AI activity**~~ | **Done, refactor Phase 7.4 — the activity feed.** ~~AI conquests happen silently.~~ `src/state/activityLog.js` stores facts and the feed derives the wording when a row is drawn. It is military only, by design: the AI's *plans* go to the console, because a panel showing them would be a cheat. |
-| ❌ 9 | **Continent control bonuses** | Continents exist as modifiers but holding one grants nothing. |
+| ✅ 9 | ~~**Continent control bonuses**~~ | **Done, the continent-bonus phase.** ~~Continents exist as modifiers but holding one grants nothing.~~ A country holding every territory on a continent earns 1.5x gold from each of them and holds 1.25x oil, food and construction-materials capacity (§3.6). All or nothing, derived every turn from ownership, and paid to the player and to all 206 AI countries alike. |
 | ❌ 10 | **Technology / research** | `dev_index` is static; nothing raises it. |
 | ❌ 11 | **Naval / air movement rules** | Naval and air are combat stats only; there is no sea movement, no range, no transport. Coastal-ness only gates whether naval counts. |
 | ✅ 12 | ~~**Help / tutorial / onboarding**~~ | **Done, refactor Phase 7.6 — the Dominapedia.** ~~The Help button is inert.~~ Seven main topics and twenty-nine pages built from `src/ui/dominapedia/topics.js`, covering oil demand, sieges, useable units and the goals. There is still no interactive tutorial. |

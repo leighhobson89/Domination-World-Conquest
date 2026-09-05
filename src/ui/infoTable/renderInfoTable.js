@@ -36,7 +36,10 @@ export const Tab = Object.freeze({
  * @property {() => string} playerCountryName
  * @property {object} gains          turnGainsArrayLastTurn
  * @property {object} totals         totalPlayerResources[0]
- * @property {object} capacities     capacityArray
+ * @property {object} capacities     capacityArray, already EFFECTIVE (continent bonus in)
+ * @property {(territory: object, resource: string) => number} capacityOf  one territory's
+ *           effective capacity for a resource
+ * @property {string} continentsHeldLine  the Summary tab's continent-bonus sentence
  * @property {object} demands        demandArray
  * @property {Element[]} territoryPaths  playerOwnedTerritories, sorted
  * @property {(uniqueId: string) => object} territoryByUniqueId
@@ -64,8 +67,25 @@ function baseContext(deps) {
         gains: deps.gains,
         totals: deps.totals,
         capacities: deps.capacities,
+        capacityOf: deps.capacityOf ?? (() => 0),
         demands: deps.demands
     };
+}
+
+/**
+ * A full-width line of prose under one of the summary tables.
+ *
+ * The Summary tab is the one screen that already answers "how am I doing", which makes it
+ * the right place to say which continents are held outright and what they are worth. It is
+ * a sentence rather than a column because the answer is a LIST -- six continents, usually
+ * none of them -- and a column would have to be sixteen cells wide to hold it.
+ */
+function noteRow(text) {
+    const row = document.createElement("div");
+    row.classList.add("ui-table-row");
+    row.style.fontStyle = "italic";
+    row.textContent = text;
+    return row;
 }
 
 /** One row per player territory, over whichever column table the tab uses. */
@@ -106,6 +126,9 @@ function renderSummary(table, deps) {
 
     table.appendChild(headerRow(countryTotalsColumns, { title: "Country Summary:" }));
     table.appendChild(dataRow(countryTotalsColumns, context));
+    if (deps.continentsHeldLine) {
+        table.appendChild(noteRow(deps.continentsHeldLine));
+    }
     table.appendChild(emptyRow());
 
     table.appendChild(headerRow(territoryResourceColumns, { title: "Territories Summary:" }));

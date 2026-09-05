@@ -15,6 +15,12 @@ import {
     goldIncome as goldIncomeBalance,
     resourceRegeneration
 } from "../../config/balance.js";
+//The one non-`config/` import in this module, and it is a sibling that is itself pure and
+//imports only `config/`, so nothing here has learnt about the store, the DOM or `ui.js`.
+//It is here so that "a territory's capacity, bonus included" has ONE definition -- the
+//regeneration below, the oil gate, the tooltip and the info panel all read the same
+//function rather than each multiplying by hand.
+import { bonusMultiplier, effectiveCapacityFor } from "./capacity.js";
 
 /**
  * @typedef {object} EconomyContext
@@ -22,10 +28,26 @@ import {
  * @property {string} randomEvent            which one, if so
  * @property {boolean} [isSimulation]        true when costing a hypothetical purchase, which
  *                                           suppresses disaster damage
+ * @property {number} [continentBonus]       multiplier on GOLD income, 1 unless this
+ *                                           territory's continent is held whole by its owner
+ * @property {number} [continentCapacityBonus] multiplier on the three CAPACITIES, same
+ *                                           condition. Two dials rather than one because
+ *                                           capacity compounds into gold and gold compounds
+ *                                           into nothing -- see `config/balance.js`
  */
 
-/** The default context: a quiet turn. */
-export const QUIET_TURN = Object.freeze({ randomEventHappening: false, randomEvent: "" });
+/**
+ * The default context: a quiet turn, on a continent nobody holds whole.
+ *
+ * The two bonuses default to 1 rather than being absent, so that a caller that has not been
+ * taught about them yet gets today's game exactly.
+ */
+export const QUIET_TURN = Object.freeze({
+    randomEventHappening: false,
+    randomEvent: "",
+    continentBonus: 1,
+    continentCapacityBonus: 1
+});
 
 /**
  * How a stock moves towards its capacity in one turn.
@@ -53,11 +75,17 @@ export function regenerationTowardsCapacity(stock, capacity, rates, context) {
     return 0;
 }
 
-/** Construction materials earned or spoiled this turn. */
+/**
+ * Construction materials earned or spoiled this turn.
+ *
+ * The continent bonus raises the CEILING, not this delta. Multiplying the change would make a
+ * territory reach the same ceiling slightly sooner and be worth nothing within a handful of
+ * turns; the ceiling is a permanent gain. The same note applies to oil and food below.
+ */
 export function consMatsChangeFor(territory, context = QUIET_TURN) {
     return regenerationTowardsCapacity(
         territory.consMatsForCurrentTerritory,
-        territory.consMatsCapacity,
+        effectiveCapacityFor(territory, "consMats", context.continentCapacityBonus),
         resourceRegeneration.consMats,
         context);
 }
@@ -66,7 +94,7 @@ export function consMatsChangeFor(territory, context = QUIET_TURN) {
 export function oilChangeFor(territory, context = QUIET_TURN) {
     return regenerationTowardsCapacity(
         territory.oilForCurrentTerritory,
-        territory.oilCapacity,
+        effectiveCapacityFor(territory, "oil", context.continentCapacityBonus),
         resourceRegeneration.oil,
         context);
 }
@@ -80,7 +108,7 @@ export function oilChangeFor(territory, context = QUIET_TURN) {
 export function foodChangeFor(territory, context = QUIET_TURN) {
     const change = regenerationTowardsCapacity(
         territory.foodForCurrentTerritory * FOOD_UNIT_SCALE,
-        territory.foodCapacity,
+        effectiveCapacityFor(territory, "food", context.continentCapacityBonus),
         resourceRegeneration.food,
         context);
     return change / FOOD_UNIT_SCALE;
@@ -123,5 +151,9 @@ export function goldChangeFor(territory, context = QUIET_TURN) {
     //the map's biggest countries snowball out of reach on turn one.
     const normalised = (scaled - goldIncomeBalance.normaliseMin) /
         (goldIncomeBalance.normaliseMax - goldIncomeBalance.normaliseMin);
-    return normalised * 100;
+    //A continent held whole pays on every territory on it. Gold is the one income that is
+    //EARNED rather than stored, so a multiplier here is exactly what a player imagines a
+    //bonus to be -- and it is applied last, after the normalisation, so the bonus is a clean
+    //multiple of what the territory would otherwise have made.
+    return normalised * 100 * bonusMultiplier(context.continentBonus);
 }

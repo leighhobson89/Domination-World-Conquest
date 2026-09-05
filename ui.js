@@ -226,6 +226,8 @@ import {
     pathCountry,
     pathBesieger
 } from './src/state/pathState.js';
+import { continentHoldingFor } from './src/state/continentBonus.js';
+import { describeContinentHolding } from './src/ui/continents/continentBonusText.js';
 import {
     dynamicIds,
     indexedIds,
@@ -759,6 +761,15 @@ export function svgMapLoaded() {
     //Phase 6.7. Runs inside the bootstrap window, so it groups by `pathCountry()`,
     //which reads the attribute while the store is still empty. See CLAUDE.md.
     assignStartingColours(paths, pathCountry);
+
+    //And the continent boundaries, because the default view now draws them. This has to
+    //be an APPLIED write and it has to be here: `pathsCoastLines` is populated four lines
+    //into this function and nowhere earlier, and the SVG ships with the plain
+    //sea-coloured strokes -- so declaring `continentView = "continent"` at the top of the
+    //module would put the button in one state and the map in another. Same species as
+    //`refreshGoalLine()` on the load path: anything made correct as a side effect of a
+    //click has to be done outright for the first frame.
+    applyContinentView(DEFAULT_CONTINENT_VIEW);
 
     markBootstrapStage("map"); //`paths` is now populated; see whenPageLoaded()
 
@@ -5320,19 +5331,38 @@ function modifyFill(pathElement, mousedown) {
 // only thing saying where anything is. The button walks the three that are worth
 // looking at, in this order:
 //
-//     normal     political map, no boundaries          folded-map icon
-//     physical   relief map + continent boundaries     mountain icon
 //     continent  political map + continent boundaries  Africa icon
+//     physical   relief map + continent boundaries     mountain icon
+//     normal     political map, no boundaries          folded-map icon
+//
+// CONTINENTS ARE THE DEFAULT NOW, and `normal` -- the map with no boundaries at all
+// -- is the last stop rather than the first (Leigh's call, taken with the continent
+// bonuses). A continent is about to be a thing a player wins something for holding,
+// and a boundary a player has to go looking for is a boundary they will not plan
+// around. Two things follow from the swap and neither is cosmetic: the view has to
+// be APPLIED once at bootstrap rather than merely declared, because the SVG ships
+// with the plain sea-coloured strokes and nothing else would draw them; and
+// `resetContinentView()` puts a restart back to the DEFAULT view rather than to
+// `normal`, which are no longer the same thing.
 //
 // The icon shows the view you are IN, not the one the next click gives you.
 //
 // The two halves stay separate functions because leaving the relief map is
 // something the map click, the colour picker and the end of the player's turn each
 // do on their own. They call `exitPhysicalMap()`, which lands on `continent` -- the
-// same place the second click of the cycle goes -- and re-syncs the icon. Nothing
-// outside this section may write `mapMode`.
+// default, and the stop the cycle wraps back to after `normal` -- and re-syncs the
+// icon. Nothing outside this section may write `mapMode`.
 
-const CONTINENT_VIEW_CYCLE = ["normal", "physical", "continent"];
+const CONTINENT_VIEW_CYCLE = ["continent", "physical", "normal"];
+
+/**
+ * The view a game opens on, and the one a restart or a load goes back to.
+ *
+ * Named rather than written out at its three call sites, because those three have to
+ * agree: the module's own initial value, the bootstrap application of it, and the
+ * reset. Two of the three used to say "normal" and the third was implicit in the SVG.
+ */
+const DEFAULT_CONTINENT_VIEW = "continent";
 
 const CONTINENT_VIEW_TITLE = {
     normal: "Continent view (political map)",
@@ -5340,7 +5370,7 @@ const CONTINENT_VIEW_TITLE = {
     continent: "Continent view (boundaries)",
 };
 
-let continentView = "normal";
+let continentView = DEFAULT_CONTINENT_VIEW;
 
 /** The relief layer, and the near-transparent territory fills that go with it. */
 function setPhysicalMap(on) {
@@ -5431,9 +5461,9 @@ function cycleContinentView() {
 }
 
 /**
- * Drop the relief layer and keep the boundaries, which is the second stop of the
- * cycle. Called wherever the map has to be legible again whether the player asked
- * for it or not: a territory click, a colour change, the end of the turn.
+ * Drop the relief layer and keep the boundaries, which is the DEFAULT view. Called
+ * wherever the map has to be legible again whether the player asked for it or not: a
+ * territory click, a colour change, the end of the turn.
  */
 function exitPhysicalMap() {
     if (mapMode !== 2) {
@@ -5442,13 +5472,19 @@ function exitPhysicalMap() {
     applyContinentView("continent");
 }
 
-/** Back to the plain political map. A restart or a load starts there. */
+/**
+ * Back to the view a game opens on. A restart or a load starts there.
+ *
+ * It is the DEFAULT rather than the literal "normal": since the cycle was swapped those
+ * are different views, and a restart that landed on the one with no boundaries would
+ * quietly hand the second game of a session a different map from the first.
+ */
 function resetContinentView() {
-    if (continentView === "normal") {
+    if (continentView === DEFAULT_CONTINENT_VIEW) {
         updateContinentViewButton();
         return;
     }
-    applyContinentView("normal");
+    applyContinentView(DEFAULT_CONTINENT_VIEW);
 }
 
 export function endPlayerTurn() {
@@ -5686,11 +5722,31 @@ export function populateArmyDataFields(returnArmyData) {
  * The owning country's name, plus who is besieging the territory when it is under
  * siege: `"France (under siege by Germany)"`. Phase 6 replaced the siege marker's own
  * tooltip with this -- see the mousemove handler in `svgMapLoaded()`.
+ *
+ * Since the continent-bonus phase it carries a SECOND line naming the continent and how much
+ * of it the owner holds. It returns HTML rather than text for that reason; `tooltip.setContent()`
+ * has always taken HTML.
  */
 function territoryTooltipLabel(path, countryName) {
-    if (!countryName || !pathIsUnderSiege(path)) {
-        return countryName;
+    let label = countryName;
+    if (countryName && pathIsUnderSiege(path)) {
+        const besieger = pathBesieger(path);
+        if (besieger) {
+            label = countryName + " (under siege by " + besieger + ")";
+        }
     }
-    const besieger = pathBesieger(path);
-    return besieger ? countryName + " (under siege by " + besieger + ")" : countryName;
+
+    //The continent line. This is the tooltip a player reads while deciding where to attack,
+    //so it is the one place the continent bonus most has to be visible BEFORE it is earned:
+    //"Europe: 31 of 52 held by France" is what makes finishing a continent something anybody
+    //aims at. Read through the store rather than off the path -- `dataName` is the CURRENT
+    //owner and changes on conquest, and the SVG attributes are output, not state.
+    const continentLine = describeContinentHolding(
+        continentHoldingFor(getTerritory(path?.getAttribute("uniqueid"))));
+    if (!continentLine) {
+        return label;
+    }
+    //Two DIVs rather than a `<br />`: the owner line and the continent line are two
+    //separate facts, and a spec that wants one of them has to be able to say which.
+    return "<div>" + (label ?? "") + "</div><div>" + continentLine + "</div>";
 }

@@ -34,8 +34,10 @@ import {
     countryStrengthsArray,
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
-    getTurnGainsArrayAi
+    getTurnGainsArrayAi,
+    derivedEconomyFor
 } from './resourceCalculations.js';
+import { currentContinentControl } from './src/state/continentBonus.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
     incrementSiegeTurns,
@@ -249,6 +251,28 @@ installTestHooks({
     setGoal: (kind, scale) => setVictoryCondition(
         conditionFor(kind, scale, { greatPowers: strongestCountries() })),
     victoryProgressFor: (country) => victoryProgress(country ?? playerCountryName()),
+    //The continent bonus, which is derived every turn and stored nowhere -- so without
+    //these two there is no way for a spec to ask whether a continent held whole is paying,
+    //and the mechanic sits too far into a playthrough to be checked by hand.
+    //
+    //`continents()` is the world's control, which is also what `tools/ai-sim.mjs` samples
+    //to answer the question a hundred headless turns exist to answer: is a continent EVER
+    //completed, and does completing one run away with the game.
+    continents: () => [...currentContinentControl().values()].map(row => {
+        const holders = [...row.held.entries()]
+            .map(([owner, holding]) => ({ owner, count: holding.count }))
+            .sort((a, b) => b.count - a.count || a.owner.localeCompare(b.owner));
+        return {
+            continent: row.continent,
+            total: row.total,
+            //`null` rather than an absent key: "nobody holds this whole" is the usual
+            //answer and it has to be a stated one.
+            heldOutrightBy: holders[0]?.count === row.total ? holders[0].owner : null,
+            holders: holders.slice(0, 4)
+        };
+    }),
+    economyFor: (nameOrId) => derivedEconomyFor(
+        getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId)),
     applyScenario: (scenario) => applyScenario(scenario, {
         getTerritoryByName,
         updateTerritory,

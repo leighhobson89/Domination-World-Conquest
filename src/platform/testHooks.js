@@ -166,6 +166,19 @@ export function installTestHooks(accessors) {
         // still one. Cleared by New Game and by a load, alongside the latch itself.
         gameOverEvents: () => snapshot(accessors.gameOverEvents?.() ?? []),
 
+        // The continent bonus, which is DERIVED every turn and stored nowhere. There is
+        // therefore no field a spec can read to find out whether a continent held whole is
+        // paying, and the mechanic sits far enough into a playthrough that nobody is going
+        // to reach it by clicking -- so the measurement is these two.
+        //
+        // `continents()` is who holds what: one row per continent, its size, whoever holds
+        // it outright (or null) and the four largest holders. `economyFor()` is one
+        // territory's derived income and its EFFECTIVE capacities, with the two multipliers
+        // in force stated alongside, plus the stored capacities so a spec can prove the
+        // bonus was never written back onto the territory.
+        continents: () => snapshot(accessors.continents?.() ?? []),
+        economyFor: (nameOrId) => snapshot(accessors.economyFor?.(nameOrId) ?? null),
+
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/03-e2e-test-plan.md 3.7.

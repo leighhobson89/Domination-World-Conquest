@@ -151,6 +151,42 @@ export const goldContinentModifiers = {
 };
 
 /**
+ * What holding a WHOLE continent is worth: gold income, and the three capacities.
+ *
+ * All or nothing. A partly-held continent earns nothing extra, which is the only shape that
+ * creates a decision -- under proportional credit a continent stops being an objective and
+ * becomes a slope, and the thirteenth territory of a thirteen-territory continent stops being
+ * worth a war of its own. It is also the same threshold the CONTINENTAL victory condition
+ * uses, so the game measures "holding a continent" exactly once.
+ *
+ * These are DELIBERATELY SEPARATE from `continentModifiers` / `goldContinentModifiers` above.
+ * Those say what a continent is worth to live on; these say what it is worth to own outright.
+ * Two different facts, and merging them would make a later balance pass retune both at once.
+ *
+ * TWO CONSTANTS, NOT ONE, and the difference between them is not a rounding of taste:
+ * capacity COMPOUNDS into gold and gold compounds into nothing. Food capacity gates
+ * population, population gates productive population, and productive population is the input
+ * to `goldChangeFor()` -- so a capacity multiplier arrives in the gold income a few turns
+ * later on top of the gold multiplier. Equal numbers would not be equal effects, and the
+ * measurement in docs/05-continent-bonuses.md section 6 has to be able to move one without
+ * the other.
+ *
+ * Neither number is final until that measurement has been taken.
+ */
+export const CONTINENT_BONUS_GOLD = 1.5;
+
+/**
+ * The multiplier on `oilCapacity`, `foodCapacity` and `consMatsCapacity` for a continent held
+ * whole. See `CONTINENT_BONUS_GOLD` above for why it is smaller.
+ *
+ * It is the CEILING that is raised and never the regeneration DELTA. The three commodities
+ * are stocks moving towards a capacity, so multiplying the change makes a territory reach the
+ * same ceiling slightly sooner and is worth nothing within a handful of turns. The ceiling is
+ * the lever; `src/rules/economy/capacity.js` is where it is applied.
+ */
+export const CONTINENT_BONUS_CAPACITY = 1.25;
+
+/**
  * Per-resource regeneration.
  *
  * `growth` is the fraction of the shortfall recovered each turn when a territory holds less
@@ -679,7 +715,7 @@ export const randomEventLikelihood = {
  * chooses otherwise. CONTINENTAL: hold every territory on this many continents.
  *
  * The Dominapedia's "Goals and Victory" page is the design this comes from, and
- * docs/05-goals-and-victory.md is the phase that implements it. Each condition now has a
+ * docs/archived/05-goals-and-victory.md is the phase that implemented it. Each condition now has a
  * TIER LIST as well as a default -- the goal chooser offers the tiers, and everything that
  * reads the single value keeps reading the default, so adding the tiers changed nothing.
  */

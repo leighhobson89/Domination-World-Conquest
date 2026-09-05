@@ -121,6 +121,12 @@ async function sampleWorld(page) {
         //returns 2 forever, which is exactly the sort of measurement that looks like a
         //finding ("sieges are pinned at 2") and is really a bug in the instrument.
         const siegeLists = window.__game.sieges() ?? { player: [], ai: [] };
+        //The continent bonus, measured where it can actually be seen. It is derived and
+        //stored nowhere, so the only question a hundred headless turns can answer about it
+        //is whether it is ever REACHED -- and, if it is, whether the country that reached
+        //it first ran away with the game. `continents()` is the same walk the rule reads.
+        const continents = window.__game.continents?.() ?? [];
+        const completed = continents.filter((row) => row.heldOutrightBy !== null);
         return {
             turn,
             countries: ranked.length,
@@ -131,6 +137,20 @@ async function sampleWorld(page) {
             largest: ranked[0]?.territories ?? 0,
             heldByTopSixteen: ranked.slice(0, 16).reduce((sum, row) => sum + row.territories, 0),
             player: ranked.find((row) => row.country === window.__simPlayerCountry)?.territories ?? 0,
+            continentsHeld: completed.length,
+            //Named, not just counted: "two continents are complete" is a different world
+            //from "one country holds two", and the snowball this phase is watching for is
+            //the second one.
+            continentHolders: completed.map((row) => row.continent + " (" + row.heldOutrightBy + ")"),
+            //How close the world is to its first completed continent. A run in which this
+            //never rises is a run in which the bonus was never in the game at all, which
+            //looks identical, in every other column, to a bonus that is too small.
+            closestContinent: continents
+                .map((row) => ({
+                    continent: row.continent,
+                    share: row.total === 0 ? 0 : (row.holders[0]?.count ?? 0) / row.total
+                }))
+                .sort((a, b) => b.share - a.share)[0] ?? null,
             activity: counts,
         };
     });
@@ -242,6 +262,11 @@ function formatRow(sample, elapsedMs) {
         `sieges ${pad(sample.sieges, 3)}`,
         `siegeWon ${pad(activity.siegeWon ?? 0, 2)}`,
         `player ${pad(sample.player, 3)}`,
+        //The continent bonus: how many continents are complete, and how far along the
+        //nearest one is. Both are needed -- a run stuck at "0 complete, 41% of Europe"
+        //and one stuck at "0 complete, 96% of Europe" are different findings.
+        `cont ${pad(sample.continentsHeld, 2)}`,
+        `best ${pad(Math.round((sample.closestContinent?.share ?? 0) * 100), 3)}%`,
         `${pad(Math.round(elapsedMs / 1000), 4)}s`,
     ].join("  ");
 }
@@ -363,6 +388,12 @@ async function main() {
             `after ${last.turn - 1} turns: ${last.countries} countries survive, ` +
             `the largest holds ${last.largest} territories, ` +
             `the top sixteen hold ${Math.round((last.heldByTopSixteen / last.worldTerritories) * 100)}% of the map`
+        );
+        console.log(
+            `continents held outright: ${last.continentsHeld}` +
+            (last.continentHolders.length > 0 ? ` -- ${last.continentHolders.join(", ")}` : "") +
+            `; nearest is ${last.closestContinent?.continent ?? "none"} at ` +
+            `${Math.round((last.closestContinent?.share ?? 0) * 100)}%`
         );
     }
 

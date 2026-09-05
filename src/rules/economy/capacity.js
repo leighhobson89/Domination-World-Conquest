@@ -14,6 +14,59 @@ import {
     FORT_DEFENSE_SCALE
 } from "../../config/balance.js";
 
+/**
+ * The three stored capacities, by the short resource name the rest of the economy uses.
+ *
+ * Named once because four modules have to agree about them, and because a typo in a field
+ * name here reads back as a capacity of zero rather than as an error.
+ */
+export const CAPACITY_FIELDS = Object.freeze({
+    oil: "oilCapacity",
+    food: "foodCapacity",
+    consMats: "consMatsCapacity"
+});
+
+/**
+ * A territory's capacity for one resource, INCLUDING the continent bonus -- derived, never
+ * stored.
+ *
+ * The stored `oilCapacity` / `foodCapacity` / `consMatsCapacity` are built at world creation
+ * and raised by upgrades (+10% per farm, forest or oil well). The continent bonus must NOT be
+ * written into them: losing the last territory of a continent would then need an exact
+ * inverse write, the two would disagree the first time any path forgot, and a player would
+ * keep a bonus for a continent they no longer held -- silently, because nothing anywhere
+ * compares a stored capacity against what it should be. Derived at the point of use, losing
+ * the continent is simply the next turn's answer.
+ *
+ * A nonsense bonus falls back to 1 rather than propagating. These capacities feed
+ * `regenerationTowardsCapacity()`, whose output is added to a stock that every later turn
+ * recomputes from -- so one NaN here would never wash out.
+ *
+ * @param {object} territory
+ * @param {"oil"|"food"|"consMats"} resource
+ * @param {number} [bonus]  the continent multiplier, 1 when the continent is not held whole
+ * @returns {number}
+ */
+export function effectiveCapacityFor(territory, resource, bonus = 1) {
+    const field = CAPACITY_FIELDS[resource];
+    if (!field || !territory) {
+        return 0;
+    }
+    const stored = Number(territory[field]) || 0;
+    return stored * bonusMultiplier(bonus);
+}
+
+/**
+ * A usable bonus multiplier, or 1.
+ *
+ * Exported because gold uses the same guard, and because every reader outside the economy --
+ * the tooltip, the info panel, the upgrade preview -- has to fall back the same way. A
+ * nonsense bonus must degrade to "no bonus", never to NaN.
+ */
+export function bonusMultiplier(bonus) {
+    return Number.isFinite(bonus) && bonus > 0 ? bonus : 1;
+}
+
 /** Oil a territory's vehicles demand per turn. Infantry demand none. */
 export function oilDemandFor(territory) {
     return (oilRequirements.assault * territory.assaultForCurrentTerritory) +
@@ -104,15 +157,28 @@ export function defenseBonusFor(territory) {
 }
 
 /**
- * Sum a set of territories' capacities.
+ * Sum a set of territories' EFFECTIVE capacities.
+ *
+ * `bonusFor` is injected rather than looked up, because a continent bonus is a fact about the
+ * whole world -- who else holds what -- and this module is pure and runs in Node. The caller
+ * that has the store in scope passes `continentCapacityBonusFor` from
+ * `src/state/continentBonus.js`; the default is "no bonus", which is today's game.
+ *
  * @param {object[]} territories
+ * @param {(territory: object) => number} [bonusFor]
  */
-export function totalCapacities(territories) {
-    return territories.reduce((totals, territory) => ({
-        totalOilCapacity: totals.totalOilCapacity + territory.oilCapacity,
-        totalFoodCapacity: totals.totalFoodCapacity + territory.foodCapacity,
-        totalConsMatsCapacity: totals.totalConsMatsCapacity + territory.consMatsCapacity
-    }), { totalOilCapacity: 0, totalFoodCapacity: 0, totalConsMatsCapacity: 0 });
+export function totalCapacities(territories, bonusFor = () => 1) {
+    return territories.reduce((totals, territory) => {
+        const bonus = bonusFor(territory);
+        return {
+            totalOilCapacity: totals.totalOilCapacity +
+                effectiveCapacityFor(territory, "oil", bonus),
+            totalFoodCapacity: totals.totalFoodCapacity +
+                effectiveCapacityFor(territory, "food", bonus),
+            totalConsMatsCapacity: totals.totalConsMatsCapacity +
+                effectiveCapacityFor(territory, "consMats", bonus)
+        };
+    }, { totalOilCapacity: 0, totalFoodCapacity: 0, totalConsMatsCapacity: 0 });
 }
 
 /**
