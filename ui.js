@@ -144,9 +144,6 @@ import {
     queueReserves
 } from './src/state/battleState.js';
 import {
-    removeCanvasIfExist
-} from "./dices.js";
-import {
     createCpuPlayerObjectAndAddToMainArray,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
@@ -1616,7 +1613,18 @@ document.addEventListener("DOMContentLoaded", function() {
         let currentRound = getCurrentRound();
         switch (mode) {
             case AdvanceMode.BEGIN: //nothing fought yet -- open the battle
-                removeCanvasIfExist();
+                //`removeCanvasIfExist()` USED TO BE HERE, and it is what made the dice vanish
+                //from the second battle of a session onwards. The stage is PERMANENT -- one
+                //`WebGLRenderer` for the life of the page, because a fresh one per roll leaks a
+                //GL context and browsers cap those at about sixteen -- so `ensureStage()`
+                //returns immediately once the renderer exists and never rebuilds the canvas.
+                //Tearing the canvas out of the DOM here therefore left the renderer drawing
+                //into a detached element for every battle after the first: the rules rolled,
+                //the clash panel filled in correctly, and nothing appeared on screen. It has no
+                //textual signature at all, which is why it survived -- nothing throws, and
+                //every number in the window is right.
+                //
+                //`dices.js` owns its own canvas and is the only thing allowed to remove it.
                 toggleDiceCanvas(true);
                 playSoundClip("button");
                 battleStart = false;

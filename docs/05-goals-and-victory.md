@@ -350,33 +350,93 @@ pure: `victory.js` across five kinds and every scale tier, the self-homeland exc
 `victoryCheck.js` including elimination and the turn-limit tie-break, `doctrine.js` per goal,
 and the catalogue's shape and scale-per-goal walk.
 
-**The harness cost is one method.** Every e2e spec starts a game through
-`GameDriver.newGame()`, so the forced chooser is a step added there plus an optional `goal`
-argument on `start()` — not a change to seventeen files.
+E2E: a new `tests/e2e/goal-selection/` area, **18 specs in three files** — the chooser's
+flow, what it does with the five goals, and the ending. Plus four in
+`tests/e2e/save-load/goal-survives-a-load.spec.js`, because the goal is durable state outside
+the store and a load that quietly resumed the DEFAULT goal would pass every assertion in
+`save-load.spec.js`.
 
-E2E: a new `tests/e2e/goal-selection/` area. Per the standing rule on Playwright runs, single
-areas only during development — `goal-selection`, `country-selection` and `turn-loop` are the
-three that matter here — and the full suite is Leigh's to schedule.
+**The harness cost was one method, as predicted.** `GameDriver.newGame()` answers the chooser
+for the whole suite and takes an optional `{ goal, scale }`; `confirmGoal()` is the same step
+for the handful of specs that click New Game themselves. `scale` is an option LABEL, because
+the `<select>`'s values are indexes.
+
+**One new `window.__game` accessor**, and it exists because the spec could not be written
+without it: `gameOverEvents()`, the list of every `GAME_OVER` this game has emitted. A flag
+could not answer the question that matters, which is "once" — the failure the latch prevents
+is a decided game re-announcing itself at the end of every subsequent turn, and only a count
+over turns played PAST the ending can see it.
+
+Per the standing rule on Playwright runs, single areas only during development, and the full
+suite is Leigh's to schedule.
 
 ---
 
-## 9. Documents this invalidates
+## 9. Documents this invalidated — all now rewritten (Q4.4)
 
-The Dominapedia's "Goals and Victory" page states that there is no screen on which to choose a
-condition and that nothing ends when one is met. Both become false the moment this lands, and
-the manual quotes real numbers, so this is a `topics.js` change in the same change set. The
-whole War section had to be rewritten once already because it still described a combat model
-that had been deleted, and none of it was caught by a test, because no test asserts prose.
+~~The Dominapedia's "Goals and Victory" page states that there is no screen on which to choose
+a condition and that nothing ends when one is met.~~ Both became false, and the manual quotes
+real numbers, so this was a `topics.js` change in the same change set. The whole War section
+had to be rewritten once already because it still described a combat model that had been
+deleted, and none of it was caught by a test, because no test asserts prose.
 
-`docs/04-known-issues.md` item 1 closes with this phase.
+Four pages moved:
+
+* **"Goals and Victory"** is rewritten from the ground up. It was two thirds `planned` blocks
+  and an opening paragraph saying the game does not end. It now describes the five goals in a
+  table, says what losing is, explains the three things about the goals that are easy to get
+  wrong, and quotes the progress line. One `planned` block survives, and it is the honest one:
+  the victory/defeat SCREEN.
+* **"Choosing a Country"** opens by saying this is the SECOND question a new game asks, and
+  that the goal decides what a good starting position even is. It also states that the five
+  locked countries and the five great powers are one list read from one derivation, because
+  a player who noticed the coincidence would otherwise be guessing.
+* **"How the AI Thinks"** said the campaign is derived from the condition "so when the
+  start-of-game chooser lands, every computer country adapts to your choice" — future tense
+  about a screen that now exists. It names the four doctrine dials, the urgency response to a
+  runaway leader, and the mid-term theatre.
+* **"Design Notes"** led with "THE GAME CANNOT END", which was the top of its list for the
+  life of the project.
+
+`docs/04-known-issues.md` item 1 — "No win or lose condition" — is closed, and the register's
+**Currently open** list carries the one thing this phase deliberately leaves behind: the
+ending has no screen.
+
+`docs/02-game-design-document.md` §1, §6.1, §6.5, §8.5 and §11 items 1 and 6 are updated, and
+§6.6 "The end of a game" is new.
 
 ---
 
-## 10. Open questions
+## 10. Open questions — resolved
 
-- Should a Timed Game show a countdown once it is within, say, twenty turns of the limit? It is
-  the only goal with a deadline the player cannot see.
-- Under Great Powers, should the progress line name WHICH power is next, or is the aggregate
-  enough? Leaning towards naming it — the goal's value is that it has antagonists.
-- Continent bonuses are the next design piece and they interact with Continental Supremacy.
-  Neither is blocked by the other, but they should be balanced together.
+**Should a Timed Game show a countdown once it is within, say, twenty turns of the limit?**
+Yes, and it is sequenced with the victory screen rather than taken here. The reason it is not
+a one-line change is that `victoryProgress()` is deliberately the SAME string for the player
+and for the AI reading its own progress, and a clock belongs to the player's copy alone —
+`describeLeaderProgress()` in `goalCatalogue.js` already exists for exactly this asymmetry
+under this exact goal, and it is where the countdown goes. Until then the turn counter is on
+screen and the limit is on the chooser, so the information is available and merely not
+subtracted for the player.
+
+**Under Great Powers, should the progress line name WHICH power is next?** Resolved: it does.
+`victoryProgress()` finds the nearest power still standing and appends it — "Great Powers:
+1 of 3 (France 4/7)". The aggregate alone said nothing useful: "1 of 3" is the same sentence
+whether the next power is a province away or untouched, and this is the goal whose whole value
+is that it has antagonists.
+
+**Continent bonuses interact with Continental Supremacy.** Restated, not resolved, because it
+is the next design piece rather than part of this one. Nothing here blocks it: continents
+already exist as economic modifiers and holding one outright already wins a game, so a bonus
+is a change to what a continent is WORTH and not to what it is. They should be balanced
+together — a continent bonus large enough to matter makes the default goal easier by exactly
+as much, which is a change to the length of the standard game.
+
+### What Q4 left open
+
+One thing, and it is deliberate: **the ending has no screen.** `GAME_OVER` fires once, with
+the outcome, the winner, the reason and the turn, and the only subscriber is a `console.log`.
+That was the plan from §7 onwards — the console line is the first LISTENER and not the
+mechanism, so the screens are a second subscriber rather than a change to any of the rules
+above. It is the next piece of work.
+
+

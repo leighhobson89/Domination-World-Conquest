@@ -1541,6 +1541,8 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
     if (mainArrayEnemyTerritoryCopy.owner === "Player") {
         recordDefence({
             attackerCountry: mainArrayFriendlyTerritoryCopy.dataName,
+            //And the colour its dice are thrown in, read now for the same reason as the name.
+            attackerColour: mainArrayFriendlyTerritoryCopy.countryColor,
             //Read NOW. A win is about to change `dataName`, and a record of something that
             //happened names who it happened to rather than reading it back afterwards
             //(known-issues AS).

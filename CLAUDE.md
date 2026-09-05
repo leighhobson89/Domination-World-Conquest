@@ -42,8 +42,8 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 81 errors, 290 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 767 tests, ~1.5s
-npm run test:e2e       # Playwright, 397 tests, 4 workers headless, ~7-14 min
+npm run test:unit      # Vitest, 884 tests, ~1.5s
+npm run test:e2e       # Playwright, ~420 tests, 4 workers headless, ~7-14 min
 node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
 node tests/run-e2e.mjs turn-loop         # one area
 node tests/run-e2e.mjs attack turn-loop  # several areas, one run
@@ -500,6 +500,38 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   both this. The `TRAY` bounds in `dices.js` are likewise not a matter of taste: they are the
   floor area the camera can actually see, so anything that changes the camera's position, pitch,
   field of view or the canvas aspect changes them too.
+- **THE DICE STAGE IS PERMANENT, AND NOTHING OUTSIDE `dices.js` MAY TOUCH ITS CANVAS.**
+  `ensureStage()` builds the `WebGLRenderer` once for the life of the page — a fresh one per
+  roll leaks a GL context and browsers cap those at about sixteen, so two battles would exhaust
+  them — which means it returns immediately once the renderer exists and **never rebuilds the
+  canvas**. `ui.js` called `removeCanvasIfExist()` on `AdvanceMode.BEGIN`, which was harmless
+  the first time (no canvas yet) and from the SECOND battle of a session onwards tore the canvas
+  out of the document, leaving the renderer drawing into a detached element: the rules rolled,
+  the battle window's numbers were right, the round log was right, and the clash panel filled
+  itself in with the correct faces — because every one of those reads the RECORD. **The only
+  witness was a person looking at an empty stage during their second war.** The call is gone,
+  `ensureStage()` re-attaches a detached canvas rather than rebuilding it, and
+  `tests/e2e/battle/dice-stage.spec.js` asserts `isConnected` on the first battle and the
+  second. A rendering fault that every reader of the model reports as fine is the shape to
+  watch for here.
+- **`GameDriver.openAttackWindow()` CLICKS the phase button.** `advancePhase: false` is what a
+  spec passes for a SECOND attack in the same turn; without it the second call ends the turn,
+  and the symptom is a move-phase button that reads `ATTACK` and refuses to be clicked --
+  correctly, because the game is back in Buy/Upgrade. `launchWholeGarrison()` also means it:
+  one press of the plus button commits the whole stack, so a second attack from the same
+  territory needs the garrison put back with a scenario.
+- **A REPLAYED BATTLE IS PACED LIKE A PLAYED ONE.** `src/ui/battle/DefenderPlayback.js` ran its
+  rounds on a 900 ms `setInterval`, which is faster than a throw takes to settle — so round
+  two's dice were thrown over round one's, and it never called `clashPanel` at all: the one
+  battle the player has no control over was the one battle with no account of what the dice
+  meant. A round is a CHAIN now — throw, settle, reveal the clash, hold for `ROUND_READ_MS` plus
+  one `PAIR_STEP_MS` per pairing, next — so a round with five pairings takes longer than a round
+  with one, which is a thing a fixed interval cannot say. **The clash panel is deliberately NOT
+  reversed there**, alone among everything in that file: the ledger's columns are YOU and THEM
+  and must be swapped, but the panel NAMES both sides, and mirroring it would make it state the
+  rules wrongly — "tie — defender holds" is the defender's structural advantage, and in a replay
+  the defender is the player. The chain is cancelled by a GENERATION counter rather than by
+  clearing a timer, because a settle promise in flight cannot be cancelled.
 - **`STAGE_WIDTH` / `STAGE_HEIGHT` in `dices.js` must match `#threeCanvasForDice` in
   `style.css`, and `renderer.setSize()` must be called.** `WebGLRenderer` infers NOTHING from
   the canvas element: with no `setSize()` the drawing buffer stays at the WebGL default of

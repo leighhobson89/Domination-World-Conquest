@@ -10,7 +10,9 @@ Rounds, and the outcomes the game is supposed to produce.
 | `outcomes.spec.js` | The other four terminal conditions: attacker wins, defender wins, last push (and its 20 % cost), and an even fight that settles nothing. Plus the regression test for a battle debiting its source territory twice |
 | `mid-battle-decisions.spec.js` | Dig In and Reserves (overhaul B.7): hidden until a round has been fought, armed by a class, spent by the round they apply to, debited at once and arriving a round later |
 | `ledger-and-log.spec.js` | The three panels that make the mechanic visible (B.6.3 / B.6.4 / B.6.7) — the attack window's dice preview, the force ledger, and the round log |
-| `defender-playback.spec.js` | Watching a battle you DEFENDED (B.8) — including that the sides are REVERSED on screen, which is the assertion the whole feature stands on |
+| `defender-playback.spec.js` | Watching a battle you DEFENDED (B.8) — including that the sides are REVERSED on screen, which is the assertion the whole feature stands on; that the clash panel plays there too and is NOT reversed; and that a replayed round is paced off the dice rather than off a fixed interval |
+| `clash.spec.js` | The pairing animation: one row per pairing, every row saying why, agreeing with the round log, and never intercepting a click |
+| `dice-stage.spec.js` | That there is a table at all — the renderer's canvas is in the document and sized, on the first battle **and on the second** |
 
 ## The rule that used to shape this whole folder, and no longer does
 
@@ -27,6 +29,25 @@ same world" — is green, and `rout.spec.js` and `outcomes.spec.js` assert exact
 `rounds.spec.js` and `known-broken.spec.js` still assert invariants, because for what they
 cover the invariant is the more useful statement: totals only decrease, nothing goes negative,
 the battle always reaches a screen rather than a dead end. That is now a choice.
+
+## Two failures with no textual signature, and why `dice-stage.spec.js` exists
+
+Every other spec in this folder reads what a round PRODUCED — the armies, the probability, the
+ledger, the round log, the clash panel. All of those are rendered from the round's record, so
+all of them stay correct while the thing a player is actually looking at is broken.
+
+- **The canvas was torn out of the document when a battle opened.** The stage is permanent (one
+  `WebGLRenderer` for the life of the page — a fresh one per roll leaks a GL context and
+  browsers cap those at about sixteen), so `ensureStage()` returns as soon as the renderer
+  exists and never rebuilds the canvas. `ui.js` called `removeCanvasIfExist()` on `BEGIN`, which
+  was a no-op the first time and, from the second battle of a session onwards, left the renderer
+  drawing into a detached element. Nothing threw; every number was right; the dice were simply
+  gone. The assertion is `element.isConnected`, which no reader of the record can reach.
+- **The defender's replay never called the clash panel**, and ran its rounds on a 900 ms
+  `setInterval` — faster than a throw takes to settle, so round two's dice were thrown over
+  round one's and the panel (chained to the dice coming to REST) had no moment to speak in. The
+  assertions are that the panel appears and reveals, and that two rounds take longer than four
+  seconds.
 
 ## Reaching a chosen outcome is composition, not attrition
 

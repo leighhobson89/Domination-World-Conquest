@@ -22,7 +22,8 @@ found by the Phase 2 suite; `AF` through `AJ` by the ten-turn run in Phase 3; `A
 same ten-turn run in Phase 4 — `AK` once removing the territory copies stopped it hiding the
 symptom, and `AL` once `AK` stopped the run failing on turn 2.
 
-**Last updated: Goals and Victory Q4 — the game can now be finished, so the register's
+**Last updated: two dice-rendering defects reported by the developer (BG and BH, §12), on top
+of Goals and Victory Q4 — the game can now be finished, so the register's
 oldest open item is closed.** Earlier revisions: Phase 7, on the developer's report of AZ (an
 AI-versus-AI siege handing the player the territory); after Phase 7.2 / 7.3 (menu access, new
 game, save/load); end of Phase 6; the Phase 6.9 planning review; and 7.10 (themes).
@@ -676,3 +677,90 @@ inside the rout band with no food and no forts, so the next turn's income pass r
 The spec asserts the territory does not end up with the player, that whoever takes it is a
 real country rather than `undefined`, and that the siege is gone from the AI's list. It fails
 on all three counts against the old code.
+
+---
+
+## 12. Reported by the developer after Goals and Victory Q4 — the dice
+
+Two defects in one report, both in what the player SEES of a battle and neither visible to any
+test that reads what a round produced.
+
+### BG — the 3D dice vanished from the second battle of a session onwards
+
+**Reported by the developer: "after the first battle, when a player starts another new war, the
+dice don't show, no animation. The clash UI shows the numbers fine but the 3D dice are
+missing."**
+
+The dice stage is deliberately PERMANENT. `ensureStage()` in [dices.js](../dices.js) builds one
+`WebGLRenderer` for the life of the page, because a fresh renderer per roll leaks a GL context
+and browsers cap those at around sixteen — a battle is five to eight rounds, so two battles
+would exhaust them and the canvas would go blank. The consequence is that `ensureStage()`
+returns immediately once the renderer exists, and **never rebuilds the canvas**.
+
+`ui.js` called `removeCanvasIfExist()` at the top of `AdvanceMode.BEGIN`, the branch that opens
+a battle. On the first battle of a session there is no canvas yet, so it did nothing and the
+first roll built the stage correctly. On every battle after that it removed the canvas from the
+document — and the renderer went on drawing into a detached element for the rest of the game.
+
+**Every reader of the model reported the battle as fine**, which is why this survived. Nothing
+threw. The rules rolled and `facesShowing()` agreed with them. The battle window's totals, the
+force ledger, the round log and the clash panel were all correct, because all four are rendered
+from the round's RECORD. The single witness was a person looking at an empty stage.
+
+**The fix.** The call is deleted — `dices.js` owns its canvas and is the only thing allowed to
+remove it. `ensureStage()` additionally re-attaches a canvas it finds detached rather than
+rebuilding the renderer, so the class of bug cannot recur silently; re-attaching keeps the GL
+context, which rebuilding would leak.
+
+Covered by `tests/e2e/battle/dice-stage.spec.js`, which asserts `element.isConnected` on the
+first battle and again on a second battle opened in the same turn. That property is reachable
+from no other spec in the folder.
+
+### BH — an AI attack on the player showed no clash panel, and flew past
+
+**Reported by the developer: "the AI attacking a player territory shows no clash UI at all and
+the rolls are much too fast — they should be displayed for the same time as when the player
+attacks, and we should have the same visibility of the clash UI to know what is going on."**
+
+Both halves were in `drawRound()` and `playNext()` in
+[src/ui/battle/DefenderPlayback.js](../src/ui/battle/DefenderPlayback.js).
+
+`drawRound()` wrote the two armies, updated the force ledger and threw the dice, and **never
+called `clashPanel` at all**. So the one battle the player has no control over — their own
+territory being attacked — was the one battle with no account of what the dice meant. Battle
+overhaul B.9 added the panel to the player's own rounds in `battle.js` and the playback path was
+not given it.
+
+The pacing was a `setInterval` at 900 ms. A throw takes up to 2.2 seconds to come to rest, so
+round two's dice were being thrown while round one's were still tumbling — and the clash panel
+is chained to the dice coming to REST, which is a moment that never arrived. A fixed interval
+also cannot express the thing that actually varies: a round with five pairings takes longer to
+play out than a round with one.
+
+**The fix.** A round is a CHAIN, exactly as the player's own rounds are: throw, wait for the
+settle, reveal the panel, hold for `ROUND_READ_MS` plus one `PAIR_STEP_MS` per pairing, then the
+next round. `showRound()` resolves immediately when the dice cannot be drawn at all — no GPU, a
+lost context, a headless run — so nothing stalls on a render loop, and Skip settles the dice by
+the same route a player's click does. The chain is cancelled by a GENERATION counter rather than
+by clearing a timer, because a settle promise already in flight cannot be cancelled.
+
+**One decision inside the fix, and it is the opposite of the rest of that file.** The clash panel
+is NOT reversed for a replay. Everything else there is: the ledger's columns are YOU and THEM,
+unlabelled by country, so a player watching their own defeat labelled as their attack would
+trust nothing else in the window. But the panel names both sides, so there is nothing to
+misread — and mirroring it would make it state the rules **wrongly**, because "tie — defender
+holds" is the defender's structural advantage in this model and in a replay the defender is the
+player. So the panel shows the round as it was actually fought, with both countries named, and
+a player watching a tie go their way learns something true about defending.
+
+A third, smaller thing went in with it: the record now carries the attacker's `countryColor`,
+copied when the battle was fought. The dice were previously thrown in a neutral token colour
+because the colour was not in the record and reading it off the map at playback time would ask
+about a world the battle has already changed — the same trap as **AS**.
+
+Covered by two specs in `tests/e2e/battle/defender-playback.spec.js`. Writing them exposed a
+fourth defect, in the fixture itself: `defenceRecord()` wrote `pairings` as
+`{ attacker: 1, defender: 4 }` — the loss counts wearing the name of the pairings, where the
+real record carries an ARRAY of pairing objects. Nothing read the field, so nothing said so. A
+fixture that does not have the shape of the thing it stands in for is a fixture that passes
+while the feature is broken.

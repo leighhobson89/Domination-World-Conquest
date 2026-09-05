@@ -493,13 +493,14 @@ between a press and its result.
 
 ### 7.3a What the player is shown, and where ✅
 
-Three panels, and all three are pure renders of what the model already computed — so the
+Four panels, and all four are pure renders of what the model already computed — so the
 explanation and the battle cannot disagree.
 
 | Panel | Where | Shows |
 |---|---|---|
 | **Attack preview** | the ATTACK window, before INVADE! | The dice each side would roll, itemised by modifier, live as units are allocated — plus a forecast: the chance of taking it, the likely rounds, and the survivors if you win |
 | **Force ledger** | the battle window, under the odds bar | The same itemisation for the round about to be fought, with the faces once it has been rolled |
+| **Clash panel** | over the dice, transient | Each pairing closing, colliding and resolving: the loser shatters, an unmatched die is drawn against an empty socket, and every row says WHY. It goes up blank the moment a round resolves and fills in only when the dice come to REST, so the roll is never an animation played over an answer already given |
 | **Round log** | the battle window, collapsed | Every round fought, newest first: dice counts, faces, pairings won and lost, and what it cost both sides |
 
 **Two numbers are shown and they are allowed to differ.** The bar is `winProbability()` — the
@@ -515,6 +516,18 @@ recomputing it on every keypress cannot change the battle that follows.
 The bands are also what make the preview a lever rather than a readout: *"forty thousand more
 infantry gets me a fourth die"* is a threshold the player can see coming. A continuous curve is
 not.
+
+**A battle the player DEFENDED gets all of it too.** The AI fights it to a conclusion inside its
+own turn step — a step that waited on the player would stall the turn loop — and the RECORD is
+queued and replayed afterwards, one round at a time, with the ledger's YOU column showing the
+player's own garrison. It is a rendering of something that has already happened, which is what
+makes it skippable, and the preference is remembered.
+
+The replay is paced off the dice coming to rest, exactly as a played round is, and the clash
+panel plays there too. It did neither until the developer reported it (known-issues **BH**): a
+900 ms interval threw round two's dice over round one's, and the panel was never called at all.
+The panel is the one thing in the replay that is NOT reversed — it names both sides, so there is
+nothing to misread, and mirroring it would make it state the tie rule backwards.
 
 
 ### 7.4 Sieges ✅⚠️

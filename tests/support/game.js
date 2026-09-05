@@ -296,8 +296,19 @@ export class GameDriver {
      * every plus and minus press, so a spec has to be able to stand in the window rather than
      * pass through it.
      */
-    async openAttackWindow({ from, to }) {
-        await this.endBuyPhase();
+    /**
+     * @param {{from: string, to: string, advancePhase?: boolean}} options
+     *        `advancePhase` defaults to true, which is right for a spec that has just started a
+     *        game and is sitting in Buy/Upgrade. Pass FALSE for a second attack in the same
+     *        turn: `endBuyPhase()` CLICKS the phase button, so calling it again from the
+     *        Military phase ends the turn -- and the move-phase button is then correctly
+     *        invisible, because the game is back in Buy/Upgrade. That failure reads as "the
+     *        button says ATTACK but will not be clicked", which is a long way from its cause.
+     */
+    async openAttackWindow({ from, to, advancePhase = true }) {
+        if (advancePhase) {
+            await this.endBuyPhase();
+        }
         await this.selectOnMap(from);
         await this.selectOnMap(to);
         await this.page.waitForFunction(
@@ -314,8 +325,8 @@ export class GameDriver {
         );
     }
 
-    async launchWholeGarrison({ from, to, unit = "naval" }) {
-        await this.openAttackWindow({ from, to });
+    async launchWholeGarrison({ from, to, unit = "naval", advancePhase = true }) {
+        await this.openAttackWindow({ from, to, advancePhase });
 
         await this.transferAttack.plus(from, unit, 1);
         const committed = await this.transferAttack.quantity(from, unit);

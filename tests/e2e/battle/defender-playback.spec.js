@@ -42,7 +42,27 @@ function defenceRecord(territoryId, territoryName) {
             attacker: { rows: [{ key: "air", label: "air superiority", face: 1 }], total: 1, diceChange: 0 },
             defender: { rows: [{ key: "fortification", label: "their fortifications and terrain", dice: -1 }], total: 0, diceChange: 0 }
         },
-        pairings: { attacker: 1, defender: 4 },
+        //`pairings` is an ARRAY of pairing objects -- one per contested pairing plus one per
+        //unmatched die -- and it used to be written here as `{ attacker: 1, defender: 4 }`,
+        //which is the LOSS COUNTS wearing the name of the pairings. Nothing read it, so
+        //nothing said so; the clash panel reads it now, and a panel handed an object finds no
+        //pairings and stays down. A fixture that does not have the shape of the thing it
+        //stands in for is a fixture that will pass while the feature is broken.
+        //
+        //Five attacker dice against two defenders: three contested, three unmatched, and the
+        //ties go to the defender exactly as the rules have it.
+        pairings: [
+            { attackerFace: 6, defenderFace: 4, attackerValue: 7, defenderValue: 4,
+                attackerWins: true, tied: false, unmatched: false },
+            { attackerFace: 5, defenderFace: 1, attackerValue: 6, defenderValue: 1,
+                attackerWins: true, tied: false, unmatched: false },
+            { attackerFace: 4, defenderFace: null, attackerValue: 5, defenderValue: null,
+                attackerWins: true, tied: false, unmatched: true },
+            { attackerFace: 3, defenderFace: null, attackerValue: 4, defenderValue: null,
+                attackerWins: true, tied: false, unmatched: true },
+            { attackerFace: 2, defenderFace: null, attackerValue: 3, defenderValue: null,
+                attackerWins: true, tied: false, unmatched: true }
+        ],
         attackerLosses: 1,
         defenderLosses: 4,
         attackerDugIn: false,
@@ -56,6 +76,10 @@ function defenceRecord(territoryId, territoryName) {
 
     return {
         attackerCountry: "France",
+        //Copied into the record when the battle was fought, so the AI's dice are thrown in its
+        //own colour rather than in the neutral token -- and so that nothing has to ask the map
+        //who owns the territory after the battle has changed hands.
+        attackerColour: "rgb(200,60,60)",
         defenderCountry: "Germany",
         territoryId,
         territoryName,
@@ -213,6 +237,70 @@ test.describe("watching a battle you defended", () => {
             async () => game.page.evaluate(() => window.__game.pendingDefences()),
             { timeout: 8000 }
         ).toBe(0);
+    });
+
+    test("the clash panel plays during a replay, exactly as it does for the player", async ({
+        game
+    }) => {
+        // The complaint this closes, in the words it was made in: the AI attacking a player
+        // territory "shows no clash ui at all and the rolls are much too fast". The panel was
+        // simply never called from the playback path -- `drawRound()` wrote the armies and the
+        // ledger and threw the dice, and nothing said what the dice MEANT. The one screen in the
+        // game whose whole job is to make the rules legible was missing from the one battle the
+        // player has no control over.
+        await game.start({ country: "Germany", seed: "playback-clash" });
+        await watchPlaybacks(game);
+        const territory = await game.territory("Germany");
+
+        await game.page.evaluate(
+            (record) => window.__game.queueDefence(record),
+            defenceRecord(territory.uniqueId, territory.territoryName)
+        );
+        await game.page.evaluate(() => { window.__playback = window.__game.playQueuedDefences(); });
+
+        // The frame goes up at once and blank; the faces wait for the dice to come to rest.
+        // Both, in that order, because the order is the feature -- a panel that filled itself in
+        // on a timer would sometimes print the result while the dice were still in the air.
+        await expect(game.page.locator(battleSelectors.clashPanel)).toBeVisible({ timeout: 20_000 });
+        await expect(game.page.locator(`${battleSelectors.clashPanel}.is-revealed`))
+            .toBeVisible({ timeout: 25_000 });
+
+        const rows = game.page.locator(`${battleSelectors.clashPairs} .clashPair`);
+        expect(await rows.count(), "one row per pairing -- five dice against two is five rows")
+            .toBe(5);
+
+        // NOT MIRRORED, and this is the assertion that pins the decision. The ledger's columns
+        // are YOU and THEM and have to be swapped; the panel NAMES both sides, so there is
+        // nothing to misread -- and mirroring it would make it state the rules wrongly, because
+        // "tie -- defender holds" is the defender's advantage and the defender here is the
+        // player. So the panel shows the round as it was fought: the AI attacks.
+        const header = await game.page.locator(battleSelectors.clashPanel).innerText();
+        expect(header).toContain("France");
+        expect(header).toContain("Germany");
+    });
+
+    test("a replayed round is paced off the dice, not off a fixed interval", async ({ game }) => {
+        // `ROUND_INTERVAL = 900` on a `setInterval` was the whole of the old pacing, and it was
+        // faster than a throw takes to settle -- so round two's dice were thrown over round
+        // one's, and the clash panel, which is chained to the dice coming to REST, never got a
+        // chance to say anything. A round is a chain now: throw, settle, reveal, read, next.
+        await game.start({ country: "Germany", seed: "playback-pacing" });
+        await watchPlaybacks(game);
+        const territory = await game.territory("Germany");
+
+        await game.page.evaluate(
+            (record) => window.__game.queueDefence(record),
+            defenceRecord(territory.uniqueId, territory.territoryName)
+        );
+
+        const started = Date.now();
+        await game.page.evaluate(() => window.__game.playQueuedDefences());
+        const elapsed = Date.now() - started;
+
+        // Two rounds, each of which has to wait for its dice and then leave the account of the
+        // round up long enough to read. Under the old interval the whole replay was 1.8s.
+        expect(elapsed, "two rounds must not flash past").toBeGreaterThan(4000);
+        expect(await game.page.evaluate(() => window.__game.pendingDefences())).toBe(0);
     });
 
     test("a real battle opened after a playback has its whole bar back", async ({ game }) => {

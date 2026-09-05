@@ -261,40 +261,103 @@ spectated game is where the doctrine layer is actually watched.
 
 ### Q4.1 Harness
 
-- [ ] `GameDriver.newGame()` gains the goal-confirm step — one method, not seventeen files
-- [ ] `GameDriver.start({ goal })` optional argument for specs that need a named goal
-- [ ] `tests/support/selectors.js` derives the new selectors from `registry.js`
+- [x] `GameDriver.newGame()` gains the goal-confirm step — one method, not seventeen files.
+      `confirmGoal()` beside it is the same step for the handful of specs that click New Game
+      themselves because the menu is what they are testing
+- [x] `GameDriver.start({ goal })` optional argument for specs that need a named goal. It
+      takes `scale` as an option LABEL, not a value, because the `<select>` carries indexes
+- [x] `tests/support/selectors.js` derives the new selectors from `registry.js`
+- [x] **One new `window.__game` accessor**, not in the original breakdown and added because
+      the spec below could not be written without it: `gameOverEvents()`, the list of every
+      `GAME_OVER` this game has emitted. A flag cannot answer the question that matters,
+      which is *once* — the failure the latch prevents is a decided game re-announcing itself
+      at the end of every subsequent turn, and only a count taken over turns played PAST the
+      ending can see it. Cleared by `resetVictoryLatch()`, alongside the latch itself
 
 ### Q4.2 E2E
 
-- [ ] New `tests/e2e/goal-selection/` area with a README
-- [ ] The chooser cannot be skipped; each goal shows its own description; the scale list changes
-      per goal; Confirm reaches country selection
-- [ ] A scenario-driven spec that a met condition fires `GAME_OVER` once
-- [ ] Run `goal-selection`, `country-selection`, `turn-loop` — three areas, within the standing
-      limit. **The full suite is Leigh's to schedule.**
+- [x] New `tests/e2e/goal-selection/` area with a README — 18 specs in three files
+- [x] The chooser cannot be skipped (no cancel button, an inert scrim, and Escape going BACK
+      to the main menu); each goal shows its own summary and a rendered description; the scale
+      list and its label change per goal; World Conquest keeps a disabled one-entry dropdown;
+      Great Powers names the locked countries; Confirm reaches country selection; a mid-game
+      restart asks the question again
+- [x] The goal and scale confirmed are the condition the game runs under — the one mistake
+      here that would be SILENT, since a share written into `continentsRequired` is a valid
+      condition that plays as the default game
+- [x] A scenario-driven spec that a met condition fires `GAME_OVER` once. The scenario is
+      `player-eliminated`, and elimination is the ending used because it is the only one a
+      scenario can reach: the other four ask for whole continents, 60% of the world's land, or
+      two hundred turns. It is not a special case — `checkForVictory()` puts elimination first
+      deliberately. Four specs: nothing is decided while a game is played, the ending fires
+      once at the turn that was being played (before `advanceTurn`), two further turns do not
+      fire it again, and New Game clears it
+- [x] **A bug the spec found, and it is the shape the scenario README now warns about.**
+      Ownership is TWO fields — `owner`, which is the string `"Player"` and what
+      `territoriesWithOwner()` filters on, and `dataName`, the country name, which is what
+      `worldStandings()` and every victory rule count. `setTerritoryOwner()` writes both. The
+      first draft of the scenario patched only `dataName`, which ended the game correctly
+      **and** still reported the player as holding a territory: a world the game could not
+      have produced, with the two halves disagreeing in silence
+- [x] `goal-selection` run and green — 18/18. `country-selection` and `turn-loop` are covered
+      by Leigh's full-suite run
 
 ### Q4.3 Save and load
 
-- [ ] A save taken mid-game restores the chosen goal, its scale and its `greatPowers` list
-- [ ] A loaded game's progress line is correct on the first frame
-- [ ] `save-load` e2e area green
+- [x] A save taken mid-game restores the chosen goal, its scale and its `greatPowers` list.
+      It rides in the `aiStrategy` slice registered from `aiCalculations.js`, so `src/ai/`
+      keeps importing only `config/` and `state/` and keeps running in Node
+- [x] A loaded game's progress line is correct on the first frame — `refreshGoalLine()` is an
+      ADDRESSED write in `resumeSavedGame()`, because a save taken on turn 1 and restored over
+      a fresh game at turn 1 changes no turn and emits no event
+- [x] `tests/e2e/save-load/goal-survives-a-load.spec.js` — four specs, including one that
+      starts a SECOND game under a different goal before loading, so a load that did nothing
+      at all cannot pass by accident
+- [x] `save-load` e2e area green
 
 ### Q4.4 Documents
 
-- [ ] Dominapedia "Goals and Victory" page rewritten — it currently states there is no chooser
-      and that nothing ends when a condition is met, both of which become false. The manual
-      quotes real numbers, and no test asserts prose.
-- [ ] Dominapedia "Choosing a Country" page mentions the goal chosen before it
-- [ ] `docs/04-known-issues.md` item 1 closed
-- [ ] `docs/02-game-design-document.md` victory section updated from "missing" to implemented
-- [ ] Plan document §5 carries the measured AI numbers and §10's open questions are resolved or
-      restated
+- [x] Dominapedia "Goals and Victory" page rewritten from the ground up. It was two thirds
+      `planned` blocks over an opening paragraph saying the game does not end. One `planned`
+      block survives and it is the honest one: the victory/defeat screen
+- [x] Dominapedia "Choosing a Country" opens by saying this is the SECOND question a new game
+      asks, and that the goal decides what a good starting position even is. It also states
+      that the five locked countries and the five great powers are one list from one
+      derivation
+- [x] Dominapedia "How the AI Thinks" — it said the AI adapts "when the start-of-game chooser
+      lands", future tense about a screen that now exists. It names the doctrine dials, the
+      urgency response to a runaway leader, and the mid-term theatre
+- [x] Dominapedia "Design Notes" led with "THE GAME CANNOT END", which was the top of its list
+      for the life of the project
+- [x] `docs/04-known-issues.md` item 1 closed, and the **Currently open** list carries what
+      this phase deliberately leaves behind: the ending has no screen
+- [x] `docs/02-game-design-document.md` — §1, §6.1, §6.5, §8.5 and §11 items 1, 6, 8, 12 and
+      15 updated, and §6.6 "The end of a game" is new
+- [x] Plan document §5 carries the measured AI numbers; §9 records the four pages that moved;
+      §10's three open questions are resolved (the Great Powers line already names the next
+      power; the Timed Game countdown is decided and sequenced with the victory screen, since
+      a clock belongs to the player's copy of the label and not to the AI's) or restated
+      (continent bonuses, which are the next design piece)
 
 ### Q4.5 Q4 exit
 
-- [ ] `npm run test:unit` green
-- [ ] Three e2e areas green
-- [ ] Verified in a browser: start a game under each of the five goals and reach turn 2
-- [ ] Change set described for Leigh to commit, with moves and renames kept separate from
+- [x] `npm run test:unit` green — 884 tests
+- [x] `goal-selection` (18/18) and `save-load` green; the rest of the suite is Leigh's own
+      full run, which passed
+- [x] Verified in a browser: a game started under each of the five goals, played to turn 2,
+      with zero `console.error`. Each condition object is the right one (Great Powers froze
+      China, the United States, India, Indonesia and Russia) and each phase-bar line describes
+      its own goal — "Continental: 0 of 3 continents", "Domination: 0% of 60%", "Great Powers:
+      0 of 5 (China 0/2)", "Conquest: 1 of 359 territories", "Largest empire: 2% of the
+      leader"
+- [x] Change set described for Leigh to commit, with moves and renames kept separate from
       behaviour changes
+
+---
+
+## What this phase deliberately did not do
+
+**The victory and defeat SCREEN.** `GAME_OVER` carries the outcome, the winner, the reason and
+the turn, and the only subscriber is a `console.log` — the console line was always the first
+LISTENER and never the mechanism, precisely so that the screens could be added without touching
+the rule that decided the game. That is the next piece of work, and it is one subscriber.

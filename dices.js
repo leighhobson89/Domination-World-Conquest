@@ -194,6 +194,16 @@ export async function rollDiceOnScreen(faces, attackerCount, enemyColour) {
  */
 function ensureStage() {
     if (renderer) {
+        //The renderer is kept, but the canvas it draws into has to still be in the DOCUMENT.
+        //A detached canvas renders perfectly and shows nothing, so this failure is silent: the
+        //dice roll, the faces are right, `facesShowing()` answers correctly and the player sees
+        //an empty stage. It happened for real -- `ui.js` removed the canvas when a battle
+        //opened -- so the guard stays even though that call site has gone. RE-ATTACHING is the
+        //fix rather than rebuilding: a new `WebGLRenderer` would leak the old context, and
+        //browsers cap those at around sixteen.
+        if (canvasElement && !canvasElement.isConnected) {
+            document.getElementById(ids.threeCanvasForDice)?.appendChild(canvasElement);
+        }
         return;
     }
     removeCanvasIfExist();
