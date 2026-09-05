@@ -116,10 +116,6 @@ import {
 import {
     defenderPlayback
 } from './src/ui/battle/DefenderPlayback.js';
-//Battle overhaul B.6.2 / B.6.6. The bottom bar's state machine. What a press MEANS still lives in
-//this file -- it is turn-loop work with the whole game behind it -- but what each button says,
-//whether it responds, how wide it is and what colour it goes are all derived from one state over
-//there, and the labels are never read back.
 import {
     AdvanceMode,
     ReservesState,
@@ -378,23 +374,6 @@ let currentlySelectedColorsArray = [];
 
 export let pageLoaded = false;
 
-// Resolves once BOTH bootstrap halves have finished:
-//
-//   1. the DOMContentLoaded handler below, which builds the entire UI and sets
-//      `pageLoaded = true`, and
-//   2. svgMapLoaded(), which runs on window "load" and is what actually populates
-//      `paths` from the SVG document.
-//
-// Both matter, and they do not finish in a fixed order: DOMContentLoaded fires
-// before window load, so `pageLoaded` alone is true while `paths` is still empty.
-//
-// resourceCalculations.js used to discover readiness by polling `pageLoaded` on an
-// 800ms setInterval, from two places. That wasted up to 1.6s of pure idling, and
-// the delay was also masking the ordering problem above: by the time a tick fired,
-// svgMapLoaded() had usually run. Removing the poll without waiting for the map too
-// meant calculatePathAreas() ran against an empty `paths`, leaving allTerritories()
-// short and every later territory lookup returning undefined.
-// See docs/archived/03-refactor-plan.md Phase 1.4.
 let resolveBootstrapReady;
 const bootstrapReadyPromise = new Promise(resolve => {
     resolveBootstrapReady = resolve;
@@ -413,14 +392,9 @@ function markBootstrapStage(stage) {
     }
 }
 
-/** Resolves when the UI is built and the SVG map paths are available. */
 export function whenPageLoaded() {
     return bootstrapReadyPromise;
 }
-//`eventHandlerExecuted` and its four `setTimeout(..., 200)` companions are gone
-//(Phase 6.6). They were a de-bounce over a listener that was re-installed on every
-//territory selection and never removed, so a click fired once per selection made
-//since the window opened. There is one listener now, so there is nothing to de-bounce.
 
 export let svg = [];
 export let svgCoastLines = [];
@@ -433,54 +407,22 @@ export let pathsCoastLines = [];
 export let defs = [];
 export let patterns = [];
 
-//variables that receive information for resources of country's after database reading and calculations, before game starts
-//Phase 4.8. `playerCountryName()`, `playerColour()` and `flag` were `export let`s here: three
-//module-level variables that four other files imported as live bindings and only this
-//one could assign. They are in GameState now, read through playerCountryName() and
-//playerColour(). `flag` is gone entirely -- it was only ever a second name for
-//playerCountryName(), assigned on the line after it and never anything else.
-
-//Phase 6.7. `currentMapColorAndStrokeArray` and the save/restore pair that maintained
-//it are gone. Colour is a pure function of the store now -- see src/ui/map/MapView.js
-//for what that replaced and why. The country palette and the locked-country muting
-//moved to src/ui/map/colouring.js with it.
-//audit 5.2 Z. This was `COUNTRY_GREYOUT_THRESHOLD = 40000`, compared against the output of
-//calculateTerritoryStrengths() -- which min-max normalises every country into 0..10000, so
-//the strongest country in the world scores exactly 10000 and nothing could ever exceed
-//40000. No country was ever greyed out and the player could start as the United States. The
-//trailing `//40` in the old comment suggests the constant predates the normalisation.
-//
-//Re-scaling the number would only move the guess. The intent -- "the top few countries are
-//too strong to play" -- is a RANK, so that is what this expresses. It is stable whatever the
-//normaliser does, and it says in one number exactly how many world powers are off limits.
-//Measured on a fresh world, the normalised strengths run China 10000, United States 9545,
-//India 7965, Indonesia 5697, Russia 4438, then Italy 3504 and a long tail. Five is where
-//the superpowers stop: it takes the countries that would make the game trivial and leaves
-//every genuine mid-sized power -- Italy, Germany, Japan, the UK -- playable.
-const COUNTRY_GREYOUT_RANK = 5; //the N strongest countries cannot be chosen
-//PROBABILITY_THRESHOLD_FOR_SIEGE moved to src/config/balance.js (Phase 5.5) and is
-//re-exported here, because the AI planner needed it and could not import ui.js.
+const COUNTRY_GREYOUT_RANK = 5;
 export { PROBABILITY_THRESHOLD_FOR_SIEGE };
-
-//path selection variables
 export let lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-lastClickedPath.setAttribute("d", "M0 0 L50 50"); // used for player selection, and for stroke alteration
+lastClickedPath.setAttribute("d", "M0 0 L50 50");
 export let lastClickedPathExternal;
-let currentPath; // used for hover, and tooltip before user clicks on a country
+let currentPath;
 export let currentSelectedPath;
-let validDestinationsAndClosestPointArray; //populated with valid interaction territories when a particular territory is selected
+let validDestinationsAndClosestPointArray;
 let validDestinationsArray;
 let lastPlayerOwnedValidDestinationsArray;
 let closestDistancesArray;
 let hoveredNonInteractableAndNonSelectedTerritory = false;
-//`colorArray = generateDistinctRGBs()` stood here. It was assigned at module load and
-//never read -- dead since before the refactor began. Removed with the rest of the
-//colour machinery in Phase 6.7.
 let territoriesAbleToAttackTarget;
 let originalDefendingTerritory;
 
-// Game States
-let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false; // used for handling popups on screen when game state changes
+let bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = false;
 let uiCurrentlyOnScreen = false;
 let outsideOfMenuAndMapVisible = false;
 let clickActionsDone = false;
@@ -501,20 +443,9 @@ export let attackTextCurrentlyDisplayed = false;
 export let battleResultsDisplayed = false;
 export let digInNextRound = false;
 let battleUIDisplayed = false;
-//Phase 6.7. `territoryAboutToBeAttackedOrSieged` was a module-level `let`, and the
-//attack marker was a separate <image> that six call sites removed by hand -- which is
-//audit 5.2 AE, the marker surviving a cancel. They are one fact now, owned by
-//src/ui/map/markers.js: setting the target draws the marker, clearing it removes it,
-//and there is no way to do one without the other. Read it with `attackTargetPath()`.
 export let transferToTerritory;
 export let battleUIState = 0;
 
-//BATTLE UI STATES
-//
-//Battle overhaul B.6.6. `retreatButtonState` and `advanceButtonState` -- two exported numbers
-//that every call site set alongside a SEPARATE label number -- are gone. There is one state, it
-//lives in src/ui/battle/BattleWindow.js, and both the label and the behaviour are derived from
-//it. Read it with `battleWindow.battleButtons()`.
 let battleStart;
 
 let defendingTerritoryCopyStart;
@@ -527,25 +458,20 @@ let territoryStringDefender;
 
 const multiplierForScatterLoss = 0.7;
 
-//This determines how the map will be colored for different game modes
-export let mapMode = 1; // 1 - normal 2 - physical
 
-//Zoom variables
-//Zoom, pan and the viewBox animation moved to src/ui/map/camera.js in Phase 6.7.
-//`shiftedPath` stays here: it is the click-feedback nudge, not a camera concern.
+export let mapMode = 1;
 let shiftedPath;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
-    if (upgradeOrBuyParameter === 1) { //upgrade window
+    if (upgradeOrBuyParameter === 1) {
         upgradeWindowCurrentlyOnScreen = true;
-    } else if (upgradeOrBuyParameter === 2) { //buy window
+    } else if (upgradeOrBuyParameter === 2) {
         buyWindowCurrentlyOnScreen = true;
     }
 }
 
 export function svgMapLoaded() {
     console.log("Starting Page Load Process");
-    //-------------GLOBAL SVG CONSTANTS AFTER SVG LOADED---------------//
     svg = document.getElementById(ids.svgMap);
     svgCoastLines = document.getElementById(ids.svgCoastLines);
     svgMap = svg.contentDocument;
@@ -554,71 +480,53 @@ export function svgMapLoaded() {
     svgCoastLinesTag = svgCoastLinesMap.querySelector('svg');
     paths = Array.from(svgMap.querySelectorAll('path'));
     pathsCoastLines = Array.from(svgCoastLinesMap.querySelectorAll('path'));
-    buildPathIndex(paths); //O(1) uniqueId/name -> path lookups, replaces linear scans
-    //Phase 6.7: the map's three concerns each have a module now.
+    buildPathIndex(paths);
     attachCamera(svgTag, svgCoastLinesTag);
     attachMapView(paths);
     attachMarkerLayer(svgMap);
-    //-----------------------------------------------------------------//
+
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
     svg.focus();
 
     svgMap.addEventListener("mouseover", function(e) {
-        // Get the element that was hovered over
         const element = e.target;
 
-        currentPath = element; // Set the current element
+        currentPath = element;
 
-        // Call the hoverColorChange function
         if (!pathIsGreyedOut(element)) {
             hoverOverTerritory(element, "mouseOver");
         }
 
-        // Get the name of the country from the "data-name" attribute
         const countryName = pathOwner(element);
 
-        // Add an event listener for mousemove on the element
         element.addEventListener("mousemove", function(e) {
             const x = e.clientX;
             const y = e.clientY;
 
-            //Markers carry `pointer-events: none` (audit 5.3 AW), so the hit test at the
-            //centre of a besieged territory returns the PATH, never the siege overlay
-            //drawn on top of it. There is deliberately no separate tooltip for the
-            //marker: the siege is stated in the territory's own tooltip instead, so the
-            //player gets the same fact wherever in the territory they hover.
             tooltip.setContent(territoryTooltipLabel(element, countryName));
-
-            // Check if the mouse pointer is less than 300px from the bottom of the screen
             if (window.innerHeight - y < 100) {
-                // Move the tooltip up by 300px
                 tooltip.moveTo(x - 40, y - 30);
             } else {
-                // Position the tooltip next to the mouse cursor without moving it vertically
                 tooltip.moveTo(x - 40, 25 + y);
             }
 
-            // Show the tooltip
             tooltip.show();
         });
 
-        // Add an event listener for mouseout on the element
         element.addEventListener("mouseout", function() {
-            // Hide the tooltip when the mouse leaves the element
             tooltip.hide();
         });
 
         element.style.cursor = "pointer";
     });
 
-    // Add a mouseout event listener to the SVG element
     svgMap.addEventListener("mouseout", function() {
         tooltip.setContent("");
         tooltip.hide();
         if (currentPath) {
             if (!pathIsGreyedOut(currentPath)) {
-                hoverOverTerritory(currentPath, "mouseOut"); // Pass the current path element and set mouseAction to 1
+                hoverOverTerritory(currentPath, "mouseOut");
             }
         }
         clickActionsDone = false;
@@ -647,7 +555,7 @@ export function svgMapLoaded() {
         if (mapMode === 2) {
             exitPhysicalMap();
             for (let i = 0; i < allTerritories().length; i++) {
-                if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
+                if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") {
                     setColorOnMap(allTerritories()[i]);
                     for (let j = 0; j < paths.length; j++) {
                         if (paths[j].getAttribute("uniqueid") === allTerritories()[i].uniqueId) {
@@ -666,22 +574,9 @@ export function svgMapLoaded() {
                 clearAttackTarget();
                 transferAttackButtonDisplayed = false;
                 attackTextCurrentlyDisplayed = false;
-                //remove army image
             }
             if (e.target.tagName === "path") {
                 currentPath = e.target;
-                //Spectator mode: the map is the index into the log. A country's block
-                //appears once a turn among two hundred others, so scrolling to find the
-                //one you are watching is the whole cost of watching -- and the country
-                //you want is the one whose territory you just pointed at. Read through
-                //`pathCountry()` rather than off `data-name`: this is the CURRENT owner
-                //and a conquest is exactly the moment the two could disagree.
-                //
-                //`exact` because this NAMES a country rather than searching for one.
-                //The filter is otherwise a substring, which is right for typing and
-                //wrong here: clicking anything American showed the United States and
-                //the United States Virgin Islands, two countries that merely share a
-                //prefix.
                 if (isAiGameActive()) {
                     const owner = pathCountry(e.target);
                     if (owner) {
@@ -694,7 +589,7 @@ export function svgMapLoaded() {
                 }
                 currentSelectedPath = currentPath;
                 if (countrySelectedAndGameStarted) {
-                    if (currentPhase() === Phase.MOVE_ATTACK) { //move/deploy phase show interactable countries when clicking a country
+                    if (currentPhase() === Phase.MOVE_ATTACK) {
                         validDestinationsAndClosestPointArray = findClosestPaths(e.target);
                         if (currentPath.hasAttribute("fill")) {
                             hoverOverTerritory(currentPath, "clickCountry", currentlySelectedColorsArray);
@@ -718,7 +613,7 @@ export function svgMapLoaded() {
                     } else if (currentPhase() === Phase.AI) {
 
                     }
-                } else { //if on country selection screen
+                } else {
                     document.getElementById(ids.popupColor).style.display = "block";
                 }
             }
@@ -758,20 +653,10 @@ export function svgMapLoaded() {
         }
     });
 
-    //Phase 6.7. Runs inside the bootstrap window, so it groups by `pathCountry()`,
-    //which reads the attribute while the store is still empty. See CLAUDE.md.
     assignStartingColours(paths, pathCountry);
-
-    //And the continent boundaries, because the default view now draws them. This has to
-    //be an APPLIED write and it has to be here: `pathsCoastLines` is populated four lines
-    //into this function and nowhere earlier, and the SVG ships with the plain
-    //sea-coloured strokes -- so declaring `continentView = "continent"` at the top of the
-    //module would put the button in one state and the map in another. Same species as
-    //`refreshGoalLine()` on the load path: anything made correct as a side effect of a
-    //click has to be done outright for the first frame.
     applyContinentView(DEFAULT_CONTINENT_VIEW);
 
-    markBootstrapStage("map"); //`paths` is now populated; see whenPageLoaded()
+    markBootstrapStage("map");
 
     console.log("loaded!");
 }
@@ -782,7 +667,7 @@ function selectCountry(country, escKeyEntry) {
         if (!pathIsUnderSiege(country)) {
             const deactivatedPaths = paths.filter(path => pathIsDeactivated(path));
 
-            if (deactivatedPaths.length > 0) { //make sure order correct for deactivated paths
+            if (deactivatedPaths.length > 0) {
                 const lowestIndex = paths.indexOf(deactivatedPaths[0]);
                 svgMap.documentElement.insertBefore(country, paths[lowestIndex]);
             } else {
@@ -791,7 +676,7 @@ function selectCountry(country, escKeyEntry) {
         } else {
             const siegedPaths = paths.filter(path => pathIsUnderSiege(path));
 
-            if (siegedPaths.length > 0) { //make sure order correct for sieged paths
+            if (siegedPaths.length > 0) {
                 const lowestIndex = paths.indexOf(siegedPaths[0]);
                 svgMap.documentElement.insertBefore(country, paths[lowestIndex]);
             } else {
@@ -799,7 +684,7 @@ function selectCountry(country, escKeyEntry) {
             }
         }
 
-        if (selectCountryPlayerState && !escKeyEntry) { //in select country state, colour territory and other connected clicked on
+        if (selectCountryPlayerState && !escKeyEntry) {
             for (let i = 0; i < paths.length; i++) {
                 if (pathCountry(paths[i]) === pathCountry(country)) {
                     if (pathCountry(country) !== pathCountry(lastClickedPath)) {
@@ -807,7 +692,7 @@ function selectCountry(country, escKeyEntry) {
                     }
                 }
             }
-        } else if (!selectCountryPlayerState && !escKeyEntry) { // in game state, colour player territories when clicked on
+        } else if (!selectCountryPlayerState && !escKeyEntry) {
             for (let i = 0; i < paths.length; i++) {
                 if (pathIsPlayerOwned(paths[i])) {
                     paths[i].setAttribute('fill', playerColour());
@@ -820,7 +705,7 @@ function selectCountry(country, escKeyEntry) {
             }
         }
 
-        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) { //if a territory has previously been clicked, handle deselecting previous
+        if (lastClickedPath.hasAttribute("fill") && !escKeyEntry) {
             for (let i = 0; i < paths.length; i++) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && pathIsPlayerOwned(paths[i]) && !pathIsDeactivated(country)) { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
                     paths[i].setAttribute('fill', playerColour());
@@ -861,13 +746,6 @@ function selectCountry(country, escKeyEntry) {
         if (lastClickedPath.hasAttribute("fill") && !escKeyEntry && !pathIsGreyedOut(lastClickedPath) && pathIsGreyedOut(country)) {
             for (let i = 0; i < allTerritories().length; i++) {
                 if (allTerritories()[i].uniqueId === lastClickedPath.getAttribute("uniqueid")) {
-                    //Phase 5.8. `true` -- the country-selection form. This called
-                    //setColorOnMap() with no second argument, which takes the IN-GAME branch
-                    //and paints `territory.countryColor`. That field is not filled in until
-                    //pushColorsToMainArray() runs on confirm, so during selection it is
-                    //undefined: clicking a playable country and then a locked one wrote
-                    //fill="undefined" onto the country you had just picked, and an invalid
-                    //fill renders BLACK. The sibling branch above always passed `true`.
                     setColorOnMap(allTerritories()[i], true);
                     break;
                 }
@@ -889,19 +767,9 @@ function selectCountry(country, escKeyEntry) {
             }
         }
         lastClickedPathExternal = lastClickedPath;
-        lastClickedPath = country; // Update the previously clicked path
+        lastClickedPath = country;
 
         if (selectCountryPlayerState && !escKeyEntry) {
-            //Phase 5.8. This block sits OUTSIDE the `!pathIsGreyedOut(country)` guard that
-            //opens this function -- that guard closes above, at the end of the z-ordering
-            //and colouring section -- so it used to name any country the player clicked and
-            //offer the confirm button, with a separate `fill === GREY_OUT_COLOR` test after
-            //it as the only thing that took the button away again. Gating the lock on a
-            //fill string made it bypassable in three clicks: click a locked country, change
-            //the colour picker (which repaints `pathCountry(lastClickedPath)` and, via
-            //restoreMapColorState(), every other locked country too), click it again -- the
-            //fill no longer matched, so the button appeared and the player started as the
-            //United States. The lock is state; ask the state. See audit 5.2 Z.
             countrySelect.nameCountry(pathCountry(country), { locked: pathIsGreyedOut(country) });
         }
 
@@ -911,22 +779,8 @@ function selectCountry(country, escKeyEntry) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    //The player's remembered theme, applied BEFORE any component is built. The
-    //tokens all have defaults in style.css so there is no unstyled flash either
-    //way, but applying first means the menu is painted once rather than twice.
-    //A theme is a map of CSS custom properties written onto the root element;
-    //nothing below knows which theme is in force.
     initTheme();
-
-    //The remembered volumes and mutes, read before anything can make a noise.
-    //This does NOT start the music even when the player left it playing: a browser
-    //refuses `play()` until the page has been interacted with, so the attempt is
-    //hung off the first gesture instead -- see `resumePendingMusic()` below.
     initAudio();
-    //Installed here rather than in `beginAutosaving()` -- the audio panel exists from
-    //the main menu onwards, so a spec must be able to read the settings before any
-    //game has been started. `installTestHooks()` (gameTurnsLoop.js) has already put
-    //`window.__game` there by this point; without ?e2e=1 this is a no-op.
     installAudioTestHooks({
         audio: () => audioSettings(),
         setAudio: (settings) => applyAudioSettings(settings),
@@ -935,44 +789,17 @@ document.addEventListener("DOMContentLoaded", function() {
         musicPlaying: () => isMusicPlaying(),
     });
 
-    //Phase 6.3. The tooltip owns its own element now -- it is no longer a <div> in
-    //index.html reached through named window access. Created first because every
-    //other component's hover handlers push content into it.
     tooltip.create();
-
-    //Phase 7.2/7.3. Four components that all belong to the menu rather than to the
-    //turn loop. They create their own containers, so there is nothing in index.html
-    //for them and destroying one leaves no orphan <div>.
     confirmDialog.create();
     saveIndicator.create();
-    //THE DOMINAPEDIA (Phase 7.6)
-    //The manual, and the last main-menu button to be wired -- it was an inert
-    //"Help" until now. Created here rather than on first open for the same reason
-    //the Options panel is: the panel it builds is themed, and building it under
-    //the player's stored theme costs nothing at bootstrap and avoids a first open
-    //that paints in the default palette and then corrects itself.
     dominapedia.create({ onSound: () => playSoundClip("button") });
-    //THE GOAL CHOOSER (Goals and Victory, Q3)
-    //Created here for the same reason as the two above: it is themed, and building it
-    //under the player's stored theme costs nothing at bootstrap and avoids a first open
-    //that paints in the default palette and then corrects itself. Nothing shows until
-    //`startNewGame()` opens it.
-    //
-    //Confirm and Escape are the ONLY two ways out, and they are the whole contract:
-    //Confirm sets the condition and drops through to country selection, Escape goes back
-    //to the main menu. There is no third path that starts a game with no goal.
     goalSelect.create({
         onSound: () => playSoundClip("button"),
         onConfirm(condition) {
-            //`setVictoryCondition()` validates and fills in the defaults, which is why it
-            //was written as the seam -- the chooser passes a kind, a scale and the five
-            //names and does not have to produce a complete condition.
             setVictoryCondition(condition);
             beginCountrySelection();
         },
         onBack() {
-            //Back to the title, not on into the game. A player must be able to change
-            //their mind about starting at all.
             returnToMainMenuFromGoalSelect();
         }
     });
@@ -982,63 +809,25 @@ document.addEventListener("DOMContentLoaded", function() {
             return save ? encodeSave(save) : null;
         },
         applySave: loadGameFromCode,
-        //"In progress" means the player is past the main menu, which includes the
-        //country-selection screen -- backing out of that is a decision too.
         isGameInProgress: () => outsideOfMenuAndMapVisible,
     });
-    //The music-note button and its floating panel. It is chrome over the map, so
-    //it takes the "switch" clip like the rest of the chrome; the buttons INSIDE
-    //the panel are ordinary window buttons and take the other one, which is why
-    //the component is handed a sound callback rather than choosing for itself.
     audioPanel.create({ onSound: () => playSoundClip("button") });
-    //THE MILITARY ACTIVITY FEED (Phase 7.4)
-    //A window of its own rather than a fifth tab of the info panel: it answers a
-    //different question -- the info panel is the state of the world, this is what
-    //just happened to it -- and the brief asks for it to open ON TOP of that panel
-    //at the start of a turn, which a tab cannot do. `playSoundClip("switch")` is
-    //map chrome's sound; the panel's own buttons use it too, because the whole
-    //thing is one control surface.
     activityPanel.create({ onSound: () => playSoundClip("switch") });
-
-    //THE AI DEBUG WINDOW. Developer-facing, and deliberately keyboard-only: numpad /
-    //toggles it. It has no button over the map because it is not part of the game, and
-    //map chrome that opens a debug view is map chrome a player will click. Creating it
-    //here only installs the key handler and the (hidden) window; nothing renders until
-    //it is opened. See src/ui/components/AiDebugPanel.js.
     aiDebugPanel.create();
-
-    //THE SPECTATOR CONSOLE. Opened only by "AI Game" on the menu, and closed by
-    //leaving that mode -- it has no chrome button for the same reason the AI debug
-    //window has none. Its X button STOPS the mode rather than merely hiding the
-    //window: a self-playing game with its console shut is a page that looks idle
-    //while two hundred countries fight behind it, and nothing would bring it back.
     aiGameConsole.create({
         onSound: () => playSoundClip("button"),
         onStop: () => void endAiGame()
     });
 
-    //THE SPECTATOR'S GOAL BAR. It fills the strip a played game gives to the player's top
-    //table, which spectator mode takes down because there is no player to describe. What it
-    //puts there instead is the one thing that space can usefully say when nobody owns
-    //anything: which of the five goals this world is racing for, and who is winning it.
-    //
-    //The world is read through a callback so the component imports nothing from the AI --
-    //it is a view, and the standings are one pass over the map taken once a turn.
     aiGameGoalBar.create({
         readWorld() {
             const condition = activeVictoryCondition();
             const standings = worldStandings();
             const turn = currentTurn();
-            //Who is closest to WINNING, not who is biggest -- under Great Powers the largest
-            //empire on the map need not be the one nearest to breaking three of them.
             const front = closestToVictory(condition, standings, turn);
             return {
                 condition,
                 leader: front?.country ?? null,
-                //And described in a way that is not a tautology. A timed game scores every
-                //country as a fraction OF the leader, so the leader's own label reads
-                //"100% of the leader" every turn of every game; `describeLeaderProgress()`
-                //is what says something instead.
                 leaderProgress: front
                     ? describeLeaderProgress(condition, {
                         label: front.progress.label,
@@ -1050,28 +839,18 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    //A browser will not start audio until the page has been interacted with, so
-    //the very first click is the earliest moment the music the player left running
-    //can be put back on. `resumePendingMusic()` is idempotent -- after the first
-    //attempt it does nothing -- which is what makes it safe to hang off `capture`
-    //on the document and never take off again.
     document.addEventListener("pointerdown", () => void resumePendingMusic(), { capture: true });
 
-    //The hamburger is the same door Escape has always opened, with a handle on it.
     menuButton.create({
         onOpen() {
-            //Map chrome, so it takes the switch clip rather than the button one.
             playSoundClip("switch");
             openInGameMenu();
         },
     });
 
-    //MENU CONTAINER
     mainMenu.create({
         async onNewGame() {
             playSoundClip("button");
-            //Restart is New Game, exactly as before -- what is new is that it now
-            //asks first, because from inside a running game it destroys that game.
             if (outsideOfMenuAndMapVisible) {
                 const proceed = await confirmDialog.open({
                     title: "Start a new game?",
@@ -1090,8 +869,6 @@ document.addEventListener("DOMContentLoaded", function() {
             playSoundClip("button");
             optionsPanel.open();
         },
-        //The Options panel's own controls. Menu items and the buttons inside a
-        //window both take "button"; only the chrome over the map takes the other.
         onSound() {
             playSoundClip("button");
         },
@@ -1107,8 +884,6 @@ document.addEventListener("DOMContentLoaded", function() {
             playSoundClip("button");
             dominapedia.open();
         },
-        //The debug entry. It throws away whatever game is running for the same
-        //reason New Game does, so it asks the same question first.
         async onAiGame() {
             playSoundClip("button");
             if (outsideOfMenuAndMapVisible) {
@@ -1126,30 +901,15 @@ document.addEventListener("DOMContentLoaded", function() {
             await startAiGame();
         },
     });
-
-    //MAP POPUP WITH CONFIRM BUTTON
-    //Phase 6.3. The bar builds itself and derives its own title and button label
-    //from the phase, so setPhase() is now the only call a phase transition makes.
     const popupWithConfirmContainer = phaseBar.create({
         onSound: () => playSoundClip("switch"),
         onColourLabelClick() {
             playSoundClip("switch");
-            //Toggle, not show. The grid is a panel that stays open while the player
-            //picks -- that is what makes choosing against the live map possible --
-            //so the control that opened it has to be the one that closes it.
             countrySelect.togglePicker();
         },
     });
     const popupConfirm = phaseBar.buttonElement();
 
-    //MAP CHROME
-    //Phase 7.4. Three PNG buttons became two drawn ones. Both take the hamburger's
-    //box (`.chrome-button`) so the furniture over the map is one design rather than
-    //three, and both are SVG inside, so a theme reaches them -- which no PNG did.
-    //
-    //The continent-view button carries all three icons and shows one, chosen by
-    //`data-view`; swapping a `src` was what made the old pair impossible to assert
-    //on without naming a file. `updateContinentViewButton()` is the only writer.
     mount(
         ids.mapModeContainer,
         el(
@@ -1202,12 +962,6 @@ document.addEventListener("DOMContentLoaded", function() {
             setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
 
             if (selectCountryPlayerState) {
-                //Phase 6.7. This was a restore, then a loop painting the new colour onto
-                //the clicked country, then paintLockedCountries() to put back the lock the
-                //restore had just lifted off all five locked countries. One pass says the
-                //same thing: each country takes its base colour, a locked one takes the
-                //muted form of it, and the picked one takes the player's colour. A locked
-                //country is never the picked one, which is what audit 5.3 AX turned on.
                 repaintCountrySelection(
                     pathIsGreyedOut(lastClickedPath) ? null : pathCountry(lastClickedPath)
                 );
@@ -1217,14 +971,10 @@ document.addEventListener("DOMContentLoaded", function() {
         },
     });
 
-    // add event listener to popup confirm button
     popupConfirm.addEventListener("click", async function() {
         playSoundClip("switch");
         if (selectCountryPlayerState) {
             document.getElementById(ids.popupColor).style.display = "none";
-            //The swatch grid is a floating panel with nothing behind it, so it does not
-            //close itself when the control that opened it is hidden. Leaving it up would
-            //strand it over the map for the rest of the game.
             countrySelect.closePicker();
             setAllGreyedOutAttributesToFalseOnGameStart();
             selectCountryPlayerState = false;
@@ -1232,13 +982,8 @@ document.addEventListener("DOMContentLoaded", function() {
             phaseBar.dimBody();
             setPlayerCountry(phaseBar.bodyText());
             setPlayerFlag(playerCountryName());
-            setFlag(playerCountryName(), 1); //set player flag in top table
-            setFlag(playerCountryName(), 3); //set player flag in ui info panel
-            //Phase 6.7. Was `restoreMapColorState(currentMapColorAndStrokeArray, true)`:
-            //replay the bootstrap snapshot over every country EXCEPT the selected one.
-            //Stated as a fact about each country instead -- and the locks have just been
-            //cleared by setAllGreyedOutAttributesToFalseOnGameStart(), so this is the
-            //first repaint where nothing is muted.
+            setFlag(playerCountryName(), 1);
+            setFlag(playerCountryName(), 3);
             repaintCountrySelection(playerCountryName());
             phaseBar.setMode(phaseBar.Mode.INITIALISING);
             pushColorsToMainArray();
@@ -1253,16 +998,8 @@ document.addEventListener("DOMContentLoaded", function() {
             toggleMapModeButton(true);
             createCpuPlayerObjectAndAddToMainArray();
             addRandomFortsToAllNonPlayerTerritories();
-            //Phase 4.6. This button used to walk its own counter, `turnPhase`, one step
-            //AHEAD of the `currentTurnPhase` the rest of the game read, and push the old
-            //value across on each click. Two counters for one fact, only ever in step by
-            //convention. The button now reads and writes the single phase in GameState,
-            //and since Phase 6.3 the bar's own text follows from that one write.
             phaseBar.setMode(phaseBar.Mode.PLAYING);
             setPhase(Phase.BUY_UPGRADE);
-            //Phase 7.3. From here the game autosaves on a timer. A loaded game starts
-            //it from applyLoadedGame() for the same reason -- both are "a game is now
-            //running", and nothing else in the file is.
             beginAutosaving();
         } else if (countrySelectedAndGameStarted && currentPhase() === Phase.BUY_UPGRADE) {
             setPhase(Phase.MOVE_ATTACK);
@@ -1282,12 +1019,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     mount(ids.popupWithConfirmContainer, popupWithConfirmContainer);
-
-    //TOP TABLE
-    //Phase 6.3. Two hundred lines of createElement moved to
-    //src/ui/components/TopTable.js. The capacity and demand figures its hover text
-    //needs are injected rather than imported, so the component does not pull the
-    //economy into the UI layer.
     topTable.create({
         playerCountryName,
         capacities: () => capacityArray,
@@ -1295,19 +1026,8 @@ document.addEventListener("DOMContentLoaded", function() {
         formatNumber: formatNumbersToKMB,
     });
 
-    //------------------------------------------AI DIALOGUE-----------------------------------------------//
-    //Phase 6.3. Moved to src/ui/components/AiDialogue.js. The three response
-    //buttons all call the same handler with a different number: 0 accept,
-    //1 refuse, 9 accept every remaining row.
     aiDialogue.create({ onResponse: setAiResponseFlag });
 
-    //------------------------------------------------------------------------------------------------//
-
-    //MAIN UI
-    //Phase 6.3. The panel chrome -- tab strip, checkbox, close button, the panel
-    //around the table -- moved to src/ui/components/InfoTable.js. What goes IN
-    //the table is still drawUITable(), which Phase 6.4 breaks up; the component
-    //calls it with the tab index the player clicked.
     infoTable.create({
         drawTable: drawUITable,
         onTabClick: () => playSoundClip("switch"),
@@ -1321,12 +1041,6 @@ document.addEventListener("DOMContentLoaded", function() {
             uiAppearsAtStartOfTurn = toggleUIToAppearAtStartOfTurn(uiAppearsAtStartOfTurn);
         },
     });
-    //UPGRADE WINDOW / BUY MENU
-    //Phase 6.3. Both were 190 lines of createElement differing only in class
-    //prefixes, ids, title and icons. They are one builder now --
-    //src/ui/components/ResourceWindow.js -- configured by two specs. The bottom
-    //button still asks its own label what it means; making that a derived state
-    //is Phase 6.6's shape of problem, not this one's.
     upgradeWindow.create({
         onClose() {
             playSoundClip("button");
@@ -1369,20 +1083,9 @@ document.addEventListener("DOMContentLoaded", function() {
         },
     });
 
-    // MOVE PHASE BUTTON
-    //Phase 6.3. The button and its destination strip are one component. What the
-    //button SAYS is decided by deriveMoveButtonState() since Phase 6.6, which also
-    //made its click, mouseover and mouseout listeners install ONCE, here, rather than
-    //being re-attached on every territory selection.
     const transferAttackButton = moveButton.create();
     installMoveButtonHandlers();
 
-    // TRANSFER / ATTACK WINDOW
-    //Phase 6.3. The shell moved to src/ui/components/TransferAttackWindow.js.
-    //What goes IN the table is still drawAndHandleTransferAttackTable(), which
-    //Phase 6.5 splits into a transfer renderer and an attack renderer.
-    //Battle overhaul B.6.7. The dice preview mounts into the attack window's container and is
-    //shown only in ATTACK mode -- there are no dice in a transfer.
     attackPreview.create();
     transferAttackWindow.create({
         onClose() {
@@ -1407,54 +1110,21 @@ document.addEventListener("DOMContentLoaded", function() {
         },
     });
 
-    //BATTLE UI
-    //Phase 6.3. Moved to src/ui/components/BattleUI.js. The buttons' listeners
-    //stay here -- Advance walks a state machine over rounds, sieges and routs,
-    //and moving that would mean moving the battle itself.
-    //
-    //Battle overhaul B.6.6: the six handles this used to destructure out of `battleUI.buttons()`
-    //are gone. `BattleWindow` reaches the elements through the registry, and nothing in this
-    //block writes a label, a width or a colour onto one any more -- a second writer is how the
-    //label and the state came to disagree in the first place.
     battleUI.create();
-
-    //The pairing animation lives in its own layer over the dice canvas, so it is built here
-    //alongside the window it belongs to rather than lazily on the first round.
     clashPanel.create();
 
-    //A click anywhere over the battle window settles the dice AND finishes the clash at once.
-    //Both are decoration -- the round is already decided -- so a player who does not want to
-    //watch never has to. `finish()` does not dismiss the panel: a player who skipped the
-    //animation still wants to read what it was saying.
     document.getElementById(ids.battleContainer)?.addEventListener("click", function() {
         diceStage.skip();
         clashPanel.finish();
     }, true);
 
-    //BATTLE RESULTS WINDOW
-    //Phase 6.3. Moved to src/ui/components/BattleResults.js, where the three
-    //rows of eight index-named cells are three loops rather than seventy-two
-    //statements. The confirm button's handlers stay here -- what "accept" means
-    //depends on whether the battle was won.
     battleResults.create();
-
-    //Battle overhaul B.10.2. Six mouseover / mouseout listeners stood here, writing four colour
-    //literals between them to do what `.retreatButton:hover:not(.is-disabled)` in style.css
-    //already does -- and doing it WRONG, because each one guarded on the `disabled` property
-    //while the buttons are made inert with a class. They are deleted; the stylesheet owns hover.
-
-    //Battle overhaul B.6.6. The bottom bar's listeners are installed ONCE, here, through
-    //`battleWindow.create()`. What a press MEANS is still this file's job -- opening a battle,
-    //resolving a round, garrisoning a conquest, queueing a retrieval, lifting a siege are all
-    //turn-loop work with the whole game behind them. What changed is that the branch is taken on
-    //the window's STATE, rather than on a second number set alongside a label, or on the label.
     battleWindow.create({
         siege: function() {
 
         let currentWarAlreadyInSiegeMode = false;
         let currentWarId = getCurrentWarId();
 
-        // Search the playerSiegeWarsList for the warId
         for (let territoryName in playerSiegeWarsList) {
             if (aiSiegeWarsList.hasOwnProperty(territoryName)) {
                 currentWarAlreadyInSiegeMode = true;
@@ -1462,7 +1132,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
 
-        //turn off battle ui and activate map again
         toggleBattleUI(false, true);
         battleUIDisplayed = false;
         toggleUIButton(true);
@@ -1473,25 +1142,12 @@ document.addEventListener("DOMContentLoaded", function() {
         bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
 
         if (!currentWarAlreadyInSiegeMode) {
-            let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId, battleStart); // add to siege
+            let territoryToAddToSiege = addRemoveWarSiegeObject(0, currentWarId, battleStart);
             let mainArrayElementForSiege = applySiegeSurvivorsToTerritory(getSiegeObjectFromPlayerSiegeList(territoryToAddToSiege));
             writeBottomTableInformation(mainArrayElementForSiege, true, null);
-
-            //`underSiege` is not set here any more. addRemoveWarSiegeObject() above put
-            //the siege in the store, and the attribute is derived from the siege lists
-            //and rendered by src/ui/mapAttributeSync.js (Phase 4.4/4.5).
-
-            //Phase 5.8. `addImageToPath(..., "siege.png", 1)` stood here. Phase 4.5 moved
-            //marker rendering to src/ui/siegeOverlay.js, driven by `siegeChanged` -- which
-            //`addRemoveWarSiegeObject()` above has already emitted. This line therefore
-            //appended a SECOND <image> carrying the same `siegeImage_<name>` id: a
-            //duplicated id, two overlays stacked on one territory, and only one of them
-            //removed when the siege ended. The marker is rendered from state now.
             clearAttackTarget();
 
         }
-        //B.3. The battle has become a siege; it is no longer a battle in progress. The siege
-        //object holds the two armies from here on.
         closeBattle();
         },
 
@@ -1518,63 +1174,40 @@ document.addEventListener("DOMContentLoaded", function() {
         let currentWarId = getCurrentWarId();
         let warArrayToRetrieveLater = addAttackingArmyToRetrievalArray(attackingArmyRemaining, proportionsOfAttackArray);
         switch (mode) {
-            case RetreatMode.FREE: //before the first round -- free withdrawal
-                defeatType = "retreat"; //also pull out from siege before starting assault
-                //A no-penalty retreat returns the committed army whether or not this
-                //battle was opened from INVADE!. Before audit 5.1 AD was closed the
-                //source was never debited, so failing to queue the retrieval here cost
-                //the player nothing; now it would quietly destroy the army.
+            case RetreatMode.FREE:
+                defeatType = "retreat";
                 setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 1);
                 if (!battleStart) {
                     proportionsOfAttackArray.length = 0;
-                    //B.4.6: through mutations.js, which also keeps `armyForCurrentTerritory`
-                    //in step with the four counts it is supposed to total.
                     setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining);
 
                 } else {
                     addWarToHistoricWarArray("Retreat", 0, true);
                 }
 
-                if (battleUIState === 1) { //removing a siege
+                if (battleUIState === 1) { 
                     let war = getSiegeObjectFromPath(attackTargetPath());
-                    if (war) { //handle case where retreat after coming back from a siege
-                        addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
+                    if (war) { 
+                        addRemoveWarSiegeObject(1, war.warId); 
                         removeSiegeImageFromPath(attackTargetPath());
-                        //siege removed from the store above; `underSiege` follows (Phase 4.4)
-                        //army is restored already by assignProportionsToTerritories in case "0"
                     }
                 }
-                //update bottom table for defender
                 bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
-            case RetreatMode.SCATTER: //after a round has been fought, at a penalty
+            case RetreatMode.SCATTER:
                 defeatType = "scatter";
                 for (let i = 0; i < attackingArmyRemaining.length; i++) {
-                    attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss); //apply penalty
+                    attackingArmyRemaining[i] = Math.floor(attackingArmyRemaining[i] * multiplierForScatterLoss);
                 }
                 setNewWarOnRetrievalArray(currentWarId, warArrayToRetrieveLater, currentTurn(), 2);
                 proportionsOfAttackArray.length = 0;
-                setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining); //B.4.6
+                setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, defendingArmyRemaining);
 
                 bottomTable.update({ army: formatNumbersToKMB(defendingTerritoryRetreatClick.armyForCurrentTerritory, 0) });
                 break;
-            case RetreatMode.DEFEAT: //the attack is over and lost
-                //Battle overhaul B.4.5 / B.4.6. Two things changed here.
-                //
-                //The branch used to be `defendingArmyRemaining[4] === 0` / `=== 1` -- a defeat
-                //TYPE smuggled into slot 4 of a four-slot army array by
-                //`handleWarEndingsAndOptions()`. It is `defeatType()` on the battle in the store
-                //now, and the army array is four long again.
-                //
-                //And the four hand-written writes per branch -- three unit counts, then
-                //`armyForCurrentTerritory` rebuilt by multiplying out the personnel worths --
-                //went through `state/mutations.js` instead. Every retreat used to be a state-guard
-                //violation, and the personnel formula appeared four times in this one handler,
-                //which is exactly how a territory ends up with an army total that disagrees with
-                //its own unit counts.
+            case RetreatMode.DEFEAT:
                 defeatType = "defeat";
                 if (defeatTypeFromBattle() === "routed") {
-                    //A routed attacker: half of what was left is captured and joins the defender.
                     setTerritoryArmy(defendingTerritoryRetreatClick.uniqueId, [
                         defendingArmyRemaining[0] + Math.floor(attackingArmyRemaining[0] * battleOutcomeEffects.routCaptureShare),
                         defendingArmyRemaining[1] + Math.floor(attackingArmyRemaining[1] * battleOutcomeEffects.routCaptureShare),
@@ -1599,23 +1232,17 @@ document.addEventListener("DOMContentLoaded", function() {
         if (attackTargetPath()) {
             currentWarFlagString = pathCountry(attackTargetPath());
         }
-        populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false); //lost
+        populateWarResultPopup(1, attackCountry, defendTerritory, defeatType, false);
         addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
-        //Battle overhaul B.3. The battle is over, so the store stops holding one. Without this
-        //every later save would capture a finished battle as though it were in flight.
         closeBattle();
         },
 
         digIn: function(armed) {
             playSoundClip("button");
-            //`digInNextRound` is what `processRound()` reads. The button's own armed look is the
-            //window's business and it has already toggled it.
             digInNextRound = armed;
         },
 
         reserves: function() {
-            //Reports what it managed to send, and the window turns that into "In transit" or
-            //"None left" -- a button that silently did nothing read as broken.
             return commitReserves();
         },
 
@@ -1623,48 +1250,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
         let currentRound = getCurrentRound();
         switch (mode) {
-            case AdvanceMode.BEGIN: //nothing fought yet -- open the battle
-                //`removeCanvasIfExist()` USED TO BE HERE, and it is what made the dice vanish
-                //from the second battle of a session onwards. The stage is PERMANENT -- one
-                //`WebGLRenderer` for the life of the page, because a fresh one per roll leaks a
-                //GL context and browsers cap those at about sixteen -- so `ensureStage()`
-                //returns immediately once the renderer exists and never rebuilds the canvas.
-                //Tearing the canvas out of the DOM here therefore left the renderer drawing
-                //into a detached element for every battle after the first: the rules rolled,
-                //the clash panel filled in correctly, and nothing appeared on screen. It has no
-                //textual signature at all, which is why it survived -- nothing throws, and
-                //every number in the window is right.
-                //
-                //`dices.js` owns its own canvas and is the only thing allowed to remove it.
+            case AdvanceMode.BEGIN:
                 toggleDiceCanvas(true);
                 playSoundClip("button");
                 battleStart = false;
                 let hasSiegedBefore = historicWars.some((siege) => siege.warId === getCurrentWarId());
-                //Phase 5.8. `transferArmyOutOfTerritoryOnStartingInvasion()` was called here,
-                //under `if (!hasSiegedBefore)`. That is the ORIGINAL debit, from before Phase
-                //4.7 moved it to INVADE! (audit 5.1 AD) -- and 4.7 added the new call without
-                //removing this one, so every fresh battle debited its source territories
-                //TWICE: once when the attack was launched and again on the first "Begin War!"
-                //click. A player committing their whole garrison was left holding a NEGATIVE
-                //army, which then flowed into population, food consumption and defence for
-                //the rest of the game. A battle resumed from a siege was never affected,
-                //because `hasSiegedBefore` skipped it -- which is why no siege spec saw it.
                 setCurrentRound(currentRound + 1);
                 if (hasSiegedBefore) {
                     let war = historicWars.find((siege) => siege.warId === getCurrentWarId());
                     let siegeAttackArray = [];
                     siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
-                    siegeAttackArray.push(war.proportionsAttackers[0][0]); //add any territory to make it work
+                    siegeAttackArray.push(war.proportionsAttackers[0][0]);
                     for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
                         siegeAttackArray.push(war.attackingArmyRemaining[i]);
                     }
                     setFinalAttackArray(siegeAttackArray);
                     setupBattle(probability, getFinalAttackArray(), allTerritories());
                 }
-                //One state, one write. `advanceButtonState = 1` plus
-                //`setAdvanceButtonText(1, ...)` plus `retreatButtonState = 1` plus
-                //`setRetreatButtonText(...)` plus `enableDisableSiegeButton(1)` was five
-                //calls that all had to agree; it is one now, and the labels follow.
                 battleWindow.setBattleButtons({
                     advance: AdvanceMode.ROUND,
                     retreat: RetreatMode.SCATTER,
@@ -1672,39 +1274,24 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
                 roundCounterForStats++;
                 break;
-            case AdvanceMode.ROUND: //one round of dice per click
-                //Battle overhaul B.4. One press is one ROUND, and rounds run until a side breaks.
-                //
-                //What was here: a branch on `!firstSetOfRounds && currentRound === 0` that
-                //handled the "End Round" state between two sets of five, and two near-identical
-                //calls to processRound() that differed only in building a synthetic attack array
-                //out of the siege record so its first element could name the target. Both are
-                //gone -- there are no sets of five, and processRound() reads the target from the
-                //battle in the store.
-                //The label check that stood here -- `advanceButton.innerHTML ===
-                //"Start Attack!"` -- is gone with the two vocabularies that needed it. It
-                //asked a question about the battle by parsing the DOM, and it could never be
-                //true, because nothing ever wrote that string.
+            case AdvanceMode.ROUND:
                 playSoundClip("button");
                 battleWindow.setBattleButtons({
                     advance: AdvanceMode.ROUND,
                     retreat: RetreatMode.SCATTER
                 });
                 processRound({ attackerDigsIn: digInNextRound });
-                //Both controls are per-round. Digging in is spent the moment it is used, and the
-                //reserves button comes back once whatever is in transit has arrived.
                 digInNextRound = false;
                 battleWindow.setBattleButtons({
                     digInArmed: false,
                     midBattleControls: true,
-                    //Reserves come back the moment what was in transit has arrived.
                     reserves: pendingReserves().length === 0
                         ? ReservesState.READY : battleWindow.battleButtons().reserves
                 });
-                //B.6.4. The round that just resolved joins the log.
+
                 roundLog.update(currentBattle()?.records ?? []);
                 break;
-            case AdvanceMode.ACCEPT: //bank the win
+            case AdvanceMode.ACCEPT:
                 toggleDiceCanvas(false);
                 playSoundClip("button");
                 addUpAllTerritoryResourcesForCountryAndWriteToTopTable(false);
@@ -1712,10 +1299,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 battleUIDisplayed = false;
                 toggleBattleResults(true);
                 battleResultsDisplayed = true;
-                populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false); //won
-                closeBattle(); //B.3, as in the retreat handler
+                populateWarResultPopup(0, attackCountry, defendTerritory, "victory", false);
+                closeBattle();
                 break;
-            case AdvanceMode.SIEGE: //close the window; the siege stands
+            case AdvanceMode.SIEGE:
                 playSoundClip("button");
                 toggleBattleUI(false, true);
                 battleUIDisplayed = false;
@@ -1740,20 +1327,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
         assault: function() {
 
-        //"assault" i.e. return to battle state
-        //remove siege status
         let war = getSiegeObjectFromPath(attackTargetPath());
         setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 1);
         setArmyTextValues(war, 3, attackTargetPath().getAttribute("uniqueid"));
         setCurrentWarId(war.warId);
-        addRemoveWarSiegeObject(1, war.warId); // remove war from siegeArray and add to historic array
+        addRemoveWarSiegeObject(1, war.warId);
         removeSiegeImageFromPath(attackTargetPath());
-        //siege removed from the store above; `underSiege` follows (Phase 4.4)
-        //setup  battle to conquer territory
-        battleWindow.setBattleButtons({ siegeEnabled: false }); //no siege before a round
+        battleWindow.setBattleButtons({ siegeEnabled: false });
         let siegeAttackArray = [];
         siegeAttackArray.push(attackTargetPath().getAttribute("uniqueid"));
-        siegeAttackArray.push(war.proportionsAttackers[war.warId][0]); //add any territory to make the setupBattleUI function work, we have the individual proportions and territories in the proportionsAttackers part of playerSiegeWarsList
+        siegeAttackArray.push(war.proportionsAttackers[war.warId][0]);
         for (let i = 0; i < war.attackingArmyRemaining.length; i++) {
             siegeAttackArray.push(war.attackingArmyRemaining[i]);
         }
@@ -1761,11 +1344,6 @@ document.addEventListener("DOMContentLoaded", function() {
         setupBattleUI(siegeAttackArray);
         },
 
-        //Battle overhaul B.8.2, and this is a FIX rather than a move. The replay's Skip button
-        //was drawn but never wired: the label was written straight onto the advance button and
-        //the press still fell into the battle state machine, where it did whatever the last real
-        //battle had left behind. Skip is a mode of this machine now, so the press reaches the
-        //playback.
         skip: function() {
             defenderPlayback.skip(defencePlaybackDeps());
         }
@@ -1844,7 +1422,6 @@ export function findClosestPaths(targetPath) {
             };
         })
         .sort((a, b) => a.distance - b.distance);
-    // add targetPath to the beginning of the resultPaths array
     resultsPaths.unshift([targetPath, getPoints(targetPath), closestPaths[0].distance]);
 
     if (targetPath.getAttribute("isIsland") === "false") {
@@ -1903,7 +1480,6 @@ export function findClosestPaths(targetPath) {
         );
     }
 
-    // add paths with matching "data-name" attribute
     const matchingPaths = Array.from(paths).filter(
         (path) =>
             pathCountry(path) === pathCountry(targetPath) &&
@@ -1911,7 +1487,6 @@ export function findClosestPaths(targetPath) {
     );
     resultsPaths.push(...matchingPaths.map((path) => [path, getPoints(path), getMinimumDistance(path)]));
 
-    // Remove duplicates while keeping the first occurrence of an element that has the attribute value of "uniqueid" equal to the first element of the array
     const uniqueIds = new Set();
     const uniqueResultsPaths = [
         [resultsPaths[0][0], resultsPaths[0][1], resultsPaths[0][2]]
@@ -1982,18 +1557,13 @@ function getBboxCoordsAndPushUniqueID(path) {
     let centerBboxCoords = {};
     pathBBoxCoords = path.getBBox();
 
-    //calculate center of path's bounding box
     centerBboxCoords.x = pathBBoxCoords.width / 2 + pathBBoxCoords.x;
     centerBboxCoords.y = pathBBoxCoords.height / 2 + pathBBoxCoords.y;
 
-    // push uniqueid, x and y values as an array to bBoxArray
     bBoxArray.push([path.getAttribute("uniqueid"), centerBboxCoords.x, centerBboxCoords.y]);
     return bBoxArray;
 }
 
-// Replaces findMatchingCountries() from the old manualExceptionsForInteractions.js.
-// The exception table is now keyed by territory name and available synchronously
-// at import time, so there is no longer a race between it and the territory model.
 function manualExceptionPaths(targetPath, direction) {
     const territoryName = targetPath.getAttribute("territory-name");
     const names = direction === "add"
@@ -2013,7 +1583,7 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
     defs = svgMap.querySelector('defs');
     patterns = defs.querySelectorAll('pattern');
 
-    for (let i = 0; i < patterns.length; i++) { //remove all patterns before creating new ones
+    for (let i = 0; i < patterns.length; i++) { 
         defs.removeChild(patterns[i]);
     }
 
@@ -2023,14 +1593,14 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
 
     let count = 0;
 
-    manualExceptionsArray = manualExceptionPaths(targetPath, "add"); //set up manual exceptions for this targetPath
-    manualDenialArray = manualExceptionPaths(targetPath, "deny"); //set up denial countries
+    manualExceptionsArray = manualExceptionPaths(targetPath, "add");
+    manualDenialArray = manualExceptionPaths(targetPath, "deny");
 
-    destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray); //remove denied countries (manual exception)
+    destinationPathObjectArray = removeDeniedDestinations(destinationPathObjectArray, manualDenialArray);
 
-    if (manualExceptionsArray.length > 0) { //works correctly
+    if (manualExceptionsArray.length > 0) {
         for (let i = 0; i < manualExceptionsArray.length; i++) {
-            tempValidDestinationsArray.push(changeCountryColor(manualExceptionsArray[i], false, "pattern", count, attacking)[0]); //change color of touching country's
+            tempValidDestinationsArray.push(changeCountryColor(manualExceptionsArray[i], false, "pattern", count, attacking)[0]);
             count++;
         }
     }
@@ -2039,11 +1609,11 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         const targetName = pathCountry(targetPath);
         const destName = pathCountry(destinationPathObjectArray[i]);
 
-        if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) { //if touches borders then always draws a line
-            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
+        if (distances[i] < 1 && targetPath !== destinationPathObjectArray[i]) {
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]);
             count++;
-        } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) { //if another territory of same country, then change color
-            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
+        } else if (targetName === destName && targetPath !== destinationPathObjectArray[i]) {
+            tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]);
             count++;
         } else {
             for (let j = 0; j < destinationPathObjectArray.length; j++) {
@@ -2059,7 +1629,7 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
                 }
 
                 if ((destObjI.getAttribute("isisland") === "true" || targetPath.getAttribute("isisland") === "true") && destObjI !== targetPath) {
-                    tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]); //change color of touching countries
+                    tempValidDestinationsArray.push(changeCountryColor(destinationPathObjectArray[i], false, "pattern", count, attacking)[0]);
                     count++;
                 }
 
@@ -2119,7 +1689,7 @@ function getClosestPointsDestinationPaths(coordinate, paths) {
 }
 
 function changeCountryColor(pathObj, isManualException, newRgbValue, count, attacking) {
-    let tempAttackingDestinationArray = []; //only to get attacking destinations
+    let tempAttackingDestinationArray = [];
 
     let originalColor = pathObj.getAttribute("fill");
     let rgbValues = originalColor.match(/\d{1,3}/g);
@@ -2136,10 +1706,9 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         hoveredNonInteractableAndNonSelectedTerritory = false;
     }
 
-    if (newRgbValue.startsWith("pattern")) { //if a pattern
+    if (newRgbValue.startsWith("pattern")) {
         const fillColor = pathObj.getAttribute('fill');
 
-        // create a new pattern element
         const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
         pattern.setAttribute("id", dynamicIds.diagonalLines(count));
         pattern.setAttribute('width', '20');
@@ -2147,7 +1716,6 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         pattern.setAttribute('patternUnits', 'userSpaceOnUse');
         pattern.setAttribute('patternTransform', 'rotate(135)');
 
-        // create the first line element with the stroke color matching the fill color
         const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line1.setAttribute('x1', '0');
         line1.setAttribute('y1', '5');
@@ -2157,7 +1725,6 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         line1.setAttribute('stroke', fillColor);
         pattern.appendChild(line1);
 
-        // create the second line element with a constant white stroke color
         const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line2.setAttribute('x1', '0');
         line2.setAttribute('y1', '15');
@@ -2167,10 +1734,8 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         line2.setAttribute('stroke', playerColour());
         pattern.appendChild(line2);
 
-        // add the pattern element to the defs section of the SVG
         defs.appendChild(pattern);
 
-        // apply the pattern to the path element
         if (!attacking) {
             pathObj.setAttribute('fill', 'url(#' + pattern.getAttribute("id") + ')');
         } else {
@@ -2180,11 +1745,8 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         pathObj.setAttribute("fill", newRgbValue);
     }
 
-    // Push the original color to the array
-
     currentlySelectedColorsArray.push([pathObj, originalColor, isManualException]);
 
-    // Remove any elements containing new value that was passed in
     let lastElem = currentlySelectedColorsArray[currentlySelectedColorsArray.length - 1][1];
     if (!newRgbValue.startsWith("url")) {
         newRgbValue = "rgb(" + newRgbValue + ")";
@@ -2193,7 +1755,7 @@ function changeCountryColor(pathObj, isManualException, newRgbValue, count, atta
         }
     }
 
-    return tempAttackingDestinationArray; //only to extract attacking destinations
+    return tempAttackingDestinationArray;
 }
 
 export function setFlag(flag, place) {
@@ -2291,7 +1853,6 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
         } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
             if (mapMode === 2) {
                 exitPhysicalMap();
-                //reset colours
 
             }
             if (arrayOfSelectedCountries.length > 0) {
@@ -2307,34 +1868,16 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
     }
 }
 
-//Phase 6.7. saveMapColorState(), restoreMapColorState(), colorByStandardColoring(),
-//generateRandomRGB(), convertHexValueToRGBOrViceVersa() and generateDistinctRGBs() all
-//stood here. The first two are replaced by repaintMap() -- see src/ui/map/MapView.js --
-//and the rest moved to src/ui/map/colouring.js unchanged.
-
 function setStrokeWidth(path, stroke) {
     path.setAttribute("stroke-width", stroke)
 }
 
 export function enableNewGameButton() {
     mainMenu.setNewGameEnabled(true);
-    //Phase 7.3. The same prerequisite: a load patches the seeded territories, so an
-    //autosave can only be offered once there are territories to patch.
     offerStoredAutosave();
 }
 
-/**
- * The N strongest countries, strongest first.
- *
- * Two things want this and they must agree: the selection lock below, and the GREAT_POWERS
- * victory condition, whose whole design is that its targets are the same five countries the
- * player is forbidden to play as. `GREAT_POWERS_REQUIRED` in `balance.js` and
- * `COUNTRY_GREYOUT_RANK` here are the two halves of that number, kept apart only because
- * `config/` may not import the UI -- so this function is where they are reconciled.
- */
 export function strongestCountries(count = COUNTRY_GREYOUT_RANK) {
-    //calculateTerritoryStrengths already returns this sorted strongest-first; sorting a copy
-    //keeps that from being a silent assumption. See audit 5.2 Z.
     return [...countryStrengthsArray]
         .sort((a, b) => b[1] - a[1])
         .slice(0, count)
@@ -2343,36 +1886,14 @@ export function strongestCountries(count = COUNTRY_GREYOUT_RANK) {
 
 function greyOutTerritoriesForUnselectableCountries() {
     const unselectableCountries = new Set(strongestCountries());
-
-    //Phase 4.4: which countries are unselectable is state, not a DOM attribute. The
-    //fill stays here because it is presentation; `greyedOut` is rendered from the set.
     setGreyedOutCountries(unselectableCountries);
     paintLockedCountries();
 }
-
-//lockedCountryFill() and paintLockedCountries() moved to src/ui/map/ in Phase 6.7 --
-//the muting to colouring.js, the pass over the map to MapView.js. paintLockedCountries()
-//no longer needs a colour snapshot to find a country's true colour: colouring.js keeps
-//the palette it painted at bootstrap.
 
 function setAllGreyedOutAttributesToFalseOnGameStart() {
     clearGreyedOutCountries();
 }
 
-/**
- * Set the move-phase button from the territory the player just clicked.
- *
- * Phase 6.6. The first hundred lines of this function were five blocks that each
- * wrote a label, removed four of the five background classes, added a fifth, set
- * `disabled` and set `display` -- with the decision and the writing interleaved. The
- * decision is `deriveMoveButtonState()` now, which is pure and unit-tested; this
- * applies the result and performs the one side effect it cannot: arming the clicked
- * territory as an attack or a siege target.
- *
- * `xButtonClicked` means the transfer/attack window was dismissed rather than a
- * territory selected. It is still a parameter rather than a second function because
- * every call site passes it, and splitting them is a rename this phase does not need.
- */
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
     moveButton.hide();
     transferAttackButtonDisplayed = false;
@@ -2381,13 +1902,11 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         if (xButtonFromWhere === MoveMode.TRANSFER) {
             applyMoveButtonState(stateAfterWindowClosed(MoveMode.TRANSFER));
         } else if (xButtonFromWhere === MoveMode.ATTACK) {
-            //audit 5.2 AE. Cancelling un-arms the target, so there is no button.
             cancelAttackSelection();
         }
         return;
     }
 
-    //An enemy territory that is not a valid destination is not a selection at all.
     const inRange = Boolean(
         lastPlayerOwnedValidDestinationsArray?.some(
             destination => destination.getAttribute("uniqueid") === path.getAttribute("uniqueid")
@@ -2398,7 +1917,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     }
 
     if (pathIsPlayerOwned(path)) {
-        //Selecting one of your own territories abandons any attack being composed.
         clearAttackTarget();
     }
 
@@ -2428,7 +1946,6 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
     recordMoveButtonContext(playerOwnedTerritories, territoryComingFrom);
 }
 
-/** How many turns of its post-conquest lockout this territory still has to serve. */
 function lockoutTurnsRemaining(path) {
     const uniqueId = path.getAttribute("uniqueid");
     for (const entry of playerTurnsDeactivatedArray) {
@@ -2439,7 +1956,6 @@ function lockoutTurnsRemaining(path) {
     return undefined;
 }
 
-/** Write a derived state onto the button. Nothing else touches its classes. */
 function applyMoveButtonState(state) {
     if (!state || !state.visible) {
         moveButton.hide();
@@ -2456,13 +1972,6 @@ function applyMoveButtonState(state) {
     }
 }
 
-//The context the button's click handler needs, recorded when the selection is made.
-//Phase 6.6: these were closed over by a handler that was RE-CREATED on every
-//selection, and `button.removeEventListener("click", transferAttackClickHandler)`
-//could never remove the previous one -- each call built a new function object, so the
-//listeners accumulated and one click fired all of them. That is what
-//`eventHandlerExecuted` and the four `setTimeout(..., 200)` calls were suppressing.
-//One listener, installed once, reading these. The latch and the timers are gone.
 let moveButtonOwnedTerritories = [];
 let moveButtonSource = null;
 
@@ -2471,9 +1980,6 @@ function recordMoveButtonContext(ownedTerritories, source) {
     moveButtonSource = source;
 }
 
-/**
- * Install the move-phase button's listeners. Called once, from bootstrap.
- */
 function installMoveButtonHandlers() {
     const button = moveButton.element();
 
@@ -2524,7 +2030,7 @@ function installMoveButtonHandlers() {
                         }
                         return;
 
-                    } else if (transferAttackButtonState === 2) { //click view siege button //button says VIEW SIEGE
+                    } else if (transferAttackButtonState === 2) {
                         setValuesForBattleFromSiegeObject(lastClickedPath, false);
                         battleWindow.setBattleButtons({ third: ThirdButton.ASSAULT });
                         toggleBattleUI(true, false);
@@ -2570,27 +2076,9 @@ function installMoveButtonHandlers() {
                             attackTextCurrentlyDisplayed = false;
                             setupBattle(probability, getFinalAttackArray(), allTerritories());
                             setupBattleUI(getFinalAttackArray());
-                            //ORDER MATTERS, and it did not before. The siege offer is decided
-                            //AFTER `setupBattleUI()`, because that call now resets the whole
-                            //bottom bar to the state a fresh attack opens in -- which includes
-                            //`siegeEnabled: false`. Deciding it first, as this block used to,
-                            //worked only while `enableDisableSiegeButton()` wrote a colour
-                            //straight onto the element and nothing else ever touched it; against
-                            //a derived bar it is a write that the next line silently discards.
-                            //The symptom is not subtle: Siege Territory is inert on every attack,
-                            //so a siege cannot be laid at all.
-                            //
-                            //A siege is offered when the odds are at or ABOVE the threshold, not
-                            //below it -- it commits an army for many turns, so it is for a target
-                            //you have a real chance of finishing, not a hopeless one. The AI
-                            //agrees (`ai/goals.js` pushes a Siege goal on the same comparison).
                             battleWindow.setBattleButtons({
                                 siegeEnabled: probability >= PROBABILITY_THRESHOLD_FOR_SIEGE
                             });
-                            //audit 5.1 AD: take the committed units out of the territories
-                            //that supplied them, now, rather than reconciling when the war
-                            //resolves. Before Phase 4.7 there was no single territory to
-                            //debit -- the battle ran on copies.
                             transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
                             setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);
                             battleUIDisplayed = true;
@@ -2670,21 +2158,6 @@ function installMoveButtonHandlers() {
     });
 }
 
-/**
- * Un-arm the attack the player was composing.
- *
- * audit 5.2 AE, closed in Phase 6.7. Cancelling used to close the window, put the
- * move button back to ATTACK and leave the target exactly as it was: still filled in
- * the player's colour, still dashed, and still carrying the battle marker -- a map
- * saying an attack was under way when none was. The marker was the visible half; the
- * fill and the stroke were the other two.
- *
- * Cancel now means what it says. The target is cleared -- which removes the marker,
- * because markers.js owns both as one fact -- and `repaintMap()` puts the fill and the
- * stroke back from the store. The move button goes away with them: the player clicks
- * the territory again to arm a fresh attack, which is one click and an honest map
- * rather than no click and a lying one.
- */
 function cancelAttackSelection() {
     clearAttackTarget();
     attackTextCurrentlyDisplayed = false;
@@ -2720,8 +2193,6 @@ function setTerritoryForAttack(territoryToAttack) {
 }
 
 function setTerritoryForSiege(territoryToSiege) {
-    //A siege target carries a siege overlay already; a second image on the same
-    //territory is what audit 5.3 AV was.
     setAttackTarget(territoryToSiege, { marker: false });
     moveButton.showDestination(
         attackTargetPath().getAttribute("territory-name"),
@@ -2739,24 +2210,7 @@ function setTerritoryForSiege(territoryToSiege) {
     territoryToSiege.style.strokeDasharray = "10, 5";
 }
 
-//addImageToPath() stood here. Its `siege === 1` and `siege === 2` branches were dead
-//from Phase 5.8, when marker rendering moved to src/ui/siegeOverlay.js; what was left
-//was the attack marker, which src/ui/map/markers.js now draws from the one target it
-//owns. Phase 6.7.
-
 export function removeSiegeImageFromPath(ai, path) {
-    //BUG FIX, known-issues AM. This used to ask getHistoricWarObject() for the siege and
-    //then read `.defendingTerritory.territoryName` off whatever came back -- but that
-    //function returns the STRING "Error - Siege not found in either array..." when the
-    //siege is not in the historic array yet, and a string has no `defendingTerritory`. The
-    //resulting `Cannot read properties of undefined` escaped the turn loop and froze the
-    //game on AI MOVING..., intermittently, depending on whether a siege ended before it had
-    //been recorded.
-    //
-    //The lookup was never needed. The only thing taken from the siege was the name of the
-    //territory being besieged, and that is the path this function was handed --
-    //`territory-name` is identity, not state, so reading it here is exactly right (see the
-    //SVG-attributes note in CLAUDE.md). No lookup, no sentinel, no failure mode.
     const territoryName = path.getAttribute("territory-name");
     if (!territoryName) {
         console.log("removeSiegeImageFromPath: path carries no territory-name; nothing to remove");
@@ -2819,7 +2273,6 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
         document.getElementById(ids.percentageAttack).style.display = "none";
         document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "none";
         document.getElementById(ids.colorBarAttackOverlayGreen).style.display = "none";
-        //A transfer has no fight in it, so no dice.
         attackPreview.clear();
         document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "0px";
 
@@ -2844,8 +2297,6 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     } else if (buttonState === 1) {
         document.getElementById(ids.percentageAttack).style.display = "flex";
         document.getElementById(ids.colorBarAttackUnderlayRed).style.display = "flex";
-        //Cleared rather than shown: nothing is allocated yet, and the preview draws itself the
-        //moment the first unit is committed.
         attackPreview.clear();
         document.getElementById(ids.xButtonTransferAttack).style.marginLeft = "47px";
         attackingOrTransferring = "Attacking:";
@@ -2943,7 +2394,6 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
     const fromHeading = document.getElementById(ids.fromHeadingString);
     const territoryTextString = document.getElementById(ids.territoryTextString);
 
-    // Check if territory is "transferring" and set the text color accordingly
     if (territory === "transferring") {
         territoryTextString.innerHTML = "please select an option...";
         territoryTextString.style.color = "rgb(221, 107, 107)";
@@ -2996,7 +2446,6 @@ function setTransferToTerritory(listOfTerritories) {
         });
     });
 }
-// noinspection JSUnusedGlobalSymbols
 export function getLastClickedPath() {
     return lastClickedPath;
 }
@@ -3033,8 +2482,6 @@ export function setAttackProbabilityOnUI(probability, situation) {
     }
 }
 
-//setCurrentMapColorAndStrokeArrayFromExternal() is gone with the snapshot (Phase 6.7).
-
 export function setTerritoryAboutToBeAttackedFromExternal(value) {
     setAttackTarget(value);
 }
@@ -3050,24 +2497,12 @@ function removeDeniedDestinations(destinationPathObjectArray, manualDenialArray)
     return filteredDestinations;
 }
 
-//----------------------------------------TOGGLE UI ELEMENTS SECTION--------------------------------------------
-
 function toggleUIButton(makeVisible) {
     if (makeVisible) {
         document.getElementById(ids.uiButtonContainer).style.display = "block";
     } else {
         document.getElementById(ids.uiButtonContainer).style.display = "none";
     }
-    //Phase 7.4. The activity button is the third item in the same left-hand column
-    //and appears at the same moment as the globe above it, so it is toggled from
-    //here rather than from all of this function's call sites -- the same reasoning
-    //that keeps the music button inside toggleMapModeButton(). Unlike the music
-    //button it has no exception: there is nothing to report before a game starts.
-    //
-    //Taking the button down takes the PANEL down with it. Every caller that hides
-    //this button is putting something in front of the map -- the menu, a battle, a
-    //transfer window -- and a feed left floating over a battle screen is the same
-    //class of bug as the autosave indicator flashing over the map chrome.
     activityPanel.setButtonVisible(makeVisible);
     if (!makeVisible) {
         activityPanel.close();
@@ -3080,28 +2515,9 @@ function toggleMapModeButton(makeVisible) {
     } else {
         document.getElementById(ids.mapModeContainer).style.display = "none";
     }
-    //The music button shares every one of this button's rules but one, so it is
-    //still toggled from here rather than from all twelve of this function's call
-    //sites -- that is how the two would drift apart. The exception is stated at
-    //the three places that need it: see toggleAudioButton().
     toggleAudioButton(makeVisible);
 }
 
-/**
- * Show or hide the music button.
- *
- * It follows the rest of the map chrome -- down behind the menu, down behind a
- * battle or a transfer window -- with one exception, which is the whole reason it
- * has a name of its own. The continent-view and territory buttons do not exist
- * until a country has been chosen. The music button does: it is up from the first
- * screen the player sees, because someone who wants the music off wants it off
- * while they are choosing a country too, and the alternative was leaving the game
- * to find the setting in the menu.
- *
- * That exception costs three explicit calls -- one where the selection screen goes
- * up, one where a restart puts it back, and one where the in-game menu closes over
- * it -- because `toggleMapModeButton(false)` is what the selection screen runs.
- */
 function toggleAudioButton(makeVisible) {
     audioPanel.setButtonVisible(makeVisible);
 }
@@ -3124,13 +2540,6 @@ export function toggleUIMenu(makeVisible) {
         drawUITable(infoTable.tableElement(), 0);
         svg.style.pointerEvents = 'none';
         uiCurrentlyOnScreen = true;
-        //The globe button STAYS UP while the panel is open, and its click handler
-        //already reads `uiCurrentlyOnScreen` -- so the button that opens the
-        //territory panel is now also the button that closes it. It used to be
-        //hidden here, which left the X in the corner of the panel as the only way
-        //out and made the globe a one-way door. `#UIButtonContainer` sits at
-        //z-index 9000, above the panel, so it is reachable rather than merely
-        //present.
         toggleUIButton(true);
         uiButtonCurrentlyOnScreen = true;
         toggleMapModeButton(false);
@@ -3200,12 +2609,9 @@ function toggleTransferAttackWindow(turnOnTransferAttackWindow) {
         svg.style.pointerEvents = 'none';
     } else if (!turnOnTransferAttackWindow) {
         transferAttackWindow.hide();
-        //B.6.7. Closing the window forgets the allocation, so the preview must not survive it --
-        //otherwise the next attack opens showing the last one's dice.
         attackPreview.clear();
         svg.style.pointerEvents = 'auto';
     }
-    //set height of colorBars for attack
     const sourceElement = document.getElementById(ids.titleTransferAttackWindow);
     const redBar = document.getElementById(ids.colorBarAttackUnderlayRed);
     const greenBar = document.getElementById(ids.colorBarAttackOverlayGreen);
@@ -3279,15 +2685,10 @@ export function toggleTransferAttackButton(turnOnButton, aiTurn) {
 }
 
 function toggleUIToAppearAtStartOfTurn(uiAppearsAtStartOfTurn) {
-    //The button used to be emptied to say "off", which is indistinguishable from a
-    //button that failed to render. It always shows its icon now and the component
-    //owns how the state reads -- see `InfoTable.setAppearAtStartOfTurn()`.
     const next = !uiAppearsAtStartOfTurn;
     infoTable.setAppearAtStartOfTurn(next);
     return next;
 }
-
-//----------------------------------------END OF TOGGLE UI ELEMENTS SECTION-----------------------------------
 
 function setupSiegeUI(territory) {
     battleUIState = 1;
@@ -3298,50 +2699,27 @@ function setupSiegeUI(territory) {
 
     let probBarAdded = false;
 
-    //SET FLAGS
     setFlag(attackerCountry, 4);
     setFlag(defenderTerritory, 5);
 
-    //SET TITLE TEXT
     setTitleTextBattleUI(attackerCountry, defenderTerritory, 1);
 
     document.getElementById(ids.battleUITitleTitleCenter).innerHTML = "Sieges";
 
     prepareProbabilityBar(1, probBarAdded);
 
-    //SET ARMY TEXT VALUES
     setArmyTextValues(siegeObjectElement, 2, siegeObjectElement.defendingTerritory.uniqueId);
 
-    //SET DEFENSE BONUS VALUE
     document.getElementById(ids.mountainDefenseText).innerHTML = siegeObjectElement.defendingTerritory.mountainDefenseBonus;
     document.getElementById(ids.defenseBonusText).innerHTML = siegeObjectElement.defendingTerritory.defenseBonus;
-    //SET PROD POP AND FOOD VALUES IN SIEGE SCREEN
     document.getElementById(ids.prodPopText).innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.productiveTerritoryPop, 0);
     document.getElementById(ids.foodText).innerHTML = formatNumbersToKMB(siegeObjectElement.defendingTerritory.foodCapacity, 0);
 
-
-    //SET SIEGE TURNS TEXT
     setSiegeTurnsText(siegeObjectElement);
-
-    //Battle overhaul B.9.1. The siege screen speaks the same dice vocabulary as open battle, so
-    //the two halves of the war model read as one game.
-    //
-    //It is PRESENTATION of the existing siege maths, not a second model. `siegeHitProbability()`
-    //is the number a siege turn is actually scored on, and it is fed straight through the SAME
-    //band table open battle uses -- so "four dice against two" means the same thing on both
-    //screens. The siege rules in src/rules/military/siege.js are untouched; a siege stays a slow
-    //per-turn squeeze, which is what makes it a different strategic option rather than a slow
-    //attack.
     showSiegeLedger(siegeObjectElement);
-
-    //SET SIEGE ROW 4
     let siegeScore = calculateSiegeScore(siegeObjectElement);
     setSiegeScoreText(siegeScore, 0);
     document.getElementById(ids.battleUIRow4Col1TextProbabilityTurnsSiege).style.color = "rgb(255,255,255)";
-    //The same expression used to be written out here as well as in the siege rules, and
-    //the two parted company the moment the attacker's advantage was applied to one of
-    //them: the screen would have told the player a siege was losing while the rule
-    //scored it as winning. One function, one answer.
     let difference = scoreDifferenceFor(siegeScore, siegeObjectElement.defendingTerritory);
     if (difference <= 0) {
         document.getElementById(ids.battleUIRow4Col1TextSiegeScore).style.color = "rgb(245,128,128)";
@@ -3353,12 +2731,6 @@ function setupSiegeUI(territory) {
 
     setRow4(1);
 
-    //INITIALISE BUTTONS
-    //Battle overhaul B.6.6. Eleven statements -- three displays, three widths, two labels, two
-    //state numbers and a colour literal -- are one call. The widths in particular were written
-    //out as 33/33/34 here and 50/50 in `setupBattleUI()`, so adding Dig In and Reserves in B.7
-    //meant a third hand-written set; `battleBarWidths()` shares the bar between whichever
-    //buttons are actually up.
     roundLog.reset();
     battleWindow.resetForSiege();
 }
@@ -3371,12 +2743,6 @@ function setupBattleUI(attackArray) {
         battleUIState = 0;
     }
     setCurrentRound(0);
-
-    //Battle overhaul B.10.2 / B.6.6. Three dead classes (`battleUIRowButtonsGreyBg`,
-    //`...RedBg`, `...GreenBg` -- none of them declared anywhere in style.css), two colour
-    //literals and two `disabled` writes stood here. The bar's whole appearance is derived from
-    //one state now, and `resetForAttack()` is the state a fresh attack opens in: Begin War /
-    //Retreat, no siege, no mid-battle controls, no last push.
     digInNextRound = false;
     roundLog.reset();
     battleWindow.resetForAttack();
@@ -3455,19 +2821,8 @@ function setupBattleUI(attackArray) {
     setSiegeScoreText(0, 1);
     setRow4(0);
 
-    //INITIALISE BUTTONS -- see `resetForAttack()` at the top of this function. Which buttons
-    //are up and how wide they are is derived from the window's state, so nothing is written here.
-
-    //The bar was reset at the top of this function; nothing further to say about it here.
-
     attackCountry = getTerritory(attackArray[1])?.dataName;
     defendTerritory = getTerritory(attackArray[0]);
-
-    //A deliberate snapshot, and the one copy of a territory Phase 4.7 keeps. The siege and
-    //historic-war objects built from it take only its `uniqueId` and then reference the live
-    //territory; what they read off this copy are the `startingDefenseBonus` /
-    //`startingFoodCapacity` / `startingProdPop` / `startingTerritoryPop` values, which have
-    //to be the numbers as they were when the battle opened. Nothing writes through it.
     originalDefendingTerritory = defendTerritory ? { ...defendTerritory } : null;
 }
 
@@ -3600,28 +2955,16 @@ export function reduceKeywords(str) {
         'central': 'C.'
     };
 
-    // Split the string into an array of words
     const words = str.split(' ');
 
-    // Iterate over each word and apply reduction if it's a keyword
     const reducedWords = words.map((word) => {
         const lowercaseWord = word.toLowerCase();
         const reducedWord = keywords[lowercaseWord] || word;
         return reducedWord;
     });
 
-    // Join the reduced words back into a string
     return reducedWords.join(' ');
 }
-
-//Battle overhaul B.6.6. `setRetreatButtonText()`, `setAdvanceButtonText()`,
-//`setAdvanceButtonState()` and `setRetreatButtonState()` stood here: two `switch`es mapping a
-//number to a string, and two setters for a DIFFERENT number that decided behaviour. Every call
-//site wrote one of each and they agreed only by convention, which is why case 5 of the label
-//switch ("End Round") had to be kept after B.4 made it unreachable -- deleting it would have
-//shifted the numbering of the cases either side. Both vocabularies are one state in
-//src/ui/battle/buttonState.js now, the labels are derived from it, and the state machine is
-//unit-tested in `tests/unit/ui-battle-buttons.spec.js`.
 
 export function populateWarResultPopup(situation, flagStringAttacker, territoryDefender, defeatType, arrayIfArrest) {
 
@@ -3711,10 +3054,9 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
     let navalCount;
 
     if (leftSiegeByArrest) {
-        attackArray.unshift(0, 0); //format array to work in loop below
+        attackArray.unshift(0, 0);
     }
 
-    // Get attacking army
     for (let i = 1; i < attackArray.length; i += 5) {
         infantryCount = attackArray[i + 1];
         assaultCount = attackArray[i + 2];
@@ -3727,7 +3069,6 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         totalAttackingArmy[3] += navalCount;
     }
 
-    // Get defending army
     if (leftSiegeByArrest) {
         totalDefendingArmy[0] = siegeObject.defendingTerritory.infantryForCurrentTerritory;
         totalDefendingArmy[1] = siegeObject.defendingTerritory.useableAssault;
@@ -3741,7 +3082,6 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
     }
 
     let attackingSurvived = [0, 0, 0, 0];
-    // Calculate losses and survivors
     let attackingLosses;
     if (!attackingArmyRemaining.includes("All")) {
         attackingLosses = totalAttackingArmy.map((count, index) => count - attackingArmyRemaining[index]);
@@ -3749,8 +3089,6 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
         attackingLosses = ["-", "-", "-", "-"];
     }
 
-
-    //"not an outright defeat", asked of the window's state rather than of a loose number.
     if ((battleWindow.battleButtons().retreat !== RetreatMode.DEFEAT && situation === 1)
         || (situation === 0)) {
         attackingSurvived = attackingArmyRemaining;
@@ -3934,16 +3272,12 @@ function setBattleResultsTextValues(attackArray, attackingArmyRemaining, situati
 export function setDefendingTerritoryCopyStart(object) {
     return defendingTerritoryCopyStart = {
         ...object
-    }; //copies object not just reference it
+    };
 }
 
 export function setDefendingTerritoryCopyEnd(array) {
-    return defendingTerritoryCopyEnd = [...array]; //copies object not just reference it
+    return defendingTerritoryCopyEnd = [...array];
 }
-
-//Battle overhaul B.10.2. `enableDisableSiegeButton()` took 0 for enable and 1 for disable --
-//backwards from every truthiness convention in the file -- and recorded the answer as a
-//background colour. It is `battleWindow.setBattleButtons({ siegeEnabled })` now.
 
 export function getSiegeObjectFromPath(territory) {
     if (territory.getAttribute("territory-name") in playerSiegeWarsList) {
@@ -3955,14 +3289,6 @@ export function getSiegeObjectFromPath(territory) {
     }
 }
 
-/**
- * The historic war recorded against this path's territory, or null.
- *
- * Returns NULL when there is none. It used to return the string
- * "Error - Siege not found in either array in getHistoricWarObject()", which is not a war
- * and does not read like one -- its only caller dereferenced it and froze the game
- * (known-issues AM). A missing siege is an ordinary answer here, not an error.
- */
 export function getHistoricWarObject(ai, territory) {
     const territoryName = territory.getAttribute("territory-name");
     const wars = ai ? historicAiWars : historicWars;
@@ -3974,7 +3300,6 @@ function prepareProbabilityBar(siegeOrAttack, probBarAdded) {
     const battleUIRow2 = document.getElementById(ids.battleUIRow2);
     const probabilityColumnBox = document.getElementById(ids.probabilityColumnBox);
 
-    //B.6.3: the ledger is about open battle's dice. A siege has none, so it goes.
     forceLedger.show(siegeOrAttack === 0);
 
     if (siegeOrAttack === 0) { // Attack
@@ -4012,7 +3337,6 @@ function setSiegeTurnsText(siegeObject) {
 
 
 function setRow4(siegeOrAttack) {
-    //get appropriate columns
     const row4RightColumnA = document.getElementById(ids.battleStatsProdPopIcon);
     const row4RightColumnB = document.getElementById(ids.battleStatsProdPopValue);
     const row4RightColumnC = document.getElementById(ids.battleStatsFoodIcon);
@@ -4062,23 +3386,7 @@ function setRow4(siegeOrAttack) {
     }
 }
 
-/**
- * Leave the menu for the country-selection screen.
- *
- * Phase 7.2 moved this out of the `DOMContentLoaded` closure: New Game is no longer
- * the only caller, because a restart from inside a running game has to come back
- * through here after the world has been reset. The one line that stopped it moving
- * was a write to the phase bar's element, which the closure happened to have a
- * reference to; the bar owns that now (`phaseBar.setVisible`).
- */
 function resetGameState() {
-    //Phase 5.8. The picker's markup value and the store's default player colour were
-    //two separate facts and they disagreed: the input shipped `#000000` while
-    //`playerColour()` was white. Any `change` on that input -- including the one the
-    //browser fires when the player opens the native colour dialog and accepts what is
-    //already selected -- therefore adopted BLACK, and the next country they clicked was
-    //painted the same colour as the map strokes, so it read as a hole rather than a
-    //selection. Seeding the input from the store is what keeps the two in step.
     countrySelect.setColour(convertHexValueToRGBOrViceVersa(playerColour(), 1));
     toggleBottomTableContainer(true);
     mainMenu.hide();
@@ -4086,70 +3394,32 @@ function resetGameState() {
     menuState = false;
     countrySelectedAndGameStarted = false;
     selectCountryPlayerState = true;
-    //The music button is up from here on, ahead of the two chrome buttons that wait
-    //for a country to be picked.
+
     toggleAudioButton(true);
     phaseBar.setVisible(true);
     bottomLeftPanelWithTurnAdvanceCurrentlyOnScreen = true;
     menuButton.show();
 }
 
-/**
- * Put the player's progress towards the chosen goal on the phase bar.
- *
- * `victoryProgress().label` verbatim, which is the point: it is the exact string the AI
- * reads its own progress from, so the player and the country trying to beat them cannot be
- * looking at two different numbers.
- *
- * Called from the `TURN_CHANGED` subscription below and, addressed rather than incidentally,
- * from the load path -- anything made correct as a side effect of the country-selection
- * screen breaks a loaded game, because a load never sees that screen.
- *
- * Two cases produce an empty line rather than a bad one: spectator mode, where there is no
- * player whose progress could be described, and the stretch before a country has been chosen.
- */
 export function refreshGoalLine() {
     const country = playerCountryName();
     if (isAiGameActive() || !country) {
         phaseBar.setGoalLine("");
         return;
     }
-    //`worldStandings()` is one pass over the map and this runs once a turn, which is the
-    //same cost the AI already pays for its own copy.
     phaseBar.setGoalLine(victoryProgress(country).label);
 }
 
-//The turn boundary is where progress is worth restating: it moves when territory changes
-//hands and nothing else. A load emits the same event when the restored turn differs from
-//the one on screen, which covers most loads; `resumeSavedGame()` calls the function
-//directly for the ones it does not.
 onStateEvent(Events.TURN_CHANGED, () => refreshGoalLine());
 
-/**
- * Is there a game (or a country selection) behind the menu to go back to?
- *
- * Phase 7.2. `outsideOfMenuAndMapVisible` has always meant this; it now has a name
- * that says so, because three things ask the question -- Escape, the hamburger and
- * the Resume button.
- */
 export function inGameMenuAvailable() {
     return outsideOfMenuAndMapVisible;
 }
 
-/**
- * Put the main menu up over a running game.
- *
- * Phase 7.2 split this out of `setUnsetMenuOnEscape()`, which was one function
- * containing both halves of a toggle behind a keycode test. Escape, the hamburger
- * button and (in the other direction) Resume Game are three ways to make the same
- * two transitions, and a keycode is not one of the things they have in common.
- */
 export function openInGameMenu() {
     if (!outsideOfMenuAndMapVisible || menuState) {
         return;
     }
-    //Resume means "go back to what is behind this menu", so it is available exactly
-    //when there is something behind it -- which there is, or we would have returned.
     mainMenu.setResumeLabel("Resume Game");
     mainMenu.setResumeEnabled(true);
     menuButton.hide();
@@ -4165,9 +3435,6 @@ export function openInGameMenu() {
     uiButtonCurrentlyOnScreen = false;
     toggleMapModeButton(false);
     mapModeButtonCurrentlyOnScreen = false;
-    //Both floating panels. The audio one goes with the button that owns it, inside
-    //toggleMapModeButton(); the swatch grid has no owner to follow, so it is said
-    //here. Neither has a scrim, so neither closes itself.
     countrySelect.closePicker();
     toggleUpgradeMenu(false);
     toggleBuyMenu(false);
@@ -4178,7 +3445,6 @@ export function openInGameMenu() {
     toggleAiDialogue(false);
 }
 
-/** Take the menu down and hand the map back. Resume Game and Escape both call it. */
 export function closeInGameMenu() {
     if (!outsideOfMenuAndMapVisible || !menuState) {
         return;
@@ -4228,8 +3494,6 @@ export function closeInGameMenu() {
     if (mapModeButtonCurrentlyOnScreen) {
         toggleMapModeButton(true);
     } else if (selectCountryPlayerState) {
-        //No map-mode button on the selection screen, so nothing above puts the music
-        //button back -- but it was up before the menu opened and has to be up after.
         toggleAudioButton(true);
     }
     if (buyWindowCurrentlyOnScreen) {
@@ -4247,21 +3511,14 @@ export function closeInGameMenu() {
     toggleBottomTableContainer(true);
     mainMenu.hide();
 
-    //Everything above has just tried to put the player's chrome back, and a
-    //spectated game has no player: no phase bar, no END TURN, no territory panel.
-    //Re-applying the spectator chrome here is one call at the end rather than an
-    //`isAiGameActive()` test threaded through thirty lines of restore logic.
     if (isAiGameActive()) {
         applySpectatorChrome();
     }
 
     if (lastClickedPath.getAttribute("d") !== "M0 0 L50 50") {
         selectCountry(lastClickedPath, true);
-        //Re-appending the path puts it over the marker, so the marker is drawn again.
         raiseAttackMarker();
     }
-
-    //add siege image back in here after escaping out of menu - for loop and check svg for underSiege
 
     menuState = false;
 }
@@ -4277,36 +3534,7 @@ function setUnsetMenuOnEscape(e) {
     }
 }
 
-//--- New Game, Resume and Save / Load (Phase 7.2 / 7.3) ---------------------
-//
-//The four transitions the menu can make, in one place. Everything below is
-//sequencing -- what the world does is src/platform/storage.js, what the map does is
-//src/ui/map/, and what a turn does is the engine.
-//
-//The reason these are not four one-liners is `outsideOfMenuAndMapVisible`: the menu
-//is the same menu before and during a game, so every one of them has to ask which
-//it is. That flag is the answer, and `inGameMenuAvailable()` is its name.
-
-/**
- * Start over.
- *
- * From the title screen this is what it always was -- show the country-selection
- * screen. From inside a running game it is a restart, and there is no separate
- * Restart button because there does not need to be: the two differ only in whether
- * there is a world to throw away first.
- *
- * Throwing it away is three things in a fixed order. The engine stops FIRST, so no
- * step is part-way through a turn while the store changes underneath it; then the
- * pristine baseline captured at bootstrap is loaded, which is what makes Restart a
- * load rather than a re-run of the 359-path bootstrap; then the map is repainted
- * from the restored store. Reversing any two of those leaves a half-reset world on
- * screen.
- */
 async function startNewGame() {
-    //Before the engine is reset, never after: `TurnEngine.stop()` waits for the
-    //running step to return, and in spectator mode the AI step does not return
-    //until the last country has been through the pacing gate. Stopping the mode
-    //releases every waiter, which turns the rest of that turn into a fast run.
     leaveSpectatorMode();
     if (outsideOfMenuAndMapVisible) {
         stopAutosave();
@@ -4315,12 +3543,8 @@ async function startNewGame() {
         const baseline = newGameBaseline();
         if (baseline) {
             applyGame(baseline);
-            //restoreState() deliberately emits no per-territory events; this is the
-            //one repaint that replaces all 359 of them.
             renderAllTerritories();
         } else {
-            //Only reachable if New Game is somehow pressed before the bootstrap
-            //Promise resolved, which is also what keeps the button disabled.
             console.warn("New Game: no pristine baseline was captured; the previous " +
                 "game's world is still loaded.");
         }
@@ -4329,46 +3553,15 @@ async function startNewGame() {
     }
 
     resetGameState();
-    //THE ORDERING TRAP, and it is why this line is above the chooser rather than below
-    //it. Under Great Powers the chooser has to freeze the five strongest countries into
-    //the condition, and this is what computes them -- it sorts `countryStrengthsArray`
-    //and writes the result into the store. Opening the chooser first would leave it
-    //reading an empty set, and answering it from the map's grey FILLS instead is the
-    //shape of mistake that once made the country lock bypassable in three clicks.
     greyOutTerritoriesForUnselectableCountries();
-    //Back to the bootstrap palette with the five locked countries muted. On a first
-    //New Game the map is already in that state and this is a no-op; after a restart
-    //it is what takes the player's colour and every conquest back off the map.
     repaintCountrySelection(null);
-
-    //And the question this game is being played to answer. The chooser is FORCED -- its
-    //Confirm calls `beginCountrySelection()` below and its Escape calls
-    //`returnToMainMenuFromGoalSelect()`, and there is no other way out of it. One
-    //insertion point serves both the cold start and the mid-game restart, because there
-    //is one New Game button and it does both.
     goalSelect.open({ greatPowers: greyedOutCountryNames() });
 }
 
-/**
- * Confirm on the goal chooser: the goal is set, so get on with picking a country.
- *
- * Everything the country-selection screen needs was already done by `startNewGame()`
- * before the chooser opened -- this exists only because the chooser sits between the two
- * halves and the second half has to be reachable from a callback.
- */
 function beginCountrySelection() {
     phaseBar.setGoalLine("");
-    //The player has not chosen a country yet, so there is nobody whose progress could be
-    //described. The line appears at the end of the first turn.
 }
 
-/**
- * Escape on the goal chooser: back to the title screen, not on into the game.
- *
- * A player must be able to change their mind about starting a game; what they must not be
- * able to do is start one with no goal. This is the same transition `openInGameMenu()`
- * makes, minus the parts that assume a game is running.
- */
 function returnToMainMenuFromGoalSelect() {
     toggleBottomTableContainer(false);
     phaseBar.setVisible(false);
@@ -4381,32 +3574,6 @@ function returnToMainMenuFromGoalSelect() {
     mainMenu.show();
 }
 
-//--- AI Game: the debug spectator mode (see src/debug/aiGameMode.js) ---------
-//
-//A game with the player left out. Everything below is sequencing; what makes it
-//work is two things somewhere else -- `initialiseGame({ spectator: true })` skips
-//the one loop that assigns territories to `Player`, and the turn engine's two
-//player phases ask the mode whether they should wait at all.
-
-/**
- * Start watching a game that plays itself.
- *
- * The shape is `startNewGame()` with the country-selection screen taken out and one
- * ordering deliberately reversed: the CPU leaders and the AI starting forts are
- * created BEFORE the engine starts rather than after it.
- *
- * That reversal is load-bearing and it is the opposite of what an ordinary game
- * does. In a normal game `initialiseGame()` starts turn 1 and the engine
- * immediately blocks on the player first phase, which gives the confirm handler
- * time to create the leaders before the AI ever runs -- and turn 1 is therefore
- * deliberately fought over a world with no leaders and no forts, which the Phase
- * 5.8 measurement recorded in gameTurnsLoop.js says must not be "fixed". Here
- * nothing blocks: the AI phase is reached in the same tick, so a country without a
- * leader would be read as `arrayOfLeadersAndCountries[i][2][0].leader` and throw.
- * Spectator turn 1 is consequently a slightly stronger opening than a played turn
- * 1, and that is the right trade for a debug tool -- but it does mean this mode is
- * NOT a way to measure balance. `tools/ai-sim.mjs` is.
- */
 async function startAiGame() {
     leaveSpectatorMode();
 
@@ -4422,54 +3589,21 @@ async function startAiGame() {
         resetChromeForCountrySelection();
     }
 
-    //The selection locks are a fact about the country-selection SCREEN, and this mode
-    //never shows one. Left in place they would mute the five strongest countries on
-    //the map for the whole run, which is exactly the five worth watching. Clearing
-    //the lock is a store write, so the muted FILLS are still on the paths until
-    //something repaints -- and the repaint has to happen before the line below reads
-    //those fills back, or the five strongest countries spend the run in the muted
-    //form of their own colour.
     setAllGreyedOutAttributesToFalseOnGameStart();
     repaintCountrySelection(null);
 
-    //The one thing a spectated game shares with a played one and used to skip.
-    //`countryColor` is copied off the map's fills, and until Phase 7.12 the only
-    //caller was the country-selection confirm handler -- which this mode never
-    //reaches. The consequence was not a missing colour but a map that never changed
-    //again: `setColorOnMap()` refuses to paint a territory whose `countryColor` is
-    //not a colour string (Phase 5.8, and rightly -- it used to paint the word
-    //"undefined" and render the territory black), so every conquest for the rest of
-    //the run logged a warning and left the map exactly as it was. Watching an AI
-    //game whose map cannot change is watching nothing.
     pushColorsToMainArray();
 
     mainMenu.hide();
     outsideOfMenuAndMapVisible = true;
     menuState = false;
     selectCountryPlayerState = false;
-    //Not `true`: the rest of this file reads that flag as "the player has a country
-    //and the player chrome belongs on screen". There is no player.
     countrySelectedAndGameStarted = false;
 
-    //See the note above -- these two have to be in place before the engine starts.
     updateArrayOfLeadersAndCountries();
     createCpuPlayerObjectAndAddToMainArray();
     addRandomFortsToAllNonPlayerTerritories();
 
-    //THE GOAL THIS WORLD IS PLAYING FOR, drawn at random.
-    //
-    //Spectator mode exists to watch the AI, and an AI watched only under the default
-    //condition is an AI half of whose behaviour is never seen -- the doctrine layer's whole
-    //claim is that the five goals produce five different worlds, and this is where that
-    //claim is looked at. The bar across the top says which one came up.
-    //
-    //`Math.random` rather than `cosmeticRandom()`, deliberately: the goal is a RULE of the
-    //game and not a decoration, so it belongs on the seeded stream and `?seed=alpha`
-    //reproduces the same world including what it was played for.
-    //
-    //The great powers are read from `countryStrengthsArray` rather than from the store's
-    //locked set, because the line above this has just CLEARED that set -- spectator mode
-    //shows no selection screen, so there is no lock to read.
     setVictoryCondition(randomGoalCondition(Math.random, {
         greatPowers: strongestCountries()
     }));
@@ -4478,20 +3612,10 @@ async function startAiGame() {
     startAiGameMode();
     applySpectatorChrome();
 
-    //Deliberately NOT beginAutosaving(). The autosave has one slot and it belongs to
-    //the game the player is actually playing; a spectated run would quietly overwrite
-    //it, and there is nothing here anybody would want back.
     await initialiseGame({ spectator: true });
     repaintMap();
 }
 
-/**
- * Stop watching and go back to the title screen.
- *
- * The console X button is the only caller, and closing the window IS stopping the
- * mode: a self-playing game with its console shut is a page that looks idle while
- * two hundred countries fight behind it, and nothing would open the window again.
- */
 async function endAiGame() {
     leaveSpectatorMode();
     await getTurnEngine().reset();
@@ -4505,8 +3629,6 @@ async function endAiGame() {
     resetChromeForCountrySelection();
     clearAiGameLog();
 
-    //Back to a cold start rather than to the country-selection screen: the spectated
-    //world has just been thrown away, so there is nothing behind the menu to resume.
     outsideOfMenuAndMapVisible = false;
     countrySelectedAndGameStarted = false;
     selectCountryPlayerState = false;
@@ -4520,8 +3642,6 @@ async function endAiGame() {
     menuButton.hide();
     mainMenu.setResumeLabel("Resume Game");
     mainMenu.setResumeEnabled(false);
-    //...unless the player left an autosave behind before they came here, which is
-    //still in its slot and still worth offering.
     offerStoredAutosave();
     mainMenu.show();
 
@@ -4529,7 +3649,6 @@ async function endAiGame() {
     repaintCountrySelection(null);
 }
 
-/** Stop the mode and shut the console. Safe to call when neither is running. */
 function leaveSpectatorMode() {
     if (!isAiGameActive()) {
         return;
@@ -4539,17 +3658,6 @@ function leaveSpectatorMode() {
     aiGameGoalBar.hide();
 }
 
-/**
- * The chrome a spectated game has, and the chrome it does not.
- *
- * Called when the mode starts and again whenever the in-game menu closes, because
- * `closeInGameMenu()` restores what a PLAYER would have had on screen.
- *
- * The bottom table stays: clicking a territory to read its garrison and its economy
- * is the most useful thing a spectator can do with the map, and it is the one panel
- * that describes a territory rather than the player. The top table, the phase bar
- * and the territory panel all go, because all three are about a country nobody owns.
- */
 function applySpectatorChrome() {
     phaseBar.setVisible(false);
     toggleBottomLeftPaneWithTurnAdvance(false);
@@ -4560,82 +3668,36 @@ function applySpectatorChrome() {
     toggleUpgradeMenu(false);
     toggleBuyMenu(false);
 
-    //The continent view and the music are worth having while watching, and this call
-    //puts the music button back as a side effect (see toggleAudioButton).
     toggleMapModeButton(true);
     mapModeButtonCurrentlyOnScreen = true;
-    //...but not the territory panel or the activity feed. The feed in particular is
-    //what this mode REPLACES: its collapsible per-turn sections are the wrong shape
-    //for watching, which is why the console is a flat stream. Both go down after
-    //toggleMapModeButton(), because that call is what would otherwise put the
-    //activity button back up alongside them.
     toggleUIButton(false);
     uiButtonCurrentlyOnScreen = false;
 
     toggleBottomTableContainer(true);
     menuButton.show();
     aiGameConsole.open();
-    //Into the space the top table just vacated.
     aiGameGoalBar.show();
 }
 
-/**
- * Put the chrome back to how the country-selection screen looks on a cold start.
- *
- * Everything here is something a restart would otherwise inherit from the game it
- * replaced: a phase bar still reading "Military Phase" over an END TURN button, the
- * previous country in the bottom table, the globe and map-mode buttons that only
- * appear once a game is running, and a `lastClickedPath` pointing at a territory the
- * player no longer owns.
- */
 function resetChromeForCountrySelection() {
     phaseBar.setMode(phaseBar.Mode.SELECTING);
     bottomTable.reset();
-    //Phase 7.4. Windows can be dragged, and an inline `left`/`top` survives the
-    //window being closed -- deliberately, so a panel a player moved aside stays
-    //where they put it. It must not survive a NEW GAME: a window dragged to the far
-    //corner of the game that was just thrown away is a window the next player
-    //cannot find. Same species as bottomTable.reset() on the line above.
     resetAllWindowPositions();
     activityPanel.reset();
-    //The AI's recorded reasoning belongs to the game that was just thrown away. It is
-    //cleared for the same reason the activity feed is: a debug window that opens on the
-    //previous world's plans is worse than one that opens empty.
     clearPlans();
-    //And so does everything the AI countries had LEARNED. Their committed continents,
-    //the neighbours they were absorbing, the borders they had written off as walls and
-    //the reinforcements their fronts had asked for are all memories of a world that no
-    //longer exists -- and every one of them would otherwise be applied to a country of
-    //the same name in the new one, which is how a fresh game would open with France
-    //already refusing to attack Spain over a war it never fought.
     resetCampaigns();
     resetMusters();
     aiDebugPanel.close();
     toggleUIButton(false);
     toggleMapModeButton(false);
-    //...but not the music button, which the line above has just taken down with it.
-    //A restart lands on the selection screen, and that screen has music.
     toggleAudioButton(true);
     toggleTopTableContainer(false);
     topTable.setHeading("Select a Country");
-    //The colour label and the confirm button are put back by phaseBar.setMode()
-    //above -- both are the bar's own elements and both are hidden until a country is
-    //clicked, which is a fact about the bar rather than about the game.
-    //The placeholder `d` is what `closeInGameMenu()` tests to decide whether there is
-    //a selection to restore, so it has to be exactly this one.
     lastClickedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     lastClickedPath.setAttribute("d", "M0 0 L50 50");
     currentSelectedPath = undefined;
 }
 
-/**
- * Put every "is this panel on screen" flag back to false.
- *
- * These are the module-level booleans that `closeInGameMenu()` reads to decide what
- * to put back. After a restart or a load they describe the game that is being
- * replaced, so leaving them alone is how a battle results screen from the previous
- * game reappears the first time the player presses Escape in the new one.
- */
 function resetTransientUiState() {
     resetContinentView();
     uiCurrentlyOnScreen = false;
@@ -4660,14 +3722,6 @@ function resetTransientUiState() {
     toggleTransferAttackButton(false, false);
 }
 
-/**
- * Resume Game.
- *
- * The button means two different things and this is where they part company. With a
- * game behind the menu it is the other half of Escape. On a cold start it is the
- * autosave found at page load -- which is the only reason the button is enabled at
- * all before anything has been clicked.
- */
 async function resumeFromMenu() {
     if (outsideOfMenuAndMapVisible) {
         closeInGameMenu();
@@ -4676,7 +3730,6 @@ async function resumeFromMenu() {
 
     const save = readAutosave();
     if (!save) {
-        //The slot was cleared or went bad between page load and the click.
         mainMenu.setResumeEnabled(false);
         return;
     }
@@ -4684,56 +3737,26 @@ async function resumeFromMenu() {
         await applyLoadedGame(save);
     } catch (error) {
         console.error("Resume: the stored autosave could not be loaded.", error);
-        //Say so where there is somewhere to say it, rather than failing silently
-        //against a menu that still offers the button.
         saveLoadPanel.open();
         saveLoadPanel.setStatus(
             error?.message ?? "The stored game could not be loaded.", "bad");
     }
 }
 
-/**
- * Enable Resume for an autosave from a previous visit.
- *
- * Called from `enableNewGameButton()` rather than from the bootstrap block, and that
- * is not incidental: a load patches the seeded territories, so offering it before
- * the territory model exists offers a button that cannot work. The two become
- * available at the same moment because they have the same prerequisite.
- */
 function offerStoredAutosave() {
     const summary = autosaveSummary();
     if (!summary) {
         return;
     }
-    //A different promise from "resume the game you are playing", so a different
-    //label. Naming the turn is what makes it a decision rather than a leap.
     mainMenu.setResumeLabel("Continue Turn " + summary.turn);
     mainMenu.setResumeEnabled(true);
 }
 
-/**
- * Load a pasted save code. The Save / Load panel's `applySave`.
- *
- * `decodeSave()` throws with a message written for the player, and the panel shows
- * whatever comes out of here, so nothing is caught in between.
- */
 async function loadGameFromCode(code) {
     await applyLoadedGame(decodeSave(code));
 }
 
-/**
- * Restore a decoded save and hand the player a playable turn.
- *
- * This is the country-selection confirm handler with the country selection taken
- * out: the same UI transitions, but the world arrives from the save instead of from
- * `initialiseGame()`, and nothing here may draw from `Math.random` -- the AI
- * leaders, the starting forts and the initial gold are all IN the save, and
- * regenerating any of them would silently replace part of the loaded game.
- */
 async function applyLoadedGame(save) {
-    //Before the engine is reset, for the reason given in `startNewGame()`: a
-    //spectator turn does not return until its last country has been through the
-    //pacing gate, and `stop()` waits for the running step.
     leaveSpectatorMode();
     stopAutosave();
     await getTurnEngine().reset();
@@ -4751,10 +3774,6 @@ async function applyLoadedGame(save) {
     selectCountryPlayerState = false;
     countrySelectedAndGameStarted = true;
 
-    //`initialiseNewPlayerTurn()` populates the bottom table from the last clicked
-    //path at the end of every AI turn, and a freshly loaded game has never had a
-    //click. Pointing it at one of the player's own territories is what stops the
-    //first AI turn ending on a lookup against the placeholder path.
     const firstPlayerTerritory = playerTerritories()[0];
     const firstPlayerPath = firstPlayerTerritory
         ? getPathByUniqueId(firstPlayerTerritory.uniqueId)
@@ -4767,8 +3786,6 @@ async function applyLoadedGame(save) {
     phaseBar.dimBody();
     setFlag(playerCountryName(), 1); //top table
     setFlag(playerCountryName(), 3); //info panel
-    //Place 0 returns the URL without writing it anywhere. The bar's own flag is
-    //normally a side effect of the selection screen, which a loaded game never sees.
     phaseBar.setBrandFlag(setFlag(playerCountryName(), 0));
     topTable.setHeading("Total Player Resources:");
     phaseBar.setMode(phaseBar.Mode.INITIALISING);
@@ -4782,9 +3799,6 @@ async function applyLoadedGame(save) {
     await resumeSavedGame(loaded.phase);
 
     document.getElementById(ids.popupWithConfirmContainer).style.display = "block";
-    //The colour label stays on screen during play in a game started from the menu,
-    //so a loaded game shows it too -- a difference here would be a difference the
-    //player can see between the two ways of arriving at the same turn.
     document.getElementById(ids.popupColor).style.display = "block";
     uiButtonCurrentlyOnScreen = true;
     toggleUIButton(true);
@@ -4792,9 +3806,6 @@ async function applyLoadedGame(save) {
     toggleMapModeButton(true);
     menuButton.show();
 
-    //The phase is already in the store, so the bar derives its own labels -- there
-    //is deliberately no setPhase() here, which would announce a transition that did
-    //not happen.
     phaseBar.setMode(phaseBar.Mode.PLAYING);
     populateBottomTableWhenSelectingACountry(getLastClickedPath());
 
@@ -4802,21 +3813,8 @@ async function applyLoadedGame(save) {
     return loaded;
 }
 
-/**
- * Start the one-minute autosave.
- *
- * The `shouldSave` gate is the interesting part. A save is a picture of the store
- * plus the registered slices, and neither carries what a battle is holding in
- * battle.js's module-level variables mid-resolution -- so a tick that landed inside
- * a battle would store a world that cannot be resumed to the screen the player is
- * looking at. The AI turn is excluded for the same reason: the engine has no way to
- * re-enter a step half-way through, so `resumeSavedGame()` puts an AI-turn save back
- * into the player's move phase, which is a worse answer than not taking that save at
- * all.
- */
 function beginAutosaving() {
     installSaveTestHooks({
-        //The timer's tick, minus the timer. See installSaveTestHooks.
         saveNow() {
             const save = captureGame();
             if (!save) {
@@ -4849,7 +3847,6 @@ function beginAutosaving() {
                 saveIndicator.flash();
                 mainMenu.setResumeEnabled(true);
             } else {
-                //writeAutosave() has already logged why. The player keeps playing.
                 saveIndicator.flash("Save failed");
             }
         },
@@ -4907,11 +3904,10 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
 
     let remainingPercentages;
 
-    if (situation === 0) { //click view siege
+    if (situation === 0) {
         const defendingArmyRemaining = siegeObject.defendingArmyRemaining;
         const startingDef = siegeObject.startingDef;
 
-        // Calculate the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
         const startingDefenseBonus = siegeObject.startingDefenseBonus;
         const startingProdPop = siegeObject.startingTerritoryPop;
         const startingFoodCapacity = siegeObject.startingFoodCapacity;
@@ -4924,7 +3920,6 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
         const foodCapacityPercentage = (foodCapacity / startingFoodCapacity) * 100;
         const productiveTerritoryPopPercentage = (productiveTerritoryPop / startingProdPop) * 100;
 
-        // Apply colors based on the percentages for defenseBonus, foodCapacity, and productiveTerritoryPop
         if (defenseBonusPercentage <= 25) {
             document.getElementById(ids.defenseIcon).innerHTML = "<img class='sizingPositionRow4IconBattleUI' src='./resources/fortIcon25.png'>";
             defendingTerritory.defenseBonusColor = colorRed;
@@ -4939,12 +3934,6 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
             defendingTerritory.defenseBonusColor = colorGreen;
         }
 
-        //Battle overhaul B.10.2. These two ladders had no `else`, so a territory above 75% of
-        //its starting food or population left the field UNDEFINED -- and
-        //`style.color = undefined` leaves whatever the last siege painted. It happened to look
-        //right only because `addRemoveWarSiegeObject()` seeded the field with a green literal on
-        //the way past; deleting that literal is what made the gap visible. A ladder that decides
-        //a colour has to decide it in every band.
         if (foodCapacityPercentage <= 25) {
             defendingTerritory.foodCapacityColor = colorRed;
         } else if (foodCapacityPercentage > 25 && foodCapacityPercentage <= 50) {
@@ -4965,7 +3954,6 @@ function setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, situation) {
             defendingTerritory.productiveTerritoryPopColor = colorGreen;
         }
 
-        // Calculate the percentages for defendingArmyRemaining
         remainingPercentages = defendingArmyRemaining.map((remaining, index) => {
             return (remaining / startingDef[index]) * 100;
         });
@@ -5028,9 +4016,6 @@ function applyColorsToArmyQuantityText(situation, remainingPercentages, colorGre
 function setSiegeScoreText(siegeScore, situation) {
     if (situation === 0) {
         document.getElementById(ids.battleUIRow4Col1TextSiegeScore).innerHTML = siegeScore;
-        //Phase 7.5. Was an <img> pointing at `sword.png`. The siege score is a war
-        //figure, so it takes the same crossed-swords icon the Wars tab uses -- and,
-        //being drawn rather than shipped, it follows the theme.
         const siegeScoreIcon = document.getElementById(ids.battleUIRow4Col1IconSiegeScore);
         siegeScoreIcon.innerHTML = "";
         const swords = crossedSwordsIcon();
@@ -5046,45 +4031,12 @@ function setSiegeScoreText(siegeScore, situation) {
     }
 }
 
-/**
- * Show or hide the "Last Push!" offer on the bottom bar's third button.
- *
- * The third button is the one that reads "Assault!" when a battle is resumed out of a siege; it
- * is hidden in an ordinary attack, which is why it is free to carry this. When it is up the bar
- * reads Retreat / Next Round / Last Push! and the widths go back to thirds.
- */
-/**
- * Share the bottom bar between whichever buttons are up.
- *
- * The bar carries between two and four controls depending on where the battle is, so the widths
- * cannot be constants. They used to be -- `33%`/`33%`/`34%` written at three call sites -- which
- * is why adding Dig In and Reserves needed this.
- */
-//Battle overhaul B.6.6. `layoutBattleButtons()` and `setMidBattleControlsVisible()` were here.
-//The first measured which buttons were up by reading `style.display` back off the DOM and divided
-//100% between them; the second wrote two displays and called the first. Both are derived now --
-//`battleBarWidths()` in src/ui/battle/buttonState.js -- and the mid-battle pair is a field of the
-//window's state, which is what makes "they are meaningless before a round has been fought" a rule
-//rather than a convention two call sites happen to follow.
-
-/**
- * Commit whatever the attack's ORIGINAL source territories still have.
- *
- * Reserves come from the front that launched the attack rather than from anywhere on the map,
- * which is what makes this one button rather than a second trip through the attack window. The
- * force is debited immediately -- the same rule INVADE! follows (audit 5.1 AD) -- and joins the
- * battle at the start of the next round.
- *
- * @returns {number[]|null} what was committed, or null if there was nothing to send
- */
 export function commitReserves() {
     const battle = currentBattle();
     if (!battle || pendingReserves().length > 0) {
         return null;
     }
 
-    //The same flat shape `transferArmyOutOfTerritoryOnStartingInvasion()` takes:
-    //[targetId, sourceId, infantry, assault, air, naval, sourceId, ...].
     const reserveArray = [attackTargetPath()?.getAttribute("uniqueid")];
     const total = [0, 0, 0, 0];
 
@@ -5093,8 +4045,7 @@ export function commitReserves() {
         if (!territory) {
             continue;
         }
-        //USEABLE counts for the vehicles: a grounded aircraft cannot reinforce anything, and
-        //committing one would put an army in the field that the battle cannot field.
+
         const army = [
             territory.infantryForCurrentTerritory,
             territory.useableAssault,
@@ -5120,14 +4071,6 @@ export function commitReserves() {
     return total;
 }
 
-/**
- * Draw the ledger for a SIEGE, in the same vocabulary open battle uses.
- *
- * The siege train's dice come from the hit probability -- the one number a siege turn is scored
- * on -- put through the same band table as a battle's share. The fortress gets the complement.
- * Both the forts and the grinding are listed, because both are things the player can act on:
- * bring more hardware, or wait.
- */
 function showSiegeLedger(siege) {
     const territory = siege.defendingTerritory;
     const score = calculateSiegeScore(siege);
@@ -5164,29 +4107,6 @@ function showSiegeLedger(siege) {
     });
 }
 
-//Battle overhaul B.6.6. `setLastPushButtonVisible()` was here. It is
-//`battleWindow.setLastPushOffered()` now, called from `battle.js`'s `offerLastPush()` /
-//`withdrawLastPushOffer()`, which is where the model decides whether the offer stands.
-
-
-/**
- * Show the player every battle the AI fought against them this turn.
- *
- * Battle overhaul B.8. The battles were fought and applied during the AI phase; this is a replay
- * of the record. It auto-advances on a timer and needs no input, because the AI moves in its own
- * phase and a step that waited on a click would stall the turn loop.
- *
- * Awaited by `handleAITurn()`, so the player's turn begins once they have seen it. That is a wait
- * on a TIMER and never on the player -- and it is skippable, and remembered.
- */
-/**
- * What `defenderPlayback` needs from this file, in one place.
- *
- * Battle overhaul B.8.2. It was an object literal inside `showQueuedDefences()`, which meant the
- * Skip handler had nothing to pass and so was never wired at all -- the button was drawn, the
- * label was written straight onto the advance button, and the press fell through into the battle
- * state machine. Naming the dependencies is what makes the control reachable from the bar.
- */
 function defencePlaybackDeps() {
     return {
         setArmyTextValues,
@@ -5198,9 +4118,6 @@ function defencePlaybackDeps() {
             toggleUIButton(false);
             toggleMapModeButton(false);
             prepareProbabilityBar(0, true);
-            //A replay has no decisions in it, so the bar is one full-width Skip. Five hide calls
-            //and a width used to be written here by hand, which left the other four buttons
-            //hidden for the NEXT real battle until something happened to show them again.
             roundLog.reset();
             battleWindow.setBattleButtons({ advance: AdvanceMode.SKIP });
         },
@@ -5219,8 +4136,6 @@ function defencePlaybackDeps() {
             toggleBottomLeftPaneWithTurnAdvance(true);
             toggleUIButton(true);
             toggleMapModeButton(true);
-            //Back to the bar a fresh attack opens with, rather than to whichever labels and
-            //widths the replay happened to leave behind.
             battleWindow.resetForAttack();
             diceStage.hide();
             clashPanel.hide();
@@ -5240,11 +4155,6 @@ export function toggleDiceCanvas(value) {
         document.getElementById(ids.threeCanvasForDice).style.display = "block";
     } else {
         document.getElementById(ids.threeCanvasForDice).style.display = "none";
-        //The clash panel is a sibling of the canvas and not a child of the battle window, so it
-        //does not go down with either of them. Every call site that puts the dice away is a call
-        //site that has finished with the round they showed -- a battle banked, a retreat, a
-        //defeat -- and a pairing animation left playing over the results screen is the one thing
-        //this panel must never do.
         clashPanel.hide();
     }
 }
@@ -5261,11 +4171,6 @@ export function routeSiegeUIProcesses() {
     toggleMapModeButton(false);
     mapModeButtonCurrentlyOnScreen = false;
 }
-
-//Battle overhaul B.10.2. `enableDisableAssaultButton()` was here, writing the same two colour
-//literals as `enableDisableSiegeButton()` onto a different element. The third slot in the bar is
-//`ThirdButton` on the window's state now: NONE, ASSAULT or LAST_PUSH, which also states the thing
-//neither function did -- that the two jobs are mutually exclusive.
 
 function shiftPath(pathElement, amountRight, amountDown) {
     if (shiftedPath === null) {
@@ -5320,48 +4225,8 @@ function modifyFill(pathElement, mousedown) {
     }
 }
 
-//----------------------------------------CONTINENT VIEW--------------------------------------------
-
-// Phase 7.4. Two buttons became one.
-//
-// `mapModeButton` flipped the relief map on and off and `strokeHighlightButton`
-// drew the continent boundaries, independently -- four combinations, of which one
-// (relief with no boundaries over it) is close to unreadable, because the physical
-// map drops every territory fill to 1% opacity and the boundaries are then the
-// only thing saying where anything is. The button walks the three that are worth
-// looking at, in this order:
-//
-//     continent  political map + continent boundaries  Africa icon
-//     physical   relief map + continent boundaries     mountain icon
-//     normal     political map, no boundaries          folded-map icon
-//
-// CONTINENTS ARE THE DEFAULT NOW, and `normal` -- the map with no boundaries at all
-// -- is the last stop rather than the first (Leigh's call, taken with the continent
-// bonuses). A continent is about to be a thing a player wins something for holding,
-// and a boundary a player has to go looking for is a boundary they will not plan
-// around. Two things follow from the swap and neither is cosmetic: the view has to
-// be APPLIED once at bootstrap rather than merely declared, because the SVG ships
-// with the plain sea-coloured strokes and nothing else would draw them; and
-// `resetContinentView()` puts a restart back to the DEFAULT view rather than to
-// `normal`, which are no longer the same thing.
-//
-// The icon shows the view you are IN, not the one the next click gives you.
-//
-// The two halves stay separate functions because leaving the relief map is
-// something the map click, the colour picker and the end of the player's turn each
-// do on their own. They call `exitPhysicalMap()`, which lands on `continent` -- the
-// default, and the stop the cycle wraps back to after `normal` -- and re-syncs the
-// icon. Nothing outside this section may write `mapMode`.
-
 const CONTINENT_VIEW_CYCLE = ["continent", "physical", "normal"];
 
-/**
- * The view a game opens on, and the one a restart or a load goes back to.
- *
- * Named rather than written out at its three call sites, because those three have to
- * agree: the module's own initial value, the bootstrap application of it, and the
- * reset. Two of the three used to say "normal" and the third was implicit in the SVG.
- */
 const DEFAULT_CONTINENT_VIEW = "continent";
 
 const CONTINENT_VIEW_TITLE = {
@@ -5372,7 +4237,6 @@ const CONTINENT_VIEW_TITLE = {
 
 let continentView = DEFAULT_CONTINENT_VIEW;
 
-/** The relief layer, and the near-transparent territory fills that go with it. */
 function setPhysicalMap(on) {
     if (on === (mapMode === 2)) {
         return;
@@ -5412,14 +4276,6 @@ function setPhysicalMap(on) {
     }
 }
 
-/**
- * The continent boundaries. Directed rather than toggled: this used to read the
- * stroke back off each coast-line path to decide which way to go, which meant the
- * button and the map could disagree the moment anything else touched a stroke. The
- * boundary width depends on the map mode, so this runs AFTER `setPhysicalMap()`,
- * never before -- 6px reads as a boundary over flat colour and as a smear over the
- * relief.
- */
 function setContinentStrokes(on) {
     let continentColor;
     for (let i = 0; i < pathsCoastLines.length; i++) {
@@ -5435,7 +4291,6 @@ function setContinentStrokes(on) {
     }
 }
 
-/** `data-view` is what the CSS picks an icon by, and what the e2e specs read. */
 function updateContinentViewButton() {
     const button = document.getElementById(ids.continentViewButton);
     if (!button) {
@@ -5460,11 +4315,6 @@ function cycleContinentView() {
     applyContinentView(next);
 }
 
-/**
- * Drop the relief layer and keep the boundaries, which is the DEFAULT view. Called
- * wherever the map has to be legible again whether the player asked for it or not: a
- * territory click, a colour change, the end of the turn.
- */
 function exitPhysicalMap() {
     if (mapMode !== 2) {
         return;
@@ -5472,13 +4322,6 @@ function exitPhysicalMap() {
     applyContinentView("continent");
 }
 
-/**
- * Back to the view a game opens on. A restart or a load starts there.
- *
- * It is the DEFAULT rather than the literal "normal": since the cycle was swapped those
- * are different views, and a restart that landed on the one with no boundaries would
- * quietly hand the second game of a session a different map from the first.
- */
 function resetContinentView() {
     if (continentView === DEFAULT_CONTINENT_VIEW) {
         updateContinentViewButton();
@@ -5492,18 +4335,6 @@ export function endPlayerTurn() {
         exitPhysicalMap();
     }
 
-    //Phase 6.7. Forty lines of hand-rolled repaint stood here -- reset the stroke on
-    //everything that is not besieged or deactivated, re-assert the fill on everything
-    //that is -- followed by a snapshot and a restore of that same snapshot. That is
-    //exactly what repaintMap() does, from the store, for every path.
-    //
-    //The comment this replaced is worth keeping, because it records the defect the
-    //shape caused: the else-branch used to write playerColour() unconditionally, so
-    //an AI territory besieged by another AI took the PLAYER's colour with the player
-    //nowhere near the war -- 45 mis-painted territories by turn 4, 55 by turn 8. The
-    //snapshot taken three lines later captured the result, so every later restore
-    //replayed it and it never washed out. Asking the owner is what fixed it, and
-    //deriving the colour rather than replaying one is what makes it unrepeatable.
     repaintMap();
 
     clearAttackTarget();
@@ -5513,10 +4344,6 @@ export function endPlayerTurn() {
 }
 
 export function initialiseNewPlayerTurn() {
-    //Skipped while spectating: there is no player and no selected territory, so this
-    //would ask the bottom table to describe the placeholder path -- which fetches
-    //`resources/flags/null.png` and writes nothing. The table is still there and
-    //still fills in when a territory is clicked.
     if (!isAiGameActive()) {
         populateBottomTableWhenSelectingACountry(getLastClickedPath());
     }
@@ -5541,24 +4368,18 @@ function createSparkle() {
     sparkle.style.left = `${cosmeticRandom() * 100}%`;
     container.appendChild(sparkle);
 
-    // Remove the sparkle after 3 seconds
     setTimeout(() => {
         container.removeChild(sparkle);
     }, 3000);
 }
 
 function addSparklesRegularly() {
-    // Adjust the frequency to control how often new sparkles appear (e.g., every 1.5 seconds)
     setTimeout(() => {
         createSparkle();
-        // Call the function again to add another sparkle after a random interval
         addSparklesRegularly();
-        // audit 5.3 Y: the cosmetic stream, never `Math.random`. Three draws per tick on
-        // a timer re-armed every 0-100ms is what made a seeded run non-reproducible.
-    }, cosmeticRandom() * 100); // Random interval up to 100ms
+    }, cosmeticRandom() * 100);
 }
 
-// Start the process of adding sparkles
 addSparklesRegularly();
 
 
@@ -5575,8 +4396,6 @@ function pushColorsToMainArray() {
 
 export function setColorOnMap(territory, selectCountryState) {
     if (selectCountryState) {
-        //Phase 6.7. The bootstrap palette is keyed by country in colouring.js, so this
-        //is one lookup rather than a scan of a 359-entry list per path.
         const startingColour = startingColourForCountry(territory.dataName);
         if (startingColour) {
             paths.forEach(path => {
@@ -5586,11 +4405,6 @@ export function setColorOnMap(territory, selectCountryState) {
             });
         }
     } else {
-        //Phase 5.8. `countryColor` is not populated until pushColorsToMainArray() runs on
-        //confirm, so before that this wrote the string "undefined" into the fill -- which is
-        //not a colour, so the territory rendered black. Refuse to paint a non-colour rather
-        //than corrupting the map: the caller asking for the wrong form is the bug, and a
-        //silently black country is how it stayed hidden.
         if (typeof territory.countryColor !== "string" || territory.countryColor === "") {
             console.warn("setColorOnMap: no countryColor for " + territory.territoryName +
                 " -- refusing to paint. Use setColorOnMap(territory, true) before the game starts.");
@@ -5613,12 +4427,6 @@ export function setStrokeOnMap(territory) {
         }
     }
 }
-
-//setOwnerOnPath() and setCountryNameOnPath() lived here. Both scanned all 359 paths to
-//push a field of the territory model onto one path attribute, and the second of them
-//wrote `territory.owner` into `data-name` -- the current-owner attribute -- which is
-//only ever right because an AI country name happens to be both. Ownership is set through
-//state/mutations.js now and rendered by src/ui/mapAttributeSync.js (Phase 4.4).
 
 export async function populateAiDialogueBox(situation, attacker, defender, parameter) {
     setFlag(attacker.dataName, 8);
@@ -5716,17 +4524,6 @@ export function populateArmyDataFields(returnArmyData) {
     document.getElementById(indexedIds.aiDialogueSummaryColumn(8)).innerHTML = returnArmyData[3];
 }
 
-/**
- * What the map tooltip says for one path.
- *
- * The owning country's name, plus who is besieging the territory when it is under
- * siege: `"France (under siege by Germany)"`. Phase 6 replaced the siege marker's own
- * tooltip with this -- see the mousemove handler in `svgMapLoaded()`.
- *
- * Since the continent-bonus phase it carries a SECOND line naming the continent and how much
- * of it the owner holds. It returns HTML rather than text for that reason; `tooltip.setContent()`
- * has always taken HTML.
- */
 function territoryTooltipLabel(path, countryName) {
     let label = countryName;
     if (countryName && pathIsUnderSiege(path)) {
@@ -5736,17 +4533,10 @@ function territoryTooltipLabel(path, countryName) {
         }
     }
 
-    //The continent line. This is the tooltip a player reads while deciding where to attack,
-    //so it is the one place the continent bonus most has to be visible BEFORE it is earned:
-    //"Europe: 31 of 52 held by France" is what makes finishing a continent something anybody
-    //aims at. Read through the store rather than off the path -- `dataName` is the CURRENT
-    //owner and changes on conquest, and the SVG attributes are output, not state.
     const continentLine = describeContinentHolding(
         continentHoldingFor(getTerritory(path?.getAttribute("uniqueid"))));
     if (!continentLine) {
         return label;
     }
-    //Two DIVs rather than a `<br />`: the owner line and the continent line are two
-    //separate facts, and a spec that wants one of them has to be able to say which.
     return "<div>" + (label ?? "") + "</div><div>" + continentLine + "</div>";
 }

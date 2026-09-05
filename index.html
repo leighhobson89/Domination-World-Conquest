@@ -5,10 +5,6 @@
     <link rel="stylesheet" type="text/css" href="style.css">
     <link rel="icon" href="data:," />
     <script>
-        // Test-only, and only with ?e2e=1. A classic inline script so it runs before
-        // the deferred module scripts below -- the game seeds RNG at module-evaluation
-        // time (initial gold, starting forts, leader generation), so anything later
-        // would be too late. See docs/archived/03-refactor-plan.md Phase 1.6.
         (function () {
             var params = new URLSearchParams(window.location.search);
             if (!params.has("e2e")) return;
@@ -31,12 +27,6 @@
             if (params.has("seed")) window.__seedRandom(params.get("seed"));
         })();
     </script>
-    <!-- Battle overhaul B.10.3. The three committed UMD bundles that set `CANNON`, `THREE` and
-         the buffer utilities as globals used to load HERE, blocking the parser on every page
-         view -- about 785 KB in service of a canvas that stays empty until a battle opens, which
-         most page views never do. They are injected on the first dice roll instead, by
-         `src/platform/vendor/diceRuntime.js`, which explains why they are still classic scripts
-         rather than imports. `dist/` is NOT the build output; Vite writes to `build/`. -->
     <script type="module" src="initialData.js"></script>
     <script type="module" src="leaderPersonalities.js"></script>
     <script type="module" src="cpuPlayerGenerationAndLoading.js"></script>
@@ -81,9 +71,6 @@
     <canvas id="canvas">
     </canvas>
 </div>
-<!-- The pairing animation. AFTER the dice canvas on purpose: `#battleContainer` is
-     transformed, so nothing inside it can paint over the canvas, and document order is
-     what puts this on top. See src/ui/battle/ClashPanel.js. -->
 <div id="battle-clash-container"></div>
 <div id="battleResultsContainer"></div>
 <div class="top-table-container" id="top-table-container">
@@ -91,11 +78,7 @@
 <div id="UIButtonContainer"></div>
 <div id="activity-button-container"></div>
 <div id="activity-panel-container"></div>
-<!-- The AI debug window. Developer-facing, opened with numpad / and never by a
-     button over the map -- see src/ui/components/AiDebugPanel.js. -->
 <div id="ai-debug-panel-container"></div>
-<!-- The spectator console. Opened only by "AI Game" on the main menu, which starts
-     a game with no player in it -- see src/ui/components/AiGameConsole.js. -->
 <div id="ai-game-console-container"></div>
 <div id="mapModeContainer"></div>
 <div class="bottom-table-container" id="bottom-table-container">
