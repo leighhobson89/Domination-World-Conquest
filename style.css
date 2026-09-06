@@ -66,7 +66,10 @@
   border-radius: var(--radius);
   border: var(--border-color) solid 2px;
   opacity: 0.8;
-  z-index: 1;
+  /* Above every floating window (9100-9400) and every modal (10000-10001):
+     the tooltip is only ever readable if nothing can cover it, and it carries
+     pointer-events: none so sitting on top costs no click. */
+  z-index: 10050;
 }
 
 #top-table-container {

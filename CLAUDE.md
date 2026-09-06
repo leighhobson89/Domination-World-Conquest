@@ -866,6 +866,14 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   is only what the continent view colours boundaries from. `tests/unit/data-continents.spec.js`
   reconciles all three in about a millisecond. **Do not "simplify" it by deleting the SVG
   attribute** without checking the map tooling, and do not read a territory's continent from
+  it. **A coastline path is one continuous LANDMASS, so a landmass that spans two continents
+  has to be cut by hand.** The Americas are one outline from Alaska to Tierra del Fuego, and
+  the model puts Mexico in North America while every other country south of it — Guatemala,
+  Belize, the whole of Central America and the Caribbean — is South American. That ring was
+  therefore drawn pink through Mexico. It is now two paths cut along Mexico's Guatemalan and
+  Belizean border, the join taken from Mexico's OWN outline in `svgMaster.svg` rather than
+  chorded straight across, so the two continent colours meet on the real border. The same
+  question applies to any future change of a country's continent: the outline does not follow
   it.
 
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
