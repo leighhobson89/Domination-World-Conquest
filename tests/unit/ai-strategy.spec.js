@@ -42,7 +42,7 @@ import {
     setVictoryCondition,
     VictoryCondition
 } from "../../src/ai/victory.js";
-import { maxForts } from "../../src/config/balance.js";
+import { PLAYER_GRACE_TURNS, maxForts } from "../../src/config/balance.js";
 
 const HALF = () => 0.5;
 
@@ -364,6 +364,63 @@ describe("rating a target", () => {
     it("returns exactly one verdict, never an attack and a siege at once", () => {
         const rating = rate();
         expect([Verdict.ATTACK, Verdict.SIEGE, Verdict.SKIP]).toContain(rating.verdict);
+    });
+
+    describe("the player's opening grace period", () => {
+        //206 countries plan their first turn with full information, so a player who chose a
+        //one-territory country is reachable by several at once on turn 1 and could be
+        //eliminated inside ten turns without ever taking a decision that mattered.
+        const player = () => territory({
+            dataName: "Player", owner: "Player", continent: "Europe"
+        });
+
+        it("refuses the player on turn 1 whatever the odds say", () => {
+            const rating = rate({ target: player(), probability: 99 });
+            expect(rating.verdict).toBe(Verdict.SKIP);
+        });
+
+        it("says why, so the debug window and the plan log can report it", () => {
+            expect(rate({ target: player(), probability: 99 }).reason)
+                .toContain("grace period");
+        });
+
+        it("refuses on the last turn of the grace period and allows the next one", () => {
+            const onLastGraceTurn = rateTarget({
+                target: player(),
+                source: territory({ territoryName: "Home", armyForCurrentTerritory: 10000 }),
+                probability: 90,
+                threatScore: -100,
+                campaign: planCampaign("Alba", {
+                    turn: PLAYER_GRACE_TURNS, leader: leader(), rng: HALF
+                }),
+                traits: leader().traits,
+                country: "Alba"
+            });
+            expect(onLastGraceTurn.verdict).toBe(Verdict.SKIP);
+
+            const afterwards = rateTarget({
+                target: player(),
+                source: territory({ territoryName: "Home", armyForCurrentTerritory: 10000 }),
+                probability: 90,
+                threatScore: -100,
+                campaign: planCampaign("Alba", {
+                    turn: PLAYER_GRACE_TURNS + 1, leader: leader(), rng: HALF
+                }),
+                traits: leader().traits,
+                country: "Alba"
+            });
+            expect(afterwards.verdict).not.toBe(Verdict.SKIP);
+        });
+
+        it("protects nobody else, on any turn", () => {
+            //One-directional and narrow. An AI country is fair game on turn 1 exactly as it
+            //always was, and nothing in the battle model knows the grace period exists.
+            const rating = rate({
+                target: territory({ dataName: "Brava", owner: "Brava", continent: "Europe" }),
+                probability: 90
+            });
+            expect(rating.verdict).not.toBe(Verdict.SKIP);
+        });
     });
 
     it("attacks on comfortable odds", () => {

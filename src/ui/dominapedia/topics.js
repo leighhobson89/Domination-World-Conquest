@@ -45,10 +45,20 @@
 // next page added starts honest.
 //
 // Where a rule is stated that a player would call a bug -- a fortless territory
-// having no defensive multiplier at all, infantry costing a thousand people to
-// field one soldier -- it is stated anyway, plainly, because the player meets it
+// having no defensive multiplier at all, a siege with no clock on it -- it is
+// stated anyway, plainly, because the player meets it
 // whether or not the manual admits to it. `design-notes` is where those are
 // collected and named.
+//
+// THE OTHER HALF OF THAT RULE, learned the expensive way: a manual that is
+// confidently wrong is worse than no manual, and nothing here is covered by a test,
+// because no test asserts prose. Three pages -- Unit Types, Common Mistakes and
+// Design Notes -- said that buying infantry gave one point of force for a thousand
+// people and told the player not to bother. It gave a thousand points for a
+// thousand people, and had done since 2023; the claim was never checked against
+// `armyProdPopPrices`, and the register believed it too (known-issue BR, closed by
+// measuring it against the running game). Quote a number here only after reading
+// it out of `src/config/balance.js` or `node tools/econ-lab.mjs`.
 
 /** A paragraph. */
 const p = (text) => ({ kind: "p", text });
@@ -254,13 +264,11 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "boundary, which is the only point at which territory has " +
                                 "changed hands."
                         ),
-                        planned(
-                            "A victory and defeat SCREEN. The game already decides itself — " +
-                                "the ending is checked at the end of every turn, before the " +
-                                "turn counter moves, and it is announced exactly once — " +
-                                "but what it currently does with that is write a line to the " +
-                                "browser console. The screen is the next piece of work, and it " +
-                                "is a second listener rather than a change to any of the above."
+                        p(
+                            "When it ends you get a screen: what you were playing for, whether " +
+                                "you won it, and the final standings. Three ways off it — New " +
+                                "Game, Main Menu, and View Final Map, which simply takes the " +
+                                "panel down so you can look at the board you finished on."
                         ),
                         h("What the AI is trying to do"),
                         p(
@@ -831,18 +839,23 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "matters because AI leaders have a reconquista trait and will " +
                                 "keep coming back for land that used to be theirs."
                         ),
-                        h("Besieged territories earn nothing"),
+                        h("A besieged territory is cut off"),
                         p(
-                            "A territory under siege produces no gold, no oil and no " +
-                                "construction materials, for as long as the siege lasts — and a " +
-                                "siege can last indefinitely. This is the harshest rule in the " +
-                                "game and it is currently uncapped."
+                            "It earns a QUARTER of its gold, oil and construction materials for " +
+                                "as long as the siege lasts, and its army's upkeep is charged in " +
+                                "full against that quarter. It also builds nothing at all: no " +
+                                "farms, no forests, no oil wells and no forts. Every row in its " +
+                                "upgrade window reads \"Under Siege\"."
                         ),
-                        planned(
-                            "A siege should have a decaying yield rather than a total blackout, " +
-                                "or a hard turn limit after which it resolves one way or the " +
-                                "other. Being frozen at zero income for eleven turns with no " +
-                                "counter-play is not a design decision, it is an unfinished one."
+                        p(
+                            "The quarter is what makes a siege something you can answer. " +
+                                "Earlier versions froze a besieged territory at zero, " +
+                                "indefinitely, with no counter-play at all — and nothing ends a " +
+                                "siege except an arrest or a conquest, so a player besieged on " +
+                                "turn 3 was still frozen on turn 14. On a quarter you are still " +
+                                "accumulating, slowly, toward the army that lifts it. Food is " +
+                                "not reduced: starvation is what a siege does, and taxing the " +
+                                "food as well would be charging for the siege twice."
                         ),
                     ],
                 },
@@ -1027,9 +1040,10 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         p(
                             "Immediately, on any frontier territory, and never on an interior " +
                                 "one that cannot be reached by an enemy. Forts are the only " +
-                                "building a siege destroys on purpose, so on a territory that is " +
-                                "already besieged, building more of them is throwing materials " +
-                                "into a fire."
+                                "building a siege destroys on purpose. You cannot build them " +
+                                "on a territory that is already besieged in any case — a siege " +
+                                "suspends construction entirely — so a fort has to be standing " +
+                                "before the siege arrives to be worth anything."
                         ),
                         h("Who pays"),
                         p(
@@ -1276,7 +1290,10 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         p(
                             "Every unit costs gold every turn simply for existing, charged " +
                                 "against the territory it garrisons. Grounded vehicles are not " +
-                                "billed — a unit you cannot fuel is not also a unit you pay for."
+                                "billed — a unit you cannot fuel is not also a unit you pay " +
+                                "for. A territory that cannot cover its bill loses the share of " +
+                                "its army it could not pay for, so this is a real ceiling on how " +
+                                "big an army a territory can hold and not just a drag on income."
                         ),
                         table(
                             ["Unit", "Gold per turn", "Per 100 units", "Per 1,000 force"],
@@ -1330,10 +1347,22 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("Why your income looks worse than it is"),
                         p(
-                            "A besieged territory contributes no gold, no oil and no " +
-                                "construction materials at all. If your income dropped sharply " +
-                                "and nothing was conquered, check the map for siege markers " +
-                                "before you check anything else."
+                            "A besieged territory contributes a quarter of its gold, oil and " +
+                                "construction materials, and pays its army's full upkeep out of " +
+                                "that quarter — so a large garrison under siege is a territory " +
+                                "that costs you money. If your income dropped sharply and " +
+                                "nothing was conquered, check the map for siege markers before " +
+                                "you check anything else."
+                        ),
+                        h("What happens if you cannot pay"),
+                        p(
+                            "Your army leaves. The share of it that deserts is the share of the " +
+                                "upkeep bill you could not cover: miss a tenth of the bill and a " +
+                                "tenth of that territory's army goes home, infantry first and " +
+                                "vehicle crews last. It is self-correcting rather than a death " +
+                                "spiral — next turn the bill is smaller by exactly what left, " +
+                                "so a territory settles at the army it can afford. But it " +
+                                "settles there whether or not that is the army you needed."
                         ),
                     ],
                 },
@@ -1462,19 +1491,23 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "infantry would cost."
                         ),
                         p(
-                            "Infantry are therefore very nearly worthless to buy. One infantry " +
-                                "unit costs a thousand productive population and adds one point " +
-                                "of force, while one assault unit costs the same thousand people " +
-                                "and adds a thousand points. The infantry you have are the " +
-                                "infantry you started with and the infantry you capture."
+                            "Infantry are bought in TROOPS OF A THOUSAND. One press of the plus " +
+                                "button costs 10 gold and a thousand productive population, and " +
+                                "puts a thousand soldiers — a thousand points of force — in the " +
+                                "territory. That is 100 points of force per gold, which ties " +
+                                "naval for the best in the game, and it comes with no oil bill " +
+                                "and the lowest upkeep of the four. Earlier editions of this " +
+                                "page said the opposite, and it was wrong."
                         ),
-                        planned(
-                            "The intent was clearly that infantry are bought in troops of a " +
-                                "thousand — the manpower price is literally named for it — and " +
-                                "the force conversion counts them as one. Fixing the mismatch " +
-                                "changes the value of every army on the map, so it belongs to a " +
-                                "deliberate balance pass. Until then, treat infantry as a " +
-                                "garrison you inherit rather than a unit you buy."
+                        p(
+                            "So the real trade is not force per gold, it is what the force is " +
+                                "FOR. Infantry buy open battle cheaply and sieges terribly: one " +
+                                "gold of infantry contributes 0.01 to a siege score against an " +
+                                "assault unit's 0.06, six times worse. Vehicles buy their force " +
+                                "with far fewer PEOPLE — 1.67 to 2.50 points per head against " +
+                                "infantry's 1.00 — which is what a thinly-peopled rich country " +
+                                "has to buy an army with at all. Infantry are what a populous " +
+                                "poor country fields, and they are not a mistake."
                         ),
                         h("What composition actually does in a battle"),
                         p(
@@ -2220,11 +2253,13 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                     title: "Common Mistakes",
                     summary: "The things the game does not warn you about.",
                     body: [
-                        h("Buying infantry"),
+                        h("Buying infantry for a siege"),
                         p(
-                            "A thousand productive population for one point of army strength. " +
-                                "The same thousand buys an assault unit worth a thousand points. " +
-                                "See \"Unit Types\"."
+                            "Infantry are the cheapest force in the game per gold and very " +
+                                "nearly the worst thing to besiege with: a gold of infantry is " +
+                                "worth 0.01 of siege score against an assault unit's 0.06. Buy " +
+                                "them to hold ground and to win open battles; buy assault to " +
+                                "take a territory that is dug in. See \"Unit Types\"."
                         ),
                         h("Not building the first fort"),
                         p(
@@ -2588,30 +2623,30 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                         ),
                         h("The four things most worth fixing, in order"),
                         p(
-                            "1. THE GAME ENDS, BUT IT DOES NOT SAY SO ON SCREEN. This was the " +
-                                "top of the list for the life of the project and it is now " +
-                                "most of the way closed: you choose one of five goals before " +
-                                "the first turn, every computer country plays for the same " +
-                                "one and adapts to it, your progress is on the phase bar, and " +
-                                "the ending is decided at the end of every turn — the moment " +
-                                "anybody completes the condition, or you lose your last " +
-                                "territory. What is missing is the last step, which is a " +
-                                "victory or defeat SCREEN; today the ending goes to the " +
-                                "browser console. See \"Goals and Victory\"."
+                            "1. NO COUNTRY EVER TALKS TO ANOTHER. Two hundred and six computer " +
+                                "countries plan in complete isolation: there are no alliances, " +
+                                "no non-aggression pacts, no shared wars and no way for you to " +
+                                "propose any of those. The one exception is the offer to lift " +
+                                "a siege for gold, which the computer makes to you and never " +
+                                "to another computer. A world of independent actors is why the " +
+                                "map consolidates as slowly as it does."
                         ),
                         p(
-                            "2. SIEGES SILT UP THE MAP. The AI starts far more than it can " +
-                                "finish, a besieged territory earns nothing indefinitely, and " +
-                                "nothing ends a siege except an arrest or a conquest. A turn " +
-                                "limit, a decaying yield, or an upkeep on the besieging army " +
-                                "would each fix it."
+                            "2. THE OPENING IS NOT THE SAME GAME AS THE REST. The computer " +
+                                "countries get their leaders and their first forts only after " +
+                                "turn 1 has already been planned and earned, so the first turn " +
+                                "of a game is played over a slightly emptier world than every " +
+                                "turn after it. Giving them a fully formed first turn was " +
+                                "tried and measured, and it eliminated the player every time, " +
+                                "so it is a balance question rather than an oversight."
                         ),
                         p(
-                            "3. INFANTRY DO NOT WORK. A thousand people to field one point of " +
-                                "strength, against a thousand people for a thousand points as " +
-                                "assault. The manpower price is named for troops of a thousand " +
-                                "and the strength conversion counts them as one; the two halves " +
-                                "disagree."
+                            "3. A SIEGE STILL HAS NO CLOCK. What a siege DOES to a territory is " +
+                                "settled — a quarter income, no construction, and starvation — " +
+                                "but nothing ENDS one except an arrest or a conquest, so a " +
+                                "besieged territory can sit under siege for the rest of the " +
+                                "game. A turn limit, or a besieging army that pays upkeep for " +
+                                "the privilege, would each give it an ending."
                         ),
                         p(
                             "4. AN UNFORTIFIED TERRITORY HAS NO DEFENCE AT ALL. The multiplier " +
@@ -2624,14 +2659,18 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "The small-territory defence bonus is inverted — nothing gets it, " +
                                 "and large territories are penalised instead (issue AR).",
                             "Battle rout thresholds are measured a full round late (issue AP).",
-                            "A famine whose losses exactly equal the infantry count destroys " +
-                                "the entire mechanised army as well (issue AN).",
-                            "Capacity bonuses from upgrades compound more than intended."
+                            "An upgrade order is priced at the last building in it, so five " +
+                                "farms bought together cost about 2.2 times less than five " +
+                                "bought one a turn. That one is deliberate: it is a reason to " +
+                                "save up."
                         ),
                         p(
-                            "Each of those changes the odds or the economy across the whole " +
-                                "map, so each belongs to a deliberate balance pass rather than " +
-                                "to a quiet fix on the way past."
+                            "The first two change the odds across the whole map, so each " +
+                                "belongs to a deliberate balance pass rather than to a quiet " +
+                                "fix on the way past. AR in particular has been measured twice " +
+                                "and both corrections were worse than leaving it: the ratio is " +
+                                "unbounded as a territory gets smaller, so the obvious fix " +
+                                "hands the smallest place on the map a thousandfold defence."
                         ),
                         h("What is designed and not built"),
                         ul(

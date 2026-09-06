@@ -188,6 +188,15 @@ export function installTestHooks(accessors) {
         continents: () => snapshot(accessors.continents?.() ?? []),
         economyFor: (nameOrId) => snapshot(accessors.economyFor?.(nameOrId) ?? null),
 
+        // What the upgrade window would offer for a territory, without opening it. Exists for
+        // one rule that cannot be reached by clicking: a besieged territory builds nothing
+        // (known-issue BQ), and the besieged territory in a test is usually the ENEMY's, whose
+        // upgrade window the player has no route to. `condition` is the control and not a
+        // caption -- every plus button in that window is enabled on `"Can Build"` and nothing
+        // else -- so asserting it is asserting the button.
+        availableUpgrades: (nameOrId) =>
+            snapshot(accessors.availableUpgrades?.(nameOrId) ?? []),
+
         // Put the world into a state clicking cannot reach -- a rout, an all-naval
         // defender, two concurrent sieges. Writes through state/mutations.js like the
         // game does. See src/platform/scenarios.js and docs/03-e2e-test-plan.md 3.7.

@@ -145,6 +145,43 @@ export function upgradeOrderPriceFor(kind, alreadyBuilt, quantity, devIndex) {
     return upgradePriceFor(kind, (Number(alreadyBuilt) || 0) + ordered, devIndex);
 }
 
+/**
+ * What adding ONE MORE to an order already `alreadyOrdered` long costs.
+ *
+ * The player's transaction is priced at the LAST one in it, so an order of `n` on top of
+ * `alreadyBuilt` costs `upgradeOrderPriceFor(kind, alreadyBuilt, n)` in total -- not the sum of
+ * the ladder. A buyer that adds to the order one decision at a time therefore has to be charged
+ * the DIFFERENCE each time, or it ends up paying the ladder and the discount is not available
+ * to it at all.
+ *
+ * That is exactly what the AI was doing: it picks the next upgrade one at a time, in a loop
+ * that re-scores the territory after each one, and it charged `upgradePriceFor(built + 1)`
+ * every pass -- about 2.2x what the player pays for the same five buildings. E8 was logged as
+ * a balance discrepancy in the price rule; the decision taken was that the discount is a real
+ * decision worth keeping (save up and buy five at once) and that the fault was that only one
+ * side could take it. This is what lets the other side take it, without changing the price of
+ * anything.
+ *
+ * The sum telescopes to the order price exactly, which is the property that makes it safe:
+ * the first call returns `price(built + 1)` (because an order of zero costs nothing) and every
+ * call after it returns `price(built + k) - price(built + k - 1)`.
+ *
+ * @param {"farm"|"forest"|"oilWell"|"fort"} kind
+ * @param {number} alreadyBuilt      what stood before this transaction began
+ * @param {number} alreadyOrdered    how many of `kind` this transaction has already committed to
+ * @param {number|string} devIndex
+ * @returns {{gold: number, consMats: number}}
+ */
+export function nextInOrderPriceFor(kind, alreadyBuilt, alreadyOrdered, devIndex) {
+    const ordered = Math.max(0, Number(alreadyOrdered) || 0);
+    const after = upgradeOrderPriceFor(kind, alreadyBuilt, ordered + 1, devIndex);
+    const before = upgradeOrderPriceFor(kind, alreadyBuilt, ordered, devIndex);
+    return {
+        gold: after.gold - before.gold,
+        consMats: after.consMats - before.consMats
+    };
+}
+
 /** How many more of `kind` this territory may build. */
 export function remainingCapacityFor(territory, kind) {
     const spec = UPGRADES[kind];

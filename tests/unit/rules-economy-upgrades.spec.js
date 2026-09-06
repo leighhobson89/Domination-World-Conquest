@@ -16,6 +16,7 @@ import {
     UPGRADES,
     UPGRADE_KINDS,
     applyUpgrade,
+    nextInOrderPriceFor,
     remainingCapacityFor,
     upgradeOrderPriceFor,
     upgradePriceFor
@@ -122,8 +123,11 @@ describe("upgradeOrderPriceFor", () => {
     });
 
     it("makes bulk buying markedly cheaper than buying one a turn", () => {
-        // The measurement behind E8. If this ratio ever comes out near 1, the discrepancy has
-        // been fixed and the audit entry should be closed rather than this test relaxed.
+        // The measurement behind E8, and it is now a RULE rather than a discrepancy: the
+        // decision taken was that saving up to buy five at once is a real choice worth
+        // keeping, and that the fault was that only the player could take it. So this ratio
+        // is expected to stay above 2 -- `nextInOrderPriceFor()` below is what lets a buyer
+        // who commits one decision at a time reach the same price.
         const bulk = upgradeOrderPriceFor("farm", 0, 5, 0.7).gold;
         let oneATurn = 0;
         for (let nth = 1; nth <= 5; nth++) {
@@ -134,6 +138,67 @@ describe("upgradeOrderPriceFor", () => {
 
     it("costs nothing for an empty order", () => {
         expect(upgradeOrderPriceFor("farm", 3, 0, 0.7)).toEqual({ gold: 0, consMats: 0 });
+    });
+});
+
+describe("nextInOrderPriceFor", () => {
+    // What makes the bulk discount available to a buyer that commits one decision at a time.
+    // The AI's economy loop re-scores the territory after every purchase, so it cannot name
+    // the size of its order up front -- and charging it `price(built + 1)` each pass made it
+    // pay the full ladder, about 2.2x what a player pays for the same buildings. That was the
+    // whole of E8: not the discount, but that only one side could take it.
+
+    it("telescopes to the order price exactly", () => {
+        // THE property. If these two ever diverge, the AI is paying something the price rule
+        // never quotes to anybody.
+        for (const kind of UPGRADE_KINDS) {
+            for (const size of [1, 2, 5, 9]) {
+                let marginals = { gold: 0, consMats: 0 };
+                for (let ordered = 0; ordered < size; ordered++) {
+                    const step = nextInOrderPriceFor(kind, 0, ordered, 0.7);
+                    marginals = {
+                        gold: marginals.gold + step.gold,
+                        consMats: marginals.consMats + step.consMats
+                    };
+                }
+                expect(marginals, `${kind} x${size}`)
+                    .toEqual(upgradeOrderPriceFor(kind, 0, size, 0.7));
+            }
+        }
+    });
+
+    it("telescopes on top of what already stands, not from zero", () => {
+        let total = 0;
+        for (let ordered = 0; ordered < 3; ordered++) {
+            total += nextInOrderPriceFor("fort", 4, ordered, 0.7).gold;
+        }
+        expect(total).toBe(upgradeOrderPriceFor("fort", 4, 3, 0.7).gold);
+    });
+
+    it("charges the first one in an order the full price of a first one", () => {
+        // An order of zero costs nothing, so the first marginal is the whole of price(1) --
+        // the discount is on the SECOND and later, which is what makes it a bulk discount and
+        // not a rebate on buying anything at all.
+        expect(nextInOrderPriceFor("farm", 0, 0, 0.7))
+            .toEqual(upgradePriceFor("farm", 1, 0.7));
+    });
+
+    it("costs less per building the longer the order gets", () => {
+        const first = nextInOrderPriceFor("farm", 0, 0, 0.7).gold;
+        const fifth = nextInOrderPriceFor("farm", 0, 4, 0.7).gold;
+        // Still rising -- the ladder is quadratic and this is its slope, not a flat rate --
+        // but the five together come to far less than five rungs climbed separately.
+        expect(fifth).toBeGreaterThan(first);
+        let ladder = 0;
+        for (let nth = 1; nth <= 5; nth++) {
+            ladder += upgradePriceFor("farm", nth, 0.7).gold;
+        }
+        expect(upgradeOrderPriceFor("farm", 0, 5, 0.7).gold).toBeLessThan(ladder / 2);
+    });
+
+    it("treats a negative or missing position as the start of an order", () => {
+        expect(nextInOrderPriceFor("farm", 0, -3, 0.7))
+            .toEqual(upgradePriceFor("farm", 1, 0.7));
     });
 });
 

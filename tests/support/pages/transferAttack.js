@@ -48,10 +48,9 @@ export class TransferAttackPage {
      * assault possible -- and its rows carry `transfer-table-row` rather than
      * `transfer-table-row-hoverable`, with no `.selectedRow` anywhere.
      *
-     * The click handler is bound to the row's NAME column
-     * (`.transfer-table-outer-column:first-child`), not to the row, so clicking
-     * the row anywhere else does nothing. Refactor Phase 6.5 moves the handler
-     * onto the row where it belongs.
+     * The click handler is on the ROW, so any cell selects. This still clicks the
+     * name column: it is the one cell in the row that carries no control of its own,
+     * so a click there can never be read as anything but a selection.
      */
     async select(territoryName) {
         await this.rowFor(territoryName).locator(cls.transferTableOuterColumn).first().click();

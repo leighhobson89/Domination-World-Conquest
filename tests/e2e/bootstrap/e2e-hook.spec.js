@@ -33,6 +33,7 @@ test.describe("?e2e=1 state hook", () => {
                 "applyScenario",
                 "audio",
                 "audioTracks",
+                "availableUpgrades",
                 "battle",
                 "continents",
                 "countryStrengths",

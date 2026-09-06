@@ -862,3 +862,352 @@ stretch item in the checklist and was deferred.
 | **BM** | The AI bought its main tranche of infantry at a tenth of the price | **Stage 1.10.** `bolsterArmy()` debits the gold, not the troop count. **BJ is not explained by it, and that was checked**: same seed gives Mexico at −107,929,590 before and −29,085,461 after |
 | **BN** | The upgrade price shown and the price charged came from different formulas | **Stage 1.6/1.7.** Seven copies of two formulas became one each; `simulatedCostsAll` is gone from module scope. `tests/e2e/resources-economy/upgrade-prices.spec.js` asserts the quoted price is the charged price on a territory that already has buildings, which is the only state in which they could differ |
 | **BP** | A siege erased any upgrade bought while it was in progress | **Closed in stage 2.** The siege accumulates what it actually destroyed, tick by tick, and the income pass ADDS THAT BACK when the siege lifts instead of assigning `startingFoodCapacity` over whatever the ceiling has since become. Same number as before whenever nothing was built, so it is a defect fix and not a balance change. A war from an older save has no accumulator and falls back to the old assignment. Found by an e2e spec that failed on exactly one territory in the world (Austria) and turned out to be reporting this rather than the defect it was written for |
+
+---
+
+## Closed in the register sweep
+
+Five open defects taken together, in one pass over the live register. Four were real and one had
+never been true. The rule about measuring rather than reasoning earned its place twice here: the
+cause of **BJ** was not the one the entry proposed, and **BR** did not exist at all.
+
+| Id | Issue | How it closed |
+|---|---|---|
+| **AN** | A famine whose losses exactly equalled the infantry destroyed the entire mechanised army | `planArmyStarvation()` in `src/rules/economy/population.js` guards the WALK rather than only the partial-loss branch: `if (remaining <= 0) break;`. `remaining === 0` used to fall through to the total-loss branch for all three vehicle types, so a single soldier's difference in the arithmetic cost a territory every assault vehicle, aircraft and ship it had. Two unit tests in `tests/unit/rules-economy.spec.js` replace the one that pinned the defect: the fleet survives a famine the infantry absorbed exactly, and a famine that outruns the infantry by one assault vehicle's worth reaches the assault column and stops there |
+| **BI** | Three sources disagreed about which continent a territory is on | The model was already authoritative and already right; what was missing was anything that would notice the other two drifting. `resources/svgMaster.svg` had Easter Island as Oceanian, which is what its `continent=` attribute said and what the SVG's own totals counted (Oceania 66, South America 48, against the model's 65 and 49). The attribute is corrected, and `tests/unit/data-continents.spec.js` now reconciles all three: every territory path's `continent=` must equal the continent of the country that ORIGINALLY owned it, every path must have an owner the model knows, the six per-continent counts must match the model's exactly, and `SVG_coastLines.svg`'s `shadow=` vocabulary must be those same six names. Those coastline paths carry no territory identity at all -- no id, no name -- so they cannot disagree about a territory, only about which continents exist, which is what the last assertion pins. About a millisecond, so the drift cannot come back |
+| **BJ** | A large empire's `armyForCurrentTerritory` went hugely negative -- India at -6.5 billion after 150 headless turns | **Measured, not reasoned about.** A temporary proxy trap on every territory write recorded the first stack that put a negative into any of the eight army fields, over a 30-turn run on seed `goals`. It named five sites, and the entry's own theory -- army maintenance, or a battle's casualties charged twice -- was not among them. See below |
+| **BR** | The player and the AI were said to buy infantry in different sizes | **This was never true.** `resourceCalculations.js` has done `purchaseArray[0] *= (vehicleArmyPersonnelWorth.infantry * 1000)` since July 2023, so the player has always bought a troop of a thousand, exactly as the AI does; `tests/e2e/buy-military/purchase.spec.js` has asserted `3 * INFANTRY_IN_A_TROOP` for as long as it has existed. Measured directly against the running game before closing it: three purchases, infantry +3,000 and army +3,000. The entry described a thousandfold balance asymmetry that was not in the code, and it was filed twice -- once in the Dominapedia as a "design gap" and once here -- which is the argument for closing an entry by reproducing it rather than by reading it |
+| -- | The transfer table's row-selection handler was on the row's NAME column, not on the row | It was two listeners for one gesture and nothing kept them in step: the row set `selectedTerritoryUniqueId` and the name column moved the highlight. Click a row's name, then click anywhere in a DIFFERENT row -- an inert stepper, a blank cell -- and the id moved while the highlight did not, so the next allocation was committed against a destination the player had not chosen and could not see. The row listener then restored the id as the click bubbled, which is what made it one misdirected allocation rather than an obviously broken window. Both are now `selectDestination()`, on the row, so the id, the highlight and the title cannot disagree. The e2e page object still clicks the name column, for the reason it is now documented with: it is the one cell in a row carrying no control of its own |
+
+### BJ: the five sites, and the one underneath them
+
+None of the five was army maintenance and none was a battle charging casualties twice. All five
+were hand-written garrison writes in `aiCalculations.js` that each got a different part of the
+same thing wrong.
+
+1. **`recombineRemainingArmyAfterBattle()` produced negative infantry.** It ended
+   `infantryCount = (armyArray[0] + armyArray[1] + armyArray[2] + armyArray[3]) - totalAllocated`,
+   and by the time that ran the loop above it had already emptied slots 1-3 into the three
+   add-counts -- so it was `survivingInfantry - (the personnel worth of the surviving VEHICLES)`.
+   Every element of `armyArray` had been scaled by the same survival fraction a few lines
+   earlier, which is what keeps the total honest; subtracting the vehicles from the infantry as
+   well charged for them twice, and any survivor mix with more vehicle force than infantry came
+   out negative. That negative was written straight onto the conquered territory.
+2. **The conquest path left the DEFEATED owner's `useable*` figures standing.** The AI's local
+   `updateTerritory()` wrote the four unit counts and nothing else, so a territory taken by a
+   handful of survivors kept the loser's `useableAssault` / `useableAir` / `useableNaval` and the
+   loser's total. `calculateArmyMakeupOfAttack()` allocates from `useable*`, so the next attack
+   out of a freshly taken territory could send vehicles that were never there -- and site 3 then
+   debited them from counts that could not cover it. Its oil demand was inherited too, so a
+   territory taken from a naval power grounded the occupier's own vehicles for reasons that had
+   left with the defeated garrison.
+3. **`doAttack()` never recomputed the total and never clamped.** Seven subtractions written out
+   by hand, `armyForCurrentTerritory` not among them.
+4. **`setSiege()` debited `useableAir` but not `airForCurrentTerritory` -- on the store half
+   only.** The copy beside it had the line. So a besieging force's aircraft left the useable
+   count and stayed in the owned count, and the two disagreed by a little more with every siege
+   the country laid.
+5. **`musterAiArmies()` adjusted the total by the same delta as the infantry.** That is correct
+   arithmetic on a total that is already right, and it takes a territory whose stored total is
+   below its infantry further negative every turn it sends reinforcements. It was the carrier
+   rather than a cause, which is why it showed up in the trap holding the largest numbers.
+
+All five now go through `src/rules/military/garrison.js` -- `garrisonOf()`, `garrisonFields()`,
+`writeGarrison()`, `garrisonPatch()` -- which is pure, imports only `config/`, runs in Node, and
+enforces two invariants: no count may go negative, and `useable*` may never exceed the count it
+gates. `tests/unit/rules-garrison.spec.js` pins both, and each of the five is named at the
+assertion that would catch it. Confirmed by re-running the trap for the full 150 turns of seed
+`goals`: **zero negative fields and zero trap sites, at every ten-turn sample**.
+
+### BJ's real prize: every AI attack was free
+
+Found while fixing the five, and it is much the larger finding. `doAttack()` debited the real
+store territory -- and then `doAiActions()` ended the goal with
+`patchTerritory(friendlyTerritory.uniqueId, mainArrayFriendlyTerritoryCopy)`, writing the shallow
+copy taken BEFORE the attack back over every field it had just debited. **Win or lose, the
+attacking force never left the source territory.** A won attack then garrisoned the conquered
+territory with the survivors on top of that, so attacking CREATED army.
+
+Measured on seed `goals`, turn 8, with a temporary probe around the call:
+
+| Territory | Force sent | Store before | After `doAttack()` | End of turn |
+|---|---|---|---|---|
+| United States | 131,388 inf + 36 vehicles | 5,817,692 | 5,374,304 | **5,817,692** |
+| Nicaragua | 400,011 inf + 11 vehicles | 1,308,682 | 866,671 | **1,308,682** |
+| Saudi Arabia | 29,568 inf + 9 vehicles | 430,274 | 322,706 | **430,274** |
+| New Caledonia 3 | 16,858 inf | 24,678 | 7,820 | **24,678** |
+
+It had no textual signature whatever: nothing threw, the battle was resolved correctly against
+the force that was actually sent, the odds shown were right, the round log was right, and the
+only witness was a source garrison that did not go down. `setSiege()` had it right the whole
+time -- the copy is the working set for a goal and the patch-back is what commits it -- so
+`doAttack()` now debits the copy, and there is one debit rather than two that have to agree.
+
+**This is a balance change and it was measured**, `--turns=150 --seed=goals --every=25
+--goal=CONTINENTAL`, control against fix:
+
+| | Countries surviving | Largest empire | Top-sixteen share | Upgrades standing | Forts | Gold held |
+|---|---|---|---|---|---|---|
+| Attacks free (control) | 89 | 71 | 76% | 1,964 | 607 | 1,186k |
+| Attacks paid for | **109** | **60** | **67%** | **2,402** | **645** | **2,199k** |
+
+So the world consolidates visibly LESS, which moves it back toward the open design item about
+attacking being too hard, and the AI spends the force it no longer conjures on its economy
+instead -- four hundred more upgrades standing and nearly twice the gold. Neither run completed
+a continent; Continental's nearest sits at 98% of North America in both, so this did not move
+**BO**. The control is `test-reports/ai-sim/bj6-before.json` and the fix `bj6-after.json`. **Only
+Continental was measured; the other four goals are not.**
+
+### Not a defect, but found and fixed on the way: `pathAreas.json` was stale
+
+`tests/unit/path-areas.spec.js` was already failing at HEAD, before any of this work:
+`resources/pathAreas.json` recorded `svgBytes: 352162` against an SVG of 351,798 bytes. The
+runtime guard in `src/data/pathAreas.js` rejects the cache on exactly that mismatch and returns
+null, which is not an error -- the caller then measures all 359 SVG paths itself, which is the
+slow path the cache exists to avoid, silently, on every page load. `npm run build:data`
+regenerates it. Verified that restoring the cache changes no number: all 359 areas come out
+identical to what the runtime computes, and `totalWorldAreaKm2` is unchanged.
+
+---
+
+## Closed in the design pass that followed the register sweep
+
+Three design problems, decided rather than fixed — the distinction the register keeps between
+the two sections. Each was a rule that did what it said and produced no game, and each is now a
+named constant in `config/balance.js` with the reasoning at the constant.
+
+| Id | Problem | The decision |
+|---|---|---|
+| — | **A besieged territory earned no gold, oil or construction materials, indefinitely.** Never a considered rule: the siege branch of the income pass in `resourceCalculations.js` handles food and population, and the other three lines were simply never written into it | **`SIEGE_INCOME_SHARE = 0.25`.** A besieged territory earns a quarter of its yield, with upkeep charged in FULL against it. The distinction that decided it is between a bleed and a freeze: on a quarter income a besieged territory is still accumulating, slowly, toward the fort or the troops that might break the siege, so the player has something to do about it — on zero there is no decision available at all, which is what made it a design problem rather than a balance number. **Food is deliberately not scaled by it**: starvation is the siege's whole mechanism, through `calculateFoodChange()` and `siegeArmyStarvationChange()`, and taxing the food again here would charge for the siege twice |
+| **BQ** | **A besieged territory could not earn and could still BUILD.** France, under siege, put up a farm and its food ceiling rose 64,967,839 → 65,032,807 across the turn the siege began — the farm outran the siege grinding it down, and economy stage 3.1 widened that by adding a flat 100,000 on top of the ten per cent | **`SIEGE_SUSPENDS_CONSTRUCTION = true`.** A siege is a territory cut off, so it is one rule: reduced income, and nothing built. On the player's side the gate is in `calculateAvailableUpgrades()`, which is the right place because `condition` is the CONTROL and not a caption — every plus button in the upgrade window is enabled on `condition === "Can Build"` and nothing else. It reads `"Under Siege"`, because `"Not enough gold"` on a full treasury would look like a rendering fault. A constant rather than a bare `if`, so a later phase can relax it to "forts only" — digging in is what a besieged garrison would actually do |
+| — | **Unpaid army upkeep had no consequence.** The charge was re-enabled in Phase 3.16 (audit 5.2 R) and never given teeth: `goldForCurrentTerritory = Math.max(0, gold + change)` discards the shortfall, so a broke territory sat at zero gold and kept its army for nothing. Gold was a drag on income and never a ceiling on army size, which is the whole of what upkeep is for | **`ARMY_DESERTION_RATE = 1.0`, and the rule is self-limiting by construction.** The share of the army that deserts is the share of the BILL that went unpaid. Miss a tenth of your upkeep, lose a tenth of your army — and next turn the bill is a tenth smaller, so a territory converges on the army it can afford instead of collapsing. That property is why the dial sits at 1.0 and why it multiplies the unpaid share rather than being a flat rate: at 1.0 the rule needs no separate argument for why it terminates. `upkeepShortfall()` recovers the number the clamp throws away and `planArmyDesertion()` walks it through `planArmyStarvation()`, so deserters come out of the infantry first and the crews last — an unpaid soldier goes home, and a vehicle is a smaller number of people to keep |
+
+### The AI's siege guard only half meant what it said
+
+Found while implementing the construction suspension, and it is a defect rather than a decision.
+`doAiActions()` has said *"is under siege, cannot perform any goals this turn for this
+territory"* since it was written, and it asked `getSiegeObjectFromAiSiegeList()` — the AI's siege
+list **alone**. So a territory besieged by the PLAYER went on upgrading, building forts and
+launching attacks out of the siege as though nothing had happened, while a territory besieged by
+another AI did nothing. It asks `isUnderSiege()` now, which answers for both lists, and that is
+also the AI half of `SIEGE_SUSPENDS_CONSTRUCTION`: Economy and Bolster are the only routes the AI
+has to an upgrade or a fort, and both sit below the guard.
+
+### Measured, and it moved BO
+
+Same invocation as the sweep, `--turns=150 --seed=goals --every=25 --goal=CONTINENTAL`, against
+the state left by the free-attack fix:
+
+| | Countries | Largest empire | Top-16 share | Upgrades | Forts | Gold | **Continents held** |
+|---|---|---|---|---|---|---|---|
+| After the free-attack fix | 109 | 60 | 67% | 2,402 | 645 | 2,199k | **0** (nearest 98%) |
+| After these three | **102** | **65** | **68%** | **2,581** | 632 | 2,167k | **1** — North America (United States) |
+
+**A continent is completed, from turn 100 onward, and Continental's nearest reaches 100% instead
+of stalling at 98%.** That is the first movement on **BO** that is not a report of some other
+change knocking it sideways, and the likeliest reason is the siege guard above rather than any of
+the three constants: an AI territory under player siege that keeps attacking and building is a
+siege that never resolves, and the last few territories of a continent are the ones sieges are
+laid on. The other four goals are not re-measured.
+
+The world otherwise moved very little — seven fewer countries, five more territories in the
+largest empire — which is the right size for a change of this kind. Desertion in particular did
+not crush anyone: upgrades standing rose again (2,402 → 2,581) and the world's gold is unchanged,
+so territories are paying their bills and spending the difference rather than going bankrupt.
+
+### Noted, not changed: famine and desertion write different things
+
+`applyArmyStarvation()` writes the `useable*` counts and **not** the owned ones, so a famine that
+destroys vehicles leaves `assaultForCurrentTerritory` standing — and the player's
+`setPlayerUseableNotUseableWeaponsDueToOilDemand()` rebuilds `useable*` from the owned counts
+every turn, which would bring starved vehicles back. `applyDesertion()` deliberately writes both,
+through `garrisonFields()`. The two differing is recorded here rather than harmonised, because
+famine is not what this decision was about and changing it is a balance change of its own.
+
+### AR's open half, closed as a decision
+
+*Should a small territory get a defence bonus at all, and what caps it?* — the half of **AR**
+that was left open when the rest of it was closed at B.10.4.
+
+The decision is **no change**, and it is a decision rather than a deferral. `areaBonusFor()`'s
+`min`/`max` slip is real: large territories are penalised rather than small ones helped, which is
+backwards from what the name says. But it has now been measured twice and both corrections were
+worse than the behaviour they replaced. The ratio is unbounded as area approaches zero, so the
+naive fix hands the smallest territory on the map a **1,047×** defence bonus; and the most
+conservative capped form that was tried **halves the largest empire over sixty turns**, which is
+a larger movement than anything the balance passes have deliberately made.
+
+`probability.js` stays byte-for-byte unchanged, as it has since B.10.4. Anyone reopening this
+starts from `test-reports/ai-sim/ar-baseline.json` and `ar-capped.json` — the two runs above —
+and not from `Math.min`. It is filed here so that the live register stops carrying it as if it
+were outstanding work.
+
+---
+
+## Closed in the second design pass
+
+Three more decisions and the last of the "Missing" items. Two of the three were closed by giving
+the AI something the player already had, rather than by taking anything away.
+
+| Id | Problem | The decision |
+|---|---|---|
+| **E8** | **An upgrade order is priced at the LAST one in it.** Five farms in one transaction cost `price(5)`; five bought one a turn cost about 2.2× that. Economy stage 3.2 removed the construction-materials bottleneck that had made a five-in-one order rare, so the discount became available on most of the map — and it was a PLAYER discount, because the AI buys one at a time in a loop that re-scores the territory after each purchase | **The discount stays; the AI can take it now.** Saving up to buy five at once instead of one a turn is a real decision and the game has few enough of those. The fault was never the discount, it was that only one side could reach it. `nextInOrderPriceFor()` in `src/rules/economy/upgrades.js` returns what adding ONE MORE to an order costs, and those marginals telescope to the order price exactly — the first is the whole of `price(built + 1)`, because an order of zero costs nothing, and every one after it is the difference between two rungs. So a buyer that commits one decision at a time reaches the same total as a buyer who names the size of the order up front, and **no price changed for anybody**. Both the economy loop and the fort loop in `aiCalculations.js` go through it. Measured over ten thousand combinations in `tests/unit/rules-economy-upgrades.spec.js`: if the sum ever stops equalling the order price, the AI is paying something the price rule never quotes to anyone |
+| — | **The AI could eliminate a single-territory player in ten turns.** 206 countries plan their first turn with full information, and a one-territory player is reachable by several of them at once | **`PLAYER_GRACE_TURNS = 5`.** The AI will not OPEN an attack or a siege against the player for the first five turns. It sits in `rateTarget()`, before the odds are even looked at, because that is the one place a target is declined with a stated reason — so the AI debug window and the plan log both say why a target vanished rather than leaving it to be inferred. **Three things it deliberately is not.** It is not a difficulty setting: the AI fights exactly as hard from turn 6 as it ever did. It is not a shield — the player may attack throughout, and an interaction already standing is untouched, because this refuses the OPENING of one. And it is not a bonus to anybody's odds; nothing in the battle model knows it exists |
+| — | **Should a small territory get a defence bonus at all?** The open half of **AR** | Closed as a decision — see the section above |
+
+### The ending has a screen
+
+The last item under **Missing**. `checkForVictory()` decided the game correctly and `endTurn()`
+emitted `GAME_OVER` exactly once; the only listener was a `console.log`, so a player who had just
+won a fifty-turn game was left sitting on a map with nothing to tell them so.
+
+It is **a second subscriber and no change at all to the rule**, which is the whole point of the
+ending being an event rather than a branch in the turn loop. Three files:
+
+* `src/ui/gameOver/describeEnding.js` — the wording, pure, and a function of the result plus a
+  standings snapshot. Unit-tested in Node, because an ending is by definition the state hardest
+  to reach by clicking and a spec that had to play a whole game to see one would be the slowest
+  and least reliable test in the suite. It reads the condition kind ONCE: five goals end five
+  different ways, and a screen that said "You have won" to all of them would waste the one
+  moment the whole game builds to. It also separates **elimination from a rival's victory** —
+  both are `outcome: "DEFEAT"`, and telling a player they were driven from the map while they
+  still held forty territories would be worse than saying nothing.
+* `src/ui/components/GameOver.js` — the panel. Fixed height, two columns each owning their own
+  overflow, the same rule the goal chooser and the Dominapedia follow.
+* `style.css` — the tone is a `data-tone` attribute and the colours are `--positive` /
+  `--negative` / `--accent`, so a themed page can say what victory looks like without a colour
+  literal outside `:root`.
+
+Three decisions in it are worth keeping:
+
+**THE STANDINGS ARE A SNAPSHOT TAKEN AT THE ENDING.** The panel can outlive the store it
+describes — New Game restores a pristine world underneath it — so a table that called
+`worldStandings()` when it drew would put the new world's figures under the old game's headline.
+
+**NOTHING IS DISMISSED BEFORE IT IS RAISED.** A game is decided in `endTurn()`, which can be the
+same tick the AI's last battle put a results screen up in. `.options-scrim` is at z-index 10000,
+above every floating window and above the battle UI, so the ending covers whatever is there
+rather than racing it. Reaching into `battle.js` to tear its resolution down would be the
+alternative, and that resolution lives in module-level variables the results screen is the only
+consumer of.
+
+**IT HAS A THIRD, QUIET EXIT.** New Game and Main Menu both throw the world away; **View Final
+Map** takes the panel down and does nothing else. A finished game is the one board a player most
+wants to sit and look at, and a modal covering it with no way past would take that away to save a
+button. Nothing brings the panel back, which is the point of it being the quiet one — Escape
+still opens the in-game menu, and that already carries New Game and Main Menu.
+
+### The consequence nobody would have predicted: it stopped `tools/ai-sim.mjs`
+
+The idle player in a long headless run is usually eliminated somewhere in the first hundred
+turns, which now raises the ending screen — and at z-index 10000 it covers the phase button. The
+first 150-turn run after the panel shipped **stopped dead at turn 114**, reporting
+`locator.click: Timeout ... <div class="options-scrim" id="game-over-container"> intercepts
+pointer events` against `#xButtonInfoPanel`. That reads exactly like a game defect and is not
+one.
+
+`GameDriver.dismissEndingScreen()` presses View Final Map, and it is called **first** in
+`dismissBlockingPanels()` — ahead of the battle results and the start-of-turn panel, because it
+is the only one of the three in the modal band and it covers the other two. Getting that order
+wrong is what the turn-114 failure actually was, the second time: the ending was being dismissed
+after an attempt to click an X underneath it.
+
+`withBlockersCleared()` clears and THEN acts, so a spec whose own `endTurn()` is the call that
+ends the game still sees the panel afterwards — the clearing happened before it existed. It is
+only cleared when something drives the game forward PAST an ending.
+
+### Measured
+
+Same invocation, `--turns=150 --seed=goals --every=25 --goal=CONTINENTAL`, against the state left
+by the first design pass:
+
+| | Countries | Largest empire | Top-16 share | Upgrades | Forts | Gold | Continents | Idle player alive at |
+|---|---|---|---|---|---|---|---|---|
+| After the first design pass | 102 | 65 | 68% | 2,581 | 632 | 2,167k | 1 | turn 50 |
+| After the grace period and E8 | **107** | **62** | 68% | 2,472 | 634 | 1,467k | 1 | **turn 100** |
+
+The world barely moved, which is right for a change that alters no price and no odds. **The
+grace period shows up where it was aimed**: the idle player — one territory, no decisions taken
+at all, the worst case the item described — is still on the map at turn 100, where in every
+previous run it was gone by turn 75. Continental still completes North America and still
+completes only one continent, so **BO** is where the first design pass left it.
+
+---
+
+## Closed in the third pass: bootstrap ordering, and the dead colour generator
+
+### Bootstrap ordering is no longer timing-luck
+
+The CPU leaders and the AI's starting forts were created in `ui.js` **after** `await
+initialiseGame()` resolved — which is after `turnEngine.start()` had already run turn 1. So turn
+1 was planned and earned over a world with no leaders and no forts on it, and
+`newTurnResources()` skips the income pass on turn 1 precisely to hide that.
+
+It could not simply be moved, and this is the second attempt. Both functions read the player's
+ownership, so they have to run after the loop in `initialiseGame()` that assigns it. Moving them
+there was implemented, measured and **reverted** in Phase 5.8: the ten-turn `long-run` went from
+6/6 green to 0/6, with the player eliminated every time.
+
+What changed since that measurement is `PLAYER_GRACE_TURNS` — the AI cannot open an attack or a
+siege against the player for the first five turns, which is exactly the failure the revert was
+protecting against. So it was tried again and measured again, and **`long-run` is 7/7 green**.
+The grace period was the obstacle.
+
+They are handed to `initialiseGame()` as a `worldSetup` callback rather than imported, because
+both live in `ui.js` and `gameTurnsLoop.js` does not import it. Spectator mode has always created
+them before the engine starts — nothing blocks there, so the AI phase is reached in the same tick
+and a country without a leader would throw — so this brings a played game into line with the one
+that was already right.
+
+**What it leaves behind is now a live register item**: the turn-1 income guard is scaffolding for
+a problem that no longer exists, and removing it grants every territory on the map an extra turn
+of income. That is a balance change with two e2e specs pinned to the current behaviour, so it
+wants its own measurement.
+
+### `generateDistinctRGBs()` is gone
+
+Dead code that was deliberately still CALLED, because its `Math.random` draws at module load —
+between 48 and a few hundred of them — sat on the same stream the economy, combat and the AI read
+from. Deleting it therefore shifted every seeded outcome in the game, which is why it had been
+logged as a measurement owed rather than a tidy-up.
+
+**Measured before and after, same seed, same country:** the United Kingdom's starting gold moves
+23,555 → 23,131, France's 24,076 → 23,209, West Papua 3's 246 → 472. Starting ARMY is unchanged
+everywhere, because it is derived from area and population rather than from the stream at that
+point. So the shift is real and it is confined to the randomised starting gold and everything
+downstream of it.
+
+The four exact-outcome specs the comment predicted would move **did not need re-baselining**, and
+that is worth stating rather than quietly enjoying: `conquest-lifecycle/ownership-transfer.spec.js`
+passes 4/4 unchanged, and the battle area's exact-outcome specs pass. The comment's own
+measurement was taken several balance passes ago and the outcomes it named have moved since for
+other reasons.
+
+### The suite's own stability, measured while chasing a failure that was not one
+
+Two specs in the `battle` area failed under six parallel workers and passed alone. Chasing them
+produced a more useful finding than the failures themselves, and the method is the one CLAUDE.md
+prescribes: **run the same thing against HEAD**.
+
+* At **HEAD, before any of this session's changes**, the `battle` area fails **2 of 42** under the
+  same conditions — `ledger-and-log` "is stable: the same allocation forecasts the same figure
+  twice" and "the log is empty again when the next battle opens".
+* With the changes it fails 1–2 of 42, and *which* spec fails varies between runs.
+* `known-broken.spec.js` "ticks two concurrent sieges", run **eight times at six workers**, passes
+  8/8 in twenty seconds. Run inside the whole area it times out at 120 s.
+* The `startedGame` fixture starts with **no seed**, so every run of these specs is a different
+  world.
+
+So the area is flaky on this machine under six workers, at HEAD and after, and the flake is
+contention against the 120-second per-test budget rather than anything either version does. It is
+recorded here rather than acted on because acting on it is a harness change of its own.
+
+One of the two, though, was a real fragility and is fixed. **"is stable: the same allocation
+forecasts the same figure twice"** closed the attack window and reopened it — and
+`GameDriver.openAttackWindow()` clicks the phase button, so without `advancePhase: false` the
+second call ENDS THE TURN. The property under test is that the forecast is seeded from a stable
+hash of the setup; it was being asked to survive a turn of the world instead. Measured: 65% before
+the turn and 72% after, because France sends part of its garrison out to attack somebody. That was
+invisible until the free-attack defect under **BJ** was closed, since an AI attack used to cost
+the attacker nothing and France came back from its turn with exactly the garrison it left with.
+Both readings are in the same turn now.

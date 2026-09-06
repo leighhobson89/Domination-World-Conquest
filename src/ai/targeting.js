@@ -33,7 +33,8 @@
 import {
     campaignTargetWeights,
     doctrineTargeting,
-    maxForts
+    maxForts,
+    PLAYER_GRACE_TURNS
 } from "../config/balance.js";
 import { campaignWeightForTarget, Posture } from "./strategy.js";
 import { territoryValue } from "./value.js";
@@ -81,6 +82,21 @@ export function rateTarget(input) {
 
     if (!target || !source) {
         return skip("no territory");
+    }
+
+    //THE PLAYER'S GRACE PERIOD. The AI plans its first turn with full information and there
+    //are 206 of it, so a player who chose a one-territory country is reachable by several at
+    //once on turn 1 and could be eliminated inside ten turns without ever taking a decision
+    //that mattered. It is refused HERE, before the odds are even looked at, because this is
+    //the one place a target is declined with a stated reason -- the AI debug window and the
+    //plan log both read `reason`, so a target that vanished for five turns says why it did.
+    //
+    //Deliberately one-directional and deliberately narrow: the player may attack throughout,
+    //nothing in the battle model changes, and a siege already standing is untouched, because
+    //this refuses the OPENING of an interaction and not the continuation of one.
+    if (target.owner === "Player" && (campaign?.turn ?? Infinity) <= PLAYER_GRACE_TURNS) {
+        return skip("the player is inside the opening grace period (turn " +
+            (campaign?.turn ?? "?") + " of " + PLAYER_GRACE_TURNS + ")");
     }
 
     const odds = Number(probability) || 0;

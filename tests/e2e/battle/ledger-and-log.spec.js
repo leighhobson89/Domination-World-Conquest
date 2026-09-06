@@ -76,10 +76,20 @@ test.describe("the attack window's dice preview", () => {
         // Close the window and build the identical allocation again. That is a full re-render
         // from a cleared preview, so an equal figure is a statement about the SEED rather than
         // about nothing having happened.
+        //
+        // `advancePhase: false` is load-bearing and was added after this spec started failing.
+        // Without it the second `openAttackWindow()` ends the TURN (CLAUDE.md), and the world
+        // is not the same on the other side of one: France sends part of its garrison out to
+        // attack somebody, so the setup this forecast is hashed from genuinely differs and the
+        // figure moves with it -- measured at 65% before the turn and 72% after. That was
+        // invisible until the free-attack defect under known-issue BJ was closed, because an
+        // AI attack used to cost the attacker nothing and France came back from its turn with
+        // exactly the garrison it left with. The property under test is seed stability, not
+        // world stability, so both readings belong in the same turn.
         await game.transferAttack.close();
         await expect(game.page.locator(battleSelectors.attackPreview)).toBeHidden();
 
-        await game.openAttackWindow({ from: "Germany", to: "France" });
+        await game.openAttackWindow({ from: "Germany", to: "France", advancePhase: false });
         await game.transferAttack.plus("Germany", "naval", 1);
 
         const second = await game.page.locator(battleSelectors.attackPreviewForecast).innerText();

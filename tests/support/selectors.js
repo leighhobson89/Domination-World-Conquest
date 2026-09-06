@@ -176,6 +176,26 @@ export const goalSelect = {
     confirm: sel.goalSelectConfirmBtn,
 };
 
+/**
+ * The ending screen. A second subscriber to GAME_OVER, not a change to the rule.
+ *
+ * `viewMap` is the quiet third exit and is what a spec presses when it needs to go on driving
+ * the game past the ending -- the latch spec plays two more turns to prove a decided game does
+ * not announce itself again, and the panel sits at z-index 10000 over the phase button.
+ */
+export const gameOver = {
+    container: sel.gameOverContainer,
+    panel: sel.gameOverPanel,
+    title: sel.gameOverTitle,
+    subtitle: sel.gameOverSubtitle,
+    playedFor: sel.gameOverPlayedFor,
+    body: sel.gameOverBody,
+    standings: sel.gameOverStandings,
+    newGame: sel.gameOverNewGameBtn,
+    mainMenu: sel.gameOverMenuBtn,
+    viewMap: sel.gameOverViewMapBtn,
+};
+
 /** Spectator mode's readout, where a played game puts the player's top table. */
 export const aiGameGoalBar = sel.aiGameGoalBar;
 

@@ -262,6 +262,9 @@ import {
     goalSelect
 } from './src/ui/components/GoalSelect.js';
 import {
+    gameOver
+} from './src/ui/components/GameOver.js';
+import {
     aiGameGoalBar
 } from './src/ui/components/AiGameGoalBar.js';
 import {
@@ -793,6 +796,33 @@ document.addEventListener("DOMContentLoaded", function() {
     confirmDialog.create();
     saveIndicator.create();
     dominapedia.create({ onSound: () => playSoundClip("button") });
+    //THE ENDING. A second subscriber to GAME_OVER and no change to the rule -- which is the
+    //whole reason the ending is an event. Before this, `checkForVictory()` decided the game
+    //correctly, `endTurn()` emitted it exactly once, and the only listener was a
+    //`console.log`: a player who had just won a fifty-turn game was left sitting on a map.
+    gameOver.create({
+        onSound: () => playSoundClip("button"),
+        onNewGame: () => void startNewGame(),
+        onMainMenu: () => returnToMainMenuFromGoalSelect()
+    });
+    //The standings are read HERE, at the ending, and handed over as a snapshot. The panel can
+    //outlive the store it describes -- New Game restores a pristine world underneath it -- so
+    //a table that called `worldStandings()` when it drew would put the new world's figures
+    //under the old game's headline.
+    onStateEvent(Events.GAME_OVER, (result) => {
+        //Nothing is dismissed first, deliberately. A game is decided in `endTurn()`, which can
+        //be the same tick the AI's last battle put a results screen up in -- and
+        //`.options-scrim` sits at z-index 10000, above every floating window and above the
+        //battle UI, so the ending covers whatever is there rather than racing it. Reaching
+        //into the battle's own state to tear it down would be the alternative, and
+        //`battle.js` holds its resolution in module-level variables that the results screen is
+        //the only consumer of.
+        gameOver.show(result, {
+            standings: worldStandings(),
+            playerCountry: isAiGameActive() ? null : playerCountryName()
+        });
+    });
+
     goalSelect.create({
         onSound: () => playSoundClip("button"),
         onConfirm(condition) {
@@ -988,7 +1018,16 @@ document.addEventListener("DOMContentLoaded", function() {
             phaseBar.setMode(phaseBar.Mode.INITIALISING);
             pushColorsToMainArray();
             updateArrayOfLeadersAndCountries();
-            await initialiseGame();
+            //The CPU leaders and the starting forts are created INSIDE `initialiseGame()`
+            //now, before the turn engine starts -- see the note at the call site. They are
+            //handed over as a callback rather than moved, because both read the player's
+            //ownership and that is assigned inside `initialiseGame()`.
+            await initialiseGame({
+                worldSetup() {
+                    createCpuPlayerObjectAndAddToMainArray();
+                    addRandomFortsToAllNonPlayerTerritories();
+                }
+            });
             topTable.setHeading("Total Player Resources:");
             document.getElementById(ids.popupColor).style.display = "block";
             document.getElementById(ids.popupWithConfirmContainer).style.display = "block";
@@ -996,8 +1035,6 @@ document.addEventListener("DOMContentLoaded", function() {
             toggleUIButton(true);
             mapModeButtonCurrentlyOnScreen = true;
             toggleMapModeButton(true);
-            createCpuPlayerObjectAndAddToMainArray();
-            addRandomFortsToAllNonPlayerTerritories();
             phaseBar.setMode(phaseBar.Mode.PLAYING);
             setPhase(Phase.BUY_UPGRADE);
             beginAutosaving();

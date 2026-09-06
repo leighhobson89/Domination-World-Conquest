@@ -11,10 +11,15 @@
 //  * **Transfer has a selected row; attack does not.** Every spinner here is inert
 //    until a destination is chosen, which is why the buttons are built greyed and why
 //    every handler starts by checking it belongs to the selected row.
-//  * **The selection handler is on the row's NAME column**, not on the row. That is a
-//    real quirk -- it is why the e2e page objects click the first column -- and it is
-//    preserved here rather than quietly widened, because widening it changes which
-//    clicks select a destination.
+//  * **Selecting a destination is ONE gesture, on the row.** It used to be two listeners
+//    for one act: the row recorded `selectedTerritoryUniqueId` and the NAME column did
+//    the visible selection, and nothing kept them in step. Click a row's name, then click
+//    anywhere in a DIFFERENT row -- an inert stepper, a blank cell -- and the id moved
+//    while the highlight did not, so the next allocation was committed against a
+//    destination the player had not chosen and could not see. The row listener restored
+//    the id as it bubbled, which is what made it a single misdirected allocation rather
+//    than an obviously broken window. Both are now `selectDestination()`, so the id, the
+//    highlight and the title cannot disagree.
 //  * **Naval is disabled for a landlocked destination.** Ships cannot be moved inland.
 //
 // Everything from the model is injected. This module reads no game state and writes
@@ -192,14 +197,10 @@ export function renderTransferTable(table, deps) {
             });
         });
 
-        //The row-level listener records which destination was clicked. The visual
-        //selection is on the NAME column below -- two listeners for one gesture, and
-        //they are not interchangeable: this one fires anywhere in the row.
+        //One listener, on the row, so a click anywhere in it selects that destination --
+        //including on a stepper that is inert precisely because the row is not selected
+        //yet, which is the click a player makes when they mean "this one".
         row.addEventListener("click", () => {
-            selectedTerritoryUniqueId = destination.getAttribute("uniqueid");
-        });
-
-        nameColumn.addEventListener("click", () => {
             selectDestination(row, nameColumn, destination);
         });
 
@@ -208,6 +209,11 @@ export function renderTransferTable(table, deps) {
 
     /** Make one row the destination, and light up what can be sent to it. */
     function selectDestination(row, nameColumn, destination) {
+        //The id and the highlight are set together. `commit()` reads the id and the
+        //steppers read the highlight, so the two drifting apart is an allocation
+        //recorded against the wrong territory (see the note at the top of this file).
+        selectedTerritoryUniqueId = destination.getAttribute("uniqueid");
+
         const title = document.getElementById(ids.territoryTextString);
         //Phase 7.11. `style.color = "white"` stood here -- a literal that beat the
         //stylesheet on specificity in all six themes. The class says "a destination

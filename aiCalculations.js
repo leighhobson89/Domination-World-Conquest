@@ -39,12 +39,16 @@ import {
     setNextAiWarId,
     addRemoveWarSiegeObjectAi,
     getSiegeObjectFromPlayerSiegeList,
-    getSiegeObjectFromAiSiegeList,
     setBattleResolutionOnHistoricWarArrayAfterSiege
 } from "./battle.js";
 import {
     resolveBattle
 } from "./src/rules/military/battleModel.js";
+import {
+    garrisonOf,
+    garrisonPatch,
+    writeGarrison
+} from './src/rules/military/garrison.js';
 import {
     combatContinentModifierFor
 } from "./src/rules/military/probability.js";
@@ -71,7 +75,7 @@ import {
 } from './src/state/mutations.js';
 import { continentCapacityBonusFor } from './src/state/continentBonus.js';
 import { effectiveCapacityFor } from './src/rules/economy/capacity.js';
-import { applyUpgrade } from './src/rules/economy/upgrades.js';
+import { applyUpgrade, nextInOrderPriceFor } from './src/rules/economy/upgrades.js';
 import {
     getPathByUniqueId
 } from './src/state/indexes.js';
@@ -240,14 +244,18 @@ export function musterAiArmies(country, campaign, arrayOfTerritoriesInRangeThrea
             continue;
         }
 
-        patchTerritory(from.uniqueId, {
-            infantryForCurrentTerritory: from.infantryForCurrentTerritory - infantry,
-            armyForCurrentTerritory: from.armyForCurrentTerritory - infantry
-        });
-        patchTerritory(to.uniqueId, {
-            infantryForCurrentTerritory: to.infantryForCurrentTerritory + infantry,
-            armyForCurrentTerritory: to.armyForCurrentTerritory + infantry
-        });
+        //Known-issue BJ. These two used to adjust `armyForCurrentTerritory` by the same
+        //delta as the infantry, which is correct arithmetic on a total that was already
+        //right and simply carried an existing inconsistency forward -- a territory whose
+        //stored total was below its infantry went further negative every turn it sent
+        //reinforcements. Recomputing from the counts makes the muster incapable of
+        //carrying an error rather than merely incapable of introducing one.
+        patchTerritory(from.uniqueId, garrisonPatch(from, {
+            infantry: (Number(from.infantryForCurrentTerritory) || 0) - infantry
+        }));
+        patchTerritory(to.uniqueId, garrisonPatch(to, {
+            infantry: (Number(to.infantryForCurrentTerritory) || 0) + infantry
+        }));
         clearReinforcementDemand(country, move.to);
         console.log(move.reason + ": " + infantry + " infantry");
     }
@@ -465,8 +473,16 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
             continue;
         }
 
-        let siege = getSiegeObjectFromAiSiegeList(mainArrayFriendlyTerritoryCopy);
-        if (siege) {
+        //A besieged territory does nothing this turn -- which is what the line below has said
+        //since it was written, and it only half meant it: `getSiegeObjectFromAiSiegeList()`
+        //looks in the AI's siege list ALONE, so a territory besieged by the PLAYER went on
+        //upgrading, building forts and launching attacks out of the siege as though nothing had
+        //happened. `isUnderSiege()` answers for both lists.
+        //
+        //This is also the AI half of `SIEGE_SUSPENDS_CONSTRUCTION` (known-issue BQ): the
+        //Economy and Bolster goals are the only routes the AI has to an upgrade or a fort, and
+        //both are below this guard.
+        if (isUnderSiege(mainArrayFriendlyTerritoryCopy.territoryName)) {
             console.log(mainArrayFriendlyTerritoryCopy.territoryName + " is under siege, cannot perform any goals this turn for this territory!");
             continue;
         }
@@ -705,6 +721,29 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
     let couldNotAffordEconomy = false;
 
     let buildList = [];
+    //ONE TRANSACTION, PRICED THE WAY THE PLAYER'S IS -- known-issue E8.
+    //
+    //A player's order of five farms costs `price(5)`, the price of the LAST one, and not the
+    //sum of the ladder. This loop buys one at a time so that it can re-score the territory
+    //after each purchase, and it used to be charged `price(built + 1)` on every pass -- the
+    //full ladder, about 2.2x what the player pays for the same five buildings. The decision
+    //taken on E8 was that the bulk discount is a real decision worth keeping (save up and buy
+    //several at once) and that the fault was that only one side could take it.
+    //
+    //So the loop is unchanged and the CHARGE is what moved: `nextInOrderPriceFor()` returns
+    //what adding one more to the order costs, and those marginals telescope to the order
+    //price exactly. `builtBeforeOrder` is the count this transaction started at, which is
+    //what the order is priced against -- reading `territory.farmsBuilt` inside the loop would
+    //restart the ladder after every purchase, which is the behaviour being replaced.
+    const builtBeforeOrder = {
+        farm: Number(territory.farmsBuilt) || 0,
+        forest: Number(territory.forestsBuilt) || 0,
+        oilWell: Number(territory.oilWellsBuilt) || 0
+    };
+    const orderedSoFar = { farm: 0, forest: 0, oilWell: 0 };
+    const nextPriceFor = (kind) => nextInOrderPriceFor(
+        kind, builtBeforeOrder[kind], orderedSoFar[kind], territory.devIndex);
+
     let availableUpgrades = calculateAvailableUpgrades(territory);
     let farm = availableUpgrades[0];
     let forest = availableUpgrades[1];
@@ -731,7 +770,11 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
         const effectiveConsMatsCap = effectiveCapacityFor(territory, "consMats", capacityBonus);
         const effectiveOilCap = effectiveCapacityFor(territory, "oil", capacityBonus);
 
-        if (territory.farmsBuilt < maxFarms && farm.goldCost <= goldToSpend && farm.consMatsCost <= consMatsToSpend) {
+        const farmPrice = nextPriceFor("farm");
+        const forestPrice = nextPriceFor("forest");
+        const oilWellPrice = nextPriceFor("oilWell");
+
+        if (territory.farmsBuilt < maxFarms && farmPrice.gold <= goldToSpend && farmPrice.consMats <= consMatsToSpend) {
             points.farm.value = aiRng() * 10 + 1;
             if (territory.foodConsumption > effectiveFoodCap) {
                 points.farm.value += 10;
@@ -739,7 +782,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 points.farm.value += 5;
             }
         }
-        if (territory.forestsBuilt < maxForests && forest.goldCost <= goldToSpend && forest.consMatsCost <= consMatsToSpend) {
+        if (territory.forestsBuilt < maxForests && forestPrice.gold <= goldToSpend && forestPrice.consMats <= consMatsToSpend) {
             points.forest.value = aiRng() * 10 + 1;
             if (effectiveConsMatsCap < territory.consMatsForCurrentTerritory) {
                 points.forest.value += 10
@@ -747,7 +790,7 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 points.forest.value += 5
             }
         }
-        if (territory.oilWellsBuilt < maxOilWells && oilWell.goldCost <= goldToSpend && oilWell.consMatsCost <= consMatsToSpend) {
+        if (territory.oilWellsBuilt < maxOilWells && oilWellPrice.gold <= goldToSpend && oilWellPrice.consMats <= consMatsToSpend) {
             points.oilWell.value = aiRng() * 10 + 1;
             if (territory.oilDemand > effectiveOilCap) {
                 points.oilWell.value += 10;
@@ -787,11 +830,14 @@ function analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild(territory, gold
                 selectedUpgrade = oilWell;
             }
 
+            //Charged at what one more costs THIS ORDER, not at the next rung of the ladder.
+            const price = nextPriceFor(largestDesire[0]);
             buildList.push([largestDesire[0], selectedUpgrade]);
-            goldToSpend -= selectedUpgrade.goldCost;
-            consMatsToSpend -= selectedUpgrade.consMatsCost;
-            territory.goldForCurrentTerritory -= selectedUpgrade.goldCost;
-            territory.consMatsForCurrentTerritory -= selectedUpgrade.consMatsCost;
+            orderedSoFar[largestDesire[0]] += 1;
+            goldToSpend -= price.gold;
+            consMatsToSpend -= price.consMats;
+            territory.goldForCurrentTerritory -= price.gold;
+            territory.consMatsForCurrentTerritory -= price.consMats;
             Object.assign(territory, applyUpgrade(territory, largestDesire[0], 1));
             availableUpgrades = calculateAvailableUpgrades(territory);
 
@@ -843,16 +889,24 @@ function analyzeAndBuildFortDefenses(territory, goldToSpend, consMatsToSpend) {
     let fortDesire = aiRng() > 0.5;
     let fortBuildCount = 0;
 
+    //Priced as ONE ORDER, the same as the player's -- known-issue E8. See the long note in
+    //`analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild()`: forts are on the same
+    //quadratic ladder and the same transaction rule, so a fort loop charging
+    //`price(built + 1)` every pass paid about 2.2x for four forts what a player pays for four
+    //in one order.
+    const fortsBeforeOrder = Number(territory.fortsBuilt) || 0;
+
     while (territory.fortsBuilt < maxForts && fortDesire) {
-        const fort = calculateAvailableUpgrades(territory)[3];
-        if (fort.goldCost >= goldToSpend || fort.consMatsCost >= consMatsToSpend) {
+        const price = nextInOrderPriceFor(
+            "fort", fortsBeforeOrder, fortBuildCount, territory.devIndex);
+        if (price.gold >= goldToSpend || price.consMats >= consMatsToSpend) {
             break;
         }
         fortBuildCount++;
-        goldToSpend -= fort.goldCost;
-        consMatsToSpend -= fort.consMatsCost;
-        territory.goldForCurrentTerritory -= fort.goldCost;
-        territory.consMatsForCurrentTerritory -= fort.consMatsCost;
+        goldToSpend -= price.gold;
+        consMatsToSpend -= price.consMats;
+        territory.goldForCurrentTerritory -= price.gold;
+        territory.consMatsForCurrentTerritory -= price.consMats;
         Object.assign(territory, applyUpgrade(territory, "fort", 1));
         fortDesire = aiRng() > 0.5;
     }
@@ -1127,17 +1181,36 @@ function calculateArmyMakeupOfAttack(mainArrayFriendlyTerritoryCopy, mainArrayEn
 }
 
 function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, probability, debitSource = true) {
-    for (let i = 0; debitSource && i < allTerritories().length; i++) { //remove army from attacking territory
-        if (allTerritories()[i].uniqueId === mainArrayFriendlyTerritoryCopy.uniqueId) {
-            allTerritories()[i].infantryForCurrentTerritory -= armyArray[0];
-            allTerritories()[i].assaultForCurrentTerritory -= armyArray[1];
-            allTerritories()[i].useableAssault -= armyArray[1];
-            allTerritories()[i].airForCurrentTerritory -= armyArray[2];
-            allTerritories()[i].useableAir -= armyArray[2];
-            allTerritories()[i].navalForCurrentTerritory -= armyArray[3];
-            allTerritories()[i].useableNaval -= armyArray[3];
-            break;
-        }
+    //Known-issue BJ. THE ARMY IS DEBITED FROM THE COPY, NOT FROM THE STORE, and that is the
+    //whole of what made an AI attack free.
+    //
+    //This loop used to walk `allTerritories()` and subtract the seven unit counts from the real
+    //territory -- and then `doAiActions()` ended the goal with
+    //`patchTerritory(friendlyTerritory.uniqueId, mainArrayFriendlyTerritoryCopy)`, writing the
+    //copy taken BEFORE the attack back over every field it had just debited. Measured on seed
+    //"goals": the United States sent 131,388 infantry and 36 vehicles, the store fell from
+    //5,817,692 to 5,374,304, and it was 5,817,692 again by the end of the turn. Win or lose, the
+    //force never left. A won attack then garrisoned the conquered territory with the survivors
+    //on top of that, so attacking CREATED army.
+    //
+    //It had no textual signature: nothing threw, the battle was resolved correctly against the
+    //force that was sent, the odds were right, and the only witness was the source territory's
+    //garrison not going down. `setSiege()` had it right all along -- the copy is the working
+    //set for a goal and the patch-back is what commits it -- so this now does the same thing,
+    //and it is one debit rather than two that have to agree.
+    if (debitSource) {
+        const before = garrisonOf(mainArrayFriendlyTerritoryCopy);
+        writeGarrison(mainArrayFriendlyTerritoryCopy, {
+            infantry: before.infantry - armyArray[0],
+            assault: before.assault - armyArray[1],
+            air: before.air - armyArray[2],
+            naval: before.naval - armyArray[3],
+            useable: {
+                assault: before.useable.assault - armyArray[1],
+                air: before.useable.air - armyArray[2],
+                naval: before.useable.naval - armyArray[3]
+            }
+        });
     }
 
     const defenders = [
@@ -1179,7 +1252,6 @@ function doAttack(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
 function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEnemyTerritoryCopy) {
     const totalStartingAttackArmy = calculateCombinedForce(armyArray);
     let percentageLeftOver;
-    let totalAllocated = 0;
 
     let attackOrDefend;
 
@@ -1210,28 +1282,33 @@ function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEne
             case 1:
                 if (assaultAddCount < armyArrayStart[1]) {
                     assaultAddCount++
-                    totalAllocated += vehicleArmyPersonnelWorth.assault;
                     armyArray[1]--;
                 }
                 break;
             case 2:
                 if (airAddCount < armyArrayStart[2]) {
                     airAddCount++
-                    totalAllocated += vehicleArmyPersonnelWorth.air;
                     armyArray[2]--;
                 }
                 break;
             case 3:
                 if (navalAddCount < armyArrayStart[3]) {
                     navalAddCount++
-                    totalAllocated += vehicleArmyPersonnelWorth.naval;
                     armyArray[3]--;
                 }
                 break;
         }
     }
 
-    let infantryCount = (armyArray[0] + armyArray[1] + armyArray[2] + armyArray[3]) - totalAllocated;
+    //Known-issue BJ. This read `(armyArray[0] + armyArray[1] + armyArray[2] + armyArray[3]) -
+    //totalAllocated`, and by the time it ran the while loop above had already emptied slots 1-3
+    //into the three add-counts -- so it was `survivingInfantry - (the personnel worth of the
+    //surviving VEHICLES)`. Every element of `armyArray` was scaled by the same survival
+    //fraction a few lines up, which is what keeps the total honest; subtracting the vehicles
+    //from the infantry as well charged for them twice, and any survivor mix with more vehicle
+    //force than infantry came out NEGATIVE. That negative was written straight onto the
+    //conquered territory and then compounded by every later muster.
+    let infantryCount = Math.max(0, armyArray[0]);
     remainderArray.push(infantryCount, assaultAddCount, airAddCount, navalAddCount, attackOrDefend);
 
     if (attackOrDefend === 1) {
@@ -1249,10 +1326,26 @@ function recombineRemainingArmyAfterBattle(armyArray, battleResult, mainArrayEne
 }
 
 function updateTerritory(territory, remainingArmyArray, mainArrayFriendlyTerritoryCopy) {
-    territory.infantryForCurrentTerritory = remainingArmyArray[0];
-    territory.assaultForCurrentTerritory = remainingArmyArray[1];
-    territory.airForCurrentTerritory = remainingArmyArray[2];
-    territory.navalForCurrentTerritory = remainingArmyArray[3];
+    //Known-issue BJ. This wrote the four counts and nothing else, so a conquered territory kept
+    //the LOSER's `useableAssault` / `useableAir` / `useableNaval` and the loser's
+    //`armyForCurrentTerritory`. The occupying force is a handful of survivors; the useable
+    //figures it inherited could be an order of magnitude larger, and `calculateArmyMakeupOfAttack()`
+    //allocates from `useable*`. So the next attack out of a freshly taken territory could send
+    //vehicles that were never there, and `doAttack()` then debited them from counts that could
+    //not cover it. The army that marches in is the army that is here: every vehicle in it is
+    //present, so `useable*` is the count.
+    writeGarrison(territory, {
+        infantry: remainingArmyArray[0],
+        assault: remainingArmyArray[1],
+        air: remainingArmyArray[2],
+        naval: remainingArmyArray[3]
+    });
+    //The oil bill goes with the fleet. Left at the previous owner's demand, a territory taken
+    //from a naval power would ground the occupier's vehicles for reasons that left with the
+    //defeated garrison.
+    territory.oilDemand = (territory.assaultForCurrentTerritory * oilRequirements.assault) +
+        (territory.airForCurrentTerritory * oilRequirements.air) +
+        (territory.navalForCurrentTerritory * oilRequirements.naval);
     if (territory.owner === "Player") {
         for (let i = 0; i < playerOwnedTerritories.length; i++) {
             if (playerOwnedTerritories[i].getAttribute("uniqueid") === territory.uniqueId) {
@@ -1500,22 +1593,29 @@ function setSiege(armyArray, mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerri
         const attackingTerritory = getTerritory(mainArrayFriendlyTerritoryCopy.uniqueId);
         {
             if (attackingTerritory) {
-                attackingTerritory.infantryForCurrentTerritory -= armyArray[0];
-                attackingTerritory.assaultForCurrentTerritory -= armyArray[1];
-                attackingTerritory.navalForCurrentTerritory -= armyArray[3];
-                attackingTerritory.useableAssault -= armyArray[1];
-                attackingTerritory.useableAir -= armyArray[2];
-                attackingTerritory.useableNaval -= armyArray[3];
-                attackingTerritory.armyForCurrentTerritory = attackingTerritory.infantryForCurrentTerritory + (attackingTerritory.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (attackingTerritory.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (attackingTerritory.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
-
-                mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory -= armyArray[0];
-                mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory -= armyArray[1];
-                mainArrayFriendlyTerritoryCopy.airForCurrentTerritory -= armyArray[2];
-                mainArrayFriendlyTerritoryCopy.navalForCurrentTerritory -= armyArray[3];
-                mainArrayFriendlyTerritoryCopy.useableAssault -= armyArray[1];
-                mainArrayFriendlyTerritoryCopy.useableAir -= armyArray[2];
-                mainArrayFriendlyTerritoryCopy.useableNaval -= armyArray[3];
-                mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory = mainArrayFriendlyTerritoryCopy.infantryForCurrentTerritory + (mainArrayFriendlyTerritoryCopy.assaultForCurrentTerritory * vehicleArmyPersonnelWorth.assault) + (mainArrayFriendlyTerritoryCopy.airForCurrentTerritory * vehicleArmyPersonnelWorth.air) + (mainArrayFriendlyTerritoryCopy.navalForCurrentTerritory * vehicleArmyPersonnelWorth.naval);
+                //Known-issue BJ. The two debits below were written out by hand and the store
+                //half was missing `airForCurrentTerritory -= armyArray[2]` -- the copy had it,
+                //the real territory did not. So a besieging force's aircraft left `useableAir`
+                //and stayed in `airForCurrentTerritory`, and the two disagreed by a little more
+                //with every siege the country laid. Both halves go through the same function
+                //now, which is the only way "the copy and the store were debited identically"
+                //stops being a thing to check by eye.
+                const debit = (target) => {
+                    const before = garrisonOf(target);
+                    writeGarrison(target, {
+                        infantry: before.infantry - armyArray[0],
+                        assault: before.assault - armyArray[1],
+                        air: before.air - armyArray[2],
+                        naval: before.naval - armyArray[3],
+                        useable: {
+                            assault: before.useable.assault - armyArray[1],
+                            air: before.useable.air - armyArray[2],
+                            naval: before.useable.naval - armyArray[3]
+                        }
+                    });
+                };
+                debit(attackingTerritory);
+                debit(mainArrayFriendlyTerritoryCopy);
 
                 console.log(mainArrayFriendlyTerritoryCopy.territoryName + " had its army adjusted ready for siege");
             }

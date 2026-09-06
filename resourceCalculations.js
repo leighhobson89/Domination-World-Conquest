@@ -44,6 +44,7 @@ import {
     getTerritory,
     currentTurn,
     currentPhase,
+    isUnderSiege,
     playerCountryName
 } from './src/state/selectors.js';
 import {
@@ -94,7 +95,9 @@ import {
     startingArmy,
     initialArmyDistribution,
     INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ,
+    SIEGE_INCOME_SHARE,
     SIEGE_ROUT_THRESHOLD,
+    SIEGE_SUSPENDS_CONSTRUCTION,
     FOOD_UNIT_SCALE,
     MOUNTAIN_DEFENSE_SCALE
 } from './src/config/balance.js';
@@ -119,9 +122,11 @@ import {
     useableUnitsFor,
     defenseBonusFor,
     effectiveCapacityFor,
+    oilDemandFor,
     totalCapacities,
     totalDemands
 } from './src/rules/economy/capacity.js';
+import { garrisonFields } from './src/rules/military/garrison.js';
 import {
     applyUpgrade,
     upgradeOrderPriceFor,
@@ -143,7 +148,9 @@ import {
 } from './src/ui/continents/continentBonusText.js';
 import {
     armyMaintenanceFor,
-    initialArmyAdjustmentCost
+    initialArmyAdjustmentCost,
+    planArmyDesertion,
+    upkeepShortfall
 } from './src/rules/economy/maintenance.js';
 import {
     randomEventDamageFor
@@ -679,6 +686,13 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 if (path.getAttribute("uniqueid") === defendingTerritoryId) {
                     changeGold = calculateGoldChange(allTerritories()[i], false, false);
                     changeGold -= armyMaintenanceFor(allTerritories()[i]);
+                    //Unpaid upkeep now costs an army. The treasury is clamped at zero two lines
+                    //below, and that clamp is what used to make a broke territory's army free --
+                    //the shortfall was simply discarded, so gold was a drag on income and never a
+                    //ceiling on army size. `upkeepShortfall()` recovers the number before the
+                    //clamp throws it away, and the share of the army that deserts is the share of
+                    //the bill that went unpaid.
+                    applyDesertion(allTerritories()[i], changeGold);
                     changeOil = calculateOilChange(allTerritories()[i], false);
                     changeFood = calculateFoodChange(allTerritories()[i], false, false);
                     changeConsMats = calculateConsMatsChange(allTerritories()[i], false);
@@ -728,6 +742,28 @@ function calculateTerritoryResourceIncomesEachTurn() {
                 changeFood = calculateFoodChange(siegeTerritory, false, true, siegeIsAi);
                 changePop = calculatePopulationChange(siegeTerritory, true, siegeIsAi);
                 changeProdPopTemp = productivePopulationOf(besiegedTerritory);
+
+                //A besieged territory earns a REDUCED yield, not nothing. Until
+                //`SIEGE_INCOME_SHARE` existed these three lines were simply absent from this
+                //branch -- food and population were handled and gold, oil and construction
+                //materials were not -- so a besieged territory earned zero for as long as the
+                //siege stood, and nothing in the game ends a siege except an arrest or a
+                //conquest. A player besieged on turn 3 of a measured run was still frozen on
+                //turn 14, with no decision available to them at all.
+                //
+                //Upkeep is charged in full. Being cut off is not a reason the army stops
+                //eating, and it is what makes a siege bite on a garrison that is too big for
+                //the quarter income it is now living on.
+                changeGold = (calculateGoldChange(besiegedTerritory, false, false) * SIEGE_INCOME_SHARE)
+                    - armyMaintenanceFor(besiegedTerritory);
+                applyDesertion(besiegedTerritory, changeGold);
+                changeOil = calculateOilChange(besiegedTerritory, false) * SIEGE_INCOME_SHARE;
+                changeConsMats = calculateConsMatsChange(besiegedTerritory, false) * SIEGE_INCOME_SHARE;
+                besiegedTerritory.goldForCurrentTerritory =
+                    Math.max(0, besiegedTerritory.goldForCurrentTerritory + changeGold);
+                besiegedTerritory.oilForCurrentTerritory += changeOil;
+                besiegedTerritory.consMatsForCurrentTerritory += changeConsMats;
+
                 besiegedTerritory.foodForCurrentTerritory += changeFood;
                 besiegedTerritory.foodConsumption = foodConsumptionOf(besiegedTerritory);
                 besiegedTerritory.territoryPopulation = Math.max(0, besiegedTerritory.territoryPopulation + changePop);
@@ -879,6 +915,35 @@ function calculatePopulationChange(territory, cameFromSiege, ai) {
     }
     handleWarEndingsAndOptions(2, territory, siegeObject.attackingArmyRemaining, siegeObject.defendingArmyRemaining, true, ai, siegeObject);
     return 0;
+}
+
+/**
+ * Charge unpaid upkeep to the army.
+ *
+ * `changeGold` already has this turn's upkeep subtracted from it, and the treasury is clamped
+ * at zero by the caller -- that clamp is what made a broke territory's army free, because the
+ * shortfall was discarded rather than charged to anything. The share of the army that deserts
+ * is the share of the bill that went unpaid, which is self-limiting: next turn the bill is
+ * smaller by exactly what left, so a territory converges on the army it can afford.
+ *
+ * Writes the OWNED vehicle counts as well as the `useable*` ones, through the garrison rule, so
+ * that deserters cannot be resurrected by the next oil recompute. `applyArmyStarvation()` above
+ * deliberately still writes only `useable*`; the two differing is noted in the register rather
+ * than changed here, because famine is not what this decision was about.
+ */
+function applyDesertion(territory, changeGold) {
+    const shortfall = upkeepShortfall(territory.goldForCurrentTerritory, changeGold);
+    const survivors = planArmyDesertion(territory, shortfall);
+    if (!survivors) {
+        return;
+    }
+    Object.assign(territory, garrisonFields({
+        infantry: survivors.infantryForCurrentTerritory,
+        assault: survivors.useableAssault,
+        air: survivors.useableAir,
+        naval: survivors.useableNaval
+    }));
+    territory.oilDemand = oilDemandFor(territory);
 }
 
 function applyArmyStarvation(territory, populationChange) {
@@ -1808,6 +1873,13 @@ const UPGRADE_ROWS = Object.freeze([
 ]);
 
 export function calculateAvailableUpgrades(territory) {
+    //A besieged territory builds nothing (known-issue BQ). `condition` is not just a label:
+    //every plus button in the upgrade window is enabled on `condition === "Can Build"` and
+    //nothing else, so refusing here is what actually closes the window rather than merely
+    //describing it. Saying WHY in the cell matters -- "Not enough gold" on a territory with
+    //a full treasury would read as a rendering fault.
+    const besieged = SIEGE_SUSPENDS_CONSTRUCTION && isUnderSiege(territory.territoryName);
+
     return UPGRADE_ROWS.map((row) => {
         const built = Number(territory[row.built]) || 0;
         const price = upgradePriceFor(row.kind, built + 1, territory.devIndex);
@@ -1816,7 +1888,9 @@ export function calculateAvailableUpgrades(territory) {
         const hasConsMats = territory.consMatsForCurrentTerritory >= price.consMats;
 
         let condition;
-        if (hasGold && hasConsMats && underCap) {
+        if (besieged) {
+            condition = "Under Siege";
+        } else if (hasGold && hasConsMats && underCap) {
             condition = "Can Build";
         } else if (!hasGold && underCap) {
             condition = "Not enough gold";

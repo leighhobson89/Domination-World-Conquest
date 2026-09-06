@@ -18,13 +18,21 @@ the code today, this document is right.
 
 Things that are wrong: the code does not do what it is meant to do.
 
-| Id | Issue | Owner |
-|---|---|---|
-| **BJ** | **A large empire's `armyForCurrentTerritory` goes hugely NEGATIVE.** India at −6.5 billion after 150 headless turns. Re-checked after economy stage 1, because **BM** (the AI buying infantry at a tenth price) looked like a plausible cause and was not: same seed and goal gives Mexico at **−107,929,590 before** that fix and **−29,085,461 after**, so paying the correct price shrinks it about fourfold and does not remove it. Whatever subtracts more army than a territory has is still there and it is not the purchase path | 7.x balance |
-| **BI** | **Three sources disagree about which continent a territory is on**, and one territory falls through the gap: Easter Island is Chilean, so South American to the game model and Oceanian to the SVG's `continent=` attribute. The model is authoritative — a continent is the ORIGINAL OWNER's continent, from `initialData.js` — but nothing reconciles the three, so a fourth reader could pick the wrong one silently | balance / data |
-| **BR** | **The player and the AI buy infantry in different sizes.** One infantry purchase costs 10 gold and 1,000 productive population for both, but the AI adds `INFANTRY_IN_A_TROOP` soldiers per purchase ([aiCalculations.js:1253](../aiCalculations.js#L1253)) where the player adds ONE ([resourceCalculations.js:3289](../resourceCalculations.js#L3289)). So the AI buys force at 100 per gold and the player at 0.1 per gold — a thousandfold asymmetry, in the AI's favour, on the cheapest unit in the game. The manual has described it as a design gap since the Dominapedia was written and the register has not; found again while measuring unit economics for economy stage 4.1, where it is why `tools/econ-lab.mjs` labels its first row "Infantry (×1000)". Fixing it changes the value of every army on the map, so it is a measured balance change and not a tidy-up | 7.x balance |
-| **AN** | **A famine whose losses exactly equal the infantry count destroys the entire mechanised army.** `planArmyStarvation()` in [src/rules/economy/population.js](../src/rules/economy/population.js): `remaining === 0` falls into the `else` branch for all three vehicle types, so the partial-loss branch is skipped. Preserved verbatim from `starveArmyInstead()` during the Phase 5 extraction and commented at the site, because a bug fix does not travel inside a move | 7.x balance |
-| — | **The transfer table's row-selection handler is on the row's NAME column, not on the row.** Worked around in `tests/support/` | 7.x |
+**There are none open.** The five that stood here -- **AN**, **BI**, **BJ**, **BR** and the
+transfer table's row-selection handler -- were closed together in one sweep, along with a sixth
+found underneath **BJ**: every AI attack was free, because `doAttack()` debited the store and the
+goal loop then wrote a pre-attack copy back over it. The analysis, the five sites the trap named,
+the before/after measurement of the free-attack fix and the two entries that turned out not to be
+defects at all are in
+[archived/04-known-issues-closed.md](./archived/04-known-issues-closed.md) under *Closed in the
+register sweep*.
+
+Two of them are worth carrying forward as habits rather than as history. **BR had never been
+true** -- it described a thousandfold player/AI asymmetry that was not in the code and had not
+been for three years, and it was closed by reproducing it against the running game rather than by
+reading the file. And **BJ's stated cause was wrong**: the entry proposed army maintenance or
+casualties charged twice, and a proxy trap over 30 headless turns named five sites, none of them
+either.
 
 ## Design problems
 
@@ -32,21 +40,17 @@ The code does what it says; what it says does not produce the game it should.
 
 | Id | Issue | Owner |
 |---|---|---|
-| **BO** | **Two goals of five still complete no continent in a 150-turn game.** **Much reduced by economy stages 3 and 4, not closed.** As logged after stage 1 this read "no continent is completed in any run", with Continental's nearest frozen at 66% from turn 25 onward. After stages 3 and 4: Great Powers, Conquest and Timed each complete **two** continents — Europe and North America to the United States, and **Oceania to Indonesia**, which is 65 islands and the hardest continent on the map — and Continental reaches 98% of South America. What is left is Continental finishing nothing at 98%, and **Domination**, which sits at 67% and is the outlier in every column of that measurement. The history is kept because **none of it was ever a defect**. Stage 1's measurement found `cont` at 0 for all 150 turns of all five goals, where the control had Continental finishing North America and Conquest finishing South America; the cause was **BL** being fixed — about six hundred previously inert AI forts started taking dice off attackers, and the last few territories of a continent are the hardest on the map. Stages 3 and 4 gave the AI an economy that can pay for the army to take them. So this has been the item below arriving somewhere new, twice, in opposite directions, and the mechanic the continent-bonus phase shipped is reachable again in three goals of five | economy / attack dials |
-| — | **Attacking is too hard for the world to consolidate.** Measured after Phase 7.8 over two seeds: ~59% of every reachable (attacker, defender) pairing in the world is below the 15% win probability the game applies to everybody, before any AI decision is taken. A hundred turns still ends with 106–145 countries rather than the 16 or so a world of great powers implies. **Economy stage 1 made this worse, and did so correctly** — two defects had been flattering the world, so the largest empire fell in four goals of five (Continental 104 territories to 35) — and **economy stages 3 and 4 then moved it the other way by more than stage 1 had moved it**: mean surviving countries 87 → 58, mean largest empire 52 → 110, mean top-sixteen share 77% → 87%. A hundred and fifty turns now ends with 38–84 countries rather than 71–99. The item is no longer obviously true and the open question has changed shape: **has it gone too far the other way?** Nobody has played the world those measurements describe. The defender's fort multiplier and the attacker's sub-1 `devIndex` are the two terms to look at, together with the `areaBonusFor()` design question below. `tools/ai-sim.mjs` is the instrument | 7.x balance |
-| — | **A besieged territory earns no gold, oil or construction materials, indefinitely.** The income suspension is not a considered rule: those three lines are commented out in the siege branch under `//uncomment other features if decided to involve them in sieges`. A player besieged on turn 3 of a measured run was still besieged on turn 14 with gold frozen throughout. (The other half of this item — AI sieges accumulating 17 → 67 — was closed by the campaign budgets in 7.8) | 7.x design |
-| **BQ** | **A besieged territory can still BUILD, and a farm outruns the siege that is grinding it down.** Found while fixing **BP**: France, under siege, put up a farm and its food ceiling rose 64,967,839 → 65,032,807 across the turn the siege began — the farm's +10% against one tick of ~10% collateral damage. It only became visible when **BK** was fixed and AI upgrades started working. It sits oddly beside the rule that a besieged territory earns no gold, oil or construction materials: it cannot earn, but it can spend. **Economy stage 3.1 made it worse and should be weighed with it**: a farm now adds a flat 100,000 to the food ceiling on top of its ten per cent, so on a small besieged territory one farm outruns the siege by a wide margin rather than a narrow one. Whether a siege should suspend construction is a design decision, not a defect, and it is worth taking together with the income-suspension item above | 7.x design |
-| — | **Unpaid army upkeep has no consequence.** A broke territory keeps its army for free. Desertion is a design decision, not a defect fix | 7.x balance |
-| — | **Should a small territory get a defence bonus at all, and what caps it?** The open half of **AR**, which is otherwise closed as a design decision. `areaBonusFor()` is deliberately unchanged: the ratio is unbounded as area approaches zero, and even the most conservative capped form halves the largest empire over sixty turns. Anyone reopening it should start from `test-reports/ai-sim/ar-baseline.json` and `ar-capped.json` rather than from `Math.min` | 7.x balance |
-| **E8** | **An upgrade order is priced at the LAST one in it, not as the sum of the ladder.** Five farms in one transaction cost `price(5)`; five bought one a turn cost about 2.2× that — so bulk buying is cheap and the AI, which buys one at a time, pays full price. Left exactly as it is by economy stage 1, which changed no balance number, and pinned by a unit test. It is stated once now, in `upgradeOrderPriceFor()`, instead of being an emergent property of a DOM cell. **Survived economy stage 3 deliberately, and the stage made it MORE reachable**: stage 3's decision (audit Q2) is that the lever is the benefit and the price ladder keeps its shape, so correcting the order price was not one of the stage's items — and stage 3.2 removed the construction-materials bottleneck that used to make a five-in-one-transaction order rare. The discount is now available on most of the map, and it is a PLAYER discount, because the AI still buys one at a time. Correcting it is a balance change of its own and wants its own measurement | 7.x balance |
-| — | **The AI can eliminate a single-territory player in ten turns** once it plans its first turn with full information. Same root as the old unbounded-sieges item: 206 independent actors, each evaluating every reachable enemy | 7.x |
-| — | **Bootstrap ordering is timing-luck.** CPU leaders and the AI's starting forts are created *after* `initialiseGame()` resolves, which is after the engine has run turn 1 — so turn 1 plans and earns over a world with no leaders and no forts, and `newTurnResources()` skips the income pass on turn 1 to hide it. Moving the setup inside `initialiseGame()` was implemented, measured and reverted: the ten-turn `long-run` went from 6/6 green to 0/6, the player eliminated every time. A fully-formed AI first turn is a balance change, and the finding is recorded at the site in `gameTurnsLoop.js` so nobody repeats it blind | 7.x balance |
+| **BO** | **Continental completes ONE continent in a 150-turn game and needs three.** Measured `--turns=150 --seed=goals --every=25 --goal=CONTINENTAL`: North America falls to the United States on turn 100 and is held to the end, and the nearest continent reaches 100%. That is the first time this item has moved on its own account rather than being knocked sideways by some other change — and what moved it was the AI's siege guard asking the AI's siege list alone, so a territory besieged by the PLAYER kept upgrading, fortifying and attacking out of the siege. **The other four goals have not been re-measured since the register sweep**, and their last figures (Great Powers, Conquest and Timed completing two each; Domination the outlier at 67%) predate both the free-attack fix and the design pass, so they are stale by an unknown amount. The full history of this item — it has now moved four times, twice in each direction, and **none of it was ever a defect in the continent rule itself** — is in the archive under the economy phase and the register sweep | economy / attack dials |
+| — | **Turn 1 still grants no income to anybody, and the reason it did has gone.** `newTurnResources()` skips `calculateTerritoryResourceIncomesEachTurn()` when `currentTurn() === 1`, and that guard existed to hide turn 1 being planned and earned over a world with no CPU leaders and no forts on it. The world is finished before the engine starts now, so the guard is scaffolding for a problem that no longer exists — but removing it grants every territory on the map an extra turn of income, which is a balance change and wants its own measurement. `tests/e2e/turn-loop/turn-counter.spec.js` asserts the current behaviour in two specs ("applies no income on turn 1", "applies income from turn 2 onward"), so whoever takes it re-baselines those in the same change | 7.x balance |
+| — | **Has attacking gone too far the other way? Nobody has played the world the measurements describe.** The item was written as *attacking is too hard*: measured after Phase 7.8 over two seeds, ~59% of every reachable (attacker, defender) pairing in the world sits below the 15% win probability the game applies to everybody, before any AI decision is taken, and a hundred turns still ended with 106–145 countries. It has since been moved four times by defect fixes and twice by tuning, in both directions and by more than any of them predicted — most recently the free-attack fix, which took Continental from 89 surviving countries to 109 and the largest empire from 71 to 60, and the design pass, which brought those back to 102 and 65. **So the open question is no longer a number, it is a judgement, and it is the one thing here that measurement cannot answer.** If it does need moving, the dials are the defender's fort multiplier and the attacker's sub-1 `devIndex`, — but not `areaBonusFor()`, whose open half is now closed as a decision — and `DICE_ATTACK_ADVANTAGE` for open battle or `ATTACK_ADVANTAGE` for sieges, never a third. `tools/ai-sim.mjs` is the instrument | 7.x balance |
 
 ## Missing
 
-| Issue | Owner |
-|---|---|
-| **The ending has no SCREEN.** The game decides itself correctly and emits `GAME_OVER` exactly once; the victory and defeat screens are the only listener still missing, and they are a second subscriber rather than a change to the rule | next |
+**Nothing.** The last item here was the ending screen, and it is built: `GAME_OVER` has a second
+subscriber, the panel names the goal, the outcome and the final standings, and it offers New
+Game, Main Menu and View Final Map. The analysis is in
+[archived/04-known-issues-closed.md](./archived/04-known-issues-closed.md) under *Closed in the
+second design pass*.
 
 ## Hygiene
 
@@ -55,15 +59,14 @@ not fixed in passing.
 
 | Issue | Owner |
 |---|---|
-| **`ui.js` is 5,752 lines and `resourceCalculations.js` 3,919**, so Phase 6's "no behavioural module over 400 lines" is not met | 6.9 Part A / Part B |
-| **108 `console.log` calls in the turn and battle hot path** — `aiCalculations.js` 51, `resourceCalculations.js` 36, `gameTurnsLoop.js` 17, `ui.js` 4. `battle.js` is down to zero. They come out with the files rather than in a sweep of their own | per file |
+| **`ui.js` is 4,579 lines and `resourceCalculations.js` 3,418**, so Phase 6's "no behavioural module over 400 lines" is not met. (Both figures were stated as 5,752 and 3,919 here for some time after they stopped being true — measured again, `wc -l`, during the register sweep) | 6.9 Part A / Part B |
+| **75 `console.log` calls in the turn and battle hot path** — `aiCalculations.js` 49, `gameTurnsLoop.js` 16, `resourceCalculations.js` 5, `ui.js` 5. `battle.js` is down to zero. They come out with the files rather than in a sweep of their own. (Counted again during the register sweep; this line had said 108 across a different distribution) | per file |
 | **Inline `.style.` writes that set a literal colour from JS do not follow the theme**, so a themed page has a handful of elements still painted in the old steel blue. `ui.js` is the bulk of it | 6.9.7 |
 | Mixed tabs and spaces, inconsistent brace style, commented-out blocks in the legacy root sources | per file |
 | Four names for one structure: the `mainArrayOfTerritoriesAndResources` / `mainArray` parameter names survive in `battle.js` and `transferAndAttack.js` | per file |
 | `dataName` / `territoryName` / `originalOwner` are named correctly in the selectors but keep their old names in the model | per file |
 | `battle.js` still exports ~25 `let`s of per-battle scratch | per file |
 | The data tables keep `font-family: Arial, Helvetica, sans-serif` rather than `var(--font-body)`. Deliberate for now: the rows are a fixed 30px and Terminal's monospace face would reflow them | 7.x |
-| **A measurement owed before anything touches map colour**: `generateDistinctRGBs()` in `src/ui/map/colouring.js` is dead code that is still CALLED, because its `Math.random` draws are on the game's stream and removing them moves every seeded outcome. Deleting it and re-baselining the four exact-outcome specs it moves is one change | 6.9.0 |
 | Lint baseline: **343 problems (73 errors, 270 warnings)** across the repository | per file |
 
 ---
@@ -75,6 +78,11 @@ not fixed in passing.
   with its id intact so existing citations still resolve.
 - **An id is permanent.** `AN`, `BI`, `BJ`, `BO`, `BP` and the rest keep their letters wherever
   they live, because source comments and `CLAUDE.md` refer to them.
+- **An entry is closed by reproducing it, not by reading it.** `BR` described a thousandfold
+  player/AI asymmetry in the price of infantry that had not been in the code since 2023, and it
+  was believed twice — once here and once in the Dominapedia. `BJ` named a cause that was not
+  one of the five real ones. Both cost more to disprove than they would have cost to check when
+  they were written.
 - **Severity is not tracked any more.** The old scoreboard counted 🔴/🟡/⚪ and every 🔴 is long
   closed; what is left is a short list that can simply be read. The historical scoreboard is in
   the archive.

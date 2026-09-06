@@ -152,6 +152,18 @@ export const ids = Object.freeze({
     goalSelectPowers: "goal-select-powers",
     goalSelectDescription: "goal-select-description",
     goalSelectConfirmBtn: "goal-select-confirm-btn",
+    // The ending. A second subscriber to GAME_OVER, not a branch in the turn loop --
+    // before it, a finished game went to the console and the player was left on a map.
+    gameOverContainer: "game-over-container",
+    gameOverPanel: "game-over-panel",
+    gameOverTitle: "game-over-title",
+    gameOverSubtitle: "game-over-subtitle",
+    gameOverPlayedFor: "game-over-played-for",
+    gameOverBody: "game-over-body",
+    gameOverStandings: "game-over-standings",
+    gameOverNewGameBtn: "game-over-new-game-btn",
+    gameOverMenuBtn: "game-over-menu-btn",
+    gameOverViewMapBtn: "game-over-view-map-btn",
     // The progress line on the phase bar: "Continental: 1 of 3 continents", the
     // same string `victoryProgress()` gives the AI, so the two cannot disagree.
     phaseBarGoal: "phase-bar-goal",

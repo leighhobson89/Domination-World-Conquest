@@ -99,6 +99,27 @@ export const armyCostPerTurn = {
 };
 
 /**
+ * How much of the army deserts when its upkeep cannot be paid.
+ *
+ * Upkeep was charged and then clamped -- `goldForCurrentTerritory = Math.max(0, gold + change)`
+ * -- so a territory that could not pay simply sat at zero gold and kept its army for nothing.
+ * Gold was a drag on income and never a ceiling on army size, which is the whole of what upkeep
+ * was supposed to be for (audit 5.2 R re-enabled the charge; nothing ever gave it teeth).
+ *
+ * The rule is deliberately one-for-one and SELF-LIMITING: the share of the army that deserts is
+ * the share of the bill that went unpaid. Miss a tenth of your upkeep and you lose a tenth of
+ * your army -- and next turn the bill is a tenth smaller, so a territory converges on the army
+ * it can afford instead of collapsing. That property is why the dial sits at 1.0 and why it is
+ * a multiplier on the unpaid share rather than a flat rate: at 1.0 the rule needs no separate
+ * argument for why it terminates.
+ *
+ * Desertion walks infantry first and then the vehicles, through `planArmyStarvation()`, which
+ * is the same walk a famine uses. Deliberate: a soldier who is not paid goes home, and the
+ * crews go last because a vehicle is a smaller number of people.
+ */
+export const ARMY_DESERTION_RATE = 1.0;
+
+/**
  * How many people a unit is worth when an army is expressed as a single head count.
  *
  * This is the conversion between the four unit counts and `armyForCurrentTerritory`, and
@@ -804,6 +825,61 @@ export const MAX_BATTLE_ROUNDS = 30;
 export const RESERVE_ARRIVAL_DELAY = 1;
 
 // --- sieges ----------------------------------------------------------------
+
+/**
+ * What share of its gold, oil and construction materials a BESIEGED territory still earns.
+ *
+ * Until this existed the answer was zero, and that was never a decision: the siege branch of
+ * the income pass in `resourceCalculations.js` handles food and population and simply never
+ * had the other three lines written into it. A player besieged on turn 3 of a measured run was
+ * still frozen on turn 14, and nothing in the game ends a siege except an arrest or a conquest.
+ *
+ * A quarter is chosen so that a siege HURTS without removing the defender from the game. The
+ * distinction that matters is between a bleed and a freeze: a besieged territory on a quarter
+ * income is still accumulating, slowly, toward the fort or the troops that might break the
+ * siege, so the player has something to do about it. On zero there is no decision to take at
+ * all -- which is what made the item a design problem rather than a balance number.
+ *
+ * FOOD IS NOT SCALED BY THIS. The siege's whole mechanism is starvation, through
+ * `calculateFoodChange()` and `siegeArmyStarvationChange()`, and taxing the food a second time
+ * here would be charging for the siege twice.
+ */
+export const SIEGE_INCOME_SHARE = 0.25;
+
+/**
+ * May a besieged territory BUILD? Known-issue BQ.
+ *
+ * It could, and it could not earn -- it was able to spend but not to receive, which is an odd
+ * pair on its own and produced a plainly wrong outcome: France, under siege, put up a farm and
+ * its food ceiling rose 64,967,839 to 65,032,807 across the turn the siege began, so the farm
+ * outran the siege that was grinding it down. Economy stage 3.1 widened that, because a farm
+ * now adds a flat 100,000 on top of its ten per cent and a small territory's ceiling is small.
+ *
+ * A siege is a territory cut off, so it is one rule now: no income to speak of, and nothing
+ * built. This is a constant rather than a bare `if` because it is a rule a later phase may
+ * want to relax to "forts only" -- digging in is what a besieged garrison would actually do.
+ */
+export const SIEGE_SUSPENDS_CONSTRUCTION = true;
+
+/**
+ * Turns before the AI will open an attack or a siege against the PLAYER.
+ *
+ * The AI plans its first turn with full information, and there are 206 of them. A player who
+ * chose a one-territory country is reachable by several at once on turn 1 and could be
+ * eliminated inside ten turns without ever having taken a decision that mattered -- which is
+ * the single item most likely to decide whether somebody's first game is worth finishing.
+ *
+ * Three things this deliberately is NOT. It is not a difficulty setting: the AI fights the
+ * player exactly as hard from turn 6 as it ever did. It is not a shield on the player's
+ * territory -- the AI may still be attacked BY the player during it, and an AI already at war
+ * with another AI over a territory the player then takes is unaffected, because the grace is
+ * about opening a new interaction and not about existing ones. And it is not a bonus to the
+ * player's odds anywhere; nothing in the battle model knows about it.
+ *
+ * It sits in `rateTarget()`, which is the one place a target is refused with a stated reason,
+ * so the AI debug window and the plan log both say why.
+ */
+export const PLAYER_GRACE_TURNS = 5;
 
 /** How much one unit of each type contributes to a siege score. */
 export const armyTypeSiegeValues = {

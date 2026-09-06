@@ -26,7 +26,9 @@ import {
 } from "../../src/rules/economy/income.js";
 import {
     armyMaintenanceFor,
-    initialArmyAdjustmentCost
+    initialArmyAdjustmentCost,
+    planArmyDesertion,
+    upkeepShortfall
 } from "../../src/rules/economy/maintenance.js";
 import {
     armyStarvesInstead,
@@ -249,6 +251,77 @@ describe("maintenance", () => {
     });
 });
 
+describe("unpaid upkeep", () => {
+    //The income pass clamps the treasury at zero, so before this the shortfall was discarded
+    //and a broke territory kept its army for nothing. Gold was a drag on income and never a
+    //ceiling on army size, which is what upkeep exists to be.
+    const soldiers = (count) => territory({
+        infantryForCurrentTerritory: count,
+        armyForCurrentTerritory: count
+    });
+
+    it("reports nothing owed when the territory covers its bill", () => {
+        expect(upkeepShortfall(100, -30)).toBe(0);
+        expect(upkeepShortfall(100, -100)).toBe(0);
+    });
+
+    it("recovers what the clamp would have thrown away", () => {
+        expect(upkeepShortfall(100, -130)).toBe(30);
+    });
+
+    it("deserts nothing from a territory that paid", () => {
+        expect(planArmyDesertion(soldiers(100000), 0)).toBeNull();
+    });
+
+    it("deserts nothing from a territory with no army to bill", () => {
+        expect(planArmyDesertion(territory(), 500)).toBeNull();
+    });
+
+    it("deserts the same share of the army as the share of the bill left unpaid", () => {
+        const garrison = soldiers(1_000_000);
+        const owed = armyMaintenanceFor(garrison);
+        const survivors = planArmyDesertion(garrison, owed / 2);
+        expect(survivors.infantryForCurrentTerritory).toBe(500_000);
+    });
+
+    it("is self-limiting: half the bill unpaid costs half the army, not all of it", () => {
+        //The property the rate is set at 1.0 for. Next turn the bill is half the size, so a
+        //territory converges on the army it can afford instead of collapsing.
+        const garrison = soldiers(1_000_000);
+        const owed = armyMaintenanceFor(garrison);
+        const first = planArmyDesertion(garrison, owed / 2);
+        expect(first.infantryForCurrentTerritory).toBeGreaterThan(0);
+
+        const second = planArmyDesertion(
+            soldiers(first.infantryForCurrentTerritory),
+            armyMaintenanceFor(soldiers(first.infantryForCurrentTerritory)) / 2);
+        expect(second.infantryForCurrentTerritory).toBe(250_000);
+    });
+
+    it("caps the share at the whole bill, however far the treasury is under", () => {
+        //A territory can be short by far more than its upkeep -- its other costs are in the
+        //same number -- and an uncapped share would desert an army several times over.
+        const garrison = soldiers(1000);
+        const survivors = planArmyDesertion(garrison, armyMaintenanceFor(garrison) * 500);
+        expect(survivors.infantryForCurrentTerritory).toBe(0);
+        expect(survivors.armyForCurrentTerritory).toBe(0);
+    });
+
+    it("takes the infantry before the crews", () => {
+        //Same walk a famine uses: an unpaid soldier goes home, and a vehicle is a smaller
+        //number of people to keep.
+        const garrison = territory({
+            infantryForCurrentTerritory: 100_000,
+            assaultForCurrentTerritory: 5,
+            useableAssault: 5,
+            armyForCurrentTerritory: 100_000 + (5 * vehicleArmyPersonnelWorth.assault)
+        });
+        const survivors = planArmyDesertion(garrison, armyMaintenanceFor(garrison) * 0.1);
+        expect(survivors.useableAssault).toBe(5);
+        expect(survivors.infantryForCurrentTerritory).toBeLessThan(100_000);
+    });
+});
+
 describe("capacity and the oil gate", () => {
     it("charges oil for vehicles and nothing for infantry", () => {
         expect(oilDemandFor(territory({ infantryForCurrentTerritory: 100000 }))).toBe(0);
@@ -452,10 +525,10 @@ describe("planArmyStarvation", () => {
         }
     });
 
-    it("wipes out every vehicle when the losses exactly match the infantry", () => {
-        //KNOWN DEFECT, preserved deliberately (docs/04-known-issues.md, the Phase 5.2 note):
-        //`remaining === 0` falls into the else branch, so a famine that exactly matches the
-        //infantry destroys the whole fleet as well. Fixing it is a balance change.
+    it("leaves the fleet alone when the losses exactly match the infantry -- AN", () => {
+        //Known-issue AN. `remaining === 0` used to fall into the total-loss branch, so a
+        //famine the infantry absorbed to the last man destroyed every vehicle as well --
+        //four assault, four air and four naval wiped out by a hundred lost soldiers.
         const garrison = territory({
             infantryForCurrentTerritory: 100,
             useableAssault: 4,
@@ -466,9 +539,29 @@ describe("planArmyStarvation", () => {
         const survivors = planArmyStarvation(garrison, -100);
         expect(survivors).toMatchObject({
             infantryForCurrentTerritory: 0,
-            useableAssault: 0,
-            useableAir: 0,
-            useableNaval: 0
+            useableAssault: 4,
+            useableAir: 4,
+            useableNaval: 4
+        });
+    });
+
+    it("stops at the first vehicle type that covers what is left -- AN", () => {
+        //The walk is assault, then air, then naval. A famine that outruns the infantry by
+        //less than the assault column is worth must not reach the air or the ships.
+        const garrison = territory({
+            infantryForCurrentTerritory: 100,
+            useableAssault: 4,
+            useableAir: 4,
+            useableNaval: 4,
+            armyForCurrentTerritory: 5000
+        });
+        const survivors = planArmyStarvation(
+            garrison, -(100 + vehicleArmyPersonnelWorth.assault));
+        expect(survivors).toMatchObject({
+            infantryForCurrentTerritory: 0,
+            useableAssault: 3,
+            useableAir: 4,
+            useableNaval: 4
         });
     });
 });

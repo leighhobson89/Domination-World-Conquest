@@ -25,6 +25,7 @@ import {
     phaseButtonLabel,
     phaseBar as phaseBarSelectors,
     goalSelect as goalSelectSelectors,
+    gameOver as gameOverSelectors,
     ids
 } from "./selectors.js";
 
@@ -191,8 +192,39 @@ export class GameDriver {
      * the driver click it away.
      */
     async dismissBlockingPanels() {
+        //The ending FIRST. It is the only one of the three in the modal band at z-index
+        //10000, so it covers the other two -- clearing the start-of-turn panel underneath it
+        //times out waiting to click an X that is visibly there and cannot be reached.
+        await this.dismissEndingScreen();
         await this.dismissBattleResults();
         await this.dismissStartOfTurnPanel();
+    }
+
+    /**
+     * Take the ending screen down if it is up, and leave everything else alone.
+     *
+     * The idle player in a long headless run is usually eliminated somewhere in the first
+     * hundred turns, which raises the ending screen -- and it sits at z-index 10000 over the
+     * phase button, so from that turn on nothing could be driven. `tools/ai-sim.mjs` stopped
+     * dead at turn 100 the first time this shipped, reporting a click that "intercepts pointer
+     * events", which reads exactly like a game defect and is not one.
+     *
+     * It presses View Final Map, which is the panel's quiet exit: it takes the panel down and
+     * does nothing else, where New Game and Main Menu would both throw the world away.
+     *
+     * Note the ORDER this is called in. `withBlockersCleared()` clears and THEN acts, so a spec
+     * whose `endTurn()` is the call that ends the game still sees the panel afterwards -- the
+     * clearing happened before it existed. It is only cleared when something drives the game
+     * forward PAST an ending, which is the case it exists for.
+     */
+    async dismissEndingScreen() {
+        const panel = this.page.locator(gameOverSelectors.container);
+        if (!(await panel.isVisible().catch(() => false))) {
+            return false;
+        }
+        await this.page.click(gameOverSelectors.viewMap);
+        await this.page.waitForSelector(gameOverSelectors.container, { state: "hidden" });
+        return true;
     }
 
     /**

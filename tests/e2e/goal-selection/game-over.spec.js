@@ -1,6 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 import { GameDriver } from "../../support/game.js";
-import { confirmDialog, menu, phaseBar } from "../../support/selectors.js";
+import { gameOver, phaseBar } from "../../support/selectors.js";
 
 // The ending, and the one property of it that no unit test can see: that it is WIRED.
 //
@@ -13,6 +13,11 @@ import { confirmDialog, menu, phaseBar } from "../../support/selectors.js";
 // decided game announcing itself again at the end of every subsequent turn, which is
 // invisible to anything that only asks "is the game over" -- so the assertion is a COUNT,
 // over turns played past the ending. `window.__game.gameOverEvents()` is the list.
+//
+// The SCREEN is the other half of that wiring, and it is asserted the same way and for the
+// same reason: `tests/unit/ui-game-over.spec.js` decides every word of every outcome from
+// `describeEnding()`, in Node, in about a millisecond. What needs a browser is only that the
+// panel is subscribed, that it draws, and that its three exits go where they say.
 //
 // Elimination is the ending used because it is the only one reachable from a scenario: the
 // other four ask for continents, for 60% of the world's land or for two hundred turns.
@@ -62,15 +67,65 @@ test.describe("the end of a game", () => {
         await game.endTurn();
         expect(await page.evaluate(() => window.__game.gameOverEvents())).toHaveLength(1);
 
-        // Nothing stops the world turning yet -- the victory and defeat screens are the
-        // next phase and are a second subscriber to this event, not a change to it. So the
-        // condition stays met, and the latch is the only thing keeping it quiet.
+        // Nothing stops the world turning -- the ending screen is a second subscriber to this
+        // event and not a change to it, so the condition stays met and the latch is the only
+        // thing keeping it quiet. The panel sits at z-index 10000 over the phase button, so
+        // its quiet third exit is what lets this spec go on driving the game.
+        await page.click(gameOver.viewMap);
         await game.playTurns(2);
 
         expect(await page.evaluate(() => window.__game.gameOverEvents())).toHaveLength(1);
     });
 
-    test("New Game clears the previous game's ending", async ({ page }) => {
+    test("raises the ending screen, saying what was played for and how it went", async ({
+        page,
+    }) => {
+        const game = new GameDriver(page);
+        await game.start({ country: "Germany", seed: "game-over-screen" });
+
+        await game.endBuyPhase();
+        await game.loadScenario("player-eliminated");
+        await game.endTurn();
+
+        await page.waitForSelector(gameOver.panel, { state: "visible" });
+        // Elimination and a rival's victory are both DEFEAT and are not the same sentence.
+        // Which sentence appears is decided in the unit suite; that the right KIND of ending
+        // reached the screen is what this asserts.
+        expect(await page.textContent(gameOver.title)).toContain("Defeat");
+        expect(await page.textContent(gameOver.subtitle)).toContain("driven from the map");
+        // The goal is named whatever the outcome: five goals end five different ways, and a
+        // screen that could not say which was being played would waste the one moment the
+        // whole game builds to.
+        expect((await page.textContent(gameOver.playedFor)).length).toBeGreaterThan(0);
+        expect(await page.locator(`${gameOver.standings} tr`).count()).toBeGreaterThan(1);
+
+        // The tone is a class, not an inline colour -- `style.css` carries no colour literal
+        // outside `:root`, and a themed page has to be able to say what defeat looks like.
+        expect(await page.getAttribute(gameOver.panel, "data-tone")).toBe("defeat");
+    });
+
+    test("View Final Map puts the finished board back without ending anything", async ({
+        page,
+    }) => {
+        const game = new GameDriver(page);
+        await game.start({ country: "Germany", seed: "game-over-view" });
+
+        await game.endBuyPhase();
+        await game.loadScenario("player-eliminated");
+        await game.endTurn();
+        await page.waitForSelector(gameOver.panel, { state: "visible" });
+
+        await page.click(gameOver.viewMap);
+        await page.waitForSelector(gameOver.container, { state: "hidden" });
+
+        // Nothing was reset and nothing was decided a second time: the quiet exit only takes
+        // the panel down.
+        expect(await page.evaluate(() => window.__game.gameOverEvents())).toHaveLength(1);
+    });
+
+    test("New Game on the ending screen starts a fresh game and clears the ending", async ({
+        page,
+    }) => {
         const game = new GameDriver(page);
         await game.start({ country: "Germany", seed: "game-over-restart" });
 
@@ -79,9 +134,11 @@ test.describe("the end of a game", () => {
         await game.endTurn();
         expect(await page.evaluate(() => window.__game.gameOverEvents())).toHaveLength(1);
 
-        await game.withBlockersCleared(() => page.keyboard.press("Escape"));
-        await page.click(menu.newGame);
-        await page.click(confirmDialog.confirm);
+        // Straight from the panel, which is the route a player actually takes -- it goes to
+        // the same `startNewGame()` the main menu's button does, so the goal chooser is next
+        // and there is no confirm dialog, because there is no game left to lose.
+        await page.waitForSelector(gameOver.panel, { state: "visible" });
+        await page.click(gameOver.newGame);
         await game.confirmGoal();
         await game.selectTerritory("Germany");
         await page.click(phaseBar.confirm);

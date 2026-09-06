@@ -1,5 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 import { battle } from "../../support/selectors.js";
+import { armyMaintenanceFor } from "../../../src/rules/economy/maintenance.js";
 
 // What a turn does to a siege, and what a siege does to the territory under it.
 // docs/03-e2e-test-plan.md section 5.11.
@@ -85,29 +86,64 @@ test.describe("a siege over time", () => {
         }
     });
 
-    test("suspends the besieged territory's income -- characterised, not endorsed", async ({
-        game,
-        page,
-    }) => {
-        // This is a DESIGN problem, logged for Phase 7 in docs/04-known-issues.md section 6,
-        // not a defect to fix here. The gold, oil and construction-material lines in the
-        // siege branch are commented out under "uncomment other features if decided to
-        // involve them in sieges", so a besieged territory earns nothing for as long as the
-        // siege lasts -- and the AI besieges far more than it can finish.
+    test("leaves the besieged territory a reduced income, not none", async ({ game, page }) => {
+        // THE RULE, decided rather than inherited. This spec used to characterise the
+        // opposite: gold, oil and construction materials were simply absent from the siege
+        // branch of the income pass, so a besieged territory earned NOTHING for as long as
+        // the siege stood -- and nothing in the game ends a siege except an arrest or a
+        // conquest. A player besieged on turn 3 of a measured run was still frozen on turn 14
+        // with no decision available to them. The old spec said in as many words that it
+        // should be deleted and the new rule stated when this changed.
         //
-        // It is characterised rather than asserted as correct: this spec is written to FAIL
-        // when Phase 7 gives a besieged territory some income, which is the point. If it
-        // starts failing, the fix is to delete it and state the new rule.
+        // It is `SIEGE_INCOME_SHARE` of the yield now, with upkeep charged in FULL against it.
+        //
+        // Gold is the witness and the assertion is one-sided, both deliberately. Oil and
+        // construction materials look like better probes and are not: France sits AT both
+        // ceilings in this scenario, so their regeneration is zero whatever the siege does,
+        // and a spec asserting they rose would fail for a reason that has nothing to do with
+        // the rule. And the yield itself cannot be predicted here without re-implementing
+        // `calculateGoldChange()` in the test. What CAN be stated exactly is the floor: a
+        // territory earning nothing would lose its whole upkeep bill, so a treasury that fell
+        // by less than that received something. `armyMaintenanceFor()` is the real rule, pure
+        // and importable, so this borrows it rather than copying the four rates.
         await game.start({ country: "Germany", seed: "siege-income" });
         await besiegeFrance(game, page);
 
         const before = await game.territory("France");
+        expect(before.goldForCurrentTerritory).toBeGreaterThan(0);
+        const upkeep = armyMaintenanceFor(before);
+        expect(upkeep, "the scenario's garrison has to owe something").toBeGreaterThan(0);
+
         await game.endTurn();
         const after = await game.territory("France");
 
+        const delta = after.goldForCurrentTerritory - before.goldForCurrentTerritory;
+        expect(delta, "a besieged treasury is no longer frozen").not.toBe(0);
         expect(
-            after.goldForCurrentTerritory,
-            "a besieged territory earns no gold today -- Phase 7 owns this"
-        ).toBeLessThanOrEqual(before.goldForCurrentTerritory);
+            delta,
+            "a besieged territory that earned nothing would be down its whole upkeep bill"
+        ).toBeGreaterThan(-upkeep);
+
+        expect(after.goldForCurrentTerritory).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(after.goldForCurrentTerritory)).toBe(true);
+        expect(Number.isFinite(after.consMatsForCurrentTerritory)).toBe(true);
+        expect(Number.isFinite(after.oilForCurrentTerritory)).toBe(true);
+    });
+
+    test("refuses to let the besieged territory build -- BQ", async ({ game, page }) => {
+        // Known-issue BQ. A besieged territory could not earn and could still BUILD, which is
+        // an odd pair on its own and produced a plainly wrong outcome: France, under siege,
+        // put up a farm and its food ceiling went UP across the turn the siege began, so the
+        // farm outran the siege grinding it down. `condition` is what gates every plus button
+        // in the upgrade window, so asserting it is asserting the control.
+        await game.start({ country: "Germany", seed: "siege-build" });
+        await besiegeFrance(game, page);
+
+        const conditions = await page.evaluate(() =>
+            window.__game
+                .availableUpgrades("France")
+                .map((row) => row.condition));
+        expect(conditions.length).toBeGreaterThan(0);
+        expect(new Set(conditions)).toEqual(new Set(["Under Siege"]));
     });
 });

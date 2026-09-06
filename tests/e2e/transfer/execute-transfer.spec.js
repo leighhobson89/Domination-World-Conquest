@@ -68,6 +68,24 @@ test.describe("the transfer window", () => {
         expect(await game.transferAttack.selectedRowName()).toContain(destination);
     });
 
+    test("selects a destination from anywhere in its row, not only the name", async ({ game }) => {
+        //Selecting used to be TWO listeners for one gesture: the row recorded the destination id
+        //that `commit()` reads, and the name column moved the highlight the steppers read. They
+        //could disagree -- select one row by its name, click anywhere in another, and the next
+        //allocation was committed against a destination the player had not chosen and could not
+        //see. Both are one handler on the row now, which is what this asserts: a click on a
+        //cell that is not the name selects the row, so the two cannot come apart.
+        await game.start({ country: "Hokkaido" });
+        await openTransferFrom(game, "Hokkaido");
+
+        const destination = await friendlyDestination(game, "Hokkaido");
+        test.skip(!destination, "Hokkaido reached no other player-owned territory");
+
+        expect(await game.transferAttack.selectedRowName()).toBeNull();
+        await game.transferAttack.unitColumn(destination, "infantry").click({ force: true });
+        expect(await game.transferAttack.selectedRowName()).toContain(destination);
+    });
+
     test("turns the move button into CONFIRM once a quantity is non-zero", async ({ game }) => {
         await game.start({ country: "Hokkaido" });
         await openTransferFrom(game, "Hokkaido");

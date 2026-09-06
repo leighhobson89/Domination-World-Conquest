@@ -34,7 +34,8 @@ import {
     getCountryResourceTotals,
     turnGainsArrayLastTurn,
     getTurnGainsArrayAi,
-    derivedEconomyFor
+    derivedEconomyFor,
+    calculateAvailableUpgrades
 } from './resourceCalculations.js';
 import { currentContinentControl } from './src/state/continentBonus.js';
 import {
@@ -241,6 +242,14 @@ installTestHooks({
     }),
     economyFor: (nameOrId) => derivedEconomyFor(
         getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId)),
+    //What the upgrade window would offer for a territory, WITHOUT opening it. `condition` is
+    //not a label -- every plus button in that window is enabled on `condition === "Can Build"`
+    //and nothing else -- and the rule a spec most needs to check is one the window cannot be
+    //opened to see: a besieged territory builds nothing (known-issue BQ), and the territory
+    //under siege in a test is usually the enemy's, whose upgrade window the player has no
+    //route to at all.
+    availableUpgrades: (nameOrId) => calculateAvailableUpgrades(
+        getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId)),
     applyScenario: (scenario) => applyScenario(scenario, {
         getTerritoryByName,
         updateTerritory,
@@ -320,7 +329,13 @@ let attackOptionsArray = [];
 let arrayOfLeadersAndCountries = [];
 let gameInitialisation;
 
-export async function initialiseGame({ spectator = false } = {}) {
+/**
+ * @param {{spectator?: boolean, worldSetup?: () => void}} [options]
+ *        `worldSetup` creates the CPU leaders and the AI's starting forts. It is a CALLBACK
+ *        rather than an import because both live in `ui.js` and this module deliberately does
+ *        not import it; see the note at the call below for why the ORDER matters.
+ */
+export async function initialiseGame({ spectator = false, worldSetup = null } = {}) {
     resetVictoryLatch();
     setZoomLevel(1);
     zoomMap("init");
@@ -357,6 +372,26 @@ export async function initialiseGame({ spectator = false } = {}) {
 
     installAdjacencyHooks();
     signalReady();
+
+    //THE WORLD IS FINISHED BEFORE THE ENGINE STARTS.
+    //
+    //This used to happen in `ui.js`, AFTER `await initialiseGame()` resolved -- which is after
+    //`turnEngine.start()` had already run turn 1. So turn 1 was planned and earned over a world
+    //with no CPU leaders and no forts on it, and `newTurnResources()` skips the income pass on
+    //turn 1 precisely to hide that. It could not simply be moved: both of these read the
+    //player's ownership, so they have to run after the loop above that sets it, and moving them
+    //here was implemented, MEASURED and reverted once already -- the ten-turn `long-run` went
+    //from 6/6 green to 0/6 with the player eliminated every time, which is a balance change and
+    //not a tidy-up.
+    //
+    //What changed since that measurement is `PLAYER_GRACE_TURNS`: the AI cannot open an attack
+    //or a siege against the player for the first five turns, which is exactly the failure the
+    //revert was protecting against. So it is tried again, and measured again.
+    //
+    //Spectator mode has always done this BEFORE the engine starts, because nothing blocks there
+    //and a country without a leader would throw -- so this brings a played game into line with
+    //the one that was already right.
+    worldSetup?.();
 
     installPhaseButton();
     turnEngine.start();

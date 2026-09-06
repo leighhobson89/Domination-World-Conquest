@@ -171,18 +171,23 @@ export function planArmyStarvation(territory, populationChange) {
         ["useableAir", "air"],
         ["useableNaval", "naval"]
     ]) {
+        //A famine that the infantry absorbed exactly leaves `remaining` at zero, and a
+        //famine with nothing left to take leaves it below zero. Neither is a reason to
+        //destroy a vehicle, and until known-issue AN was closed both did: the loop's only
+        //guard was on the PARTIAL branch, so `remaining === 0` fell through to the wipe and
+        //a single soldier's difference in the arithmetic cost a territory its entire
+        //mechanised army. Stopping the walk is the whole fix -- the partial and total
+        //branches below were always right.
+        if (remaining <= 0) {
+            break;
+        }
         const worth = vehicleArmyPersonnelWorth[type];
         const available = survivors[field] * worth;
-        if (remaining > 0 && remaining < available) {
+        if (remaining < available) {
             const lost = Math.min(Math.ceil(remaining / worth), survivors[field]);
             survivors[field] -= lost;
             remaining -= lost * worth;
         } else {
-            //KNOWN DEFECT, preserved deliberately (docs/04-known-issues.md, Phase 5.2 note).
-            //`remaining === 0` reaches this branch, so a famine that exactly matches the
-            //infantry wipes out every vehicle as well. The extraction is behaviour-
-            //preserving by design; fixing it is a balance change and belongs in its own
-            //commit, not inside a move.
             remaining -= available;
             survivors[field] = 0;
         }
