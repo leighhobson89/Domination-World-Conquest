@@ -45,10 +45,38 @@ describe("how long a leader serves", () => {
     });
 
     it("separates countries that share a long prefix", () => {
-        //This map is full of them, and a weak hash would retire the two United * on the same
-        //turn -- which is precisely the visible pulse the stagger exists to avoid.
-        expect(nextSuccessionTurn("United States", 20))
-            .not.toBe(nextSuccessionTurn("United Kingdom", 20));
+        //This map is full of them, and a weak hash would put the two United * on the SAME
+        //TIMETABLE -- which is the visible pulse the stagger exists to avoid.
+        //
+        //This asserts the schedules diverge rather than that the next turn differs, and the
+        //difference matters now that the term span is six values wide rather than eleven
+        //(15-20, halved from 30-40). Two countries out of two hundred coinciding ONCE is
+        //arithmetic, not a weak hash: measured, the United States and the United Kingdom
+        //share turn 35 and then separate for good, because their terms are 19 and 16 --
+        //54 against 51, 73 against 67, and so on. Sharing a term is what would matter.
+        expect(termFor("United States")).not.toBe(termFor("United Kingdom"));
+
+        const laterUs = nextSuccessionTurn("United States", 60);
+        const laterUk = nextSuccessionTurn("United Kingdom", 60);
+        expect(laterUs).not.toBe(laterUk);
+    });
+
+    it("keeps the whole world's successions spread, at map scale", () => {
+        //The property the prefix test above is a proxy for, asserted on a list big enough to
+        //mean something. Measured over the real 207 countries: a mean of 11.8 successions a
+        //turn, a worst turn of 37 (17.9% of the world), and only 2 turns in 150 with none at
+        //all. The bound here is loose on purpose -- it is guarding against a PULSE, half the
+        //world changing its mind at once, not pinning a distribution.
+        const many = [];
+        for (let index = 0; index < 200; index++) {
+            many.push("Country " + index);
+        }
+        const start = leaderSuccession.firstPossibleTurn;
+        let worst = 0;
+        for (let turn = start; turn < start + 150; turn++) {
+            worst = Math.max(worst, successionsDueOn(many, turn).length);
+        }
+        expect(worst).toBeLessThan(many.length / 3);
     });
 
     it("survives a nameless or missing country rather than throwing", () => {

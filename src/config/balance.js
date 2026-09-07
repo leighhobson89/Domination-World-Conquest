@@ -1230,15 +1230,23 @@ export const doctrineTargeting = {
 };
 
 /**
- * How often a country re-examines WHICH continents it is campaigning for.
+ * How wide a border into a continent counts as "I can get there", when a country is
+ * choosing what to campaign for.
  *
- * Commitments are deliberately sticky: a country that re-picked its three continents
- * every turn would chase whichever front happened to look best this turn and never
- * finish one, which is the turn-local behaviour the campaign layer exists to replace.
- * A commitment is abandoned early only when it becomes pointless -- the continent is
- * already held outright, or the country has been thrown off it entirely.
+ * THE TERM THAT MAKES THE CHOICE DYNAMIC. `continentAmbitionWeights.foothold` counts only
+ * territories already HELD, so before this a continent across a shared border scored exactly
+ * the same as one on the far side of the world -- and a country with no foothold anywhere
+ * outside its own continent had its score collapse to `continentModifiers`, a static table.
+ * Every power in the same position therefore committed to the same continent, which is a
+ * fixed objective wearing the clothes of a derived one. Measured on the real map, a North
+ * American power that had finished North America committed to EUROPE every time, which it
+ * reaches through one territory, over South America, which it reaches through eleven.
+ *
+ * Counted in distinct adjacent ENEMY territories rather than in pairings, because pairings
+ * measure how much of OUR border faces them and this question is about how much of THEIRS is
+ * open to us.
  */
-export const CAMPAIGN_REVIEW_INTERVAL = 5;
+export const continentReachSaturation = 6;
 
 /** How a continent is scored when a country is choosing what to campaign for. */
 export const continentAmbitionWeights = {
@@ -1252,6 +1260,16 @@ export const continentAmbitionWeights = {
     brevity: 1,
     /** Penalty weight on the strongest rival's share of the continent. */
     contest: 1.4,
+    /**
+     * Weight on how much of this continent this country can actually REACH -- saturating at
+     * `continentReachSaturation` adjacent enemy territories.
+     *
+     * Heavier than `value` (1.5) on purpose, because it is the term that answers a different
+     * question: `value` says what a continent is worth to own and this says whether owning it
+     * is a plan at all. A country that cannot get to a continent does not campaign for it,
+     * and the static table has to be able to lose to that.
+     */
+    reach: 2,
     /** Territory count treated as "a big continent" when scoring brevity. */
     brevityScale: 60
 };
@@ -1353,10 +1371,20 @@ export const siegeReview = {
  * and staggers the world's two hundred successions instead of pulsing them.
  */
 export const leaderSuccession = {
-    /** Shortest a leader serves. */
-    minimumTermTurns: 30,
+    /**
+     * Shortest a leader serves.
+     *
+     * FIFTEEN TO TWENTY, HALVED FROM THIRTY TO FORTY, and the halving is what makes a
+     * succession the game's main source of change rather than a rare event. A term of
+     * thirty-plus turns means a 150-turn game sees each country change its mind about four
+     * times; at fifteen to twenty it is eight or nine, and since a succession now KEEPS the
+     * long-term continent objective and clears only the medium and short term, what an heir
+     * changes is how the war is fought rather than what it is for. That makes a shorter term
+     * cheap: it re-decides the reversible half more often and never loses the plan.
+     */
+    minimumTermTurns: 15,
     /** Longest a leader serves. */
-    maximumTermTurns: 40,
+    maximumTermTurns: 20,
     /**
      * Nothing happens before this turn.
      *

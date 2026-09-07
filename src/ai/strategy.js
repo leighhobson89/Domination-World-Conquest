@@ -22,12 +22,30 @@
 //               is the direct answer to "it does not know it already has forty sieges
 //               running": it counts them, and it stops.
 //
-// COMMITMENTS ARE STICKY, and that is the whole point of the module holding state. A
-// country that re-picked its three continents every turn would chase whichever front
-// happened to look best that turn and would finish none of them -- which is precisely the
-// turn-local behaviour being replaced. A commitment is reviewed every
-// `CAMPAIGN_REVIEW_INTERVAL` turns, and abandoned early only when it has become pointless:
-// the continent is held outright already, or the country has been thrown off it entirely.
+// THE THREE HORIZONS ARE DECIDED AT THREE DIFFERENT RATES, and that is the whole point of
+// the module holding state:
+//
+//   LONG   the committed continents. Chosen ONCE, from the world as it stands when the
+//          country first plans, and never re-picked -- not on a review interval, not when
+//          the plan looks pointless, and not when the leader dies. It is the war the
+//          country is fighting.
+//   MEDIUM the theatre (`theatre.js`): which neighbour to absorb on the way. Re-judged
+//          continuously, dropped when it stalls, and wiped by a succession.
+//   SHORT  this turn's goals, and the borders lately not worth another try. Turn-local.
+//
+// It used to re-pick the long term every `CAMPAIGN_REVIEW_INTERVAL` turns and again whenever
+// the commitment "became pointless", which for a country whose only foothold continent was
+// complete was EVERY turn -- so the horizon meant to be the most stable was the one that
+// churned most. Leigh's decision: a country does not change its mind about which continents
+// it is conquering; it changes its mind about how.
+//
+// THE CHOICE IS MADE FROM THE WORLD, NOT FROM A TABLE. `foothold` counts only territories
+// already HELD, so a continent across a shared border used to score the same as one on the
+// far side of the planet, and a country with no foothold outside its own continent had its
+// score collapse to the static `continentModifiers` -- which made the objective effectively
+// fixed. `reach` is the term that fixes it: how much of the continent this country can
+// actually touch. Measured on the real map, it is the difference between a finished North
+// American power committing to Europe (one crossing) and to South America (eleven).
 //
 // Pure with respect to the rest of the app: it imports `config/`, `state/selectors.js` and
 // its two siblings here, so it runs in Node and is unit-tested there. Randomness is
@@ -43,9 +61,9 @@ import {
     attackDiscipline,
     campaignPostures,
     campaignTargetWeights,
-    CAMPAIGN_REVIEW_INTERVAL,
     continentAmbitionWeights,
     continentModifiers,
+    continentReachSaturation,
     doctrineUrgency,
     maxFarms,
     maxForests,
@@ -130,21 +148,29 @@ export function resetCampaigns() {
 }
 
 /**
- * Wipe ONE country's plans, so a new leader thinks again from the position as it stands.
+ * Wipe ONE country's MEDIUM and SHORT term, so a new leader decides again how to fight the
+ * war it has inherited -- and keep the LONG term, which is the war itself.
  *
- * Everything a leader concluded goes: the continents it committed to, the borders it decided
- * were not worth another try, the theatre it was absorbing, and the posture it had settled
- * into. What is NOT touched is the world -- the army, the territories, the sieges standing --
+ * THE COMMITTED CONTINENTS SURVIVE A SUCCESSION, and that is a reversal of what this used to
+ * do. It wiped them too, which made a succession a country forgetting what it was for: the
+ * heir re-ranked from scratch and could point the whole apparatus at a different continent,
+ * so a fifty-turn war ended because somebody died. The conquest of a continent is the
+ * COUNTRY's plan and outlives whoever is running it; what an heir gets to change is
+ * everything about HOW.
+ *
+ * So what goes is: the theatre it was absorbing and the rivals it had written off as walls
+ * (the medium term, `theatre.js`), the borders it decided were not worth another try (the
+ * short term, `setbacks`), the posture it had settled into, and any campaign already derived
+ * for this turn. `campaignsThisTurn` is deliberately included because a succession is applied
+ * BEFORE the country plans, so a campaign derived under the dead leader must not be reused.
+ *
+ * What is NOT touched is the world -- the army, the territories, the sieges standing --
  * because a succession is a change of mind and not a change of circumstances.
- *
- * `campaignsThisTurn` is deliberately included: a succession is applied before the country
- * plans, so a campaign already derived for this turn under the old leader must not be reused.
  */
 export function clearPlansFor(country) {
     if (!country) {
         return;
     }
-    commitments.delete(country);
     setbacks.delete(country);
     campaignsThisTurn.delete(country);
     lastPosture.delete(country);
@@ -278,7 +304,13 @@ export function planCampaign(country, context = {}) {
         progress: victoryProgress(country, condition, standings, turn)
     });
 
-    const objective = chooseObjective(country, { condition, doctrine, rows, turn, rng });
+    //ONE frontier, read twice. It was built inside the `reviewTheatre()` argument list; it
+    //is hoisted because `chooseObjective()` needs it too, and walking the border twice a turn
+    //per country is the shape of mistake Phase 1.5 took out of the goal planner.
+    const frontier = context.frontier ?? frontierFor(country);
+    const reach = reachByContinent(frontier);
+
+    const objective = chooseObjective(country, { condition, doctrine, rows, turn, rng, reach });
     const focus = chooseFocusContinent(objective, rows);
     const health = assessCountry(country);
 
@@ -289,7 +321,7 @@ export function planCampaign(country, context = {}) {
         country,
         turn,
         focusContinent: focus?.continent ?? null,
-        frontier: context.frontier ?? frontierFor(country),
+        frontier,
         //Under GREAT_POWERS this is the powers still to be broken, so a country that
         //borders one commits to absorbing IT rather than to whichever small neighbour
         //happened to rank best. Empty under every other goal, which costs nothing.
@@ -419,25 +451,50 @@ export function currentCampaign(country) {
  * name: CONTINENTAL got its own figure, DOMINATION got four and everything else got two.
  * That is now one row in `goalDoctrines`, and this asks the doctrine.
  */
-function chooseObjective(country, { doctrine, rows, turn, rng }) {
+function chooseObjective(country, { doctrine, rows, turn, rng, reach }) {
     //`Infinity` is what CONQUEST asks for and means "as many as the map has". The clamp is
     //here rather than in the doctrine because only this function knows how many continents
     //there are, and the lower bound matters as much as the upper: a country committed to no
     //continents at all has no objective and stops choosing targets.
     const required = Math.max(1, Math.min(rows.length || 1, doctrine.continentsToCommit));
 
+    //CHOSEN ONCE EACH, AND GROWN ONE AT A TIME. Nothing already on this list is ever
+    //re-ranked, re-ordered or dropped -- not on a timer, not when the plan looks hopeless,
+    //and not when the leader dies. What the list may do is GROW, and that is what keeps the
+    //choice a derived one rather than a table lookup.
+    //
+    //WHY IT IS NOT ALL CHOSEN AT ONCE. On turn 1 a country holds one or two territories and
+    //borders almost nothing, so `reach` is near zero for every foreign continent and the
+    //score collapses to `continentModifiers` -- a static table. Measured on the real map with
+    //the whole objective fixed on turn 1, almost every country in the world came out with
+    //["its own continent", "Europe", "South America"], which is a fixed objective wearing the
+    //clothes of a derived one. Deciding the next continent only when the current ones are
+    //TAKEN means each decision is made from a world the country can actually see: a power
+    //that has just finished North America knows it borders South America through eleven
+    //crossings and Europe through one.
+    //
+    //There is deliberately no escape for a commitment that has become unreachable. A country
+    //driven off every continent it committed to keeps planning for them, and what that costs
+    //is one multiplier: every target it can actually see falls to `offContinent` weight, which
+    //is uniform, so it behaves as though it had no preference rather than as though it were
+    //paralysed. `theatre.js` still picks its neighbour by adjacency and the country still
+    //fights. Buying that back with a re-pick is what used to make the long term churn.
     const held = commitments.get(country);
-    const stale = !held ||
-        held.continents.length !== required ||
-        turn - held.chosenOnTurn >= CAMPAIGN_REVIEW_INTERVAL ||
-        commitmentIsPointless(held.continents, rows);
+    let continents = held ? held.continents : [];
 
-    let continents;
-    if (stale) {
-        continents = rankContinentsByAmbition(rows, rng).slice(0, required).map(row => row.continent);
-        commitments.set(country, { continents, chosenOnTurn: turn });
-    } else {
-        continents = held.continents;
+    if (continents.length > required) {
+        //The victory condition was changed mid-game and now asks for fewer. Trim from the
+        //end so the continents it has been fighting for longest are the ones it keeps.
+        continents = continents.slice(0, required);
+        commitments.set(country, { continents, chosenOnTurn: held.chosenOnTurn });
+    } else if (continents.length === 0 || (continents.length < required && allComplete(continents, rows))) {
+        const next = rankContinentsByAmbition(rows, rng, { reach })
+            .map(row => row.continent)
+            .find(name => !continents.includes(name));
+        if (next) {
+            continents = [...continents, next];
+            commitments.set(country, { continents, chosenOnTurn: held?.chosenOnTurn ?? turn });
+        }
     }
 
     return {
@@ -452,45 +509,83 @@ function chooseObjective(country, { doctrine, rows, turn, rng }) {
 }
 
 /**
- * A commitment is pointless when every continent in it is either finished or lost.
+ * Is every continent on this list held outright?
  *
- * "Finished" is only pointless if ALL of them are -- a country that has taken one of its
- * three continents is doing well, not stuck. "Lost" means no foothold at all, which is
- * what happens when a country is driven off a continent and would otherwise keep planning
- * for a war it cannot reach.
+ * The gate on committing to a further one. A country still fighting for what it has does not
+ * open a second long-term front -- the medium-term goal in `theatre.js` is where "what next"
+ * is decided at the pace a war actually moves.
  */
-function commitmentIsPointless(continents, rows) {
+function allComplete(continents, rows) {
+    if (continents.length === 0) {
+        return false;
+    }
     const byName = new Map(rows.map(row => [row.continent, row]));
-    return continents.every(name => {
-        const row = byName.get(name);
-        return !row || row.complete || row.held === 0;
-    });
+    return continents.every(name => byName.get(name)?.complete === true);
 }
 
 /**
  * Rank every continent by how good a campaign it would make.
  *
- * The five terms are all in `continentAmbitionWeights` with a sentence each. The rng term
- * is deliberately small -- it exists so that two neighbours with identical standings do not
+ * The six terms are all in `continentAmbitionWeights` with a sentence each. The rng term is
+ * deliberately small -- it exists so that two neighbours with identical standings do not
  * always commit to the same continent, not so that the choice is a coin flip.
+ *
+ * `reach` is a Map of continent -> how many distinct adjacent ENEMY territories this country
+ * can touch there, folded from the same frontier `theatre.js` is about to use. It is optional
+ * and absent means zero for everything, which is what a Node caller with no adjacency loaded
+ * gets -- the ranking then degrades to what it was rather than throwing.
+ *
+ * WITHOUT IT THE CHOICE IS NOT DERIVED AT ALL. `foothold` counts only territories already
+ * held, so a country with no presence outside its own continent scores every other continent
+ * on `value` and `brevity`, both static tables -- and every power in that position therefore
+ * commits to the same continent, whether or not it shares a metre of border with it.
+ *
+ * @param {Array} rows from `continentStandingsFor()`
+ * @param {() => number} [rng]
+ * @param {{reach?: Map<string, number>}} [options]
  */
-export function rankContinentsByAmbition(rows, rng = () => 0.5) {
+export function rankContinentsByAmbition(rows, rng = () => 0.5, { reach = null } = {}) {
     const weights = continentAmbitionWeights;
 
     return rows
         .map(row => {
             const value = continentModifiers[row.continent] ?? 0.5;
             const brevity = 1 - Math.min(1, row.total / weights.brevityScale);
+            const adjacent = Number(reach?.get(row.continent)) || 0;
+            const reachable = Math.min(1, adjacent / Math.max(1, continentReachSaturation));
             const score =
                 row.share * weights.share +
                 (row.held > 0 ? weights.foothold : 0) +
                 value * weights.value +
-                brevity * weights.brevity -
+                brevity * weights.brevity +
+                reachable * weights.reach -
                 row.strongestRivalShare * weights.contest +
                 rng() * 0.25;
-            return { ...row, ambition: score };
+            return { ...row, reachable: adjacent, ambition: score };
         })
         .sort((a, b) => b.ambition - a.ambition || a.continent.localeCompare(b.continent));
+}
+
+/**
+ * The frontier, folded into "how much of each continent can this country actually touch".
+ *
+ * Distinct enemy TERRITORIES rather than pairings: a pairing count says how much of OUR
+ * border faces them, and the question being asked here is how much of THEIRS is open to us.
+ * `frontierFor()` already de-duplicates its `territories` list per rival, and a territory
+ * belongs to exactly one continent, so summing the per-rival continent tallies is a count of
+ * distinct enemy territories.
+ *
+ * @param {Map} frontier from `frontierFor()`
+ * @returns {Map<string, number>} continent -> adjacent enemy territories
+ */
+export function reachByContinent(frontier) {
+    const reach = new Map();
+    for (const entry of frontier?.values() ?? []) {
+        for (const [continent, count] of entry.continents ?? []) {
+            reach.set(continent, (reach.get(continent) ?? 0) + count);
+        }
+    }
+    return reach;
 }
 
 /** The committed continent to push this turn: closest to done, and not already done. */

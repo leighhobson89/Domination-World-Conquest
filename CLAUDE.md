@@ -402,11 +402,15 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   defines the four conditions the Dominapedia's "Goals and Victory" page designs and
   measures every country's progress towards the active one; the default is CONTINENTAL at
   three continents. `src/ai/strategy.js` turns that into a per-country CAMPAIGN each turn —
-  three committed continents, a focus continent, a posture (DEVELOP / EXPAND / CONSOLIDATE
+  its committed continents, a focus continent, a posture (DEVELOP / EXPAND / CONSOLIDATE
   / DEFEND) and two budgets — and `src/ai/targeting.js` rates each candidate target and
-  returns ONE verdict. Four consequences. **Commitments are sticky**: reviewed every
-  `CAMPAIGN_REVIEW_INTERVAL` turns and abandoned early only when pointless, because a plan
-  re-chosen every turn is not a plan. **Budgets count the sieges already running**, which
+  returns ONE verdict. Four consequences. **A COMMITTED CONTINENT IS PERMANENT, AND THE LIST
+  GROWS ONE AT A TIME** (Leigh's call): nothing already committed is ever re-ranked,
+  re-ordered or dropped — not on a timer, not when the plan looks hopeless, not when the
+  leader dies — and the NEXT continent is chosen only once the ones it holds are complete.
+  `CAMPAIGN_REVIEW_INTERVAL` and `commitmentIsPointless()` are **deleted**; the old code
+  re-picked every five turns and again whenever the commitment "became pointless", which for
+  a country whose only foothold continent was complete was every single turn. **Budgets count the sieges already running**, which
   is what ended the 17-to-67-concurrent-sieges problem — a country at its cap opens none.
   **The two coin flips in `getPossibleTurnGoals()` are gone**; a pairing produces a Siege
   or an Attack or neither, never both. And **the campaign carries per-turn scratch**
@@ -414,6 +418,20 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   positional arrays that get rebuilt and spread twice during refinement. Changing the
   victory condition is `setVictoryCondition()` and nothing else — the AI adapts for free,
   which is the whole reason the objective is derived rather than hard-coded.
+- **THE OBJECTIVE IS CHOSEN FROM THE WORLD, AND `reach` IS WHAT MAKES THAT TRUE.**
+  `continentAmbitionWeights.foothold` counts only territories already HELD, so a continent
+  across a shared border scored exactly the same as one on the far side of the planet — and a
+  country with no foothold outside its own continent had its score collapse to
+  `continentModifiers`, a static table. That is a FIXED objective wearing the clothes of a
+  derived one, and it is measurable: with the whole objective fixed on turn 1, almost every
+  country in the world came out with `["its own continent", "Europe", "South America"]`.
+  `reach` (weight 2, saturating at `continentReachSaturation` = 6 adjacent enemy territories)
+  is folded from the same frontier `theatre.js` was already building — hoisted in
+  `planCampaign()` so the border is walked ONCE per country per turn, not twice. **Committing
+  one continent at a time is the other half of the same fix**: on turn 1 a country holds one
+  or two territories and `reach` is near zero everywhere, so a choice made then is not a
+  derived choice at all. Deciding the next only when the current ones are TAKEN means each
+  decision is made from a world the country can see.
 - **`src/ai/doctrine.js` is the ONLY module in `src/ai/` allowed to switch on a victory
   condition kind** (Goals and Victory, Q2). It turns the active condition into the small set
   of dials the other modules already think in — `continentsToCommit`, `areaHunger`,
@@ -475,11 +493,15 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   two comparable neighbours could never break: **everyone gets richer together, so the ratio
   between them never moves.** Measured with the entry price already lowered, the largest empire
   reached 71 territories at turn 50 and was still on 71 at turn 150 while the world's army tripled
-  from 67M to 192M and its gold multiplied by five. Every 30-40 turns a leader is replaced, a
-  fresh personality is drawn, and `clearPlansFor()` wipes that country's commitments, setbacks,
-  posture, theatre and **walls** -- a wall is a judgement reached by somebody no longer in charge,
-  and keeping it would give a country a new personality with none of the change of mind that is
-  the point. The term comes from an **FNV-1a hash of the country name**, not a tenure clock: that
+  from 67M to 192M and its gold multiplied by five. Every **15-20** turns a leader is replaced
+  (halved from 30-40), a fresh personality is drawn, and `clearPlansFor()` wipes that country's
+  setbacks, posture, theatre and **walls** -- a wall is a judgement reached by somebody no longer
+  in charge, and keeping it would give a country a new personality with none of the change of
+  mind that is the point. **IT NO LONGER WIPES THE COMMITTED CONTINENTS**, and that reversal is
+  what makes the shorter term cheap: the conquest of a continent is the COUNTRY's plan and
+  outlives whoever is running it, so an heir inherits the war and re-decides only HOW to fight
+  it. Wiping the objective too made a succession a country forgetting what it was for -- a
+  fifty-turn war could end because somebody died. The term comes from an **FNV-1a hash of the country name**, not a tenure clock: that
   costs no `Math.random` draw (which would move every seeded outcome in the game, once per country
   per succession), needs no save slice, survives save/load for free, and staggers 207 successions
   instead of pulsing them. The player is never succeeded (`leaderType === "human"`). **It must run

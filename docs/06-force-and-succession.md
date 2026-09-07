@@ -484,3 +484,109 @@ Greenland ↔ Devon Island 40.8, and neither is linked** — both shorter than B
 States and Iceland ↔ Ireland, which are. They are North America on both sides, so they open no
 door; what they would change is how easily the gateway itself is reached across the Canadian
 arctic, which today is through Ellesmere Island alone.
+
+---
+
+## 8. The three horizons, separated
+
+Leigh's decision, and the first change to `src/ai/` since the phase shipped. It came out of §7:
+the plan layer was working, but the horizon meant to be the most stable was the one that
+churned, and the horizon meant to be derived was the one that came out of a static table.
+
+### 8.1 What changed
+
+**Leader terms are 15–20 turns, halved from 30–40.** Over 150 turns a country now changes its
+mind eight or nine times rather than four.
+
+**A succession keeps the LONG term and clears the rest.** `clearPlansFor()` no longer deletes
+`commitments`. The theatre, the walls, the setbacks, the posture and any campaign already
+derived this turn still go. An heir inherits the war and re-decides only how to fight it —
+which is what makes the shorter term cheap rather than destabilising. Wiping the objective too
+made a succession a country *forgetting what it was for*: a fifty-turn war could end because
+somebody died.
+
+**A committed continent is permanent, and the list grows one at a time.**
+`CAMPAIGN_REVIEW_INTERVAL` and `commitmentIsPointless()` are deleted. The old code re-picked
+the long term every five turns, and again whenever the commitment "became pointless" — which
+for a country whose only foothold continent was complete was **every single turn** (§7.3).
+
+**`reach` is the term that makes the choice derived.** `foothold` counts only territories
+already HELD, so a continent across a shared border scored the same as one on the far side of
+the planet, and a country with no foothold abroad had its score collapse to the static
+`continentModifiers`. Weight 2, saturating at `continentReachSaturation` (6) adjacent enemy
+territories, folded from the frontier `theatre.js` was already building — hoisted in
+`planCampaign()` so the border is walked once per country per turn rather than twice.
+
+### 8.2 Why the objective is committed INCREMENTALLY
+
+The two requirements are in tension and the tension is measurable. "Never change it once set"
+and "choose it dynamically" cannot both hold if the whole objective is fixed on turn 1, because
+on turn 1 a country holds one or two territories and borders almost nothing — `reach` is near
+zero for every foreign continent and the score falls back to the static table. **Measured, with
+all three committed on turn 1, almost every country in the world came out with `["its own
+continent", "Europe", "South America"]`:**
+
+```
+Australia -> ["Oceania","Europe","South America"]      Canada -> ["North America","Europe","South America"]
+China     -> ["Asia","Europe","South America"]         Nigeria -> ["Africa","Europe","South America"]
+United States -> ["North America","Europe","South America"]
+```
+
+That is the fixed objective moved down one slot, not removed. Committing the next continent
+only once the current ones are complete means each choice is made from a world the country can
+actually see, and nothing already chosen is ever revisited. After the change, at turn 3:
+
+```
+Australia -> ["Oceania"]   Canada -> ["North America"]   China -> ["Asia"]   Brazil -> ["South America"]
+```
+
+And it produces the right second choice for the case §7 was written about. At turn 150 the
+United States reads:
+
+```
+objective { continents: ["North America", "South America"], banked: ["North America"] }
+focus     South America
+theatre   Argentina
+```
+
+**South America, derived** — 24–28 frontier pairings against 3–8 into Europe — rather than
+Europe because a table says Europe is worth 1.0.
+
+### 8.3 Measured, and it is not an improvement on largest empire
+
+`--turns=150 --seed=goals --goal=CONTINENTAL`, sampled at 75 / 110 / 150.
+
+| | before | after | target |
+|---|---|---|---|
+| countries surviving @150 | 52 | **58** | 50–80 ✓ both |
+| largest empire @150 | 84 | **77** | 90–120 |
+| top-ten share @150 | 79% | 78% | — |
+| continents held outright | 1 | 1 | ≥1 ✓ |
+| largest by sample | 68 / 91 / 84 | 63 / 65 / 77 | — |
+
+**Surviving countries stay in the target band and the largest empire moves the wrong way,
+84 → 77.** The shape also changed: before, China ran away to 91 by turn 110 and fell back to
+84; now the United States climbs steadily 63 → 65 → 77 and China never runs away at all
+(48 → 34 → 46).
+
+**A CONFOUND, AND IT IS NOT SMALL.** This run also contains §7.6's two map changes — the
+Greenland ↔ Svalbard door and Greenland and Iceland at terrain 2 — so the 84 → 77 cannot be
+attributed to the plan-horizon changes alone. Separating them is two more runs.
+
+Two candidate causes for the drop, both testable and neither tested:
+
+1. **A narrower committed set weights fewer targets.** China's frontier is 213 pairings across
+   four continents; it used to have three of them committed at `committedContinent` (1.6) and
+   now has one, so most of its border fell to `offContinent` (0.5).
+2. **Twice as many successions means twice as much theatre churn.** The medium term is still
+   wiped by a succession, and at 15–20 turns that now happens twice as often.
+
+### 8.4 What the second Atlantic door did, measured
+
+Worth recording separately because it is the one thing here with an unambiguous reading. The
+United States' European frontier went from **1 pairing at every sample** to **8 distinct targets
+at turn 76** (Norway, Finland, Sweden, Denmark, Germany, Netherlands), and it **held 2–3
+European territories** at turns 76 and 111 where it held none at any sample of the run before.
+So the door is open and it is used. It did not become a campaign, because Europe is no longer a
+committed continent for a power whose reachable ground is South America — which is the objective
+layer working as designed rather than against it.

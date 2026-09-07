@@ -26,9 +26,11 @@ import {
     choosePosture,
     committedContinents,
     deriveBudgets,
+    failuresAgainst,
     planCampaign,
     Posture,
     rankContinentsByAmbition,
+    recordAttackOutcome,
     resetCampaigns,
     siegesRunBy
 } from "../../src/ai/strategy.js";
@@ -74,7 +76,7 @@ function territory(overrides = {}) {
  * A world Alba can plausibly campaign in: it nearly owns Europe, has a foothold in Africa
  * and none at all in Asia.
  */
-function world({ albaEuropeanTerritories = 4, albaDevelopment = 3 } = {}) {
+function world({ albaEuropeanTerritories = 4, albaDevelopment = 3, albaAfricanTerritories = 1 } = {}) {
     const rows = [];
     for (let index = 0; index < 5; index++) {
         rows.push(territory({
@@ -94,7 +96,7 @@ function world({ albaEuropeanTerritories = 4, albaDevelopment = 3 } = {}) {
             territoryName: "Africa" + index,
             continent: "Africa",
             continentModifier: 0.5,
-            dataName: index < 1 ? "Alba" : "Brava",
+            dataName: index < albaAfricanTerritories ? "Alba" : "Brava",
             farmsBuilt: albaDevelopment,
             forestsBuilt: albaDevelopment,
             oilWellsBuilt: albaDevelopment,
@@ -136,10 +138,15 @@ beforeEach(() => {
 });
 
 describe("committing to an objective", () => {
-    it("commits to as many continents as the victory condition asks for", () => {
+    // `required` rather than `continents.length`, in this and the two below, because the
+    // objective is now committed to ONE continent at a time and grows as each is taken --
+    // see "commits to one continent first" further down. What these three pin is that the
+    // AI reads the victory condition for how far it must go, which is what they were
+    // written for; the pace it commits at is a separate property with its own tests.
+    it("takes its target continent count from the victory condition", () => {
         const campaign = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
         expect(campaign.objective.kind).toBe(VictoryCondition.CONTINENTAL);
-        expect(campaign.objective.continents).toHaveLength(3);
+        expect(campaign.objective.required).toBe(3);
     });
 
     it("adapts to a victory condition the player changed", () => {
@@ -148,7 +155,7 @@ describe("committing to an objective", () => {
         //follows the player's choice with no further change here.
         setVictoryCondition({ kind: VictoryCondition.CONTINENTAL, continentsRequired: 2 });
         expect(planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF })
-            .objective.continents).toHaveLength(2);
+            .objective.required).toBe(2);
     });
 
     it("prefers the continent it is closest to owning", () => {
@@ -169,10 +176,102 @@ describe("committing to an objective", () => {
         expect(committedContinents("Alba")).toEqual(first);
     });
 
-    it("reviews the commitment once the interval has passed", () => {
+    // THE LONG TERM IS SET ONCE AND HELD. It used to be re-picked every
+    // `CAMPAIGN_REVIEW_INTERVAL` turns, and again the moment it looked "pointless" -- which
+    // for a country whose only foothold continent was complete was EVERY turn. Leigh's
+    // decision: the continent conquest is the long-term plan and does not change; what
+    // changes is the medium term (which neighbour to absorb) and the short term (what to do
+    // in the next turn or two).
+    it("never re-picks the long-term continents, however long the game runs", () => {
+        const first = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF })
+            .objective.continents;
+        //The world MOVES underneath it -- Alba is thrown out of Europe and into Africa, so a
+        //fresh ranking would put them in a different order. The point of the test is that
+        //nothing re-ranks: a re-pick on the review interval would have reordered these.
+        __resetStateForTests();
+        seedTerritories(world({ albaEuropeanTerritories: 0, albaAfricanTerritories: 5 }));
+        for (const turn of [6, 20, 75, 150]) {
+            expect(planCampaign("Alba", { turn, leader: leader(), rng: HALF })
+                .objective.continents).toEqual(first);
+        }
+    });
+
+    // COMMITTED INCREMENTALLY, because "never change it" and "choose it dynamically" are in
+    // tension if the whole objective is fixed on turn 1. On turn 1 a country holds one or two
+    // territories and borders almost nothing, so `reach` is uninformative and the score
+    // collapses to the static `continentModifiers` -- which put ["own", "Europe", "South
+    // America"] on almost every country in the world, measured. Committing the NEXT continent
+    // only once the current ones are taken means each choice is made from a world the country
+    // can actually see, and nothing already chosen is ever revisited.
+    it("commits to one continent first rather than to the whole objective at once", () => {
+        const campaign = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
+        expect(campaign.objective.required).toBe(3);
+        expect(campaign.objective.continents).toHaveLength(1);
+    });
+
+    it("adds the next continent once the ones it holds are complete, and keeps the old", () => {
+        __resetStateForTests();
+        seedTerritories(world({ albaEuropeanTerritories: 4 }));
+        const first = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF })
+            .objective.continents;
+        expect(first).toEqual(["Europe"]);
+
+        //Alba finishes Europe. Only now is a second continent chosen.
+        __resetStateForTests();
+        seedTerritories(world({ albaEuropeanTerritories: 5 }));
+        const grown = planCampaign("Alba", { turn: 8, leader: leader(), rng: HALF })
+            .objective.continents;
+        expect(grown).toHaveLength(2);
+        expect(grown[0]).toBe("Europe");
+    });
+
+    it("does not grow while the continent it is on is unfinished", () => {
+        __resetStateForTests();
+        seedTerritories(world({ albaEuropeanTerritories: 4 }));
         planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
-        const reviewed = planCampaign("Alba", { turn: 20, leader: leader(), rng: HALF });
-        expect(reviewed.objective.continents).toHaveLength(3);
+        for (const turn of [5, 20, 90]) {
+            expect(planCampaign("Alba", { turn, leader: leader(), rng: HALF })
+                .objective.continents).toEqual(["Europe"]);
+        }
+    });
+
+    it("never revisits a continent it has already committed to", () => {
+        //The case that used to re-pick every single turn: Alba owns the whole of Europe and
+        //has no foothold on anything else, so every committed row was `complete || held === 0`.
+        //It may GROW here -- Europe is finished, so a second continent is chosen -- but
+        //whatever was already on the list stays on it, in order.
+        __resetStateForTests();
+        seedTerritories(world({ albaEuropeanTerritories: 5 }));
+        const first = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF })
+            .objective.continents;
+        const later = planCampaign("Alba", { turn: 40, leader: leader(), rng: HALF })
+            .objective.continents;
+        expect(later.slice(0, first.length)).toEqual(first);
+    });
+
+    // A country cannot campaign for a continent it cannot get to, and before this the
+    // ranking had no idea where the country WAS -- `foothold` counts only territories
+    // already held, so a continent across a shared border scored exactly the same as one on
+    // the far side of the world. That is what made the choice effectively fixed: with no
+    // foothold anywhere the score collapsed to the static `continentModifiers` table, so
+    // every power in the same position committed to the same continent.
+    it("ranks a continent it borders above an equally foreign one it does not", () => {
+        const rows = continentStandingsFor("Alba");
+        const bordersAsia = rankContinentsByAmbition(rows, HALF, {
+            reach: new Map([["Asia", 8]])
+        });
+        const asia = bordersAsia.findIndex(row => row.continent === "Asia");
+        const africa = bordersAsia.findIndex(row => row.continent === "Africa");
+        //Africa outranks Asia on a foothold alone; a wide border into Asia overturns it.
+        expect(asia).toBeLessThan(africa);
+    });
+
+    it("ignores reachability it was given nothing about, so Node callers are unaffected", () => {
+        const withNothing = rankContinentsByAmbition(continentStandingsFor("Alba"), HALF);
+        const withEmpty = rankContinentsByAmbition(continentStandingsFor("Alba"), HALF, {
+            reach: new Map()
+        });
+        expect(withEmpty.map(row => row.continent)).toEqual(withNothing.map(row => row.continent));
     });
 
     it("banks a continent it already holds outright and pushes the next one", () => {
@@ -565,7 +664,7 @@ describe("the goal reaching the campaign", () => {
         const campaign = planCampaign("Alba", { turn: 1, leader: leader(), rng: HALF });
         //Three continents in the fixture, and CONQUEST asks for `Infinity` of them --
         //`chooseObjective()` is what clamps that to how many there actually are.
-        expect(campaign.objective.continents).toHaveLength(3);
+        expect(campaign.objective.required).toBe(3);
         expect(campaign.doctrine.neverSatisfied).toBe(true);
     });
 
@@ -769,15 +868,39 @@ describe("wiping one country's plans when its leader dies", () => {
         expect(() => clearPlansFor("France")).not.toThrow();
     });
 
-    it("forgets this country's commitments and remembers everyone else's", () => {
+    // A SUCCESSION KEEPS THE LONG TERM AND CLEARS THE REST. Leigh's decision, and the
+    // reversal of what this used to do: the continent conquest is the country's plan rather
+    // than the leader's, so an heir inherits the war and re-decides only HOW to fight it --
+    // which neighbour to absorb, which borders were not worth another try, what posture to
+    // take. Wiping the objective too made a succession a country forgetting what it was for.
+    it("keeps this country's committed continents -- the long-term plan survives the leader", () => {
         resetCampaigns();
-        //Two countries with real campaigns, so the test can tell "wiped one" from "wiped all".
+        __resetStateForTests();
+        seedTerritories(world());
+        const before = planCampaign("Alba", { turn: 5, leader: leader(), rng: HALF })
+            .objective.continents;
+        expect(before.length).toBeGreaterThan(0);
+
+        clearPlansFor("Alba");
+
+        expect(committedContinents("Alba")).toEqual(before);
+        //And the campaign derived under the dead leader is gone, so the heir plans afresh.
+        expect(planCampaign("Alba", { turn: 5, leader: leader(), rng: HALF })
+            .objective.continents).toEqual(before);
+    });
+
+    it("forgets this country's medium and short term, and leaves everyone else alone", () => {
+        resetCampaigns();
         planCampaign("France", { turn: 5 });
         planCampaign("Germany", { turn: 5 });
-        expect(committedContinents("France").length).toBeGreaterThanOrEqual(0);
+
+        //A border France decided was not worth another try -- the short-term memory.
+        recordAttackOutcome("France", "Somewhere", false, 5, "Brava");
+        expect(failuresAgainst("France", "Somewhere", 5)).toBe(1);
 
         clearPlansFor("France");
 
+        expect(failuresAgainst("France", "Somewhere", 5)).toBe(0);
         //Germany is untouched: a succession in France is not a world event.
         expect(() => committedContinents("Germany")).not.toThrow();
     });
