@@ -106,7 +106,12 @@ describe("probability", () => {
     it("makes a single fort matter, because the multiplier is a ceiling", () => {
         const undefended = { defenseBonus: 0, mountainDefenseBonus: 0 };
         const barelyDefended = { defenseBonus: 1, mountainDefenseBonus: 0 };
-        expect(defenseMultiplierFor(undefended)).toBe(0);
+        //`undefended` asserted 0 here until the combat phase, which is what the code did and
+        //not what its comment promised -- a defending force multiplied by nothing, and a
+        //`winProbability()` of 100% against any garrison at all. That is known-issue C2 and
+        //it is fixed, so this now asserts the documented behaviour instead of the defect.
+        //No territory on the shipped map moves: the lowest real bonus is 10, not 0.
+        expect(defenseMultiplierFor(undefended)).toBe(1);
         expect(defenseMultiplierFor(barelyDefended)).toBe(1);
         expect(defenseMultiplierFor({
             defenseBonus: DEFENSE_BONUS_DIVISOR + 1,
@@ -123,13 +128,17 @@ describe("probability", () => {
     });
 
     it("is the attacker's share of the combined strength", () => {
-        //An undefended territory has a defence multiplier of 0, so the defender contributes
-        //nothing and the attacker's share is the whole of it.
+        //This asserted 100 until the combat phase, and the comment explaining it read "an
+        //undefended territory has a defence multiplier of 0, so the defender contributes
+        //nothing" -- which was a true description of known-issue C2 and a false description of
+        //the rule. `defenseMultiplierFor()` now floors at 1, so an unfortified territory
+        //defends at face value as its own comment always promised, and two equal armies come
+        //out at ATTACK_ADVANTAGE / (ATTACK_ADVANTAGE + 1).
         const territory = { defenseBonus: 0, mountainDefenseBonus: 0, area: MAX_AREA_THRESHOLD };
         expect(winProbability([100, 0, 0, 0], [100, 0, 0, 0], territory, {
             attackingDevelopmentIndex: 1,
             combatContinentModifier: 1
-        })).toBe(100);
+        })).toBeCloseTo((ATTACK_ADVANTAGE / (ATTACK_ADVANTAGE + 1)) * 100, 10);
     });
 
     it("gives the attacker ATTACK_ADVANTAGE over an otherwise identical defender", () => {

@@ -13,12 +13,12 @@ the register (4) is the one to check first if you only read one.
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
 | 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Economy Audit](./05-economy-audit.md) | **Delivered, all four stages.** What the economy is, what of it reaches the military and the dice, the measured numbers, and the defects and design gaps in each |
-| 6 | [Economy Checklist](./06-economy-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable |
+| 5 | [Combat and Conquest Audit](./05-combat-and-conquest-audit.md) | **The current phase.** Why a 150-turn AI-only game ends with 126 countries alive, the largest empire at 43 of 359, and no conquest at all after turn 50 — the measured arithmetic of a battle, the two attacker taxes, and the fact that the AI decides with a different function from the one that fights |
+| 6 | [Combat and Conquest Checklist](./06-combat-and-conquest-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable and each ending with a measurement |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
-battle overhaul and its checklist, Goals and Victory and its checklist, and Continent Bonuses
-and its checklist. They record why the code is shaped as it is; they do not describe
+battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and
+its checklist, and the Economy audit and its checklist. They record why the code is shaped as it is; they do not describe
 outstanding work. **The numbers are reused when a plan is archived**, so `05` and `06` are
 always the current phase.
 
@@ -112,65 +112,66 @@ underneath every goal. What is left of that item is the victory/defeat **screen*
 carries the outcome, the winner, the reason and the turn, and its only subscriber today is a
 `console.log`.
 
-**What was worked on last.** [The Economy](./05-economy-audit.md), and **all four stages are
-delivered and measured**. Continent Bonuses had left the question underneath it: does the economy
-give a player any reason to spend gold on anything but an army? The audit said mostly not, and it
-said so with numbers. **Every territory on the map earns 44.44 gold a turn for existing**, which
-is 65% of what a median territory earns in total. The same farm paid for itself in under one turn
-in China and in 13,202 turns in Vatican City, at the same price. And **the AI's economy upgrades
-had never worked**: the gold was taken, no capacity was ever raised and no fort ever changed a
-defence bonus, so all 206 computer countries had been paying a quadratic price ladder for
-nothing.
+**What was worked on last.** [The Economy](./archived/05-economy-audit.md), delivered in four
+stages and archived. Its whole record — the 44.44 gold floor, the AI's upgrades that had never
+raised a capacity, the flat term that closed the payback spread from 4.5 orders of magnitude to
+3.2, and the four unit types finally being economically different — is in the archive along with
+[its checklist](./archived/06-economy-checklist.md), which carries two before/after measurements
+rather than one because its defect half and its tuning half moved the world in opposite
+directions.
 
-**Stages 1 and 2 were the defect half, and they moved the world further than expected.** One
-price and one upgrade application serve both the player and the AI; seven copies of two formulas
-are gone; the 44.44 floor is a named constant that moves no money. Measured over 150 headless
-turns per goal: world food capacity rose in every run where before it never moved once across
-1,487 upgrades. But with the AI paying full price for infantry and its six hundred forts finally
-taking dice off attackers, **the largest empire fell in four goals of five — Continental from 104
-territories to 35 — and no continent was completed in a 150-turn game at all.** Two of the
-defects had been flattering the world.
+**What is being worked on now.** [Combat and Conquest](./05-combat-and-conquest-audit.md), and it
+exists because the economy phase's last stage left one question standing that nobody had measured:
+*a spectated AI game never produces a winner.* It does not, and the reason is now measured rather
+than guessed. A 150-turn AI-only Continental game on seed `goals` ends with **126 of 207 countries
+still alive, the largest empire holding 43 of 359 territories, zero continents held, the nearest
+one receding from 64% to 58%, and no conquest at all across three of six samples.** Conquest stops
+around turn 50 and never restarts, while the top eight countries' armies go from **44 million men
+to 126 million** — India ends with 1.6 million per territory and takes nothing.
 
-**Stages 3 and 4 were the tuning half, and they moved it back further still.** Stage 3 put a FLAT
-term alongside every upgrade's ten per cent and re-based the construction-materials ceiling — the
-one that decides who may upgrade at all — on population as well as land; Stage 4 gave the four
-unit types different economics for the first time, in manpower and upkeep, leaving the gold
-prices alone so that the siege-versus-battle split survives untouched. Measured the same way:
-mean surviving countries 87 → **58**, mean largest empire 52 → **110**, and **six continents are
-now held outright across the five runs where none were held in any of them** — including Oceania,
-65 islands and the hardest continent on the map. **BO is not closed**, because two goals of five
-still finish nothing, but the mechanic the continent-bonus phase built is reachable again.
+Four independent things cause it and only one is a balance number. **A battle is a step function**
+— against one median defender the real take probability is 0.0% at 1.5:1 and 94.6% at 3.5:1,
+because half a rung of force crosses a band edge and buys an unmatched die. **Two multipliers
+scale the attacker down and none scales the defender up**, so a median attacker fights at ×0.63
+and must field 1.58× to draw level. **53.5% of the map costs the attacker a die before anybody
+builds anything**, from mountains, through bands whose own comment describes forts. And **the AI
+decides with a different function from the one that fights** — `winProbability()` knows nothing
+about the dice model, and its error against the real thing runs +95 to −77 percentage points and
+*changes sign* on fortification, so no constant can tune it out.
 
-Both halves are tabled in [the checklist](./06-economy-checklist.md), and **the measurement is
-the deliverable — the diff is not.**
+The consequence is a funnel measured on one turn: **1,583 pairings weighed → 187 attack verdicts →
+48 reach the executor → 5 attacks pressed → 3 conquests.** Forty-three of forty-eight planned
+attacks are cancelled at the last step, one of them at 63% for being *"2 points short"* of an aim
+that means near-certainty. The world is not short of force. It is saving for an attack priced in a
+currency that does not exist.
 
-The six design questions the audit raised are answered and recorded in its §7. The one that
-shaped the plan most: **being large must stay good.** The obvious fix for an upgrade that pays
-back in one turn in China and 13,202 in Vatican City is to price it against the territory's own
-income — and that was turned down, because conquering a big rich territory is supposed to be
-visibly better than conquering a small one. The lever moved to the benefit side instead, and the
-measurement holds it there: the payback spread closed from 4.5 orders of magnitude to 3.2, and
-China's farm is still worth fourteen times Vatican City's in absolute gold.
+The new instrument is `node tools/combat-lab.mjs`, which rebuilds the map's defensive geography
+from the three files the game seeds from and runs the real rules over it — six sections, twenty
+seconds, and it imports every formula it measures rather than copying one.
 
 **Still outstanding after it**, in rough order:
 
-0. **Somebody has to play the world the economy phase produced.** A largest empire of 133
-   territories out of 359 at turn 150 is a different game from one of 59, and the movement came
-   from four stages that were each individually justified. If it needs pulling back, the dial is
-   in the attack model and not in the economy: `DICE_ATTACK_ADVANTAGE` owns open battle and
-   `ATTACK_ADVANTAGE` owns sieges, and CLAUDE.md records why there may never be a third.
-1. **The victory and defeat screen.** The game decides itself correctly; it just tells the
-   console rather than the player. One new subscriber to `GAME_OVER`.
-2. **The over-extension counterweight.** A cost for scattered land, paired with the bonus for
+1. **The combat phase itself**, stages 1 to 5 of
+   [the checklist](./06-combat-and-conquest-checklist.md). Stages 1 and 2 are defects and are not
+   judgement calls; **stage 3 is deliberately blocked on a decision** — whether a battle should be
+   a near-certainty or a gamble is a question about how the game feels, and no table answers it.
+2. **The other four goals have not been measured since the register sweep.** The audit was written
+   on CONTINENTAL alone. Four 150-turn runs, about twelve minutes.
+3. **The over-extension counterweight.** A cost for scattered land, paired with the bonus for
    consolidated land. The Dominapedia's Design Notes calls it "the one design tension worth
-   naming": there is no pressure against growth, so the optimal play is always to expand.
-3. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
+   naming": there is no pressure against growth, so the optimal play is always to expand. It is
+   worth revisiting only once the world consolidates at all — today nothing over-extends.
+4. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
    refactor's "no file over 400 lines" is not met. Finishing them was Phase 6.9.
-4. **The two design problems Phase 3 surfaced** — the AI besieges far more than it can finish,
-   and a besieged territory earns nothing indefinitely
-   ([Known Issues §6](./04-known-issues.md)).
+5. **Turn 1 still grants no income to anybody**, and the reason it did has gone. Removing the
+   guard is a balance change with two `turn-counter.spec.js` specs pinned to it
+   ([Known Issues](./04-known-issues.md)).
 
-One measurement is still owed and should be taken before anything touches map colour:
-`generateDistinctRGBs()` in `src/ui/map/colouring.js` is dead code held in place only by the
-`Math.random` draws it makes on the game's stream. Deleting it moves four exact-outcome specs,
-so it and the re-baseline are one change.
+Three items that stood here for a long time are done and are noted because the list was stale:
+the **victory and defeat screen** is built (`GameOver.js` subscribes to `GAME_OVER`, names the
+goal, the outcome and the final standings, and offers a quiet third exit onto the final map);
+**a besieged territory earns a quarter of its income** rather than nothing, and cannot build;
+and **`generateDistinctRGBs()` is deleted and measured** — the four exact-outcome specs its
+comment predicted would move did not need re-baselining, but the warning it carried is now a
+gotcha in `CLAUDE.md`: anything that adds or removes a `Math.random` draw during bootstrap moves
+every seeded outcome in the game.

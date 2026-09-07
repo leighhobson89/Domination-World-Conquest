@@ -146,7 +146,7 @@ export const INITIAL_GOLD_MIN_PER_TURN_AFTER_ARMY_ADJ = 10;
  * The Nth of a kind costs `ceil(base * N * (N * 1.05) * devIndex / 4)` -- **QUADRATIC in N**,
  * so the fifth is about twenty-six times the first, not five times. This comment said "N times
  * this" until the economy audit measured the ladder; it was the only description of the price
- * law anywhere, and it was wrong by a whole power (docs/05-economy-audit.md section 4 E6).
+ * law anywhere, and it was wrong by a whole power (docs/archived/05-economy-audit.md section 4 E6).
  *
  * The formula itself is `upgradePriceFor()` in `src/rules/economy/upgrades.js`, which is the
  * only copy -- there were six, and one of them disagreed.
@@ -177,7 +177,7 @@ export const territoryUpgradeBaseCostsConsMats = {
  * What an upgrade adds to its ceiling ON TOP of the ten per cent -- economy stage 3.1.
  *
  * This is the whole of stage 3, and it is one term rather than a curve because of the
- * principle the stage was decided on (docs/05-economy-audit.md section 6, Q2):
+ * principle the stage was decided on (docs/archived/05-economy-audit.md section 6, Q2):
  *
  *   *"Larger territories should not be penalised for their size as it is a good thing to be
  *   larger and players will try to conquer bigger territories to win their resources, but
@@ -411,7 +411,7 @@ export const resourceRegeneration = {
  * total** (median 68.5 gold a turn), so for anything below roughly a million productive
  * population -- most of the 359 territories on the map -- income was very nearly constant and
  * nothing the player did to a territory moved it. That is the direct answer to "players have no
- * reason to upgrade": on most of the map they were right. See docs/05-economy-audit.md section
+ * reason to upgrade": on most of the map they were right. See docs/archived/05-economy-audit.md section
  * 4 D1, and `node tools/econ-lab.mjs income` for the measurement.
  *
  * Splitting it out changes no income on the turn it lands -- deliberately, because stage 2 is a
@@ -964,11 +964,27 @@ export const THREAT_DISREGARD_CONSTANT = -9999999999;
 export const MAX_AI_UPGRADES_PER_TURN = 5;
 
 /**
- * Below these odds an attack is not worth mounting as a siege -- for the AI when it plans a
- * goal, and for the player's attack window, which is where it lived until Phase 5.5 (it was
- * declared in `ui.js`, which is what made `ai/goals.js` import the UI).
+ * The floor beneath everything: below this an interaction is not offered to anybody.
+ *
+ * Read by the AI's goal planner and by the player's Siege button, and since combat stage 1 both
+ * compare it against the SAME quantity -- `takeProbability()`, the chance of actually taking the
+ * territory. It used to be compared against `winProbability()`, a ratio of two strengths, where
+ * 15 corresponded to a raw force ratio of 0.34:1 and a real take probability of ZERO. It floored
+ * nothing at all.
+ *
+ * Lowered 15 -> 8 in combat stage 2, and this is the one figure in this block that moved on
+ * evidence rather than on restatement. Measured at turn 25 of a Continental run immediately
+ * after stage 1: **1,366 of 1,624 weighed pairings (84%) died at this gate**, up from 761 before
+ * it meant anything. That is the wrong gate to be the biggest filter in the AI, because it sits
+ * ABOVE the siege decision -- and a siege is precisely the answer to a target that cannot be
+ * stormed. Refusing to consider a siege because the assault odds are poor is refusing to use the
+ * tool for the job it exists for.
+ *
+ * Eight, not zero: something has to stop an army being parked in front of a fortress forever,
+ * and `siegeDiscipline.minimumOdds` is the gate that then decides whether the siege is worth
+ * opening.
  */
-export const PROBABILITY_THRESHOLD_FOR_SIEGE = 15;
+export const PROBABILITY_THRESHOLD_FOR_SIEGE = 8;
 
 // --- random events ---------------------------------------------------------
 
@@ -1156,8 +1172,15 @@ export const siegeDiscipline = {
      * Odds floor for a siege to be worth opening at all. Lower than an attack's, because a
      * siege is the answer to a target too strong to storm -- but not so low that the army
      * is simply parked in front of a fort forever.
+     *
+     * Lowered 22 -> 12 in combat stage 2, for the same reason as
+     * `PROBABILITY_THRESHOLD_FOR_SIEGE` and in the same units: this is now a floor on the
+     * chance of STORMING the place, and demanding a better than one-in-five chance of storming
+     * before you may lay a siege asks the target to be nearly takeable already. Twelve keeps
+     * the "parked in front of a fort forever" guard -- and `siegeReview.js` is the other half
+     * of it, abandoning a siege that stops making progress.
      */
-    minimumOdds: 22,
+    minimumOdds: 12,
     /**
      * Percentage points a leader adds to the GAME's siege floor before it will lay one.
      *
@@ -1218,10 +1241,23 @@ export const attackDiscipline = {
     territoriesPerExtraAttack: 10,
     maxPerTurn: 5,
     /**
-     * Odds floor by leader type, before `style_of_war` shifts it. An aggressive leader
-     * will press on unclear odds; a pacifist wants a near-certainty before committing.
-     * The old code demanded only `probability >= 1`, which is why the AI threw armies at
-     * anything at all.
+     * Odds floor by leader type, before `style_of_war` shifts it. An aggressive leader will
+     * press on unclear odds; a pacifist wants a clear favourite before committing.
+     *
+     * THE NUMBERS ARE UNCHANGED AND THEIR MEANING IS NOT. Until combat stage 1 these were
+     * compared against `winProbability()`, and measured against the real map they corresponded
+     * to real take probabilities of **0.1% / 3.5% / 37.1%** -- an aggressive leader's "floor"
+     * was two thirds of the defender's strength, where it would take the territory one time in
+     * a thousand. They are compared against `takeProbability()` now, so for the first time the
+     * sentence and the number agree: a quarter, a third, a bit under a half.
+     *
+     * They were deliberately NOT retuned in the same change. Stage 1's measurement is that the
+     * binding constraint moved: `needs-more-force` cancellations went from 17 a turn to ZERO,
+     * and what the executor reports instead is "the most this territory can spare reaches only
+     * 0%" -- a fact about the two armies and the terrain, not about these constants. Raising
+     * them would make that worse; lowering them would licence attacks that genuinely cannot be
+     * won. The dials that answer it are in stage 3. `node tools/combat-lab.mjs floors` is where
+     * these are checked against the world.
      */
     minimumOdds: { aggressive: 25, balanced: 34, pacifist: 45 },
     /** How far `style_of_war` (0..1) may move that floor, in percentage points, either way. */
@@ -1276,6 +1312,18 @@ export const commitmentDiscipline = {
      * battle, so two thirds of them were lost and conquests fell to nothing over a hundred
      * turns. An army that masses for a decisive result and skips the marginal fights takes
      * more ground than one that fights everything at even money.
+     *
+     * SIXTY-FIVE MEANT SOMETHING ELSE ENTIRELY UNTIL COMBAT STAGE 1. Compared against
+     * `winProbability()` it corresponded to a raw force ratio of **3.91:1 and a 94.1% real
+     * chance** -- so on almost every border in the world it could not be reached, the attack
+     * was cancelled as `needs-more-force`, and the country filed a requisition instead of
+     * fighting. Measured on one turn before the fix: 17 of 48 commitment decisions ended that
+     * way, one of them refused at 63% for being "2 points short". Against `takeProbability()`
+     * the same 65 means a 65% chance of taking the place, which is what the paragraph above
+     * has always described, and those 17 cancellations went to ZERO in the stage 1 run.
+     *
+     * So the value is unchanged and the defect is closed, which is the whole shape of stage 1:
+     * the constants were mostly reasonable sentences denominated in the wrong currency.
      */
     decisiveOdds: 65
 };

@@ -26,15 +26,26 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   same change that closes it** — never struck through and left, and never batched up for a
   tidy-up later. Ids are permanent and survive the move, because source comments cite them.
   This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-economy-audit.md](./docs/05-economy-audit.md) — **the most recent phase, all four
-  stages delivered.** What the economy is, which five places it actually reaches the military and
-  the dice, the measured numbers behind every claim, and the split between defects (**E1–E7**,
-  the economy not doing what the code says) and design (**D1–D8**, the economy doing exactly what
-  it says and producing no decision). §5 is the list of what is RIGHT and had to survive the
-  phase; it still is. Its task breakdown is
-  [docs/06-economy-checklist.md](./docs/06-economy-checklist.md), which carries **two** before/
-  after measurements — one for the defect half (stages 1–2) and one for the tuning half
-  (stages 3–4) — and those measurements are the deliverable, not the diff.
+- [docs/05-combat-and-conquest-audit.md](./docs/05-combat-and-conquest-audit.md) — **the current
+  phase.** Why a 150-turn AI-only game ends with 126 countries alive, the largest empire at 43 of
+  359, zero continents and no conquest at all after turn 50. Four independent causes, only one of
+  which is a balance number: a battle is a **step function** on force ratio (0% at 1.5:1, 94.6% at
+  3.5:1 against the same defender); **two multipliers scale the attacker down and none scales the
+  defender up** (median ×0.63, so 1.58× just to draw level); **53.5% of the map costs the attacker
+  a die before anybody builds anything**, from mountains, through bands whose comment describes
+  forts; and **the AI decides with a different function from the one that fights** — measured error
+  +95 to −77 points, sign-flipping on fortification. Split into defects (**C1–C4**) and design
+  (**G1–G7**). §7 is the list of what is RIGHT and must survive; read it before touching combat.
+  Its task breakdown is
+  [docs/06-combat-and-conquest-checklist.md](./docs/06-combat-and-conquest-checklist.md), and its
+  §9 carries **three decisions Leigh has already taken**, recorded so they are not relitigated:
+  the cliff is flattened with **more dice bands** (roughly nine, not five) and **not** by making
+  an unmatched die a contested roll; `devIndex` and `combatContinentModifier` are **rebased
+  together to a median of ×1.00**, keeping their spread, which is a change to two per-territory
+  multipliers and NOT a third attack dial; and the target is a world **consolidating at turn 150
+  and decided at 200–300** — 50–80 countries surviving, a largest empire of 90–120, continents
+  completing, and deliberately no winner by 150, because a world that produces one is a race a
+  player can lose by turn 60.
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
@@ -42,7 +53,8 @@ going stale in the sequence: the eight-phase
 [refactor plan](./docs/archived/03-refactor-plan.md), the
 [battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
 [Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist, and
-[Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist are there. They
+[Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist, and
+[the Economy](./docs/archived/05-economy-audit.md) and its checklist are there. They
 record why the code is shaped as it is, but they do not describe outstanding work — where one
 contradicts a numbered document, the numbered document wins. **The numbers are reused when a
 plan is archived**, so `05` and `06` are the current phase and the archived pair keep the
@@ -74,6 +86,15 @@ node tools/econ-lab.mjs                  # the economy, measured: income spread 
                                          # it: income | upgrades | units | consmats | bonus.
                                          # It IMPORTS the rules it measures -- never re-copy a
                                          # formula into it (see the seeding gotcha below)
+node tools/combat-lab.mjs                # the FIGHT, measured against the real map: what the
+                                         # terrain defends with before anyone builds, the cliff
+                                         # (real take probability against raw force ratio), what
+                                         # the AI is TOLD versus what happens, the fort ladder in
+                                         # both models, what a besieging army has to be, and what
+                                         # each AI odds constant means in real terms. Takes a
+                                         # section: terrain | cliff | calibration | forts |
+                                         # siege | floors. Like econ-lab it IMPORTS every rule it
+                                         # measures -- never re-copy a formula into it
 npm run build:data     # regenerate adjacency.json + pathAreas.json + music/tracks.json
 npm run build:music    # just the music folder listing (Vite also does it on start/build)
 ```
@@ -634,6 +655,36 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   44% off every siege band with no measurement behind it. **If open battle needs to be easier or
   harder, `DICE_ATTACK_ADVANTAGE` is the number; if sieges do, `ATTACK_ADVANTAGE` is.** A third
   dial is not allowed, and neither may reach into the other's model.
+- **THE AI DECIDES WITH A DIFFERENT FUNCTION FROM THE ONE THAT FIGHTS, and it is the largest
+  thing wrong with the game today** (combat audit **C1**). `winProbability()` in
+  `probability.js` is what every AI odds floor, `sizeCommitment()`, the siege gate and the attack
+  window's bar read. It is not a probability: it is a strength ratio over
+  `defenseMultiplierFor()`, which the dice model does not use, and it knows nothing about dice,
+  bands, ties or unmatched hits. Measured over the real map its error runs **+95 to −77
+  percentage points and CHANGES SIGN on fortification** — it over-rates an attack on unfortified
+  mountain and under-rates one on a fortress, so no constant can tune it out. Two numbers make
+  that concrete. `commitmentDiscipline.decisiveOdds` is 65, which means **raw 3.91:1**, so on one
+  measured turn **43 of 48 planned attacks were cancelled at the executor** — one at 63%, for
+  being "2 points short" of a figure that means near-certainty. And
+  `attackDiscipline.minimumOdds` of 25 / 34 / 45 are real take probabilities of **0.1% / 3.5% /
+  37.1%**, so the same miscalibration refuses fights the AI would win and permits fights it
+  cannot. `node tools/combat-lab.mjs calibration` and `floors` are the measurements; **B.5's
+  "the swap was balance-neutral" was this finding seen from the other side** — the AI only
+  attacks where the two models agree, which is where it is already overwhelming.
+- **A BATTLE IS A STEP FUNCTION, and half the map takes a die off the attacker before anybody
+  builds anything** (combat audit **G1**, **G2**, **C3**). Against one median defender the real
+  take probability is **0.0% at 1.5:1, 50.7% at 3.0:1 and 94.6% at 3.5:1** — half a rung of force
+  crosses a band edge, buys an unmatched die, and an unmatched die is a free casualty every round
+  for the rest of the battle. Bands are RIGHT and the reason is in `balance.js`; five of them plus
+  the automatic-hit rule is too coarse a lattice. Three things compound it. `devIndex` (median
+  0.745) and `combatContinentModifier` (0.75–0.99) scale the ATTACKER and there is no matching
+  defender term at all — `areaBonusFor()` is min 0.507 / median 1.000 / max 1.000 over the real
+  map, so it only ever penalises a large defender — which puts the median attacker at **×0.63 and
+  1.58× just to draw level**. And `DIE_MODIFIERS.fortification` is documented in terms of FORTS
+  ("one is a nuisance, two is a die") but reads `defenseBonus + mountainDefenseBonus`, so
+  mountains alone put **192 of 359 territories past the first band with zero forts built**.
+  Meanwhile five forts move the force needed from 3.5:1 to 4:1 in the model that fights and
+  multiply the defence by **seventeen** in the one the AI decides on.
 - **Known-issue AR is closed as a DESIGN DECISION, not a bug** (B.10.4, Leigh's call).
   `areaBonusFor()`'s `min`/`max` slip is real but is not a one-character fix: the ratio is
   unbounded as area approaches zero, so the naive correction gives the smallest territory on the

@@ -6,7 +6,7 @@
 // `src/rules/economy/`.
 //
 // It exists because there was no such thing, and the consequences were the largest defects in
-// docs/05-economy-audit.md:
+// docs/archived/05-economy-audit.md:
 //
 //   E1  The AI's upgrades raised NO capacity at all. The only upgrade-driven writes to
 //       `foodCapacity` / `consMatsCapacity` / `oilCapacity` in the whole codebase were in
@@ -118,7 +118,7 @@ export function upgradePriceFor(kind, nth, devIndex) {
 /**
  * What an ORDER of `quantity` costs, on top of `alreadyBuilt`.
  *
- * KNOWN DISCREPANCY, preserved deliberately -- docs/05-economy-audit.md section 4 E8. This is
+ * KNOWN DISCREPANCY, preserved deliberately -- docs/archived/05-economy-audit.md section 4 E8. This is
  * the price of the LAST one in the order, not the sum of the ladder, because that is what the
  * upgrade table charges today: each row displays `upgradePriceFor(kind, built + quantity)` and
  * the confirm button sums the four displayed cells. So five farms bought in one transaction

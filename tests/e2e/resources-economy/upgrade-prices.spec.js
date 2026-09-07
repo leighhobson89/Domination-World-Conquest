@@ -5,7 +5,7 @@ import { upgradeFlatCapacityGain } from "../../../src/config/balance.js";
 // Upgrades, end to end: the price the player is SHOWN is the price the player is CHARGED, and
 // an upgrade the AI buys actually raises a ceiling.
 //
-// docs/05-economy-audit.md, economy stage 1. Two of the phase's four defects are invisible to
+// docs/archived/05-economy-audit.md, economy stage 1. Two of the phase's four defects are invisible to
 // the unit suite by construction, because in both cases each half is correct on its own:
 //
 //   E4  `calculateAvailableUpgrades()` priced every upgrade as a FIRST one -- no quadratic

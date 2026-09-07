@@ -60,9 +60,20 @@ export function combatContinentModifierFor(territory) {
  * The CEILING of the division is deliberate and is why a single fort matters: any bonus at
  * all takes the multiplier from 1 to 2. A territory with no forts, no mountains and no
  * land-locked bonus defends at face value.
+ *
+ * KNOWN-ISSUE C2, fixed in the combat phase. The sentence above has always been the intent
+ * and was never what the code did: `Math.ceil(0 / 15)` is ZERO, so a territory with no
+ * fortification of any kind had its defending force multiplied by nothing, and
+ * `winProbability()` reported 100% against any garrison whatsoever. It was latent on the
+ * shipped map -- every territory carries a `mountainDefenseFactor` of at least 1, so the
+ * lowest real bonus is 10 -- but it is reachable from a scenario, from a map edit, or from
+ * any future territory seeded without terrain, and it is exactly the case the comment claims
+ * to handle. `Math.max(1, ...)` is the floor; nothing else about the ceiling changes, and no
+ * territory on the current map moves by a single point.
  */
 export function defenseMultiplierFor(territory) {
-    return Math.ceil((territory.defenseBonus + territory.mountainDefenseBonus) / DEFENSE_BONUS_DIVISOR);
+    return Math.max(1, Math.ceil(
+        (territory.defenseBonus + territory.mountainDefenseBonus) / DEFENSE_BONUS_DIVISOR));
 }
 
 /**

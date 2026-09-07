@@ -1,7 +1,7 @@
 // The economy, measured. What a territory earns, what an upgrade costs, how long it takes to
 // pay for itself, and what a gold buys in combat.
 //
-// docs/05-economy-audit.md section 3 is this script's output. Every number quoted in that
+// docs/archived/05-economy-audit.md section 3 is this script's output. Every number quoted in that
 // document comes from here, which is the point: the economy's failure mode is that nothing
 // throws, every turn completes, and the map quietly stops being interesting -- so the claims
 // have to be reproducible rather than remembered.

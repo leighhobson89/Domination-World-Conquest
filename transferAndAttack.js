@@ -46,9 +46,29 @@ import {
     renderAttackTable
 } from './src/ui/transferAttack/AttackTable.js';
 import { setCellEnabled } from './src/ui/controls/steppers.js';
+import { takeProbability } from './src/rules/military/takeProbability.js';
 
 export const territoryUniqueIds = [];
+/**
+ * The strength-ratio figure, from `winProbability()`. It drives the attack window's BAR.
+ *
+ * It is not the chance of taking the territory and never was -- known-issue C1, and combat
+ * checklist item 1.9 is the open question of what the player should be shown instead. It is
+ * left alone here on purpose, so that stage 1 changes what the AI DECIDES on without changing
+ * what the player SEES in the same step.
+ */
 export let probability;
+/**
+ * What the battle will actually do, from the dice model itself.
+ *
+ * Separate from `probability` because the two answer different questions and, until 1.9 is
+ * settled, the bar keeps its old source. This one exists so that
+ * `PROBABILITY_THRESHOLD_FOR_SIEGE` means ONE thing everywhere: the AI's gate and the player's
+ * Siege button are now compared against the same quantity, which is the whole point of the
+ * stage. Comparing the player's gate against the strength ratio while the AI's is compared
+ * against a real probability would have put the drift back in a new place.
+ */
+export let takeOdds = 0;
 let preAttackArray = [];
 const disabledFlagsAttack = [];
 
@@ -98,6 +118,13 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
             afterAllocation: () => {
                 checkAndSetButtonAsAttackOrCancel(preAttackArray);
                 probability = calculateProbabilityPreBattle(preAttackArray, allTerritories(), false);
+                //`calculateProbabilityPreBattle()` has just built the setup, so this scores the
+                //same one rather than unpacking the attack array a second time.
+                const setup = preBattleSetup();
+                takeOdds = setup
+                    ? takeProbability(setup.attackers, setup.defenders, setup.territory,
+                        setup.context, { siegeTurns: setup.siegeTurns })
+                    : 0;
                 preAttackArray.length = 0;
                 setAttackProbabilityOnUI(probability, 0);
                 attackPreview.update(preBattleSetup());

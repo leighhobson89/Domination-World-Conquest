@@ -61,6 +61,9 @@ import {
     attackingDevelopmentIndex
 } from './src/rules/military/probability.js';
 import {
+    takeProbability
+} from './src/rules/military/takeProbability.js';
+import {
     tickSiege,
     siegeScore,
     siegeDamageDeltas,
@@ -269,6 +272,50 @@ export function calculateProbabilityPreBattle(attackArray, mainArrayOfTerritorie
             combatContinentModifier: combatContinentModifier
         });
     }
+}
+
+/**
+ * The same battle, scored by the model that will actually fight it.
+ *
+ * Combat phase stage 1, closing known-issue C1. `calculateProbabilityPreBattle()` above
+ * answers "what is the attacker's share of the two strengths" -- a ratio built over
+ * `defenseMultiplierFor()`, which the dice model does not use, and blind to dice, bands, ties
+ * and unmatched hits. Measured over the real map its error against the real outcome ran +95 to
+ * -77 percentage points and CHANGED SIGN on fortification, so it over-rated an attack on
+ * unfortified mountain and under-rated one on a fortress. Every AI odds floor, the commitment
+ * sizing and the siege gate read it as though it were a probability. They read this instead.
+ *
+ * It deliberately BUILDS THE SETUP by calling the function above rather than repeating that
+ * work. The setup construction is the bulk of it -- unpacking the attack array, summing four
+ * unit types across several attacking territories, averaging their development indexes -- and
+ * two copies of it would be two answers to "which battle are we talking about". One call, one
+ * setup, and the only difference between the two functions is how the setup is SCORED. The
+ * strength ratio it returns on the way past is discarded.
+ *
+ * @returns {number} 0..100, the attacker's chance of taking the territory
+ */
+export function calculateTakeProbabilityPreBattle(attackArray, mainArrayOfTerritoriesAndResources, reCalculationWithinBattle, remainingDefendingArmy, attackedTerritoryId) {
+    if (reCalculationWithinBattle) {
+        //Named apart from the module-level `defendingTerritory` / `defendingTerritoryId`
+        //deliberately: the sibling function above shadows both and ESLint has flagged it for as
+        //long as the baseline has existed. A new function should not add to that count.
+        const territoryUnderAttack = mainArrayOfTerritoriesAndResources.find(
+            ({ uniqueId }) => uniqueId === attackedTerritoryId);
+        return takeProbability(attackArray, remainingDefendingArmy, territoryUnderAttack, {
+            attackingDevelopmentIndex: reusableAttackingAverageDevelopmentIndex,
+            combatContinentModifier: reusableCombatContinentModifier
+        });
+    }
+
+    calculateProbabilityPreBattle(attackArray, mainArrayOfTerritoriesAndResources, false);
+    const setup = preBattleSetup();
+    //Null means every attacking territory allocated nothing, which the function above reports
+    //as a probability of zero. There is no battle to forecast.
+    if (!setup) {
+        return 0;
+    }
+    return takeProbability(setup.attackers, setup.defenders, setup.territory, setup.context,
+        { siegeTurns: setup.siegeTurns });
 }
 
 export function setupBattle(probability, arrayOfUniqueIdsAndAttackingUnits, mainArrayOfTerritoriesAndResources) {

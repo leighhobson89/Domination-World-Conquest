@@ -30,7 +30,7 @@ import {
     addRemoveWarSiegeObject,
     aiSiegeWarsList,
     calculateCombinedForce,
-    calculateProbabilityPreBattle,
+    calculateTakeProbabilityPreBattle,
     deactivateTerritoryAi,
     playerSiegeWarsList,
     getCurrentAiWarId,
@@ -189,7 +189,7 @@ export function planAiCampaign(country, leader, turn) {
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, campaign = null) {
     return planTurnGoals(arrayOfTerritoriesInRangeThreats, {
         rng: aiRng,
-        probabilityFor: calculateProbabilityPreBattle,
+        probabilityFor: calculateTakeProbabilityPreBattle,
         campaign,
         country: campaign?.country ?? null,
         isBesieged: isUnderSiege
@@ -326,7 +326,7 @@ function assaultOddsFromSiege(siege, target, source) {
         return 0;
     }
 
-    return calculateProbabilityPreBattle(
+    return calculateTakeProbabilityPreBattle(
         [target.uniqueId, parseInt(source.uniqueId), infantry, assault, air, naval],
         allTerritories(),
         false);
@@ -1050,7 +1050,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
     const oddsFor = (amount) => {
         const makeup = calculateArmyMakeupOfAttack(
             mainArrayFriendlyTerritoryCopy, mainArrayEnemyTerritoryCopy, amount);
-        return calculateProbabilityPreBattle(
+        return calculateTakeProbabilityPreBattle(
             [mainArrayEnemyTerritoryCopy.uniqueId, parseInt(mainArrayFriendlyTerritoryCopy.uniqueId),
                 makeup[0], makeup[1], makeup[2], makeup[3]],
             allTerritories(), false);
@@ -1078,14 +1078,21 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
 
     console.log(decision.reason);
     if (!decision.commit) {
-        if (decision.reasonCode === "below-floor") {
-            recordAttackOutcome(
-                mainArrayFriendlyTerritoryCopy.dataName,
-                mainArrayEnemyTerritoryCopy.territoryName,
-                false,
-                currentTurn(),
-                mainArrayEnemyTerritoryCopy.dataName);
-        }
+        //KNOWN-ISSUE C4. A `below-floor` cancellation used to call `recordAttackOutcome(...,
+        //false, ...)` here, which charges `SETBACK_ODDS_PENALTY` -- twelve points on both odds
+        //floors, compounding per occurrence -- against a target for a battle THAT WAS NEVER
+        //FOUGHT. Three of those and the border is off the table for the rest of the game.
+        //
+        //It was defensible in intent: `commitment.js` deliberately distinguishes `no-force` (a
+        //fact about this turn, never remembered) from `below-floor` (a fact about the two
+        //armies, worth remembering), and that distinction is right. What made it a defect is
+        //that the floors were denominated in `winProbability()`, so `below-floor` fired on most
+        //borders in the world for arithmetic reasons: at turn 25 168 pairings were already being
+        //refused for "lost here N time(s) already" against 187 verdicts that got through.
+        //
+        //A setback is now recorded only where one was actually suffered -- `doAttack()`'s losing
+        //branch. The reinforcement demand below is kept, because "this border needs troops" is
+        //the useful half of the signal and it costs the target nothing.
         if (decision.reasonCode === "needs-more-force" || decision.reasonCode === "below-floor") {
             recordReinforcementDemand(
                 mainArrayFriendlyTerritoryCopy.dataName,

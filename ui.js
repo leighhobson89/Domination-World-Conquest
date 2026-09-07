@@ -63,6 +63,7 @@ import {
 import {
     drawAndHandleTransferAttackTable,
     probability,
+    takeOdds,
     territoryUniqueIds,
     transferArmyOutOfTerritoryOnStartingInvasion,
     transferArmyToNewTerritory,
@@ -2114,7 +2115,11 @@ function installMoveButtonHandlers() {
                             setupBattle(probability, getFinalAttackArray(), allTerritories());
                             setupBattleUI(getFinalAttackArray());
                             battleWindow.setBattleButtons({
-                                siegeEnabled: probability >= PROBABILITY_THRESHOLD_FOR_SIEGE
+                                //`takeOdds`, not `probability`: the constant is a floor on the
+                                //chance of TAKING the place, and the AI's copy of that gate now
+                                //reads the same quantity. Comparing the player's against the
+                                //strength ratio would make one constant mean two things.
+                                siegeEnabled: takeOdds >= PROBABILITY_THRESHOLD_FOR_SIEGE
                             });
                             transferArmyOutOfTerritoryOnStartingInvasion(getFinalAttackArray(), allTerritories());
                             setColorsOfDefendingTerritoriesSiegeStats(lastClickedPath, 2);

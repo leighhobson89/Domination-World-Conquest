@@ -87,7 +87,7 @@ async function sampleWorld(page) {
     return page.evaluate(() => {
         const owners = new Map();
         //The economy, summed over the whole world. These four exist because the economy's
-        //defects (docs/05-economy-audit.md section 4 E1, E2) change NO column this tool
+        //defects (docs/archived/05-economy-audit.md section 4 E1, E2) change NO column this tool
         //reported before: an AI country that buys a farm and receives no capacity looks
         //identical, in countries/largest/conquests, to one that never bought it. `foodCap`
         //is the direct witness -- it is flat across a whole run today, because the only
@@ -292,7 +292,7 @@ function formatRow(sample, elapsedMs) {
         `cont ${pad(sample.continentsHeld, 2)}`,
         `best ${pad(Math.round((sample.closestContinent?.share ?? 0) * 100), 3)}%`,
         //The economy. `upg` and `forts` are what the world bought; `foodCap` is what it got
-        //for it, and the two moving apart is audit section 4 E1 (docs/05-economy-audit.md).
+        //for it, and the two moving apart is audit section 4 E1 (docs/archived/05-economy-audit.md).
         `upg ${pad(sample.upgradesStanding ?? 0, 4)}`,
         `forts ${pad(sample.fortsStanding ?? 0, 4)}`,
         `gold ${pad(Math.round((sample.goldHeld ?? 0) / 1000), 6)}k`,
@@ -435,7 +435,7 @@ async function main() {
             console.log(
                 `  NOTE: ${last.upgradesStanding - first.upgradesStanding} upgrades were bought ` +
                 `and world food capacity did not move. That is audit E1 ` +
-                `(docs/05-economy-audit.md): an AI upgrade raises no ceiling.`
+                `(docs/archived/05-economy-audit.md): an AI upgrade raises no ceiling.`
             );
         }
         console.log(
