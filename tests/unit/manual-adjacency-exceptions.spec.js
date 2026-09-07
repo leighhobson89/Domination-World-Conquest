@@ -58,14 +58,33 @@ describe("manual adjacency exceptions table", () => {
         }
     });
 
-    it("carries the same rules as the legacy table, minus one duplicate", () => {
+    it("carries the rules it is meant to, counted", () => {
         // The legacy table listed 96 additions across 69 keys, but "New Caledonia 1"
         // appeared twice and both entries contained "New Zealand North Island".
-        // Merging the two keys leaves 95 distinct additions across 68 territories.
+        // Merging the two keys left 95 distinct additions across 68 territories.
+        //
+        // 100 NOW, AND THE FIVE ARE NOT NEW CROSSINGS. Five of the ninety-five were
+        // listed on one side only -- "Fiji 1" written where "Fiji 2" was meant, and
+        // back -- so five straits in the south Pacific ran in one direction. The
+        // missing reciprocals were added rather than the crossings deleted; the
+        // symmetry spec above is what now makes the class of defect impossible.
+        //
+        // 102 ACROSS 69 KEYS NOW: Greenland is a new key and Svalbard gained a target,
+        // which is the second Europe <-> North America crossing. Before it, Greenland <->
+        // Iceland was the ONLY one on the map and Greenland had two neighbours in the whole
+        // game -- see the note beside the rule and docs/06-force-and-succession.md section 7.
         const all = Object.values(manualAdjacencyExceptions).flat();
-        expect(Object.keys(manualAdjacencyExceptions).length).toBe(68);
-        expect(all.filter(([, f]) => f === ADD).length).toBe(95);
+        expect(Object.keys(manualAdjacencyExceptions).length).toBe(69);
+        expect(all.filter(([, f]) => f === ADD).length).toBe(102);
         expect(all.filter(([, f]) => f === DENY).length).toBe(6);
+    });
+
+    // The crossing this table exists to make possible, asserted by name because it is a
+    // deliberate change to the map's strategic geography rather than a repair: North
+    // America reaches Europe through TWO territories now, not one.
+    it("gives North America a second door into Europe", () => {
+        expect(getManualAdditions("Greenland")).toContain("Svalbard");
+        expect(getManualAdditions("Svalbard")).toContain("Greenland");
     });
 
     it("lists no target twice for the same territory", () => {
@@ -92,6 +111,22 @@ describe("manual adjacency exceptions table", () => {
         );
         expect(getManualAdditions("Bermuda")).toContain("Grand Bahama (Bahamas)");
         expect(getManualAdditions("United States")).toContain("Grand Bahama (Bahamas)");
+    });
+
+    // Every crossing in this table is a two-way strait, and the geometry underneath it
+    // is perfectly symmetric -- `adjacency.spec.js` asserts zero one-way edges in
+    // resources/adjacency.json. So an addition listed on one side only is a typo, and it
+    // produces the one thing the map should never contain: a territory that can be
+    // attacked from a neighbour it cannot attack back. Five of them survived here for as
+    // long as the table has existed (Fiji 1 written where Fiji 2 was meant, and back),
+    // and they were invisible because nothing compared the two directions.
+    it("carries every addition as a symmetric pair", () => {
+        const additions = Object.entries(manualAdjacencyExceptions).flatMap(([source, targets]) =>
+            targets.filter(([, f]) => f === ADD).map(([target]) => [source, target])
+        );
+        for (const [a, b] of additions) {
+            expect(getManualAdditions(b), `${b} should add ${a} back`).toContain(a);
+        }
     });
 
     it("carries the six known denials, as three symmetric pairs", () => {

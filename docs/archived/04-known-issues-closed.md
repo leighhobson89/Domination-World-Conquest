@@ -1211,3 +1211,62 @@ the turn and 72% after, because France sends part of its garrison out to attack 
 invisible until the free-attack defect under **BJ** was closed, since an AI attack used to cost
 the attacker nothing and France came back from its turn with exactly the garrison it left with.
 Both readings are in the same turn now.
+
+---
+
+## Closed in the reachability pass
+
+One defect, found by the analysis that went looking for why a North American power stops
+growing. The question asked was *"is anything stopping a country pushing from South America
+into North America, or from Greenland and Iceland into Europe — is one territory blocking
+it?"* The answer to both halves is in
+[06-force-and-succession.md](../06-force-and-succession.md) §5; what turned up on the way is
+this.
+
+### BS — five straits in the south Pacific ran in ONE DIRECTION
+
+`src/data/manualAdjacencyExceptions.js` is hand-curated and keyed by territory name, and five
+of its ninety-five additions were **listed on one side only**:
+
+| the crossing that existed | the reply that did not |
+|---|---|
+| Vanuatu 1 → Fiji 1 | Fiji 1 → Vanuatu 1 |
+| Vanuatu 2 → Fiji 1 | Fiji 1 → Vanuatu 2 |
+| Fiji 2 → Vanuatu 2 | Vanuatu 2 → Fiji 2 |
+| Fiji 2 → New Caledonia 2 | New Caledonia 2 → Fiji 2 |
+| Fiji 2 → New Caledonia 3 | New Caledonia 3 → Fiji 2 |
+
+All five are the same typo in both directions — **`"Fiji 1"` written where `"Fiji 2"` was
+meant, and back** — which is why the pairs beside them (Fiji 1 ↔ New Caledonia 2, Fiji 1 ↔
+New Caledonia 3, Vanuatu 1 ↔ Solomon Islands 6) are correctly symmetric.
+
+**A one-way border is the one thing this map must never contain.** Fiji 1 could be attacked
+from both Vanuatu territories and could attack neither of them back; Fiji 2 could attack
+Vanuatu 2 and two New Caledonias with no reply available to any of them. It also skews the
+threat model in the defender's favour and then against it:
+`strongestEnemyPowerAgainst()` sizes a garrison from what can *reach* a territory, and a
+territory on the receiving end of a one-way link does not count the only enemy that can come
+for it — so it under-garrisons against precisely that neighbour.
+
+**It had no signature at all.** Nothing throws, both countries plan normally, every turn
+completes, and the only witness is a border that is only ever crossed in one direction — over
+150 headless turns, in the corner of Oceania, among two hundred countries.
+
+**Two facts settle it as a defect rather than a design decision.** The GEOMETRY underneath is
+perfectly symmetric — `resources/adjacency.json` carries **zero** one-way edges across all 359
+territories, so every asymmetry on the map came from these five lines. And the five crossings
+are **46–67 SVG units** across, the same band as the pairs beside them that were already
+symmetric (53–57) and as the table's hand-added crossings generally (median 66) — so the
+missing reciprocals are the same water, not new water.
+
+Repaired by **adding the five missing reciprocals**, not by deleting the crossings: the
+crossings are real and were being used; it is the reply that was missing.
+
+**Two specs now make the class impossible**, and they are deliberately in two places because
+the two sources fail differently. `tests/unit/manual-adjacency-exceptions.spec.js` asserts
+every `ADD` is reciprocal — the mirror of the assertion `DENY` has always had, whose absence
+on the other flag is the whole reason this survived. `tests/unit/adjacency.spec.js` asserts
+zero one-way edges in the raw geometry *and* in the adjacency the game actually reads
+(`getInteractableFrom()` — geometry, plus additions, minus denials). Asserting only the table
+would miss a future change to `tools/build-adjacency.mjs`; asserting only the geometry would
+have missed all five of these.

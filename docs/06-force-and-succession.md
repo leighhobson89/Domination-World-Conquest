@@ -220,15 +220,20 @@ reachability rather than combat.
 
 ## 5. What is still open
 
-1. **The largest empire is 84 against a target of 90–120.** The leader holds North America
-   outright and must cross water or the Mexico border to grow, so the remaining gap may be
-   reachability rather than combat at all. Worth measuring before anything is tuned.
+1. **The largest empire is 84 against a target of 90–120, and it was MEASURED rather than
+   tuned. The reachability theory in this line was half right, and the wrong half is the
+   interesting one.** See §7 below: South America is wide open and the North American power is
+   already 18–21 territories deep into it, while Europe and Asia are reachable from North
+   America through **one territory each**.
 2. **Mountains are untouched, deliberately.** Weakening them would push the largest empire up and
    surviving countries *below* 50, which is past target in the other direction — so it is a
    judgement about how the game feels, not a number to be optimised. Leigh's call is to play what
    is here first.
 3. **Continental still completes one continent, not three** (known-issue **BO**). The world
-   consolidates now, but the largest empire spreads rather than completing continents.
+   consolidates now. The line that used to stand here — *"the largest empire spreads rather
+   than completing continents"* — **is wrong of the country that completes one**, and §7
+   replaces it: the North American power does the opposite of spreading, and the country that
+   spreads is a different one.
 4. **The cliff is still a cliff** — combat stage 3 bought G2 rather than G1, 1.92× → 1.94×.
 5. **The over-extension counterweight** is now genuinely actionable for the first time: it was
    always deferred because nothing over-extended, and things do now.
@@ -249,3 +254,233 @@ Everything in the archived combat audit's §7 still holds. This phase adds three
 3. **The succession schedule must stay derived rather than drawn.** A `Math.random` draw there
    would move every seeded outcome in the game once per country per succession, which would make
    every measurement in this document unreproducible.
+
+---
+
+## 7. Reachability, measured
+
+\S5.1 above guessed that the shortfall on largest empire might be reachability. It was worth
+asking and it is now answered, in both directions, by the map data and by a 150-turn
+`CONTINENTAL` run on `--seed=goals` sampled at turns 75, 110 and 150. **Half the guess was
+wrong and the other half is worse than it looked.**
+
+### 7.1 South America is not blocked, and the leader is already through it
+
+The North America / South America border is **eleven distinct crossings over twelve gateway
+territories**, all of it low ground:
+
+| crossing | terrain |
+|---|---|
+| Mexico ↔ Guatemala / Belize / Honduras / El Salvador / Cayman Islands / Cuba | mtn 2 against mtn 1–3 |
+| United States ↔ Cuba | mtn 3 against mtn 2 |
+| Andros Island (Bahamas) ↔ Cuba / Turks And Caicos 1 / Turks And Caicos 2 | mtn 1 against mtn 1–2 |
+| Grand Bahama (Bahamas) ↔ Cuba | mtn 2 against mtn 2 |
+
+And the AI uses it. Measured, the United States holds **North America 47 of 47 plus South
+America 21 / 21 / 18 of 49** at turns 75 / 110 / 150, with a live theatre reading *"taking
+ground from Argentina — 15 territory(ies) so far"*. It crossed the Mexico border before turn
+75 and has been fighting in the Caribbean and Central America ever since.
+
+**So the fix here is to stop looking**: not blocked, not by terrain, not by the plan, and not
+by the AI. Its South American frontier is 28–31 of its 30–33 pairings.
+
+### 7.2 Europe and Asia are each ONE territory wide, and that is the real finding
+
+| continent pair | gateway territories | distinct crossings |
+|---|---|---|
+| North America ↔ South America | 12 | **11** |
+| Asia ↔ Oceania | 22 | 31 |
+| Africa ↔ Europe | 20 | 26 |
+| Asia ↔ Europe | 22 | 26 |
+| Africa ↔ Asia | 17 | 25 |
+| Africa ↔ South America | 4 | 3 |
+| **Europe ↔ North America** | **2** → 3 | **1** → **2** — Greenland ↔ Iceland, and now Greenland ↔ Svalbard (§7.6) |
+| **Asia ↔ North America** | **2** | **1** — Alaskan Islands 4 ↔ Russia |
+
+**Greenland ↔ Iceland is the only door between Europe and North America on the map, and both
+ends carry `mountainDefenseFactor` 5** — two of only **eleven** such territories in the world
+(the distribution is 42 / 144 / 126 / 36 / **11** across factors 1–5). Greenland has exactly
+two neighbours in the entire game: Ellesmere Island and Iceland.
+
+Measured, that door is shut and stays shut. The United States' European frontier is **1
+pairing of 30–33, at every sample**, and its plan skips it every turn. Iceland's garrison ran
+27,770 → 27,770 → 85,664 while Greenland sat on ~30,000 behind four forts. The Asian door is
+the same shape: 1 pairing, Alaskan Islands 4 against Russia, which China holds with 180,000
+rising to 1,324,000 behind five forts.
+
+**So North America was a cul-de-sac.** Whoever took it could reach a second continent freely
+and a third only by forcing a single maximum-terrain strait held by another superpower. Under
+`CONTINENTAL`, which asks for three, that country could not win from where it started — which
+is the structural half of known-issue **BO**, and it is a fact about the MAP rather than about
+`src/ai/`. **§7.6 is what was done about it**, and §7.5 is the measurement that decided which
+lever to pull.
+
+### 7.3 The plan DOES update when a continent is banked
+
+The other half of the question, and the answer is yes. Measured on the United States at all
+three samples:
+
+```
+objective  { continents: ["North America", "South America", "Europe"],
+             banked: ["North America"] }
+focus      South America
+posture    EXPAND
+theatre    Argentina -- taking ground, 15 territories so far
+```
+
+North America is banked the turn it is completed, the focus moves to South America, and the
+goal list fills with attacks into the Caribbean. Nothing is stuck.
+
+**One gap is real and one apparent gap is not.** The real one: `rankContinentsByAmbition()` in
+`src/ai/strategy.js` has a `foothold` term whose own comment says *"you cannot campaign for
+Antarctica from Peru"*, but it counts only territories **held** — so a continent the country
+BORDERS scores exactly the same as one on the other side of the world, and nothing anywhere in
+the objective consults adjacency. The apparent one: `commitmentIsPointless()` returns true
+every turn for a country whose only foothold continent is complete (every row is then
+`complete || held === 0`), so the objective is re-picked every turn instead of every
+`CAMPAIGN_REVIEW_INTERVAL`. Both are worth knowing and **neither is worth fixing on this map**,
+which is why they are recorded here rather than acted on: the United States' reachable
+continents are South America, Europe and Asia, so a reachability term would swap Europe for
+Asia — another one-territory door — and the re-pick is stable because the ranking is
+deterministic enough that it returns the same three every time. Fixing them is a change that
+would measure as noise.
+
+### 7.4 What the world is actually stopped by
+
+Across all three of the top countries at all three samples, the dominant skip reason is the
+same one, and it is neither reachability nor the plan:
+
+| country, turn 150 | pairings weighed | commonest verdict |
+|---|---|---|
+| China (84 territories, 141-pairing frontier) | 24 | 24 × *"below the 8% floor the game applies to everybody"* |
+| United States (65) | 24 | 20 × the same, 3 attacks |
+| Indonesia (49) | 24 | 24 × the same |
+
+That is `PROBABILITY_THRESHOLD_FOR_SIEGE`, the global hard floor — reached with the source
+territory's **whole** garrison. China's frontier is 141 pairings across five continents and it
+still cannot reach 8% on most of them. **This is known-issue G6 exactly as combat stage 5 left
+it**: a fact about how much force a border can raise, not about any figure in `balance.js`,
+and not about the map.
+
+One thing seen while measuring it is worth logging on its own. `planMusters()` sends **every**
+qualifying neighbour's spare infantry to a single destination with no cap, and the spearhead is
+`territories.find(...)` — the first owned territory that touches the theatre rival, in
+`territoriesOwnedByCountry()` order, which is `defenseBonus` order and therefore arbitrary. On
+turn 76 China marched infantry from **seventeen** territories into Kamchatkan Islands 3,
+376,749 of them from Kamchatkan Islands 2 alone, while its war was being fought elsewhere. That
+is force removed from the war by the mechanism meant to deliver it, and it belongs to **G7**
+rather than to anything here.
+
+### 7.5 What terrain is actually worth here — the measurement that chose the lever
+
+The obvious move is to weaken the mountains on the two territories, and **measured, it is very
+nearly a no-op**. It is written down because it is the proposal anybody looks at first.
+
+**Terrain is QUANTISED, so 5 → 4 → 3 changes nothing at all.** The dice model does not read
+`mountainDefenseFactor` as a scale: `battleModel.js` reads `defenseBonus + mountainDefenseBonus`
+against two bands — **≥25 costs the attacker one die, ≥100 costs two**. The mountain term is
+factor × `MOUNTAIN_DEFENSE_SCALE` (10), so 30, 40 and 50 are all **one die**. Only 5 → 2 drops
+under 25 and hands the die back. Everything between moves `defenseMultiplierFor()`, which is the
+bar the player is *shown* and the siege score — not the fight.
+
+**And one fort cancels the whole benefit.** Dice taken off an attacker of Iceland:
+
+| forts on Iceland | mtn 5 | mtn 4 | mtn 3 | mtn 2 | mtn 1 |
+|---|---|---|---|---|---|
+| 0 | −1 | −1 | −1 | **0** | **0** |
+| 1 | −1 | −1 | −1 | −1 | −1 |
+| 2 | −2 | −1 | −1 | −1 | −1 |
+| 3 or 4 | −2 | −2 | −2 | −2 | −2 |
+
+**At the armies the run actually had, even flattening it to sea level does not open the door.**
+Greenland attacking Iceland with its whole garrison, which is more than the AI would ever send:
+
+| turn | Greenland | Iceland | ratio | mtn 5 | mtn 3 | mtn 2 | mtn 1 |
+|---|---|---|---|---|---|---|---|
+| 75 | 35,465 | 27,770 | 1.28:1 | 0.0% | 0.0% | **8.0%** | 5.0% |
+| 110 | 29,647 | 27,770 | 1.07:1 | 0.0% | 0.0% | 2.0% | 1.5% |
+| 150 | 33,842 | 85,664 | 0.40:1 | 0.0% | 0.0% | 0.0% | 0.0% |
+
+The best case is **8%** — exactly `PROBABILITY_THRESHOLD_FOR_SIEGE`, the floor below which
+nothing is offered to anybody, and far under the 14–61% the leaders in that run demanded. The
+siege route is shut too: making progress rather than sitting in the arrest band needs **350,000
+infantry at mtn 5 and 140,000 at mtn 2**, against a Greenland holding thirty thousand.
+
+**The strait was already one-way, in EUROPE's favour, and terrain was not what did it.**
+Iceland attacking Greenland is **100% at 1:1 raw force**, and still 78% with four forts on
+Greenland. The cause is `areaBonusFor()` and `devIndex`, neither of which is terrain:
+
+| | area | `areaBonusFor` | `devIndex` | share at 1:1 |
+|---|---|---|---|---|
+| Greenland | 6,147,133 | **0.528** | **0.452** | 0.406 attacking Iceland |
+| Iceland | 213,818 | 1.000 | 0.959 | **0.735** attacking Greenland |
+
+Greenland is a huge, undeveloped territory, which makes it a poor attacker *and* a soft
+defender. So the door is held shut by two different things on the two sides, and terrain is
+neither of them:
+
+* **North America → Europe: the plan says yes, the odds say no.** Europe IS in the North
+  American power's committed three, so Iceland is weighted `committedContinent` (1.6) rather
+  than `offContinent` (0.5). It simply cannot reach 8%.
+* **Europe → North America: the odds say 100%, the plan says no.** Greenland is North America,
+  so to a European power it is off-objective — weight 0.5, and skipped outright under a
+  CONSOLIDATE posture. Nobody ever weighed a free conquest.
+
+### 7.6 What was done — a second door, and the terrain drop as well
+
+Leigh's call, taking both. The standard to judge a new crossing against is the one the map
+already sets: the ocean crossings this table *already* accepts, as closest approach between the
+two paths in SVG user units (the map is about 2,700 wide).
+
+| crossing | units | status |
+|---|---|---|
+| Djibouti ↔ Yemen | 1.5 | linked |
+| Italy ↔ Tunisia | 8.0 | linked |
+| Greenland ↔ Iceland | 15.3 | linked — was the ONLY Europe ↔ North America door |
+| Maldives 2 ↔ India | 39.2 | linked |
+| Bermuda ↔ United States | 63.4 | linked |
+| Iceland ↔ Ireland | 65.9 | linked |
+| Arctic Islands 1 ↔ Svalbard | 95.7 | linked — Asia ↔ Europe |
+| Australia ↔ New Zealand South Island | 104.8 | linked |
+| Brazil ↔ Sierra Leone | 147.8 | linked — the Atlantic |
+| Russia ↔ Alaskan Islands 4 | 1,116.4 | linked — across the date line, so the figure is an artefact of the projection |
+| **Greenland ↔ Svalbard** | **122.7** | **LINKED NOW — the second door** |
+| Greenland ↔ Norway | 147.9 | not linked |
+| Newfoundland ↔ Iceland | 189.9 | not linked |
+| Newfoundland ↔ Ireland | 232.6 | not linked |
+
+**Greenland ↔ Svalbard was the candidate and it has shipped.** At 122.7 units it is shorter
+than a crossing the map already had (Brazil ↔ Sierra Leone, 147.8) and comparable to two more
+(Australia ↔ New Zealand, Arctic Islands 1 ↔ Svalbard), so it is inside the standard the map
+already sets rather than a new one. Svalbard is Norwegian and therefore European, so North
+America now reaches Europe through **two** territories instead of one, the second on
+`mountainDefenseFactor` 4 and away from the Iceland bottleneck. Greenland had **two neighbours
+in the whole game** and has three.
+
+**And Greenland and Iceland both went from `mountainDefenseFactor` 5 to 2**, taken with it
+rather than instead of it. §7.5 is clear that on its own this is nearly a no-op — it was taken
+knowing that. What it buys, against an UNFORTIFIED Iceland, is the whole of the 25-bonus band:
+the attacker gets its die back (**−1 → 0**), 1.5:1 goes **9.5% → 46%** and 2:1 goes **15% →
+77%**, and the siege stops sitting in the arrest band (`scoreDifference` **−28 → +2**, with the
+infantry needed for a siege to progress falling **350,000 → 140,000**). What it does not buy is
+anything at all once the defender builds: one fort restores the die at any terrain, three
+restore both.
+
+Two knock-ons of the terrain change, both deliberate and both worth watching in the acceptance
+run. It **widens the already-open direction too** — Iceland → Greenland was 100% at 1:1 before
+and the change lifts its displayed bar 49% → 66% — so if anything it invites Europe into North
+America sooner than the reverse. And the map now has **9 mountain-5 territories rather than 11,
+and 146 at mountain 2 rather than 144**, which moves the world's terrain distribution from
+167/192 territories at 0/1 dice to **169/190**.
+
+**Neither change is a fix for G6.** §7.4 is what stops the world, and a second door into a
+continent nobody can raise 8% against does not change that. Both move every seeded outcome, so
+they want the five-goal 150-turn table `CLAUDE.md` names as the acceptance criterion, plus the
+one question these were taken to answer: **does a North American power now reach a second and
+third continent, and does Europe come the other way?**
+
+Worth recording alongside them, and NOT done: **Greenland ↔ Baffin Island is 32.1 units and
+Greenland ↔ Devon Island 40.8, and neither is linked** — both shorter than Bermuda ↔ United
+States and Iceland ↔ Ireland, which are. They are North America on both sides, so they open no
+door; what they would change is how easily the gateway itself is reached across the Canadian
+arctic, which today is through Ellesmere Island alone.

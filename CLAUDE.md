@@ -1104,6 +1104,42 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
 - **`resources/adjacency.json`, `resources/pathAreas.json` and `resources/music/tracks.json`
   are generated** by `tools/`. Edit the generator, never the JSON. `npm run build:data`
   regenerates all three; the `:check` variants verify they are current.
+- **ADJACENCY IS SYMMETRIC, AND FIVE STRAITS RAN ONE WAY UNTIL IT WAS ASSERTED** (known-issue
+  **BS**). The geometry in `adjacency.json` has always been symmetric — zero one-way edges
+  across all 359 territories — but `src/data/manualAdjacencyExceptions.js` is hand-written, and
+  five of its ninety-five additions were listed on ONE SIDE ONLY: the same typo in both
+  directions, `"Fiji 1"` written where `"Fiji 2"` was meant. Fiji 1 could be attacked from both
+  Vanuatu territories and attack neither back. **A one-way border has no signature at all** —
+  nothing throws, both countries plan normally, and it also makes the territory on the receiving
+  end under-garrison, because `strongestEnemyPowerAgainst()` sizes a reserve from what can
+  REACH a territory. The table has always asserted `DENY` pairs are reciprocal and never
+  asserted it of `ADD`, which is the whole reason it survived; both flags are asserted now, and
+  `adjacency.spec.js` separately asserts zero one-way edges in the raw geometry AND in
+  `getInteractableFrom()`, because the hand table and the generator fail differently.
+- **NORTH AMERICA WAS A CUL-DE-SAC, and that is the structural half of known-issue BO.** Europe
+  and Asia were each reachable from North America through **exactly one territory** —
+  Greenland ↔ Iceland, both `mountainDefenseFactor` 5, and Alaskan Islands 4 ↔ Russia — against
+  **eleven** crossings into South America. Measured over 150 turns, the North American power
+  holds North America 47/47 and pushes 18–21 territories into South America, and its European
+  frontier was 1 pairing of 30–33 at every sample, skipped every turn. **Do not read that as an
+  AI defect** — the plan updates correctly when a continent is banked (focus moves to South
+  America, posture EXPAND, theatre commits to a South American rival) and the dominant skip
+  reason at the top of the world is the global 8% floor, which is G6. **Two map changes shipped
+  against it and NEITHER IS MEASURED YET**: Greenland ↔ Svalbard is a second Atlantic door, and
+  Greenland and Iceland are `mountainDefenseFactor` **2**. Both move every seeded outcome and
+  both want the five-goal 150-turn table. See
+  [docs/06-force-and-succession.md](./docs/06-force-and-succession.md) §7.
+- **TERRAIN IS QUANTISED, so lowering a `mountainDefenseFactor` from 5 to 4 or 3 is a NO-OP in
+  battle.** The dice model reads `defenseBonus + mountainDefenseBonus` against two bands —
+  **≥25 costs the attacker one die, ≥100 costs two** — and the mountain term is factor ×
+  `MOUNTAIN_DEFENSE_SCALE` (10), so 30, 40 and 50 are all one die. Only a drop to **2** crosses
+  a band. What the in-between values DO move is `defenseMultiplierFor()`, which is the bar the
+  player is SHOWN and the siege score, not the fight — so a terrain edit can look effective in
+  the UI and change no outcome. **One fort cancels the whole benefit** (one fort restores the
+  die at any terrain, three restore both), and a large defender is separately soft because
+  `areaBonusFor()` only ever penalises size: Greenland is 0.528 against Iceland's 1.000, which
+  is why Iceland → Greenland is 100% at 1:1 while Greenland → Iceland was 0%. `node
+  tools/combat-lab.mjs terrain` is the check, and docs/06 §7.5 is the worked measurement.
 - **Seeding `Math.random` DOES make the game deterministic** — since Phase 5.8, and it did not
   before. `addSparklesRegularly()` burned three draws per timer tick on the same global stream
   as combat and the economy, so two runs of the same seed diverged (audit 5.3 Y). Cosmetic
