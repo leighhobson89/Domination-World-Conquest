@@ -57,7 +57,7 @@ import { commitmentDiscipline } from "../config/balance.js";
  * forts, the mountains and the ground, so holding a border does not take as much as
  * assaulting one. That asymmetry is what makes an attack possible at all.
  */
-export function garrisonNeeded(army, localEnemyPower) {
+export function garrisonNeeded(army, localEnemyPower, riskTaking = 0.5) {
     const total = Math.max(0, Number(army) || 0);
     const enemy = Number(localEnemyPower);
     if (!Number.isFinite(enemy) || enemy <= 0) {
@@ -65,7 +65,21 @@ export function garrisonNeeded(army, localEnemyPower) {
         //conquest elsewhere can put it on a border overnight.
         return Math.floor(total * commitmentDiscipline.interiorReserve);
     }
-    return Math.min(total, enemy * commitmentDiscipline.defenceKeepRatio);
+    return Math.min(total, enemy * keepRatioFor(riskTaking));
+}
+
+/**
+ * How much of the strongest reachable enemy's power this leader keeps at home.
+ *
+ * `risk_taking` moves it either way around `defenceKeepRatio`: a bold leader holds a thinner
+ * border and can therefore reach a force ratio a cautious one cannot, which is the whole
+ * purpose of the trait. See the long note on `riskKeepSwing` in `balance.js` for the
+ * measurement that made it necessary.
+ */
+export function keepRatioFor(riskTaking = 0.5) {
+    const tuning = commitmentDiscipline;
+    const risk = clamp(finiteOr(riskTaking, 0.5), 0, 1);
+    return Math.max(0, tuning.defenceKeepRatio - (risk - 0.5) * tuning.riskKeepSwing);
 }
 
 /**
@@ -93,17 +107,25 @@ export function disposableForce({ army, localEnemyPower, leaderType = "balanced"
         (expansion - 0.5) * tuning.expansionSwing,
         tuning.minimumAppetite, tuning.maximumAppetite);
 
-    const surplus = total - garrisonNeeded(total, localEnemyPower);
+    const risk = clamp(finiteOr(traits.risk_taking, 0.5), 0, 1);
+    const surplus = total - garrisonNeeded(total, localEnemyPower, risk);
 
     if (surplus <= 0) {
         //Outgunned on this border. Sending anything is a gamble with the territory itself,
         //so only the leaders whose whole character is the gamble take it, and only with the
-        //slice they would not miss.
-        const reckless = (leaderType === "aggressive" && style > 0.5) ? tuning.recklessShare : 0;
-        return Math.floor(total * reckless);
+        //slice they would not miss. `risk_taking` scales it, so a bold aggressive leader
+        //throws a real force at a border it is losing and a merely aggressive one does not.
+        const reckless = (leaderType === "aggressive" && style > 0.5)
+            ? tuning.recklessShare * (0.5 + risk)
+            : 0;
+        return Math.floor(total * Math.min(reckless, 1 - tuning.minimumHomeShare));
     }
 
-    return Math.floor(surplus * appetite);
+    //A BORDER HELD BY NOBODY IS A TERRITORY GIVEN AWAY. No combination of traits may empty a
+    //province, however bold the leader: the cap is on the share of this territory's OWN army
+    //rather than on the enemy's power, because that is the quantity being protected.
+    const ceiling = Math.floor(total * (1 - tuning.minimumHomeShare));
+    return Math.min(ceiling, Math.floor(surplus * appetite));
 }
 
 /**

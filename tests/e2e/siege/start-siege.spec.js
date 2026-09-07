@@ -23,7 +23,12 @@ test.describe("laying a siege", () => {
         await game.loadScenario("evenly-matched");
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
 
-        const odds = await game.battle.probability();
+        //Asserted against the gate's OWN input, not against the attack window's bar. Since
+        //combat stage 1 those are different quantities: the bar is `winProbability()`, a ratio
+        //of two strengths, and the gate is `takeProbability()`, the chance of really taking the
+        //place. Comparing the bar against this constant is comparing two different things and
+        //is wrong in both directions -- which is how this spec's sibling below started failing.
+        const odds = await game.siegeGateOdds();
         expect(odds).toBeGreaterThanOrEqual(PROBABILITY_THRESHOLD_FOR_SIEGE);
         await expect(page.locator(battle.siege)).toBeEnabled();
         await expect(page.locator(battle.siege)).toHaveText("Siege Territory");
@@ -34,7 +39,7 @@ test.describe("laying a siege", () => {
         await game.loadScenario("hopeless-attacker");
         await game.launchWholeGarrison({ from: "Germany", to: "France" });
 
-        const odds = await game.battle.probability();
+        const odds = await game.siegeGateOdds();
         expect(odds).toBeLessThan(PROBABILITY_THRESHOLD_FOR_SIEGE);
         await expect(page.locator(battle.siege)).toBeDisabled();
     });

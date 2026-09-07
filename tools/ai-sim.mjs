@@ -125,6 +125,30 @@ async function sampleWorld(page) {
 
         const activity = window.__game.activity() ?? [];
         const turn = window.__game.turn();
+        //Totals over every turn THE ACTIVITY LOG STILL HOLDS -- which is NOT the whole game.
+        //
+        //`activity()` is a bounded ring, so these RISE AND THEN FALL as the early turns are
+        //evicted: measured on a 150-turn Continental run the conquest figure read 288 at turn
+        //25, 455 at turn 50 and 134 at turn 150. They are a WINDOW, wider than the single turn
+        //the columns beside them report and narrower than the run. Named `*InLog` rather than
+        //`*Cumulative` so the row cannot be read as a total.
+        //
+        //A true cumulative count needs either `--every=1` (so no turn is ever missed between
+        //samples) or a counter kept by the game rather than derived from the feed. That is worth
+        //doing and is not done here.
+        //Combat stage 5.1, and the siege line is why it exists: `sieges` below is a SNAPSHOT of
+        //what is standing right now, and a snapshot cannot tell a short successful siege from a
+        //siege that never happened. Combat stage 4 could not honestly close known-issue G5 for
+        //exactly that reason -- the standing count stayed at 0-2 while conquest quadrupled, and
+        //both "sieges work now" and "sieges still never happen" fit that observation.
+        const totals = { conquest: 0, siegeStarted: 0, siegeWon: 0, siegeLifted: 0, attackFailed: 0 };
+        for (const section of activity) {
+            for (const entry of section.entries ?? []) {
+                if (totals[entry.kind] !== undefined) {
+                    totals[entry.kind] += 1;
+                }
+            }
+        }
         // The AI moves during turn N and the counter reaches N+1 afterwards, so the turn
         // that has just been played is the one below the counter (CLAUDE.md).
         const played = activity.find((section) => section.turn === turn - 1);
@@ -176,6 +200,12 @@ async function sampleWorld(page) {
                 }))
                 .sort((a, b) => b.share - a.share)[0] ?? null,
             activity: counts,
+            inLog: totals,
+            //The world's whole army, not just the top eight. A run whose army climbs while its
+            //conquests fall to zero is known-issue G7 and was invisible in the printed row --
+            //the audit had to read the JSON to find that the top eight went 44M to 126M across
+            //a run in which the map stopped changing.
+            worldArmy: ranked.reduce((sum, row) => sum + row.army, 0),
         };
     });
 }
@@ -282,9 +312,18 @@ function formatRow(sample, elapsedMs) {
         `top16 ${pad(Math.round((sample.heldByTopSixteen / sample.worldTerritories) * 100), 3)}%`,
         `largest ${pad(sample.largest, 3)}`,
         `conq ${pad(activity.conquest ?? 0, 3)}`,
+        //Over the log's retained window, because the per-turn figure beside it is narrower
+        //still: sampled every 25 turns it reports one turn in twenty-five and says nothing
+        //about the twenty-four either side. Neither is a total -- see the note in sampleWorld.
+        `conqLog ${pad(sample.inLog?.conquest ?? 0, 4)}`,
         `failed ${pad(activity.attackFailed ?? 0, 3)}`,
+        //STANDING now, then LAID and WON over the log's window. The three are different
+        //questions and the first alone is what left combat stage 4 unable to close G5: a
+        //snapshot cannot tell a short successful siege from one that never happened, and the
+        //first run with these columns reported 15 laid and 15 WON against a standing count of 0.
         `sieges ${pad(sample.sieges, 3)}`,
-        `siegeWon ${pad(activity.siegeWon ?? 0, 2)}`,
+        `laid ${pad(sample.inLog?.siegeStarted ?? 0, 3)}`,
+        `sgWon ${pad(sample.inLog?.siegeWon ?? 0, 3)}`,
         `player ${pad(sample.player, 3)}`,
         //The continent bonus: how many continents are complete, and how far along the
         //nearest one is. Both are needed -- a run stuck at "0 complete, 41% of Europe"
@@ -297,6 +336,7 @@ function formatRow(sample, elapsedMs) {
         `forts ${pad(sample.fortsStanding ?? 0, 4)}`,
         `gold ${pad(Math.round((sample.goldHeld ?? 0) / 1000), 6)}k`,
         `foodCap ${pad(Math.round((sample.foodCapacity ?? 0) / 1e6), 6)}M`,
+        `army ${pad(Math.round((sample.worldArmy ?? 0) / 1e6), 5)}M`,
         `${pad(Math.round(elapsedMs / 1000), 4)}s`,
     ].join("  ");
 }

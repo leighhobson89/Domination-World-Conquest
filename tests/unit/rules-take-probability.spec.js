@@ -117,9 +117,13 @@ describe("takeProbability -- the model really is scale-free above the floor", ()
     //seed. They would still be true with the cache deleted, which is the point: if one of
     //them fails, the key is unsound and the cache is answering one battle with another's
     //number.
-    it("gives an identical answer at any scale from 2,000 upward", () => {
+    it("gives an identical answer at any scale from MIN_CACHEABLE_FORCE upward", () => {
+        //20,000, not 2,000: the threshold moved when `PAIRING_CASUALTY_SHARE` went 0.10 -> 0.07
+        //at combat stage 3, because a smaller share means more rounds and so more chances for
+        //the integer floor to bite. This spec is what caught that, and it is why the constant
+        //in `takeProbability.js` carries a note saying it must be re-measured if that dial moves.
         const place = territory({ mountainDefenseBonus: 30 });
-        const answers = [2000, 20000, 200000, 2000000].map(
+        const answers = [20000, 200000, 2000000, 20000000].map(
             (defenders) => forecast(infantry(defenders * 1.5), infantry(defenders), place, 12345));
         expect(new Set(answers).size).toBe(1);
     });
@@ -128,10 +132,17 @@ describe("takeProbability -- the model really is scale-free above the floor", ()
         //The measurement that corrected the design: one air unit dies in the first round and
         //takes air superiority with it; a thousand does not. If this ever starts passing as an
         //equality, `EXACT_COUNT_BELOW` has become unnecessary and can be reconsidered.
+        //The probe matters and had to be re-chosen once at combat stage 3: with more dice in
+        //play, losing one air unit is a smaller share of the roll, so the setup this spec first
+        //used shrank from 42 points to 3. The effect itself did NOT go away -- re-measured over
+        //the guard's probe set, the worst gap at a smallest-count of 1 is still 41.0 points --
+        //and this is one of the setups that shows it. The armour modifier is what swings here:
+        //one assault unit against two dies in the first round and hands the defender a
+        //"no armour against armour" die bonus for the rest of the battle.
         const place = territory({ mountainDefenseBonus: 30 });
-        const tiny = forecast([300000, 1, 1, 1], [200000, 1, 0, 0], place, 77);
+        const tiny = forecast([400000, 1, 1, 0], [400000, 2, 0, 0], place, 77);
         const scaled = forecast(
-            [300000000, 1000, 1000, 1000], [200000000, 1000, 0, 0], place, 77);
+            [200000000, 500, 500, 0], [200000000, 1000, 0, 0], place, 77);
         expect(Math.abs(tiny - scaled)).toBeGreaterThan(10);
     });
 });
@@ -181,7 +192,7 @@ describe("takeProbability -- the cache", () => {
     });
 
     it("refuses to cache a battle small enough for the casualty floor to bite", () => {
-        takeProbability(infantry(150), infantry(100), territory(), NEUTRAL);
+        takeProbability(infantry(1500), infantry(1000), territory(), NEUTRAL);
         expect(takeProbabilityCacheStats()).toMatchObject({ uncacheable: 1, cells: 0 });
     });
 

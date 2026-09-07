@@ -415,14 +415,23 @@ correctly worked out that it cannot afford to fight, and stopped.**
 
 ## 6. Findings
 
+> **Status.** All four defects (**C1–C4**) are closed, in combat stages 1 and 2. Of the design
+> problems, **G3**, **G4** and **G5** are closed; **G1** and **G2** are addressed and measured
+> (stage 3); **G6** and **G7** are the outcome the whole phase is judged on and are recorded
+> against the target in §9 Q3. What was done, what it measured, and the two proposed fixes that
+> turned out not to work are in
+> [06-combat-and-conquest-checklist.md](./06-combat-and-conquest-checklist.md). **The findings
+> below are left as they were written**, because they are the analysis the stages were built on
+> and several of them explain why a constant has the value it has.
+
 ### C — defects (the code does not do what it says)
 
 | Id | Finding | Where |
 |---|---|---|
-| **C1** | **`winProbability()`'s contract is false.** Its docstring is *"The attacker's chance of taking the territory, as a percentage"*. It is not, and cannot be — it is a strength ratio computed from a defence multiplier the battle does not use, missing every dice rule that decides the outcome. Measured error against the real model: **+95 to −77 points, sign-flipping on fortification** (§4.1). Four consumers read it as a probability: the AI's odds floors, `sizeCommitment()`, the player's attack window, and the siege gate | [probability.js:83](../src/rules/military/probability.js#L83) |
-| **C2** | **`defenseMultiplierFor()` returns 0 where its comment promises 1.** `Math.ceil(0 / 15)` is 0, so a territory with no forts, no mountains and no land-locked bonus has its defending strength multiplied by zero and `winProbability()` reports 100% against any garrison. Latent on the shipped map — every territory has `mountainDefenseFactor >= 1` — but reachable from a scenario, a map edit, or any future territory seeded without terrain | [probability.js:65](../src/rules/military/probability.js#L65) |
-| **C3** | **The fortification dice bands are documented in forts and applied to mountains.** The comment explains 25 and 100 as *"one fort is a nuisance, two is a die, three is a fortress"*; the bands read `defenseBonus + mountainDefenseBonus`, and mountains alone put **192 of 359 territories (53.5%)** at or past the first band with zero forts built (§3.3). Either the bands or the comment is wrong, and until it is decided which, nobody tuning them knows what they are tuning | [balance.js:757](../src/config/balance.js#L757) |
-| **C4** | **A cancelled attack that was never fought is recorded as a defeat.** `decideCommitment()`'s `below-floor` branch calls `recordAttackOutcome(..., false, ...)`, which adds `SETBACK_ODDS_PENALTY` (12 points) to both floors for that target. Because the floors are in the wrong units (C1), this fires on most borders in the world: 168 pairings at turn 25 were already refused for *"lost here N time(s) already"*. The code deliberately distinguishes `no-force` (a fact about this turn, never remembered) from `below-floor` (a fact about the two armies) — the distinction is right; what is wrong is that `below-floor` is currently a fact about a miscalibrated constant | [aiCalculations.js:1081](../aiCalculations.js#L1081) |
+| **C1** | **`winProbability()`'s contract is false.** Its docstring is *"The attacker's chance of taking the territory, as a percentage"*. It is not, and cannot be — it is a strength ratio computed from a defence multiplier the battle does not use, missing every dice rule that decides the outcome. Measured error against the real model: **+95 to −77 points, sign-flipping on fortification** (§4.1). Four consumers read it as a probability: the AI's odds floors, `sizeCommitment()`, the player's attack window, and the siege gate | [probability.js:83](../../src/rules/military/probability.js#L83) |
+| **C2** | **`defenseMultiplierFor()` returns 0 where its comment promises 1.** `Math.ceil(0 / 15)` is 0, so a territory with no forts, no mountains and no land-locked bonus has its defending strength multiplied by zero and `winProbability()` reports 100% against any garrison. Latent on the shipped map — every territory has `mountainDefenseFactor >= 1` — but reachable from a scenario, a map edit, or any future territory seeded without terrain | [probability.js:65](../../src/rules/military/probability.js#L65) |
+| **C3** | **The fortification dice bands are documented in forts and applied to mountains.** The comment explains 25 and 100 as *"one fort is a nuisance, two is a die, three is a fortress"*; the bands read `defenseBonus + mountainDefenseBonus`, and mountains alone put **192 of 359 territories (53.5%)** at or past the first band with zero forts built (§3.3). Either the bands or the comment is wrong, and until it is decided which, nobody tuning them knows what they are tuning | [balance.js:757](../../src/config/balance.js#L757) |
+| **C4** | **A cancelled attack that was never fought is recorded as a defeat.** `decideCommitment()`'s `below-floor` branch calls `recordAttackOutcome(..., false, ...)`, which adds `SETBACK_ODDS_PENALTY` (12 points) to both floors for that target. Because the floors are in the wrong units (C1), this fires on most borders in the world: 168 pairings at turn 25 were already refused for *"lost here N time(s) already"*. The code deliberately distinguishes `no-force` (a fact about this turn, never remembered) from `below-floor` (a fact about the two armies) — the distinction is right; what is wrong is that `below-floor` is currently a fact about a miscalibrated constant | [aiCalculations.js:1081](../../aiCalculations.js#L1081) |
 
 **Not a defect, and deliberately not reopened:** `areaBonusFor()`'s `min`/`max` slip is
 known-issue **AR**, measured at B.2.6 and closed as a design decision. Its *consequence* — that
@@ -523,9 +532,14 @@ Stages 1 and 2 make the AI fight the battles it *should* fight. They do not chan
 those battles are decided before they are rolled. Leigh has chosen two of the four candidate
 levers:
 
-- **More dice bands.** `DICE_SHARE_BANDS` goes from five rows to roughly nine, so crossing an
-  edge buys about half a die rather than a whole one. Keeps everything §7 protects, including
-  "bands, not a curve".
+- **A wider dice range.** Re-cutting five bands at the same 1–5 dice cannot work: the gap between
+  the two sides grows by two every band-width, so only raising the BASE count at parity makes one
+  extra die matter less. Shipped as **2–6 dice, base 5 at parity**, with `PAIRING_CASUALTY_SHARE`
+  moved 0.10 → 0.09 to hold the battle at its original length. A wider 3–7 table measured better
+  on the cliff and was **reverted**: it made battles slower to WATCH, because each round costs a
+  capped dice throw plus a 7.2-second clash panel whatever the pairing count, and the e2e
+  `battle/` area timed out. That is the ceiling on this lever, and it is the dice stage rather
+  than the maths.
 - **Rebase the attacker's taxes.** `devIndex` × `combatContinentModifier` has a median product of
   0.63; both are rebased together so the median attacker fights at **×1.00**, keeping the spread.
   "A developed country fights better" survives; "everybody attacks at a disadvantage" does not.
@@ -609,6 +623,25 @@ game itself **decided in the 200–300 turn range** rather than won at 150. That
 target than the archived table in the largest-empire column and a weaker one than "a winner by
 turn 150", and it is chosen for what it does to a player's own game — a world that produces a
 winner by turn 150 is a race a player can lose by turn 60 without ever having had a game.
+
+**Where it actually got to, on the three goals measured so far** (combat stages 1–4):
+
+| | control | **delivered** | target |
+|---|---|---|---|
+| countries surviving | 104–126 | **80–87** | **50–80** |
+| largest empire | 36–52 of 359 | **62–70** | **90–120** |
+| continents held outright | **0 in every goal** | **1 in every goal** | at least one |
+| nearest continent | receding, 64% → 58% | **100%** | advancing |
+| conquest, late game | zero at three of six samples | non-zero throughout, peaking at 17 in a turn | non-zero throughout |
+| a goal completed by 150 | no | no | no, deliberately |
+
+**Countries surviving is essentially at target; the largest empire is not.** The world
+consolidates now and no single power runs away with it, which is a different failure from the one
+this phase started with and a much smaller one. The remaining distance is about whether a leader
+can keep COMPOUNDING, and the two candidates are **G7** — an empire that stops growing at 70
+territories while still solvent is either short of force or short of reasons — and the
+over-extension counterweight, which does not exist, so there has never been pressure against
+growth to balance against.
 
 **This target is what stages 3, 4 and 5 are measured against**, and it replaces the archived
 Goals and Victory §5 table as the acceptance band *for this phase only*. That table remains the

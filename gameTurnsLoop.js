@@ -49,8 +49,11 @@ import {
 } from './battle.js';
 import {
     getArrayOfLeadersAndCountries,
+    replaceLeaderForCountry,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
+import { isSuccessionTurn } from "./src/ai/succession.js";
+import { clearPlansFor } from "./src/ai/strategy.js";
 import {
     createTurnEngine
 } from "./src/engine/TurnEngine.js";
@@ -190,6 +193,9 @@ import {
 import {
     aiGameConsole
 } from './src/ui/components/AiGameConsole.js';
+import {
+    currentTakeOdds
+} from './transferAndAttack.js';
 
 installTestHooks({
     turn: () => currentTurn(),
@@ -307,6 +313,16 @@ installTestHooks({
             probability: getUpdatedProbability() ?? null
         };
     },
+    //What the SIEGE BUTTON is actually gated on, which since combat stage 1 is not the number
+    //the attack window's bar shows. The bar is `winProbability()` -- a ratio of two strengths --
+    //and the gate is `takeProbability()`, the chance of really taking the place. They are allowed
+    //to differ (CLAUDE.md), but a spec comparing the BAR against
+    //`PROBABILITY_THRESHOLD_FOR_SIEGE` is comparing two different quantities and will be wrong in
+    //both directions. Exposed so a spec can assert the rule the game enforces rather than a
+    //number that happens to sit near it. Since combat checklist item 1.9 the attack window's BAR
+    //shows this same quantity, so a spec can also assert that the two have not drifted apart --
+    //which is what `attack/attack-window.spec.js` does.
+    siegeGateOdds: () => currentTakeOdds(),
     diceFaces: () => facesShowing(),
     greyedOutCountries: () => [...greyedOutCountryNames()],
     gameOverEvents: () => gameOverLog.map(entry => ({ ...entry })),
@@ -678,10 +694,35 @@ async function handleAITurn() {
         let unrefinedTurnGoals = [];
         let refinedTurnGoals = [];
 
+        currentAiCountry = arrayOfLeadersAndCountries[i][0];
+
+        //A LEADER DIES AND THE COUNTRY THINKS AGAIN. This must run BEFORE the leader is read
+        //below, so the successor plans this turn rather than inheriting a turn planned by the
+        //dead one -- and before `planAiCampaign()`, which is why `clearPlansFor()` also drops
+        //any campaign already derived for this turn.
+        //
+        //See `src/ai/succession.js`. A country's character used to be drawn once and fixed for
+        //the whole game, so a stalemate between two comparable neighbours could never break:
+        //measured, the largest empire reached 71 territories at turn 50 and was still on 71 at
+        //turn 150 while the world's army tripled. Everyone gets richer together, so the ratio
+        //never moves. A leader with a different appetite for risk is one of the few things
+        //that can shift it.
+        if (isSuccessionTurn(currentAiCountry, currentTurn())) {
+            const successor = replaceLeaderForCountry(currentAiCountry);
+            if (successor) {
+                clearPlansFor(currentAiCountry);
+                //The array holds references to the territory objects, so the leader it reports
+                //is the new one already -- but say so, because a country changing its mind
+                //completely is otherwise the least explicable thing in the log.
+                console.log(currentAiCountry + " has a new leader: " + successor.name
+                    + " (" + successor.leaderType + ", risk "
+                    + successor.traits.risk_taking.toFixed(2) + ") -- plans wiped");
+            }
+        }
+
         const leader = arrayOfLeadersAndCountries[i][2][0].leader;
         const leaderTraits = arrayOfLeadersAndCountries[i][2][0].leader.traits;
 
-        currentAiCountry = arrayOfLeadersAndCountries[i][0];
         console.log("Now it is " + currentAiCountry + "'s turn!");
 
         beginAiGameCountry(currentAiCountry);

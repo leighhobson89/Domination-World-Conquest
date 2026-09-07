@@ -65,6 +65,23 @@ export function resetTheatres() {
     developWatch.clear();
 }
 
+/**
+ * Wipe ONE country's mid-term memory: its theatre, its walls and its development watch.
+ *
+ * A new leader inherits the country, not the last leader's conclusions. The walls in
+ * particular are judgements -- "Croatia is not worth attacking" -- reached by somebody who is
+ * no longer in charge, and keeping them would make a succession a change of personality with
+ * none of the change of mind that is the point of it. See `src/ai/succession.js`.
+ */
+export function clearTheatreMemoryFor(country) {
+    if (!country) {
+        return;
+    }
+    theatres.delete(country);
+    walls.delete(country);
+    developWatch.delete(country);
+}
+
 export function captureTheatres() {
     return {
         theatres: Object.fromEntries([...theatres].map(([country, theatre]) => [country, { ...theatre }])),

@@ -428,6 +428,12 @@ export const battle = {
     // They are different elements and only one of them is live at a time -- the attack
     // window's is left holding whatever it last showed once the window closes, which is why
     // reading it from inside a battle returned a stale 0.
+    //
+    // They are also different QUANTITIES, and since combat checklist item 1.9 the split is the
+    // other way round from how it used to be: the attack window's bar is `takeProbability()`,
+    // the real chance of taking the place, while the battle UI's strip is still
+    // `winProbability()` -- the live strength ratio, which is what picks each round's dice
+    // count. Never assert one against the other.
     attackWindowPercentage: sel.percentageAttack,
     percentage: sel.battleUIRow4Col1TextProbabilityTurnsSiege,
     probabilityBox: sel.probabilityColumnBox,

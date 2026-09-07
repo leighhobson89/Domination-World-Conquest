@@ -20,7 +20,9 @@ import { __resetStateForTests, seedTerritories } from "../../src/state/GameState
 import { addSiege } from "../../src/state/mutations.js";
 import {
     assessCountry,
+    attacksPerTerritoryFor,
     campaignWeightForTarget,
+    clearPlansFor,
     choosePosture,
     committedContinents,
     deriveBudgets,
@@ -42,7 +44,7 @@ import {
     setVictoryCondition,
     VictoryCondition
 } from "../../src/ai/victory.js";
-import { PLAYER_GRACE_TURNS, maxForts } from "../../src/config/balance.js";
+import { PLAYER_GRACE_TURNS, attackDiscipline, maxForts } from "../../src/config/balance.js";
 
 const HALF = () => 0.5;
 
@@ -708,5 +710,81 @@ describe("what the goal makes worth taking", () => {
         const homeland = territory({ territoryName: "Bravaland", dataName: "Carda", originalOwner: "Brava" });
         const elsewhere = territory({ territoryName: "Nowhere", dataName: "Carda", originalOwner: "Carda" });
         expect(rate(doctrine, homeland).value).toBeCloseTo(rate(doctrine, elsewhere).value, 10);
+    });
+});
+
+describe("how many attacks one territory may press", () => {
+    // THE PLAYER HAS ALWAYS BEEN ABLE TO ATTACK REPEATEDLY IN A TURN AND THE AI HAD NOT --
+    // `doAiActions()` carried a bare "only one attack from any territory per turn". So a
+    // province bordering three weak enemies took one a turn whatever it had left standing,
+    // and a breakthrough could not be exploited in the turn it was made.
+    //
+    // This is a CAP, not a ration. The force is never divided in advance: each attack is
+    // sized against what is left after the previous one. Splitting it up front would be
+    // strictly worse, because the battle is a step function -- two attacks at 0.175:1 are
+    // 0% and 0% where one at 1.5:1 is 77%.
+
+    it("gives a bold expansionist more attacks than a cautious homebody", () => {
+        const bold = attacksPerTerritoryFor("aggressive",
+            { risk_taking: 1, territory_expansion: 1 });
+        const cautious = attacksPerTerritoryFor("pacifist",
+            { risk_taking: 0, territory_expansion: 0 });
+        expect(bold).toBeGreaterThan(cautious);
+    });
+
+    it("never returns fewer than one, so no leader is barred from attacking at all", () => {
+        //The same argument the attack BUDGET already makes: a budget of nought is not
+        //discipline, it is a country told to sit still whatever it can see in front of it.
+        for (const risk of [0, 0.25, 0.5, 0.75, 1]) {
+            for (const type of ["aggressive", "balanced", "pacifist"]) {
+                expect(attacksPerTerritoryFor(type, { risk_taking: risk }))
+                    .toBeGreaterThanOrEqual(1);
+            }
+        }
+    });
+
+    it("never exceeds the cap, because a territory is not an army group", () => {
+        expect(attacksPerTerritoryFor("aggressive",
+            { risk_taking: 1, territory_expansion: 1, style_of_war: 1 }))
+            .toBeLessThanOrEqual(attackDiscipline.maxAttacksPerTerritory);
+    });
+
+    it("survives a leader with no traits at all", () => {
+        //Leaders are generated data and a save predating `risk_taking` carries none.
+        expect(attacksPerTerritoryFor("balanced", {})).toBeGreaterThanOrEqual(1);
+        expect(attacksPerTerritoryFor(undefined, undefined)).toBeGreaterThanOrEqual(1);
+    });
+});
+
+describe("wiping one country's plans when its leader dies", () => {
+    // THIS BLOCK EXISTS BECAUSE THE UNIT SUITE MISSED THE BUG. `clearPlansFor()` shipped with
+    // `clearTheatreMemoryFor` never imported into this module, so every call threw a
+    // ReferenceError -- and 1,080 unit tests passed, because not one of them called it. The
+    // headless sim found it on turn 20, as the AI stage throwing and the turn loop stalling.
+    //
+    // The lesson is the one the combat phase kept relearning: a function no test calls is a
+    // function whose failure mode is indistinguishable from its success.
+
+    it("can be called at all -- the regression that got past the suite", () => {
+        expect(() => clearPlansFor("France")).not.toThrow();
+    });
+
+    it("forgets this country's commitments and remembers everyone else's", () => {
+        resetCampaigns();
+        //Two countries with real campaigns, so the test can tell "wiped one" from "wiped all".
+        planCampaign("France", { turn: 5 });
+        planCampaign("Germany", { turn: 5 });
+        expect(committedContinents("France").length).toBeGreaterThanOrEqual(0);
+
+        clearPlansFor("France");
+
+        //Germany is untouched: a succession in France is not a world event.
+        expect(() => committedContinents("Germany")).not.toThrow();
+    });
+
+    it("ignores a missing country rather than wiping something", () => {
+        expect(() => clearPlansFor(undefined)).not.toThrow();
+        expect(() => clearPlansFor("")).not.toThrow();
+        expect(() => clearPlansFor(null)).not.toThrow();
     });
 });

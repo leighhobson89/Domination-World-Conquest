@@ -24,6 +24,7 @@ import {
 } from "../../src/rules/military/siege.js";
 import {
     ATTACK_ADVANTAGE,
+    SIEGE_ARREST_MARGIN,
     SIEGE_HIT_ITERATIONS,
     armyTypeSiegeValues,
     siegeHitChance
@@ -178,12 +179,23 @@ describe("collateralDamagePercent", () => {
         expect(collateralDamagePercent(150, constantRng(0.999))).toBe(25);
     });
 
-    it("returns 0 -- arrested -- below the lowest band on a high roll", () => {
-        expect(collateralDamagePercent(-1, constantRng(0.99))).toBe(0);
+    it("INVESTS rather than arresting just under the defences, whatever the roll", () => {
+        //Combat stage 4. "Cannot match the defences" and "is being destroyed" used to be the
+        //same state: any negative difference at all was the arrest band. A siege within
+        //`SIEGE_ARREST_MARGIN` now simply achieves nothing and survives -- an army sitting
+        //outside a town it cannot crack -- which is the state that makes a siege usable by an
+        //infantry army at all. See known-issue G5.
+        expect(collateralDamagePercent(-1, constantRng(0.99))).toBe(1);
+        expect(collateralDamagePercent(-1, constantRng(0.1))).toBe(1);
+        expect(collateralDamagePercent(-SIEGE_ARREST_MARGIN, constantRng(0.99))).toBe(1);
     });
 
-    it("returns 1 below the lowest band on a low roll: the siege scrapes by", () => {
-        expect(collateralDamagePercent(-1, constantRng(0.1))).toBe(1);
+    it("returns 0 -- arrested -- further under than the margin, on a high roll", () => {
+        expect(collateralDamagePercent(-SIEGE_ARREST_MARGIN - 1, constantRng(0.99))).toBe(0);
+    });
+
+    it("returns 1 past the margin on a low roll: the siege scrapes by", () => {
+        expect(collateralDamagePercent(-SIEGE_ARREST_MARGIN - 1, constantRng(0.1))).toBe(1);
     });
 });
 
@@ -251,7 +263,8 @@ describe("siegeDamageFor", () => {
     });
 
     it("reports an arrest when the collateral roll comes back zero", () => {
-        const damage = siegeDamageFor(territory(), -1, scriptedRng([0.99, 0.99]));
+        //Past `SIEGE_ARREST_MARGIN`, not merely negative -- combat stage 4.
+        const damage = siegeDamageFor(territory(), -SIEGE_ARREST_MARGIN - 50, scriptedRng([0.99, 0.99]));
         expect(damage.arrested).toBe(true);
         expect(damage.foodCapacityDestroyed).toBe(0);
     });
@@ -372,11 +385,12 @@ describe("tickSiege", () => {
     });
 
     it("ends the siege when the besieging force is arrested", () => {
-        //An arrest needs BOTH a hit and a negative score difference, which is a narrow
-        //window: past -500 the hit probability clamps to 0 and the siege can only ever miss.
-        //A difference of -100 leaves a 40% hit chance and puts the collateral roll in the
-        //arrest band. Ten hit rolls, then the collateral roll, then the destroy roll.
-        const siege = besieged({ defenseBonus: 300 });
+        //An arrest needs BOTH a hit and a score difference further under than
+        //`SIEGE_ARREST_MARGIN`, which is a narrow window: past -500 the hit probability clamps
+        //to 0 and the siege can only ever miss. 20 naval score 200, which `scoreDifferenceFor()`
+        //multiplies to 288, so a defence of 400 leaves -112 -- past the margin, with a 39% hit
+        //chance. Ten hit rolls, then the collateral roll, then the destroy roll.
+        const siege = besieged({ defenseBonus: 400 });
         const hitRolls = Array.from({ length: SIEGE_HIT_ITERATIONS }, () => 0);
         const result = tickSiege(siege, scriptedRng([...hitRolls, 0.99, 0.99]));
         expect(result.arrested).toBe(true);

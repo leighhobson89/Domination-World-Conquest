@@ -12,13 +12,20 @@
 // the player can see coming. "Forty thousand more infantry gets me a fourth die" is a decision.
 // A continuous curve is not.
 //
-// THE FORECAST IS THE HONEST NUMBER. The bar above this shows `winProbability()`, which is the
-// attacker's share of the two strengths -- a quantity that decides how many dice each side rolls
-// and is NOT the chance of taking the territory. `battleForecast()` answers the player's actual
-// question by playing the whole battle out five hundred times, on a stream of its own, seeded
-// from a stable hash of the setup so the figure does not flicker while the plus button is held.
-// Both are shown, and the wording says which is which, because a 59% bar over a 24% fight with
-// no explanation is worse than either number alone.
+// THE FORECAST IS THE HONEST NUMBER, AND SINCE ITEM 1.9 SO IS THE BAR. `battleForecast()`
+// answers the player's actual question by playing the whole battle out five hundred times, on a
+// stream of its own, seeded from a stable hash of the setup so the figure does not flicker while
+// the plus button is held. The bar above this used to show `winProbability()` instead -- the
+// attacker's share of the two strengths, which decides how many dice each side rolls and is NOT
+// the chance of taking the territory -- and the wording here had to say which was which, because
+// a 59% bar over a 24% fight with no explanation is worse than either number alone. The bar reads
+// the same take probability now, so this line no longer has to defend a discrepancy.
+//
+// IT IS NOT REDUNDANT WITH THE BAR. The bar is one number; this states the ROUNDS the fight will
+// run and the SURVIVORS if it is won, which is what turns "63%" into a decision about whether the
+// army is worth spending. And the dice itemisation above is now the ONLY place the player can see
+// a die coming -- that was the bar's job and the bar no longer does it, which is the stated cost
+// of 1.9.
 //
 // IT DRAWS NOTHING IT DID NOT COMPUTE FROM THE MODEL. `modifiersFor()` and `shareFor()` are the
 // same functions the battle resolves with, so the preview and the fight cannot disagree. There is

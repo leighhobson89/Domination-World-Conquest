@@ -6,6 +6,12 @@
 // economy - lower numbers will not care too much but higher numbers will focus on building the economy of each territory they own
 // style_of_war - lower numbers will favour sieges whereas higher numbers will favour pushing on even where probability is not so clear-cut of a win
 // reconquista - lower numbers will not care who previously owned a territory lost territories whereas higher numbers will focus on reconquering lost territories
+// risk_taking - how thin a border this leader will hold in order to attack. LOW keeps a heavy
+//               reserve against the strongest neighbour and can therefore rarely raise a
+//               force ratio worth attacking at; HIGH strips the border and takes the chance.
+//               It is the dial that decides whether a country can break a deadlock at all:
+//               measured, a territory holding the cautious reserve attacks at 0.35:1, which
+//               is a 0.0% chance of winning on flat ground with no forts.
 export const leaderPersonalities = {
 	"personalities": [{
 		"id": "aggressive",
@@ -28,6 +34,10 @@ export const leaderPersonalities = {
 		"reconquista": {
 			"min": 0.1,
 			"max": 0.4
+		},
+		"risk_taking": {
+			"min": 0.6,
+			"max": 1.0
 		}
 	},
 		{
@@ -51,6 +61,10 @@ export const leaderPersonalities = {
 			"reconquista": {
 				"min": 0.4,
 				"max": 0.6
+			},
+			"risk_taking": {
+				"min": 0.3,
+				"max": 0.7
 			}
 		},
 		{
@@ -74,6 +88,10 @@ export const leaderPersonalities = {
 			"reconquista": {
 				"min": 0.6,
 				"max": 1.0
+			},
+			"risk_taking": {
+				"min": 0.0,
+				"max": 0.4
 			}
 		}
 	]

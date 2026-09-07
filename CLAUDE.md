@@ -26,26 +26,27 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   same change that closes it** — never struck through and left, and never batched up for a
   tidy-up later. Ids are permanent and survive the move, because source comments cite them.
   This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-combat-and-conquest-audit.md](./docs/05-combat-and-conquest-audit.md) — **the current
-  phase.** Why a 150-turn AI-only game ends with 126 countries alive, the largest empire at 43 of
-  359, zero continents and no conquest at all after turn 50. Four independent causes, only one of
-  which is a balance number: a battle is a **step function** on force ratio (0% at 1.5:1, 94.6% at
-  3.5:1 against the same defender); **two multipliers scale the attacker down and none scales the
-  defender up** (median ×0.63, so 1.58× just to draw level); **53.5% of the map costs the attacker
-  a die before anybody builds anything**, from mountains, through bands whose comment describes
-  forts; and **the AI decides with a different function from the one that fights** — measured error
-  +95 to −77 points, sign-flipping on fortification. Split into defects (**C1–C4**) and design
-  (**G1–G7**). §7 is the list of what is RIGHT and must survive; read it before touching combat.
-  Its task breakdown is
-  [docs/06-combat-and-conquest-checklist.md](./docs/06-combat-and-conquest-checklist.md), and its
-  §9 carries **three decisions Leigh has already taken**, recorded so they are not relitigated:
-  the cliff is flattened with **more dice bands** (roughly nine, not five) and **not** by making
-  an unmatched die a contested roll; `devIndex` and `combatContinentModifier` are **rebased
-  together to a median of ×1.00**, keeping their spread, which is a change to two per-territory
-  multipliers and NOT a third attack dial; and the target is a world **consolidating at turn 150
-  and decided at 200–300** — 50–80 countries surviving, a largest empire of 90–120, continents
-  completing, and deliberately no winner by 150, because a world that produces one is a race a
-  player can lose by turn 60.
+- [docs/05-outstanding-improvements.md](./docs/05-outstanding-improvements.md) — **what to do
+  next, and why.** Not a phase plan and nothing in it is committed: it is the findings the Combat
+  and Conquest phase left, each with what was measured, what it points at, and what would settle
+  it. **The headline finding reframes the others**: every odds constant in the AI now means what
+  it says and none of them filters anything (`needs-more-force` cancellations 17 → **0**, attack
+  verdicts 187 → **382**), and what the executor says instead is *"the most this territory can
+  spare reaches only 0%"* in **56 of 61** sampled decisions. That is a fact about how much force a
+  border can raise, so the binding constraint has moved off combat entirely and onto
+  `src/ai/muster.js`, `src/ai/theatre.js` and the economy. It also carries the list of what must
+  survive any future change — the ten items from the combat audit's §7 plus one this phase added.
+- **Combat and Conquest is DELIVERED and ARCHIVED**
+  ([audit](./docs/archived/05-combat-and-conquest-audit.md),
+  [checklist](./docs/archived/06-combat-and-conquest-checklist.md)). Read the checklist's closing
+  section before touching combat. Three things in it are load-bearing. **Two of the three decisions
+  it records were carried out by a different mechanism from the one they name** — "more dice bands"
+  became a wider RANGE (five rows still, 2..6 dice instead of 1..5) because more rows cannot flatten
+  the cliff at all, and the devIndex/continent rebase was applied at `DICE_ATTACK_ADVANTAGE`
+  (1.0 → 1.54) rather than to the two tables, because `devIndex` also feeds the economy. **A wider
+  3..7 table was built, measured better on the cliff, and was reverted** for wall-clock reasons —
+  stage 5.2 holds both side by side, so going back is one balance edit. And **it did not reach its
+  target band**, which is why `05` above exists.
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
@@ -53,12 +54,15 @@ going stale in the sequence: the eight-phase
 [refactor plan](./docs/archived/03-refactor-plan.md), the
 [battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
 [Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist, and
-[Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist, and
-[the Economy](./docs/archived/05-economy-audit.md) and its checklist are there. They
+[Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist,
+[the Economy](./docs/archived/05-economy-audit.md) and its checklist, and
+[Combat and Conquest](./docs/archived/05-combat-and-conquest-audit.md) and its checklist are
+there. They
 record why the code is shaped as it is, but they do not describe outstanding work — where one
 contradicts a numbered document, the numbered document wins. **The numbers are reused when a
 plan is archived**, so `05` and `06` are the current phase and the archived pair keep the
-numbers they were written under.
+numbers they were written under. **There is no phase in flight right now**: `05` holds the
+findings the last one left and `06` is free for whichever of them is taken up next.
 
 One thing in the archived Goals and Victory is still live rather than historical: its §5 table
 of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
@@ -433,6 +437,54 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   bias ever lifted it above a convenient small neighbour, while one large enough to lift it
   would also lift a hopeless rival the goal never named. Walls still sort last, which is the
   escape that makes the top tier safe to have.
+- **THE ENTRY PRICE TO AN ATTACK IS AN ARMY MULTIPLE, AND IT IS WHY THE WORLD USED TO FREEZE.**
+  A border territory keeps `defenceKeepRatio` x the strongest enemy that can reach it and marches
+  out with `appetite` of the rest, so against a comparable neighbour it attacked at **0.35:1** --
+  and 0.35:1 is a **0.0% chance of taking the territory on FLAT GROUND WITH NO FORTS**. Inverted,
+  `army needed = E x (ratio / appetite + keep)`: **2.36x** the neighbour's army on flat ground and
+  **3.36x** on mountain, to attack at 65%. Between neighbours with similar economies that never
+  happens, which is the whole of the executor's *"the most this territory can spare reaches only
+  0%"* on 56 of 61 sampled decisions. **It was never the terrain** -- weakening mountains does not
+  move a number that is already zero, and that theory was tested and rejected by measurement.
+  Three things now lower it, and none of them is a combat dial. **`risk_taking` is a leader trait**
+  (aggressive 0.6-1.0, balanced 0.3-0.7, pacifist 0.0-0.4) that moves the keep-back either way
+  around `defenceKeepRatio` through `riskKeepSwing`, so the world contains leaders who can break a
+  deadlock and leaders who cannot -- which is the point, and is why it is a trait rather than a
+  lower constant for everybody. `minimumHomeShare` (0.1) stops any combination of traits emptying
+  a province, because a border held by nobody is a territory given away. And **the keep EXCLUDES
+  the attack's target**: it is a MAXIMUM over reachable enemies, so before that exclusion one
+  powerful neighbour sized the garrison on every border a country had and froze it against
+  everybody, including neighbours a fraction of its strength.
+- **A TERRITORY MAY ATTACK MORE THAN ONCE A TURN, AND THE FORCE IS NEVER SPLIT IN ADVANCE.**
+  `doAiActions()` carried a bare `//only one attack from any territory per turn` -- a rule the
+  PLAYER has never been subject to -- so a province bordering three weak enemies took one of them
+  a turn however much army it had left, and a breakthrough could not be exploited in the turn it
+  was made. `attacksPerTerritoryFor()` gives 1..3 from `risk_taking` and `territory_expansion`.
+  **It is a CAP, not a ration**: each attack is sized against what is left AFTER the previous one,
+  because `mainArrayFriendlyTerritoryCopy` is the goal's working set and `doAttack()` debits it,
+  so the ODDS FLOOR is what stops the second and third. Never divide the garrison up front -- the
+  battle is a step function, so two attacks at 0.175:1 are 0% and 0% where one at 1.5:1 is 77%.
+  Two knock-ons. `attackLaunchedToArray` was **written and never read** until this landed; the
+  one-attack rule had made a repeat impossible, and lifting it makes that array load-bearing,
+  because a won attack hands you the territory and a second attack on it would hit your own
+  province. And `attackDiscipline.basePerTurn` went 1 -> 2, because **85% of the countries on this
+  map hold exactly one territory** (176 of 207) so `territoriesPerExtraAttack` never fires for
+  them -- at 1 the per-territory cap would have been dead for the great majority of the world.
+- **LEADERS DIE, AND THE SCHEDULE IS DERIVED RATHER THAN STORED** (`src/ai/succession.js`). A
+  country's character used to be drawn once and fixed for the whole game, so a stalemate between
+  two comparable neighbours could never break: **everyone gets richer together, so the ratio
+  between them never moves.** Measured with the entry price already lowered, the largest empire
+  reached 71 territories at turn 50 and was still on 71 at turn 150 while the world's army tripled
+  from 67M to 192M and its gold multiplied by five. Every 30-40 turns a leader is replaced, a
+  fresh personality is drawn, and `clearPlansFor()` wipes that country's commitments, setbacks,
+  posture, theatre and **walls** -- a wall is a judgement reached by somebody no longer in charge,
+  and keeping it would give a country a new personality with none of the change of mind that is
+  the point. The term comes from an **FNV-1a hash of the country name**, not a tenure clock: that
+  costs no `Math.random` draw (which would move every seeded outcome in the game, once per country
+  per succession), needs no save slice, survives save/load for free, and staggers 207 successions
+  instead of pulsing them. The player is never succeeded (`leaderType === "human"`). **It must run
+  before the leader is read and before `planAiCampaign()`**, which is why `clearPlansFor()` also
+  drops any campaign already derived for this turn.
 - **THE PLAYER HAS AN OPENING GRACE PERIOD, and it lives in `rateTarget()`.**
   `PLAYER_GRACE_TURNS` (5) is the number of turns before the AI will OPEN an attack or a siege
   against the player. It exists because 206 countries plan their first turn with full
@@ -646,7 +698,8 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   measurement of the game measure one of two systems at a time.
 - **There are TWO attack dials and that is PERMANENT** (settled at B.10.4, one of two
   decisions Leigh took). `ATTACK_ADVANTAGE` (1.44) owns sieges through `scoreDifferenceFor()`
-  and the pre-battle odds figure; `DICE_ATTACK_ADVANTAGE` (1.0) owns open battle. They are not
+  and the pre-battle odds figure; `DICE_ATTACK_ADVANTAGE` (**1.54** since combat stage 3, where it
+  carried the median-attacker rebase — see below) owns open battle. They are not
   two settings of one thing: a dial multiplying a CONTINUOUS share moves the outcome smoothly,
   and one multiplying a BANDED share moves it in whole dice — and a whole extra die is an
   *unmatched* die, which is an automatic hit every round. At 1.44 a raw-even fight came out four
@@ -655,36 +708,90 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   44% off every siege band with no measurement behind it. **If open battle needs to be easier or
   harder, `DICE_ATTACK_ADVANTAGE` is the number; if sieges do, `ATTACK_ADVANTAGE` is.** A third
   dial is not allowed, and neither may reach into the other's model.
-- **THE AI DECIDES WITH A DIFFERENT FUNCTION FROM THE ONE THAT FIGHTS, and it is the largest
-  thing wrong with the game today** (combat audit **C1**). `winProbability()` in
-  `probability.js` is what every AI odds floor, `sizeCommitment()`, the siege gate and the attack
-  window's bar read. It is not a probability: it is a strength ratio over
-  `defenseMultiplierFor()`, which the dice model does not use, and it knows nothing about dice,
-  bands, ties or unmatched hits. Measured over the real map its error runs **+95 to −77
-  percentage points and CHANGES SIGN on fortification** — it over-rates an attack on unfortified
-  mountain and under-rates one on a fortress, so no constant can tune it out. Two numbers make
-  that concrete. `commitmentDiscipline.decisiveOdds` is 65, which means **raw 3.91:1**, so on one
-  measured turn **43 of 48 planned attacks were cancelled at the executor** — one at 63%, for
-  being "2 points short" of a figure that means near-certainty. And
-  `attackDiscipline.minimumOdds` of 25 / 34 / 45 are real take probabilities of **0.1% / 3.5% /
-  37.1%**, so the same miscalibration refuses fights the AI would win and permits fights it
-  cannot. `node tools/combat-lab.mjs calibration` and `floors` are the measurements; **B.5's
-  "the swap was balance-neutral" was this finding seen from the other side** — the AI only
-  attacks where the two models agree, which is where it is already overwhelming.
-- **A BATTLE IS A STEP FUNCTION, and half the map takes a die off the attacker before anybody
-  builds anything** (combat audit **G1**, **G2**, **C3**). Against one median defender the real
-  take probability is **0.0% at 1.5:1, 50.7% at 3.0:1 and 94.6% at 3.5:1** — half a rung of force
-  crosses a band edge, buys an unmatched die, and an unmatched die is a free casualty every round
-  for the rest of the battle. Bands are RIGHT and the reason is in `balance.js`; five of them plus
-  the automatic-hit rule is too coarse a lattice. Three things compound it. `devIndex` (median
-  0.745) and `combatContinentModifier` (0.75–0.99) scale the ATTACKER and there is no matching
-  defender term at all — `areaBonusFor()` is min 0.507 / median 1.000 / max 1.000 over the real
-  map, so it only ever penalises a large defender — which puts the median attacker at **×0.63 and
-  1.58× just to draw level**. And `DIE_MODIFIERS.fortification` is documented in terms of FORTS
-  ("one is a nuisance, two is a die") but reads `defenseBonus + mountainDefenseBonus`, so
-  mountains alone put **192 of 359 territories past the first band with zero forts built**.
-  Meanwhile five forts move the force needed from 3.5:1 to 4:1 in the model that fights and
-  multiply the defence by **seventeen** in the one the AI decides on.
+- **THE AI DECIDES ON `takeProbability()`, WHICH PLAYS THE REAL BATTLE — NEVER ON
+  `winProbability()` AGAIN.** `src/rules/military/takeProbability.js` (combat stage 1, closing
+  known-issue C1) memoises `battleForecast()`, so the number every odds floor, the commitment
+  sizing and both siege gates read is produced by the model that will fight. It is **not an
+  approximation and must never become one** — that is the same rule that deleted `doAttack()`'s
+  separate resolver. What it replaced: `winProbability()` is a ratio of two strengths over
+  `defenseMultiplierFor()`, a multiplier the dice model does not use, and its error against the
+  real outcome ran **+95 to −77 points and CHANGED SIGN on fortification** — over-rating an attack
+  on unfortified mountain and under-rating one on a fortress, so no constant could tune it out.
+  It is now **2.2 points**. Three things follow. **The cache key is (share bucket, fortification
+  dice change, both face modifiers, and the exact counts of any unit type below 10)**, and that
+  last term is not optional: the battle is scale-free above `MIN_CACHEABLE_FORCE`, but a side
+  holding ONE air unit loses it to the integer casualty floor in round one and its air
+  superiority with it, which measured **41.6 points** apart from the same army at a thousand
+  times the scale. **`MIN_CACHEABLE_FORCE` must be re-measured whenever `PAIRING_CASUALTY_SHARE`
+  moves** — it went 2,000 → 20,000 when that dial went 0.10 → 0.07, because a smaller share means
+  more rounds and so more chances for the floor to bite. And **the player's attack window BAR is
+  still `winProbability()`**, deliberately: the Siege button's gate was moved to the real odds so
+  `PROBABILITY_THRESHOLD_FOR_SIEGE` means one thing everywhere, but what the player is SHOWN is
+  an open question (checklist 1.9), not an oversight.
+- **AN ODDS CONSTANT IN THIS GAME IS A REAL TAKE PROBABILITY, AND IT DID NOT USED TO BE.**
+  `node tools/combat-lab.mjs floors` prints what each one means and what it USED to mean, and the
+  second table is worth reading once: `decisiveOdds` of 65 meant a raw **3.91:1 and a 94.1%
+  chance**, so an attack was sized to a target it could not reach on most borders, cancelled as
+  `needs-more-force`, and the country filed a requisition instead — **43 of 48 planned attacks
+  cancelled on one measured turn, one of them refused at 63% for being "2 points short"**. The
+  same 65 now means 65%, needing 2.21:1, and those cancellations went to zero. Most of the
+  constants did not move; their CURRENCY did. Two that did move, both on evidence:
+  `PROBABILITY_THRESHOLD_FOR_SIEGE` 15 → 8 and `siegeDiscipline.minimumOdds` 22 → 12, because 84%
+  of all weighed pairings were dying at a gate that sits ABOVE the siege decision — and a siege
+  is the answer to a target that cannot be stormed.
+- **THE MEDIAN ATTACKER FIGHTS AT PARITY, AND `DICE_ATTACK_ADVANTAGE` IS 1.54 TO MAKE IT SO.**
+  `devIndex` (median 0.745) and `combatContinentModifier` (0.75–0.99) scale the ATTACKER and
+  there is no matching defender term — `areaBonusFor()` is min 0.507 / median 1.000 / max 1.000
+  over the real map, so it only ever penalises a large defender. Their product over all 1,888
+  real adjacent enemy pairings has a median of **0.648**, so before combat stage 3 every attacker
+  in the world fought at ×0.63 and needed 1.58× just to draw level. The dial is the REBASE Leigh
+  chose — arithmetically identical to rebasing the two tables, since a global multiplier preserves
+  every relative difference, but applied here because `devIndex` also feeds `defenseBonusFor()`,
+  the upgrade price ladder and the construction-materials ceiling, and a combat decision must not
+  leak into the economy. **This reverses the note that used to say 1.44 gave an 88.3% attacker win
+  on an even fight**, and the reason is that the measurement was taken in `battle-lab`'s neutral
+  context — devIndex 1, continent 1 — which describes no country on the map. The best real
+  attacker is 0.95. Both `battle-lab.mjs` and `rules-forecast.spec.js` use the median real
+  attacker now, and `node tools/combat-lab.mjs terrain` is the check that 1.54 is still right if
+  either table is ever edited. **There is still no third dial**: `ATTACK_ADVANTAGE` stays 1.44 and
+  owns sieges.
+- **ROUND COUNT IS WHAT A PLAYER WAITS FOR, AND IT IS WHAT CAPS THE DICE BANDS.** Each round of a
+  battle costs a dice throw capped at `MAX_ROLL_MS` (2,200 ms) plus a clash panel that lingers
+  `LINGER_MS` (7,200 ms), and **both are paid once per ROUND whatever the pairing count** — so a
+  battle of six short rounds is slower to watch than one of five long ones. `PAIRING_CASUALTY_SHARE`
+  is therefore set against ROUNDS and not against attrition, and it has to move whenever the bands
+  do: widening the range adds pairings per round and shortens the battle, narrowing it does the
+  reverse. Combat stage 3 shipped a 3–7 dice table first, measured the best cliff of any candidate,
+  and **reverted it** — the `battle/` e2e area started timing out, and that was not brittle specs,
+  it was a battle genuinely taking longer to play out. The shipped table is 2–6 dice at 0.09, which
+  puts battles back at 4–6 rounds, exactly where they were before the phase. **If the bands are
+  ever changed again, re-measure the ROUND COUNT and expect the e2e `battle/` area to be the thing
+  that catches you.**
+- **MORE DICE BANDS CANNOT FLATTEN THE CLIFF; A HIGHER BASE COUNT CAN.** The gap between the two
+  sides' dice is `f(share) − f(1 − share)`, so it grows by TWO every band-width — re-cutting edges
+  at the same 1..5 range moves where the gap appears and cannot make one extra die matter less,
+  and an extra die is an UNMATCHED die, a free hit every round. The bands are **2..6 dice with a
+  base of 5 at parity** now, so a one-die gap is one in five rather than one in four -- a wider
+  3..7 table measured better on the cliff and was reverted for the wall-clock reason above. Two things
+  are coupled to that and were both found by tests. **`PAIRING_CASUALTY_SHARE` is 0.09, not 0.10**
+  — the band change alters pairings per round and therefore battle length, and that constant's own
+  comment says it and the band edges are jointly what set it. And **the DICE STAGE is the ceiling on any further widening**: every die
+  from both sides lands on one tray, so the table's maximum sets the count at 6 + 5 = 11, up from
+  5 + 4 = 9. The spawn geometry takes it, but `MAX_ROLL_MS` is 2,200 ms and more dice settle more
+  slowly — `tests/e2e/battle/dice-stage.spec.js` is the check, and a further widening should not
+  be attempted without it.
+- **A SIEGE CAN NOW INVEST WITHOUT BEING DESTROYED, AND THAT IS WHAT MADE SIEGES POSSIBLE AT ALL.**
+  `SIEGE_ARREST_MARGIN` (50) splits two states the model used to treat as one: "cannot match the
+  defences" and "is being destroyed". Any negative score difference was the arrest band — 60% a
+  turn of losing the army with half of it joining the defender. Two correct decisions made that
+  fatal: infantry is priced at a ten-thousandth of a siege point (*"a siege is broken by artillery
+  and blockade, not by numbers"*) and `muster.js` moves infantry ONLY (vehicles are gated by the
+  oil of wherever they stand). So an infantry besieger scored ~10 against a bare mountain's 30 and
+  lived under two turns — traced, sieges were being laid all over Europe while the world held 0 or
+  1 standing. **Repricing infantry is NOT the fix and was tried**:
+  `tests/unit/balance-unit-economics.spec.js` pins vehicles at 5–6× better per gold in a siege,
+  0.0004 drops that to 1.5, and the invariant caps the value at 0.00012 — which is nowhere near
+  enough to leave the band. Do not propose it again.
 - **Known-issue AR is closed as a DESIGN DECISION, not a bug** (B.10.4, Leigh's call).
   `areaBonusFor()`'s `min`/`max` slip is real but is not a one-character fix: the ratio is
   unbounded as area approaches zero, so the naive correction gives the smallest territory on the

@@ -42,7 +42,15 @@ export class BattlePage {
         return Number(text.replace(/[^0-9.-]/g, ""));
     }
 
-    /** The attack window's probability bar, before INVADE! is pressed. */
+    /**
+     * The attack window's probability bar, before INVADE! is pressed.
+     *
+     * Since combat checklist item 1.9 this is `takeProbability()` -- the chance of actually
+     * taking the territory, the same quantity `siegeGateOdds()` returns and the AI decides on.
+     * It is NOT `probability()` above, which is the battle UI's live strength ratio. Two specs
+     * in `attack/` used to read that one while the attack window was open, where it is empty:
+     * `Number("")` is 0, and every assertion on it passed against a number nobody had written.
+     */
     async attackProbability() {
         const text = await this.attackWindowPercentage.innerText();
         return Number(text.replace(/[^0-9.-]/g, ""));

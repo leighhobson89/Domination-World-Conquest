@@ -470,6 +470,19 @@ export class GameDriver {
     }
 
     /**
+     * What the Siege button is actually gated on.
+     *
+     * NOT the attack window's probability bar. Since combat stage 1 the two are different
+     * quantities -- the bar is `winProbability()`, a ratio of two strengths, and the gate is
+     * `takeProbability()`, the chance of really taking the territory. A spec that compares the
+     * BAR against `PROBABILITY_THRESHOLD_FOR_SIEGE` is comparing two different things and will
+     * be wrong in both directions.
+     */
+    async siegeGateOdds() {
+        return this.page.evaluate(() => window.__game.siegeGateOdds());
+    }
+
+    /**
      * Put the world into a named state that clicking cannot reach -- a rout, an
      * all-naval defender, two concurrent sieges. Scenarios live in
      * `tests/support/scenarios/*.json` and are applied through `state/mutations.js`,

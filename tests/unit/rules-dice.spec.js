@@ -33,10 +33,16 @@ function scriptedRng(draws) {
     };
 }
 
+//Derived from the table rather than written out, so that a band change re-baselines these on
+//its own. Combat stage 3 widened the range from 1..5 dice to 3..7 and these five specs all had
+//to be edited by hand, which is the sort of thing a test should not need.
+const TOP_BAND = DICE_SHARE_BANDS[0];
+const BOTTOM_BAND = DICE_SHARE_BANDS[DICE_SHARE_BANDS.length - 1];
+
 describe("diceCountFor", () => {
-    it("gives the maximum at the top band and one at the bottom", () => {
-        expect(diceCountFor(1)).toBe(5);
-        expect(diceCountFor(0)).toBe(1);
+    it("gives the maximum at the top band and the minimum at the bottom", () => {
+        expect(diceCountFor(1)).toBe(TOP_BAND.dice);
+        expect(diceCountFor(0)).toBe(BOTTOM_BAND.dice);
     });
 
     it("is exact at every band edge -- the edge belongs to the higher band", () => {
@@ -48,14 +54,14 @@ describe("diceCountFor", () => {
     });
 
     it("drops a die just below an edge", () => {
-        expect(diceCountFor(0.7)).toBe(5);
-        expect(diceCountFor(0.6999)).toBe(4);
-        expect(diceCountFor(0.5)).toBe(4);
-        expect(diceCountFor(0.4999)).toBe(3);
-        expect(diceCountFor(0.35)).toBe(3);
-        expect(diceCountFor(0.3499)).toBe(2);
-        expect(diceCountFor(0.2)).toBe(2);
-        expect(diceCountFor(0.1999)).toBe(1);
+        //Walked from the table: at every edge the share belongs to the higher band, and a
+        //hair below it belongs to the next one down.
+        for (let index = 0; index < DICE_SHARE_BANDS.length - 1; index++) {
+            const band = DICE_SHARE_BANDS[index];
+            const below = DICE_SHARE_BANDS[index + 1];
+            expect(diceCountFor(band.minimumShare)).toBe(band.dice);
+            expect(diceCountFor(band.minimumShare - 0.0001)).toBe(below.dice);
+        }
     });
 
     it("never returns zero, so the underdog always keeps a die", () => {
@@ -64,23 +70,36 @@ describe("diceCountFor", () => {
         }
     });
 
+    it("is monotonic in the share, so more force never means fewer dice", () => {
+        //Not true by construction -- the table is hand-written -- and an inversion would make
+        //`sizeCommitment()`'s ladder walk stop at the wrong rung.
+        let previous = 0;
+        for (let share = 0; share <= 1; share += 0.01) {
+            const dice = diceCountFor(share);
+            expect(dice).toBeGreaterThanOrEqual(previous);
+            previous = dice;
+        }
+    });
+
     it("clamps a share outside 0..1 rather than producing NaN", () => {
-        expect(diceCountFor(-3)).toBe(1);
-        expect(diceCountFor(17)).toBe(5);
-        expect(diceCountFor(Number.NaN)).toBe(1);
-        expect(diceCountFor(undefined)).toBe(1);
+        expect(diceCountFor(-3)).toBe(BOTTOM_BAND.dice);
+        expect(diceCountFor(17)).toBe(TOP_BAND.dice);
+        expect(diceCountFor(Number.NaN)).toBe(BOTTOM_BAND.dice);
+        expect(diceCountFor(undefined)).toBe(BOTTOM_BAND.dice);
     });
 });
 
 describe("defenderDiceCountFor", () => {
     it("caps the defender below the attacker's maximum", () => {
         expect(defenderDiceCountFor(1)).toBe(DEFENDER_DICE_CAP);
-        expect(DEFENDER_DICE_CAP).toBeLessThan(5);
+        expect(DEFENDER_DICE_CAP).toBeLessThan(TOP_BAND.dice);
     });
 
-    it("does nothing at even strength -- both sides roll four", () => {
-        expect(diceCountFor(0.5)).toBe(4);
-        expect(defenderDiceCountFor(0.5)).toBe(4);
+    it("does nothing at even strength -- both sides roll the same", () => {
+        //The cap bites only where the DEFENDER is the stronger side. At parity both sit in the
+        //same band, which is what makes ties -- and therefore the defender's advantage -- the
+        //thing that decides an even fight.
+        expect(defenderDiceCountFor(0.5)).toBe(diceCountFor(0.5));
     });
 });
 

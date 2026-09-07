@@ -51,11 +51,18 @@ test.describe("the attack window", () => {
         expect(await game.moveButton.variant()).toBe("attack");
     });
 
-    test("shows a win probability once units are allocated", async ({ startedGame: game }) => {
+    // THESE THREE READ `attackProbability()`, NOT `probability()`. They used to read the latter,
+    // which is the BATTLE UI's element -- empty while the attack window is open, so the text was
+    // "", `Number("")` was 0, and every assertion below passed against a number no one had
+    // written. "Is it finite, 0..100" and "did it not go down" are both true of a constant zero.
+    // Found while closing checklist item 1.9, and it is the same shape as the siege-gate spec
+    // that item's evidence came from: a spec passing by luck over a quantity it never read.
+
+    test("shows a take probability once units are allocated", async ({ startedGame: game }) => {
         await openAttackFrom(game, "Germany");
         await game.transferAttack.plus("Germany", "infantry");
 
-        const probability = await game.battle.probability();
+        const probability = await game.battle.attackProbability();
         expect(Number.isFinite(probability)).toBe(true);
         expect(probability).toBeGreaterThanOrEqual(0);
         expect(probability).toBeLessThanOrEqual(100);
@@ -65,13 +72,44 @@ test.describe("the attack window", () => {
         await openAttackFrom(game, "Germany");
 
         await game.transferAttack.plus("Germany", "infantry");
-        const first = await game.battle.probability();
+        const first = await game.battle.attackProbability();
 
         await game.transferAttack.cycleMultiplier("Germany", "infantry", 3); // x1k
         await game.transferAttack.plus("Germany", "infantry", 3);
-        const second = await game.battle.probability();
+        const second = await game.battle.attackProbability();
 
         expect(second).toBeGreaterThanOrEqual(first);
+    });
+
+    test("shows the same quantity the Siege gate is judged on", async ({ startedGame: game }) => {
+        // Combat checklist item 1.9, Leigh's call. The bar used to be `winProbability()` -- the
+        // attacker's share of the two strengths, which is what picks the DICE COUNT and is not
+        // the chance of taking the place. The AI, the Siege button's gate and the preview's
+        // forecast line all read `takeProbability()`, and leaving the bar on the other one is
+        // the drift this phase exists to end: the first thing that happened while the two were
+        // different was a spec comparing the bar against a threshold that no longer read it.
+        //
+        // `siegeGateOdds()` is the gate's OWN input, so this asserts the bar and the gate are
+        // one number rather than asserting either against a recomputed estimate.
+        //
+        // THE WHOLE GARRISON, not one infantryman, and on a scenario that makes the fight even.
+        // With a single unit committed both quantities are zero and the assertion holds however
+        // the bar is wired -- which is exactly the trap the two specs above fell into. At even
+        // strength they are about ten points apart, so this fails if the bar reverts.
+        await game.loadScenario("evenly-matched");
+        await game.openAttackWindow({ from: "Germany", to: "France" });
+        //NAVAL, because that is what the scenario stocks both sides with -- it is two matched
+        //fleets and zero of everything else.
+        await game.transferAttack.plus("Germany", "naval", 1);
+
+        const shown = await game.battle.attackProbability();
+        const gate = await game.siegeGateOdds();
+        expect(shown, "the bar should not be sitting at zero -- nothing would be asserted")
+            .toBeGreaterThan(0);
+
+        //The bar is `Math.ceil`ed to a whole percent, so it is the gate rounded up, never a
+        //different quantity. One point of tolerance covers the rounding and nothing else.
+        expect(Math.abs(shown - Math.ceil(gate))).toBeLessThanOrEqual(1);
     });
 
     test("cancelling returns every unit and closes the window", async ({ startedGame: game }) => {

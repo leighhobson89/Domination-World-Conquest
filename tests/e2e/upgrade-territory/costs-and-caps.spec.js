@@ -79,7 +79,21 @@ test.describe("upgrade costs", () => {
         // territory pays MORE for the same building. (The e2e plan's prose says
         // "less"; the shipped formula says more, and the code is the reference
         // until Phase 5.1 settles the design question.)
-        expect(quoted.gold).toBe(cost(baseGold.fort, 1, germany.devIndex));
+        //
+        // `nth` is read from the territory rather than assumed to be 1, and that is not
+        // defensive coding -- it is working around a real defect found by this spec during the
+        // combat phase. `addRandomFortsToAllNonPlayerTerritories()` gives every territory 0-3
+        // forts and skips the player's by testing `playerOwnedTerritories`, which is populated
+        // by `getPlayerTerritories()` -- and that does not run until the first turn's resource
+        // pass, AFTER `worldSetup?.()` has already dealt the forts. So the array is empty at the
+        // moment it is read and THE PLAYER'S OWN TERRITORIES ARE FORTED TOO. Germany starts with
+        // however many the seeded stream hands it, so a spec that assumed nth = 1 passed or
+        // failed on the position of that stream and nothing else. See the register.
+        //
+        // What this spec is FOR is the quote formula -- "the window quotes and then charges the
+        // same number" -- so it asks for the price of the fort that is actually next.
+        const nth = germany.fortsBuilt + 1;
+        expect(quoted.gold).toBe(cost(baseGold.fort, nth, germany.devIndex));
         expect(germany.devIndex).toBeGreaterThan(0);
     });
 

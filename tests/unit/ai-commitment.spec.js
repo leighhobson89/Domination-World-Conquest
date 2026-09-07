@@ -24,6 +24,7 @@ const traits = (overrides = {}) => ({
     territory_expansion: 0.5,
     style_of_war: 0.5,
     reconquista: 0.5,
+    risk_taking: 0.5,
     ...overrides
 });
 
@@ -75,6 +76,53 @@ describe("what a territory can spare", () => {
         });
         expect(spare).toBeGreaterThan(0);
         expect(spare).toBeLessThanOrEqual(800);
+    });
+});
+
+describe("risk-taking and what it costs to hold a border", () => {
+    // WHY THIS TRAIT EXISTS, measured before it was added. A border territory kept
+    // `defenceKeepRatio` x the strongest enemy that could reach it and marched out with
+    // `appetite` of the rest, which against a comparable neighbour is a 0.35:1 attack -- and
+    // 0.35:1 is a 0.0% chance of taking the territory on FLAT GROUND WITH NO FORTS, never
+    // mind a mountain. Inverted: a country had to field 2.36x its neighbour's army (flat) or
+    // 3.36x (mountain) before it could attack at all, which between neighbours with similar
+    // economies simply never happens. That is the "0% forever" the whole world was stuck in.
+    //
+    // The trait is the dial that lets a leader BUY movement with risk, rather than every
+    // leader in the world holding the same cautious reserve.
+
+    it("keeps less back the higher the leader's appetite for risk", () => {
+        const input = { army: 10000, localEnemyPower: 10000, leaderType: "balanced" };
+        const cautious = disposableForce({ ...input, traits: traits({ risk_taking: 0 }) });
+        const reckless = disposableForce({ ...input, traits: traits({ risk_taking: 1 }) });
+        expect(reckless).toBeGreaterThan(cautious);
+    });
+
+    it("never lets a risk-taker empty the territory completely", () => {
+        //A border held by nobody is a territory given away, whatever the leader's character.
+        const spare = disposableForce({
+            army: 10000, localEnemyPower: 10000, leaderType: "aggressive",
+            traits: traits({ risk_taking: 1, style_of_war: 1, territory_expansion: 1 })
+        });
+        expect(spare).toBeLessThan(10000);
+    });
+
+    it("lets a bold leader reach a ratio a cautious one cannot", () => {
+        //The point of the trait, stated as the thing it is FOR: against an even neighbour a
+        //cautious leader cannot reach 1:1 and so cannot reach any real chance at all, and a
+        //bold one can get close enough for the odds to be worth asking about.
+        const input = { army: 10000, localEnemyPower: 10000, leaderType: "aggressive" };
+        const bold = disposableForce({ ...input, traits: traits({ risk_taking: 1 }) });
+        expect(bold / 10000).toBeGreaterThan(0.6);
+    });
+
+    it("treats a missing risk trait as the middle of the range", () => {
+        //Leaders are generated data and a save taken before this trait existed has none.
+        const withoutTrait = { fortification: 0.5, territory_expansion: 0.5,
+            style_of_war: 0.5, reconquista: 0.5 };
+        const input = { army: 10000, localEnemyPower: 10000, leaderType: "balanced" };
+        expect(disposableForce({ ...input, traits: withoutTrait }))
+            .toBe(disposableForce({ ...input, traits: traits({ risk_taking: 0.5 }) }));
     });
 });
 

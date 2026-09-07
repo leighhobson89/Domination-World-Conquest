@@ -64,6 +64,11 @@ function createLeaderObject(leaderId, player) {
             ),
             style_of_war: getRandomTraitValueForLeader("style_of_war", leaderId),
             reconquista: getRandomTraitValueForLeader("reconquista", leaderId),
+            //How thin a border this leader will hold in order to attack. See the note in
+            //`leaderPersonalities.js`: it is the trait that decides whether a country can
+            //raise a force ratio worth attacking at, and every reader of it defaults to 0.5
+            //so that a save taken before it existed still loads.
+            risk_taking: getRandomTraitValueForLeader("risk_taking", leaderId),
         };
 
         const randomGender = getRandomGender();
@@ -80,7 +85,8 @@ function createLeaderObject(leaderId, player) {
             economy: 0.5,
             territory_expansion: 0.5,
             style_of_war: 0.5,
-            reconquista: 0.5
+            reconquista: 0.5,
+            risk_taking: 0.5
         };
 
         return {
@@ -89,6 +95,41 @@ function createLeaderObject(leaderId, player) {
             traits: leaderTraits
         };
     }
+}
+
+/**
+ * A country's leader dies and a new one takes over.
+ *
+ * The new personality is drawn from the same generator as the original, so a country that has
+ * spent forty turns cautious may spend the next forty reckless -- which is the point. See
+ * `src/ai/succession.js` for why this exists: a country's character was fixed for the whole
+ * game, and a stalemate between two comparable neighbours is symmetric, so nothing could ever
+ * break one.
+ *
+ * It writes the leader onto every territory the country holds, because that is where a leader
+ * lives (`updateArrayOfLeadersAndCountries()` rebuilds its array from the territories each
+ * turn). The PLAYER is never succeeded: `leaderType === "human"` is the player's own leader
+ * and replacing it would hand the player a personality they did not choose.
+ *
+ * @param {string} countryName
+ * @returns {{name: string, leaderType: string, traits: object}|null} the new leader, or null
+ *          if the country holds nothing or is the player's
+ */
+export function replaceLeaderForCountry(countryName) {
+    const held = allTerritories().filter((territory) =>
+        territory.dataName === countryName && territory.owner !== "Player");
+    if (held.length === 0) {
+        return null;
+    }
+    if (held[0].leader?.leaderType === "human") {
+        return null;
+    }
+
+    const successor = createLeaderObject(getRandomLeaderForCountry(), false);
+    for (const territory of held) {
+        territory.leader = successor;
+    }
+    return successor;
 }
 
 function getRandomElementFromArray(array) {

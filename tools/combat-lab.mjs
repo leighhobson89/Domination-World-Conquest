@@ -207,9 +207,21 @@ if (wants("terrain")) {
     console.log("     DICE_ATTACK_ADVANTAGE            x" + DICE_ATTACK_ADVANTAGE);
     console.log("     devIndex, median                 x" + devAt(0.5));
     console.log("     combat continent modifier        x0.75 (Oceania) .. x0.99 (North America)");
-    const combined = devAt(0.5) * 0.85;
-    console.log("     combined, median                 x" + combined.toFixed(2)
-        + "  -- so the attacker must field " + (1 / combined).toFixed(2) + "x to draw LEVEL");
+    //Measured over the REAL pairings rather than multiplied out of the two medians: the two
+    //are correlated (a poor country tends to border poor countries), so the product of the
+    //medians is not the median of the products.
+    const products = enemyPairs(world)
+        .map(([attacker, defender]) =>
+            Number(attacker.devIndex) * combatContinentModifierFor(defender))
+        .sort((a, b) => a - b);
+    const median = products[Math.floor(products.length / 2)];
+    const combined = median * DICE_ATTACK_ADVANTAGE;
+    console.log("     devIndex x continent, median     x" + median.toFixed(3)
+        + "   over " + products.length + " real adjacent enemy pairings");
+    console.log("     combined WITH the dial, median   x" + combined.toFixed(2)
+        + (combined >= 0.98 && combined <= 1.02
+            ? "  -- the median attacker fights at parity (combat stage 3)"
+            : "  -- so the attacker must field " + (1 / combined).toFixed(2) + "x to draw LEVEL"));
 }
 
 // --- the cliff -------------------------------------------------------------

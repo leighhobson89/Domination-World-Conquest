@@ -50,25 +50,35 @@ import { takeProbability } from './src/rules/military/takeProbability.js';
 
 export const territoryUniqueIds = [];
 /**
- * The strength-ratio figure, from `winProbability()`. It drives the attack window's BAR.
+ * The strength-ratio figure, from `winProbability()`.
  *
- * It is not the chance of taking the territory and never was -- known-issue C1, and combat
- * checklist item 1.9 is the open question of what the player should be shown instead. It is
- * left alone here on purpose, so that stage 1 changes what the AI DECIDES on without changing
- * what the player SEES in the same step.
+ * It is NOT the chance of taking the territory and never was (known-issue C1). It is still
+ * computed and still passed to `setupBattle()`, because it is the quantity that decides how
+ * many DICE each side rolls -- the battle window's own strip and the preview's dice itemisation
+ * are both about it. **What it no longer does is drive the attack window's bar**: combat
+ * checklist item 1.9 is settled and that bar reads `takeOdds` now.
  */
 export let probability;
 /**
- * What the battle will actually do, from the dice model itself.
+ * What the battle will actually do, from the dice model itself -- and since item 1.9, what the
+ * attack window's BAR shows.
  *
- * Separate from `probability` because the two answer different questions and, until 1.9 is
- * settled, the bar keeps its old source. This one exists so that
- * `PROBABILITY_THRESHOLD_FOR_SIEGE` means ONE thing everywhere: the AI's gate and the player's
- * Siege button are now compared against the same quantity, which is the whole point of the
- * stage. Comparing the player's gate against the strength ratio while the AI's is compared
- * against a real probability would have put the drift back in a new place.
+ * There is now ONE number the player is judged and shown on. `PROBABILITY_THRESHOLD_FOR_SIEGE`
+ * gates the Siege button on this, the AI's floors are compared against it, the preview's
+ * forecast line states it, and the bar is its width. That is the whole point: while the bar was
+ * `winProbability()` and the gate was this, the first thing that happened was a spec comparing
+ * the bar against a threshold that no longer read it -- and its sibling passing by luck.
+ *
+ * The cost is stated rather than hidden. The bar no longer shows the quantity that picks the
+ * dice count, so a player watching the bar cannot see a die coming. The preview's itemised dice
+ * panel is what answers that, and it answers it better than a percentage ever did.
  */
 export let takeOdds = 0;
+
+/** The live value, for the test harness. A `let` export is a snapshot at import time. */
+export function currentTakeOdds() {
+    return takeOdds;
+}
 let preAttackArray = [];
 const disabledFlagsAttack = [];
 
@@ -126,7 +136,10 @@ export function drawAndHandleTransferAttackTable(table, mainArray, playerOwnedTe
                         setup.context, { siegeTurns: setup.siegeTurns })
                     : 0;
                 preAttackArray.length = 0;
-                setAttackProbabilityOnUI(probability, 0);
+                //`takeOdds`, not `probability` -- combat checklist item 1.9, Leigh's call. The
+                //bar and the Siege gate are one quantity now. ORDER MATTERS: `takeOdds` is
+                //assigned immediately above and this must stay after it.
+                setAttackProbabilityOnUI(takeOdds, 0);
                 attackPreview.update(preBattleSetup());
             }
         });

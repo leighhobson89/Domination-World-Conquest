@@ -61,6 +61,7 @@ import {
     noteAttemptOutcome,
     noteDevelopment,
     restoreTheatres,
+    clearTheatreMemoryFor,
     resetTheatres,
     reviewTheatre,
     theatreWeightFor,
@@ -126,6 +127,28 @@ export function resetCampaigns() {
     campaignsCachedForTurn = null;
     lastPosture.clear();
     resetTheatres();
+}
+
+/**
+ * Wipe ONE country's plans, so a new leader thinks again from the position as it stands.
+ *
+ * Everything a leader concluded goes: the continents it committed to, the borders it decided
+ * were not worth another try, the theatre it was absorbing, and the posture it had settled
+ * into. What is NOT touched is the world -- the army, the territories, the sieges standing --
+ * because a succession is a change of mind and not a change of circumstances.
+ *
+ * `campaignsThisTurn` is deliberately included: a succession is applied before the country
+ * plans, so a campaign already derived for this turn under the old leader must not be reused.
+ */
+export function clearPlansFor(country) {
+    if (!country) {
+        return;
+    }
+    commitments.delete(country);
+    setbacks.delete(country);
+    campaignsThisTurn.delete(country);
+    lastPosture.delete(country);
+    clearTheatreMemoryFor(country);
 }
 
 /**
@@ -662,6 +685,12 @@ export function deriveBudgets({ country, health, posture, traits, leaderType, ur
         /** New sieges this country may open this turn. Zero is a perfectly ordinary answer. */
         siegeBudget,
         attackBudget,
+        /**
+         * How many attacks any ONE of this country's territories may press this turn. The
+         * country budget above still applies on top: this is what stops a single province
+         * being the whole war, not what decides how much war there is.
+         */
+        attacksPerTerritory: attacksPerTerritoryFor(leaderType, traits),
         /** Odds floor an attack must clear, in percent. See `attackDiscipline`. */
         attackOddsFloor: attackOddsFloorFor(leaderType, traits, posture),
         siegeOddsFloor: siegeOddsFloorFor(posture)
@@ -675,6 +704,36 @@ export function deriveBudgets({ country, health, posture, traits, leaderType, ur
  * unclear odds", so it moves the floor down as it rises. The old planner demanded only
  * `probability >= 1`, which is why an AI would throw an army at a one-percent chance.
  */
+/**
+ * How many attacks ONE TERRITORY may press this turn.
+ *
+ * The player has always been able to attack repeatedly in a turn and the AI could not:
+ * `doAiActions()` carried a bare `//only one attack from any territory per turn`, so a
+ * province bordering three weak enemies took one of them a turn however much army it had
+ * left standing, and a breakthrough could never be exploited in the turn it was made.
+ *
+ * IT IS A CAP AND NOT A RATION. Nothing is divided up in advance: each attack is sized
+ * against what the territory has left AFTER the previous one, through the same
+ * `decideCommitment()` as every other attack, so the odds floor is what actually stops the
+ * second and the third. Splitting the garrison up front would be strictly worse and the
+ * measurement is unambiguous -- the battle is a STEP function, so two attacks at 0.175:1 are
+ * 0% and 0% where one at 1.5:1 is 77%. Concentration beats dispersion, and going again with
+ * the survivors gets the extra attacks without paying the dispersion price.
+ *
+ * @returns {number} at least 1, never more than `maxAttacksPerTerritory`
+ */
+export function attacksPerTerritoryFor(leaderType, traits) {
+    const tuning = attackDiscipline;
+    //Both halves of "will this leader push on": the appetite for risk and the appetite for
+    //ground. A leader has to have both to press a territory three times in one turn.
+    const risk = finiteOr(traits?.risk_taking, 0.5);
+    const expansion = finiteOr(traits?.territory_expansion, 0.5);
+    const bonus = ((risk + expansion) / 2) * tuning.attacksPerTerritorySwing;
+    return clampInt(
+        Math.round(tuning.baseAttacksPerTerritory + bonus),
+        1, tuning.maxAttacksPerTerritory);
+}
+
 export function attackOddsFloorFor(leaderType, traits, posture) {
     const base = attackDiscipline.minimumOdds[leaderType] ?? attackDiscipline.minimumOdds.balanced;
     const style = Number(traits?.style_of_war);

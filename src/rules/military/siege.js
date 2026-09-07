@@ -31,6 +31,7 @@ import {
     ATTACK_ADVANTAGE,
     SIEGE_ARREST_CAPTURE_SHARE,
     SIEGE_ARREST_CHANCE,
+    SIEGE_ARREST_MARGIN,
     SIEGE_HIT_ITERATIONS,
     siegeCollateralBands,
     siegeDestroySlidingScale,
@@ -168,6 +169,13 @@ export function collateralDamagePercent(scoreDifference, rng = Math.random) {
         (candidate) => scoreDifference >= candidate.min && scoreDifference < candidate.max);
     if (band) {
         return Math.floor(rng() * band.damageMax) + 1;
+    }
+    //INVESTED, not arrested. Combat stage 4: a siege within `SIEGE_ARREST_MARGIN` of the
+    //defences achieves nothing and is not destroyed either -- an army sitting outside a town it
+    //cannot crack. Before this, any negative difference at all was an arrest, which made a siege
+    //unusable by an infantry army and so unusable by the AI at all; see the note on the constant.
+    if (scoreDifference >= -SIEGE_ARREST_MARGIN) {
+        return 1;
     }
     return rng() > SIEGE_ARREST_CHANCE ? 0 : 1;
 }

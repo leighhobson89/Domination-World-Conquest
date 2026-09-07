@@ -149,6 +149,16 @@ export function installTestHooks(accessors) {
         // have existed they were not; see `facesShowing()` in dices.js.
         diceFaces: () => snapshot(accessors.diceFaces?.() ?? []),
 
+        // What the SIEGE BUTTON is gated on, which since combat stage 1 is not the number the
+        // attack window's bar shows. The bar is `winProbability()`, a ratio of two strengths;
+        // the gate is `takeProbability()`, the chance of really taking the place. They are
+        // allowed to differ -- but a spec comparing the BAR against
+        // `PROBABILITY_THRESHOLD_FOR_SIEGE` is comparing two different quantities and will be
+        // wrong in both directions, which is exactly how `siege/start-siege.spec.js` began
+        // failing. Combat checklist item 1.9 is the open question of what the player should be
+        // SHOWN; this changes nothing about that.
+        siegeGateOdds: () => accessors.siegeGateOdds?.() ?? 0,
+
         // The active victory condition, and a way to set one.
         //
         // `setGoal()` takes a kind and a SCALE rather than a condition object, so nothing

@@ -564,7 +564,30 @@ export async function doAiActions(refinedTurnGoals, leader, turnGainsArrayAi, ar
                     console.log("Attack budget spent for this turn -- not pressing another against " + goal[2]);
                     break;
                 }
-                if (!attackLaunchedFromArray.includes(goal[3])) { //only one attack from any territory per turn
+                //ATTACKS PER TERRITORY, not one. This read `if (!attackLaunchedFromArray
+                //.includes(goal[3]))` with the comment "only one attack from any territory
+                //per turn" -- a rule the PLAYER has never been subject to. A province
+                //bordering three weak enemies took one of them a turn however much army it
+                //had left standing, so a breakthrough could not be exploited in the turn it
+                //was made.
+                //
+                //Nothing is rationed in advance. The second attack is sized against what the
+                //territory has left AFTER the first, because `mainArrayFriendlyTerritoryCopy`
+                //is the goal's working set and `doAttack()` debits it -- so
+                //`decideCommitment()` re-reads a smaller army and the ODDS FLOOR is what
+                //actually stops the second and third. Splitting the garrison up front would
+                //be strictly worse: the battle is a step function, so two attacks at 0.175:1
+                //are 0% and 0% where one at 1.5:1 is 77%.
+                //AND NEVER THE SAME TARGET TWICE. `attackLaunchedToArray` was written and
+                //never read -- dead, because the one-attack-per-source rule above happened to
+                //make a repeat impossible. Lifting that rule makes this load-bearing: a won
+                //attack hands the territory to the attacker, so a second attack on it would be
+                //an attack on the country's own province.
+                const attacksAllowedFromHere = campaign?.attacksPerTerritory ?? 1;
+                const attacksAlreadyFromHere = attackLaunchedFromArray
+                    .filter(name => name === goal[3]).length;
+                if (attacksAlreadyFromHere < attacksAllowedFromHere
+                    && !attackLaunchedToArray.includes(goal[2])) {
                     attackLaunchedFromArray.push(goal[3]);
                     attackLaunchedToArray.push(goal[2]);
                     console.log("going to ATTACK " + mainArrayEnemyTerritoryCopy.territoryName + " from " + mainArrayFriendlyTerritoryCopy.territoryName + "...");
@@ -1044,8 +1067,12 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
         return "Cancel";
     }
 
+    //The target is excluded: a reserve held against the territory being assaulted is that
+    //fight paid for twice, and because this is a MAXIMUM it let one strong neighbour freeze a
+    //country against every other neighbour it had. See `strongestEnemyPowerAgainst()`.
     const localEnemyPower = strongestEnemyPowerAgainst(
-        mainArrayFriendlyTerritoryCopy.territoryName, arrayOfTerritoriesInRangeThreats);
+        mainArrayFriendlyTerritoryCopy.territoryName, arrayOfTerritoriesInRangeThreats,
+        mainArrayEnemyTerritoryCopy.territoryName);
 
     const oddsFor = (amount) => {
         const makeup = calculateArmyMakeupOfAttack(
@@ -1111,9 +1138,28 @@ function siegeFloorFor(leaderType) {
         (siegeDiscipline.leaderOddsModifier[leaderType] ?? siegeDiscipline.leaderOddsModifier.balanced);
 }
 
-function strongestEnemyPowerAgainst(territoryName, arrayOfTerritoriesInRangeThreats) {
+/**
+ * The army power of the strongest enemy territory that can reach `territoryName`.
+ *
+ * `exceptTerritory` is the target of the attack being weighed, and excluding it is a fix
+ * rather than a refinement. The reserve this figure sizes is what the territory keeps back
+ * to defend itself -- but holding a reserve against the very territory you are about to
+ * assault is paying for that fight twice, and the effect compounded badly because the figure
+ * is a MAXIMUM over every reachable enemy: a country bordering one powerful neighbour kept a
+ * garrison sized against that neighbour on every one of its borders, and so could not attack
+ * anybody at all, including neighbours a fraction of its own strength. That is the
+ * "when that area stalls too it is blocked from advancing altogether" the AI log shows.
+ *
+ * The reserve against every OTHER neighbour is still kept in full: attacking one front does
+ * not make the others safe, and that is exactly why this excludes one territory rather than
+ * lowering the figure for everybody.
+ */
+function strongestEnemyPowerAgainst(territoryName, arrayOfTerritoriesInRangeThreats, exceptTerritory = null) {
     let strongest = 0;
     for (const row of arrayOfTerritoriesInRangeThreats ?? []) {
+        if (exceptTerritory !== null && row[0] === exceptTerritory) {
+            continue;
+        }
         const canReach = (row[4] ?? []).some(([ourTerritory, threatScore]) =>
             ourTerritory === territoryName && threatScore !== THREAT_DISREGARD_CONSTANT);
         if (canReach) {

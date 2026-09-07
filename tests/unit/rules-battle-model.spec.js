@@ -25,6 +25,7 @@ import { combinedForce } from "../../src/rules/military/units.js";
 import {
     BREAK_THRESHOLD,
     DICE_ATTACK_ADVANTAGE,
+    DICE_SHARE_BANDS,
     DIE_MODIFIERS,
     MAX_BATTLE_ROUNDS,
     MODIFIER_CLAMP,
@@ -224,7 +225,11 @@ describe("applyCasualties", () => {
         const survivors = applyCasualties([100000, 1000, 100, 10], 1);
         const ratioBefore = 100000 / 1000;
         const ratioAfter = survivors[0] / survivors[1];
-        expect(ratioAfter).toBeCloseTo(ratioBefore, 1);
+        //Within one per cent, which is what "proportional" means here. An absolute tolerance
+        //was used until combat stage 3 and it tracked `PAIRING_CASUALTY_SHARE`: the integer
+        //floor leaves a slightly different remainder at a different share, so the spec failed
+        //for a reason that had nothing to do with composition being preserved.
+        expect(Math.abs(ratioAfter - ratioBefore) / ratioBefore).toBeLessThan(0.01);
     });
 
     it("always kills at least one unit, so a round can never be free", () => {
@@ -361,14 +366,19 @@ describe("resolveBattleRound", () => {
         }
     });
 
-    it("gives an overwhelming attacker five dice against one", () => {
+    it("gives an overwhelming attacker the top band and the defender the bottom", () => {
+        //Read from the table rather than written out: combat stage 3 widened the range from
+        //1..5 dice to 3..7, and a spec naming the numbers had to be edited by hand for a change
+        //that did not alter the behaviour it was describing.
+        const top = DICE_SHARE_BANDS[0].dice;
+        const bottom = DICE_SHARE_BANDS[DICE_SHARE_BANDS.length - 1].dice;
         const { record } = resolveBattleRound(beginBattle({
             ...setup(),
             attackers: [5000000, 0, 0, 0],
             defenders: [100000, 0, 0, 0]
         }), seededRng(5));
-        expect(record.attackerDice).toBe(5);
-        expect(record.defenderDice).toBe(1);
+        expect(record.attackerDice).toBe(top);
+        expect(record.defenderDice).toBe(bottom);
     });
 
     it("digging in forfeits the offence and halves the cost", () => {

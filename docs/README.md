@@ -13,14 +13,16 @@ the register (4) is the one to check first if you only read one.
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
 | 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Combat and Conquest Audit](./05-combat-and-conquest-audit.md) | **The current phase.** Why a 150-turn AI-only game ends with 126 countries alive, the largest empire at 43 of 359, and no conquest at all after turn 50 — the measured arithmetic of a battle, the two attacker taxes, and the fact that the AI decides with a different function from the one that fights |
-| 6 | [Combat and Conquest Checklist](./06-combat-and-conquest-checklist.md) | The task breakdown for 5, in stages, each ending with the game playable and each ending with a measurement |
+| 5 | [Outstanding Improvements](./05-outstanding-improvements.md) | **What to do next, and why.** The findings the Combat and Conquest phase left behind, ranked by what the measurements say they are worth — each with what was measured, what it points at, and what would settle it. Its headline item has since been fixed by 6; the rest stand |
+| 6 | [Force and Succession](./06-force-and-succession.md) | **The current phase.** Why the AI log said *"the most this territory can spare reaches only 0%"* — a country had to field 2.4–3.4x its neighbour's army before it could attack at all, and 85% of countries hold one territory so nothing could route around it. What was done about it, what each change was worth, and the mountain theory that was tested and rejected |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
-battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and
-its checklist, and the Economy audit and its checklist. They record why the code is shaped as it is; they do not describe
-outstanding work. **The numbers are reused when a plan is archived**, so `05` and `06` are
-always the current phase.
+battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and its
+checklist, the Economy audit and its checklist, and now Combat and Conquest and its checklist.
+They record why the code is shaped as it is; they do not describe outstanding work. **The numbers
+are reused when a plan is archived**, so `05` and `06` are the current phase — and right now
+**there is no phase in flight**: `05` holds the findings the last one left, and `06` is free for
+whichever of them is taken up next.
 
 ---
 
@@ -120,52 +122,59 @@ raised a capacity, the flat term that closed the payback spread from 4.5 orders 
 rather than one because its defect half and its tuning half moved the world in opposite
 directions.
 
-**What is being worked on now.** [Combat and Conquest](./05-combat-and-conquest-audit.md), and it
-exists because the economy phase's last stage left one question standing that nobody had measured:
-*a spectated AI game never produces a winner.* It does not, and the reason is now measured rather
-than guessed. A 150-turn AI-only Continental game on seed `goals` ends with **126 of 207 countries
-still alive, the largest empire holding 43 of 359 territories, zero continents held, the nearest
-one receding from 64% to 58%, and no conquest at all across three of six samples.** Conquest stops
-around turn 50 and never restarts, while the top eight countries' armies go from **44 million men
-to 126 million** — India ends with 1.6 million per territory and takes nothing.
+**What was worked on last.** [Combat and Conquest](./archived/05-combat-and-conquest-audit.md),
+delivered in five stages and archived. It existed because the economy phase left one question
+standing that nobody had measured: *a spectated AI game never produces a winner.* It did not, and
+the reason turned out to be four independent things of which only one was a balance number — a
+battle that is a **step function** on force ratio; **two multipliers scaling the attacker down and
+none scaling the defender up**, so a median attacker fought at ×0.63; **53.5% of the map costing
+the attacker a die** before anybody built anything; and **the AI deciding with a different function
+from the one that fights**, with an error of +95 to −77 points that changed sign on fortification.
 
-Four independent things cause it and only one is a balance number. **A battle is a step function**
-— against one median defender the real take probability is 0.0% at 1.5:1 and 94.6% at 3.5:1,
-because half a rung of force crosses a band edge and buys an unmatched die. **Two multipliers
-scale the attacker down and none scales the defender up**, so a median attacker fights at ×0.63
-and must field 1.58× to draw level. **53.5% of the map costs the attacker a die before anybody
-builds anything**, from mountains, through bands whose own comment describes forts. And **the AI
-decides with a different function from the one that fights** — `winProbability()` knows nothing
-about the dice model, and its error against the real thing runs +95 to −77 percentage points and
-*changes sign* on fortification, so no constant can tune it out.
+All four defects are closed and the world fights again:
 
-The consequence is a funnel measured on one turn: **1,583 pairings weighed → 187 attack verdicts →
-48 reach the executor → 5 attacks pressed → 3 conquests.** Forty-three of forty-eight planned
-attacks are cancelled at the last step, one of them at 63% for being *"2 points short"* of an aim
-that means near-certainty. The world is not short of force. It is saving for an attack priced in a
-currency that does not exist.
+| | control | delivered |
+|---|---|---|
+| countries surviving | 104–126 | **98–120** |
+| largest empire | 36–52 of 359 | **47–66** |
+| continents held outright | **0 in every goal** | **1 in three goals of five** |
+| conquest, late game | zero at three of six samples | non-zero throughout |
+| AI calibration error | +95 to −77 points | **2.2 points** |
 
-The new instrument is `node tools/combat-lab.mjs`, which rebuilds the map's defensive geography
-from the three files the game seeds from and runs the real rules over it — six sections, twenty
-seconds, and it imports every formula it measures rather than copying one.
+What each stage did, in a line. **Stage 1** gave the AI `takeProbability()`, which plays the real
+dice model and memoises it. **Stage 2** re-denominated every odds constant into the new currency
+and mostly did not have to change them — `decisiveOdds` of 65 had meant a raw 3.91:1 and a 94%
+chance, and now means 65%. **Stage 3** rebased the attacker's multipliers so the median attacker
+fights at parity, and widened the dice range so a one-die gap is one in five rather than one in
+four. **Stage 4** found sieges were being laid all over the map and destroyed within two turns,
+because *"cannot match the defences"* and *"is being destroyed"* were the same state. **Stage 5**
+measured the whole game and re-measured the funnel.
 
-**Still outstanding after it**, in rough order:
+**It did not reach its own target band** — 50–80 countries, largest empire 90–120 — and the
+closing measurement says why, which is the most useful thing it produced. Every odds constant now
+means what it says and none of them filters anything: `needs-more-force` cancellations went 17 →
+**0** and attack verdicts 187 → **382** on the same seed and turn. What the executor says instead
+is *"the most this territory can spare reaches only 0%"*, in **56 of 61** sampled decisions. That
+is a fact about how much force a border can raise, not about any figure in `balance.js`. **The
+binding constraint has moved off combat entirely**, onto `muster.js`, `theatre.js` and the economy.
 
-1. **The combat phase itself**, stages 1 to 5 of
-   [the checklist](./06-combat-and-conquest-checklist.md). Stages 1 and 2 are defects and are not
-   judgement calls; **stage 3 is deliberately blocked on a decision** — whether a battle should be
-   a near-certainty or a gamble is a question about how the game feels, and no table answers it.
-2. **The other four goals have not been measured since the register sweep.** The audit was written
-   on CONTINENTAL alone. Four 150-turn runs, about twelve minutes.
-3. **The over-extension counterweight.** A cost for scattered land, paired with the bonus for
-   consolidated land. The Dominapedia's Design Notes calls it "the one design tension worth
-   naming": there is no pressure against growth, so the optimal play is always to expand. It is
-   worth revisiting only once the world consolidates at all — today nothing over-extends.
-4. **`ui.js` and `resourceCalculations.js`** are still over four thousand lines each, so the
-   refactor's "no file over 400 lines" is not met. Finishing them was Phase 6.9.
-5. **Turn 1 still grants no income to anybody**, and the reason it did has gone. Removing the
-   guard is a balance change with two `turn-counter.spec.js` specs pinned to it
-   ([Known Issues](./04-known-issues.md)).
+**Four findings from it are worth carrying**, because each was a plausible plan that measurement
+overturned. Stage 2 was going to RAISE the odds floors; stage 1's measurement showed that would
+have suppressed the few attacks left. Stage 4 was going to reprice infantry's siege value; that
+broke a protected invariant and the arithmetic caps the fix well short of useful. **`battle-lab.mjs`
+had been measuring an attacker that cannot exist** — devIndex 1, when the best country on the map
+is 0.95 — which is how "raising `DICE_ATTACK_ADVANTAGE` gives the attacker 88% of even fights"
+became a recorded reason never to raise it. And the phase's own lesson caught the phase itself:
+**a dice table was shipped, measured, reverted — and three documents plus two source comments went
+on describing it as though it had shipped**, including the register's own G1 entry. A revert is a
+documentation change as much as a code change.
+
+**What is outstanding from it is now [05-outstanding-improvements.md](./05-outstanding-improvements.md)**,
+which is the standing list of what the measurements say to do next: the force-at-the-border
+finding above, the cliff that is still a cliff, the missing over-extension counterweight now that
+the world finally consolidates enough for one to matter, known-issue C5, and a class of test defect
+worth one deliberate sweep — the assertion whose failure mode is also its default, of which this
+phase found three.
 
 Three items that stood here for a long time are done and are noted because the list was stale:
 the **victory and defeat screen** is built (`GameOver.js` subscribes to `GAME_OVER`, names the

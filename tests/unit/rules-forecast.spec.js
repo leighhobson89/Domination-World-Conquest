@@ -23,11 +23,32 @@ function territory(overrides = {}) {
     };
 }
 
+/**
+ * The MEDIAN real attacker, not an idealised one -- combat stage 3.
+ *
+ * This used to be `{ attackingDevelopmentIndex: 1, combatContinentModifier: 1 }`, which is an
+ * attacker that does not exist: development index tops out at 0.962 (Monaco) and the friendliest
+ * continent modifier is 0.99 (North America), so the strongest attacker on the map is 0.95 and
+ * the median over all 1,888 adjacent enemy pairings is 0.648. Measured with
+ * `node tools/combat-lab.mjs terrain`.
+ *
+ * It mattered because "an even fight favours the defender" -- the design claim of
+ * docs/archived/battle_overhaul.md section 4.3 -- was being asserted about a country that could
+ * never take the field. For the attackers who actually exist it was not merely untrue, it was
+ * untrue by a mile: at x0.63 the median attacker LOST an even fight overwhelmingly, which is
+ * known-issue G2. `DICE_ATTACK_ADVANTAGE` is 1.54 now precisely so that 0.648 x 1.54 = 1.00, and
+ * the claim holds where it means something.
+ */
+const MEDIAN_REAL_ATTACKER = Object.freeze({
+    attackingDevelopmentIndex: 0.745,
+    combatContinentModifier: 0.87
+});
+
 const evenFight = () => ({
     attackers: [400000, 0, 0, 0],
     defenders: [400000, 0, 0, 0],
     territory: territory(),
-    context: { attackingDevelopmentIndex: 1, combatContinentModifier: 1 }
+    context: { ...MEDIAN_REAL_ATTACKER }
 });
 
 describe("forecastSeedFor", () => {
@@ -109,6 +130,8 @@ describe("battleForecast", () => {
     it("says an even attack is a losing proposition", () => {
         // The design claim of docs/archived/battle_overhaul.md section 4.3, as a test: at equal force,
         // no terrain and no composition edge, the defender's tie advantage decides it.
+        // Asserted about the MEDIAN REAL ATTACKER -- see the note on that constant for why the
+        // idealised one this used to use made the claim unfalsifiable in the wrong direction.
         const forecast = battleForecast(evenFight(), { trials: 1000 });
         expect(forecast.takeProbability).toBeLessThan(0.5);
     });

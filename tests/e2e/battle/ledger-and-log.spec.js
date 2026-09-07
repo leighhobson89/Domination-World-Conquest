@@ -20,7 +20,15 @@ import { battle as battleSelectors } from "../../support/selectors.js";
 // to differ -- what must not happen is the preview quietly showing one and calling it the other.
 
 test.describe("the attack window's dice preview", () => {
-    test.setTimeout(180_000);
+    //A BATTLE IS PACED, AND THE BUDGET HAS TO SAY SO. Each round costs a dice throw capped at
+    //`MAX_ROLL_MS` (2,200 ms) plus a clash panel that reveals one pairing per `PAIR_STEP_MS`
+    //(420 ms) and then lingers `LINGER_MS` (7,200 ms) -- all of it deliberate, and all of it
+    //paid ONCE PER ROUND. A battle is four to six rounds, so fighting one to a conclusion is
+    //the better part of a minute before Playwright has done anything, and a spec that opens a
+    //SECOND battle pays it twice. The `siege/` area already budgets 240-300s for the same
+    //reason; these files had 120s, 180s and (in rounds.spec.js) nothing at all, which is why
+    //they tipped over under load while their siblings passed.
+    test.setTimeout(240_000);
 
     test("itemises the dice, and appears only once force is committed", async ({ game }) => {
         await game.start({ country: "Germany", seed: "preview-itemised" });
@@ -111,7 +119,15 @@ test.describe("the attack window's dice preview", () => {
 });
 
 test.describe("the battle window's ledger and round log", () => {
-    test.setTimeout(180_000);
+    //A BATTLE IS PACED, AND THE BUDGET HAS TO SAY SO. Each round costs a dice throw capped at
+    //`MAX_ROLL_MS` (2,200 ms) plus a clash panel that reveals one pairing per `PAIR_STEP_MS`
+    //(420 ms) and then lingers `LINGER_MS` (7,200 ms) -- all of it deliberate, and all of it
+    //paid ONCE PER ROUND. A battle is four to six rounds, so fighting one to a conclusion is
+    //the better part of a minute before Playwright has done anything, and a spec that opens a
+    //SECOND battle pays it twice. The `siege/` area already budgets 240-300s for the same
+    //reason; these files had 120s, 180s and (in rounds.spec.js) nothing at all, which is why
+    //they tipped over under load while their siblings passed.
+    test.setTimeout(240_000);
 
     async function openAndFightOne(game, seed) {
         await game.start({ country: "Germany", seed });

@@ -682,8 +682,49 @@ export const conquestLockout = { minTurns: 1, maxTurns: 3 };
  * So there are two dials, each owning one model, each documented at its own constant. What is NOT
  * allowed is a third, or either of these reaching into the other's model. If open battle needs to
  * get easier or harder, this is the number; if sieges do, that one is.
+ *
+ * COMBAT STAGE 3: 1.0 -> 1.54, AND THIS IS THE REBASE, NOT A NEW THUMB ON THE SCALE.
+ *
+ * Leigh's decision (audit section 9, Q2) was to keep `devIndex` and `combatContinentModifier`,
+ * keep their full spread, and move their CENTRE so that the median attacker fights at x1.00
+ * instead of x0.63. Measured over all 1,888 real adjacent enemy pairings on the map, the
+ * product `devIndex x combatContinentModifier` is:
+ *
+ *     min 0.264   p25 0.529   MEDIAN 0.648   mean 0.652   p75 0.792   max 0.949
+ *
+ * -- so 1/0.648 = 1.543 from the median and 1/0.652 = 1.535 from the mean, which agree closely
+ * enough that 1.54 is the number either way.
+ *
+ * It is applied HERE rather than by editing the two tables, and that is deliberate for two
+ * reasons. First, it is arithmetically identical: a global multiplier preserves every relative
+ * difference, so the spread is untouched (0.41x to 1.46x of the median, exactly as before) and
+ * Europe still attacks better than Africa. Second, `devIndex` is read by `defenseBonusFor()`,
+ * the upgrade price ladder, `productivePopulationFor()` and the construction-materials ceiling,
+ * and `attackingDevelopmentIndex()` feeds `winProbability()` as well as `shareFor()`. Rebasing
+ * the DATA would have leaked a combat decision into the economy. Rebasing the dial cannot.
+ *
+ * THIS REVERSES WHAT THE NOTE ABOVE SAYS, and the reason is that the note's measurement was
+ * taken in a context that does not occur. `tools/battle-lab.mjs` uses `attackingDevelopmentIndex
+ * = 1, combatContinentModifier = 1`. There is no such attacker: the best on the map is Monaco
+ * into North America at 0.962 x 0.99 = 0.95, and the median is 0.648. So "at 1.44 a raw-EVEN
+ * fight was won by the ATTACKER 88.3% of the time" describes an idealised attacker that no
+ * country in the game can be, and the world it was protecting -- where an even fight favours the
+ * defender -- was never actually delivered: at x0.63 the median attacker LOST an even fight
+ * overwhelmingly, which is docs/05-combat-and-conquest-audit.md section 3.2 and known-issue G2.
+ *
+ * At 1.54 the median real attacker sits at x1.00, so an even fight is 4 dice against 4, ties go
+ * to the defender, and the defender is favoured -- which is what
+ * docs/archived/battle_overhaul.md section 4.3 designs and what the two dials existed to
+ * protect. The design intent is not being abandoned here; it is being delivered for the first
+ * time to the attackers who actually exist.
+ *
+ * WHAT IS STILL FORBIDDEN is unchanged and this does not touch it: `ATTACK_ADVANTAGE` stays at
+ * 1.44 and owns sieges and the pre-battle strength figure, there is still no third dial, and
+ * neither reaches into the other's model. `node tools/combat-lab.mjs terrain` reports the median
+ * combined attacker multiplier and is the check that this number is still right if either table
+ * is ever edited.
  */
-export const DICE_ATTACK_ADVANTAGE = 1.0;
+export const DICE_ATTACK_ADVANTAGE = 1.54;
 
 /**
  * How many dice a side rolls, by its own share of the two strengths.
@@ -699,22 +740,27 @@ export const DICE_ATTACK_ADVANTAGE = 1.0;
  * gets you the maximum number of dice; it never gets you a round for free.
  */
 export const DICE_SHARE_BANDS = Object.freeze([
-    Object.freeze({ minimumShare: 0.70, dice: 5 }),
-    Object.freeze({ minimumShare: 0.50, dice: 4 }),
-    Object.freeze({ minimumShare: 0.35, dice: 3 }),
-    Object.freeze({ minimumShare: 0.20, dice: 2 }),
-    Object.freeze({ minimumShare: 0, dice: 1 })
+    Object.freeze({ minimumShare: 0.70, dice: 6 }),
+    Object.freeze({ minimumShare: 0.50, dice: 5 }),
+    Object.freeze({ minimumShare: 0.35, dice: 4 }),
+    Object.freeze({ minimumShare: 0.20, dice: 3 }),
+    Object.freeze({ minimumShare: 0, dice: 2 })
 ]);
 
 /**
- * The defender never rolls five.
+ * The defender never rolls the top band.
+ *
+ * One below `DICE_SHARE_BANDS`'s maximum, whatever that maximum is -- combat stage 3 widened
+ * the table from 1..5 dice to 2..6 and this moved 4 -> 5 with it, which is why
+ * `rules-dice.spec.js` asserts the RELATIONSHIP (`DEFENDER_DICE_CAP < TOP_BAND.dice`) rather
+ * than either number.
  *
  * At even strength both sides sit in the 0.50 band, so the cap does nothing there and both
- * roll four. It bites only where the DEFENDER is the stronger side, and it is what stops a
+ * roll five. It bites only where the DEFENDER is the stronger side, and it is what stops a
  * heavily garrisoned territory being able to grind an attacker down at no risk: the defender
  * can always be attacked, just very badly.
  */
-export const DEFENDER_DICE_CAP = 4;
+export const DEFENDER_DICE_CAP = 5;
 
 /** An ordinary d6. Named because the pairing maths reads better than a bare 6. */
 export const DIE_FACES = 6;
@@ -781,8 +827,22 @@ export const DIE_MODIFIERS = Object.freeze({
  *
  * This is the pacing dial. It, and the band edges above, are what set the "5-8 rounds" in
  * docs/archived/battle_overhaul.md section 3. Raising it makes every battle shorter and bloodier.
+ *
+ * 0.10 -> 0.09 at combat stage 3, and the reason is the band change above rather than a wish for
+ * bloodier battles. Widening the dice range put FIVE dice at parity where there were four, so a
+ * round contests more pairings and a side loses more of them; at 0.10 that took battles to 3-5
+ * rounds against the designed 5-8, and at 0.07 (tried first, with a wider table still) it went
+ * the other way to 5-8 with a median of 6.
+ *
+ * ROUND COUNT IS WHAT THE PLAYER ACTUALLY WAITS FOR, and that is the constraint this number is
+ * set against. Each round costs a dice throw capped at `MAX_ROLL_MS` plus a clash panel that
+ * lingers `LINGER_MS`, and both are paid ONCE PER ROUND whatever the pairings -- so a battle of
+ * six short rounds is slower to watch than one of five longer ones. At 0.09 the median battle is
+ * five rounds and the range 4-6, which is what it was before this phase touched anything. The
+ * e2e suite is the witness: at 0.07 the `battle/` area began timing out, and that was not the
+ * specs being brittle, it was a battle genuinely taking longer to play out.
  */
-export const PAIRING_CASUALTY_SHARE = 0.10;
+export const PAIRING_CASUALTY_SHARE = 0.09;
 
 /**
  * A side is BROKEN below this fraction of the force it started the battle with.
@@ -940,7 +1000,49 @@ export const siegeCollateralBands = [
     { min: 100, max: Infinity, damageMax: 25 }
 ];
 
-/** Below the lowest band, this is the chance the besieging force is arrested outright. */
+/**
+ * How far BELOW a territory's defences a siege may sit and still merely achieve nothing.
+ *
+ * Combat stage 4, closing known-issue G5, and the distinction is the whole of it: until now
+ * "cannot match the defences" and "is being destroyed" were the SAME state. Any negative score
+ * difference at all put the besieging force in the arrest band, where it had a 60% chance every
+ * turn of being wiped out with half of it joining the defender.
+ *
+ * That made a siege unusable by the army the AI can actually field. `armyTypeSiegeValues`
+ * prices infantry at a ten-thousandth of a point, deliberately -- a siege is broken by artillery
+ * and blockade, not by numbers -- and `src/ai/muster.js` moves infantry ONLY, also deliberately,
+ * because vehicles are gated by the oil capacity of the territory they stand in. Both decisions
+ * are individually right and jointly fatal: an infantry-only besieger scores about 10 against a
+ * bare mountain's 30, sits at minus 16, and has an expected life of under two turns. Traced over
+ * 30 turns, sieges were being DECIDED and laid all over Europe -- "going to start a siege attack
+ * on Croatia from Switzerland" -- and the world still held 0 or 1 standing at every sample.
+ *
+ * The obvious fix is not available. Repricing infantry upward is capped by
+ * `tests/unit/balance-unit-economics.spec.js`, which pins vehicles at five to six times better
+ * per gold in a siege; anything past 0.00012 breaks the siege-versus-battle trade that CLAUDE.md
+ * records as the one genuine economic decision the military layer offers, and 0.00012 is not
+ * nearly enough to leave the band.
+ *
+ * So the band itself is split. A siege within this margin of the defences HOLDS: it does no
+ * damage, it starves nobody faster, and it is not destroyed -- an army sitting outside a town it
+ * cannot crack, which is what a siege at those odds should look like and is the state the model
+ * had no way to express. Only a siege further under than this is swept away.
+ *
+ * Fifty, because a bare mountain territory is a defence of 10 to 50 and an infantry-only
+ * besieging army of any size should be able to invest one; a fortress at 250 still arrests
+ * anything that is not a real siege train.
+ */
+export const SIEGE_ARREST_MARGIN = 50;
+
+/**
+ * Below `SIEGE_ARREST_MARGIN` under the defences, the chance the besieging force is arrested.
+ *
+ * Left at 0.6, and the audit's question about whether that is too harsh (§6 G5) is answered by
+ * the margin above rather than by softening this. The penalty was never the problem; the problem
+ * was that most of the world could not LEAVE the band it applies to. Now that being in it means
+ * a siege genuinely hopeless against the walls in front of it, losing the army is the right
+ * outcome.
+ */
 export const SIEGE_ARREST_CHANCE = 0.6;
 
 /** Fraction of an arrested besieging force that is absorbed by the defender. */
@@ -1235,11 +1337,73 @@ export const siegeReview = {
     hopelessAfterTurns: 3
 };
 
+/**
+ * When a country's leader dies and a new one takes over. See `src/ai/succession.js`.
+ *
+ * A country's character was drawn once at the start of a game and never changed again, so a
+ * cautious country stayed cautious for two hundred turns -- and because a stalemate between
+ * two comparable neighbours is symmetric, nothing in the game could ever break one. Measured:
+ * the largest empire reached 71 territories at turn 50 and was still on 71 at turn 150, while
+ * the world's army tripled and its gold multiplied by five. **Everyone gets richer together,
+ * so the ratio never moves.** A new leader with a different appetite for risk is one of the
+ * few things that can shift it.
+ *
+ * The term is DERIVED from a hash of the country name rather than drawn, so it costs no
+ * `Math.random` draw (which would move every seeded outcome in the game), needs no save slice,
+ * and staggers the world's two hundred successions instead of pulsing them.
+ */
+export const leaderSuccession = {
+    /** Shortest a leader serves. */
+    minimumTermTurns: 30,
+    /** Longest a leader serves. */
+    maximumTermTurns: 40,
+    /**
+     * Nothing happens before this turn.
+     *
+     * The opening is when a leader's personality is doing the most work -- which continent it
+     * commits to, whether it builds or expands -- and replacing one in the middle of that
+     * reads as the plan being lost rather than changed.
+     */
+    firstPossibleTurn: 20
+};
+
 /** How many attacks one country may press per turn, and the odds each leader type demands. */
 export const attackDiscipline = {
-    basePerTurn: 1,
+    /**
+     * Attacks a country may press per turn, before its size and its posture scale it.
+     *
+     * TWO RATHER THAN ONE, because 85% of the countries on this map hold exactly ONE
+     * territory (176 of 207) and `territoriesPerExtraAttack` therefore never fires for them:
+     * at 1 they got a single attack a turn no matter what, so `attacksPerTerritory` below
+     * would have been dead for the great majority of the world. A one-territory country can
+     * now take a neighbour and, if what survives still clears the odds floor, go again --
+     * which is the whole of what "play by the player's rules" means for a small country.
+     */
+    basePerTurn: 2,
     territoriesPerExtraAttack: 10,
     maxPerTurn: 5,
+    /**
+     * How many attacks ONE TERRITORY may press in a turn, before traits move it.
+     *
+     * THE PLAYER HAS ALWAYS HAD THIS AND THE AI HAD NOT. `doAiActions()` carried a bare
+     * `//only one attack from any territory per turn`, so a province bordering three weak
+     * enemies took one of them a turn however much army it had left standing afterwards --
+     * and a breakthrough could never be exploited in the turn it was made.
+     *
+     * IT IS A CAP AND NOT A RATION: the force is NOT divided up in advance. Each attack is
+     * sized against what the territory has left AFTER the previous one, by the same
+     * `decideCommitment()` every other attack goes through, so the odds floor is what stops
+     * the second and third. Dividing the army up front would be strictly worse and the
+     * measurement says so plainly -- the battle is a STEP function, so two half-strength
+     * attacks at 0.175:1 are 0% and 0% where one at 1.5:1 is 77%. Concentration beats
+     * dispersion every time, and the sequential form gets the extra attacks without paying
+     * for them.
+     */
+    baseAttacksPerTerritory: 1,
+    /** How far `risk_taking` and `territory_expansion` together add to that. */
+    attacksPerTerritorySwing: 2,
+    /** Nothing may exceed this, whatever the leader: a territory is not an army group. */
+    maxAttacksPerTerritory: 3,
     /**
      * Odds floor by leader type, before `style_of_war` shifts it. An aggressive leader will
      * press on unclear odds; a pacifist wants a clear favourite before committing.
@@ -1295,6 +1459,38 @@ export const commitmentDiscipline = {
      * the whole reason an attack can be afforded at all.
      */
     defenceKeepRatio: 0.5,
+    /**
+     * How far `risk_taking` (0..1) moves `defenceKeepRatio`, either way.
+     *
+     * THIS IS THE DIAL THAT UNSTUCK THE WORLD, and the measurement behind it is worth keeping.
+     * A border territory kept `defenceKeepRatio` x the strongest enemy that could reach it and
+     * marched out with `appetite` of the rest, so against a comparable neighbour it attacked at
+     * **0.35:1** -- and 0.35:1 is a **0.0% chance of taking the territory on FLAT GROUND WITH
+     * NO FORTS**, never mind a mountain. Inverted, the entry price to an attack was:
+     *
+     *     army needed  =  E x (ratio / appetite + keep)
+     *     flat ground, 65% odds:   2.36x the neighbour's army
+     *     mountain 3,  65% odds:   3.36x
+     *
+     * Between neighbours with similar economies that never happens, so nothing ever attacked
+     * anything, and the executor said *"the most this territory can spare reaches only 0%"* on
+     * 56 of 61 sampled decisions. **It was never the terrain** -- flat ground with no forts is
+     * also 0% at the ratio a territory could actually send. It was this arithmetic.
+     *
+     * A high-risk leader now keeps `defenceKeepRatio - riskKeepSwing/2` and a cautious one
+     * `defenceKeepRatio + riskKeepSwing/2`, so the world contains leaders who can break a
+     * deadlock and leaders who cannot -- which is the point, and is why this is a TRAIT rather
+     * than a lower constant for everybody.
+     */
+    riskKeepSwing: 0.5,
+    /**
+     * The keep-back floor, as a share of the territory's OWN army.
+     *
+     * A border held by nobody is a territory given away, whatever the leader's character, so
+     * no combination of traits may empty a province. It is expressed against the garrison
+     * rather than against the enemy because that is the quantity being protected.
+     */
+    minimumHomeShare: 0.1,
     /** What an interior territory -- nothing can reach it -- still keeps behind. */
     interiorReserve: 0.15,
     /**

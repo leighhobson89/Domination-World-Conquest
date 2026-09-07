@@ -1,4 +1,17 @@
 import { test, expect } from "../../support/fixtures.js";
+
+/**
+ * How long to wait for the playback chain to reach its next step.
+ *
+ * Was 8,000 ms, which could never have been right: one replayed round holds
+ * `ROUND_READ_MS` (1,500) plus `PAIR_STEP_MS` (420) per pairing -- 4,020 ms for this file's
+ * six-pairing fixture -- and that is BEFORE the dice, which are capped at `MAX_ROLL_MS`
+ * (2,200). So a single round is about 6.2 seconds and the specs below wait for a second round
+ * or a second queued defence. The replay is deliberately paced like a played battle
+ * (CLAUDE.md), so the budget follows the pacing rather than a guess; it is still far short of
+ * the test timeout, so a genuine hang still fails rather than hanging the suite.
+ */
+const PLAYBACK_POLL_MS = 30_000;
 import { battle as battleSelectors, ids } from "../../support/selectors.js";
 
 // Watching a battle you DEFENDED.
@@ -107,7 +120,15 @@ async function watchPlaybacks(game) {
 }
 
 test.describe("watching a battle you defended", () => {
-    test.setTimeout(120_000);
+    //A BATTLE IS PACED, AND THE BUDGET HAS TO SAY SO. Each round costs a dice throw capped at
+    //`MAX_ROLL_MS` (2,200 ms) plus a clash panel that reveals one pairing per `PAIR_STEP_MS`
+    //(420 ms) and then lingers `LINGER_MS` (7,200 ms) -- all of it deliberate, and all of it
+    //paid ONCE PER ROUND. A battle is four to six rounds, so fighting one to a conclusion is
+    //the better part of a minute before Playwright has done anything, and a spec that opens a
+    //SECOND battle pays it twice. The `siege/` area already budgets 240-300s for the same
+    //reason; these files had 120s, 180s and (in rounds.spec.js) nothing at all, which is why
+    //they tipped over under load while their siblings passed.
+    test.setTimeout(240_000);
 
     test("the queue drains without showing anything when the player has asked to skip", async ({
         game
@@ -158,7 +179,7 @@ test.describe("watching a battle you defended", () => {
         // The first round has to land before the ledger says anything -- it is redrawn per round.
         await expect
             .poll(async () => game.page.locator(battleSelectors.ledgerAttacker).innerText(),
-                { timeout: 8000 })
+                { timeout: PLAYBACK_POLL_MS })
             .toContain("dice");
 
         const you = await game.page.locator(battleSelectors.ledgerAttacker).innerText();
@@ -204,7 +225,7 @@ test.describe("watching a battle you defended", () => {
 
         await expect.poll(
             async () => game.page.evaluate(() => window.__game.pendingDefences()),
-            { timeout: 8000 }
+            { timeout: PLAYBACK_POLL_MS }
         ).toBe(0);
 
         // And the window closes rather than leaving a one-button bar over the map.
@@ -229,13 +250,13 @@ test.describe("watching a battle you defended", () => {
 
         await expect.poll(
             async () => game.page.locator("#battleUITitleTitleLeft").innerText(),
-            { timeout: 8000 }
+            { timeout: PLAYBACK_POLL_MS }
         ).toContain("Poland");
 
         await game.battle.advanceRound(); // skip the second
         await expect.poll(
             async () => game.page.evaluate(() => window.__game.pendingDefences()),
-            { timeout: 8000 }
+            { timeout: PLAYBACK_POLL_MS }
         ).toBe(0);
     });
 
@@ -317,7 +338,7 @@ test.describe("watching a battle you defended", () => {
         await game.battle.advanceRound();
         await expect.poll(
             async () => game.page.evaluate(() => window.__game.pendingDefences()),
-            { timeout: 8000 }
+            { timeout: PLAYBACK_POLL_MS }
         ).toBe(0);
 
         // Hiding the other four buttons by hand at the call site -- which is what B.8 shipped --

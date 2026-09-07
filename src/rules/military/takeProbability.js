@@ -28,9 +28,14 @@
 // penalty and the same face modifiers therefore play out as the same battle.
 //
 // MEASURED, and this is the part that was nearly got wrong. At a fixed seed and a fixed ratio,
-// the take probability is IDENTICAL from a defending force of 2,000 upward and differs at 200
+// the take probability is IDENTICAL from a defending force of 2,000 upward and differs below it
 // -- the integer floor in `applyCasualties()`, which is a larger fraction of a small army than
-// the casualty share is. That much was expected. What was not is that the face modifiers are
+// the casualty share is. That much was expected. The THRESHOLD is not a constant of nature
+// though: it was 2,000 until combat stage 3 lowered `PAIRING_CASUALTY_SHARE` from 0.10 to 0.07,
+// which lengthens a battle and so gives the floor more rounds in which to bite -- that stage
+// then settled on 0.09 and the threshold went back to 2,000, which is why the guard below sits
+// at the worst value any candidate needed rather than tracking the dial. A unit test asserts
+// the property directly, and it is what caught the move. What was not is that the face modifiers are
 // only constant through a battle when the COUNTS are large: a side holding one air unit loses
 // it to the floor in the first round and its air superiority with it, while a side holding a
 // thousand keeps both. The gap between two setups that differ only in that scaling:
@@ -82,8 +87,19 @@ const SHARE_BUCKET = 0.01;
  */
 const EXACT_COUNT_BELOW = 10;
 
-/** Below this combined force the integer casualty floor stops the battle being scale-free. */
-const MIN_CACHEABLE_FORCE = 2000;
+/**
+ * Below this combined force the integer casualty floor stops the battle being scale-free.
+ *
+ * Measured, not chosen: at a fixed seed and ratio the answer is identical from here upward.
+ * It is deliberately an order of magnitude above the measured threshold, because that threshold
+ * MOVES with `PAIRING_CASUALTY_SHARE`: a smaller share means more rounds and so more chances for
+ * the floor to bite. Measured at 0.10 the answer is stable from 2,000; at 0.07 it needed 20,000;
+ * combat stage 3 settled on 0.09 and it is back to 2,000. Rather than track it, the guard sits at
+ * the highest value any of those needed -- it costs only that a battle under 20,000 combined
+ * force is forecast rather than looked up, and the AI's battles are in the hundreds of thousands.
+ * **Re-measure if that dial moves further**: any fixed-seed forecast run at two scales shows it.
+ */
+const MIN_CACHEABLE_FORCE = 20000;
 
 /**
  * Cells kept. A long game touches a few hundred; the cap is a guard against a pathological

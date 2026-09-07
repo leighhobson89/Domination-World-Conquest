@@ -54,7 +54,22 @@ function plainTerritory(overrides = {}) {
     };
 }
 
-const NEUTRAL_CONTEXT = { attackingDevelopmentIndex: 1, combatContinentModifier: 1 };
+/**
+ * The MEDIAN REAL ATTACKER, not a neutral one -- combat stage 3.
+ *
+ * This was `{ attackingDevelopmentIndex: 1, combatContinentModifier: 1 }`, and that attacker
+ * does not exist. Development index tops out at 0.962 and the friendliest continent modifier is
+ * 0.99, so the strongest attacker on the map is 0.95; the median over all 1,888 adjacent enemy
+ * pairings is 0.648 (`node tools/combat-lab.mjs terrain`). Every figure this file printed was
+ * therefore about a country nobody can play, which is exactly the sort of thing a measuring
+ * instrument must not do -- and it mattered: the note on `DICE_ATTACK_ADVANTAGE` in balance.js
+ * recorded "at 1.44 a raw-even fight was won by the attacker 88.3% of the time" as a reason not
+ * to raise the dial, and that measurement was taken here, in this context.
+ *
+ * The lab territory stays featureless on purpose. What is being isolated is FORCE, and terrain
+ * belongs to `tools/combat-lab.mjs`, which reads it off the real map.
+ */
+const NEUTRAL_CONTEXT = { attackingDevelopmentIndex: 0.745, combatContinentModifier: 0.87 };
 
 const MATCHUPS = [
     { label: "hopeless        1:4", attackers: [100000, 0, 0, 0], defenders: [400000, 0, 0, 0] },
