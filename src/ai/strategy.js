@@ -72,7 +72,12 @@ import {
     postureThresholds,
     siegeDiscipline
 } from "../config/balance.js";
-import { aiSieges, playerSieges, territoriesOwnedByCountry } from "../state/selectors.js";
+import { allTerritories, aiSieges, playerSieges, territoriesOwnedByCountry } from "../state/selectors.js";
+//The SECOND module in `src/ai/` to reach for adjacency (`theatre.js` is the other), and for
+//the same reason it is gated the same way: the module THROWS when its data has not been
+//loaded, which is the case in Node, so every call sits behind `isAdjacencyLoaded()`. Only the
+//injected-plan corridor uses it -- an ordinary campaign never walks the graph.
+import { getInteractableFrom, isAdjacencyLoaded } from "../data/adjacency.js";
 import {
     captureTheatres,
     frontierFor,
@@ -86,6 +91,14 @@ import {
     wallsFor
 } from "./theatre.js";
 import { doctrineFor } from "./doctrine.js";
+import {
+    DebugPlanKind,
+    debugPlanFor,
+    debugPlanReach,
+    debugPlanStrength,
+    retireRealisedDebugPlans
+} from "./debugPlans.js";
+import { routeToObjective } from "./route.js";
 import {
     activeVictoryCondition,
     continentStandingsFor,
@@ -166,6 +179,11 @@ export function resetCampaigns() {
  *
  * What is NOT touched is the world -- the army, the territories, the sieges standing --
  * because a succession is a change of mind and not a change of circumstances.
+ *
+ * AN INJECTED DEBUG PLAN IS NOT TOUCHED EITHER, and that is a decision rather than an
+ * omission. Everything wiped here is a judgement the dead leader reached; a plan set from
+ * the spectator window is the operator's instruction, and one that quietly evaporated every
+ * fifteen to twenty turns would be worse than no instruction at all. See `debugPlans.js`.
  */
 export function clearPlansFor(country) {
     if (!country) {
@@ -282,6 +300,13 @@ export function planCampaign(country, context = {}) {
     if (campaignsCachedForTurn !== turn) {
         campaignsThisTurn.clear();
         campaignsCachedForTurn = turn;
+        //A PLAN THAT HAS COME TRUE IS RETIRED HERE, once per TURN rather than once per
+        //country. It has to be somewhere every turn passes through and this is the only such
+        //place in the module -- but `planIsRealised()` walks the territory list, so hanging
+        //it off `applyDebugPlan()` would have run it 207 times a turn to answer the same
+        //question 207 times. `retireRealisedDebugPlans()` notifies, so the debug window's
+        //"In force" list empties itself, and it returns immediately when nothing is injected.
+        retireRealisedDebugPlans(planIsRealised);
     }
     if (campaignsThisTurn.has(country)) {
         return campaignsThisTurn.get(country);
@@ -405,8 +430,101 @@ export function planCampaign(country, context = {}) {
         attacksPressedThisTurn: 0
     };
 
+    applyDebugPlan(campaign);
+
     campaignsThisTurn.set(country, campaign);
     return campaign;
+}
+
+/**
+ * An injected plan, folded onto the campaign that was just derived.
+ *
+ * THE CAMPAIGN IS THE ONE ENTRY POINT. `targeting.js` reads `campaign.debugPlan` when it
+ * rates a target, `goals.js` reads it when it applies the game-wide odds floor, and
+ * `aiCalculations.js` reads it when it sizes the force -- none of them import
+ * `debugPlans.js`, and none of them looks the plan up a second time. That is deliberate:
+ * a plan looked up in four places is a plan that can be in force in three of them, and the
+ * resulting country ranks its target first and then declines to attack it, which reads as
+ * the debug tool being broken rather than as the AI disagreeing with it.
+ *
+ * The BUDGETS and the FLOORS are raised here rather than inside `deriveBudgets()` and
+ * `attackOddsFloorFor()`, because those two are the leader's own character and are asserted
+ * as such by the unit suite. An injected plan is an instruction laid over a character, not
+ * a different character.
+ *
+ * Costs one `Map.get` per country per turn when nothing is injected, which is every game
+ * that is not being debugged.
+ */
+function applyDebugPlan(campaign) {
+    const plan = debugPlanFor(campaign.country);
+    if (!plan) {
+        return campaign;
+    }
+    const strength = debugPlanStrength(plan);
+
+    campaign.debugPlan = plan;
+    campaign.debugPlanStrength = strength;
+    //THE CORRIDOR. Without this the plan is only ever consulted for territories the country
+    //ALREADY borders, so an objective on another continent is a plan that does nothing at all
+    //until the country happens to conquer its way there by its own reasoning -- see the long
+    //note at the top of `route.js`. One breadth-first search per plan-bearing country per
+    //turn; countries without a plan pay nothing.
+    campaign.debugRoute = routeFor(campaign.country, plan);
+    //Floor 5 is the same lower bound `attackOddsFloorFor()` and `siegeOddsFloorFor()` both
+    //clamp to, so even ALL_OUT's zero scale lands on a number those two could have produced
+    //-- the plan lowers the bar, it does not remove it. What removes it is
+    //`ignoreHardFloor`, which is a separate dial and top tier only.
+    campaign.attackOddsFloor = Math.max(5, campaign.attackOddsFloor * strength.floorScale);
+    campaign.siegeOddsFloor = Math.max(5, campaign.siegeOddsFloor * strength.floorScale);
+    campaign.attackBudget = Math.max(campaign.attackBudget, strength.minAttackBudget);
+    campaign.siegeBudget = Math.max(campaign.siegeBudget, strength.minSiegeBudget);
+    //A country told to storm one place should be allowed to do it from more than one
+    //province, and at the top tier from every province that can reach it.
+    campaign.attacksPerTerritory = Math.max(
+        campaign.attacksPerTerritory,
+        strength.commitAll ? 3 : 2);
+    return campaign;
+}
+
+/**
+ * Has this plan come true?
+ *
+ * A territory plan is satisfied when the injecting country holds the territory. A country
+ * plan is satisfied when the target holds no ground at all -- deliberately not "we took all
+ * of it", because a target finished off by somebody else is equally gone, and a corridor kept
+ * open towards a country that no longer exists would run for the rest of the game.
+ */
+function planIsRealised(plan) {
+    if (plan.kind === DebugPlanKind.TERRITORY) {
+        return allTerritories().some(territory =>
+            territory.territoryName === plan.target && territory.dataName === plan.country);
+    }
+    return territoriesOwnedByCountry(plan.target).length === 0;
+}
+
+/**
+ * The route this country is on towards this plan's objective.
+ *
+ * Returns null in Node, where the adjacency data is not loaded -- and that is a supported
+ * state rather than a failure: `debugPlanReach()` still matches the objective itself without
+ * a route, which is exactly the behaviour the feature had before routing existed and is
+ * still what a plan against an immediate neighbour needs.
+ */
+function routeFor(country, plan) {
+    if (!isAdjacencyLoaded()) {
+        return null;
+    }
+    const isObjective = plan.kind === DebugPlanKind.TERRITORY
+        ? (territory) => territory.territoryName === plan.target
+        : (territory) => territory.dataName === plan.target;
+
+    return routeToObjective({
+        territories: allTerritories(),
+        isObjective,
+        isOurs: (territory) => territory.dataName === country,
+        neighboursOf: (territory) =>
+            getInteractableFrom(territory.uniqueId, territory.territoryName)
+    });
 }
 
 /**
@@ -884,6 +1002,18 @@ export function campaignWeightForTarget(campaign, target) {
     //and the one belonging to a rival already written off as a wall is a step back into the
     //fight that produced the wall.
     weight *= theatreWeightFor(campaign.country, target.dataName, campaign.turn);
+
+    //And an INJECTED plan, which is the only term here that did not come out of the world.
+    //It is applied LAST and as a multiplier over everything above so that the ordering
+    //within the plan is still the ordering the campaign would have chosen -- a country told
+    //to take France still storms the most valuable French territory it can reach first,
+    //rather than whichever one the map happened to be walked in. The same holds along a
+    //corridor: every step towards the objective is lifted, and which of them goes first is
+    //still decided by what the campaign thinks each is worth.
+    const injected = debugPlanReach(campaign, target);
+    if (injected) {
+        weight *= injected.weight;
+    }
 
     return weight;
 }

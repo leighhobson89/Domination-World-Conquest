@@ -57,15 +57,21 @@ import { commitmentDiscipline } from "../config/balance.js";
  * forts, the mountains and the ground, so holding a border does not take as much as
  * assaulting one. That asymmetry is what makes an attack possible at all.
  */
-export function garrisonNeeded(army, localEnemyPower, riskTaking = 0.5) {
+export function garrisonNeeded(army, localEnemyPower, riskTaking = 0.5, keepScale = 1) {
     const total = Math.max(0, Number(army) || 0);
     const enemy = Number(localEnemyPower);
+    //`keepScale` is how an INJECTED debug plan strips a border: 0.5 halves what is held
+    //back, 0 holds nothing against anybody. It scales the RESERVE and never the floor --
+    //`disposableForce()` still caps what may leave at `1 - minimumHomeShare` of the
+    //territory's own army, so no plan at any strength can empty a province. See
+    //`src/ai/debugPlans.js`.
+    const scale = Number.isFinite(keepScale) ? Math.max(0, Math.min(1, keepScale)) : 1;
     if (!Number.isFinite(enemy) || enemy <= 0) {
         //Nothing can reach this territory. It still keeps a token garrison, because a
         //conquest elsewhere can put it on a border overnight.
-        return Math.floor(total * commitmentDiscipline.interiorReserve);
+        return Math.floor(total * commitmentDiscipline.interiorReserve * scale);
     }
-    return Math.min(total, enemy * keepRatioFor(riskTaking));
+    return Math.min(total, enemy * keepRatioFor(riskTaking) * scale);
 }
 
 /**
@@ -88,7 +94,7 @@ export function keepRatioFor(riskTaking = 0.5) {
  * @param {{army: number, localEnemyPower: number, leaderType?: string, traits?: object}} input
  * @returns {number} personnel-worth that may be committed, never more than the army present
  */
-export function disposableForce({ army, localEnemyPower, leaderType = "balanced", traits = {} }) {
+export function disposableForce({ army, localEnemyPower, leaderType = "balanced", traits = {}, push = null }) {
     const total = Math.max(0, Number(army) || 0);
     if (total === 0) {
         return 0;
@@ -101,14 +107,23 @@ export function disposableForce({ army, localEnemyPower, leaderType = "balanced"
     //How much of the surplus a leader is willing to march out with. The traits are the ones
     //documented for it: `style_of_war` high favours pressing an attack, `territory_expansion`
     //is the standing appetite for taking ground.
-    const appetite = clamp(
+    let appetite = clamp(
         (tuning.baseAppetite[leaderType] ?? tuning.baseAppetite.balanced) +
         (style - 0.5) * tuning.styleSwing +
         (expansion - 0.5) * tuning.expansionSwing,
         tuning.minimumAppetite, tuning.maximumAppetite);
 
+    //`push` is an INJECTED plan (`src/ai/debugPlans.js`), and its appetite is deliberately a
+    //FLOOR under the leader's own rather than a replacement for it: an aggressive leader
+    //told to press hard must not march out with LESS than it would have chosen to.
+    if (push && Number.isFinite(push.appetite)) {
+        appetite = clamp(Math.max(appetite, push.appetite),
+            tuning.minimumAppetite, tuning.maximumAppetite);
+    }
+
     const risk = clamp(finiteOr(traits.risk_taking, 0.5), 0, 1);
-    const surplus = total - garrisonNeeded(total, localEnemyPower, risk);
+    const keepScale = push && Number.isFinite(push.keepScale) ? push.keepScale : 1;
+    const surplus = total - garrisonNeeded(total, localEnemyPower, risk, keepScale);
 
     if (surplus <= 0) {
         //Outgunned on this border. Sending anything is a gamble with the territory itself,
@@ -139,10 +154,22 @@ export function disposableForce({ army, localEnemyPower, leaderType = "balanced"
  * @param {{disposable: number, floor: number, oddsFor: (amount: number) => number}} input
  * @returns {{amount: number, odds: number, cleared: boolean, best: number}}
  */
-export function sizeCommitment({ disposable, floor, oddsFor }) {
+export function sizeCommitment({ disposable, floor, oddsFor, commitAll = false }) {
     const available = Math.floor(Math.max(0, Number(disposable) || 0));
     if (available <= 0) {
         return { amount: 0, odds: 0, cleared: false, best: 0 };
+    }
+
+    //THROW EVERYTHING. An injected plan at ALL OUT inverts the rule this function exists to
+    //enforce, and inverting it is the whole tier: send the largest commitment available and
+    //do not ask what the odds are first. It is also the only sizing with a chance when the
+    //ladder was never going to clear -- the battle is a step function, so two attempts at
+    //0.175:1 are 0% and 0% where one at 1.5:1 is 77%. `cleared` is still reported honestly
+    //against the floor, so the log says what was known rather than pretending the odds were
+    //acceptable.
+    if (commitAll) {
+        const odds = Number(oddsFor(available)) || 0;
+        return { amount: available, odds, cleared: odds >= (Number(floor) || 0), best: odds };
     }
 
     let best = 0;
@@ -172,12 +199,19 @@ export function sizeCommitment({ disposable, floor, oddsFor }) {
 /**
  * The whole decision: what to send at this target, or why nothing is going.
  *
+ * `push` is an injected debug plan turned into three dials by `debugPlanPush()` in
+ * `src/ai/debugPlans.js` -- an appetite floor, a scale on the reserve kept at home, and
+ * whether to send the lot. It is null on every ordinary decision, and this file knows
+ * nothing about where it came from, which is what keeps the module pure.
+ *
  * @param {{army: number, localThreat: number, floor: number, leaderType?: string,
- *          traits?: object, oddsFor: (amount: number) => number, targetName?: string}} input
+ *          traits?: object, oddsFor: (amount: number) => number, targetName?: string,
+ *          push?: {appetite?: number, keepScale?: number, commitAll?: boolean}|null}} input
  * @returns {{commit: boolean, amount: number, odds: number, reason: string}}
  */
 export function decideCommitment(input) {
     const disposable = disposableForce(input);
+    const push = input?.push ?? null;
     const target = input?.targetName ?? "the target";
 
     if (disposable <= 0) {
@@ -196,7 +230,22 @@ export function decideCommitment(input) {
     //how much force makes the attempt worth the army. `aimAt` lets a siege ask for its own
     //floor and nothing more, because a siege does not have to win a battle today.
     const aim = Math.max(floor, Math.min(Number(input?.aimAt) || commitmentDiscipline.decisiveOdds, 95));
-    const sized = sizeCommitment({ disposable, floor: aim, oddsFor: input.oddsFor });
+    const commitAll = Boolean(push?.commitAll);
+    const sized = sizeCommitment({ disposable, floor: aim, oddsFor: input.oddsFor, commitAll });
+
+    //An ALL OUT plan commits whatever the sizing came back with. The three answers below are
+    //the three ways a country talks itself out of an attack, and that tier is the
+    //instruction not to.
+    if (commitAll) {
+        return {
+            commit: true,
+            amount: sized.amount,
+            odds: sized.odds,
+            reasonCode: "committed",
+            reason: "injected plan -- throwing " + sized.amount + " at " + target + " for " +
+                Math.round(sized.odds) + "%, floor and aim disregarded"
+        };
+    }
 
     if (sized.cleared) {
         return {
@@ -214,7 +263,7 @@ export function decideCommitment(input) {
     //the alternative to a hard attack in a war you have chosen is not a better attack, it is
     //no war. Everybody else waits and asks for the troops to do it properly.
     if (sized.best >= floor) {
-        if (input?.pressOnBelowAim) {
+        if (input?.pressOnBelowAim || push?.pressOnBelowAim) {
             return {
                 commit: true,
                 amount: sized.amount,

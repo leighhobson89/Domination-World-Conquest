@@ -110,6 +110,10 @@ import {
     decideCommitment
 } from './src/ai/commitment.js';
 import {
+    debugPlanPush,
+    debugPlanReach
+} from './src/ai/debugPlans.js';
+import {
     captureMusters,
     clearReinforcementDemand,
     planMusters,
@@ -218,6 +222,19 @@ export function musterAiArmies(country, campaign, arrayOfTerritoriesInRangeThrea
                 break;
             }
         }
+    }
+
+    //AN INJECTED PLAN OUTRANKS THE THEATRE FOR WHERE THE ARMY GOES, and this is the half of
+    //the feature that makes a distant objective reachable at all. The corridor decides what
+    //to ATTACK; without a matching answer to where to MASS, the country arrives at the front
+    //of a fifteen-hop route with one province's garrison and stalls there -- which is the
+    //behaviour `muster.js` was written to end in the first place.
+    //
+    //`staging` is the country's own territory nearest the objective, so the interior walks
+    //its infantry towards it one hop a turn. It replaces the theatre's spearhead rather than
+    //competing with it: `planMusters()` takes ONE, and an instruction beats a preference.
+    if (campaign?.debugRoute?.staging) {
+        spearhead = campaign.debugRoute.staging;
     }
 
     const moves = planMusters({
@@ -1090,6 +1107,19 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
         ? (campaign?.siegeOddsFloor ?? PROBABILITY_THRESHOLD_FOR_SIEGE)
         : undefined;
 
+    //AN INJECTED DEBUG PLAN, if this is its objective or a step on the route to it. It is
+    //read off the campaign -- `strategy.js` is the one place a plan enters the AI -- and
+    //turned into the dials `commitment.js` understands, which is what lets that module stay
+    //pure and know nothing about the debug window. Null on every ordinary decision.
+    //
+    //It goes through `debugPlanReach()` like the other three call sites, and that agreement
+    //is load-bearing: a commitment that tested for the final target alone would size an
+    //ordinary attack for the corridor step the planner had just ranked first, and the country
+    //would rank the plan and then decline to fight for it.
+    const push = debugPlanReach(campaign, mainArrayEnemyTerritoryCopy)
+        ? debugPlanPush(campaign.debugPlan)
+        : null;
+
     const decision = decideCommitment({
         army: mainArrayFriendlyTerritoryCopy.armyForCurrentTerritory,
         localEnemyPower,
@@ -1099,6 +1129,7 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
         aimAt: aim,
         pressOnBelowAim: siege ||
             campaign?.theatre?.rival === mainArrayEnemyTerritoryCopy.dataName,
+        push,
         oddsFor,
         targetName: mainArrayEnemyTerritoryCopy.territoryName
     });

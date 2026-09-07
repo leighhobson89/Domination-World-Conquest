@@ -37,6 +37,7 @@ import {
     PLAYER_GRACE_TURNS
 } from "../config/balance.js";
 import { campaignWeightForTarget, Posture } from "./strategy.js";
+import { debugPlanReach } from "./debugPlans.js";
 import { territoryValue } from "./value.js";
 
 //Re-exported rather than moved outright: `territoryValue()` is part of this module's public
@@ -99,9 +100,33 @@ export function rateTarget(input) {
             (campaign?.turn ?? "?") + " of " + PLAYER_GRACE_TURNS + ")");
     }
 
+    //AN INJECTED PLAN, if this target is the objective OR a step on the route towards it. It
+    //is read off the campaign rather than looked up, because `strategy.js` is the one place a
+    //plan enters the AI -- see `applyDebugPlan()`. `injected` is null on every ordinary turn
+    //of every ordinary game, and the four tests below then cost nothing.
+    //
+    //THE CORRIDOR GETS THE SAME DISPENSATIONS AS THE OBJECTIVE, which is the whole of making
+    //a distant plan achievable: a country that will forget a defeat and ignore its posture
+    //for the Falkland Islands and for nothing on the way there gets as far as Panama and
+    //stops, having done everything the plan asked of it.
+    const reach = debugPlanReach(campaign, target);
+    const injected = reach?.strength ?? null;
+
+    //What it has already tried and lost. An AI with no memory of the last attempt re-derives
+    //the same threat, gets the same odds and makes the same decision, so it attacks the
+    //territory that just beat it every turn for the rest of the game. Each defeat raises the
+    //bar it has to clear. An injected plan at PRESS or above forgets the lot: "go at it
+    //again" is precisely the instruction, and this memory is what would refuse it.
+    //
+    //It is read ONCE, here, because it is used twice -- as a penalty on the attack floor and
+    //as its own refusal further down -- and the two disagreeing is how a target ends up
+    //declined for a reason the panel does not print.
+    const failures = injected?.ignoreSetbacks
+        ? 0
+        : (campaign?.failuresAgainst?.(target.territoryName) ?? 0);
+
     const odds = Number(probability) || 0;
-    const attackFloor = (campaign?.attackOddsFloor ?? 34) +
-        (campaign?.failuresAgainst?.(target.territoryName) ?? 0) * SETBACK_ODDS_PENALTY;
+    const attackFloor = (campaign?.attackOddsFloor ?? 34) + failures * SETBACK_ODDS_PENALTY;
     const siegeFloor = campaign?.siegeOddsFloor ?? 22;
 
     //--- SHOULD IT? -------------------------------------------------------------------
@@ -157,13 +182,9 @@ export function rateTarget(input) {
     value *= menace;
 
     //--- CAN IT? ----------------------------------------------------------------------
-    //What it has already tried and lost. An AI with no memory of the last attempt
-    //re-derives the same threat, gets the same odds and makes the same decision, so it
-    //attacks the territory that just beat it every turn for the rest of the game. Each
-    //defeat raises the bar it has to clear, so a second attempt needs materially better
-    //odds than the first and a fourth is effectively off the table -- until the memory
-    //decays, or the odds genuinely improve because the country built an army.
-    const failures = campaign?.failuresAgainst?.(target.territoryName) ?? 0;
+    //A second attempt needs materially better odds than the first and a fourth is
+    //effectively off the table -- until the memory decays, or the odds genuinely improve
+    //because the country built an army. `failures` is read above; see the note there.
     const setbackPenalty = failures * SETBACK_ODDS_PENALTY;
     if (failures > 0 && odds < siegeFloor + setbackPenalty) {
         return skip(
@@ -172,7 +193,7 @@ export function rateTarget(input) {
             value, weight);
     }
 
-    if (odds < siegeFloor) {
+    if (odds < siegeFloor && !injected?.ignoreHardFloor) {
         return skip("odds " + Math.round(odds) + "% below the siege floor of " + Math.round(siegeFloor) + "%", value, weight);
     }
 
@@ -182,11 +203,16 @@ export function rateTarget(input) {
     //Consolidating means finishing what you started. A country one continent away from a
     //victory condition does not open a front on another one unless the target is a real
     //threat to what it already holds.
-    if (offTheObjective && campaign?.posture === Posture.CONSOLIDATE && threatScore <= 0) {
-        return skip("off the objective while consolidating " + campaign.focusContinent, value, weight);
-    }
-    if (offTheObjective && campaign?.posture === Posture.DEFEND) {
-        return skip("off the objective while defending", value, weight);
+    //An injected plan at PRESS or above overrides both refusals. Being told to take a place
+    //and then declining it because the campaign was consolidating somewhere else is the
+    //commonest way a debug instruction would appear to do nothing.
+    if (!injected?.ignorePosture) {
+        if (offTheObjective && campaign?.posture === Posture.CONSOLIDATE && threatScore <= 0) {
+            return skip("off the objective while consolidating " + campaign.focusContinent, value, weight);
+        }
+        if (offTheObjective && campaign?.posture === Posture.DEFEND) {
+            return skip("off the objective while defending", value, weight);
+        }
     }
 
     //--- WHICH WAY? -------------------------------------------------------------------
@@ -200,6 +226,22 @@ export function rateTarget(input) {
 
     const canSiege = (campaign?.siegeBudget ?? 0) > 0;
     const clearlyWinnable = odds >= attackFloor;
+
+    //THROWING CAUTION TO THE WIND IS AN ASSAULT, NOT A SIEGE. At the top tier the odds have
+    //stopped being the question, and a siege is the patient answer to a target that cannot
+    //be stormed -- it ties the army up for turns and is the opposite of what was asked for.
+    //Below that tier the ordinary attack-or-besiege judgement stands, which is what makes
+    //the lower tiers "slide into the existing logic" rather than replace it.
+    if (injected?.commitAll) {
+        return {
+            verdict: Verdict.ATTACK,
+            score,
+            value,
+            weight,
+            reason: "injected plan at " + injected.label.toLowerCase() + " -- storming at " +
+                Math.round(odds) + "% whatever the floor says"
+        };
+    }
 
     if (clearlyWinnable && (!heavilyFortified || style > 0.6 || !canSiege)) {
         return {

@@ -5131,9 +5131,6 @@ td {
   color: var(--debug-ink);
 }
 
-.ai-game-console-header .x-button {
-  color: var(--debug-ink);
-}
 
 .ai-game-console-controls {
   display: flex;
@@ -5782,4 +5779,322 @@ td {
   .clashPair-defender.is-struck .clashShards-attacker .clashShard {
     animation: none;
   }
+}
+
+/* --- Spectator debug chrome and the injected-plan window -------------------
+   The two buttons and the window below exist ONLY while a game plays itself.
+   They wear `--debug-surface` / `--debug-ink` like the rest of the debug
+   chrome, which is the one token pair every theme repeats verbatim: a debug
+   control that matches the palette is a debug control somebody ships. */
+
+#ai-game-buttons-container {
+  position: fixed;
+  top: 88px;
+  left: 10px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9000;
+}
+
+.debug-chrome-button {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.08em;
+  color: var(--debug-ink);
+  background: var(--debug-surface);
+  border-color: var(--debug-ink);
+}
+
+/* The joystick is stroked with `currentColor`, which the rule above has already set
+   to `--debug-ink` -- so the icon takes the debug palette for free and no theme has
+   to know it exists. */
+.chrome-icon-joystick {
+  stroke-width: 1.6;
+}
+
+.debug-chrome-button:hover {
+  color: var(--debug-ink);
+  background: var(--debug-surface);
+  border-color: var(--debug-ink);
+  filter: brightness(1.12);
+}
+
+/* FINISH is the last item IN the goal bar, not a sibling positioned beside it: the
+   bar is centred with translateX(-50%) and its width follows the length of the goal
+   text, so anything placed "to the right of it" would need re-measuring every time
+   the leader changed name. It inverts the bar's own colours -- ink on surface
+   becomes surface on ink -- because it is the one control up there and has to read
+   as a control rather than as more of the strip. */
+.ai-game-goal-finish {
+  flex: 0 0 auto;
+  margin: -2px -10px -2px 0;
+  padding: 3px 12px;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.12em;
+  color: var(--debug-surface);
+  background: var(--debug-ink);
+  border: 1px solid var(--debug-ink);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ai-game-goal-finish:hover {
+  filter: brightness(1.6);
+}
+
+.ai-game-goal-finish:focus-visible {
+  outline: 3px solid var(--debug-ink);
+  outline-offset: 2px;
+}
+
+/* THE X ON A DEBUG HEADER. Both spectator windows wear a `--debug-surface` title
+   bar, and the shared `.x-button` rule paints a `--surface-control` background on
+   it -- which in the default theme is a dark green square on yellow that reads as
+   an artefact rather than a control. It is stated for BOTH headers in one place,
+   the same rule the two resource windows follow, because two debug windows that
+   opened from the same mode should not be two designs. Transparent rather than
+   another colour: the header already IS the surface, so the glyph and a hairline
+   border are the whole control, and the hover inverts them. */
+.ai-game-console-header .x-button,
+.debug-plan-panel-header .x-button {
+  color: var(--debug-ink);
+  background-color: transparent;
+  border-color: var(--debug-ink);
+}
+
+.ai-game-console-header .x-button:hover,
+.debug-plan-panel-header .x-button:hover {
+  color: var(--debug-surface);
+  background-color: var(--debug-ink);
+  border-color: var(--debug-ink);
+  box-shadow: none;
+}
+
+.ai-game-console-header .x-button:focus-visible,
+.debug-plan-panel-header .x-button:focus-visible {
+  outline-color: var(--debug-ink);
+}
+
+#debug-plan-panel-container {
+  position: fixed;
+  top: 140px;
+  left: 64px;
+  display: none;
+  z-index: 9100;
+}
+
+/* A FIXED HEIGHT WHOSE BODY SCROLLS. The panel itself must never scroll, or the
+   title bar goes off screen with it -- the same contract the Dominapedia and the
+   spectator console both hold. */
+.debug-plan-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 40vw);
+  height: min(720px, calc(100vh - 200px));
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--debug-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.debug-plan-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background-color: var(--debug-surface);
+  color: var(--debug-ink);
+}
+
+.debug-plan-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--debug-ink);
+}
+
+
+.debug-plan-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 16px;
+}
+
+.debug-plan-section {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.debug-plan-section-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: var(--display-weight);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.debug-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.debug-plan-label {
+  flex: 0 0 88px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* A flex item will not shrink below its own content unless told it may, and a
+   dropdown of territory names is very wide content -- without this the select
+   pushes the window open instead of ellipsising inside it. */
+.debug-plan-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--surface-control);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.debug-plan-note {
+  margin: 6px 0 10px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.debug-plan-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.debug-plan-confirm,
+.debug-plan-cancel-all,
+.debug-plan-drop {
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.debug-plan-empty {
+  margin: 4px 0;
+  font-size: 0.74rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.debug-plan-active-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.75rem;
+}
+
+.debug-plan-active-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.debug-plan-chip {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--debug-ink);
+  background: var(--debug-surface);
+  border-radius: var(--radius-sm);
+}
+
+.debug-plan-facts,
+.debug-plan-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.debug-plan-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 10px;
+}
+
+/* The 88px label column is the FORM's, where four controls have to line up. In the
+   readouts the label is a sentence fragment beside a number, so it takes what it
+   needs -- pinned at 88px it wrapped "Defence multiplier" onto two lines. */
+.debug-plan-facts .debug-plan-label,
+.debug-plan-stats .debug-plan-label {
+  flex: 0 1 auto;
+}
+
+.debug-plan-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+}
+
+.debug-plan-stat-value {
+  text-align: right;
+  color: var(--text-primary);
+}
+
+/* Wide content owns its own overflow; the page body must never scroll sideways. */
+.debug-plan-table-scroll {
+  overflow-x: auto;
+}
+
+.debug-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.debug-plan-table th,
+.debug-plan-table td {
+  padding: 2px 6px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.debug-plan-table th:first-child,
+.debug-plan-table td:first-child {
+  text-align: left;
+  white-space: normal;
+}
+
+.debug-plan-table th {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }

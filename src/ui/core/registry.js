@@ -341,8 +341,11 @@ export const ids = Object.freeze({
     // --- AI game console (spectator mode) -------------------------------------
     // The window that drives and narrates a game with no player in it: a speed
     // slider, a pause button, and a continuous log of what each AI country did.
-    // Unlike the activity feed it has no button over the map -- it opens with the
-    // mode and closes with it, because there is nothing else it could be doing.
+    // Its X used to END the game, because a shut console with no way back is a page
+    // that looks idle while two hundred countries fight behind it. There IS a way
+    // back now -- the joystick button over the map -- so the X closes the window,
+    // and `aiGameFinishBtn` ends the session from the GOAL BAR: a window that can be
+    // closed is the wrong home for the one action that cannot be taken back.
     aiGameConsoleContainer: "ai-game-console-container",
     aiGameConsole: "ai-game-console",
     aiGameConsoleTitle: "ai-game-console-title",
@@ -356,7 +359,35 @@ export const ids = Object.freeze({
     aiGameFollowBtn: "ai-game-follow-btn",
     aiGameFilter: "ai-game-filter",
     aiGameFilterCount: "ai-game-filter-count",
+    aiGameFinishBtn: "ai-game-finish-btn",
     xButtonAiGame: "xButtonAiGame",
+
+    // --- Spectator map chrome -------------------------------------------------
+    // The two buttons that exist ONLY while a game plays itself, in their own
+    // container so that showing them is one line and cannot collide with the
+    // player-side columns (`uiButtonContainer` and `activityButtonContainer`,
+    // both hidden in this mode) drifting later.
+    aiGameButtonsContainer: "ai-game-buttons-container",
+    aiGameOpenBtn: "ai-game-open-btn",
+    debugPlanOpenBtn: "debug-plan-open-btn",
+
+    // --- Debug plan panel (spectator mode) ------------------------------------
+    // Inject a plan into one country: what to go after, and how hard to push. The
+    // rules live in `src/ai/debugPlans.js`; this is only the way in.
+    debugPlanPanelContainer: "debug-plan-panel-container",
+    debugPlanPanel: "debug-plan-panel",
+    debugPlanPanelTitle: "debug-plan-panel-title",
+    debugPlanPanelBody: "debug-plan-panel-body",
+    debugPlanCountrySelect: "debug-plan-country-select",
+    debugPlanKindSelect: "debug-plan-kind-select",
+    debugPlanTargetSelect: "debug-plan-target-select",
+    debugPlanPrioritySelect: "debug-plan-priority-select",
+    debugPlanPriorityNote: "debug-plan-priority-note",
+    debugPlanConfirmBtn: "debug-plan-confirm-btn",
+    debugPlanCancelAllBtn: "debug-plan-cancel-all-btn",
+    debugPlanSummary: "debug-plan-summary",
+    debugPlanActiveList: "debug-plan-active-list",
+    xButtonDebugPlan: "xButtonDebugPlan",
 
     // --- Move-phase button ----------------------------------------------------
     movePhaseButton: "move-phase-button",
@@ -677,6 +708,19 @@ export const classNames = Object.freeze({
     aiGameToneVictory: "ai-tone-victory",
     aiGameToneLoss: "ai-tone-loss",
     aiGameToneSiege: "ai-tone-siege",
+
+    // The debug plan panel. `debugPlanRow` is one labelled control in the form;
+    // `debugPlanStat` is one figure in the selected country's summary, which is
+    // rebuilt from the store on every turn so the window never has to be reopened.
+    debugPlanRow: "debug-plan-row",
+    debugPlanLabel: "debug-plan-label",
+    debugPlanSection: "debug-plan-section",
+    debugPlanSectionTitle: "debug-plan-section-title",
+    debugPlanStat: "debug-plan-stat",
+    debugPlanStatValue: "debug-plan-stat-value",
+    debugPlanTerritoryRow: "debug-plan-territory-row",
+    debugPlanActiveRow: "debug-plan-active-row",
+    debugPlanChip: "debug-plan-chip",
 
     aiDebugCountry: "ai-debug-country",
     aiDebugCountryHeader: "ai-debug-country-header",

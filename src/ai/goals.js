@@ -48,6 +48,7 @@ import {
 } from "../config/balance.js";
 import { allTerritories } from "../state/selectors.js";
 import { Posture } from "./strategy.js";
+import { debugPlanReach } from "./debugPlans.js";
 import { rateTarget, Verdict } from "./targeting.js";
 
 /**
@@ -157,7 +158,16 @@ function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, rng, planning
         //PROBABILITY_THRESHOLD_FOR_SIEGE stays as a hard floor beneath the campaign's own,
         //because it is the same number the player's attack window enforces: below it an
         //interaction is not offered to anybody.
-        const meetsHardFloor = probability >= PROBABILITY_THRESHOLD_FOR_SIEGE;
+        //
+        //The one exception is an injected debug plan set to ALL OUT, and it is the dial that
+        //makes that tier mean what it says: "throw everything at them" against a target the
+        //game will not even offer an interaction with is an instruction that produces
+        //nothing, with the refusal recorded three layers below where it was given. It is
+        //read off the campaign, which is the only place a plan enters the AI -- see
+        //`applyDebugPlan()` in `strategy.js`.
+        const overridesHardFloor =
+            Boolean(debugPlanReach(campaign, enemyTerritory)?.strength.ignoreHardFloor);
+        const meetsHardFloor = probability >= PROBABILITY_THRESHOLD_FOR_SIEGE || overridesHardFloor;
 
         if (meetsHardFloor && rating.verdict === Verdict.SIEGE) {
             possibleGoalsArray.push(["Siege", enemyTerritory.territoryName, friendlyTerritory.territoryName, threatScore, probability]);

@@ -54,6 +54,27 @@ export function globeIcon() {
     ]);
 }
 
+/**
+ * A joystick: the spectated game's own controls.
+ *
+ * The one piece of map chrome that is not about the WORLD but about the RUN -- pace, pause,
+ * and the log of what each country did. A joystick says "this is the control panel" in a way
+ * a globe or a map sheet cannot, which is why it earns a picture where the plan injector
+ * beside it keeps a letter: that one is read once, this one is reached for repeatedly.
+ */
+export function joystickIcon() {
+    return icon("chrome-icon-joystick", [
+        svgEl("circle", { attrs: { cx: "12", cy: "5.4", r: "3" } }),
+        svgEl("line", { attrs: { x1: "12", y1: "8.4", x2: "12", y2: "14.2" } }),
+        svgEl("path", {
+            attrs: {
+                d: "M6 14.2h12a2.6 2.6 0 0 1 2.6 2.6v1.6a1.8 1.8 0 0 1-1.8 1.8H5.2a1.8 1.8 0 0 1-1.8-1.8v-1.6A2.6 2.6 0 0 1 6 14.2z"
+            }
+        }),
+        svgEl("circle", { attrs: { cx: "16.8", cy: "17.3", r: "1.05" } }),
+    ]);
+}
+
 /** A folded paper map: the ordinary political view. */
 export function mapSheetIcon() {
     return icon("chrome-icon-map", [

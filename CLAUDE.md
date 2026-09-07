@@ -689,6 +689,70 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   of two hundred countries a turn a silent line and a country that was never asked look
   identical — and "nothing reachable to campaign against" is itself the answer to why an
   island does nothing for fifty turns.
+- **A PLAN CAN BE INJECTED INTO A COUNTRY, AND `src/ai/debugPlans.js` IS THE ONLY PLACE ONE
+  IS ASSERTED RATHER THAN DERIVED.** Every other horizon comes out of the world — the
+  objective from the victory condition, the theatre from the frontier, this turn's goals
+  from `rateTarget()`. That is right for the game and useless for debugging it, because
+  "what happens if Russia goes all-out at Finland" is a pairing the derivation will never
+  produce on a 207-country map. The "D" button in spectator mode opens
+  `src/ui/components/DebugPlanPanel.js`: pick a country, point it at a COUNTRY or a
+  TERRITORY, choose one of four strengths, confirm. Six things follow. **The campaign is the
+  ONE entry point** — `applyDebugPlan()` in `strategy.js` folds the plan onto the campaign
+  and `targeting.js`, `goals.js` and `aiCalculations.js` all read `campaign.debugPlan`
+  rather than looking it up again, because a plan in force in three of four places produces
+  a country that ranks its target first and then declines to attack it, which reads as the
+  tool being broken. **A priority is a ROW of dials, not a multiplier**: the ranking weight,
+  both odds floors, both budgets, the appetite, the reserve kept at home and the sizing all
+  move together, because turning one up while the others stay put changes nothing. **The top
+  tier deliberately breaks rules the others respect** — the setback memory, the posture
+  refusals, the 8% floor the game applies to everybody, and the smallest-force-that-clears
+  sizing — and the one invariant it may NOT break is `minimumHomeShare`, so no plan at any
+  strength can empty a province. **A plan SURVIVES a succession**, alone among everything a
+  country holds: `clearPlansFor()` wipes judgements reached by a dead leader, and an
+  injected plan is the operator's instruction. It goes when it is replaced, cancelled, when
+  spectator mode is left, or when it **comes true** — `retireRealisedDebugPlans()` runs once
+  per TURN from `planCampaign()`'s cache-miss branch (not once per country: the predicate
+  walks the territory list). **The player's opening grace period still stands at every
+  tier.** And **the dials are in that module and not in `balance.js`**, because no ordinary
+  game and no `tools/ai-sim.mjs` run reaches them.
+- **AN INJECTED PLAN IS ROUTED, AND WITHOUT `src/ai/route.js` IT WAS A WISH.** `rateTarget()`
+  is only ever called on pairings that ALREADY exist — an enemy territory adjacent to one of
+  ours — so a plan naming something on another continent was consulted exactly never: the
+  United States pointed at the Falkland Islands carried on choosing its own targets while the
+  panel cheerfully reported a plan in force, and would have taken the credit if it ever
+  conquered its way there by itself. `route.js` is one breadth-first search per plan-bearing
+  country per turn, seeded at the OBJECTIVE and run outwards over `getInteractableFrom` —
+  which is the graph the game will actually let an army cross, sea crossings included, so a
+  distance of `Infinity` means genuinely UNREACHABLE and is reported as such. Four things
+  follow. **The corridor is a comparison, not a stored path**: an enemy territory is on the
+  route exactly when `distance < ourBest`, re-derived every turn, so a corridor blocked by
+  somebody else's conquest simply becomes a different corridor rather than a stale plan.
+  **Strictly closer** — a territory the same distance away as ground we already hold is a
+  sideways move and gets nothing. **The corridor gets the SAME dispensations as the
+  objective** (weight decayed by `CORRIDOR_DECAY`, but the same floors, setback amnesty and
+  posture overrides), because a country that will ignore its posture for the Falklands and
+  for nothing on the way there gets as far as Panama and stops. And **`staging` overrides the
+  theatre's spearhead in `muster.js`**, which is the half that makes a distant objective
+  reachable at all: without somewhere to mass, the country arrives at the front of a
+  fifteen-hop route with one province's garrison. Measured in a spectated game: the United
+  States walked Mexico → Costa Rica → Colombia → Brazil → Peru → Chile → Tierra del Fuego →
+  Falkland Islands over nineteen turns, and the plan retired itself on arrival. **`nextSteps`
+  is filtered to territories ADJACENT to us** — on distance alone it offered "Niger, Algeria,
+  Western Sahara", all genuinely six hops from the objective and all across an ocean.
+- **The AI console's X closes the window; FINISH ends the session, and FINISH is on the GOAL
+  BAR.** It used to be that closing WAS stopping, and the reasoning was sound while it held: a
+  spectated game with its console shut is a page that looks idle while two hundred countries
+  fight behind it, and nothing would have brought the window back. `aiGameOpenBtn` — a
+  joystick, because that window is the game CONTROLS — is what changed that, so the console
+  can now be pushed off screen to watch the map. **FINISH therefore had to leave it**: a
+  window that can be closed is the wrong home for the one action that cannot be taken back.
+  It is a CHILD of `.ai-game-goal-bar` rather than a sibling positioned beside it, because the
+  bar is centred with `translateX(-50%)` and its width follows the length of the goal text —
+  anything placed "to the right of it" would need re-measuring every time the leader changed
+  name. The joystick and the "D" button live in `aiGameButtonsContainer`, their OWN container:
+  the left-hand column belongs to a played game and `toggleUIButton(false)` hides both of its
+  buttons in this mode, so a debug control sharing that container would be shown and hidden by
+  the wrong switch.
 - **The faded, shrunken AI siege marker exists to make the PLAYER's sieges stand out, so
   it is switched off when there is no player.** `src/ui/siegeOverlay.js` asks
   `isAiGameActive()`. Applied in spectator mode it faded every marker on the map to 40% at
@@ -1057,8 +1121,9 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   it.
 
 - **Every game rule runs in Node** (Phase 5). `src/rules/`, `src/ai/` and `src/engine/`
-  import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8, and only
-  `src/ai/theatre.js`) `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module
+  import from `src/config/`, `src/state/selectors.js` and (since Phase 7.8 — only
+  `src/ai/theatre.js`, and `src/ai/strategy.js` for the injected-plan corridor)
+  `src/data/adjacency.js` — no DOM, no `ui.js`. The adjacency module
   THROWS when its data has not been loaded, which is the case in Node, so every call is
   behind `isAdjacencyLoaded()` and the neighbour lookup is injectable for the unit tests. That is the property the unit suite depends on, so before adding an import to any
   of them, check it does not drag the UI in. Two dependencies are INJECTED for exactly this

@@ -125,21 +125,19 @@ let filterExact = false;
 /** Injected: the click sound, so this component does not import the audio layer. */
 let playSound = null;
 
-/** Called when the reader asks to leave spectator mode. */
-let onStop = null;
-
 /**
- * Build the window. It starts hidden; `open()` is called by the mode, not by a button
- * over the map -- there is no map chrome for this because it is not part of the game.
+ * Build the window. It starts hidden; `open()` is called by the mode.
+ *
+ * It DOES have a button over the map now (`aiGameOpenBtn`, shown only in spectator chrome),
+ * and that button is what made the X safe to turn into an ordinary close -- see the note on
+ * the close button below. Nothing here ends the session any more; FINISH is on the goal bar.
  *
  * @param {object} deps
  * @param {() => void} [deps.onSound]
- * @param {() => void} [deps.onStop]  leave spectator mode and go back to the menu
  */
-export function create({ onSound, onStop: stopHandler } = {}) {
+export function create({ onSound } = {}) {
     if (panelRoot) return panelRoot;
     playSound = onSound ?? null;
-    onStop = stopHandler ?? null;
 
     pauseButton = el(
         "button",
@@ -220,18 +218,26 @@ export function create({ onSound, onStop: stopHandler } = {}) {
 
     filterCount = el("span", { id: ids.aiGameFilterCount, class: "ai-game-filter-count" });
 
+    // CLOSING IS NOT STOPPING ANY MORE. It used to be, and the reason was sound at the
+    // time: a spectated game with its console shut is a page that looks idle while two
+    // hundred countries fight behind it, and there was no button anywhere that would
+    // bring the window back. There is now -- the joystick button over the map -- so the
+    // destructive reading of an X is gone and the window can be pushed out of the way to
+    // watch the map, which is the thing a person most wants to do while it runs.
+    //
+    // Ending the session is FINISH, and it is deliberately NOT in this window: a window
+    // that can be closed is the wrong home for the one action that cannot be taken back.
+    // It sits on the goal bar across the top, which is up for as long as the mode is --
+    // see `AiGameGoalBar.js`.
     const closeButton = el("button", {
         id: ids.xButtonAiGame,
         class: "x-button",
         html: "X",
-        attrs: { type: "button", "aria-label": "End the AI game" }
+        attrs: { type: "button", "aria-label": "Hide the AI game console" }
     });
     closeButton.addEventListener("click", () => {
         playSound?.();
-        // Closing IS stopping. A spectated game with its console shut is a page that
-        // looks idle while two hundred countries fight behind it, and there is no
-        // button anywhere that would bring the window back.
-        onStop?.();
+        close();
     });
 
     turnElement = el("span", { id: ids.aiGameConsoleTurn, class: "ai-game-console-turn" });

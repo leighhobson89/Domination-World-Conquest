@@ -29,19 +29,49 @@ import { describeCondition } from "../goals/goalCatalogue.js";
 let root = null;
 let goalText = null;
 let leaderText = null;
+let finishButton = null;
 let unsubscribe = null;
 /** Where the numbers come from. Injected so this file imports nothing from the AI. */
 let readWorld = null;
 
-export function create({ readWorld: reader } = {}) {
+/**
+ * @param {object} deps
+ * @param {() => object} [deps.readWorld]  the active condition and who is leading it
+ * @param {() => void}   [deps.onFinish]   end the spectated session
+ * @param {() => void}   [deps.onSound]
+ */
+export function create({ readWorld: reader, onFinish, onSound } = {}) {
     if (root) return root;
     readWorld = reader ?? null;
 
     goalText = el("span", { class: "ai-game-goal-text" });
     leaderText = el("span", { class: "ai-game-goal-leader" });
 
+    // FINISH LIVES HERE RATHER THAN IN THE CONSOLE, and it is not merely a nicer place for
+    // it. The console can now be closed and pushed off screen -- that is what its X does and
+    // what the joystick button over the map undoes -- so a control that ENDS the session
+    // cannot live inside it: the one action you cannot take back would be the one action
+    // hidden behind a window you had just tidied away.
+    //
+    // It is a CHILD of the bar rather than a separate fixed element, because the bar is
+    // centred with `translateX(-50%)` and its width follows the length of the goal text. A
+    // sibling positioned "to the right of it" would have to be re-measured whenever the
+    // leader changed name; a child is simply the last thing in the strip.
+    finishButton = el("button", {
+        id: ids.aiGameFinishBtn,
+        class: "ai-game-goal-finish",
+        text: "FINISH",
+        attrs: { type: "button", title: "End the AI game and return to the main menu" },
+        on: {
+            click() {
+                onSound?.();
+                onFinish?.();
+            }
+        }
+    });
+
     root = el("div", { id: ids.aiGameGoalBar, class: "ai-game-goal-bar" },
-        [goalText, leaderText]);
+        [goalText, leaderText, finishButton]);
     mount(document.body, root);
 
     unsubscribe = onStateEvent(Events.TURN_CHANGED, () => update());
@@ -95,7 +125,7 @@ export function destroy() {
     unsubscribe = null;
     root?.remove();
     root = null;
-    goalText = leaderText = readWorld = null;
+    goalText = leaderText = finishButton = readWorld = null;
 }
 
 export const aiGameGoalBar = { create, update, show, hide, isVisible, text, destroy };

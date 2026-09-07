@@ -27,6 +27,8 @@
 // that does the wording, so the wording can be unit-tested against fixtures.
 
 import { allTerritories } from "../state/selectors.js";
+import { describeDebugPlan } from "../ai/debugPlans.js";
+import { describeRoute } from "../ai/route.js";
 import { ActivityKind } from "../state/activityLog.js";
 import { AiGameTone } from "./aiGameLog.js";
 
@@ -301,6 +303,30 @@ function thoughtLines(plan, campaign) {
     const lines = [];
     const longTerm = plan?.longTerm ?? null;
     const mediumTerm = plan?.mediumTerm ?? null;
+
+    //AN INJECTED PLAN GOES FIRST, above the country's own three horizons, because it
+    //overrides all three and a reader who sees the ordinary reasoning first will spend the
+    //block wondering why the country is not following it. It is the only line in this
+    //report that did not come out of the world -- see `src/ai/debugPlans.js`.
+    if (campaign?.debugPlan) {
+        lines.push({
+            label: "INJECTED",
+            text: describeDebugPlan(campaign.debugPlan) +
+                " -- floors now " + Math.round(campaign.attackOddsFloor) + "% attack / " +
+                Math.round(campaign.siegeOddsFloor) + "% siege",
+            tone: AiGameTone.PLAN
+        });
+        //THE ROUTE, on its own line and printed even when there is none. An objective on
+        //another continent is reached one corridor step at a time, and "why is it attacking
+        //Panama when I told it to take the Falklands" has exactly one answer -- this line.
+        //An UNREACHABLE objective is the other thing this says, and it is the only way to
+        //find out that a plan is going to sit there doing nothing for the rest of the game.
+        lines.push({
+            label: "Route",
+            text: describeRoute(campaign.debugRoute),
+            tone: AiGameTone.PLAN
+        });
+    }
 
     //THE ULTIMATE AIM. Every country on the map is racing for the same victory condition
     //-- it is a shared race, and any of them can get there first -- so this line says what

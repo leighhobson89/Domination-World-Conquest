@@ -236,6 +236,7 @@ import {
 } from './src/ui/core/dom.js';
 import {
     globeIcon,
+    joystickIcon,
     mapSheetIcon,
     mountainIcon,
     continentIcon,
@@ -330,6 +331,12 @@ import {
 import {
     aiGameConsole
 } from './src/ui/components/AiGameConsole.js';
+import {
+    debugPlanPanel
+} from './src/ui/components/DebugPlanPanel.js';
+import {
+    clearAllDebugPlans
+} from './src/ai/debugPlans.js';
 import {
     isAiGameActive,
     startAiGameMode,
@@ -845,12 +852,68 @@ document.addEventListener("DOMContentLoaded", function() {
     audioPanel.create({ onSound: () => playSoundClip("button") });
     activityPanel.create({ onSound: () => playSoundClip("switch") });
     aiDebugPanel.create();
-    aiGameConsole.create({
-        onSound: () => playSoundClip("button"),
-        onStop: () => void endAiGame()
-    });
+    aiGameConsole.create({ onSound: () => playSoundClip("button") });
+    debugPlanPanel.create({ onSound: () => playSoundClip("button") });
+
+    // THE TWO SPECTATOR-ONLY BUTTONS. They live in their own container rather than
+    // alongside the info-panel globe, because the left-hand column belongs to a PLAYED
+    // game -- `toggleUIButton(false)` hides both of its buttons in this mode, and a debug
+    // control that shared a container with them would be shown and hidden by the wrong
+    // switch. `applySpectatorChrome()` is the only thing that reveals this one.
+    //
+    // The labels are letters rather than icons on purpose: an icon has to be learned and
+    // these two are read once, by one person, while something else is being watched.
+    mount(
+        ids.aiGameButtonsContainer,
+        el(
+            "button",
+            {
+                id: ids.aiGameOpenBtn,
+                class: "chrome-button debug-chrome-button",
+                attrs: {
+                    type: "button",
+                    "aria-label": "AI game console",
+                    title: "Show or hide the AI game console",
+                },
+                on: {
+                    click() {
+                        playSoundClip("switch");
+                        aiGameConsole.isOpen() ? aiGameConsole.close() : aiGameConsole.open();
+                    },
+                },
+            },
+            //A JOYSTICK, because this one is the game CONTROLS -- pace, pause, and the log
+            //of what each country did -- and it is reached for repeatedly. The plan injector
+            //beside it keeps a letter on purpose: that window is opened once, deliberately,
+            //and a letter cannot be mistaken for a thing the game does on its own.
+            joystickIcon()
+        ),
+        el(
+            "button",
+            {
+                id: ids.debugPlanOpenBtn,
+                class: "chrome-button debug-chrome-button",
+                text: "D",
+                attrs: {
+                    type: "button",
+                    "aria-label": "Injected plans",
+                    title: "Inject a plan into a country",
+                },
+                on: {
+                    click() {
+                        playSoundClip("switch");
+                        debugPlanPanel.toggle();
+                    },
+                },
+            }
+        )
+    );
 
     aiGameGoalBar.create({
+        onSound: () => playSoundClip("button"),
+        //FINISH lives on the goal bar rather than in the console, because the console can be
+        //closed and the goal bar is up for as long as the mode is -- see `AiGameGoalBar.js`.
+        onFinish: () => void endAiGame(),
         readWorld() {
             const condition = activeVictoryCondition();
             const standings = worldStandings();
@@ -3696,6 +3759,13 @@ function leaveSpectatorMode() {
         return;
     }
     stopAiGameMode();
+    //THE ONE PLACE INJECTED PLANS ARE DROPPED WITHOUT BEING ASKED. They deliberately
+    //survive a succession, a change of posture and a turn boundary -- see
+    //`src/ai/debugPlans.js` -- but not the world being thrown away and rebuilt underneath
+    //them, because the countries a plan names may not exist in the next one.
+    clearAllDebugPlans();
+    debugPlanPanel.reset();
+    toggleSpectatorDebugButtons(false);
     aiGameConsole.close();
     aiGameGoalBar.hide();
 }
@@ -3717,8 +3787,23 @@ function applySpectatorChrome() {
 
     toggleBottomTableContainer(true);
     menuButton.show();
+    toggleSpectatorDebugButtons(true);
     aiGameConsole.open();
     aiGameGoalBar.show();
+}
+
+/**
+ * The "AI" and "D" buttons over the map, which exist only while a game plays itself.
+ *
+ * They are the reason the console's X is an ordinary close rather than an end-the-game:
+ * without a way back, a shut console left the page looking idle while two hundred countries
+ * fought behind it. See the note on the close button in `AiGameConsole.js`.
+ */
+function toggleSpectatorDebugButtons(makeVisible) {
+    const container = document.getElementById(ids.aiGameButtonsContainer);
+    if (container) {
+        container.style.display = makeVisible ? "flex" : "none";
+    }
 }
 
 function resetChromeForCountrySelection() {
