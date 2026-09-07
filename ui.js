@@ -195,7 +195,6 @@ import {
     paintLockedCountries
 } from './src/ui/map/MapView.js';
 import {
-    CONTINENT_COLOR_ARRAY,
     assignStartingColours,
     convertHexValueToRGBOrViceVersa,
     startingColourForCountry
@@ -213,6 +212,25 @@ import {
     showAttackArrows,
     clearAttackArrows
 } from './src/ui/map/attackArrows.js';
+import {
+    setPathStrokePx
+} from './src/ui/map/strokes.js';
+import {
+    attachMilitaryLayer,
+    configureMilitaryView,
+    isMilitaryViewActive,
+    militaryFillFor
+} from './src/ui/map/militaryView.js';
+import {
+    MAP_VIEWS,
+    MAP_VIEW_TITLE,
+    attachMapViews,
+    cycleMapView,
+    exitPhysicalMap,
+    isPhysicalMapActive,
+    onMapViewChanged,
+    resetMapView
+} from './src/ui/map/mapViews.js';
 import {
     attachCamera,
     zoomMap,
@@ -277,6 +295,9 @@ import {
 import {
     aiGameGoalBar
 } from './src/ui/components/AiGameGoalBar.js';
+import {
+    mapLegend
+} from './src/ui/components/MapLegend.js';
 import {
     describeCondition,
     describeLeaderProgress,
@@ -478,7 +499,6 @@ let territoryStringDefender;
 const multiplierForScatterLoss = 0.7;
 
 
-export let mapMode = 1;
 let shiftedPath;
 
 export function setUpgradeOrBuyWindowOnScreenToTrue(upgradeOrBuyParameter) {
@@ -504,6 +524,23 @@ export function svgMapLoaded() {
     attachMapView(paths);
     attachMarkerLayer(svgMap);
     attachArrowLayer(svgMap);
+    attachMilitaryLayer(svgMap);
+    attachMapViews({
+        paths,
+        coastPaths: pathsCoastLines,
+        coastDocument: svgCoastLinesMap
+    });
+    //The two things the military view may not import for itself: the repaint (its own caller,
+    //`MapView.js`) and the abbreviation (`resourceCalculations.js`, which would drag the whole
+    //economy in behind it).
+    configureMilitaryView({
+        repaint: repaintMap,
+        //`1` is this function's argument for NO decimal place, which is a genuinely
+        //unfortunate signature. A figure on the map wants to be short -- "500k" fits inside
+        //Germany at world zoom and "499.9k" does not -- and a tenth of a thousand men is
+        //below anything a player would act on anyway.
+        format: (value) => formatNumbersToKMB(value, 1)
+    });
 
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
@@ -572,7 +609,7 @@ export function svgMapLoaded() {
 
         e.target.dispatchEvent(newEvent);
 
-        if (mapMode === 2) {
+        if (isPhysicalMapActive()) {
             exitPhysicalMap();
             for (let i = 0; i < allTerritories().length; i++) {
                 if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") {
@@ -674,7 +711,9 @@ export function svgMapLoaded() {
     });
 
     assignStartingColours(paths, pathCountry);
-    applyContinentView(DEFAULT_CONTINENT_VIEW);
+    //APPLIED rather than merely declared: the SVG ships with plain sea-coloured strokes, so a
+    //game that only set the variable would show the button in one state and the map in another.
+    resetMapView();
 
     markBootstrapStage("map");
 
@@ -730,14 +769,14 @@ function selectCountry(country, escKeyEntry) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && pathIsPlayerOwned(paths[i]) && !pathIsDeactivated(country)) { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
                     paths[i].setAttribute('fill', playerColour());
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && !pathIsPlayerOwned(paths[i]) && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                    if (mapMode === 1) {
+                    if (!isPhysicalMapActive()) {
                         for (let j = 0; j < allTerritories().length; j++) {
                             if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
                                 setColorOnMap(allTerritories()[j]);
                                 break;
                             }
                         }
-                    } else if (mapMode === 2) {
+                    } else if (isPhysicalMapActive()) {
                         exitPhysicalMap();
                         for (let j = 0; j < allTerritories().length; j++) {
                             if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
@@ -1023,18 +1062,28 @@ document.addEventListener("DOMContentLoaded", function() {
             {
                 id: ids.continentViewButton,
                 class: "chrome-button continent-view-button",
-                attrs: { type: "button", "aria-label": "Continent view" },
+                attrs: { type: "button", "aria-label": "Map view" },
                 on: {
                     click() {
                         playSoundClip("switch");
-                        cycleContinentView();
+                        cycleMapView();
                     },
                 },
             },
-            [mapSheetIcon(), mountainIcon(), continentIcon()]
+            //Four views, four icons, one shown at a time by `data-view` in the stylesheet. The
+            //swords are the same drawing the Wars tab and the activity feed use for a battle,
+            //deliberately: one picture, one meaning, wherever it appears.
+            [mapSheetIcon(), mountainIcon(), continentIcon(), crossedSwordsIcon()]
         )
     );
-    updateContinentViewButton();
+    //The button and the key both follow the view rather than being written at every call site
+    //that changes it. One subscription, installed once, from bootstrap.
+    mapLegend.create();
+    onMapViewChanged(view => {
+        updateMapViewButton(view);
+        mapLegend.setViewActive(view === MAP_VIEWS.MILITARY);
+    });
+    updateMapViewButton(MAP_VIEWS.CONTINENT);
 
     mount(
         ids.uiButtonContainer,
@@ -1062,7 +1111,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     countrySelect.create({
         onColourChange() {
-            if (mapMode === 2) {
+            if (isPhysicalMapActive()) {
                 exitPhysicalMap();
             }
             setPlayerColour(convertHexValueToRGBOrViceVersa(countrySelect.colour(), 0));
@@ -1966,24 +2015,24 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
         let fillValue = territory.getAttribute("fill");
         let rgbValues;
         let r, g, b;
-        if (mapMode === 1) { //normal map
+        if (!isPhysicalMapActive()) { //normal map
             rgbValues = fillValue.match(/\d+/g).map(Number);
             [r, g, b] = rgbValues;
         }
-        if (mouseAction === "mouseOver" && ((r <= 254 && g <= 254 && b <= 254 && mapMode === 1) || mapMode === 2)) { //this handles color change when hovering (doesn't run on selected or interactable territories)
-            if (mapMode === 1) {
+        if (mouseAction === "mouseOver" && ((r <= 254 && g <= 254 && b <= 254 && !isPhysicalMapActive()) || isPhysicalMapActive())) { //this handles color change when hovering (doesn't run on selected or interactable territories)
+            if (!isPhysicalMapActive()) {
                 hoveredNonInteractableAndNonSelectedTerritory = true;
                 r += 20;
                 g += 20;
                 b += 20;
                 territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
-            } else if (mapMode === 2 && !pathIsPlayerOwned(territory)) {
+            } else if (isPhysicalMapActive() && !pathIsPlayerOwned(territory)) {
                 [r, g, b] = [255, 255, 255];
                 territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
                 territory.setAttribute("fill-opacity", "0.3");
             }
-        } else if (mouseAction === "mouseOut" && ((r <= 254 && g <= 254 && b <= 254 && mapMode === 1) || mapMode === 2)) { //this handles color change when leaving a hover (doesn't run on selected or interactable territories)
-            if (mapMode === 1) {
+        } else if (mouseAction === "mouseOut" && ((r <= 254 && g <= 254 && b <= 254 && !isPhysicalMapActive()) || isPhysicalMapActive())) { //this handles color change when leaving a hover (doesn't run on selected or interactable territories)
+            if (!isPhysicalMapActive()) {
                 hoveredNonInteractableAndNonSelectedTerritory = false;
                 r -= 20;
                 g -= 20;
@@ -1993,11 +2042,11 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                 } else {
                     territory.setAttribute("fill", "rgb(" + r + "," + g + "," + b + ")");
                 }
-            } else if (mapMode === 2 && !pathIsPlayerOwned(territory)) {
+            } else if (isPhysicalMapActive() && !pathIsPlayerOwned(territory)) {
                 territory.setAttribute("fill-opacity", "0.01");
             }
         } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
-            if (mapMode === 2) {
+            if (isPhysicalMapActive()) {
                 exitPhysicalMap();
 
             }
@@ -2015,7 +2064,10 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
 }
 
 function setStrokeWidth(path, stroke) {
-    path.setAttribute("stroke-width", stroke)
+    //The argument is SCREEN PIXELS now, not user units, and every existing call site already
+    //meant it that way -- "1" was a hairline and "3" a highlight, and both were only right at
+    //zoom 1. `setPathStrokePx()` remembers the figure so that a zoom re-applies it.
+    setPathStrokePx(path, stroke);
 }
 
 export function enableNewGameButton() {
@@ -2369,7 +2421,7 @@ export function removeSiegeImageFromPath(ai, path) {
 
     removeSiegeMarker(territoryName);
 
-    if (mapMode === 1) {
+    if (!isPhysicalMapActive()) {
         for (let i = 0; i < allTerritories().length; i++) {
             if (allTerritories()[i].uniqueId === path.getAttribute("uniqueid")) {
                 setColorOnMap(allTerritories()[i]);
@@ -2715,6 +2767,9 @@ function toggleMapModeButton(makeVisible) {
     } else {
         document.getElementById(ids.mapModeContainer).style.display = "none";
     }
+    //The key is a caption for the view this button selects, so it goes wherever the button
+    //goes: a legend left standing over a battle screen describes a map nobody can see.
+    mapLegend.setChromeVisible(makeVisible);
     toggleAudioButton(makeVisible);
 }
 
@@ -3921,7 +3976,7 @@ function resetChromeForCountrySelection() {
 }
 
 function resetTransientUiState() {
-    resetContinentView();
+    resetMapView();
     uiCurrentlyOnScreen = false;
     uiButtonCurrentlyOnScreen = false;
     mapModeButtonCurrentlyOnScreen = false;
@@ -4447,113 +4502,25 @@ function modifyFill(pathElement, mousedown) {
     }
 }
 
-const CONTINENT_VIEW_CYCLE = ["continent", "physical", "normal"];
-
-const DEFAULT_CONTINENT_VIEW = "continent";
-
-const CONTINENT_VIEW_TITLE = {
-    normal: "Continent view (political map)",
-    physical: "Continent view (relief and boundaries)",
-    continent: "Continent view (boundaries)",
-};
-
-let continentView = DEFAULT_CONTINENT_VIEW;
-
-function setPhysicalMap(on) {
-    if (on === (mapMode === 2)) {
-        return;
-    }
-    let continentColor;
-    if (on) {
-        mapMode = 2;
-        svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 1");
-        for (let i = 0; i < pathsCoastLines.length; i++) {
-            pathsCoastLines[i].setAttribute("fill-opacity", "0.20");
-            continentColor = pathsCoastLines[i].getAttribute("shadow");
-            pathsCoastLines[i].setAttribute("fill", `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`);
-        }
-        for (let i = 0; i < paths.length; i++) {
-            paths[i].setAttribute("fill-opacity", "0.01");
-            for (let j = 0; j < allTerritories().length; j++) {
-                if (allTerritories()[j].unique === paths[i].getAttribute("uniqueid")) {
-                    setStrokeOnMap(allTerritories()[j]);
-                    break;
-                }
-            }
-            paths[i].setAttribute("stroke-width", "1px");
-            pathIsPlayerOwned(paths[i]) ? (paths[i].setAttribute("fill", playerColour()), paths[i].setAttribute("fill-opacity", "0.5")) : null; //color player territories
-        }
-    } else {
-        mapMode = 1;
-        for (let i = 0; i < paths.length; i++) {
-            paths[i].style.stroke = "black";
-            paths[i].setAttribute("stroke-width", "1px");
-            paths[i].setAttribute("fill-opacity", "1");
-        }
-        repaintMap();
-        svgCoastLinesMap.querySelector('image').setAttribute("style", "opacity: 0");
-        for (let i = 0; i < pathsCoastLines.length; i++) {
-            pathsCoastLines[i].setAttribute("fill", "none");
-        }
-    }
-}
-
-function setContinentStrokes(on) {
-    let continentColor;
-    for (let i = 0; i < pathsCoastLines.length; i++) {
-        if (on) {
-            continentColor = pathsCoastLines[i].getAttribute("shadow");
-            pathsCoastLines[i].style.stroke = `rgb(${CONTINENT_COLOR_ARRAY.find(([continentIndex]) => continentIndex === continentColor)[1].join(", ")})`;
-            pathsCoastLines[i].style.strokeWidth = mapMode === 2 ? "5px" : "6px";
-        } else {
-            pathsCoastLines[i].style.stroke = "rgb(103, 124, 160)";
-            pathsCoastLines[i].style.strokeWidth =
-                pathsCoastLines[i].getAttribute("isisland") === "true" ? "2px" : "5px";
-        }
-    }
-}
-
-function updateContinentViewButton() {
+/**
+ * The map-view button's own state: the icon it shows and the tooltip it carries.
+ *
+ * The four VIEWS live in `src/ui/map/mapViews.js` and each of the three decorations is its own
+ * module beside it. What is left here is the button, which is where it belongs -- this file
+ * owns the map chrome, and the views own the map. `onMapViewChanged()` is subscribed once,
+ * from bootstrap, so nothing has to remember to update the button after applying a view.
+ */
+function updateMapViewButton(view) {
     const button = document.getElementById(ids.continentViewButton);
     if (!button) {
         return;
     }
-    button.setAttribute("data-view", continentView);
-    button.setAttribute("title", CONTINENT_VIEW_TITLE[continentView]);
-}
-
-function applyContinentView(view) {
-    setPhysicalMap(view === "physical");
-    setContinentStrokes(view !== "normal");
-    continentView = view;
-    updateContinentViewButton();
-}
-
-function cycleContinentView() {
-    const next =
-        CONTINENT_VIEW_CYCLE[
-            (CONTINENT_VIEW_CYCLE.indexOf(continentView) + 1) % CONTINENT_VIEW_CYCLE.length
-        ];
-    applyContinentView(next);
-}
-
-function exitPhysicalMap() {
-    if (mapMode !== 2) {
-        return;
-    }
-    applyContinentView("continent");
-}
-
-function resetContinentView() {
-    if (continentView === DEFAULT_CONTINENT_VIEW) {
-        updateContinentViewButton();
-        return;
-    }
-    applyContinentView(DEFAULT_CONTINENT_VIEW);
+    button.setAttribute("data-view", view);
+    button.setAttribute("title", MAP_VIEW_TITLE[view]);
 }
 
 export function endPlayerTurn() {
-    if (mapMode === 2) {
+    if (isPhysicalMapActive()) {
         exitPhysicalMap();
     }
 
@@ -4582,16 +4549,63 @@ export function initialiseNewPlayerTurn() {
     setPhase(Phase.BUY_UPGRADE);
 }
 
+/**
+ * How many places a sparkle will try before giving this tick up.
+ *
+ * Rejection sampling rather than an ocean mask: the visible water is whatever the camera and
+ * the open windows leave, which changes on every pan, zoom and panel. Sea covers most of the
+ * screen at most zooms, so a handful of tries almost always finds some -- and when it does
+ * not, because the player has zoomed into the middle of Asia, the right answer is no sparkle
+ * rather than one drawn on a country.
+ */
+const SPARKLE_PLACEMENT_TRIES = 8;
+
+/**
+ * A point over OPEN WATER, in viewport pixels, or null.
+ *
+ * Two hit tests, and both are needed. The HOST test asks what is on top at that point: if it
+ * is anything but the map object -- the phase bar, a window, the status strips -- a sparkle
+ * there would be drawn on top of the panel, because `.sparkles-container` is above all of it.
+ * The MAP test then asks the map's own document what is under the point, and rejects anything
+ * that is a territory. `#svg-coast-lines` carries `pointer-events: none` so it is invisible to
+ * the first test, and the sea is the map document's background rather than an element, so open
+ * water answers with the backdrop rect or the root and never with a path.
+ */
+function openWaterPoint() {
+    const map = document.getElementById(ids.svgMap);
+    const mapDocument = map?.contentDocument;
+    if (!mapDocument) {
+        return null;
+    }
+    for (let attempt = 0; attempt < SPARKLE_PLACEMENT_TRIES; attempt++) {
+        const x = cosmeticRandom() * window.innerWidth;
+        const y = cosmeticRandom() * window.innerHeight;
+        if (document.elementFromPoint(x, y) !== map) {
+            continue;
+        }
+        const under = mapDocument.elementFromPoint(x, y);
+        if (under?.tagName === "path" && under.hasAttribute("uniqueid")) {
+            continue;
+        }
+        return { x, y };
+    }
+    return null;
+}
+
 function createSparkle() {
     const container = document.querySelector(".sparkles-container");
+    const point = openWaterPoint();
+    if (!container || !point) {
+        return;
+    }
     const sparkle = document.createElement("div");
     sparkle.classList.add("sparkle");
-    sparkle.style.top = `${cosmeticRandom() * 100}%`;
-    sparkle.style.left = `${cosmeticRandom() * 100}%`;
+    sparkle.style.top = `${point.y}px`;
+    sparkle.style.left = `${point.x}px`;
     container.appendChild(sparkle);
 
     setTimeout(() => {
-        container.removeChild(sparkle);
+        sparkle.remove();
     }, 3000);
 }
 
@@ -4634,7 +4648,11 @@ export function setColorOnMap(territory, selectCountryState) {
         }
         for (let i = 0; i < paths.length; i++) {
             if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-                paths[i].setAttribute("fill", territory.countryColor);
+                //In the military view the owner colour is not what this territory is wearing,
+                //so restoring it here would leave one province in political colours on a map
+                //that is shading force. The view is asked for its own answer first.
+                const military = isMilitaryViewActive() ? militaryFillFor(paths[i]) : null;
+                paths[i].setAttribute("fill", military ?? territory.countryColor);
                 break;
             }
         }
@@ -4642,13 +4660,6 @@ export function setColorOnMap(territory, selectCountryState) {
     return territory.countryColor;
 }
 
-export function setStrokeOnMap(territory) {
-    for (let i = 0; i < paths.length; i++) {
-        if (paths[i].getAttribute("uniqueid") === territory.uniqueId) {
-            paths[i].style.stroke = territory.countryColor;
-        }
-    }
-}
 
 export async function populateAiDialogueBox(situation, attacker, defender, parameter) {
     setFlag(attacker.dataName, 8);

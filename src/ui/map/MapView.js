@@ -36,6 +36,11 @@ import {
 } from "../../state/pathState.js";
 import { lockedCountryFill, startingColourFor } from "./colouring.js";
 import { clearAttackArrows } from "./attackArrows.js";
+import { isMilitaryViewActive, militaryFillFor, militaryStrokeFor } from "./militaryView.js";
+import { HAIRLINE_PX, refreshStrokeWidths, setPathStrokePx } from "./strokes.js";
+import { mapInk } from "./themeColours.js";
+import { onZoomChanged } from "./camera.js";
+import { THEME_CHANGED } from "../theme/theme.js";
 
 let paths = [];
 
@@ -81,17 +86,49 @@ export function repaintMap() {
     //second removal route is how a decoration ends up outliving the state behind it.
     clearAttackArrows();
 
+    //THE MILITARY VIEW IS A DIFFERENT ANSWER TO THE SAME QUESTION, not a second painter.
+    //It shades by force rather than by owner and marks the borders the battle model says
+    //would fall, and it is asked here so that there is still exactly one place that decides
+    //what colour a path is -- a view that painted the map itself would be a second writer,
+    //and the whole reason `saveMapColorState()` was deleted is that two of them cannot agree.
+    const military = isMilitaryViewActive();
+
     paths.forEach(path => {
-        const fill = baseFillFor(path);
+        const fill = (military ? militaryFillFor(path) : null) ?? baseFillFor(path);
         if (typeof fill === "string" && fill !== "") {
             path.setAttribute("fill", fill);
         }
 
         if (!isDecorated(path)) {
-            path.style.stroke = "rgb(0,0,0)";
-            path.setAttribute("stroke-width", "1");
+            const stroke = military ? militaryStrokeFor(path) : null;
+            //`--map-ink` and not `rgb(0,0,0)`: 359 pure-black outlines over mid-tone land is
+            //the most dated thing a map can do, and a border is chrome, so it is the theme's
+            //to choose. The width is in SCREEN pixels -- see `strokes.js`.
+            path.style.stroke = stroke ? stroke.colour : mapInk();
+            setPathStrokePx(path, stroke ? stroke.width : HAIRLINE_PX);
             path.style.strokeDasharray = "none";
         }
+    });
+}
+
+//THE LINE WEIGHTS FOLLOW THE ZOOM, exactly as the attack arrows and the force figures do.
+//One subscription for the whole map: `strokes.js` remembers what each path was asked for and
+//re-applies it, so a reachable-destination highlight and a territory outline each keep the
+//weight they were asked for, at zoom 1 and at zoom 6 alike.
+if (typeof window !== "undefined") {
+    onZoomChanged(() => refreshStrokeWidths(paths));
+
+    //A THEME CHANGE RE-INKS THE BORDERS, and does not repaint the whole map: a repaint takes
+    //the attack arrows and the reachable-destination highlights off with it, and the player
+    //can open Options in the middle of planning a move. Only the paths the base render owns
+    //are touched -- a besieged border keeps its dashes and its colour.
+    window.addEventListener(THEME_CHANGED, () => {
+        const ink = mapInk();
+        paths.forEach(path => {
+            if (!isDecorated(path)) {
+                path.style.stroke = ink;
+            }
+        });
     });
 }
 

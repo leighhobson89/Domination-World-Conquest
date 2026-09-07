@@ -37,6 +37,41 @@ export const TOKENS = Object.freeze([
     // territory that has not fallen and has not held -- and giving it a token of
     // its own is what stops five themes rendering it as the same literal amber.
     "--siege-amber",
+    // The military map's strength ramp, weak end and strong end. Two rather than
+    // five: the steps between them are mixed in JS (`militaryShading.js`), so a
+    // theme chooses the FEEL of the ramp -- sepia, phosphor, ice -- and never has
+    // to balance five swatches against one another. They are drawn into the map's
+    // own document as literals, which is why nothing in `style.css` reads them.
+    "--force-weak",
+    "--force-strong",
+
+    // --- The map ------------------------------------------------------------
+    // The map is two `<object>` documents, so none of these reaches it through the
+    // cascade: they are read off the host root and written onto elements as
+    // literals (`src/ui/map/themeColours.js`). `--sea-tint` is the exception and
+    // is the only one `style.css` uses directly, because the ocean is a background
+    // image on the host's own coast-line element.
+    "--map-ink", // every territory's outline
+    "--map-coast", // the coast line with no continent boundary on it
+    // THE SEA IS THE SAME IN EVERY THEME, on Leigh's call, and the three below
+    // therefore join the debug pair as tokens whose value no theme may change.
+    // They are tokens only because `style.css` may not carry a colour literal
+    // outside `:root` and all three are read from rules that are. The reasoning
+    // for pinning them: the ocean is the one surface on screen that is neither
+    // chrome nor a game object -- it is the ground the whole map stands on, and a
+    // theme recolouring it changes what the map IS rather than how it is dressed.
+    // Tinting it per theme was tried and produced a Terminal ocean the same weight
+    // as the land inside it.
+    "--sea-tint", // blended over `sea.png`
+    // HOW that tint is composited, and it has to be a token rather than one
+    // global choice: `soft-light` keeps the image's own light and dark and moves
+    // only its hue, which is right for a theme that wants a daylight ocean, and
+    // CANNOT darken far enough for one that wants a night ocean -- the formula
+    // pulls a 0.75-lightness base to about 0.58 at full strength. Terminal's sea
+    // came out the same weight as the land it surrounds, which is the one thing
+    // an ocean must never be. `multiply` is what gives a theme the dark end.
+    "--sea-blend",
+    "--sea-sparkle", // the glint on the water
 
     // --- Debug ----------------------------------------------------------------
     // The one pair that is deliberately the SAME in every theme. A debug

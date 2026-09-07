@@ -28,8 +28,9 @@ row is stale (item 4, army maintenance, is the known case: it was re-enabled in 
 The mechanics are all there. **What is missing is every layer that sits between the mechanics
 and the person**, and it is missing in four specific ways:
 
-1. **The board does not carry the state.** The map paints an owner colour and nothing else, so
-   reading the world means clicking 359 territories one at a time.
+1. **The board does not carry the state.** Force and threatened borders reach it now (the
+   military view), and nothing else does: no fort, no development, no economy at all, so
+   reading what a territory is WORTH still means clicking 359 territories one at a time.
 2. **The world has no characters.** Two hundred and six leaders with personalities, successions
    and grudges run the whole game. The player can now read a name off the map and nothing else:
    no country to inspect, no rival with a history, no voice beyond a single line of dialogue.
@@ -54,7 +55,7 @@ acceptance run, and the "AI run?" column here says which items need one.
 
 | # | Finding | Evidence | AI run? |
 |---|---|---|---|
-| **M1** | **The map draws four things and none of them is force.** Owner colour and selection ([MapView.js](../src/ui/map/MapView.js)); attack arrows ([attackArrows.js](../src/ui/map/attackArrows.js)); the attack marker ([markers.js](../src/ui/map/markers.js)); siege shields ([siegeOverlay.js](../src/ui/siegeOverlay.js)). That is the complete list of everything ever drawn into the map document. There is no army count, no fort, no development, no indication which of your borders is in danger | `createElementNS` across `src/ui/map/` and `siegeOverlay.js` appears in those three files only | no |
+| **M1** | **The map now carries force, and it does not carry anything else.** The military view ([militaryView.js](../src/ui/map/militaryView.js)) shades every territory by how its garrison stands against what can reach it, marks the player's indefensible borders from the real battle model, and draws the figures — so *"which of my borders is thin"* is answerable at a glance. What is still not on the board is everything the ECONOMY does: no fort, no farm, no development index, no indication of which territory is worth taking rather than merely takeable. That is a second view, not a change to this one | `createElementNS` across `src/ui/map/` and `siegeOverlay.js` | no |
 | **M2** | **A territory's figures are reachable one at a time, through a ten-cell strip at the bottom of the screen.** `writeBottomTableInformation()` ([resourceCalculations.js:1119](../resourceCalculations.js#L1119)) writes the SELECTED territory, and there is one selection. The info panel's four tabs cover the player's own territories | — | no |
 
 **Why this is first.** Risk prints the army count on the territory, and that one number is what
@@ -107,23 +108,6 @@ that is free of the project's most expensive verification step.
 
 The items are lettered in the order they were written rather than renumbered as they are
 finished, because `CLAUDE.md`, the source comments and the archive all cite them by letter.
-
-### E1 — A military map view *(addresses M1; the single highest-value item on this list)*
-
-Add a fourth map mode beside `continent → physical → normal`: territory shaded by garrison
-strength, with a count drawn on anything above a threshold. The data is in the store; the
-precedent for drawing into the map document is `siegeOverlay.js`, including the trap it records
-— the map is an `<object>` with its own document, so theme tokens do **not** cascade in and the
-colour has to be resolved from the host root and written on as a literal.
-
-Two details decide whether it works. **Shade by garrison relative to the strongest thing that
-can reach the territory**, not by absolute army — an absolute figure paints China dark and says
-nothing, whereas *"this border is thin"* is the question a player actually has, and
-`strongestEnemyPowerAgainst()` already computes the denominator. And **a drawn count needs a
-floor on its size**, the same lesson `MIN_MARKER_SIZE` records for siege shields: a fraction of
-the bounding box is right for Sweden and illegible on an island.
-
-*Effort: a day. Risk: none to balance.*
 
 ### E2 — Sound for the things that happen *(M7)*
 
@@ -294,9 +278,10 @@ would spend its first lesson apologising.
 **Finish the legibility block, §2.** What is left of it is one coherent piece of work —
 *make the game show the player what it already knows* — and it shares no code with `src/ai/` or
 `src/rules/`, so it needs no acceptance run and cannot regress a measurement. **E1, the military
-map view, is the highest-value item on this document by a distance**: the board still carries an
-owner colour and nothing else, and every other complaint about the game feeling flat is
-downstream of not being able to read it.
+map view, is delivered** ([the archive](./archived/05-what-is-missing-delivered.md) records what
+it decided), which leaves E2 and E6. The board can now be read for FORCE and still cannot be
+read for anything else, so the natural successor to E1 is not on this list yet: an economic
+view over the same machinery, shading what a territory is worth rather than what holds it.
 
 That block is also the one most likely to change your own answer to "what does this need next",
 because at the moment the game is hard to *see*, and several judgements about it are being made

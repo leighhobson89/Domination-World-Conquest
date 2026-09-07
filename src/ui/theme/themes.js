@@ -58,6 +58,14 @@ export const THEMES = Object.freeze([
             "--negative": "#9a3320",
             "--siege-amber": "#8a6a1f",
 
+            "--force-weak": "#f0e6cd",
+            "--map-ink": "rgba(74, 54, 32, 0.7)",
+            "--map-coast": "rgb(150, 128, 96)",
+            "--sea-tint": "rgba(126, 150, 190, 0.35)",
+            "--sea-blend": "soft-light",
+            "--sea-sparkle": "rgba(226, 244, 255, 0.95)",
+            "--force-strong": "#6b4a22",
+
             // The same in every theme, on purpose -- see tokens.js.
             "--debug-surface": "#ffd400",
             "--debug-ink": "#141005",
@@ -102,6 +110,14 @@ export const THEMES = Object.freeze([
             "--positive": "#3fb950",
             "--negative": "#f85149",
             "--siege-amber": "#e3b341",
+
+            "--force-weak": "#ece0f7",
+            "--map-ink": "rgba(12, 16, 24, 0.78)",
+            "--map-coast": "rgb(72, 92, 128)",
+            "--sea-tint": "rgba(126, 150, 190, 0.35)",
+            "--sea-blend": "soft-light",
+            "--sea-sparkle": "rgba(226, 244, 255, 0.95)",
+            "--force-strong": "#3d1f66",
 
             // The same in every theme, on purpose -- see tokens.js.
             "--debug-surface": "#ffd400",
@@ -152,6 +168,14 @@ export const THEMES = Object.freeze([
             "--negative": "#c8102e",
             "--siege-amber": "#d4a017",
 
+            "--force-weak": "#f0e3c6",
+            "--map-ink": "rgba(26, 16, 16, 0.75)",
+            "--map-coast": "rgb(120, 92, 92)",
+            "--sea-tint": "rgba(126, 150, 190, 0.35)",
+            "--sea-blend": "soft-light",
+            "--sea-sparkle": "rgba(226, 244, 255, 0.95)",
+            "--force-strong": "#5e3a10",
+
             // The same in every theme, on purpose -- see tokens.js.
             "--debug-surface": "#ffd400",
             "--debug-ink": "#141005",
@@ -197,6 +221,14 @@ export const THEMES = Object.freeze([
             "--negative": "#b3261e",
             "--siege-amber": "#9a6f0a",
 
+            "--force-weak": "#eceff1",
+            "--map-ink": "rgba(30, 46, 60, 0.6)",
+            "--map-coast": "rgb(140, 168, 190)",
+            "--sea-tint": "rgba(126, 150, 190, 0.35)",
+            "--sea-blend": "soft-light",
+            "--sea-sparkle": "rgba(226, 244, 255, 0.95)",
+            "--force-strong": "#263238",
+
             // The same in every theme, on purpose -- see tokens.js.
             "--debug-surface": "#ffd400",
             "--debug-ink": "#141005",
@@ -241,6 +273,14 @@ export const THEMES = Object.freeze([
             "--positive": "#4af07a",
             "--negative": "#ff5f56",
             "--siege-amber": "#e8d44a",
+
+            "--force-weak": "#d5ffd8",
+            "--map-ink": "rgba(4, 24, 10, 0.8)",
+            "--map-coast": "rgb(52, 120, 70)",
+            "--sea-tint": "rgba(126, 150, 190, 0.35)",
+            "--sea-blend": "soft-light",
+            "--sea-sparkle": "rgba(226, 244, 255, 0.95)",
+            "--force-strong": "#0a4a1c",
 
             // The same in every theme, on purpose -- see tokens.js.
             "--debug-surface": "#ffd400",

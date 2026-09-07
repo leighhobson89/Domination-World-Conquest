@@ -184,21 +184,21 @@ export class MapPage {
     }
 
     /**
-     * One click of the continent-view button, which walks
-     * normal -> physical -> continent -> normal (Phase 7.4).
+     * One click of the map-view button, which walks
+     * continent -> normal -> military -> physical -> continent (register item E1).
      */
     async cycleContinentView() {
         await this.page.locator(map.continentViewButton).click();
     }
 
-    /** Which of the three views the button says it is in. */
+    /** Which of the four views the button says it is in. */
     async continentView() {
         return this.page.locator(map.continentViewButton).getAttribute("data-view");
     }
 
     /** Walk the cycle until it reaches `view`, and no further than one full lap. */
     async setContinentView(view) {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 4; i++) {
             if ((await this.continentView()) === view) return;
             await this.cycleContinentView();
         }

@@ -5,10 +5,12 @@ import {
     setPlayerUseableNotUseableWeaponsDueToOilDemand, turnGainsArrayAi,
     turnGainsArrayPlayer
 } from './resourceCalculations.js';
+import { isPhysicalMapActive } from './src/ui/map/mapViews.js';
+import { HAIRLINE_PX, setPathStrokePx } from './src/ui/map/strokes.js';
+import { mapInk } from './src/ui/map/themeColours.js';
 import {
     getOriginalDefendingTerritory,
     getSiegeObjectFromPath,
-    mapMode,
     paths,
     populateWarResultPopup,
     removeSiegeImageFromPath,
@@ -561,7 +563,7 @@ export function handleWarEndingsAndOptions(situation, contestedTerritory, attack
         setFlag(playerCountryName(), 2);
         setTerritoryOwner(contestedTerritory.uniqueId, "Player", playerCountryName());
         deactivateTerritory(contestedPath);
-        if (mapMode === 2) {
+        if (isPhysicalMapActive()) {
             contestedPath.style.stroke = "white";
         }
     } else if (won && ai) {
@@ -582,7 +584,7 @@ function deactivateTerritory(contestedPath) {
 
     contestedPath.style.stroke = "red";
     contestedPath.style.strokeDasharray = "10, 5";
-    contestedPath.setAttribute("stroke-width", "3");
+    setPathStrokePx(contestedPath, 3);
 
     setTerritoryAboutToBeAttackedFromExternal(null);
     setTerritoryDeactivated(contestedPath.getAttribute("uniqueid"), true);
@@ -605,13 +607,12 @@ export function activateAllPlayerTerritoriesForNewTurn() {
         } else {
             for (let j = 0; j < paths.length; j++) {
                 if (paths[j].getAttribute("uniqueid") === playerTurnsDeactivatedArray[i][0]) {
-                    if (mapMode === 1) {
-                        paths[j].style.stroke = "black";
-                    } else if (mapMode === 2) {
-                        paths[j].style.stroke = "white";
-                    }
+                    //`--map-ink` rather than a literal "black": the outline is the theme's
+                    //to choose now, and this is one of the two places outside `MapView.js`
+                    //that puts a base outline back after a decoration.
+                    paths[j].style.stroke = isPhysicalMapActive() ? "white" : mapInk();
                     paths[j].style.strokeDasharray = "none";
-                    paths[j].setAttribute("stroke-width", "1");
+                    setPathStrokePx(paths[j], HAIRLINE_PX);
                     setTerritoryDeactivated(paths[j].getAttribute("uniqueid"), false);
                     break;
                 }

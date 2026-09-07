@@ -15,19 +15,40 @@
 // one thing that genuinely is not derivable -- the arbitrary per-country colour the
 // world is painted in at bootstrap.
 //
+// **THE PALETTE ITSELF IS `palette.js`**, and the split is the same one the military view
+// makes: the arithmetic that decides a colour is pure and unit-tested, and this file is the
+// part that walks the paths and writes fills. What that bought is a modern map -- hue varying
+// over a fixed saturation and lightness band, rather than three independent channels -- for
+// exactly the same three `Math.random()` draws per country, which is what kept every seeded
+// outcome in the game where it was.
+//
 // `startingColours` IS state, but it is view state and it is written exactly once,
 // by `assignStartingColours()` during bootstrap. `pushColorsToMainArray()` then
 // copies it into each territory's `countryColor`, and from that point the store is
 // authoritative and this table is only consulted for the country-selection screen
 // (which runs before `countryColor` exists) and for the locked-country muting.
 
+/**
+ * The six continents, as colours.
+ *
+ * Rebalanced with the palette: the original set was three near-primaries, a pure yellow and a
+ * magenta, chosen for separation alone and mixed in with no common saturation or lightness --
+ * so the boundary bands read as six unrelated inks rather than as one legend. These are the
+ * same six hues, pulled into the band the country palette sits in and lightened, because a
+ * boundary is drawn OVER the land and has to stay brighter than everything it crosses while
+ * still belonging to the same picture. Separation is preserved: no two are within 40 degrees.
+ */
+import { countryColourFrom, rgbString } from "./palette.js";
+import { HAIRLINE_PX, setPathStrokePx } from "./strokes.js";
+import { mapInk } from "./themeColours.js";
+
 export const CONTINENT_COLOR_ARRAY = [
-    ["Africa", [233, 234, 20]],
-    ["Asia", [203, 58, 22]],
-    ["Europe", [186, 218, 85]],
-    ["North America", [83, 107, 205]],
-    ["South America", [193, 83, 205]],
-    ["Oceania", [74, 202, 233]]
+    ["Africa", [214, 178, 62]],
+    ["Asia", [201, 96, 74]],
+    ["Europe", [143, 186, 96]],
+    ["North America", [96, 126, 199]],
+    ["South America", [172, 106, 194]],
+    ["Oceania", [82, 179, 194]]
 ];
 
 export const GREY_OUT_COLOR = "rgb(170,170,170)";
@@ -45,15 +66,22 @@ const startingColours = new Map();
 /** country name -> the same colour, so a whole country can be answered at once. */
 const startingCountryColours = new Map();
 
-function rgbString(triple) {
-    return `rgb(${triple[0]}, ${triple[1]}, ${triple[2]})`;
-}
-
-function randomRgbTriple() {
-    const r = Math.floor(Math.random() * 150) + 50;
-    const g = Math.floor(Math.random() * 150) + 50;
-    const b = Math.floor(Math.random() * 150) + 50;
-    return [r, g, b];
+/**
+ * One country's colour: three draws, through the palette.
+ *
+ * **EXACTLY THREE `Math.random()` CALLS, in this order.** They used to be the three channels
+ * of an `rgb()` and are now hue, saturation and lightness through `countryColourFrom()`. The
+ * count is what matters and it is not a detail: these draws sit on the game's seeded stream
+ * during bootstrap, so adding or removing one moves every seeded outcome in the game (the
+ * lesson `generateDistinctRGBs()` left behind -- a country's starting gold moved by hundreds).
+ * Keeping the count identical is what let the palette be modernised without re-baselining a
+ * single exact-outcome spec.
+ */
+function randomCountryTriple() {
+    const hue = Math.random();
+    const saturation = Math.random();
+    const lightness = Math.random();
+    return countryColourFrom(hue, saturation, lightness);
 }
 
 /**
@@ -72,6 +100,7 @@ function randomRgbTriple() {
 export function assignStartingColours(paths, countryOfPath) {
     startingColours.clear();
     startingCountryColours.clear();
+    const ink = mapInk();
 
     paths.forEach(path => {
         const uniqueId = path.getAttribute("uniqueid");
@@ -79,12 +108,18 @@ export function assignStartingColours(paths, countryOfPath) {
 
         let colour = startingCountryColours.get(country);
         if (colour === undefined) {
-            colour = rgbString(randomRgbTriple());
+            colour = rgbString(randomCountryTriple());
             startingCountryColours.set(country, colour);
         }
 
         startingColours.set(uniqueId, colour);
         path.setAttribute("fill", colour);
+        //THE LINE WORK IS PART OF THE BOOTSTRAP PAINT, not something the first repaint gets
+        //round to. The SVG ships with a flat black 1-unit stroke on every path, so a map that
+        //only had its fills written here wore the file's outlines until something happened to
+        //repaint it -- which on the country-selection screen is nothing at all.
+        path.style.stroke = ink;
+        setPathStrokePx(path, HAIRLINE_PX);
     });
 }
 

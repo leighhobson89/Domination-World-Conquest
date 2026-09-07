@@ -15,6 +15,34 @@
   --negative: #d0463b;
   --siege-amber: #e0b33c;
 
+  /* The military map's strength ramp: the colour of a territory that is outnumbered,
+     and the colour of one that is secure. Everything between the two is mixed from
+     them in JS -- the map is an <object> with its own document, so those fills are
+     written on as literals and never reach the cascade. Two tokens rather than five
+     because a theme should be choosing a FEEL (olive, sepia, phosphor) and not five
+     individually balanced steps.
+
+     TWO RULES BIND EVERY THEME'S PAIR. It must be ONE HUE running pale to deep, so
+     that the ramp reads as a quantity and not as a set of categories. And the pale
+     end MUST NOT BE BLUE: `resources/sea.png` averages rgb(146, 160, 234), so a
+     washed-out blue territory disappears into the ocean -- which is precisely the
+     territory the view exists to point at. */
+  --force-weak: #e9f0d6;
+  --force-strong: #1e3d17;
+
+  /* The map's own line work. `--map-ink` is a soft near-black rather than #000:
+     359 pure-black hairlines over mid-tone land is the single most dated thing a
+     map can do, and it is what the base render used to write. `--map-coast` keeps
+     the colour the SVG has always shipped with, so the default theme's plain map
+     is unchanged. `--sea-tint` is blended over the ocean image at low strength --
+     enough for the water to belong to the palette, not enough to lose the texture
+     that is doing the presentational work. */
+  --map-ink: rgba(24, 32, 40, 0.72);
+  --map-coast: rgb(103, 124, 160);
+  --sea-tint: rgba(126, 150, 190, 0.35);
+  --sea-blend: soft-light;
+  --sea-sparkle: rgba(226, 244, 255, 0.95);
+
   --debug-surface: #ffd400;
   --debug-ink: #141005;
 
@@ -51,7 +79,18 @@
   width: 100vw;
   height: 100vh;
   pointer-events: none;
+  /* The ocean, tinted into the theme. `background-blend-mode` composites the tint
+     with the image in the same paint, so the texture survives -- a translucent
+     element over the top would have had to sit between two `<object>`s and would
+     have swallowed either the wheel events or the clicks. THE BLEND IS A TOKEN
+     because the two ends of it are different jobs: `soft-light` moves the water's
+     hue and keeps its light, which is what a daylight theme wants, and `multiply`
+     is the only one that can take it dark enough for a night theme without losing
+     the texture. The rule either way is that the ocean must not land on the same
+     lightness as the land, which sits between 0.46 and 0.64. */
   background-image: url("./resources/sea.png");
+  background-color: var(--sea-tint);
+  background-blend-mode: var(--sea-blend);
 }
 
 #tooltip {
@@ -2954,36 +2993,44 @@ td {
   pointer-events: none;
 }
 
+/* A glint on the water. It was a 2px CSS triangle drawn in `--border-color`, which
+   carries 30% alpha of its own, animating to a peak opacity of 0.4 -- so the thing
+   was drawn at about 12% and nobody ever saw one. It is a four-point star now, in a
+   colour of its own at full strength, and it is placed only over open sea (see
+   `createSparkle()`), which is what lets it be bright without becoming a speck of
+   dirt on a country. */
 .sparkle {
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 2px solid transparent;
-  border-right: 2px solid transparent;
-  border-bottom: var(--border-width) solid var(--border-color);
-  transform: rotate(45deg);
+  width: 11px;
+  height: 11px;
+  /* Positioned by its centre: the placement code hit-tests a POINT for open water,
+     and a star hanging down and right of that point can end up over a coastline. */
+  margin: -5.5px 0 0 -5.5px;
+  background: var(--sea-sparkle);
+  clip-path: polygon(
+    50% 0%, 57% 43%, 100% 50%, 57% 57%,
+    50% 100%, 43% 57%, 0% 50%, 43% 43%
+  );
+  opacity: 0;
   animation: sparkleAnim 3s infinite;
 }
-
 
 @keyframes sparkleAnim {
   0% {
     opacity: 0;
-  }
-  20% {
-    opacity: 0.2;
+    transform: scale(0.4);
   }
   40% {
-    opacity: 0.3;
+    opacity: 0.85;
+    transform: scale(1);
   }
   60% {
-    opacity: 0.4;
-  }
-  80% {
-    opacity: 0.3;
+    opacity: 1;
+    transform: scale(1.05);
   }
   100% {
     opacity: 0;
+    transform: scale(0.5);
   }
 }
 
@@ -4077,8 +4124,80 @@ td {
 
 .continent-view-button[data-view="normal"] .chrome-icon-map,
 .continent-view-button[data-view="physical"] .chrome-icon-mountain,
+.continent-view-button[data-view="military"] .chrome-icon-war,
 .continent-view-button[data-view="continent"] .chrome-icon-continent {
   display: block;
+}
+
+/* The key to the military map. BOTTOM RIGHT, and both halves of that are decided: the
+   bottom-left corner belongs to the phase bar -- the turn, the flag and the colour picker --
+   and the key was sitting on top of it. On the right it clears the map-view and music
+   buttons, which fill that column from the TOP down, and it sits at 88px rather than at the
+   40px the bottom table leaves free so that the autosave indicator (fixed, bottom 42px,
+   right 12px, and briefly on screen once a minute) passes underneath it rather than through
+   it. It is not interactive, so it takes no pointer events -- the map underneath stays
+   clickable, the same rule the siege markers and the tooltip follow. */
+.map-legend {
+  position: fixed;
+  right: 12px;
+  bottom: 88px;
+  z-index: 9040;
+  padding: 8px 10px 7px;
+  background: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.map-legend-title {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  margin-bottom: 5px;
+}
+
+.map-legend-ramp {
+  display: flex;
+  gap: 2px;
+}
+
+.map-legend-swatch {
+  display: inline-block;
+  width: 26px;
+  height: 11px;
+  border: 1px solid var(--border-color);
+}
+
+.map-legend-outline {
+  width: 14px;
+  background: transparent;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.map-legend-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  margin: 2px 0 6px;
+}
+
+.map-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend-note {
+  margin-top: 6px;
+  max-width: 150px;
+  color: var(--text-muted);
 }
 
 .confirm-scrim {

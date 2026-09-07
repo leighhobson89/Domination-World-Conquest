@@ -41,6 +41,9 @@ export const ids = Object.freeze({
     movePhaseButtonsContainer: "move-phase-buttons-container",
     uiButtonContainer: "UIButtonContainer",
     mapModeContainer: "mapModeContainer",
+    // The key to the military view. Host document, not the map's: it is chrome, and
+    // must not zoom or pan with the land it describes.
+    mapLegend: "map-legend",
     tooltip: "tooltip",
     threeCanvasForDice: "threeCanvasForDice",
     canvas: "canvas",
@@ -230,6 +233,9 @@ export const ids = Object.freeze({
     attackImage: "attackImage",
     // The group holding the animated attack arrows. Also inside the SVG document.
     attackArrowLayer: "attackArrowLayer",
+    // The group holding the military view's force figures. Inside the SVG document
+    // too, and for the same reason: it is drawn ON the map rather than over it.
+    militaryLabelLayer: "militaryLabelLayer",
 
     // --- Top table (the player's totals) --------------------------------------
     topTable: "top-table",

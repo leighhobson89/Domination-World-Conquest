@@ -32,13 +32,16 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   document before it**: those asked whether the simulation behaves, and it does — the world
   consolidates, conquest is non-zero at every sample, no goal freezes the map. This asks whether
   a person sitting in front of it experiences a game, and answers no, in four specific ways: the
-  board carries no state (the map draws an owner colour, attack arrows, the attack marker and
-  siege shields, and nothing else — no force, anywhere), the world has no characters (206 leaders
-  with traits, successions and grudges, surfaced only in `AiDebugPanel` and the spectator
-  console), nothing acknowledges what the player does (two sound clips in the whole game;
-  a disaster is reported to `console.log`), and there is no arc. **Its §2 is the seven easy wins
-  and they share no code with `src/ai/`, `src/rules/` or `balance.js`** — so alone among the work
-  on that list they need no five-goal acceptance run, which is the argument for doing them first.
+  board carries little state (force and threatened borders reach it now, through the military
+  view — no fort, no development, no economy), the world has no characters (206 leaders with
+  traits, successions and grudges, surfaced only in `AiDebugPanel` and the spectator console),
+  nothing acknowledges what the player does (two sound clips in the whole game), and there is no
+  arc. **Its §2 is the easy wins and they share no code with `src/ai/`, `src/rules/` or
+  `balance.js`** — so alone among the work on that list they need no five-goal acceptance run,
+  which is the argument for doing them first. What has been delivered off that list is cut out
+  of it and recorded in
+  [docs/archived/05-what-is-missing-delivered.md](./docs/archived/05-what-is-missing-delivered.md),
+  which is where **E1, the military map view**, now lives.
   The numerical items — the cliff, the target band, the unspent army — stay in the register and
   are deliberately NOT on it.
 - **Combat and Conquest is DELIVERED and ARCHIVED**
@@ -296,7 +299,23 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   is the end-to-end measurement and `tools/ai-sim.mjs` reports `cont` (continents complete) and
   `best` (how far along the nearest one is) on every sampled turn — a run stuck at "0 complete,
   41%" and one stuck at "0 complete, 96%" are different findings.
-- **The continent view is the DEFAULT, and the cycle is `continent → physical → normal`.**
+- **EACH MAP VIEW IS ITS OWN MODULE, AND `src/ui/map/mapViews.js` IS THE ONLY THING THAT SAYS
+  WHICH ARE ON.** `views/physicalView.js` is the relief, `views/continentView.js` the boundary
+  bands, `militaryView.js` the force ramp — and **the political map is deliberately not a
+  module**, because it is the map and the other three are decorations on it. What that replaced
+  was a `continentView` string, a `mapMode` integer exported from `ui.js` and three functions
+  that each half-owned the answer, with seventeen sites asking `mapMode === 2` to mean "the
+  relief is up" (`isPhysicalMapActive()` now). Three things follow. **The button is not touched
+  from there**: `ui.js` subscribes with `onMapViewChanged()` and owns the icon, the title and
+  the legend, so one subscription installed from bootstrap replaces a call after every
+  transition. **Order inside `applyMapView()` is load-bearing** — the military view decides what
+  `repaintMap()` paints, and leaving the relief repaints on its way out, so the military state
+  is settled first. And **leaving the military view repaints explicitly**: the old code
+  repainted only on the way out of the relief, which was latent because every route the BUTTON
+  takes out of the military view passes through the relief — anything calling the view directly
+  would have left the map wearing the force ramp.
+- **The map-view button walks FOUR views, `continent → normal → military → physical`, and
+  `continent` is the default.**
   Swapped as the opening move of the continent-bonus phase: a continent is now a thing a player
   wins something for holding, and a boundary a player has to go looking for is a boundary they
   will not plan around. Three consequences. The default is **applied** at the end of
@@ -306,7 +325,103 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   click. `resetContinentView()` goes back to `DEFAULT_CONTINENT_VIEW` and **not** to the literal
   `normal`, which are no longer the same view — otherwise the second game of a session opens on
   a different map from the first. And `DEFAULT_CONTINENT_VIEW` is named once because three
-  places have to agree about it.
+  places have to agree about it. **The military view was put between the two political maps and
+  the relief** (register item E1): the political map is what it is read against — who owns
+  what, and then where the force is.
+- **THE MILITARY VIEW SHADES A RATIO, MARKS A BORDER ON REAL ODDS, AND KEEPS ITS DECISION PURE.**
+  `src/ui/map/militaryShading.js` decides what the view says and runs in Node;
+  `src/ui/map/militaryView.js` turns that into elements in the map document. Six things follow.
+  **The shade is `garrison / the strongest enemy that can reach it`, never an absolute army** —
+  an absolute scale paints China dark and answers no question a player has, whereas *"which of
+  my borders is thin"* is the question, and it is the same maximum
+  `strongestEnemyPowerAgainst()` has always sized the AI's reserve with. **A territory nothing
+  can reach is SECURE whatever it holds**, which is what makes the frontier draw itself.
+  **The red is `takeProbability()` and not the ratio again** — amber at 35%, red at 60%, the
+  real dice model with terrain, forts and composition in it, because a warning built on raw
+  force fires on every mountain fortress in the Alps and is ignored by turn three. It is
+  calibrated against `node tools/combat-lab.mjs cliff` (parity is a 24.3% take, 1.25:1 is
+  44.2%, 1.5:1 is 63.6%), so amber lights at roughly a 15% force advantage to the neighbour and
+  red at 45%, and the assumption behind it is stated in the file: the neighbour commits its
+  whole useable garrison, which is a question about CAPABILITY and not a prediction of what the
+  AI will send. **`takeProbability()` is called DIRECTLY and never through
+  `calculateTakeProbabilityPreBattle()`** — that function keeps module-level state, so a map
+  refresh landing while the player allocates units in the attack window would overwrite the
+  setup of the battle they are about to fight. **The odds are asked once per PLAYER territory
+  and for nobody else's**, which is the bound the whole design rests on and which is invisible
+  in the running game, so `tests/unit/ui-military-shading.spec.js` counts the calls. And
+  **the figures are sized in screen pixels and redrawn on `onZoomChanged()`**, drawn wherever
+  the territory is big enough on screen to hold one — so the zoom IS the decluttering, and
+  Europe at zoom 1 is a dozen numbers and at zoom 4 is all of them.
+- **The military view's ramp is TWO theme tokens, and its weak end may never be blue.**
+  `--force-weak` and `--force-strong`; the five bands are mixed between them in JS, because a
+  theme should be choosing a feel (olive, sepia, phosphor) rather than balancing five swatches.
+  Two rules bind every pair: it must be ONE HUE running pale to deep, so the ramp reads as a
+  quantity rather than as five categories, and **the pale end must not be blue** —
+  `resources/sea.png` averages `rgb(146, 160, 234)`, so a washed-out blue territory disappears
+  into the ocean, which is precisely the territory the view exists to point at.
+  `src/ui/components/MapLegend.js` is the key, and it asks `militaryView.js` for those colours
+  every time it is shown rather than holding a copy: a legend with its own palette is right
+  until somebody switches theme, and is then a key to a map that no longer exists. **It sits
+  bottom RIGHT**: the bottom-left corner belongs to the phase bar — the turn, the flag and the
+  colour picker — and it clears the autosave indicator by sitting at 88px rather than at the
+  40px the bottom table leaves free.
+- **THE COUNTRY PALETTE IS ARITHMETIC, AND IT COSTS EXACTLY THREE `Math.random()` DRAWS PER
+  COUNTRY.** `src/ui/map/palette.js` is pure and unit-tested: a country's colour is a QUANTISED
+  HUE at a fixed saturation and lightness band, where it used to be three independent channels
+  in `[50, 200)` — which is why the map carried muddy olives, near-blacks and near-primaries at
+  once and looked like a 1990s atlas. **The draw count is the invariant, not the colours.**
+  Those draws sit on the game's seeded stream during bootstrap, so adding or removing one moves
+  every seeded outcome in the game (the lesson `generateDistinctRGBs()` left behind), and
+  keeping it at three in the same order is what let the palette be modernised without
+  re-baselining a single exact-outcome spec. `tests/unit/ui-map-colouring.spec.js` counts the
+  calls; a future palette may produce any colour it likes and may not draw a fourth time. Two
+  bands are chosen against the world rather than by taste: the lightness FLOOR stops a country
+  coming out nearly black, and the CEILING keeps land darker than the ocean, which averages
+  `rgb(146, 160, 234)`.
+- **EVERY LINE ON THE MAP IS MEASURED IN SCREEN PIXELS** (`src/ui/map/strokes.js`), the rule the
+  attack arrows established. A 1-unit outline is a hairline at zoom 1 and a five-pixel band at
+  zoom 6, which is most of why a zoomed-in map looked heavy. **`HAIRLINE_PX` is 1.8 and it is
+  the weight of the whole map** -- the first pass set it to 0.9 on the argument that a border is
+  a division between two fills rather than an object in its own right, which is true of a print
+  atlas and wrong for a game board, where the border is what a player traces to work out who
+  they can reach (Leigh: *"they need to be thicker than they are now"*). Every other stroke is a
+  multiple of a pixel figure, so this one constant moves them all. `setPathStrokePx()` remembers the
+  intended width per path in a `WeakMap` and one `onZoomChanged()` subscription re-applies them
+  all — **remembered rather than read back off the element**, because a territory outline, a
+  reachable-destination highlight and a besieged border are three different weights and
+  multiplying the current value would compound rounding on every notch. `ui.js`'s
+  `setStrokeWidth()` and `battle.js`'s deactivation strokes go through it.
+- **The map's line work is THEMED, and `src/ui/map/themeColours.js` is the one copy of the
+  lookup.** `--map-ink` (the territory outline, a soft near-black rather than `#000` —
+  359 pure-black hairlines is the single most dated thing a map can do), `--map-coast` (the
+  plain coast line, defaulting to the colour the SVG has always shipped) and `--sea-tint`
+  (blended over `sea.png` with `--sea-blend`, which keeps the texture rather than flattening
+  it).
+- **THE OCEAN IS THE SAME IN EVERY THEME, and that is Leigh's call rather than an oversight.**
+  `--sea-tint`, `--sea-blend` and `--sea-sparkle` are tokens whose value no theme may change,
+  exactly like `--debug-surface` / `--debug-ink`: they are tokens ONLY because `style.css` may
+  not carry a colour literal outside `:root` and all three are read from rules that are. Do not
+  "harmonise" them with a palette. The history is worth keeping because the idea will occur to
+  somebody again: tinting the sea per theme was built, and it produced a Terminal ocean sitting
+  at the same lightness as the land inside it; giving each theme its own blend mode fixed that
+  and was then overruled outright — *"change the sea to be the color it is in the command theme
+  for all themes"*. The ocean is the ground the map stands on rather than chrome, so a theme
+  recolouring it changes what the map IS rather than how it is dressed.
+- **A SPARKLE IS A GLINT ON WATER, so it is placed on water.** `createSparkle()` rejection-samples
+  a point through TWO hit tests -- the host document must answer with the map object (so a
+  sparkle is never drawn over the phase bar or an open window, which sit under
+  `.sparkles-container`), and the map's own document must not answer with a territory path.
+  Eight tries, then it gives the tick up: zoomed into the middle of Asia the right answer is no
+  sparkle rather than a speck of dirt on a country. It is an ocean mask by rejection rather
+  than a computed one because the visible water is whatever the camera and the open panels
+  leave, and that changes on every pan. What it fixed: the sparkle was a 2px triangle drawn in
+  `--border-color`, which carries 30% alpha of its own, animating to a peak opacity of 0.4 --
+  so it was drawn at about 12% and nobody ever saw one. It is a four-point star at full
+  strength in `--sea-sparkle` now, and being confined to open water is what lets it be bright. The ink is applied at BOOTSTRAP by `assignStartingColours()`
+  rather than waiting for a repaint — the country-selection screen never repaints, so the map
+  wore the file's own black strokes there — and a `THEME_CHANGED` listener re-inks the base
+  paths **without a full repaint**, because a repaint takes the attack arrows and the
+  destination highlights with it and the player can open Options mid-move.
 - **The map is three modules under `src/ui/map/`** (Phase 6.7). `camera.js` owns zoom and pan:
   zoom is **instant** (no animation, so no latch that drops a fast second wheel event),
   anchored on the pointer in user coordinates, and clamped to the world bounds so nothing off
@@ -1169,6 +1284,30 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   it right (it debits the copy). Fixing it moved Continental at 150 turns from 89 surviving
   countries to 109 and the largest empire from 71 to 60 — see the archived register for the
   full before/after.
+- **THE MAP'S BORDERS ARE WELDED, and `tools/weld-map-borders.mjs` is how they got that way.**
+  Every land border was drawn TWICE, once per territory, and the two copies were digitised
+  independently: of 9,508 anchor points across the 359 paths, exactly **15** coincided with a
+  point on another path. The rest were a quarter of a unit to a unit apart, which is under a
+  pixel at zoom 1 and several at zoom 6 — so the map grew slivers of sea between countries the
+  further you zoomed in, and no stroke work hides that, because the fills genuinely did not
+  meet. The tool welds near-coincident anchors onto their centroid and then STITCHES: a vertex
+  on one side of a border with nothing to weld to is inserted into the other side's segment
+  (de Casteljau for a cubic, so a curved coast keeps its shape). Measured over the whole map,
+  the median gap along a shared border went **0.137 → 0.000 units** and the share of border
+  within 0.05 units went **19% → 88%**. Four things to know before running it again.
+  **It runs in two passes and the second one is the safe half, not the risky one**: the first
+  is deliberately timid at 0.75 units because it cannot tell a mistyped corner from two
+  countries facing each other across a strait, and the second widens to 1.6 but only between
+  pairs the first pass PROVED share a border by leaving them an exact common point — so it can
+  finish a seam and cannot invent a land bridge. It reads that proof from the geometry rather
+  than from `adjacency.json`, deliberately, because that file carries hand-added sea crossings
+  which are precisely the pairs that must not be pulled together. **No point may move further
+  than a tenth of its own territory's bounding diagonal**: an absolute tolerance is right for
+  Canada and a disaster for Singapore, whose area moved 35% before that cap existed and 10%
+  after. **The neighbour graph cannot change** — `adjacency.json` comes from
+  `closestPathsData.json` and uses the SVG only for names; the regenerated file was
+  byte-identical. And **areas do change**, median 0.05% and up to 13% on a microstate, so a
+  seeded run taken before the weld does not reproduce exactly after it.
 - **`resources/pathAreas.json` guards itself on the SVG's BYTE LENGTH, so touching
   `svgMaster.svg` at all means `npm run build:data`.** `precomputedAreasFor()` returns null on
   a mismatch, which is not an error — the caller then measures all 359 paths itself. So a

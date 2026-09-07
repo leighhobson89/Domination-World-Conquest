@@ -14,6 +14,82 @@ rewritten so it stands on its own. The delivered half is here.
 
 ---
 
+## E1 — A military map view *(finding M1)*
+
+**The defect.** The map document had four things ever drawn into it — owner colour, the attack
+arrows, the attack marker and the siege shields — and none of them was force. Risk prints the
+army count on the territory, and that one number is what makes a Risk board readable at a
+glance; this game has strictly more state per territory than Risk and showed strictly less of
+it, so reading the world meant clicking 359 territories through a ten-cell strip at the bottom
+of the screen, one at a time.
+
+**What was built.** A fourth stop on the map-view button. Every territory is shaded on a
+five-step ramp, the player's threatened borders are outlined, each territory carries its
+garrison as a figure wherever it fits, and a key in the bottom-left corner says what the ramp
+means. `src/ui/map/militaryShading.js` is the pure half and runs in Node;
+`src/ui/map/militaryView.js` draws it; `src/ui/components/MapLegend.js` is the key.
+
+**The order of the cycle is now `continent → normal → military → physical`**, Leigh's call. The
+military view sits between the political maps and the relief because the political map is what
+it is read against — who owns what, and then where the force is.
+
+**Six decisions worth carrying forward.**
+
+- **The shade is a RATIO — garrison over the strongest enemy that can reach it — and never an
+  absolute army.** An absolute scale paints China dark and answers no question anybody has; a
+  thin border beside a thin border is not the same picture as a thick one beside a thick one,
+  even though both territories hold the same men. It is the same maximum the AI's own reserve
+  calculation has always taken, so the two sides now read the world the same way. The corollary
+  is that **a territory nothing can reach is secure whatever it holds**, which is what makes
+  the frontier draw itself.
+- **The red is real odds, not the ratio again.** `takeProbability()` — the function the AI
+  decides on and the one behind the figure on the attack screen — against the strongest
+  neighbour, at 35% and 60%. A warning built on raw force would fire on every mountain fortress
+  in the Alps and be ignored by turn three. Calibrated against `node tools/combat-lab.mjs
+  cliff`: raw parity is a 24.3% take on the real map, 1.25:1 is 44.2% and 1.5:1 is 63.6%, so
+  amber lights at roughly a 15% force advantage to the neighbour and red at 45%. **The
+  assumption is capability and not prediction** — the neighbour is taken to commit its whole
+  useable garrison, because what it will actually send depends on its leader's personality and
+  on what its other borders are doing that turn.
+- **It calls `takeProbability()` directly, and that is a correctness decision rather than an
+  import preference.** `calculateTakeProbabilityPreBattle()` in `battle.js` keeps module-level
+  state — `reusableAttackingAverageDevelopmentIndex` and the setup `preBattleSetup()` hands to
+  the attack preview — so a map refresh landing while the player was allocating units would
+  have overwritten the setup of the battle they were about to fight with a pairing they never
+  asked about.
+- **The odds are asked once per PLAYER territory and for nobody else's.** A forecast is
+  hundreds of battles; the bound is the whole reason the view is affordable, and it is
+  invisible in the running game — the map looks identical either way and simply takes a hundred
+  times longer to draw. `tests/unit/ui-military-shading.spec.js` counts the calls.
+- **The zoom is the decluttering.** The figures are sized in screen pixels and redrawn on
+  `onZoomChanged()`, the rule `attackArrows.js` established, and one is drawn only where the
+  territory is big enough ON SCREEN to hold it. The first version chose a subset in advance —
+  the player's own land and everything touching it — and Leigh overturned it: a subset is a
+  decision about what the player is allowed to compare, and the zoom is a better filter because
+  the player controls it. Europe at zoom 1 is a dozen numbers and at zoom 4 is all of them.
+- **The ramp is two theme tokens, and its pale end may never be blue.** `--force-weak` and
+  `--force-strong`, mixed into five bands in JS, so a theme chooses a feel rather than
+  balancing five swatches. `resources/sea.png` averages `rgb(146, 160, 234)`, so a washed-out
+  blue territory disappears into the ocean — which is precisely the territory the view exists
+  to point at. Two of the six themes were drafted with pale-blue weak ends and both were
+  changed before shipping.
+
+**The bug that got through, and why it is worth recording.** The first version named the
+`setMilitaryViewActive()` parameter `on`, which shadowed the module's own imported `on()` from
+`state/events.js`. The subscription threw inside the click handler, so `continentView` was never
+assigned and the button stayed on `normal` while `active` had already been set — which presented
+as *two* symptoms, an extra click that appeared to do nothing and then a military view still
+wearing the political colours, because the plan had never been built. The unit suite could not
+see any of it. `tests/e2e/map-interaction/military-view.spec.js` asserts that the map collapses
+to a handful of fills, which is the shape of assertion that catches a view failing to apply at
+all.
+
+**What it deliberately does not draw.** Forts, farms, development — the whole economy. The
+board can now be read for force and still cannot be read for what a territory is WORTH, and
+that is a second view over the same machinery rather than a change to this one.
+
+---
+
 ## E3 — Tell the player what happened to them *(finding M8)*
 
 **The defect.** A disaster halved a territory's food, divided its oil, burned its construction
