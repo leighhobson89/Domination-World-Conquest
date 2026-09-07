@@ -228,6 +228,8 @@ export const ids = Object.freeze({
     uiToggleButton: "UIToggleButton",
     // Lives INSIDE the SVG document, not the host document.
     attackImage: "attackImage",
+    // The group holding the animated attack arrows. Also inside the SVG document.
+    attackArrowLayer: "attackArrowLayer",
 
     // --- Top table (the player's totals) --------------------------------------
     topTable: "top-table",
@@ -572,10 +574,14 @@ export const indexedIds = Object.freeze({
  */
 export const SIEGE_OVERLAY_PREFIX = "siegeImage_";
 
+/** One attack arrow per attackable territory, keyed by its unique id. */
+export const ATTACK_ARROW_PREFIX = "attackArrow_";
+
 export const dynamicIds = Object.freeze({
     siegeOverlay: (territoryName) => SIEGE_OVERLAY_PREFIX + territoryName.replace(/\s+/g, "_"),
     isSiegeOverlay: (id) => typeof id === "string" && id.startsWith(SIEGE_OVERLAY_PREFIX),
     diagonalLines: (n) => `diagonal-lines${n}`,
+    attackArrow: (uniqueId) => `${ATTACK_ARROW_PREFIX}${uniqueId}`,
 });
 
 /**

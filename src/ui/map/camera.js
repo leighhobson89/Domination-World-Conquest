@@ -54,6 +54,27 @@ let dragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+// Anything that draws in map user units but has to stay a constant size ON SCREEN has
+// to be told when the magnification changes. The attack arrows are the only subscriber
+// today. Deliberately fired from `zoomMap()` and not from `commit()`: a pan changes the
+// origin and not the scale, and `commit()` runs on every mousemove of a drag.
+const zoomListeners = new Set();
+
+/**
+ * Be told when the zoom level changes. Returns its own remover, the same contract
+ * `src/ui/core/dom.js`'s `on()` has.
+ */
+export function onZoomChanged(listener) {
+    zoomListeners.add(listener);
+    return () => zoomListeners.delete(listener);
+}
+
+function announceZoom() {
+    for (const listener of zoomListeners) {
+        listener(zoomLevel);
+    }
+}
+
 /** Point the camera at the two `<svg>` elements. Called once, from `svgMapLoaded()`. */
 export function attachCamera(svgTag, svgCoastLinesTag) {
     mainTag = svgTag;
@@ -144,6 +165,30 @@ function pointerFractionOfViewBox(clientX, clientY) {
 }
 
 /**
+ * How many map user units one screen pixel covers right now.
+ *
+ * The same `min(rect / box)` render scale `pointerFractionOfViewBox()` solves for,
+ * inverted. It is what lets something drawn INSIDE the map document be sized in
+ * screen pixels: a stroke of `n * userUnitsPerPixel()` is n pixels wide at any zoom
+ * level, which is the whole reason the attack arrows are redrawn when the zoom
+ * changes rather than left to be magnified with the land.
+ *
+ * Returns 1 before the map is laid out, which is a sane arrow rather than a NaN one.
+ */
+export function userUnitsPerPixel() {
+    if (!mainTag) {
+        return 1;
+    }
+    const rect = mainTag.getBoundingClientRect();
+    const box = parseViewBox(mainTag);
+    if (!rect.width || !rect.height || !box.width || !box.height) {
+        return 1;
+    }
+    const renderScale = Math.min(rect.width / box.width, rect.height / box.height);
+    return renderScale > 0 ? 1 / renderScale : 1;
+}
+
+/**
  * A wheel event, or the literal string `"init"` to reset the camera to the whole
  * world without changing the zoom level.
  *
@@ -154,6 +199,7 @@ function pointerFractionOfViewBox(clientX, clientY) {
 export function zoomMap(event) {
     if (event === "init") {
         commit({ ...ORIGIN_MAIN });
+        announceZoom();
         return;
     }
 
@@ -179,6 +225,7 @@ export function zoomMap(event) {
 
     // Solve for the origin that leaves the anchor at the same fraction of the box.
     commit({ x: anchorX - fx * width, y: anchorY - fy * height, width, height });
+    announceZoom();
 }
 
 /** Left button down: start a drag if there is anything to pan. */

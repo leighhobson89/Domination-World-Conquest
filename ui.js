@@ -206,6 +206,11 @@ import {
     removeSiegeMarker
 } from './src/ui/map/markers.js';
 import {
+    attachArrowLayer,
+    showAttackArrows,
+    clearAttackArrows
+} from './src/ui/map/attackArrows.js';
+import {
     attachCamera,
     zoomMap,
     panMap,
@@ -495,6 +500,7 @@ export function svgMapLoaded() {
     attachCamera(svgTag, svgCoastLinesTag);
     attachMapView(paths);
     attachMarkerLayer(svgMap);
+    attachArrowLayer(svgMap);
 
     svgCoastLines.setAttribute("tabindex", "0");
     svg.setAttribute("tabindex", "1");
@@ -1674,6 +1680,13 @@ function manualExceptionPaths(targetPath, direction) {
 }
 
 function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsArray, destinationPathObjectArray, distances, attacking) {
+    //Before the guard, and before either branch. The arrows belong to ONE selected
+    //source, so whatever was drawn for the last selection is wrong the moment this
+    //runs -- including when the new selection is an enemy territory, which takes the
+    //`attacking` branch and draws no arrows of its own, and when it is a deactivated
+    //one, which returns below and draws nothing at all.
+    clearAttackArrows();
+
     if (pathIsDeactivated(targetPath)) {
         return;
     }
@@ -1755,6 +1768,18 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         for (let i = 0; i < validDestinationsArray.length; i++) {
             setStrokeWidth(validDestinationsArray[i], "3");
         }
+
+        //The hatching covers every valid destination, which includes the player's own
+        //neighbours -- those are a TRANSFER, not an attack. The arrows are about the
+        //attack, so they are drawn only to the enemy territories in the set, and not
+        //to one still inside its post-conquest lockout, which cannot be attacked at
+        //all.
+        showAttackArrows(
+            targetPath,
+            validDestinationsArray.filter(
+                destination => !pathIsPlayerOwned(destination) && !pathIsDeactivated(destination)
+            )
+        );
     } else {
         return tempValidDestinationsArray;
     }

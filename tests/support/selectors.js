@@ -11,6 +11,7 @@
 // DOM. See docs/03-e2e-test-plan.md section 7.
 
 import {
+    ATTACK_ARROW_PREFIX,
     cls,
     compound,
     dynamicIds,
@@ -22,7 +23,16 @@ import {
 } from "../../src/ui/core/registry.js";
 
 /** Re-exported so a spec can reach anything the registry knows without a second import. */
-export { registryIds as ids, sel, cls, compound, indexedIds, dynamicIds, territorySelectors };
+export {
+    registryIds as ids,
+    sel,
+    cls,
+    compound,
+    indexedIds,
+    dynamicIds,
+    territorySelectors,
+    ATTACK_ARROW_PREFIX,
+};
 
 /** Containers, in the order they appear in index.html. */
 export const containers = {

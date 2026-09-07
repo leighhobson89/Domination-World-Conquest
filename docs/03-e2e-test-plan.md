@@ -456,7 +456,7 @@ Priority: **P0** must exist before any refactor begins · **P1** before Phase 3 
 | 1 | `bootstrap/` | P0 | §2.1 | ✅ 52 |
 | 2 | `country-selection/` | P0 | §2.1 | ✅ 30 |
 | 3 | `turn-loop/` | P0 | §2.3 | ✅ 28 |
-| 4 | `map-interaction/` | P0 | — | ✅ 24 |
+| 4 | `map-interaction/` | P0 | — | ✅ 38 |
 | — | `adjacency/` | P0 | — | ✅ 9 — not in the original list; guards the data pipeline and audit §3.1 |
 | 5 | `resources-economy/` | P1 | §2.2, §2.3 | ✅ 11 |
 | 6 | `buy-military/` | P1 | §2.3 | ✅ 17 |
@@ -534,6 +534,7 @@ The spine. Everything else depends on these being right.
 | `map-modes.spec.js` | Political ↔ physical toggle recolours by continent and switches strokes black ↔ white; the continent-stroke toggle is independent; clicking the map while in physical mode reverts to political |
 | `escape-key.spec.js` | Escape closes the topmost open panel and restores map interactivity; Escape during initialisation is ignored |
 | `siege-markers.spec.js` | A besieged territory shows the siege overlay, a dashed stroke, and a tooltip naming the besieger; AI-besieged markers are the smaller semi-transparent variant |
+| `attack-arrows.spec.js` | Selecting an owned territory in the Military phase draws one animated arrow per ATTACKABLE neighbour (never to the player's own, which are a transfer); each carries a travelling dash band and `pointer-events: none`; a repaint takes them off; a zoom re-derives them thinner in map units, so they hold their size on screen. The geometry itself — bowing arrows apart, the minimum length, the band's cycle — is `tests/unit/ui-arrow-geometry.spec.js` and is deliberately not asserted here |
 
 ---
 

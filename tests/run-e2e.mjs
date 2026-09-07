@@ -22,6 +22,11 @@
 // Everything else is forwarded to `playwright test` verbatim, except --slow[=ms],
 // --list (--list-categories) and --category <name>, which this script consumes.
 //
+// A RUN IS A LIST OF PHASES, not one invocation. The areas named in ISOLATED_AREAS below
+// have to be the only thing on the machine, so they are held back into a phase of their own
+// with one worker and the results are merged into a single summary afterwards. Where nothing
+// isolated is involved there is exactly one phase and the command line is what it always was.
+//
 // Adding a coverage area needs no code change: create tests/e2e/<name>/, drop
 // .spec.js files in it, and it is runnable by name at once.
 
@@ -315,6 +320,38 @@ function parseArgs(rawArgs) {
     return { areas: [...new Set(areas)], forwarded, unknown };
 }
 
+/**
+ * Areas that must have the machine to themselves, with the reason, because a rule nobody can
+ * see the reason for is a rule somebody deletes.
+ *
+ * THIS IS ENFORCED HERE RATHER THAN REMEMBERED. It was a convention for a long time -- run the
+ * battle area alone, with one worker -- and a convention is exactly the wrong shape for it:
+ * the failures it prevents do not look like load, they look like defects. Under parallel
+ * workers the battle area fails a DIFFERENT set of specs every run, and the two shapes it
+ * produces are `Test timeout exceeded` and a seeded-outcome spec reporting that the same seed
+ * came out differently the second time. Both read as a game bug. So the rule belongs in the
+ * runner, where forgetting it is not possible.
+ *
+ * Why the battle area and not the others: the dice are a real cannon-es physics simulation and
+ * `world.fixedStep()` advances it against the WALL CLOCK. Under load the frames are late, the
+ * roll hits `MAX_ROLL_MS` and is settled by the skip path instead of by coming to rest, and the
+ * clash panel's timings -- `LINGER_MS`, `SETTLED_LINGER_MS`, `ROUND_READ_MS` -- all slide.
+ * Nothing about that is wrong; it is simply a test that cannot be run on a busy machine.
+ */
+export const ISOLATED_AREAS = Object.freeze({
+    battle:
+        "the dice are a wall-clock physics simulation, so under parallel load a roll is " +
+        "settled by the skip path rather than by coming to rest and the timings slide",
+});
+
+/** Is this positional argument inside an area that has to run alone? */
+function isolatedAreaFor(word) {
+    const segments = String(word).split(/[\\/]/).filter(Boolean);
+    const index = segments.indexOf("e2e");
+    const first = index >= 0 ? segments[index + 1] : segments[0];
+    return first && Object.hasOwn(ISOLATED_AREAS, first) ? first : null;
+}
+
 export function isArea(name) {
     return (
         Boolean(name) &&
@@ -323,10 +360,24 @@ export function isArea(name) {
     );
 }
 
+/** Every area under tests/e2e/, in the order the filesystem gives them. */
+function allAreas() {
+    if (!fs.existsSync(E2E_ROOT)) return [];
+    return fs
+        .readdirSync(E2E_ROOT, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && countSpecs(path.join(E2E_ROOT, entry.name)) > 0)
+        .map((entry) => entry.name);
+}
+
 /**
  * Everything the run needs, worked out from argv alone: which areas, what to hand
  * Playwright, and how many workers. Separated from main() so the unit suite can
  * assert the command line without starting a browser.
+ *
+ * A run is a list of PHASES rather than one invocation, because an isolated area has to be
+ * the only thing on the machine while it runs. A phase is one `playwright test` call with its
+ * own worker count; they run in order and their results are merged into one summary. Where
+ * nothing is isolated there is exactly one phase and the command line is what it always was.
  */
 export function planRun(rawArgs, env = process.env) {
     const { areas, forwarded, unknown } = parseArgs(rawArgs);
@@ -334,12 +385,7 @@ export function planRun(rawArgs, env = process.env) {
 
     // --slow / --slow=<ms> is ours, not Playwright's.
     const slowArg = forwarded.find((a) => a === "--slow" || a.startsWith("--slow="));
-    const playwrightArgs = forwarded.filter((a) => a !== slowArg);
-
-    // Playwright treats positional args as regexes over forward-slash paths, even
-    // on Windows. path.join would emit backslashes, which a regex reads as escape
-    // sequences and silently drops.
-    playwrightArgs.push(...areas.map((name) => `tests/e2e/${name}`));
+    const flags = forwarded.filter((a) => a !== slowArg);
 
     const slowMo = slowArg
         ? Number(slowArg.split("=")[1]) || DEFAULT_SLOW_MS
@@ -349,18 +395,95 @@ export function planRun(rawArgs, env = process.env) {
     // which would leave eight visible browsers racing. Detect it and set the env var
     // the config reads, so headed always means one browser.
     const isHeaded =
-        playwrightArgs.includes("--headed") || env.DWC_HEADED === "1" || env.DWC_HEADED === "true";
+        flags.includes("--headed") || env.DWC_HEADED === "1" || env.DWC_HEADED === "true";
+
+    // The bootstrap area contains wall-clock budget assertions, which are only
+    // meaningful with the machine to ourselves -- and only when it is the whole run.
+    const perfOnly = areas.length === 1 && areas[0] === "bootstrap";
+
+    // Playwright treats positional args as regexes over forward-slash paths, even on Windows.
+    // path.join would emit backslashes, which a regex reads as escape sequences and drops.
+    const asPath = (name) => `tests/e2e/${name}`;
+    const positionals = flags.filter((a) => !a.startsWith("-"));
+    const options = flags.filter((a) => a.startsWith("-"));
+
+    // Headed is already one browser and is somebody watching it, so there is nothing to
+    // isolate FROM: keep it as a single phase rather than making a person sit through two.
+    if (isHeaded) {
+        return {
+            areas,
+            unknown,
+            empty,
+            slowMo,
+            isHeaded,
+            perfOnly,
+            phases: [
+                {
+                    name: "all",
+                    areas,
+                    playwrightArgs: [...options, ...positionals, ...areas.map(asPath)],
+                    workers: "1",
+                },
+            ],
+            get playwrightArgs() {
+                return this.phases[0].playwrightArgs;
+            },
+        };
+    }
+
+    // No area and no path named is the whole suite, so the isolated areas have to be named
+    // explicitly to be able to hold them back -- Playwright has no "everything except" for a
+    // positional. That is also why an area with no specs is skipped here: naming an empty
+    // folder as a regex matches nothing and Playwright reports a run of zero tests as failure.
+    const wholeSuite = areas.length === 0 && positionals.length === 0;
+    const named = wholeSuite ? allAreas() : areas;
+
+    const isolated = named.filter((name) => Object.hasOwn(ISOLATED_AREAS, name));
+    const shared = named.filter((name) => !Object.hasOwn(ISOLATED_AREAS, name));
+    const isolatedPositionals = positionals.filter((word) => isolatedAreaFor(word));
+    const sharedPositionals = positionals.filter((word) => !isolatedAreaFor(word));
+
+    const phases = [];
+    if (shared.length || sharedPositionals.length) {
+        phases.push({
+            name: "shared",
+            areas: shared,
+            playwrightArgs: [...options, ...sharedPositionals, ...shared.map(asPath)],
+            // Bootstrap's budgets need the machine as much as the battle physics does, but
+            // only when it is the whole run -- in a mixed run they are measuring a busy
+            // machine either way, and the existing behaviour is deliberate.
+            workers: perfOnly ? "1" : env.DWC_WORKERS || "",
+        });
+    }
+    for (const name of isolated) {
+        phases.push({
+            name,
+            areas: [name],
+            playwrightArgs: [...options, asPath(name)],
+            workers: "1",
+        });
+    }
+    if (isolatedPositionals.length) {
+        phases.push({
+            name: "isolated",
+            areas: [],
+            playwrightArgs: [...options, ...isolatedPositionals],
+            workers: "1",
+        });
+    }
 
     return {
         areas,
         unknown,
         empty,
-        playwrightArgs,
         slowMo,
         isHeaded,
-        // The bootstrap area contains wall-clock budget assertions, which are only
-        // meaningful with the machine to ourselves -- and only when it is the whole run.
-        perfOnly: areas.length === 1 && areas[0] === "bootstrap",
+        perfOnly,
+        phases,
+        // The single-phase command line, for the callers and tests that only ever meant one.
+        get playwrightArgs() {
+            return this.phases.length === 1 ? this.phases[0].playwrightArgs : [];
+        },
     };
 }
 
@@ -372,7 +495,7 @@ function main() {
         process.exit(0);
     }
 
-    const { areas, unknown, empty, playwrightArgs, slowMo, isHeaded, perfOnly } = planRun(rawArgs);
+    const { areas, unknown, empty, phases, slowMo, isHeaded } = planRun(rawArgs);
 
     if (unknown.length) {
         console.error(`No such test area: ${unknown.map((a) => `"${a}"`).join(", ")}\n`);
@@ -403,6 +526,14 @@ function main() {
             `Headed mode: one worker, ${slowMo ? `${slowMo}ms between actions` : "full speed"}.`
         );
     }
+    if (phases.length > 1) {
+        const isolated = phases.filter((phase) => phase.workers === "1").map((phase) => phase.name);
+        console.log(
+            `${phases.length} phases, because ${isolated.join(" and ")} ` +
+                `${isolated.length === 1 ? "runs" : "run"} alone on one worker: ` +
+                isolated.map((name) => ISOLATED_AREAS[name]).filter(Boolean).join("; ")
+        );
+    }
 
     let playwrightCli;
     try {
@@ -413,32 +544,63 @@ function main() {
     }
 
     const startedAt = Date.now();
-    // Run Playwright's CLI under the current Node binary rather than shelling out to
-    // npx: on Windows, Node refuses to spawn .cmd shims without a shell.
-    const result = spawnSync(process.execPath, [playwrightCli, "test", ...playwrightArgs], {
-        cwd: PROJECT_ROOT,
-        stdio: "inherit",
-        env: {
-            ...process.env,
-            DWC_REPORT_DIR: runDir,
-            DWC_HEADED: isHeaded ? "1" : "",
-            DWC_SLOWMO: String(slowMo),
-            DWC_WORKERS: perfOnly ? "1" : process.env.DWC_WORKERS || "",
-        },
-    });
+    const rows = [];
+    let exitCode = 0;
 
-    if (result.error) {
-        console.error(`\nCould not start Playwright: ${result.error.message}`);
-        process.exit(1);
+    for (const phase of phases) {
+        // One phase keeps the report exactly where it has always been; several would
+        // overwrite each other's results.json, so each gets a folder named after itself.
+        const phaseDir = phases.length === 1 ? runDir : path.join(runDir, phase.name);
+        fs.mkdirSync(phaseDir, { recursive: true });
+
+        if (phases.length > 1) {
+            console.log(
+                `\n--- phase ${phase.name} ` +
+                    `(${phase.workers === "1" ? "1 worker, alone" : "full parallelism"}) ---`
+            );
+        }
+
+        // Run Playwright's CLI under the current Node binary rather than shelling out to
+        // npx: on Windows, Node refuses to spawn .cmd shims without a shell.
+        const result = spawnSync(
+            process.execPath,
+            [playwrightCli, "test", ...phase.playwrightArgs],
+            {
+                cwd: PROJECT_ROOT,
+                stdio: "inherit",
+                env: {
+                    ...process.env,
+                    DWC_REPORT_DIR: phaseDir,
+                    DWC_HEADED: isHeaded ? "1" : "",
+                    DWC_SLOWMO: String(slowMo),
+                    DWC_WORKERS: phase.workers,
+                },
+            }
+        );
+
+        if (result.error) {
+            console.error(`\nCould not start Playwright: ${result.error.message}`);
+            process.exit(1);
+        }
+
+        // The worst outcome across the phases is the run's outcome. A later phase passing
+        // must never bury an earlier one that did not.
+        exitCode = (result.status ?? 1) || exitCode;
+
+        const jsonPath = path.join(phaseDir, "results.json");
+        if (fs.existsSync(jsonPath)) {
+            rows.push(...flattenTests(JSON.parse(fs.readFileSync(jsonPath, "utf8"))));
+        } else {
+            console.error(
+                `\nNo results.json for phase ${phase.name}; Playwright may have failed to start.`
+            );
+            exitCode = exitCode || 1;
+        }
     }
 
     const wallClockMs = Date.now() - startedAt;
-    const exitCode = result.status ?? 1;
-    const jsonPath = path.join(runDir, "results.json");
 
-    if (fs.existsSync(jsonPath)) {
-        const report = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-        const rows = flattenTests(report);
+    if (rows.length) {
         const counts = summarise(rows);
         const { total, failedCount } = writeSummary(
             runDir,
@@ -454,7 +616,7 @@ function main() {
         );
         console.log(`Summary: ${path.relative(PROJECT_ROOT, path.join(runDir, "summary.md"))}`);
     } else {
-        console.error("\nNo results.json produced; Playwright may have failed to start.");
+        console.error("\nNo results produced; Playwright may have failed to start.");
     }
 
     writeHistoryIndex(pruneHistory());

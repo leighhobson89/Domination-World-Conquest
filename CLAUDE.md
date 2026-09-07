@@ -77,8 +77,8 @@ npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
 npm run lint           # ESLint (baseline: 73 errors, 270 warnings)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 1,035 tests, ~2s
-npm run test:e2e       # Playwright, ~420 tests, 4 workers headless, ~7-14 min
+npm run test:unit      # Vitest, 1,176 tests, ~2s
+npm run test:e2e       # Playwright, ~426 tests, 4 workers headless, ~7-14 min
 node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
 node tests/run-e2e.mjs turn-loop         # one area
 node tests/run-e2e.mjs attack turn-loop  # several areas, one run
@@ -308,6 +308,30 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   `repaintCountrySelection()`, `paintLockedCountries()`. **`currentMapColorAndStrokeArray` and
   the `saveMapColorState()` / `restoreMapColorState()` pair are gone**: colour is derived, so
   restoring the map is the same call as painting it. Never reintroduce a colour snapshot.
+- **THE ATTACK ARROWS ARE SIZED IN SCREEN PIXELS, WHICH IS WHY A ZOOM REDRAWS THEM.**
+  Selecting one of your own territories in the Military phase draws one curved, animated
+  arrow to each ENEMY territory it may attack — the hatched destination highlight says
+  "reachable" and never said *where from*, and it also covers the player's own neighbours,
+  which are a transfer and not an attack. `src/ui/map/arrowGeometry.js` is the pure half
+  (planning, unit-tested in Node) and `src/ui/map/attackArrows.js` is the only thing that
+  turns a plan into elements. Five things follow. **Every constant is a screen pixel
+  multiplied by `userUnitsPerPixel()`**: an arrow drawn in map user units is magnified with
+  the land, so one set of numbers cannot be right at zoom 1 and at zoom 6 — that is what
+  `onZoomChanged()` on the camera exists for, and it has no other subscriber. **The head
+  never moves**; when an arrow is too short to see it is the TAIL that is pulled back, and
+  that pull-back is capped at HALF THE CHORD because the extension runs along the reverse
+  bearing — Germany has eleven attackable neighbours and a generous cap drew eleven tails
+  crossing in its middle, a star rather than a fan, hiding the territory just clicked.
+  **Arrows on near-identical bearings are separated by BOW and not by moving anything**,
+  clustered by angle with the wrap past due east closed by hand. **The animation is SMIL**
+  — one `<animate>` on a `stroke-dasharray: band, total` shaft, whose period is longer than
+  the path so exactly one band is ever travelling — rather than a `<style>` injected into
+  the map's own document, and the timing comes from `getTotalLength()`, so it is set after
+  the shaft is in the document. And **the colour is read off the HOST root and written on
+  as a literal**, with a dark casing under the bright core, for the reason
+  `src/ui/siegeOverlay.js` records: `#svg-map` is an `<object>` with its own document, the
+  theme's tokens do not cascade into it, and one flat colour over a hatched destination
+  came out as red hairlines. `repaintMap()` is the ONE place they are taken off.
 - **The attack marker and its target are one fact**, in `src/ui/map/markers.js` (Phase 6.7,
   closes audit §5.2 AE). `setAttackTarget(path)` draws the marker, `clearAttackTarget()`
   removes it, and there is no way to do one without the other. `territoryAboutToBeAttackedOrSieged`
@@ -574,11 +598,54 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   what a territory can spare from a threat SCORE: that is a difference between two armies
   inflated by personality, it sits near zero between comparable neighbours, and using it
   produced 208 sieges decided and none laid.
-- **A front-line territory that is short of force ASKS, and the interior answers next turn.**
-  `src/ai/muster.js` — infantry only (vehicles are gated by the oil capacity of wherever they
-  stand), one hop between neighbours, and never out of a border that needs it. It is the only
-  thing in the AI that adapts across turns rather than within one, and it is what lets a
-  country attack with more than whatever one border province could raise alone. A cancelled
+- **A front-line territory that is short of force ASKS, AND THE PULL IS A FIELD RATHER THAN A
+  NEIGHBOUR CHECK.** `src/ai/muster.js` is the only thing in the AI that adapts across turns
+  rather than within one, and it is what lets a country attack with more than whatever one
+  border province could raise alone. `pullField()` is one breadth-first search outwards from
+  the territories that asked, over OWNED territories only, recording each province's distance
+  from the nearest war and the SINGLE neighbour one hop closer to it; every territory at
+  distance ≥ 1 marches its surplus to that neighbour, so an army walks to the front over
+  several turns instead of teleporting. It is the same "strictly closer, re-derived every
+  turn" idiom `src/ai/route.js` uses for an injected plan's corridor, and for the same reason:
+  a stored path goes stale the moment somebody else's conquest cuts it, while a field simply
+  becomes a different field. **What it replaced looked like the same thing**: a source used to
+  qualify only if it was a DIRECT NEIGHBOUR of a demand, so the pull reached exactly one hop —
+  a province two back was never a source, because it bordered no demand, and never became a
+  destination either, because it had no enemy to fail an attack against. The unit fixture is
+  literally `Interior — Rear — Front` and the only move that rule could produce there was
+  `Rear → Front`. It survived because it is invisible on most of this map — 85% of countries
+  hold one territory and the surviving empires are mostly frontier, so one hop IS the depth —
+  and showed up only on the empire meant to fight a war at a distance: measured at 100 headless
+  turns (`node tools/muster-probe.mjs`), the United States held 68 territories with 17 on the
+  front line and **a fifth of its infantry two or more hops back**, army that could not move
+  under any circumstance for the rest of the game. Fixing it took that same seed's United
+  States to **100 territories**, which is a large balance movement and wants the five-goal
+  table before it is trusted.
+- **VEHICLES MARCH ALONG A FUELLED CORRIDOR, and "infantry only" was a half-truth.** The muster
+  moved foot soldiers alone on the reasoning that vehicles are gated by the oil of wherever
+  they stand, so marching tanks into a province with no oil turns them into scenery. The
+  reasoning is right and the conclusion was too strong: it is not that vehicles cannot move,
+  it is that they may only move somewhere that can fuel them. `spareGarrison()` spends one
+  surplus budget in FORCE, **vehicles before infantry** — infantry is priced at a
+  ten-thousandth of a siege point, so an assault gun at the front is what makes an AI siege
+  survivable at all. Three rules follow. The destination's oil headroom is a **budget
+  decremented as the turn is planned**, because three provinces reinforcing one front would
+  otherwise each be told the same barrel was free and their vehicles would be grounded on
+  landing. **Only USEABLE vehicles march**: a grounded one stays, because its territory's oil
+  regenerates towards its capacity every turn and marching it off on one bad turn strips a
+  garrison of armour it was about to get back. And **the oil bill travels with the tanks** —
+  `oilDemand` is a STORED field maintained incrementally, so a column that left its demand
+  behind would ground the vehicles still at the source AND arrive somewhere that believed it
+  had oil spare; `garrisonMoveFor()` in `aiCalculations.js` recomputes it from the new counts
+  and re-applies `useableUnitsFor()`, which is the only per-turn `useable*` rebuild the AI
+  gets (known-issue BJ).
+- **A REINFORCEMENT DEMAND DIES WHEN THE ATTACK LAUNCHES, NOT WHEN THE FIRST TROOPS ARRIVE.**
+  `musterAiArmies()` used to clear it on delivery, which was defensible while the pull reached
+  one hop — there was nothing behind the neighbour that answered, so the request had got
+  everything it was ever going to get. With a relay behind it that cuts the corridor off after
+  a single turn: a border sixty points short receives one neighbour's surplus, stops asking,
+  and the three provinces marching up behind it are told the war is over. It is cleared in the
+  `decision.commit` branch of the attack sizing instead. A cancelled
   attack is therefore not always a failure: `reasonCode` distinguishes `no-force` (a fact
   about this turn — never remembered) from `below-floor` (a fact about the two armies —
   remembered as a setback) from `needs-more-force` (a requisition). Recording the first kind

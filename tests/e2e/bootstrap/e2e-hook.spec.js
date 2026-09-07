@@ -87,6 +87,10 @@ test.describe("?e2e=1 state hook", () => {
                 //that cannot be measured without a way to start a run under a named goal.
                 "setGoal",
                 "siegeAt",
+                //Combat stage 1. The odds the Siege button is gated on, which moved from
+                //`winProbability()` to the real `takeProbability()` so that
+                //PROBABILITY_THRESHOLD_FOR_SIEGE means one thing everywhere.
+                "siegeGateOdds",
                 "sieges",
                 "stateGuardViolations",
                 "territoriesOwnedBy",

@@ -74,7 +74,7 @@ import {
     updateTerritory as patchTerritory
 } from './src/state/mutations.js';
 import { continentCapacityBonusFor } from './src/state/continentBonus.js';
-import { effectiveCapacityFor } from './src/rules/economy/capacity.js';
+import { effectiveCapacityFor, oilDemandFor, useableUnitsFor } from './src/rules/economy/capacity.js';
 import { applyUpgrade, nextInOrderPriceFor } from './src/rules/economy/upgrades.js';
 import {
     getPathByUniqueId
@@ -116,6 +116,7 @@ import {
 import {
     captureMusters,
     clearReinforcementDemand,
+    forceOf,
     planMusters,
     recordReinforcementDemand,
     restoreMusters
@@ -256,8 +257,17 @@ export function musterAiArmies(country, campaign, arrayOfTerritoriesInRangeThrea
         if (isUnderSiege(move.from) || isUnderSiege(move.to)) {
             continue;
         }
-        const infantry = Math.min(move.infantry, from.infantryForCurrentTerritory ?? 0);
-        if (infantry <= 0) {
+
+        //Re-read against the store rather than trusting the plan. `planMusters()` is pure and
+        //was handed the garrisons as they stood at the top of the muster; anything between
+        //then and here -- a siege lifted, a conquest, a famine -- has to lose.
+        const marching = {
+            infantry: Math.min(move.infantry ?? 0, Number(from.infantryForCurrentTerritory) || 0),
+            assault: Math.min(move.assault ?? 0, Number(from.useableAssault) || 0),
+            air: Math.min(move.air ?? 0, Number(from.useableAir) || 0),
+            naval: Math.min(move.naval ?? 0, Number(from.useableNaval) || 0)
+        };
+        if (forceOf(marching) <= 0) {
             continue;
         }
 
@@ -267,20 +277,69 @@ export function musterAiArmies(country, campaign, arrayOfTerritoriesInRangeThrea
         //stored total was below its infantry went further negative every turn it sent
         //reinforcements. Recomputing from the counts makes the muster incapable of
         //carrying an error rather than merely incapable of introducing one.
-        patchTerritory(from.uniqueId, garrisonPatch(from, {
-            infantry: (Number(from.infantryForCurrentTerritory) || 0) - infantry
+        //
+        //THE VEHICLES CARRY THEIR OWN OIL BILL WITH THEM, and both halves are recomputed from
+        //the counts for the same reason. `oilDemand` is a STORED field maintained
+        //incrementally as units are bought, so a column of tanks that left its demand behind
+        //would ground the vehicles still standing at the source and arrive somewhere that
+        //believed it had oil to spare. `useableUnitsFor()` is then the game's own oil gate
+        //applied to what each side now holds -- the AI has no per-turn rebuild of `useable*`
+        //the way the player does, so this is the only place it gets one.
+        patchTerritory(from.uniqueId, garrisonMoveFor(from, {
+            infantry: (Number(from.infantryForCurrentTerritory) || 0) - marching.infantry,
+            assault: (Number(from.assaultForCurrentTerritory) || 0) - marching.assault,
+            air: (Number(from.airForCurrentTerritory) || 0) - marching.air,
+            naval: (Number(from.navalForCurrentTerritory) || 0) - marching.naval
         }));
-        patchTerritory(to.uniqueId, garrisonPatch(to, {
-            infantry: (Number(to.infantryForCurrentTerritory) || 0) + infantry
+        patchTerritory(to.uniqueId, garrisonMoveFor(to, {
+            infantry: (Number(to.infantryForCurrentTerritory) || 0) + marching.infantry,
+            assault: (Number(to.assaultForCurrentTerritory) || 0) + marching.assault,
+            air: (Number(to.airForCurrentTerritory) || 0) + marching.air,
+            naval: (Number(to.navalForCurrentTerritory) || 0) + marching.naval
         }));
-        clearReinforcementDemand(country, move.to);
-        console.log(move.reason + ": " + infantry + " infantry");
+        console.log(move.reason);
     }
 
     if (campaign) {
         campaign.musters = moves.map(move => ({ ...move }));
     }
     return moves;
+}
+
+/**
+ * A garrison patch for a territory whose unit COUNTS are changing, with the oil bill redone.
+ *
+ * `garrisonPatch()` alone carries the existing `useable*` figures forward, which is right when
+ * only infantry moves and wrong the moment a vehicle does: the counts and the oil demand would
+ * then disagree, and `useable*` is the oil gate. So the demand is recomputed from the new
+ * counts and the gate re-applied, which is exactly what the income pass does for a territory
+ * whose army changed for any other reason.
+ */
+function garrisonMoveFor(territory, counts) {
+    const after = {
+        ...territory,
+        infantryForCurrentTerritory: Math.max(0, counts.infantry),
+        assaultForCurrentTerritory: Math.max(0, counts.assault),
+        airForCurrentTerritory: Math.max(0, counts.air),
+        navalForCurrentTerritory: Math.max(0, counts.naval)
+    };
+    after.oilDemand = oilDemandFor(after);
+    const gated = useableUnitsFor(after);
+
+    return {
+        ...garrisonPatch(territory, {
+            infantry: after.infantryForCurrentTerritory,
+            assault: after.assaultForCurrentTerritory,
+            air: after.airForCurrentTerritory,
+            naval: after.navalForCurrentTerritory,
+            useable: {
+                assault: gated.useableAssault,
+                air: gated.useableAir,
+                naval: gated.useableNaval
+            }
+        }),
+        oilDemand: after.oilDemand
+    };
 }
 
 export function reviewAiSieges(country, leader, campaign) {
@@ -1160,6 +1219,18 @@ function calculateArmyQuantityBeingSentOrIfCancellingInteraction(leader, mainArr
         }
         return "Cancel";
     }
+
+    //THE DEMAND DIES WHEN THE ATTACK HAPPENS, NOT WHEN THE FIRST REINFORCEMENT ARRIVES.
+    //`musterAiArmies()` used to clear it on delivery, which was defensible while the pull
+    //reached one hop -- there was nothing behind the neighbour that answered, so the request
+    //had got everything it was ever going to get. With a relay behind it that cuts the
+    //corridor off after a single turn: a border sixty points short receives one neighbour's
+    //surplus, stops asking, and the three provinces marching up behind it are told the war
+    //is over. It is the launch that settles the request, because that is the moment the
+    //force was actually enough.
+    clearReinforcementDemand(
+        mainArrayFriendlyTerritoryCopy.dataName,
+        mainArrayFriendlyTerritoryCopy.territoryName);
 
     return [decision.amount, decision.odds];
 }

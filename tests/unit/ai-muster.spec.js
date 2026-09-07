@@ -94,9 +94,10 @@ describe("planning the movements", () => {
             localEnemyPowerFor, neighboursOf
         });
 
-        expect(moves).toHaveLength(1);
-        expect(moves[0]).toMatchObject({ from: "Rear", to: "Front" });
-        expect(moves[0].infantry).toBeGreaterThan(0);
+        const arriving = moves.filter(move => move.to === "Front");
+        expect(arriving).toHaveLength(1);
+        expect(arriving[0]).toMatchObject({ from: "Rear", to: "Front" });
+        expect(arriving[0].infantry).toBeGreaterThan(0);
     });
 
     it("will not march from a territory that is asking for help itself", () => {
@@ -118,6 +119,37 @@ describe("planning the movements", () => {
         });
 
         expect(moves.some(move => move.from === "Interior" && move.to === "Front")).toBe(false);
+    });
+
+    it("relays: the deep interior marches towards the front, one hop at a time", () => {
+        // The whole point, and what the one-hop pull could not do. `Interior` does not touch
+        // `Front`, so under a rule that only looked at the demand's own neighbours it was
+        // never a source for anything and never became a destination either -- it had no
+        // enemy to fail against. Measured on the real map at 100 turns, that left the United
+        // States with 68 territories, 17 of them on the front line, and a fifth of its
+        // infantry standing two or more hops back with nothing that could ever move it.
+        recordReinforcementDemand("Alba", "Front", 20, 5);
+        const moves = planMusters({
+            country: "Alba", turn: 5, territories: territories(),
+            localEnemyPowerFor, neighboursOf
+        });
+
+        expect(moves).toContainEqual(expect.objectContaining({ from: "Rear", to: "Front" }));
+        expect(moves).toContainEqual(expect.objectContaining({ from: "Interior", to: "Rear" }));
+    });
+
+    it("does not pull an army towards a front it has no route to", () => {
+        // An island with no land or sea link to the war is not a reserve, and marching it
+        // nowhere every turn would be a move the executor silently discards.
+        recordReinforcementDemand("Alba", "Front", 20, 5);
+        const moves = planMusters({
+            country: "Alba", turn: 5,
+            territories: [...territories(), territory("Island")],
+            localEnemyPowerFor,
+            neighboursOf: (from) => (from.territoryName === "Island" ? [] : line[from.territoryName] ?? [])
+        });
+
+        expect(moves.every(move => move.from !== "Island")).toBe(true);
     });
 
     it("masses at the spearhead before anybody has failed, not only after", () => {

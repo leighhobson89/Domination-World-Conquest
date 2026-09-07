@@ -1,4 +1,4 @@
-import { containers, ids, map, territorySelectors } from "../selectors.js";
+import { ATTACK_ARROW_PREFIX, containers, ids, map, territorySelectors } from "../selectors.js";
 
 /**
  * The world map. It is an <object>, not an <iframe>, so
@@ -97,6 +97,40 @@ export class MapPage {
                 );
             },
             { mapId: ids.svgMap, attackable: territorySelectors.attackable }
+        );
+    }
+
+    /**
+     * The animated attack arrows, one entry per arrow.
+     *
+     * They live in the MAP's document, so there is no reaching them from the host
+     * page -- which is also why the shaft is measured with `getTotalLength()` here
+     * rather than by parsing the `d` attribute: the arrow is a Bezier and its length
+     * is not its chord, and the length is what "long enough for the player to see" is
+     * a claim about.
+     */
+    async attackArrows() {
+        return this.page.evaluate(
+            ({ mapId, layerId, prefix }) => {
+                const doc = document.getElementById(mapId).contentDocument;
+                const layer = doc.getElementById(layerId);
+                if (!layer) {
+                    return [];
+                }
+                return [...layer.children].map((group) => {
+                    const paths = group.querySelectorAll("path");
+                    const shaft = paths[2];
+                    return {
+                        uniqueId: group.id.slice(prefix.length),
+                        shaftLength: shaft.getTotalLength(),
+                        strokeWidth: Number(shaft.getAttribute("stroke-width")),
+                        dashArray: shaft.getAttribute("stroke-dasharray"),
+                        animations: group.querySelectorAll("animate").length,
+                        pointerEvents: getComputedStyle(group).pointerEvents,
+                    };
+                });
+            },
+            { mapId: ids.svgMap, layerId: ids.attackArrowLayer, prefix: ATTACK_ARROW_PREFIX }
         );
     }
 

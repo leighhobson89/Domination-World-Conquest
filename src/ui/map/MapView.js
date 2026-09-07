@@ -35,6 +35,7 @@ import {
     pathIsUnderSiege
 } from "../../state/pathState.js";
 import { lockedCountryFill, startingColourFor } from "./colouring.js";
+import { clearAttackArrows } from "./attackArrows.js";
 
 let paths = [];
 
@@ -74,6 +75,12 @@ export function baseFillFor(path) {
  * an earlier turn mis-painted.
  */
 export function repaintMap() {
+    //The attack arrows are a decoration on the same footing as the hatched
+    //destinations and the battle marker, so they come off with them. This is the one
+    //place they are removed: a repaint is what "undo the selection" means here, and a
+    //second removal route is how a decoration ends up outliving the state behind it.
+    clearAttackArrows();
+
     paths.forEach(path => {
         const fill = baseFillFor(path);
         if (typeof fill === "string" && fill !== "") {
