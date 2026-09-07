@@ -19,7 +19,8 @@
 // selection is state, this becomes a subscriber and `update()` loses its
 // argument.
 
-import { ids } from "../core/registry.js";
+import { classNames, ids } from "../core/registry.js";
+import { on } from "../core/dom.js";
 
 /** Column index of each figure in the single <tr>. Written once, here. */
 const COLUMN = Object.freeze({
@@ -98,4 +99,68 @@ export function is(table) {
     return table === element();
 }
 
-export const bottomTable = { create, update, reset, element, is, COLUMN };
+// --- the flag as a control -------------------------------------------------
+//
+// The bar describes the selected territory, and the thing a player most often
+// wants after reading it is the Upgrade Territory window for that same
+// territory -- which until now was only reachable by opening the info panel and
+// finding the territory's row again. Clicking the FLAG opens it.
+//
+// The flag cell rather than the whole bar: the bar is thirty pixels of figures a
+// player is reading, and a strip that wide swallowing a click is a strip that
+// opens a window every time somebody clicks near the bottom of the screen. The
+// flag is a single small target that already stands for "this territory".
+//
+// The listener is installed ONCE, from bootstrap, and never from `create()`.
+// `create()` runs on every selection, so installing there would add a listener
+// per click, and `removeEventListener` could not take the previous one off
+// because each call builds a new function object -- which is exactly the defect
+// the move button carried for months (see the move-button note in CLAUDE.md).
+//
+// The <td> itself is stable for the life of the page: it is static markup in
+// index.html and `update()` writes its `innerHTML`, replacing the cell's
+// children and never the cell.
+
+let removeActivation = null;
+
+/** The flag cell, which is both the click target and what carries the cursor. */
+function flagCell() {
+    return row()?.cells?.[COLUMN.flag] ?? null;
+}
+
+/**
+ * Make the flag open something when it is clicked.
+ *
+ * The handler does its own guarding -- the bar is written for enemy territories
+ * too, and outside the Buy/Upgrade phase -- so this deliberately knows nothing
+ * about phases or ownership.
+ *
+ * @param {() => void} onActivate
+ * @returns {() => void} a remover, for symmetry with `dom.on()`
+ */
+export function installActivation(onActivate) {
+    const cell = flagCell();
+    if (!cell || removeActivation) {
+        return removeActivation ?? (() => {});
+    }
+    cell.title = "Upgrade this territory";
+    removeActivation = on(cell, "click", onActivate);
+    return () => {
+        removeActivation?.();
+        removeActivation = null;
+    };
+}
+
+/**
+ * Whether the flag currently leads anywhere, which is what decides the cursor.
+ *
+ * A control that looks clickable and is not is worse than one that never looked
+ * it, so this is refreshed on every selection and whenever the phase moves.
+ */
+export function setActionable(actionable) {
+    flagCell()?.classList.toggle(classNames.isActionable, Boolean(actionable));
+}
+
+export const bottomTable = {
+    create, update, reset, element, is, installActivation, setActionable, COLUMN
+};

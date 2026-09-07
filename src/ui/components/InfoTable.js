@@ -1,5 +1,6 @@
-// The main info panel: four tabs (Summary / Territories / Military / Wars &
-// Sieges), a start-of-turn checkbox, a close button, and the table itself.
+// The main info panel: five tabs (Summary / Territories / Military / Wars &
+// Sieges / Standings), a start-of-turn checkbox, a close button, and the table
+// itself.
 //
 // Refactor Phase 6.3 extracts the CHROME -- the tab strip and the panel around
 // the table. The table's CONTENTS are still drawn by `drawUITable()`, 920 lines
@@ -35,7 +36,7 @@ import { tooltip } from "./Tooltip.js";
 //places. The `active` class is the whole state now and `style.css` reads it.
 
 /**
- * The four tabs, in display order. `index` is the number `drawUITable()` takes
+ * The five tabs, in display order. `index` is the number `drawUITable()` takes
  * as its mode, which is the only reason these are ordered rather than named.
  */
 const TABS = [
@@ -43,6 +44,10 @@ const TABS = [
     { key: "territories", id: ids.territoryButton, label: "Territories", index: 1 },
     { key: "army", id: ids.armyButton, label: "Military", index: 2 },
     { key: "warsSieges", id: ids.warsSiegesButton, label: "Wars / Sieges", index: 3 },
+    //Register item E5. Last, deliberately: the first four tabs are the player's own
+    //empire and this one is the rest of the world, so it reads as the outward-facing
+    //end of the row rather than as another view of your own territories.
+    { key: "standings", id: ids.standingsButton, label: "Standings", index: 4 },
 ];
 
 let root = null;

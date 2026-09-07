@@ -40,12 +40,13 @@ import { bringToFront, makeDraggable } from "../core/draggable.js";
 import { activityTurns } from "../../state/activityLog.js";
 import { Events, on as onStateEvent } from "../../state/events.js";
 import { currentTurn } from "../../state/selectors.js";
-import { describeActivity, summariseTurn } from "../activityFeed/describeActivity.js";
+import { describeActivity, newsCardFor, summariseTurn } from "../activityFeed/describeActivity.js";
 import {
     activityLogIcon,
     castleShieldIcon,
     chevronIcon,
     crossedSwordsIcon,
+    disasterIcon,
     repeatPanelIcon,
 } from "../icons.js";
 
@@ -96,8 +97,8 @@ export function create({ onSound } = {}) {
             class: "chrome-button activity-panel-button",
             attrs: {
                 type: "button",
-                title: "Military activity",
-                "aria-label": "Military activity log",
+                title: "The news",
+                "aria-label": "News and events",
             },
             on: {
                 click() {
@@ -174,7 +175,7 @@ export function create({ onSound } = {}) {
         el("div", {
             id: ids.activityPanelTitle,
             class: "activity-panel-title",
-            text: "Military Activity",
+            text: "The World This Turn",
         }),
         currentTurnButton,
         repeatButton,
@@ -358,7 +359,7 @@ function render() {
             el("p", {
                 id: ids.activityPanelEmpty,
                 class: "activity-panel-empty",
-                text: "No military activity yet. Conquests, sieges and battles will appear here as they happen.",
+                text: "No news yet. Conquests, sieges, battles and disasters will appear here as they happen.",
             })
         );
         return;
@@ -409,16 +410,86 @@ function turnSection(turn, entries) {
         ]
     );
 
-    const list = el(
-        "div",
-        { class: classNames.activityTurnEntries },
-        entries.map(entryRow)
-    );
+    //A turn is the player's NEWS first and the world's doings second. Every entry
+    //the player has a stake in becomes a card; everything else -- which on a busy
+    //turn is fifty other countries fighting somewhere the player has never been --
+    //becomes one compact line in a list underneath. Fifty cards is not a newspaper.
+    const cards = [];
+    const elsewhere = [];
+    //The briefing leads its turn, wherever in the turn it was written. It is a SUMMARY and
+    //everything else here is an event, so it belongs at the top the way a front page does --
+    //and it cannot get there by being recorded first, because it is computed after the
+    //income pass while the siege lines are written before it. Ordering it here rather than
+    //in the log keeps the log a plain narrative in the order things occurred.
+    let briefing = null;
+    for (const entry of entries) {
+        const card = newsCardFor(entry);
+        if (!card) {
+            elsewhere.push(entryRow(entry));
+        } else if (card.icon === "briefing") {
+            briefing = newsCardRow(entry, card);
+        } else {
+            cards.push(newsCardRow(entry, card));
+        }
+    }
+
+    const children = briefing ? [briefing, ...cards] : [...cards];
+    if (elsewhere.length > 0) {
+        //The label is only worth printing when there are cards above it to
+        //distinguish the list FROM. A quiet turn for the player is a turn where the
+        //whole section is this list, and heading it "Elsewhere" then invites the
+        //question "elsewhere than what?"
+        //Anything above the list is enough to need the label -- including a briefing on a
+        //turn where nothing else happened to the player, which is the common case and the
+        //one that lost the heading when the briefing was lifted out of `cards`.
+        if (briefing || cards.length > 0) {
+            children.push(el("div", {
+                class: classNames.activityElsewhereLabel,
+                text: "Elsewhere in the world",
+            }));
+        }
+        children.push(el("div", { class: classNames.activityElsewhere }, elsewhere));
+    }
+
+    const list = el("div", { class: classNames.activityTurnEntries }, children);
 
     const group = el("div", { class: classNames.activityTurnGroup }, [header, list]);
     group.classList.toggle(classNames.activityIsOpen, isOpenSection);
     group.setAttribute("data-turn", String(turn));
     return group;
+}
+
+/** The icon for a card or a row: four pictures, one meaning each. */
+function iconFor(kind) {
+    if (kind === "siege") return castleShieldIcon();
+    if (kind === "disaster") return disasterIcon();
+    //The briefing wears the panel's own icon, because it is the report the panel is
+    //named for rather than another thing that happened.
+    if (kind === "briefing") return activityLogIcon();
+    return crossedSwordsIcon();
+}
+
+/**
+ * One news card: an icon, a headline, and the story under it.
+ *
+ * The card is always `is-player` -- `newsCardFor()` only returns one for the
+ * player's own news -- so the class is set unconditionally rather than tested for.
+ */
+function newsCardRow(entry, card) {
+    return el(
+        "article",
+        {
+            class: [classNames.activityCard, card.tone, classNames.activityIsPlayer],
+            attrs: { "data-kind": entry.kind },
+        },
+        [
+            el("div", { class: classNames.activityCardHead }, [
+                iconFor(card.icon),
+                el("h3", { class: classNames.activityCardHeadline, text: card.headline }),
+            ]),
+            el("p", { class: classNames.activityCardStory, text: card.story }),
+        ]
+    );
 }
 
 function entryRow(entry) {
@@ -434,7 +505,7 @@ function entryRow(entry) {
             // Crossed swords for a battle, the siege shield for a siege -- the same
             // two icons the Wars & Sieges tab uses, so one picture means one thing
             // across the whole game.
-            icon === "siege" ? castleShieldIcon() : crossedSwordsIcon(),
+            iconFor(icon),
             el("span", { class: classNames.activityEntryText, text: text }),
         ]
     );

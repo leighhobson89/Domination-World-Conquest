@@ -21,6 +21,18 @@
 // they lost -- and the store cannot tell them apart after the fact. Those four
 // callers say what happened.
 //
+// **A leader's name is INJECTED, not imported.** The names live in
+// `cpuPlayerGenerationAndLoading.js`, which reaches the whole game; importing it here
+// would drag the UI in through the back door and cost this module the property the
+// unit suite depends on. `installActivityRecorder({ leaderNameFor })` is the same
+// arrangement the AI's rng and `calculateProbabilityPreBattle` already have, and it
+// defaults to a function returning "" so a test -- or a spectated game -- gets entries
+// with no leader on them rather than a crash.
+//
+// The name is read AT THE MOMENT OF THE EVENT and stored on the entry. Leaders die
+// every 15-20 turns, so resolving one when the card is drawn would credit a turn-12
+// conquest to whoever is in charge on turn 40. See the header of `activityLog.js`.
+//
 // This module imports only from `state/`, so it stays loadable in Node.
 
 import { ActivityKind, recordActivity } from "./activityLog.js";
@@ -29,14 +41,26 @@ import { playerCountryName } from "./selectors.js";
 
 let installed = false;
 
+/** Injected: country name -> the name of whoever rules it right now. */
+let leaderNameFor = () => "";
+
 /**
  * Start deriving entries from state events.
  *
  * Idempotent, because bootstrap is two halves that finish out of order and this is
  * called from the earlier one. Returns the uninstaller, which is what a test uses
  * to put the world back.
+ *
+ * @param {object} [deps]
+ * @param {(country: string) => string} [deps.leaderNameFor]
  */
-export function installActivityRecorder() {
+export function installActivityRecorder({ leaderNameFor: lookup } = {}) {
+    //The lookup is taken even on a repeat call. Bootstrap installs this before the
+    //CPU leaders exist and `gameTurnsLoop.js` is where the table lives, so refusing
+    //to update it would pin the default forever.
+    if (typeof lookup === "function") {
+        leaderNameFor = lookup;
+    }
     if (installed) {
         return () => {};
     }
@@ -80,6 +104,8 @@ function onTerritoryChanged({ territory, changed, previous }) {
         territory: territory.territoryName,
         defender: from,
         attacker: to,
+        attackerLeader: safeLeaderName(to),
+        defenderLeader: safeLeaderName(from),
         playerAttacking: to === player,
         playerDefending: from === player
     });
@@ -115,13 +141,88 @@ function onSiegeChanged({ action, siege, territoryName, side }) {
 // --- the explicit half -----------------------------------------------------
 
 /**
+ * The leader of a country, or "" -- never a throw.
+ *
+ * The lookup reaches game code that is built in a different half of bootstrap from
+ * this one, and an entry with no leader on it costs the player a clause in a
+ * sentence. An exception here would cost them the conquest.
+ */
+function safeLeaderName(country) {
+    if (!country) {
+        return "";
+    }
+    try {
+        return leaderNameFor(country) ?? "";
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * A disaster struck the player's territories this turn (register E3).
+ *
+ * ONE call per disaster per turn, made after the income pass has finished rolling
+ * against every territory -- see the note on `ActivityKind.DISASTER`. `territoriesHit`
+ * is what makes the headline: "Famine strikes" reads very differently at one
+ * territory and at thirty.
+ *
+ * @param {{event: string, territory: string, territoriesHit: number}} what
+ *        `territory` is the WORST-hit one, which is what the card names.
+ */
+export function recordDisaster({ event, territory, territoriesHit }) {
+    if (!event || !Number.isFinite(territoriesHit) || territoriesHit < 1) {
+        return null;
+    }
+    return recordActivity({
+        kind: ActivityKind.DISASTER,
+        territory: territory ?? "",
+        defender: playerCountryName(),
+        event: event,
+        territoriesHit: territoriesHit,
+        //A disaster is only ever recorded for the player -- a famine in Peru is not
+        //something the player has any way of knowing about, and recording the other
+        //206 countries' would be 206 entries a turn nobody can act on.
+        playerDefending: true
+    });
+}
+
+/**
+ * The state of the nation at the top of a turn (register item E7).
+ *
+ * `turn` is passed in rather than defaulted, because a briefing belongs to the turn that has
+ * just ENDED -- see the note on `ActivityKind.BRIEFING`. Getting that wrong is invisible: the
+ * entry is stored, the panel renders, and the player simply never sees it until a turn later.
+ *
+ * @param {{briefing: object, turn: number}} what
+ */
+export function recordBriefing({ briefing, turn }) {
+    if (!briefing || !Number.isFinite(turn) || turn < 1) {
+        return null;
+    }
+    return recordActivity({
+        kind: ActivityKind.BRIEFING,
+        territory: "",
+        defender: playerCountryName(),
+        briefing,
+        turn,
+        //Always the player's own news; there is no such thing as somebody else's briefing.
+        playerDefending: true
+    });
+}
+
+/**
  * An attack was fought and the territory did not change hands.
  *
  * @param {{territory: string, defender: string, attacker: string,
  *          playerAttacking?: boolean, playerDefending?: boolean}} what
  */
 export function recordFailedAttack(what) {
-    return recordActivity({ kind: ActivityKind.ATTACK_FAILED, ...what });
+    return recordActivity({
+        kind: ActivityKind.ATTACK_FAILED,
+        attackerLeader: safeLeaderName(what?.attacker),
+        defenderLeader: safeLeaderName(what?.defender),
+        ...what
+    });
 }
 
 /** A siege ended because the besieging army was arrested. */

@@ -82,6 +82,15 @@ export function headerRow(columns, { rowClass = "ui-table-row", columnClass = "u
             column.appendChild(image);
         }
 
+        //A TEXT header. Every tab before the Standings one headed its columns with an
+        //icon, because they are all columns of one quantity -- gold, food, army -- and a
+        //picture is shorter than the word. Standings columns are phrases ("Powers broken",
+        //"Against the leader") that change with the goal in force, so there is no icon that
+        //could mean them.
+        if (spec.headerText) {
+            column.appendChild(el("span", { class: "ui-table-header-text", text: spec.headerText }));
+        }
+
         if (index === 0 && title !== undefined) {
             column.innerHTML = title;
         }

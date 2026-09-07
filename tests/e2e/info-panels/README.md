@@ -1,11 +1,12 @@
 # info-panels
 
-The main info panel: Summary / Territories / Military / Wars & Sieges.
+The main info panel: Summary / Territories / Military / Wars & Sieges / Standings.
 
 | Spec | Covers |
 |---|---|
 | `tabs.spec.js` | The panel opens and closes; exactly one tab is marked active and the mark follows the selection; the choice survives a redraw; the Territories tab lists one row per owned territory and gains a row on conquest; the Wars & Sieges tab names a siege the player is running |
 | `wars-tab.spec.js` | A war the attacker WON shows the defender's flag in the Defending Country column, not the flag of whoever owns the territory now (known-issues **AS**) |
+| `standings.spec.js` | The Standings tab (register **E5**) lists the world in rank order with the player always on it, and is ordered by the number it actually displays; the turn-start briefing (**E7**) leads its turn's news. Its third case guards a LAYOUT defect the tab exposed: `.blur-background` is `display: block`, so `.content-window`'s `flex-grow: 1` had nothing to grow in and every tab sat in a 445px box inside an 800px window |
 | `toggle-button.spec.js` | The globe over the map opens the panel AND closes it again — it used to be hidden the moment the panel opened, leaving the X as the only way out — and it is clickable rather than merely present, which is a statement about the stacking |
 
 ## The defect this folder was written against

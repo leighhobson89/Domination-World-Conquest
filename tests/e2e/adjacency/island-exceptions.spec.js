@@ -26,7 +26,7 @@ test.describe("manual island adjacency", () => {
     // the map's strategic geography rather than a repair. Greenland <-> Iceland was the ONLY
     // crossing between Europe and North America, and Greenland had two neighbours in the
     // whole game -- which made North America a cul-de-sac under a goal asking for three
-    // continents. See docs/06-force-and-succession.md section 7.6 and known-issue BO.
+    // continents. See docs/archived/06-force-and-succession.md section 7.6 and known-issue BO.
     test("Greenland reaches Europe through Svalbard as well as Iceland", async ({ game }) => {
         const fromGreenland = await game.state(() => window.__game.interactableFrom("Greenland"));
         expect(fromGreenland).toEqual(
@@ -40,7 +40,7 @@ test.describe("manual island adjacency", () => {
     // The terrain drop that shipped with the door. It is asserted as the BONUS the model
     // built rather than as the SVG attribute, because the attribute is input and the bonus
     // is what every combat rule reads -- and because 20 is under the 25 the dice bands use,
-    // which is the whole point of choosing 2 rather than 3 or 4 (docs/06 section 7.5).
+    // which is the whole point of choosing 2 rather than 3 or 4 (archived docs/06 section 7.5).
     test("Greenland and Iceland are terrain 2, which is under the dice band", async ({ game }) => {
         const terrain = await game.state(() => ({
             greenland: window.__game.territory("Greenland").mountainDefenseBonus,

@@ -90,7 +90,16 @@
 #top-table td {
   text-align: left;
   width: 8%;
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was `Arial, Helvetica, sans-serif` -- the last two hard-coded faces in the
+     stylesheet, and the reason the two bars read as a different application from
+     the panels above them. The register's hygiene note kept them because the bars
+     are a FIXED 30px and a monospace face (Terminal) sets wider, so a row that
+     reflowed would push its own figures out of the bar. That is what
+     `white-space: nowrap` on the cells now guarantees against: the numbers are
+     already abbreviated by `formatNumbersToKMB()`, so a cell has no reason to
+     wrap and every reason not to. */
+  font-family: var(--font-body);
+  white-space: nowrap;
   color: var(--text-primary);
   font-weight: normal;
 }
@@ -129,6 +138,25 @@
   overflow: auto;
 }
 
+/* The two bars' FLAG CELLS are controls: the bottom one opens Upgrade Territory
+   for the territory the bar is describing, the top one opens the info panel.
+   The flag rather than the whole bar, because thirty pixels of figures a player
+   is reading should not swallow a click.
+
+   On the bottom flag the class is present only while the click would actually do
+   something -- the player's own territory, in the Buy/Upgrade phase -- because a
+   control that looks clickable and is not is worse than one that never looked it.
+   The top flag always leads somewhere, so its class is set once at construction. */
+#bottom-table td.is-actionable,
+#top-table td.is-actionable {
+  cursor: pointer;
+}
+
+#bottom-table td.is-actionable:hover,
+#top-table td.is-actionable:hover {
+  background-color: var(--surface-control-hover);
+}
+
 td {
   text-align: center;
   font-family: Arial, Helvetica, sans-serif;
@@ -154,7 +182,10 @@ td {
 #bottom-table td {
   text-align: left;
   width: 8%;
-  font-family: Arial, Helvetica, sans-serif;
+  /* See `#top-table td` above for why this stopped being Arial and why the
+     cells may not wrap. */
+  font-family: var(--font-body);
+  white-space: nowrap;
   color: var(--text-primary);
   font-weight: normal;
 }
@@ -948,6 +979,28 @@ td {
   backdrop-filter: blur(var(--panel-blur));
 }
 
+/* The info panel's blur layer is a COLUMN, and scoping that to this one window is
+   deliberate: `.blur-background` is shared by six windows and is absolutely
+   positioned in all of them, so turning it into a flex container globally would
+   relayout the battle UI, the results screen, both resource windows and the AI
+   dialogue at once.
+
+   Without this, `.content-window`'s `flex-grow: 1` has no flex parent to grow in
+   and the table stays at its 445px base height inside an 800px panel -- about 350px
+   of dead space under every tab, and the reason the Standings tab appeared to be
+   clipped at ten rows when in fact it was scrolling correctly in a box far shorter
+   than the window holding it. `min-height: 0` is what lets the scrolling half work:
+   a flex item will not shrink below its content without it, so the inner
+   `overflow: auto` would never engage. */
+#main-ui-container > .blur-background {
+  display: flex;
+  flex-direction: column;
+}
+
+#main-ui-container .content-window {
+  min-height: 0;
+}
+
 #uiTable {
   display: none;
 }
@@ -985,6 +1038,36 @@ td {
 .ui-table-row-war:last-child {
   border-bottom-left-radius: var(--radius-sm);
   border-bottom-right-radius: var(--radius-sm);
+}
+
+/* --- the Standings tab ----------------------------------------------------
+
+   Register item E5. The only tab whose rows are countries rather than the
+   player's own territories, and the only one whose column headers are words
+   instead of icons -- a goal column is a phrase ("Powers broken", "Against the
+   leader") that changes with the goal in force, and there is no picture that
+   could mean it. */
+
+.ui-table-header-text {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The player's own row. The table is ordered by progress toward the goal, so the
+   player can be anywhere in it -- including pinned below a gap when they are
+   outside the top sixteen -- and hunting for yourself in sixteen near-identical
+   rows is exactly what a table should not make somebody do. The cell also says
+   "(you)" in words: colour alone is the wrong single channel for this, both
+   because the player picks their own map colour and because it is the one row a
+   colour-blind player most needs to find. */
+.ui-table-row-player {
+  background-color: var(--surface-control-hover);
+  font-weight: 700;
 }
 
 .ui-table-row-siege,
@@ -4793,6 +4876,112 @@ td {
   width: 19px;
   height: 19px;
   margin-top: 3px;
+}
+
+/* --- the news cards -------------------------------------------------------
+
+   The panel is the player's news, and a news item is a CARD: an icon, a headline
+   and a story. Only the player's own news gets one -- everything else in a turn is
+   two other countries fighting somewhere the player has never been, and on a busy
+   turn there are fifty of those, so they stay as the compact `.activity-entry`
+   rows in `.activity-elsewhere` underneath.
+
+   The tone classes are the same three the rows use, so one colour means one thing
+   in both halves of the panel, plus the flame the four disasters share. A card
+   states its tone with a left border rather than by colouring its whole body: a
+   paragraph of prose set in the negative colour is a paragraph nobody reads. */
+
+.tooltip-leader {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.activity-card {
+  border-left: 3px solid var(--border-color);
+  background-color: var(--surface-panel);
+  border-radius: var(--radius);
+  padding: 8px 10px 9px;
+  margin: 0 0 8px;
+}
+
+.activity-card-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.activity-card-head .chrome-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.activity-card-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  min-width: 0;
+}
+
+/* The story is body text and stays in the reading colour. Only the headline, the
+   icon and the border carry the tone. */
+.activity-card-story {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.activity-card.tone-victory {
+  border-left-color: var(--positive);
+}
+
+.activity-card.tone-victory .activity-card-headline,
+.activity-card.tone-victory .chrome-icon {
+  color: var(--positive);
+}
+
+.activity-card.tone-loss {
+  border-left-color: var(--negative);
+}
+
+.activity-card.tone-loss .activity-card-headline,
+.activity-card.tone-loss .chrome-icon {
+  color: var(--negative);
+}
+
+.activity-card.tone-siege {
+  border-left-color: var(--siege-amber);
+}
+
+.activity-card.tone-siege .activity-card-headline,
+.activity-card.tone-siege .chrome-icon {
+  color: var(--siege-amber);
+}
+
+/* The world's other wars, under the cards. The label is only drawn when there are
+   cards above it to distinguish the list from -- see `turnSection()`. */
+.activity-elsewhere-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  opacity: 0.7;
+  margin: 10px 0 3px;
+  padding: 0 7px;
+}
+
+/* Nothing in this list is the player's news, so the size bump `.is-player` gives a
+   row can never apply here. It is stated anyway, because the two halves of the
+   panel share the row builder and a future entry kind that slipped through
+   `newsCardFor()` would otherwise be drawn large in a list meant to be scanned. */
+.activity-elsewhere .activity-entry {
+  font-size: 0.78rem;
+  padding: 3px 7px;
 }
 
 @media (prefers-reduced-motion: reduce) {

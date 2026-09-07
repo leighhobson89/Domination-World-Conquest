@@ -1220,7 +1220,7 @@ One defect, found by the analysis that went looking for why a North American pow
 growing. The question asked was *"is anything stopping a country pushing from South America
 into North America, or from Greenland and Iceland into Europe — is one territory blocking
 it?"* The answer to both halves is in
-[06-force-and-succession.md](../06-force-and-succession.md) §5; what turned up on the way is
+[06-force-and-succession.md](./06-force-and-succession.md) §5; what turned up on the way is
 this.
 
 ### BS — five straits in the south Pacific ran in ONE DIRECTION

@@ -20,13 +20,15 @@ import {
     armyColumns,
     warColumns
 } from "./columns.js";
+import { standingsColumns } from "./standingsColumns.js";
 
-/** The four tabs, by the index `drawUITable()` has always been called with. */
+/** The tabs, by the index `drawUITable()` has always been called with. */
 export const Tab = Object.freeze({
     SUMMARY: 0,
     TERRITORIES: 1,
     ARMY: 2,
-    SIEGES: 3
+    SIEGES: 3,
+    STANDINGS: 4
 });
 
 /**
@@ -52,6 +54,11 @@ export const Tab = Object.freeze({
  * @property {object[]} historicWars finished wars, newest last
  * @property {(name: string) => string} reduceKeywords
  * @property {() => void} [afterSiegeTable]
+ * @property {{rows: object[], playerRow: object|null, surviving: number}} standings
+ *           the ranked world, from `rankedStandings()` -- already ordered, so this module
+ *           needs nothing from `src/ai/`
+ * @property {string} victoryConditionKind  which goal is being played, for the two goal columns
+ * @property {number} turn           the current turn, for a Timed Game's clock column
  */
 
 /**
@@ -191,11 +198,51 @@ function renderSieges(table, deps) {
     }
 }
 
+/**
+ * Who is winning, in order (register item E5).
+ *
+ * The only tab whose rows are COUNTRIES rather than the player's own territories, and the
+ * only one whose columns depend on the goal being played. Both the ranking and the goal
+ * columns are derived in `src/ui/goals/`, pure and unit-tested; the rows arrive here already
+ * ordered, which is what keeps this module free of `src/ai/`.
+ */
+function renderStandings(table, deps) {
+    const standings = deps.standings ?? { rows: [], playerRow: null, surviving: 0 };
+    const columns = standingsColumns(deps.victoryConditionKind, {
+        turn: deps.turn,
+        formatNumber: deps.formatNumberDefault
+    });
+
+    table.appendChild(headerRow(columns, { title: "#" }));
+
+    if (standings.rows.length === 0) {
+        table.appendChild(emptyRow());
+        return;
+    }
+
+    for (const row of standings.rows) {
+        table.appendChild(dataRow(columns, row, {
+            rowClass: row.isPlayer ? "ui-table-row ui-table-row-player" : "ui-table-row"
+        }));
+    }
+
+    //The player, pinned, when they did not make the top sixteen. A blank line separates it
+    //so the gap in the rank numbers reads as a gap rather than as a rendering fault -- the
+    //row carries its TRUE position, which on a bad turn is the whole point of the table.
+    if (standings.playerRow) {
+        table.appendChild(emptyRow());
+        table.appendChild(dataRow(columns, standings.playerRow, {
+            rowClass: "ui-table-row ui-table-row-player"
+        }));
+    }
+}
+
 const RENDERERS = {
     [Tab.SUMMARY]: renderSummary,
     [Tab.TERRITORIES]: renderTerritories,
     [Tab.ARMY]: renderArmy,
-    [Tab.SIEGES]: renderSieges
+    [Tab.SIEGES]: renderSieges,
+    [Tab.STANDINGS]: renderStandings
 };
 
 /**

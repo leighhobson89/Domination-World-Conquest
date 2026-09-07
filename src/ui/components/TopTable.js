@@ -66,7 +66,7 @@ function figure({ alt, icon, valueClass = classNames.resourceFields, describe })
  * @param {() => object} deps.demands            `demandArray`
  * @param {(n: number, dp: number) => string} deps.formatNumber  `formatNumbersToKMB`
  */
-export function create({ playerCountryName, capacities, demands, formatNumber }) {
+export function create({ playerCountryName, capacities, demands, formatNumber, onFlagActivate }) {
     if (root) return root;
 
     const oilText = () => `
@@ -83,10 +83,19 @@ export function create({ playerCountryName, capacities, demands, formatNumber })
     <div>Total Cons. Mats. Capacity: ${Math.ceil(capacities().totalConsMatsCapacity)}</div>
   `;
 
+    //The flag is a control as well as a picture: it opens the info panel, the same
+    //view the globe button in the map chrome opens. The flag rather than the whole
+    //bar, and for the same reason the bottom bar's flag is the target rather than
+    //its bar -- thirty pixels of figures a player is reading should not swallow a
+    //click. `onFlagActivate` is optional so that a caller with nothing to open
+    //still gets a plain flag, cursor included.
     const flag = el("td", {
         id: ids.flagTop,
-        class: "iconCell",
-        on: hoverFor(() => playerCountryName()),
+        class: onFlagActivate ? ["iconCell", classNames.isActionable] : "iconCell",
+        attrs: onFlagActivate ? { title: "Territories, army and wars" } : {},
+        on: onFlagActivate
+            ? { ...hoverFor(() => playerCountryName()), click: onFlagActivate }
+            : hoverFor(() => playerCountryName()),
     });
 
     heading = el("td", { html: "Please wait, initialising game..." });

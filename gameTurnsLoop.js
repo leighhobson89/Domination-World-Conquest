@@ -35,8 +35,11 @@ import {
     turnGainsArrayLastTurn,
     getTurnGainsArrayAi,
     derivedEconomyFor,
-    calculateAvailableUpgrades
+    calculateAvailableUpgrades,
+    rankedWorldStandings
 } from './resourceCalculations.js';
+import { playerStanding } from "./src/ui/goals/standingsTable.js";
+import { briefingFacts, weakBordersFor } from "./src/state/briefing.js";
 import { currentContinentControl } from './src/state/continentBonus.js';
 import {
     activateAllPlayerTerritoriesForNewTurn,
@@ -86,6 +89,7 @@ import {
 import {
     loadAdjacency,
     getInteractableFrom,
+    isAdjacencyLoaded,
     adjacencyIds
 } from "./src/data/adjacency.js";
 import {
@@ -163,6 +167,7 @@ import {
 } from './src/state/activityLog.js';
 import {
     installActivityRecorder,
+    recordBriefing,
     recordOngoingSieges
 } from './src/state/activityRecorder.js';
 import {
@@ -589,9 +594,74 @@ function beginTurn() {
     } else {
         activityPanel.onTurnStarted(currentTurn());
     }
+    recordTurnBriefing();
     randomEventHappening = false;
     randomEvent = "";
     console.log("Turn " + currentTurn() + " has started!");
+}
+
+/**
+ * The state of the nation, once per turn (register item E7).
+ *
+ * THREE THINGS HERE LOOK WRONG AND ARE NOT.
+ *
+ * **The income is read from `turnGainsArrayLastTurn`, not `turnGainsArrayPlayer`.** The income
+ * pass fills the latter and `newTurnResources()` then rolls it into the former and zeroes it,
+ * so by the time this runs -- which is after `newTurnResources()`, deliberately, because the
+ * figures do not exist before it -- "last turn's" array holds the money that has just arrived.
+ * The info panel's own (+/-) columns read the same field for the same reason.
+ *
+ * **The entry is filed under the PREVIOUS turn.** `endTurn: advanceTurn`, so the panel hides
+ * the turn that has just begun and opens the one behind it, where the news is. A briefing filed
+ * under the turn it was computed in would sit in the hidden section and reach the player a
+ * whole turn late. The card names no turn number, so nothing reads as off by one.
+ *
+ * **Nothing is written on turn 1.** There is no income on turn 1, the panel does not raise
+ * itself, and `currentTurn() - 1` would be turn zero.
+ */
+function recordTurnBriefing() {
+    if (currentTurn() <= 1 || isAiGameActive()) {
+        return;
+    }
+    try {
+        const player = playerCountryName();
+        const owned = allTerritories().filter(territory => territory.dataName === player);
+        const standing = playerStanding(rankedWorldStandings().standings);
+
+        const weakBorders = weakBordersFor(owned, (territory) => {
+            if (!isAdjacencyLoaded()) {
+                return [];
+            }
+            const names = new Set(
+                getInteractableFrom(territory.uniqueId, territory.territoryName));
+            return allTerritories().filter(other =>
+                other.dataName !== player && names.has(other.territoryName));
+        });
+
+        recordBriefing({
+            turn: currentTurn() - 1,
+            briefing: briefingFacts({
+                goldIncome: turnGainsArrayLastTurn?.changeGold ?? 0,
+                territories: owned.length,
+                rank: standing?.rank ?? 0,
+                surviving: rankedWorldStandings().standings.surviving,
+                goalKind: activeVictoryCondition().kind,
+                progressFraction: standing?.fraction ?? 0,
+                weakBorders,
+                //A siege the player laid is in the player list; one they are enduring is an
+                //AI siege whose defending territory is theirs. The lists are keyed by SIDE
+                //rather than by who is defending, which is the distinction `siegeIsAi`
+                //exists for and the one known-issue AZ was about.
+                besieging: Object.keys(playerSieges()).length,
+                besieged: Object.values(aiSieges())
+                    .filter(siege => siege?.defendingTerritory?.owner === "Player").length
+            })
+        });
+    } catch (error) {
+        //A briefing is a nicety. It must never be the reason a turn fails to start, and a
+        //`console.error` would fail every e2e spec in the suite.
+        console.warn("The turn briefing could not be built this turn.", error);
+    }
 }
 
 function announcePhase(description) {
@@ -645,7 +715,22 @@ registerSaveSlice("turnLoop", {
     }
 });
 
-installActivityRecorder();
+//The news cards name the leader who took a province, and the name has to be read
+//AT THE EVENT and stored -- `src/ai/succession.js` replaces a leader every 15-20
+//turns, so one resolved when the card is drawn would credit a turn-12 conquest to
+//whoever is in charge on turn 40. The lookup is injected rather than imported by
+//`activityRecorder.js` because that module imports only from `state/` and so still
+//loads in Node; this file already holds the leader table.
+installActivityRecorder({
+    leaderNameFor: (countryName) => {
+        if (!countryName) {
+            return "";
+        }
+        const row = getArrayOfLeadersAndCountries()
+            .find((entry) => entry[0] === countryName);
+        return row?.[1]?.name ?? "";
+    }
+});
 
 registerSaveSlice("activity", {
     capture: () => captureActivityLog(),

@@ -534,7 +534,7 @@ Addresses **G6**, **G7**, and known-issue **BO**.
       is a rule change. No table settles either. **Ticked as CARRIED rather than as done**: it is
       Leigh's to do, and it is the ground on which the dice table was decided — keep the narrow
       one and judge the trade by playing. Carried into
-      [05-outstanding-improvements.md](../05-outstanding-improvements.md)
+      [05-outstanding-improvements.md](./05-outstanding-improvements.md)
 
 ### Stage 5.2 — the five-goal table, all three tables side by side
 
@@ -653,7 +653,7 @@ player can lose by turn 60 without ever having had a game.
 **Every box in stages 0–5 is ticked.** The closing pass re-measured what had only been asserted,
 corrected three documents that described a dice table which had been reverted, and took the three
 decisions that were left over. Everything still outstanding is carried into
-[05-outstanding-improvements.md](../05-outstanding-improvements.md), which is the standing list of
+[05-outstanding-improvements.md](./05-outstanding-improvements.md), which is the standing list of
 what the measurements say to do next.
 
 ### The three decisions taken at close — Leigh's

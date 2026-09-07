@@ -191,7 +191,7 @@ export const manualAdjacencyExceptions = {
     //North America a cul-de-sac: whoever took it could reach South America freely through
     //Mexico and a third continent only by forcing one strait. Under CONTINENTAL, which
     //asks for three continents, that country could not win from where it started
-    //(known-issue BO; the measurements are in docs/06-force-and-succession.md section 7).
+    //(known-issue BO; the measurements are in docs/archived/06-force-and-succession.md section 7).
     //
     //Svalbard is Norwegian and therefore European, so this is a Europe <-> North America
     //crossing. It is 122.7 SVG units across -- SHORTER than Brazil <-> Sierra Leone

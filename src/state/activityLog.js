@@ -20,11 +20,23 @@
 // rules -- which decide both the colour and the size -- unrecoverable after the
 // fact.
 //
-// **What counts as military is decided HERE.** The brief is explicit: attacks,
-// conquests, losses, battles between AIs, sieges in all four of their states, and
-// anything that touches the player. Not economy, not bolstering, not planning.
-// `ACTIVITY_KINDS` is that list, and `recordActivity()` rejects anything else --
-// so an economic event cannot leak into the feed by someone passing a new string.
+// **What counts as news is decided HERE, and it is no longer only military.** This
+// list used to be attacks, conquests, sieges and nothing else, on the stated ground
+// that economy did not belong in a military feed. That rule is deliberately
+// overturned: the panel is the player's NEWS now, not a battle report, and a famine
+// that halves a province's food is exactly the kind of thing a player needs told --
+// it was going to `console.log` and the only trace on screen was a number that had
+// fallen (register item E3). What has NOT changed is that the list is CLOSED and
+// `recordActivity()` rejects anything else, because the card writer switches on the
+// kind and an unknown one would draw a blank card.
+//
+// **A leader's name is RECORDED, never looked up when the card is drawn.** Leaders
+// die: `src/ai/succession.js` replaces one every 15-20 turns. A card drawn on turn 40
+// that asked the world who ruled Germany would attribute a turn-12 conquest to
+// whoever is in charge now. This is the same mistake known-issue AS caught in the
+// Wars & Sieges tab, which drew the defending flag from the territory's CURRENT owner
+// and so showed the attacker's flag on both sides of any war the attacker had won:
+// if a record describes something that happened, it records who it happened to.
 //
 // **A turn is the grouping unit and it is explicit.** Entries carry the turn they
 // happened on rather than being appended to "the current bucket", because the AI
@@ -63,7 +75,32 @@ export const ActivityKind = Object.freeze({
     /** A siege became a battle and the besieger took the territory. */
     SIEGE_WON: "siegeWon",
     /** A siege became a battle and the defender held. */
-    SIEGE_LOST: "siegeLost"
+    SIEGE_LOST: "siegeLost",
+    /**
+     * A natural or economic disaster struck the player's territories (register E3).
+     *
+     * ONE entry per disaster per turn, not one per territory. The disaster rolls
+     * separately against every territory on the map at `randomEventSeverity.hitChance`,
+     * so a large empire would otherwise write a hundred entries in a turn and flush
+     * the ring -- and "Famine in Bavaria / Famine in Saxony / Famine in ..." a hundred
+     * times over is not news, it is a spreadsheet. The entry carries the COUNT and the
+     * worst-hit territory instead, which is what a headline needs.
+     */
+    DISASTER: "disaster",
+    /**
+     * The state of the nation at the top of a turn (register item E7).
+     *
+     * ONE per turn, and it carries a `briefing` object rather than the flat fields the war
+     * entries use -- it is a summary of nine unrelated figures and flattening them would put
+     * nine more optional properties on every conquest in the log.
+     *
+     * It is FILED UNDER THE TURN THAT HAS JUST ENDED, which looks like an off-by-one and is
+     * not. `endTurn: advanceTurn`, so the AI moves during turn N and the counter reaches N+1
+     * afterwards; the panel hides the turn that has just begun and opens the one behind it,
+     * because that is where the news is. A briefing filed under the turn it was computed in
+     * would sit in the hidden section and the player would read it one turn late.
+     */
+    BRIEFING: "briefing"
 });
 
 const KINDS = new Set(Object.values(ActivityKind));
@@ -100,10 +137,15 @@ let nextId = 1;
  * @param {boolean} [entry.playerDefending]  the player is the defender
  * @param {number} [entry.turn]      defaults to the current turn
  * @param {number} [entry.turnsUnderSiege]  siege entries only
+ * @param {string} [entry.attackerLeader]  who ruled the acting country AT THE TIME
+ * @param {string} [entry.defenderLeader]  who ruled the holding country AT THE TIME
+ * @param {string} [entry.event]     disaster entries only: the disaster's name
+ * @param {number} [entry.territoriesHit]  disaster entries only: how many were struck
+ * @param {object} [entry.briefing]  briefing entries only: the figures, from `briefingFacts()`
  */
 export function recordActivity(entry) {
     if (!entry || !KINDS.has(entry.kind)) {
-        console.warn("activityLog: refusing to record a non-military entry", entry);
+        console.warn("activityLog: refusing to record an entry of unknown kind", entry);
         return null;
     }
 
@@ -117,7 +159,14 @@ export function recordActivity(entry) {
         attacker: entry.attacker ?? "",
         playerAttacking: Boolean(entry.playerAttacking),
         playerDefending: Boolean(entry.playerDefending),
-        turnsUnderSiege: Number.isFinite(entry.turnsUnderSiege) ? entry.turnsUnderSiege : null
+        turnsUnderSiege: Number.isFinite(entry.turnsUnderSiege) ? entry.turnsUnderSiege : null,
+        //Recorded, never re-read off the world later. See the header note: leaders die
+        //every 15-20 turns, so a name resolved at render time is the wrong name.
+        attackerLeader: entry.attackerLeader ?? "",
+        defenderLeader: entry.defenderLeader ?? "",
+        event: entry.event ?? "",
+        territoriesHit: Number.isFinite(entry.territoriesHit) ? entry.territoriesHit : null,
+        briefing: entry.briefing ?? null
     });
 
     if (!byTurn.has(turn)) {

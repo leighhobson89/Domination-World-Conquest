@@ -49,12 +49,14 @@ import {
     demandArray,
     drawUITable,
     formatNumbersToKMB,
+    openUpgradeWindowFor,
     playerOwnedTerritories,
     populateBottomTableWhenSelectingACountry,
     totalConsMats,
     totalGoldPrice,
     totalPopulationCost,
     totalPurchaseGoldPrice,
+    upgradeIsAvailableForPath,
     writeBottomTableInformation
 } from './resourceCalculations.js';
 import {
@@ -142,6 +144,7 @@ import {
 } from './src/state/battleState.js';
 import {
     createCpuPlayerObjectAndAddToMainArray,
+    getArrayOfLeadersAndCountries,
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import {
@@ -785,6 +788,7 @@ function selectCountry(country, escKeyEntry) {
         }
         lastClickedPathExternal = lastClickedPath;
         lastClickedPath = country;
+        refreshBottomBarActionable();
 
         if (selectCountryPlayerState && !escKeyEntry) {
             countrySelect.nameCountry(pathCountry(country), { locked: pathIsGreyedOut(country) });
@@ -805,6 +809,8 @@ document.addEventListener("DOMContentLoaded", function() {
         currentTrack: () => currentTrackName(),
         musicPlaying: () => isMusicPlaying(),
     });
+
+    installBottomBarActivation();
 
     tooltip.create();
     confirmDialog.create();
@@ -1131,6 +1137,20 @@ document.addEventListener("DOMContentLoaded", function() {
         capacities: () => capacityArray,
         demands: () => demandArray,
         formatNumber: formatNumbersToKMB,
+        //The top bar is the player's whole empire, so its flag opens the empire's
+        //panel -- the same view, on the same tab, as the globe button in the map
+        //chrome. It is deliberately a second door onto one window rather than a
+        //second window: `toggleUIMenu()` owns what else has to move out of the way
+        //when the panel opens, and a shortcut that skipped it would leave the map
+        //and the move-phase buttons still taking clicks underneath it.
+        onFlagActivate() {
+            if (uiCurrentlyOnScreen) {
+                return;
+            }
+            playSoundClip("switch");
+            toggleUIMenu(true);
+            infoTable.setActiveTab("summary");
+        },
     });
 
     aiDialogue.create({ onResponse: setAiResponseFlag });
@@ -2578,6 +2598,56 @@ function setTransferToTerritory(listOfTerritories) {
 }
 export function getLastClickedPath() {
     return lastClickedPath;
+}
+
+/**
+ * The territory the bottom bar is currently describing, or null.
+ *
+ * `lastClickedPath` starts life as a detached stand-in carrying the placeholder
+ * `d` below, which is what "nothing has been selected yet" looks like -- it is
+ * not null, so it has to be recognised rather than tested for.
+ */
+function selectedTerritoryForBottomBar() {
+    const path = getLastClickedPath();
+    if (!path || path.getAttribute("d") === "M0 0 L50 50") {
+        return null;
+    }
+    if (!pathIsPlayerOwned(path) || !upgradeIsAvailableForPath(path)) {
+        return null;
+    }
+    return getTerritory(path.getAttribute("uniqueid")) ?? null;
+}
+
+/** Keep the flag's cursor honest about whether clicking it leads anywhere. */
+export function refreshBottomBarActionable() {
+    bottomTable.setActionable(Boolean(selectedTerritoryForBottomBar()));
+}
+
+/**
+ * Clicking the bottom bar's FLAG opens Upgrade Territory for the territory the
+ * bar is describing -- the same window, through the same call, as the upgrade
+ * button on that territory's row in the info panel.
+ *
+ * Installed ONCE, from bootstrap. The bar is rewritten on every selection, so
+ * installing it anywhere near `bottomTable.create()` would add a listener per
+ * click and `removeEventListener` could not take the old ones off, each call
+ * having built a new function object. That is the move button's old defect
+ * exactly, and it presented as a handler firing once per selection made.
+ */
+function installBottomBarActivation() {
+    bottomTable.installActivation(() => {
+        const territory = selectedTerritoryForBottomBar();
+        if (!territory) {
+            return;
+        }
+        playSoundClip("button");
+        openUpgradeWindowFor(territory);
+        upgradeWindowCurrentlyOnScreen = true;
+    });
+    //The affordance follows the phase as well as the selection: the bar keeps
+    //describing a territory when the Military phase begins, and the window it
+    //would open is refused there.
+    onStateEvent(Events.PHASE_CHANGED, refreshBottomBarActionable);
 }
 
 export function setAttackProbabilityOnUI(probability, situation) {
@@ -4676,6 +4746,71 @@ export function populateArmyDataFields(returnArmyData) {
     document.getElementById(indexedIds.aiDialogueSummaryColumn(8)).innerHTML = returnArmyData[3];
 }
 
+/**
+ * How a leader's personality reads to somebody who is not their general staff.
+ *
+ * The three ids in `leaderPersonalities.js` are the whole of what is shown, and the
+ * six TRAIT VALUES behind them deliberately are not. A trait is the number the AI
+ * plans with -- `risk_taking` decides how thin a border this country will hold in
+ * order to attack -- and putting it on a tooltip would let a player read the enemy's
+ * plan off the map. The personality is public in the way a reputation is public;
+ * the numbers are not. That is the same line the activity feed draws when it reports
+ * what HAPPENED and sends the AI's intentions to the console instead.
+ */
+const LEADER_REPUTATION = Object.freeze({
+    aggressive: "said to be warlike",
+    balanced: "said to be even-handed",
+    pacifist: "said to have little appetite for war"
+});
+
+/**
+ * The leader of the country holding this territory, or null. Never throws.
+ *
+ * TWO SOURCES, and the order matters. A leader is stamped onto every territory at
+ * `createCpuPlayerObjectAndAddToMainArray()` and is NOT re-stamped on conquest, so a
+ * territory that has changed hands still carries the leader of the country that lost
+ * it -- which is the same species of staleness as known-issue AS, and would name the
+ * wrong ruler on exactly the territories a player is most likely to hover over.
+ * `getArrayOfLeadersAndCountries()` is rebuilt from the world every turn and is
+ * keyed by country, so it is asked first; the territory's own copy is the fallback,
+ * and it is only trusted when the territory is still held by the country it was
+ * stamped for.
+ */
+function leaderOfCountry(countryName, territory) {
+    if (!countryName) {
+        return null;
+    }
+    try {
+        const row = getArrayOfLeadersAndCountries().find((entry) => entry[0] === countryName);
+        if (row?.[1]) {
+            return row[1];
+        }
+    } catch {
+        //Fall through to the territory's own copy.
+    }
+    return territory?.dataName === countryName ? (territory.leader ?? null) : null;
+}
+
+/**
+ * The line naming who rules a territory, or "" when nobody is known to.
+ *
+ * Register item E4. Two hundred and six leaders are generated, given six traits
+ * each, replaced every 15-20 turns and used to plan every move in the game, and
+ * until this the player could not learn a single one of their names -- the only
+ * surfaces were the AI debug panel and the spectator console, both developer tools.
+ *
+ * The player's own country is skipped: the player IS the leader, and "Player" is
+ * the literal name `createCpuPlayerObjectAndAddToMainArray()` gives them.
+ */
+function leaderTooltipLine(countryName, territory) {
+    const leader = leaderOfCountry(countryName, territory);
+    if (!leader || leader.leaderType === "human" || !leader.name) {
+        return "";
+    }
+    const reputation = LEADER_REPUTATION[leader.leaderType];
+    return reputation ? leader.name + ", " + reputation : leader.name;
+}
+
 function territoryTooltipLabel(path, countryName) {
     let label = countryName;
     if (countryName && pathIsUnderSiege(path)) {
@@ -4685,10 +4820,19 @@ function territoryTooltipLabel(path, countryName) {
         }
     }
 
-    const continentLine = describeContinentHolding(
-        continentHoldingFor(getTerritory(path?.getAttribute("uniqueid"))));
-    if (!continentLine) {
+    const territory = getTerritory(path?.getAttribute("uniqueid"));
+    const continentLine = describeContinentHolding(continentHoldingFor(territory));
+    const leaderLine = leaderTooltipLine(countryName, territory);
+    if (!continentLine && !leaderLine) {
         return label;
     }
-    return "<div>" + (label ?? "") + "</div><div>" + continentLine + "</div>";
+
+    let html = "<div>" + (label ?? "") + "</div>";
+    if (leaderLine) {
+        html += '<div class="tooltip-leader">' + leaderLine + "</div>";
+    }
+    if (continentLine) {
+        html += "<div>" + continentLine + "</div>";
+    }
+    return html;
 }

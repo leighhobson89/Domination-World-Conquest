@@ -13,16 +13,16 @@ the register (4) is the one to check first if you only read one.
 | 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
 | 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [Outstanding Improvements](./05-outstanding-improvements.md) | **What to do next, and why.** The findings the Combat and Conquest phase left behind, ranked by what the measurements say they are worth — each with what was measured, what it points at, and what would settle it. Its headline item has since been fixed by 6; the rest stand |
-| 6 | [Force and Succession](./06-force-and-succession.md) | **The current phase.** Why the AI log said *"the most this territory can spare reaches only 0%"* — a country had to field 2.4–3.4x its neighbour's army before it could attack at all, and 85% of countries hold one territory so nothing could route around it. What was done about it, what each change was worth, and the mountain theory that was tested and rejected |
+| 5 | [What Is Missing](./05-what-is-missing.md) | **What to do next, and why — the standing list.** Not "does the simulation behave?" (it does) but "does a person experience a game?" Fifteen verified findings grouped under four diagnoses — the board carries no state, the world has no characters, nothing acknowledges what the player does, and there is no arc — then seven easy wins that need no acceptance run, three medium items, and five larger ones drawn from the genre. **A finished item is cut out of it entirely** and moves to [archived/05-what-is-missing-delivered.md](./archived/05-what-is-missing-delivered.md), so the document always reads as outstanding work and nothing else |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
 battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and its
-checklist, the Economy audit and its checklist, and now Combat and Conquest and its checklist.
+checklist, the Economy audit and its checklist, Combat and Conquest and its checklist, and now
+Outstanding Improvements and Force and Succession — the two documents that between them carried
+the simulation to the point where the remaining question stopped being a numerical one.
 They record why the code is shaped as it is; they do not describe outstanding work. **The numbers
-are reused when a plan is archived**, so `05` and `06` are the current phase — and right now
-**there is no phase in flight**: `05` holds the findings the last one left, and `06` is free for
-whichever of them is taken up next.
+are reused when a plan is archived**, so `05` is the standing list of what to do next and `06` is
+free for whichever item is taken up as the next phase. **There is no phase in flight.**
 
 ---
 
@@ -169,8 +169,8 @@ became a recorded reason never to raise it. And the phase's own lesson caught th
 on describing it as though it had shipped**, including the register's own G1 entry. A revert is a
 documentation change as much as a code change.
 
-**What is outstanding from it is now [05-outstanding-improvements.md](./05-outstanding-improvements.md)**,
-which is the standing list of what the measurements say to do next: the force-at-the-border
+**What that phase left was [05-outstanding-improvements.md](./archived/05-outstanding-improvements.md)**,
+now archived along with the phase that answered its headline item. What it named: the force-at-the-border
 finding above, the cliff that is still a cliff, the missing over-extension counterweight now that
 the world finally consolidates enough for one to matter, known-issue C5, and a class of test defect
 worth one deliberate sweep — the assertion whose failure mode is also its default, of which this

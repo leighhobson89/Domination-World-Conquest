@@ -1,5 +1,6 @@
 import {
-    renderInfoTable
+    renderInfoTable,
+    Tab
 } from "./src/ui/infoTable/renderInfoTable.js";
 import {
     classNames,
@@ -161,6 +162,17 @@ import {
     pathOwner,
     pathCountry
 } from './src/state/pathState.js';
+import {
+    recordDisaster
+} from './src/state/activityRecorder.js';
+import {
+    activeVictoryCondition,
+    victoryProgress,
+    worldStandings
+} from './src/ai/victory.js';
+import {
+    rankedStandings
+} from './src/ui/goals/standingsTable.js';
 import {
     tooltip
 } from './src/ui/components/Tooltip.js';
@@ -638,7 +650,46 @@ function repairFoodCapacityAfterSiege(territory, war) {
     territory.foodCapacity = war.startingFoodCapacity;
 }
 
+/**
+ * What this turn's disaster did to the PLAYER, gathered as the income pass runs.
+ *
+ * Register item E3. A disaster used to be reported to `console.log` and to nothing
+ * else: the player watched a number fall, was given no reason, and separately lost
+ * that turn's population growth everywhere with nothing on screen to say why.
+ *
+ * It is gathered rather than reported per territory because the disaster rolls
+ * against every territory on the map independently -- a large empire would write a
+ * hundred entries in one turn, flush the bounded log, and read as a spreadsheet
+ * rather than as news. One entry per disaster per turn carries the count and the
+ * worst-hit territory, which is what the headline is actually about.
+ *
+ * "Worst" is the largest PROPORTION lost, not the largest absolute amount: every
+ * disaster divides a stock, so the absolute figure just names the richest territory
+ * that was hit and would say the same thing every time.
+ */
+let disasterReport = null;
+
+function noteDisasterDamage(territory, event, damage) {
+    if (!territory || territory.owner !== "Player" || !damage) {
+        return;
+    }
+    if (!disasterReport || disasterReport.event !== event) {
+        disasterReport = { event: event, territoriesHit: 0, worstTerritory: "", worstShare: -1 };
+    }
+    disasterReport.territoriesHit += 1;
+    const from = Number(damage.from) || 0;
+    const share = from > 0 ? (from - (Number(damage.to) || 0)) / from : 0;
+    if (share > disasterReport.worstShare) {
+        disasterReport.worstShare = share;
+        disasterReport.worstTerritory = territory.territoryName;
+    }
+}
+
 function calculateTerritoryResourceIncomesEachTurn() {
+    //A fresh report every pass. The disaster is drawn once a turn, so a report left
+    //over from a previous turn would be added to rather than replaced, and the count
+    //would climb for the rest of the game.
+    disasterReport = null;
     let changeGold;
     let changeOil;
     let changeFood;
@@ -776,6 +827,17 @@ function calculateTerritoryResourceIncomesEachTurn() {
             }
         }
     }
+
+    //Once the whole map has been rolled against, and only then: the count is the
+    //point of the entry and it is not known until the pass is over.
+    if (disasterReport && disasterReport.territoriesHit > 0) {
+        recordDisaster({
+            event: disasterReport.event,
+            territory: disasterReport.worstTerritory,
+            territoriesHit: disasterReport.territoriesHit
+        });
+    }
+    disasterReport = null;
 }
 
 function economyContext(isSimulation, territory) {
@@ -802,6 +864,7 @@ function applyRandomEventDamage(territory, context, ownEvent) {
         return;
     }
     territory[damage.field] = damage.to;
+    noteDisasterDamage(territory, context.randomEvent, damage);
     console.log(territory.dataName + "'s " + territory.territoryName +
         " was hit by the " + context.randomEvent + ": " + damage.from + " became " + damage.to);
 }
@@ -1146,6 +1209,47 @@ export function writeBottomTableInformation(territory, userClickingANewTerritory
     }
 }
 
+/**
+ * The world ranked by progress toward the goal in force.
+ *
+ * Two callers: the Standings tab (register E5) and the turn-start briefing card (E7), which
+ * needs the player's own position out of the same ranking. Shared so that the table and the
+ * card cannot tell the player two different things about where they stand.
+ *
+ * THE STANDINGS SNAPSHOT IS TAKEN ONCE AND SHARED. `victoryProgress()` accepts a
+ * `standings` argument precisely so that it does not walk 359 territories on every call --
+ * the doctrine layer records the same trap on the AI side, where asking it per country per
+ * rival would be 207x207 map walks a turn. Called with its default argument here it would
+ * be 207 walks per render.
+ *
+ * ARMY IS COUNTED HERE rather than added to `worldStandings()`, which accumulates
+ * territories and area only. Adding a field to that function would be a change to `src/ai/`
+ * for a table's benefit, and every change to `src/ai/` owes the five-goal acceptance run.
+ * One extra pass over the territory list, only while this tab is open, is the cheaper trade.
+ */
+export function rankedWorldStandings() {
+    const standings = worldStandings();
+    const condition = activeVictoryCondition();
+
+    const armyByCountry = new Map();
+    for (const territory of allTerritories()) {
+        const owner = territory.dataName;
+        armyByCountry.set(owner,
+            (armyByCountry.get(owner) ?? 0) + (Number(territory.armyForCurrentTerritory) || 0));
+    }
+
+    return {
+        standings: rankedStandings({
+            standings,
+            progressFor: (country) => victoryProgress(country, condition, standings, currentTurn()),
+            armyFor: (country) => armyByCountry.get(country) ?? 0,
+            player: playerCountryName()
+        }),
+        victoryConditionKind: condition.kind,
+        turn: currentTurn()
+    };
+}
+
 export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
     playerOwnedTerritories.sort((a, b) => {
         const idA = parseInt(a.getAttribute("territory-id"));
@@ -1180,7 +1284,16 @@ export function drawUITable(uiTableContainer, summaryTerritoryArmySiegesTable) {
         sieges: Object.values(playerSiegeWarsList),
         historicWars,
 
-        afterSiegeTable: allWorkaroundOnSiegeTable
+        afterSiegeTable: allWorkaroundOnSiegeTable,
+
+        //Register item E5. Built HERE rather than in `src/ui/infoTable/`, which is the
+        //same rule every other number on this panel follows: that package is column
+        //DEFINITIONS and imports nothing from the economy, the store or the AI.
+        //
+        //Only for the tab that shows it. This is up to 207 calls to `victoryProgress()`
+        //plus a walk of 359 territories, and the other four tabs are drawn far more often
+        //-- one of them at the start of every turn.
+        ...(summaryTerritoryArmySiegesTable === Tab.STANDINGS ? rankedWorldStandings() : {})
     });
 }
 
@@ -1195,17 +1308,41 @@ function territoryActionsEnabled(path) {
     return currentPhase() === Phase.BUY_UPGRADE && !pathIsDeactivated(path);
 }
 
+/**
+ * Whether a territory may be upgraded right now: the Buy/Upgrade phase, and a
+ * territory that is not deactivated.
+ *
+ * Exported because the bottom bar opens the same window and must be gated by the
+ * same question -- a bar that opened Upgrade Territory during the Military phase
+ * would be offering a purchase the window itself then refuses.
+ */
+export function upgradeIsAvailableForPath(path) {
+    return Boolean(path) && territoryActionsEnabled(path);
+}
+
+/**
+ * Open Upgrade Territory for one territory.
+ *
+ * THE ONE PLACE THIS WINDOW IS OPENED FROM. There are two entry points now --
+ * the info panel's per-row upgrade button and a click on the bottom bar -- and
+ * the four statements below are not independent: `currentlySelectedTerritoryForUpgrades`
+ * is what every plus button in the window then charges, so an entry point that
+ * populated the table and forgot to set it would show one territory's prices and
+ * spend another territory's gold. Route any third entry point through here.
+ */
+export function openUpgradeWindowFor(territoryData) {
+    populateUpgradeTable(territoryData);
+    toggleUpgradeMenu(true, territoryData);
+    currentlySelectedTerritoryForUpgrades = territoryData;
+    setUpgradeOrBuyWindowOnScreenToTrue(1);
+}
+
 function buildUpgradeButton(path, territoryData) {
     return territoryActionButton({
         kind: "upgrade",
         isEnabled: () => territoryActionsEnabled(path),
         onPress: () => playSoundClip("button"),
-        onActivate: () => {
-            populateUpgradeTable(territoryData);
-            toggleUpgradeMenu(true, territoryData);
-            currentlySelectedTerritoryForUpgrades = territoryData;
-            setUpgradeOrBuyWindowOnScreenToTrue(1);
-        }
+        onActivate: () => openUpgradeWindowFor(territoryData)
     });
 }
 

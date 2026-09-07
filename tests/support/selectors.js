@@ -314,6 +314,7 @@ export const infoTable = {
     territoriesTab: sel.territoryButton,
     armyTab: sel.armyButton,
     warsSiegesTab: sel.warsSiegesButton,
+    standingsTab: sel.standingsButton,
     appearsAtStartOfTurn: sel.checkBoxAppearStartOfTurn,
     territoryRow: cls.uiTableRowHoverable,
     siegeRow: cls.uiTableRowSiege,

@@ -72,7 +72,7 @@ describe("manual adjacency exceptions table", () => {
         // 102 ACROSS 69 KEYS NOW: Greenland is a new key and Svalbard gained a target,
         // which is the second Europe <-> North America crossing. Before it, Greenland <->
         // Iceland was the ONLY one on the map and Greenland had two neighbours in the whole
-        // game -- see the note beside the rule and docs/06-force-and-succession.md section 7.
+        // game -- see the note beside the rule and docs/archived/06-force-and-succession.md section 7.
         const all = Object.values(manualAdjacencyExceptions).flat();
         expect(Object.keys(manualAdjacencyExceptions).length).toBe(69);
         expect(all.filter(([, f]) => f === ADD).length).toBe(102);

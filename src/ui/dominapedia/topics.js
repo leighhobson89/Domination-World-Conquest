@@ -6,7 +6,7 @@
 // it (`src/ui/components/Dominapedia.js`) knows nothing about what is in here.
 // Adding a topic is one entry in this file and no change to the component, which
 // is the same arrangement `src/ui/infoTable/columns.js` records for the info
-// panel's four tabs and `src/ui/theme/themes.js` for the palettes.
+// panel's five tabs and `src/ui/theme/themes.js` for the palettes.
 //
 // This file imports nothing and touches no DOM. That is what lets the navigation
 // -- the part with the interesting edge cases -- be unit-tested in Node:
@@ -434,8 +434,10 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "track, and a volume and a mute for each of music and effects.",
                             "Below it, the continent view — switches the map from political " +
                                 "colouring to continent colouring.",
-                            "Below that, the globe — the territory information panel, four tabs " +
-                                "of everything you own.",
+                            "Below that, the globe — the information panel. Four tabs of " +
+                                "everything you own, and a fifth, Standings, of everyone else: " +
+                                "the world in order of how close each country is to winning the " +
+                                "goal being played, with you always on it however far down.",
                             "Bottom right, the autosave spinner. It appears when the game saves " +
                                 "itself and fades after a couple of seconds."
                         ),
@@ -731,7 +733,9 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "beat after the turn counter has already moved.",
                             "The AI dialogue box, if an AI wants to buy you out of a siege. " +
                                 "See \"Diplomacy\".",
-                            "The activity feed, which is where everything else went."
+                            "The news panel, which is where everything else went — one item " +
+                                "for each thing that happened to you, and a compact list of " +
+                                "everything the rest of the world did."
                         ),
                         h("What does not surface, and should"),
                         planned(
@@ -2345,6 +2349,14 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                             "So disasters are not random noise, they are a rising tension. If " +
                                 "it has been quiet for fifteen turns, do not leave your stocks " +
                                 "at the ceiling."
+                        ),
+                        h("How you find out"),
+                        p(
+                            "The news panel tells you. A disaster writes one item there — the " +
+                                "worst-hit of your territories, how many were struck, and the " +
+                                "fact that nothing will grow anywhere this turn. Before that it " +
+                                "reported itself to nobody: a number simply fell, and the halt " +
+                                "in growth had no visible cause at all."
                         ),
                         h("The turn it fires"),
                         p(

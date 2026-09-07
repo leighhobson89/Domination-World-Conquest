@@ -246,6 +246,7 @@ export const ids = Object.freeze({
     territoryButton: "territoryButton",
     armyButton: "armyButton",
     warsSiegesButton: "warsSiegesButton",
+    standingsButton: "standings-button",
     checkBoxAppearStartOfTurn: "checkBox-appear-start-of-turn",
     // Phase 6.8. These two were ONE id, `xButton`, on two elements: the info
     // panel's close button and the upgrade window's. A bare "#xButton" selector was
@@ -671,6 +672,15 @@ export const classNames = Object.freeze({
     activityTurnEntries: "activity-turn-entries",
     activityEntry: "activity-entry",
     activityEntryText: "activity-entry-text",
+    //The news cards, and the compact list of everything that is not the player's
+    //news. A turn writes one card per thing that happened TO the player and one
+    //line per thing that happened anywhere else -- see `newsCardFor()`.
+    activityCard: "activity-card",
+    activityCardHead: "activity-card-head",
+    activityCardHeadline: "activity-card-headline",
+    activityCardStory: "activity-card-story",
+    activityElsewhere: "activity-elsewhere",
+    activityElsewhereLabel: "activity-elsewhere-label",
     activityIsOpen: "is-open",
     activityIsPlayer: "is-player",
     activityToneVictory: "tone-victory",
@@ -752,6 +762,9 @@ export const classNames = Object.freeze({
     actionButtonLabel: "action-button-label",
     isDisabled: "is-disabled",
     isArmed: "is-armed",
+    /** The bottom bar leads somewhere: it opens Upgrade Territory for the selected
+     *  territory. Only the cursor depends on it -- the click guards itself. */
+    isActionable: "is-actionable",
 });
 
 /**

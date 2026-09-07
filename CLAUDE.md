@@ -26,16 +26,21 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   same change that closes it** — never struck through and left, and never batched up for a
   tidy-up later. Ids are permanent and survive the move, because source comments cite them.
   This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-outstanding-improvements.md](./docs/05-outstanding-improvements.md) — **what to do
-  next, and why.** Not a phase plan and nothing in it is committed: it is the findings the Combat
-  and Conquest phase left, each with what was measured, what it points at, and what would settle
-  it. **The headline finding reframes the others**: every odds constant in the AI now means what
-  it says and none of them filters anything (`needs-more-force` cancellations 17 → **0**, attack
-  verdicts 187 → **382**), and what the executor says instead is *"the most this territory can
-  spare reaches only 0%"* in **56 of 61** sampled decisions. That is a fact about how much force a
-  border can raise, so the binding constraint has moved off combat entirely and onto
-  `src/ai/muster.js`, `src/ai/theatre.js` and the economy. It also carries the list of what must
-  survive any future change — the ten items from the combat audit's §7 plus one this phase added.
+- [docs/05-what-is-missing.md](./docs/05-what-is-missing.md) — **what to do next, and why.**
+  Not a phase plan and nothing in it is committed. It replaced Outstanding Improvements and
+  Force and Succession when both were archived, and it asks a **different question from every
+  document before it**: those asked whether the simulation behaves, and it does — the world
+  consolidates, conquest is non-zero at every sample, no goal freezes the map. This asks whether
+  a person sitting in front of it experiences a game, and answers no, in four specific ways: the
+  board carries no state (the map draws an owner colour, attack arrows, the attack marker and
+  siege shields, and nothing else — no force, anywhere), the world has no characters (206 leaders
+  with traits, successions and grudges, surfaced only in `AiDebugPanel` and the spectator
+  console), nothing acknowledges what the player does (two sound clips in the whole game;
+  a disaster is reported to `console.log`), and there is no arc. **Its §2 is the seven easy wins
+  and they share no code with `src/ai/`, `src/rules/` or `balance.js`** — so alone among the work
+  on that list they need no five-goal acceptance run, which is the argument for doing them first.
+  The numerical items — the cliff, the target band, the unspent army — stay in the register and
+  are deliberately NOT on it.
 - **Combat and Conquest is DELIVERED and ARCHIVED**
   ([audit](./docs/archived/05-combat-and-conquest-audit.md),
   [checklist](./docs/archived/06-combat-and-conquest-checklist.md)). Read the checklist's closing
@@ -55,14 +60,16 @@ going stale in the sequence: the eight-phase
 [battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
 [Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist, and
 [Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist,
-[the Economy](./docs/archived/05-economy-audit.md) and its checklist, and
-[Combat and Conquest](./docs/archived/05-combat-and-conquest-audit.md) and its checklist are
+[the Economy](./docs/archived/05-economy-audit.md) and its checklist,
+[Combat and Conquest](./docs/archived/05-combat-and-conquest-audit.md) and its checklist,
+[Outstanding Improvements](./docs/archived/05-outstanding-improvements.md) and
+[Force and Succession](./docs/archived/06-force-and-succession.md) are
 there. They
 record why the code is shaped as it is, but they do not describe outstanding work — where one
 contradicts a numbered document, the numbered document wins. **The numbers are reused when a
-plan is archived**, so `05` and `06` are the current phase and the archived pair keep the
-numbers they were written under. **There is no phase in flight right now**: `05` holds the
-findings the last one left and `06` is free for whichever of them is taken up next.
+plan is archived**, so `05` and `06` are the current phase and the archived documents keep the
+numbers they were written under. **There is no phase in flight right now**: `05` is the standing
+list of what to do next and `06` is free for whichever item is taken up as the next phase.
 
 One thing in the archived Goals and Victory is still live rather than historical: its §5 table
 of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
@@ -1282,7 +1289,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   against it and NEITHER IS MEASURED YET**: Greenland ↔ Svalbard is a second Atlantic door, and
   Greenland and Iceland are `mountainDefenseFactor` **2**. Both move every seeded outcome and
   both want the five-goal 150-turn table. See
-  [docs/06-force-and-succession.md](./docs/06-force-and-succession.md) §7.
+  [docs/archived/06-force-and-succession.md](./docs/archived/06-force-and-succession.md) §7.
 - **TERRAIN IS QUANTISED, so lowering a `mountainDefenseFactor` from 5 to 4 or 3 is a NO-OP in
   battle.** The dice model reads `defenseBonus + mountainDefenseBonus` against two bands —
   **≥25 costs the attacker one die, ≥100 costs two** — and the mountain term is factor ×
@@ -1293,7 +1300,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   die at any terrain, three restore both), and a large defender is separately soft because
   `areaBonusFor()` only ever penalises size: Greenland is 0.528 against Iceland's 1.000, which
   is why Iceland → Greenland is 100% at 1:1 while Greenland → Iceland was 0%. `node
-  tools/combat-lab.mjs terrain` is the check, and docs/06 §7.5 is the worked measurement.
+  tools/combat-lab.mjs terrain` is the check, and archived docs/06 §7.5 is the worked measurement.
 - **Seeding `Math.random` DOES make the game deterministic** — since Phase 5.8, and it did not
   before. `addSparklesRegularly()` burned three draws per timer tick on the same global stream
   as combat and the economy, so two runs of the same seed diverged (audit 5.3 Y). Cosmetic
@@ -1504,6 +1511,37 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   phase bar that ignored the theme. The grid marks the chosen swatch and previews it in its
   own header, which is preview enough. `colourLabelElement()` is gone — it existed only to
   be repainted.
+- **THE TWO STATUS BARS' FLAG CELLS ARE CONTROLS, AND `openUpgradeWindowFor()` IS THE ONE DOOR
+  THEY GO THROUGH.** The bottom bar's flag opens Upgrade Territory for the territory the bar is
+  describing; the top bar's flag opens the info panel, the same view the globe button opens.
+  Four things follow. **The FLAG and not the bar** — a thirty-pixel strip of figures a player is
+  reading should not swallow a click near the edge of the screen, so the target is one small cell
+  that already stands for "this territory". **The listener is installed ONCE, from bootstrap**
+  (`bottomTable.installActivation()`), never from `create()`: `create()` runs on every selection,
+  and `removeEventListener` cannot take off a handler built fresh at each call — which is the
+  move button's old defect exactly, and it presented as a click firing once per selection made.
+  The `<td>` survives because `update()` writes its `innerHTML`, replacing the cell's children
+  and never the cell. **The bottom flag is GATED and the top one is not**: the bar is written for
+  enemy territories and outside the Buy/Upgrade phase, so `refreshBottomBarActionable()` toggles
+  `is-actionable` from the selection and from `PHASE_CHANGED`, because a control that looks
+  clickable and is not is worse than one that never looked it. And **`openUpgradeWindowFor()` in
+  `resourceCalculations.js` is the one place that window is opened from**, with two entry points
+  now — the info panel's per-row button and the flag. Its four statements are not independent:
+  `currentlySelectedTerritoryForUpgrades` is what every plus button in the window then charges,
+  so an entry point that populated the table and forgot to set it would show one territory's
+  prices and spend another's gold. Route any third entry point through it.
+- **The two status bars set in `var(--font-body)`, and the reason they did not is closed.**
+  `#top-table td` and `#bottom-table td` were the last hard-coded `Arial, Helvetica, sans-serif`
+  in the stylesheet, so the two strips framing the screen were the one part of the game a theme
+  could not reach. The register kept them that way because the bars are a FIXED 30px and a
+  monospace face sets wider — which was answerable rather than true: the figures are already
+  abbreviated by `formatNumbersToKMB()`, so the cells have no reason to wrap and
+  `white-space: nowrap` guarantees they do not. `tests/e2e/ui-layout/status-bar-flags.spec.js`
+  walks all six themes and fails if either bar can scroll — that is the check, and it is the
+  only one, because the failure is a row growing taller than a container with `overflow: auto`
+  and therefore has no textual signature. **The bare `td` rule is still Arial on purpose**: it
+  styles the info table, whose cells carry territory names and war outcomes rather than
+  abbreviated numbers, so `nowrap` there is a horizontal scroller and not a fix.
 - **The territory panel's globe button stays visible while the panel is open**, so the button
   that opens it also closes it (`toggleUIMenu()` no longer hides it). `#UIButtonContainer` is
   at z-index 9000, above the panel, which is what makes it clickable rather than merely present.
@@ -1600,6 +1638,45 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   tone when a row is drawn. Storing the sentence would bake today's phrasing into every
   save file. `ActivityKind` is a CLOSED set and `recordActivity()` rejects anything else,
   which is what keeps economy and planning out of a feed that is supposed to be military.
+- **THE ACTIVITY FEED IS THE PLAYER'S NEWS NOW, AND "MILITARY ONLY" WAS DELIBERATELY
+  OVERTURNED.** `ActivityKind` used to be attacks, conquests and sieges on the stated ground
+  that economy did not belong in a military feed; the panel is *The World This Turn* and a
+  famine is exactly what a player needs told (register item E3 — it went to `console.log`, so
+  the player watched a number fall and separately lost that turn's growth everywhere with
+  nothing on screen to say why). What did NOT change is that the kind list is CLOSED and
+  `recordActivity()` rejects anything else, because the card writer switches on it. Four things
+  follow. **A TURN IS CARDS PLUS A LIST**: `newsCardFor()` returns a card only for the player's
+  own news and null for everything else, and the panel drops the nulls into a compact
+  "Elsewhere in the world" list — which is the terse feed that existed before, kept rather than
+  thrown away, because a busy turn 1 logs **fifty-one** conquests and fifty-one cards is a
+  spreadsheet with more whitespace. **A DISASTER IS ONE ENTRY PER TURN, NOT ONE PER TERRITORY**:
+  the roll runs independently against all 359, so per-territory recording would write a hundred
+  entries a turn and flush the bounded ring; `resourceCalculations.js` gathers hits as the
+  income pass runs and calls `recordDisaster()` once, and "worst" is the largest PROPORTION lost
+  rather than the largest amount, because every disaster divides a stock and the absolute figure
+  would just name the richest territory hit. **THE WORDING VARIES BY `entry.id`, NEVER BY A
+  DRAW**: the panel re-renders on every logged entry while it is open, so a card that reworded
+  itself each time would be unreadable — and a `Math.random` variant would put the newspaper on
+  the game's seeded stream. And **no country name may be used as an adjective**: there are no
+  demonyms for 207 countries, so "The France garrison" and "Germany administrators" are what a
+  naive template produces; every phrasing is built to avoid the construction and a unit test
+  fails the build if one reintroduces it.
+- **A LEADER'S NAME IS RECORDED AT THE EVENT AND LOOKED UP FROM TWO SOURCES ON THE MAP**
+  (register item E4). Leaders die: `src/ai/succession.js` replaces one every 15-20 turns, so a
+  news card drawn on turn 40 that asked the world who ruled Germany would credit a turn-12
+  conquest to whoever is in charge now — known-issue **AS** in new clothes. `activityRecorder.js`
+  stores `attackerLeader` / `defenderLeader` on the entry, and the lookup is **injected** from
+  `gameTurnsLoop.js` rather than imported, because that module imports only from `state/` and so
+  still loads in Node. The TOOLTIP has a separate problem with two sources: a leader is stamped
+  onto every territory at `createCpuPlayerObjectAndAddToMainArray()` and is **not** re-stamped on
+  conquest, so a territory that changed hands still carries the leader of the country that LOST
+  it. `getArrayOfLeadersAndCountries()` is rebuilt from the world every turn and is asked first;
+  the territory's own `leader` is the fallback and is trusted only while `dataName` still matches
+  the country it was stamped for. **The three personalities are shown and the six TRAIT VALUES
+  are not**, and that is a rule rather than an omission: a trait is the number the AI plans with
+  — `risk_taking` decides how thin a border a country will hold in order to attack — so putting
+  one on a tooltip is the enemy's plan drawn on the map, which is the same line the feed draws
+  when it reports what HAPPENED and sends the AI's intentions to the console.
 - **Most feed entries are DERIVED from `state/events.js`, not written at the event.** A
   conquest is "a territory's `dataName` changed" and a siege start is "a siege was added",
   both from `mutations.js`, which every path must go through — there are eight places that
@@ -1621,9 +1698,71 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   nearest continent, principal rival — not from any stored plan) and `planLog.js` prints
   one collapsed group per country. The feed reports what HAPPENED; a panel showing the AI's
   intentions would be a cheat.
-- **The info panel's four tabs are column definitions, not code.** `src/ui/infoTable/columns.js`
+- **THE STANDINGS TAB RANKS BY PROGRESS TOWARD THE GOAL, NOT BY SIZE** (register E5). The
+  info panel has FIVE tabs now, and the fifth is the rest of the world rather than the
+  player's own empire. `rankedStandings()` in `src/ui/goals/standingsTable.js` is the pure
+  derivation and `standingsGoalColumns.js` is **the only place in the table allowed to switch
+  on a victory condition**, the same containment `src/ai/doctrine.js` has on the AI side. Five
+  things follow. **Rank is `victoryProgress().fraction`**, which is `closestToVictory()`'s
+  question and not `leadingCountry()`'s — under Great Powers the largest empire on the map
+  need not be the country nearest to winning. **Territories are the TIE-BREAK and they do real
+  work**: on turn 4 of a Continental game every country has the same progress, so without one
+  the order is `Map` insertion order and the table reshuffles between renders for no visible
+  reason. **The player is always on the table** — top sixteen, and outside it they are pinned
+  below a gap carrying their TRUE rank; `playerStanding()` is what finds the row wherever it
+  ended up, and a caller that only checked `playerRow` would silently stop naming the player's
+  rank as soon as they did well enough to make the cut. **The snapshot is taken ONCE and
+  shared**: `victoryProgress()` takes `standings` as a parameter precisely so it does not walk
+  359 territories per call, and `rankedWorldStandings()` in `resourceCalculations.js` is the
+  one place both the tab and the turn briefing get it from, so the two cannot tell the player
+  different things. And **it is built only for the tab that shows it** — up to 207 progress
+  calls plus a walk for the army column, against four other tabs that are drawn far more
+  often, one of them at the start of every turn.
+- **CONTINENTAL IS THE ONE GOAL WHOSE PROGRESS IS NOT THE COUNT BESIDE IT**, which is why the
+  standings cell reads `0 of 3 · 19%`. `victoryProgress()` sums the shares of the best
+  `required` continents rather than counting completed ones — deliberately, so a country two
+  territories from owning Europe outranks one that has just landed on it. Shown as a bare
+  count, nearly every row reads "0 of 3" for the first fifty turns while the table is visibly
+  ordered by something it never displays: measured on a real game, Norway sat above the United
+  Kingdom with a LOWER figure in the Closest column, which reads as a sorting bug and is not
+  one. The percentage is the ranking basis made visible; do not remove it.
+- **THE INFO PANEL'S BLUR LAYER IS A FLEX COLUMN, AND EVERY TAB HAD BEEN WASTING 350px WITHOUT
+  IT.** `.blur-background` is `display: block` and `.content-window` carries `flex-grow: 1`, so
+  the growth had no flex parent to happen in and the table sat at its `445px` base height
+  inside an `800px` window — for as long as the panel has existed. The Standings tab is simply
+  the first with enough rows to make it visible, and it presented as the table being CLIPPED at
+  ten rows when it was in fact scrolling correctly inside a box far shorter than the window
+  holding it. The fix is scoped to `#main-ui-container > .blur-background` because that class
+  is shared by six windows and is absolutely positioned in all of them, and `min-height: 0` on
+  the content window is what lets the inner `overflow: auto` engage at all.
+- **THE TURN BRIEFING IS FILED UNDER THE TURN THAT HAS JUST ENDED, AND ITS INCOME COMES FROM
+  `turnGainsArrayLastTurn`** (register E7). Both look like mistakes. `endTurn: advanceTurn`, so
+  the panel hides the turn that has just begun and opens the one behind it — a briefing filed
+  under the turn it was computed in would sit in the hidden section and reach the player a turn
+  late; the card names no turn number, so nothing reads as inconsistent. And the income pass
+  fills `turnGainsArrayPlayer`, which `newTurnResources()` then rolls into
+  `turnGainsArrayLastTurn` and zeroes — so by the time the briefing runs, "last turn's" array
+  holds the money that has just arrived, which is the same field the info panel's (+/−) columns
+  read. Three more things. **The panel puts it FIRST in its section** rather than the log
+  ordering it, because it is written after the income pass while the siege lines are written
+  before it, and a summary leads where an event follows. **It is not counted as an action** —
+  `summariseTurn()` excludes it, or every quiet turn reads "1 action, 1 involving you" and tells
+  the player something happened to them when nothing did. And **a briefing with nothing to say
+  is dropped entirely**, because printing "no borders are threatened" every turn is how you
+  train somebody to stop reading the one time it says otherwise.
+- **THE BORDER WARNING IS A RAW ARMY COMPARISON ON PURPOSE.** `weakBordersFor()` in
+  `src/state/briefing.js` compares two `armyForCurrentTerritory` figures with no terrain, forts
+  or dice model in it. Three reasons, and none of them is laziness: it is the same shape the
+  AI's own `strongestEnemyPowerAgainst()` reserve calculation uses, so both sides read the world
+  the same way; a properly-modelled warning would fire almost never, because a real defender's
+  advantage is large; and the player has the exact odds on the attack screen the moment they
+  care — this is the nudge to go and look. It orders by MARGIN and never by ratio, because an
+  undefended province is infinite against any attacker and all of them would otherwise tie. The
+  module imports NOTHING, because the adjacency graph throws in Node and a module that reached
+  for it could not be unit-tested at all.
+- **The info panel's five tabs are column definitions, not code.** `src/ui/infoTable/columns.js`
   and `warColumns.js` say what each tab shows; `tableDom.js` builds a header row and a data
-  row; `renderInfoTable.js` is four small functions and a dispatcher (Phase 6.4). Adding a
+  row; `renderInfoTable.js` is a small function per tab and a dispatcher (Phase 6.4). Adding a
   column is one entry in a list. The numbers are INJECTED by `resourceCalculations.js`, so
   `src/ui/infoTable/` imports nothing from the economy.
 

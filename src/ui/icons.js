@@ -383,6 +383,20 @@ export function activityLogIcon() {
     ]);
 }
 
+/**
+ * A disaster: a flame. The news cards use it for all four random events.
+ *
+ * One picture for four different disasters is deliberate. A famine, an oil fire, a
+ * warehouse fire and a mutiny have nothing in common visually, and four icons a
+ * player has to learn buys less than one icon that reliably means "something went
+ * wrong at home" -- which is what the card's headline then makes specific.
+ */
+export function disasterIcon() {
+    return icon("chrome-icon-disaster", [
+        svgEl("path", { attrs: { d: "M12 3.2c1.4 3 4.6 4.4 4.6 8.2a4.6 4.6 0 0 1-9.2 0c0-1.6.8-2.8 1.6-3.8.4 1 1 1.6 1.8 1.8-.6-2.4.4-4.6 1.2-6.2z" } }),
+    ]);
+}
+
 /** A chevron. The activity feed's per-turn sections open and close with one. */
 export function chevronIcon() {
     return icon("chrome-icon-chevron", [
