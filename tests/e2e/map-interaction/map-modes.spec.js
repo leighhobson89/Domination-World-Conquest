@@ -112,35 +112,42 @@ test.describe("map views", () => {
         expect(await strokeOf(page)).toBe(strokeBefore);
     });
 
-    test("clicking the map leaves the relief behind and keeps the boundaries", async ({
+    test("clicking the map does NOT leave the relief behind", async ({
         startedGame: game,
         page,
     }) => {
+        // THIS SPEC USED TO ASSERT THE OPPOSITE, and it was right to until Leigh overruled the
+        // rule it pinned: *"if there is a rule to leave the physical map on click then get rid
+        // of it, that is not desired behaviour"*. The old reasoning was that a territory has to
+        // be legible to be clicked on. What that missed is that a view is a mode the PLAYER
+        // chose, and a mode that undoes itself on the first thing the player does with the map
+        // is a mode they cannot use -- they had reached the relief in order to look at the
+        // ground and click on it.
+        //
+        // `view-persistence.spec.js` is where this is covered in full, including the pan that
+        // was clearing the relief through the same handler. This one stays because it is the
+        // spec that recorded the old rule, and a reader who finds it removed learns nothing.
         await game.map.setContinentView("physical");
 
         await game.map.click("France");
 
-        // A territory has to be legible to be clicked on, so the relief goes -- but
-        // the player did not ask for the boundaries to go with it, and they do not.
         await expect(page.locator(map.continentViewButton)).toHaveAttribute(
             "data-view",
-            "continent"
+            "physical"
         );
-        expect(await game.map.attribute("France", "fill-opacity")).toBe("1");
     });
 
     test("clicking the map does NOT leave the military view", async ({
         startedGame: game,
         page,
     }) => {
+        // The same rule as the relief above, and this one has always held: the military view
+        // is what a player is in BECAUSE they are about to reinforce something, so throwing it
+        // away on the first selection they make would make it unusable for the one job it has.
         await game.map.setContinentView("military");
 
         await game.map.click("Germany");
 
-        // The relief map is left on a click because a territory has to be legible to be
-        // clicked on. The military view is the opposite case: it is the view a player is in
-        // BECAUSE they are about to reinforce something, so throwing it away on the first
-        // selection they make would make it unusable for the one job it has.
         await expect(page.locator(map.continentViewButton)).toHaveAttribute(
             "data-view",
             "military"

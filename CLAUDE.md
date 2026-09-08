@@ -527,6 +527,75 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   wore the file's own black strokes there — and a `THEME_CHANGED` listener re-inks the base
   paths **without a full repaint**, because a repaint takes the attack arrows and the
   destination highlights with it and the player can open Options mid-move.
+- **A VIEW THE PLAYER CHOSE IS THEIRS UNTIL THEY CHANGE IT, and two things used to take the
+  relief map away from them.** Leigh reported both: a drag of the zoomed-in relief dropped back
+  to the political map on release, and so did a plain click. **The drag was a bug and the click
+  was a RULE, now deleted** — *"if there is a rule to leave the physical map on click then get
+  rid of it, that is not desired behaviour"*. The rule's justification (a territory has to be
+  legible to be clicked, and relief fills sit at 1% opacity) is wrong about what the player is
+  doing: somebody on the relief is there in order to look at the ground and click on it. What
+  is left of `exitPhysicalMap()` is the colour picker and the end of a turn; nothing on the map
+  itself calls it. **The drag half is the more transferable lesson: `mouseup` fires BEFORE
+  `click`, and `mouseup` is where the drag flag is cleared — so every `if (!isDragging())`
+  inside a click handler is always true and always was.** `endedInPan()` in `camera.js` is the
+  question that can be asked there: it survives into the click and is set from how far the
+  pointer actually travelled (`PAN_SLOP_PX`, 4 — not zero, because a real hand moves a pixel or
+  two during a click). `tests/e2e/map-interaction/view-persistence.spec.js` covers both, and
+  both were confirmed to fail against the old behaviour before the fix was kept.
+- **THE TERRITORY TOOLTIP IS DRIVEN FROM ONE DELEGATED LISTENER, AND IT USED TO BE ONE PER
+  HOVER.** `svgMap`'s `mouseover` added a fresh `mousemove` AND a fresh `mouseout` to the
+  territory every time the pointer entered it and removed neither — measured, twenty-four
+  hovers left twenty-four of each, for the life of the page. Every one of them rebuilt the whole
+  tooltip (the continent walk, the leader lookup, the military forecast, the upgrade rows) on
+  every pixel of pointer movement, so a session degraded until the tooltip stopped keeping up
+  and only a reload cleared it: *"after changing map modes the tooltip stops generating until
+  you refresh"*. **This is the move button's defect exactly** and it closes the same way —
+  `updateTerritoryTooltip()` is called from ONE `mousemove` listener installed at bootstrap,
+  which reads `event.target`. Two things follow. **The label is cached per territory**, because
+  a rebuild is expensive and `mousemove` fires dozens of times a second; `TERRITORY_CHANGED`
+  and `TURN_CHANGED` mark it stale, so a tooltip held open through an AI turn still updates.
+  And **clearing the CONTENT rather than merely hiding** is what makes re-entering the same
+  territory rebuild. `hover.spec.js` counts the listeners a hover adds and the answer must be
+  zero.
+- **THE TOOLTIP SAYS WHAT A TERRITORY HAS BUILT** (`src/ui/map/upgradeTooltip.js`, register item
+  M1's second half). Farms, forests, oil wells and forts, each with the game's own artwork
+  beside the count — the same picture the Upgrade Territory window draws. Before it, the only
+  way to learn a province's development was to select it and open that window, one territory at
+  a time, so *"is this worth taking, or merely takeable"* had no answer on the board. **A row is
+  only drawn for something that EXISTS**: four zero rows would be the same tooltip on nine
+  tenths of the map, and a tooltip that says the same thing everywhere is one a player stops
+  reading. The rows are a pure function of the territory and unit-tested in Node; `ui.js` turns
+  them into markup, and the `<img>` is resolved against the HOST document, which is where the
+  tooltip lives — anything drawn INSIDE the map document has the base-url problem
+  `flagOverlay.js` records.
+- **THERE IS WEATHER OVER THE WORLD, AND IT IS TWO PICTURES CROSS-FADED BY THE ZOOM**
+  (`src/ui/map/cloudOverlay.js` + `cloudTexture.js`). Leigh's brief: *"half like puffy white
+  clouds if zoomed in and half like satellite image cloud blankets if zoomed out ... cartoony
+  single clouds drifting all in one direction, but that direction can change per minute or so"*.
+  Below zoom 2.4 the sky is thirteen storm systems that barely move and slowly change shape;
+  above 3.4 it is two hundred cartoon clouds with shadows on the ground; between the two both
+  are on at part strength, which is what stops the change of scale reading as a rendering fault.
+  Six things. **THE CLOUDS ARE THE ONE THING ON THIS MAP MEASURED IN USER UNITS**, and every
+  other overlay is in screen pixels — a label is chrome and must not magnify, a cloud is an
+  object over the world and must, or zooming in flies you toward the ground while the sky stays
+  put. **The per-frame work is CSS and the shared state is JavaScript** (Leigh: *"css is a good
+  option for the clouds and anims too"*): the cycles — a mass swelling, a puff bobbing — are
+  `@keyframes` injected into the map document, and only the DRIFT is JS, because it wraps around
+  the world, is shared by every cloud and eases to a new heading every minute or so. They never
+  fight over one attribute: **JS owns the outer group's `transform`, CSS owns the inner
+  element's**, which is why every cloud is a group inside a group. **A `<style>` in the map
+  document is allowed here and `attackArrows.js` refused one for a reason that does not apply** —
+  a band's travel is a per-arrow distance so it could never have been one keyframes rule; clouds
+  are a handful of cycles shared by every cloud, which is what a keyframes rule is for. **The
+  artwork is BAKED, not filtered**: `feTurbulence` on a moving layer means the browser
+  regenerating fractal noise every frame, so the blanket is value noise rendered once into a
+  canvas and used as a data URI, and a puff is flat ellipses with a soft-gradient halo pass
+  under a solid pass — one shape with one rim, because gradient-filled lobes show each other's
+  rims through the overlaps and a cloud comes out looking like a stack of discs. And **the
+  button has THREE settings** — full, half, off — so `data-clouds` rather than `aria-pressed`,
+  which can only say two; OFF removes the group and stops the loop rather than making it
+  transparent, and the puff band is `display: none` whenever it is invisible, which is what
+  makes the zoomed-out map pay nothing for two hundred clouds it is not showing.
 - **The map is three modules under `src/ui/map/`** (Phase 6.7). `camera.js` owns zoom and pan:
   zoom is **instant** (no animation, so no latch that drops a fast second wheel event),
   anchored on the pointer in user coordinates, and clamped to the world bounds so nothing off

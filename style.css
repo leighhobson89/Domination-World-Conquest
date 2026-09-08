@@ -4129,6 +4129,21 @@ td {
   margin-top: 8px;
 }
 
+/* The cloud button has THREE settings, so it cannot say what it is with a boolean: full is
+   lit like a pressed toggle, half is lit at part strength to match what it did to the sky, and
+   off is the resting state every other chrome button wears. */
+.cloud-overlay-button[data-clouds="full"] {
+  color: var(--text-primary);
+  background: var(--surface-control-hover);
+  border-color: var(--border-strong);
+}
+
+.cloud-overlay-button[data-clouds="half"] {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  opacity: 0.72;
+}
+
 /* The flag overlay is a TOGGLE and not a view, so unlike the map-view button beside it, it
    has to say whether it is currently on. */
 .flag-overlay-button[aria-pressed="true"] {
@@ -5026,6 +5041,24 @@ td {
    in both halves of the panel, plus the flame the four disasters share. A card
    states its tone with a left border rather than by colouring its whole body: a
    paragraph of prose set in the negative colour is a paragraph nobody reads. */
+
+/* A built upgrade on the territory tooltip: the game's own artwork beside the count, so a farm
+   here is the same picture as the farm in the Upgrade Territory window. The row is a flex line
+   rather than an inline image so the text sits on the icon's centre whatever the icon's own
+   proportions are, and the icon is sized in the text's own units so it follows the theme's
+   font scale rather than being pinned to a pixel figure the theme cannot reach. */
+.tooltip-upgrade {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tooltip-upgrade img {
+  width: 1.15em;
+  height: 1.15em;
+  object-fit: contain;
+  flex: none;
+}
 
 .tooltip-leader {
   opacity: 0.85;

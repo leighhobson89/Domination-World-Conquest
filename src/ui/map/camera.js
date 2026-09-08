@@ -54,6 +54,21 @@ let dragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+/**
+ * How far the pointer may travel during a press and still count as a click, in screen pixels.
+ *
+ * Not zero, and that is the point of having a number at all: a click made with a real hand
+ * moves a pixel or two between the button going down and coming up, so "moved at all" would
+ * suppress legitimate clicks. Four pixels is under the width of a border and far under any
+ * pan a player makes on purpose.
+ */
+const PAN_SLOP_PX = 4;
+
+//How far this press has travelled, and whether the press that just finished was a PAN. The
+//second is what the click arriving afterwards has to ask -- see `endedInPan()`.
+let pressTravel = 0;
+let pressWasPan = false;
+
 // Anything that draws in map user units but has to stay a constant size ON SCREEN has
 // to be told when the magnification changes. The attack arrows are the only subscriber
 // today. Deliberately fired from `zoomMap()` and not from `commit()`: a pan changes the
@@ -85,6 +100,19 @@ export function currentZoomLevel() {
     return zoomLevel;
 }
 
+/**
+ * The whole world, in map user units -- the viewBox before any zoom or pan.
+ *
+ * Exported for the cloud overlay, which is the one thing on the map that has to place itself
+ * across the WORLD rather than across the view: a cloud drifts off one edge and wraps back in
+ * at the other, and the current viewBox is a window onto that, not the extent of it. A copy is
+ * returned rather than the constant itself, because it is the only fixed fact the camera has
+ * and a caller that mutated it would move the edge of the world.
+ */
+export function worldBounds() {
+    return { ...ORIGIN_MAIN };
+}
+
 /** Set the level without moving the view. */
 export function setZoomLevel(value) {
     zoomLevel = value;
@@ -93,6 +121,24 @@ export function setZoomLevel(value) {
 
 export function isDragging() {
     return dragging;
+}
+
+/**
+ * Did the press that has just finished move the map?
+ *
+ * **`isDragging()` CANNOT ANSWER THIS, AND THAT IS THE BUG THIS EXISTS FOR.** The browser fires
+ * `mouseup` before `click`, and `mouseup` is where `endDrag()` clears the flag -- so by the
+ * time a click handler runs, `isDragging()` is false whether the player clicked or dragged
+ * halfway across the world. Every `if (!isDragging())` inside a click handler is therefore
+ * always true, which is why dragging the relief map dropped it back to the political map on
+ * release: the click that ended the pan was treated as a click on a territory, and clicking a
+ * territory is what leaves the relief.
+ *
+ * The flag is set by `endDrag()` and cleared by the next `beginDrag()`, so it describes exactly
+ * one gesture: the one whose click is about to arrive.
+ */
+export function endedInPan() {
+    return pressWasPan;
 }
 
 function clamp(value, min, max) {
@@ -230,7 +276,15 @@ export function zoomMap(event) {
 
 /** Left button down: start a drag if there is anything to pan. */
 export function beginDrag(event) {
-    if (event.button === 0 && zoomLevel > 1) {
+    if (event.button !== 0) {
+        return;
+    }
+    //RESET WHETHER OR NOT A DRAG STARTS. At zoom 1 there is nothing to pan, so no drag begins
+    //-- and a stale "the last gesture was a pan" left over from before the player zoomed out
+    //would swallow their next click.
+    pressTravel = 0;
+    pressWasPan = false;
+    if (zoomLevel > 1) {
         dragging = true;
         lastMouseX = event.clientX;
         lastMouseY = event.clientY;
@@ -242,6 +296,8 @@ export function beginDrag(event) {
 export function endDrag(event) {
     if (event.button === 0 && dragging) {
         dragging = false;
+        //Remembered for the click that is about to follow. See `endedInPan()`.
+        pressWasPan = pressTravel > PAN_SLOP_PX;
         return true;
     }
     return false;
@@ -263,6 +319,11 @@ export function panMap(event) {
     const box = parseViewBox(mainTag);
     const rect = mainTag.getBoundingClientRect();
     const renderScale = rect.width ? Math.min(rect.width / box.width, rect.height / box.height) : 1;
+
+    //Measured in SCREEN pixels, before the render scale is divided out: the question the slop
+    //answers is "did the player's hand move", which is a fact about the screen and not about
+    //how much world that happened to drag past at this zoom.
+    pressTravel += Math.abs(event.clientX - lastMouseX) + Math.abs(event.clientY - lastMouseY);
 
     const dx = (event.clientX - lastMouseX) / renderScale;
     const dy = (event.clientY - lastMouseY) / renderScale;

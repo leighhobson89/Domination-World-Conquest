@@ -241,6 +241,10 @@ export const ids = Object.freeze({
     // which is why it has its own button instead of a stop on the view cycle.
     flagLayer: "flagLayer",
     flagOverlayButton: "flagOverlayButton",
+    // The weather. Inside the SVG document as well, and it is the BOTTOM overlay:
+    // scenery may never cover information.
+    cloudLayer: "cloudLayer",
+    cloudOverlayButton: "cloudOverlayButton",
 
     // --- Top table (the player's totals) --------------------------------------
     topTable: "top-table",

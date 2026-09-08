@@ -222,6 +222,14 @@ import {
     militaryFillFor,
     militaryTooltipLines
 } from './src/ui/map/militaryView.js';
+import { upgradeTooltipRows } from './src/ui/map/upgradeTooltip.js';
+import {
+    CLOUD_MODES,
+    attachCloudOverlay,
+    cloudMode,
+    cycleCloudMode,
+    setCloudMode
+} from './src/ui/map/cloudOverlay.js';
 import {
     attachFlagOverlay,
     isFlagOverlayActive,
@@ -244,6 +252,7 @@ import {
     panMap,
     beginDrag,
     endDrag,
+    endedInPan,
     isDragging,
 } from './src/ui/map/camera.js';
 import {
@@ -274,7 +283,8 @@ import {
     mountainIcon,
     continentIcon,
     crossedSwordsIcon,
-    flagIcon
+    flagIcon,
+    cloudIcon
 } from './src/ui/icons.js';
 import {
     tooltip
@@ -534,6 +544,7 @@ export function svgMapLoaded() {
     attachArrowLayer(svgMap);
     attachMilitaryLayer(svgMap);
     attachFlagOverlay(svgMap);
+    attachCloudOverlay(svgMap);
     attachMapViews({
         paths,
         coastPaths: pathsCoastLines,
@@ -555,6 +566,22 @@ export function svgMapLoaded() {
     svg.setAttribute("tabindex", "1");
     svg.focus();
 
+    //THE TOOLTIP IS DRIVEN FROM ONE DELEGATED LISTENER, AND IT USED TO BE ONE PER HOVER.
+    //`mouseover` added a fresh `mousemove` and a fresh `mouseout` to the territory every time
+    //the pointer entered it, and removed neither -- so hovering a province twenty-four times
+    //left twenty-four of each on it, for the life of the page. Every one of them rebuilt the
+    //whole tooltip (the continent walk, the leader lookup, the military plan, the upgrades) on
+    //every pixel of pointer movement, so a long session degraded until the tooltip stopped
+    //keeping up altogether and only a reload cleared it. Measured before the fix: twenty-four
+    //hovers, twenty-four listeners of each kind. This is the same defect the move button had,
+    //and the same rule closes it -- install the listener ONCE, from bootstrap, and let the
+    //event tell you what it is over.
+    //A CONQUEST UNDER A HELD POINTER. The label is cached per territory, so without this a
+    //tooltip left open through an AI turn would keep describing the world as it was when the
+    //pointer arrived -- which is precisely the turn a player is watching it for.
+    onStateEvent(Events.TERRITORY_CHANGED, () => { tooltipStale = true; });
+    onStateEvent(Events.TURN_CHANGED, () => { tooltipStale = true; });
+
     svgMap.addEventListener("mouseover", function(e) {
         const element = e.target;
 
@@ -563,26 +590,6 @@ export function svgMapLoaded() {
         if (!pathIsGreyedOut(element)) {
             hoverOverTerritory(element, "mouseOver");
         }
-
-        const countryName = pathOwner(element);
-
-        element.addEventListener("mousemove", function(e) {
-            const x = e.clientX;
-            const y = e.clientY;
-
-            tooltip.setContent(territoryTooltipLabel(element, countryName));
-            if (window.innerHeight - y < 100) {
-                tooltip.moveTo(x - 40, y - 30);
-            } else {
-                tooltip.moveTo(x - 40, 25 + y);
-            }
-
-            tooltip.show();
-        });
-
-        element.addEventListener("mouseout", function() {
-            tooltip.hide();
-        });
 
         element.style.cursor = "pointer";
     });
@@ -606,6 +613,19 @@ export function svgMapLoaded() {
     });
 
     svgMap.addEventListener("click", function(e) {
+        //A CLICK THAT ENDED A PAN IS NOT A CLICK ON A TERRITORY. Dragging the relief map used
+        //to drop it back to the political map the moment the button was released, because the
+        //click that ends a pan reached the branch below that leaves the relief -- and the
+        //`if (!isDragging())` further down could not stop it: `mouseup` fires before `click`
+        //and is where the drag flag is cleared, so inside a click handler that test is always
+        //true. `endedInPan()` is the question that can actually be asked here, and the whole
+        //handler is behind it rather than just the relief branch, because none of what follows
+        //-- selecting a territory, clearing an attack, opening the colour picker -- is
+        //something a player asked for by moving the map.
+        if (endedInPan()) {
+            return;
+        }
+
         const offsetX = 1;
         const offsetY = 1;
         const newX = e.clientX + offsetX;
@@ -618,21 +638,14 @@ export function svgMapLoaded() {
 
         e.target.dispatchEvent(newEvent);
 
-        if (isPhysicalMapActive()) {
-            exitPhysicalMap();
-            for (let i = 0; i < allTerritories().length; i++) {
-                if (!selectCountryPlayerState && allTerritories()[i].owner !== "Player") {
-                    setColorOnMap(allTerritories()[i]);
-                    for (let j = 0; j < paths.length; j++) {
-                        if (paths[j].getAttribute("uniqueid") === allTerritories()[i].uniqueId) {
-                            setStrokeWidth(paths[j], "1");
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+        //CLICKING A TERRITORY NO LONGER LEAVES THE RELIEF MAP. It used to, on the reasoning
+        //that a territory has to be readable to be clicked -- and Leigh overruled it: *"if
+        //there is a rule to leave the physical map on click then get rid of it, that is not
+        //desired behaviour"*. A view is a mode the player chose, and nothing but the view
+        //button should take it away from them. (What stood here also looped over all 359
+        //territories to recolour the first non-player one it found and then broke out
+        //unconditionally, so it recoloured exactly one arbitrary province: it went with the
+        //rule rather than being preserved.)
         if (!isDragging()) {
             if (e.target.tagName === "rect" && currentPhase() === Phase.MOVE_ATTACK) {
                 repaintMap();
@@ -703,11 +716,7 @@ export function svgMapLoaded() {
     });
 
     svgMap.addEventListener('mousemove', function(e) {
-        if (tooltip.content() !== "") {
-            tooltip.show();
-        } else {
-            tooltip.hide();
-        }
+        updateTerritoryTooltip(e);
         panMap(e);
     });
 
@@ -718,6 +727,12 @@ export function svgMapLoaded() {
             modifyFill(shiftedPath, false);
         }
     });
+
+    //THE SKY IS ON BY DEFAULT, and it is APPLIED here rather than merely declared -- the same
+    //rule the opening map view follows. Declaring it would leave the button saying "full" over
+    //a map with no weather on it.
+    setCloudMode(CLOUD_MODES.FULL);
+    updateCloudOverlayButton();
 
     assignStartingColours(paths, pathCountry);
     //APPLIED rather than merely declared: the SVG ships with plain sea-coloured strokes, so a
@@ -778,20 +793,15 @@ function selectCountry(country, escKeyEntry) {
                 if ((paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && pathIsPlayerOwned(paths[i]) && !pathIsDeactivated(country)) { //set the iterating path to the player color when clicking on any path and the iterating path is a player territory
                     paths[i].setAttribute('fill', playerColour());
                 } else if (!selectCountryPlayerState && (paths[i].getAttribute("uniqueid") === lastClickedPath.getAttribute("uniqueid")) && !pathIsPlayerOwned(paths[i]) && currentPath !== lastClickedPath) { //set the iterating path to the continent color when it is the last clicked path and the user is not hovering over the last clicked path
-                    if (!isPhysicalMapActive()) {
-                        for (let j = 0; j < allTerritories().length; j++) {
-                            if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
-                                setColorOnMap(allTerritories()[j]);
-                                break;
-                            }
-                        }
-                    } else if (isPhysicalMapActive()) {
-                        exitPhysicalMap();
-                        for (let j = 0; j < allTerritories().length; j++) {
-                            if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
-                                setColorOnMap(allTerritories()[j]);
-                                break;
-                            }
+                    //ONE BRANCH, NOT TWO. These were two identical loops that differed only
+                    //in the relief map's leaving first; with that rule gone they are the same
+                    //code. The colour written here is invisible on the relief anyway -- a
+                    //territory's fill sits at 1% opacity there -- so there is nothing to
+                    //special-case.
+                    for (let j = 0; j < allTerritories().length; j++) {
+                        if (allTerritories()[j].uniqueId === paths[i].getAttribute("uniqueid")) {
+                            setColorOnMap(allTerritories()[j]);
+                            break;
                         }
                     }
                     setStrokeWidth(paths[i], "1");
@@ -1115,6 +1125,32 @@ document.addEventListener("DOMContentLoaded", function() {
             [flagIcon()]
         )
     );
+
+    //THE WEATHER, and it is a THREE-state control rather than a switch: full, half strength,
+    //off. Leigh's call, and half strength is the interesting one -- clouds look best over an
+    //ocean and read as clutter over a continent you are trying to plan a war across, so the
+    //middle setting is what lets somebody keep the sky without giving up the map. It defaults
+    //to full, so a new player sees the game at its best rather than at its plainest.
+    mount(
+        ids.mapModeContainer,
+        el(
+            "button",
+            {
+                id: ids.cloudOverlayButton,
+                class: "chrome-button cloud-overlay-button",
+                attrs: { type: "button", "aria-label": "Clouds" },
+                on: {
+                    click() {
+                        playSoundClip("switch");
+                        cycleCloudMode();
+                        updateCloudOverlayButton();
+                    },
+                },
+            },
+            [cloudIcon()]
+        )
+    );
+    updateCloudOverlayButton();
     //The button and the key both follow the view rather than being written at every call site
     //that changes it. One subscription, installed once, from bootstrap.
     mapLegend.create();
@@ -2089,10 +2125,7 @@ function hoverOverTerritory(territory, mouseAction, arrayOfSelectedCountries = [
                 territory.setAttribute("fill-opacity", "0.01");
             }
         } else if (mouseAction === "clickCountry") { //this returns colors back to their original state after deselecting by selecting another, either white if interactable by both the previous and new selected areas, or back to owner color if not accessible by new selected area
-            if (isPhysicalMapActive()) {
-                exitPhysicalMap();
-
-            }
+            //The relief map is NOT left here either -- see the note in the map's click handler.
             if (arrayOfSelectedCountries.length > 0) {
                 for (let i = 0; i < arrayOfSelectedCountries.length; i++) {
                     let rGBValuesToReplace = arrayOfSelectedCountries[i][1];
@@ -4562,6 +4595,29 @@ function updateFlagOverlayButton() {
     button?.setAttribute("aria-pressed", isFlagOverlayActive() ? "true" : "false");
 }
 
+/** What the cloud button says about itself at each of its three settings. */
+const CLOUD_MODE_TITLE = Object.freeze({
+    [CLOUD_MODES.FULL]: "Clouds (full) — click for half",
+    [CLOUD_MODES.HALF]: "Clouds (half) — click to turn off",
+    [CLOUD_MODES.OFF]: "Clouds (off) — click to turn on"
+});
+
+/**
+ * The cloud button's own state.
+ *
+ * `data-clouds` rather than `aria-pressed`, because the control has THREE settings and
+ * `aria-pressed` can only say two -- a half-strength sky reported as "pressed" would be a
+ * button that lies about what it did.
+ */
+function updateCloudOverlayButton() {
+    const button = document.getElementById(ids.cloudOverlayButton);
+    if (!button) {
+        return;
+    }
+    button.setAttribute("data-clouds", cloudMode());
+    button.setAttribute("title", CLOUD_MODE_TITLE[cloudMode()]);
+}
+
 /**
  * The map-view button's own state: the icon it shows and the tooltip it carries.
  *
@@ -4882,6 +4938,47 @@ function leaderTooltipLine(countryName, territory) {
     return reputation ? leader.name + ", " + reputation : leader.name;
 }
 
+/**
+ * The territory the tooltip is currently describing, and whether that description is stale.
+ *
+ * Rebuilding the label is not free -- it walks the territory's continent, looks up the leader,
+ * asks the military plan for a forecast and lists what has been built -- and `mousemove` fires
+ * dozens of times a second. So it is rebuilt when the pointer reaches a DIFFERENT territory,
+ * and otherwise only when the world has changed underneath it. The old code rebuilt on every
+ * event, which was affordable only because it was wrong in the other direction as well.
+ */
+let tooltipPath = null;
+let tooltipStale = false;
+
+/**
+ * Put the tooltip on whatever the pointer is over.
+ *
+ * The one place the territory tooltip is written, called from a single `mousemove` listener
+ * installed at bootstrap -- see the note where that listener is added for what this replaced.
+ */
+function updateTerritoryTooltip(event) {
+    const element = event.target;
+    if (!element || element.tagName !== "path" || !element.hasAttribute("uniqueid")) {
+        //The sea, the overlay, anything that is not a territory. Clearing the CONTENT and not
+        //merely hiding is what makes re-entering the same territory rebuild the label.
+        tooltipPath = null;
+        tooltip.setContent("");
+        tooltip.hide();
+        return;
+    }
+
+    if (element !== tooltipPath || tooltipStale || tooltip.content() === "") {
+        tooltipPath = element;
+        tooltipStale = false;
+        tooltip.setContent(territoryTooltipLabel(element, pathOwner(element)));
+    }
+
+    const x = event.clientX;
+    const y = event.clientY;
+    tooltip.moveTo(x - 40, window.innerHeight - y < 100 ? y - 30 : 25 + y);
+    tooltip.show();
+}
+
 function territoryTooltipLabel(path, countryName) {
     let label = countryName;
     if (countryName && pathIsUnderSiege(path)) {
@@ -4897,7 +4994,12 @@ function territoryTooltipLabel(path, countryName) {
     //THE MILITARY VIEW SHADES A RATIO, and a colour cannot explain a ratio -- this is where the
     //map says what it measured against what. Empty in every other view.
     const militaryLines = militaryTooltipLines(path);
-    if (!continentLine && !leaderLine && militaryLines.length === 0) {
+    //WHAT THE TERRITORY HAS BUILT. Register item M1: the map carries force and carries nothing
+    //the economy does, so "is this worth taking, or merely takeable" could only be answered by
+    //selecting a province and opening a window. Nothing is drawn for a kind with none of it --
+    //four zero rows on nine tenths of the map is a tooltip people stop reading.
+    const upgradeRows = upgradeTooltipRows(territory, { owned: pathIsPlayerOwned(path) });
+    if (!continentLine && !leaderLine && militaryLines.length === 0 && upgradeRows.length === 0) {
         return label;
     }
 
@@ -4910,6 +5012,11 @@ function territoryTooltipLabel(path, countryName) {
     }
     for (const line of militaryLines) {
         html += "<div>" + line + "</div>";
+    }
+    for (const row of upgradeRows) {
+        html += '<div class="tooltip-upgrade">' +
+            '<img src="./resources/' + row.icon + '" alt="">' +
+            "<span>" + row.label + ": " + row.count + "</span></div>";
     }
     return html;
 }

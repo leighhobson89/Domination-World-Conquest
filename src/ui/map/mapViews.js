@@ -146,9 +146,14 @@ export function cycleMapView() {
 /**
  * Leave the relief map, because something needs the territories legible.
  *
- * Clicking a territory does this. **The military view is deliberately NOT left on a click**:
- * the relief is abandoned because a territory has to be readable to be clicked on, and the
- * military view is the one a player is in BECAUSE they are about to reinforce something.
+ * **CLICKING A TERRITORY NO LONGER DOES THIS**, and the two callers left are the colour picker
+ * and the end of a turn. The map used to leave the relief on any click, on the reasoning that a
+ * territory has to be readable to be clicked on -- which is wrong about what the player is
+ * doing, since somebody on the relief is there in order to look at the ground and click on it.
+ * Leigh: *"if there is a rule to leave the physical map on click then get rid of it, that is
+ * not desired behaviour"*. The military view was never left on a click, for the same reason
+ * spelled out the other way round: it is the view a player is in BECAUSE they are about to
+ * reinforce something.
  */
 export function exitPhysicalMap() {
     if (!isPhysicalMapActive()) {

@@ -26,12 +26,14 @@ export const OVERLAY_ROOT_ID = "mapOverlayLayer";
 /**
  * The overlays, bottom to top.
  *
- * Flags are underneath because they are an identity label and the military marks are a warning;
- * where the two ever compete for the same pixels the warning wins. In practice they do not --
- * a figure and a flag are mutually exclusive on one territory -- but "in practice they do not"
- * is not a stacking rule.
+ * Clouds are at the bottom because they are scenery and everything above them is information:
+ * weather that could hide a force figure or a threatened border would be a decoration that
+ * costs the player the thing the map is for. Flags come next because they are an identity
+ * label and the military marks are a warning; where those two ever compete for the same pixels
+ * the warning wins. In practice they do not -- a figure and a flag are mutually exclusive on
+ * one territory -- but "in practice they do not" is not a stacking rule.
  */
-const GROUP_ORDER = Object.freeze(["flags", "military"]);
+const GROUP_ORDER = Object.freeze(["clouds", "flags", "military"]);
 
 let mapDocument = null;
 let guard = null;

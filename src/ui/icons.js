@@ -98,6 +98,22 @@ export function flagIcon() {
     ]);
 }
 
+/**
+ * A cloud: the weather overlay.
+ *
+ * Three lobes on a flat base, which is the same silhouette the overlay draws on the map -- one
+ * picture, one meaning, the rule the crossed swords already follow.
+ */
+export function cloudIcon() {
+    return icon("chrome-icon-cloud", [
+        svgEl("path", {
+            attrs: {
+                d: "M6.4 18.5h11.3a3.9 3.9 0 0 0 .5-7.8 5.4 5.4 0 0 0-9.9-2.2 4.2 4.2 0 0 0-1.9 10z"
+            }
+        }),
+    ]);
+}
+
 /** A mountain range: the physical relief map. */
 export function mountainIcon() {
     return icon("chrome-icon-mountain", [
