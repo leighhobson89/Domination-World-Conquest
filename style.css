@@ -4122,6 +4122,21 @@ td {
   display: none;
 }
 
+/* The column holds two buttons now -- the map view and the flag overlay -- and the container's
+   own `display` is written from JS (`toggleMapModeButton`), so the spacing is put on the
+   children rather than on a flex gap the JS would have to know about. */
+#mapModeContainer .chrome-button + .chrome-button {
+  margin-top: 8px;
+}
+
+/* The flag overlay is a TOGGLE and not a view, so unlike the map-view button beside it, it
+   has to say whether it is currently on. */
+.flag-overlay-button[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: var(--surface-control-hover);
+  border-color: var(--border-strong);
+}
+
 .continent-view-button[data-view="normal"] .chrome-icon-map,
 .continent-view-button[data-view="physical"] .chrome-icon-mountain,
 .continent-view-button[data-view="military"] .chrome-icon-war,
@@ -4196,7 +4211,9 @@ td {
 
 .map-legend-note {
   margin-top: 6px;
-  max-width: 150px;
+  /* Wide enough for the rule to read as a sentence rather than as a column of two-word
+     lines, and narrow enough that the key stays a corner label rather than a panel. */
+  max-width: 208px;
   color: var(--text-muted);
 }
 

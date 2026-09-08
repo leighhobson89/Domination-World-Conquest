@@ -219,8 +219,15 @@ import {
     attachMilitaryLayer,
     configureMilitaryView,
     isMilitaryViewActive,
-    militaryFillFor
+    militaryFillFor,
+    militaryTooltipLines
 } from './src/ui/map/militaryView.js';
+import {
+    attachFlagOverlay,
+    isFlagOverlayActive,
+    refreshFlagOverlay,
+    setFlagOverlayActive
+} from './src/ui/map/flagOverlay.js';
 import {
     MAP_VIEWS,
     MAP_VIEW_TITLE,
@@ -266,7 +273,8 @@ import {
     mapSheetIcon,
     mountainIcon,
     continentIcon,
-    crossedSwordsIcon
+    crossedSwordsIcon,
+    flagIcon
 } from './src/ui/icons.js';
 import {
     tooltip
@@ -525,6 +533,7 @@ export function svgMapLoaded() {
     attachMarkerLayer(svgMap);
     attachArrowLayer(svgMap);
     attachMilitaryLayer(svgMap);
+    attachFlagOverlay(svgMap);
     attachMapViews({
         paths,
         coastPaths: pathsCoastLines,
@@ -1076,12 +1085,46 @@ document.addEventListener("DOMContentLoaded", function() {
             [mapSheetIcon(), mountainIcon(), continentIcon(), crossedSwordsIcon()]
         )
     );
+
+    //THE FLAG OVERLAY IS A TOGGLE AND NOT A FIFTH VIEW, which is why it is a second button in
+    //this column rather than another stop on the one above. It is a label -- whose territory
+    //is this -- and it composes with whichever view is up rather than replacing one, so a
+    //player can read the continent bands or the force ramp AND see who holds what. Being a
+    //toggle it has to say whether it is on, which `aria-pressed` does for the stylesheet and
+    //for anything driving it.
+    mount(
+        ids.mapModeContainer,
+        el(
+            "button",
+            {
+                id: ids.flagOverlayButton,
+                class: "chrome-button flag-overlay-button",
+                attrs: {
+                    type: "button",
+                    "aria-label": "Owner flags",
+                    "aria-pressed": "false",
+                    title: "Show the flag of each territory's current owner"
+                },
+                on: {
+                    click() {
+                        playSoundClip("switch");
+                        toggleFlagOverlay();
+                    },
+                },
+            },
+            [flagIcon()]
+        )
+    );
     //The button and the key both follow the view rather than being written at every call site
     //that changes it. One subscription, installed once, from bootstrap.
     mapLegend.create();
     onMapViewChanged(view => {
         updateMapViewButton(view);
         mapLegend.setViewActive(view === MAP_VIEWS.MILITARY);
+        //Entering or leaving the military view changes WHICH territories may carry a flag --
+        //that view draws a garrison on the frontier and the flags defer to it -- so the
+        //overlay is redrawn on the transition rather than waiting for the next world event.
+        refreshFlagOverlay(paths);
     });
     updateMapViewButton(MAP_VIEWS.CONTINENT);
 
@@ -4503,6 +4546,23 @@ function modifyFill(pathElement, mousedown) {
 }
 
 /**
+ * Turn the owner flags on or off.
+ *
+ * The button's pressed state is written from the overlay's own answer rather than from a
+ * variable kept beside it -- the move button's old defect, in miniature: two records of one
+ * fact drift the moment anything else can change it (a new game takes the overlay down).
+ */
+function toggleFlagOverlay() {
+    setFlagOverlayActive(!isFlagOverlayActive(), paths);
+    updateFlagOverlayButton();
+}
+
+function updateFlagOverlayButton() {
+    const button = document.getElementById(ids.flagOverlayButton);
+    button?.setAttribute("aria-pressed", isFlagOverlayActive() ? "true" : "false");
+}
+
+/**
  * The map-view button's own state: the icon it shows and the tooltip it carries.
  *
  * The four VIEWS live in `src/ui/map/mapViews.js` and each of the three decorations is its own
@@ -4834,7 +4894,10 @@ function territoryTooltipLabel(path, countryName) {
     const territory = getTerritory(path?.getAttribute("uniqueid"));
     const continentLine = describeContinentHolding(continentHoldingFor(territory));
     const leaderLine = leaderTooltipLine(countryName, territory);
-    if (!continentLine && !leaderLine) {
+    //THE MILITARY VIEW SHADES A RATIO, and a colour cannot explain a ratio -- this is where the
+    //map says what it measured against what. Empty in every other view.
+    const militaryLines = militaryTooltipLines(path);
+    if (!continentLine && !leaderLine && militaryLines.length === 0) {
         return label;
     }
 
@@ -4844,6 +4907,9 @@ function territoryTooltipLabel(path, countryName) {
     }
     if (continentLine) {
         html += "<div>" + continentLine + "</div>";
+    }
+    for (const line of militaryLines) {
+        html += "<div>" + line + "</div>";
     }
     return html;
 }

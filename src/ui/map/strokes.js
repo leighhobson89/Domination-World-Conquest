@@ -61,8 +61,14 @@ export const HAIRLINE_PX = 1.8;
  */
 const ZOOM_GROWTH = 0.4;
 
-/** The multiplier the current zoom puts on every remembered width. */
-function zoomWeight() {
+/**
+ * The multiplier the current zoom puts on every remembered width.
+ *
+ * Exported because the military view draws overlays of its own -- the threatened border -- and
+ * a line that did not ride this curve would be the one thing on the map whose weight behaved
+ * differently from everything around it.
+ */
+export function zoomWeight() {
     return Math.pow(Math.max(1, currentZoomLevel()), ZOOM_GROWTH);
 }
 

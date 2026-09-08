@@ -20,7 +20,7 @@
 // border becomes indefensible, and the figures come and go with the view.
 
 import { test, expect } from "../../support/fixtures.js";
-import { map } from "../../support/selectors.js";
+import { containers, map } from "../../support/selectors.js";
 import { ids } from "../../../src/ui/core/registry.js";
 
 /** Every distinct fill on the territory layer, and how many paths wear each. */
@@ -150,15 +150,19 @@ test.describe("the military map", () => {
         await expect(legend).toBeHidden();
     });
 
-    test("marks a border the battle model says would fall", async ({ startedGame: game, page }) => {
+    test("marks the shared stretch of border, not the whole territory", async ({
+        startedGame: game,
+        page,
+    }) => {
         await game.map.setContinentView("military");
 
-        const held = await outlineOf(page, "Germany");
+        const outlineBefore = await outlineOf(page, "Germany");
+
 
         //Germany reduced to a token garrison with its forts gone, against a neighbour that
         //could throw the better part of a million men at it. Nothing about this is a close
-        //call, which is the point: the assertion is that the mark appears, not where the band
-        //edge sits -- that is pinned in the unit suite.
+        //call, which is the point: the assertion is that the mark appears and WHERE, not where
+        //the band edge sits -- that is pinned in the unit suite.
         await page.evaluate((input) => window.__game.applyScenario(input), {
             name: "military-view-threatened-border",
             territories: [
@@ -187,13 +191,142 @@ test.describe("the military map", () => {
         });
 
         //The view follows the world rather than the click that opened it, and it coalesces a
-        //burst of changes rather than rebuilding per event -- so this waits for the outline to
-        //change rather than reading it straight back.
+        //burst of changes rather than rebuilding per event -- so this waits for the mark.
         await expect
-            .poll(async () => (await outlineOf(page, "Germany")).width)
-            .toBeGreaterThan(held.width);
+            .poll(async () => await page.evaluate((mapId) => {
+                const doc = document.getElementById(mapId).contentDocument;
+                return doc.querySelectorAll("path[data-threat]").length;
+            }, ids.svgMap))
+            .toBeGreaterThan(0);
 
-        const marked = await outlineOf(page, "Germany");
-        expect(marked.stroke).not.toBe(held.stroke);
+        const drawn = await page.evaluate(([mapId]) => {
+            const doc = document.getElementById(mapId).contentDocument;
+            const path = doc.querySelector("path[data-threat]");
+            const germany = Array.from(doc.querySelectorAll("path[uniqueid]"))
+                .find(candidate => candidate.getAttribute("territory-name") === "Germany");
+            return {
+                threat: path.getAttribute("data-threat"),
+                markLength: path.getTotalLength(),
+                outlineLength: germany.getTotalLength(),
+                germanyStroke: germany.style.stroke
+            };
+        }, [ids.svgMap]);
+
+        //THE POINT OF THIS TEST. The mark is a fraction of Germany's outline -- the stretch it
+        //shares with France -- and not the whole ring. Ringing a country in red because one of
+        //its seven neighbours is dangerous says "you are encircled", which is a different and
+        //untrue statement.
+        expect(drawn.threat).toBe("critical");
+        expect(drawn.markLength).toBeGreaterThan(0);
+        expect(drawn.markLength).toBeLessThan(drawn.outlineLength * 0.5);
+        //And the territory's own outline still says whose it is.
+        expect(drawn.germanyStroke).toBe(outlineBefore.stroke);
+    });
+
+    test("marks every neighbour that could take the border, not only the strongest", async ({
+        game,
+        page,
+    }) => {
+        //THE BUG THIS GUARDS, and it was found on the real map rather than in a fixture. The
+        //plan used to forecast ONE pairing per province -- the strongest enemy beside it -- so
+        //Canada, threatened by the United States along the 49th parallel and by Alaska in the
+        //north-west, was marked on the long border and drawn clean on the short one. A border
+        //left unmarked reads as a border that is safe, which is the opposite of true here.
+        //
+        //Canada rather than the fixture's Germany because it is the case Leigh reported and
+        //because it is the shape that makes the bug visible: one country, two of its
+        //territories, two separate stretches of the same frontier.
+        await game.start({ country: "Canada" });
+        await game.map.setContinentView("military");
+
+        const unit = (territoryName, army) => ({
+            territory: territoryName,
+            patch: {
+                armyForCurrentTerritory: army, infantryForCurrentTerritory: army,
+                assaultForCurrentTerritory: 0, useableAssault: 0,
+                airForCurrentTerritory: 0, useableAir: 0,
+                navalForCurrentTerritory: 0, useableNaval: 0
+            }
+        });
+        await page.evaluate((input) => window.__game.applyScenario(input), {
+            name: "military-view-two-threatening-territories",
+            territories: [
+                {
+                    ...unit("Canada", 200000),
+                    patch: { ...unit("Canada", 200000).patch, fortsBuilt: 0, defenseBonus: 0 }
+                },
+                //Both far stronger than the garrison, so neither is a close call: what is
+                //asserted is that BOTH are marked, not where the band edge sits -- that is
+                //pinned in the unit suite.
+                unit("United States", 2000000),
+                unit("Alaska", 800000)
+            ]
+        });
+
+        //The view coalesces a burst of world changes rather than rebuilding per event.
+        const marksOn = async () => await page.evaluate((mapId) => {
+            const doc = document.getElementById(mapId).contentDocument;
+            const nameOf = (uniqueId) =>
+                doc.querySelector(`path[uniqueid="${uniqueId}"]`)?.getAttribute("territory-name");
+            return Array.from(doc.querySelectorAll("path[data-threat]")).map(mark => ({
+                from: nameOf(mark.getAttribute("data-threat-from")),
+                cap: mark.getAttribute("stroke-linecap"),
+                length: mark.getTotalLength()
+            }));
+        }, ids.svgMap);
+
+        await expect.poll(async () => (await marksOn()).length).toBe(2);
+
+        const marks = await marksOn();
+        expect(new Set(marks.map(mark => mark.from))).toEqual(
+            new Set(["United States", "Alaska"])
+        );
+        for (const mark of marks) {
+            expect(mark.length).toBeGreaterThan(0);
+            //A ROUND CAP OVERHANGS. It extends half the stroke width past the last shared
+            //anchor, along the direction the outline was heading -- which at the end of a
+            //shared stretch is into the border with the next country along.
+            expect(mark.cap).toBe("butt");
+        }
+
+        //Each mark is backed by a shadow clipped to the player's own outline, so the warning
+        //has a side: it falls inside the territory being threatened and reaches no further.
+        const shadows = await page.evaluate((mapId) => {
+            const doc = document.getElementById(mapId).contentDocument;
+            return Array.from(doc.querySelectorAll("path[data-threat-shadow]"))
+                .map(shadow => shadow.getAttribute("clip-path"));
+        }, ids.svgMap);
+        expect(shadows.length).toBeGreaterThan(0);
+        expect(shadows.every(clip => /^url\(#/.test(clip ?? ""))).toBe(true);
+
+        //And the tooltip names them, because a colour cannot say WHO. The wording is not
+        //asserted -- that both territories are named is the substance of the fix.
+        await game.map.hover("Canada");
+        const tooltip = await page.locator(containers.tooltip).innerText();
+        expect(tooltip).toContain("Alaska");
+        expect(tooltip).toContain("United States");
+    });
+
+    test("keeps a territory's figure when it is clicked", async ({ startedGame: game, page }) => {
+        //THE BUG THIS GUARDS. SVG has no z-index: what is painted last wins. Clicking a
+        //territory re-appends its path to the end of the map document -- that is how a
+        //selection is raised above its neighbours -- which put the clicked territory's own
+        //fill OVER the overlay, and its force figure vanished the moment you touched it.
+        await game.map.setContinentView("military");
+        const before = await labelsOf(page);
+        expect(before.length).toBeGreaterThan(0);
+
+        await game.map.click("France");
+
+        expect(await labelsOf(page)).toHaveLength(before.length);
+        //THE OVERLAY ROOT is what has to be last, not the military group itself: the flags are
+        //a second overlay and two observers each enforcing "I am last" is a loop rather than
+        //two fixes, so there is one parent kept last with the overlays ordered inside it.
+        expect(await page.evaluate(([mapId, layerId]) => {
+            const doc = document.getElementById(mapId).contentDocument;
+            const layer = doc.getElementById(layerId);
+            const root = doc.documentElement.lastElementChild;
+            return Boolean(layer) && root.contains(layer) && root.id === "mapOverlayLayer";
+        }, [ids.svgMap, ids.militaryLabelLayer])).toBe(true);
     });
 });

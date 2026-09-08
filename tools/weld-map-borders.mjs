@@ -103,7 +103,7 @@ const SIZE_CAP_FRACTION = 0.1;
 
 /** `d` -> subpaths of `{ start, segs, closed }`; segs are `["L", p]` or `["C", c1, c2, p]`. */
 function parsePathData(d) {
-    const tokens = d.match(/[MLCZmlcz]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? [];
+    const tokens = d.match(/[A-Za-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? [];
     const subpaths = [];
     let current = null;
     let command = null;
@@ -113,7 +113,7 @@ function parsePathData(d) {
 
     while (index < tokens.length) {
         const token = tokens[index];
-        if (/^[MLCZmlcz]$/.test(token)) {
+        if (/^[A-Za-z]$/.test(token)) {
             command = token.toUpperCase();
             index++;
             if (command === "Z") {
@@ -127,6 +127,13 @@ function parsePathData(d) {
                 //A moveto followed by bare pairs means lineto, which this file uses everywhere.
                 command = "L";
                 continue;
+            }
+            //Every letter is tokenised, not just the four this understands, so an arc or a
+            //quadratic THROWS here instead of being skipped and leaving its coordinates to be
+            //read as points of the previous command -- which would rewrite the map wrongly and
+            //say nothing about it.
+            if (command !== "L" && command !== "C") {
+                throw new Error(`unhandled path command ${command}`);
             }
         }
         if (command === "L") {

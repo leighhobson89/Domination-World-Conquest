@@ -236,6 +236,11 @@ export const ids = Object.freeze({
     // The group holding the military view's force figures. Inside the SVG document
     // too, and for the same reason: it is drawn ON the map rather than over it.
     militaryLabelLayer: "militaryLabelLayer",
+    // The group holding the owner flags. Inside the SVG document as well, and it
+    // is an OVERLAY rather than a view: it composes with whichever view is up,
+    // which is why it has its own button instead of a stop on the view cycle.
+    flagLayer: "flagLayer",
+    flagOverlayButton: "flagOverlayButton",
 
     // --- Top table (the player's totals) --------------------------------------
     topTable: "top-table",

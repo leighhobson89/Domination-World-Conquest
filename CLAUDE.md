@@ -336,22 +336,127 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   my borders is thin"* is the question, and it is the same maximum
   `strongestEnemyPowerAgainst()` has always sized the AI's reserve with. **A territory nothing
   can reach is SECURE whatever it holds**, which is what makes the frontier draw itself.
-  **The red is `takeProbability()` and not the ratio again** — amber at 35%, red at 60%, the
-  real dice model with terrain, forts and composition in it, because a warning built on raw
-  force fires on every mountain fortress in the Alps and is ignored by turn three. It is
-  calibrated against `node tools/combat-lab.mjs cliff` (parity is a 24.3% take, 1.25:1 is
-  44.2%, 1.5:1 is 63.6%), so amber lights at roughly a 15% force advantage to the neighbour and
-  red at 45%, and the assumption behind it is stated in the file: the neighbour commits its
-  whole useable garrison, which is a question about CAPABILITY and not a prediction of what the
-  AI will send. **`takeProbability()` is called DIRECTLY and never through
+  **THE SHADE IS A COMPARISON AND THE MAP HAS TO SAY SO.** It is the one thing about this view
+  that cannot be inferred from looking at it, and the question that proved it was Leigh's: the
+  United States holding two million came out PALE while France holding the same two million came
+  out dark, which is correct — they face different neighbours — and is unreadable unless stated.
+  Two places say it now. The legend carries the rule in words (*"shade compares a garrison with
+  the strongest army that can reach it — not its size"*), and the TOOLTIP carries the arithmetic
+  for the territory under the pointer: `Garrison 2M against 5.1M from Canada — 1 : 2.6`, plus a
+  line naming the odds when the border is marked. `militaryTooltipLines()` is that, and
+  `territoryTooltipLabel()` in `ui.js` appends it — empty in every other view. The plan keeps
+  `faced` and `facedBy` for exactly this: a colour cannot explain a ratio.
+  **A THREAT IS A TERRITORY AND NOT A COUNTRY, AND EVERY ONE OF THEM IS MARKED.** The plan
+  forecast a single pairing per province -- the strongest enemy beside it -- so a border facing
+  two dangerous neighbours was marked on one of them and drawn clean on the other, which says
+  *that one is safe* about a border that is not. Leigh found it playing Canada: the United
+  States is marked along the 49th parallel and Alaska, no less able to take the place, was left
+  bare. `planMilitaryView()` now returns a `threats` ARRAY per territory -- one entry per enemy
+  neighbour that clears the warning odds, worst first BY THE ODDS rather than by the army,
+  because a smaller neighbour on better ground is the more dangerous one -- and each gets its
+  own stretch of border at its own colour. **`THREAT_CANDIDATE_RATIO` (0.6) is what keeps a call
+  per PAIRING affordable**: `combat-lab cliff` puts a take probability at raw parity at 24.3%
+  and at 0.35:1 at zero, so a neighbour well under the garrison cannot reach the 35% band
+  whatever it is made of, and terrain and forts only ever lower it further. The odds are still
+  never asked for anybody but the player, and `tests/unit/ui-military-shading.spec.js` counts
+  the calls. **The SHADE is still the strongest single enemy** -- that is a ratio and it has one
+  answer -- so `faced` / `facedId` and `threats` describe different questions and are not
+  interchangeable.
+  **THE THREAT IS DRAWN ON THE SHARED STRETCH OF BORDER, NOT AROUND THE TERRITORY.** Colouring
+  a whole outline red says *you are encircled*, which is a different and untrue statement about
+  a country facing one dangerous neighbour and six harmless ones (Leigh: *"i would want the
+  border section only which touches the stronger country to have the red border"*).
+  `src/ui/map/borderSegments.js` extracts it: a segment is on the shared border when BOTH its
+  endpoints are anchors of the neighbour — stricter than "either end touches", because at a
+  tri-point the loose test draws a spur into the middle of the map. **It only works because the
+  map is WELDED**: the test is EXACT coordinate equality, which was the empty set almost
+  everywhere before `tools/weld-map-borders.mjs` ran, and which is also the safety — a
+  near-miss is two coastlines across water, and a tolerance would draw a land border over a
+  strait. A neighbour that can reach a territory without touching it (an amphibious one) gets
+  the shade and the tooltip and no line, because there is no border to draw one on.
+  **THE CAP IS BUTT AND THE SHADOW IS CLIPPED, and both are about which country the mark is
+  ABOUT.** A round cap extends half the stroke width past the last shared anchor, along the
+  direction the outline was heading — which at the end of a shared stretch is into the border
+  with the NEXT neighbour, so a warning about France left a red blob on Belgium's frontier.
+  And the mark is centred on the line, so it reads identically from both sides while being a
+  statement about only one of them: three widening, fading strokes are laid under it and
+  CLIPPED TO THE SUBJECT TERRITORY's own outline, which is what puts the shadow on the player's
+  side and stops it dead at the border whatever width it is drawn at. Stacked strokes rather
+  than a Gaussian blur because an SVG filter needs a REGION, and a region big enough for a
+  border crossing half the map is a raster the size of the map allocated per marked territory.
+  **THE OVERLAY IS KEPT LAST IN THE MAP DOCUMENT BY A `MutationObserver`, and that is not
+  belt-and-braces.** SVG has no z-index. Clicking a territory re-appends its path to the end of
+  the document — that is how the game raises a selection — which painted the clicked
+  territory's own fill over the overlay, so **its force figure vanished the moment you clicked
+  it**. There are five such re-appends in `ui.js` alone and the next one added would break it
+  again, so the invariant is enforced in `militaryView.js` rather than by a call after each of
+  them; re-appending fires the observer once more, finds the layer already last, and stops.
+  **The red is `takeProbability()` and not the ratio again** — the real dice model with terrain,
+  forts and composition in it, because a warning built on raw force fires on every mountain
+  fortress in the Alps and is ignored by turn three. The assumption behind it is stated in the
+  file: the neighbour commits its whole useable garrison, which is a question about CAPABILITY
+  and not a prediction of what the AI will send. **The edges are 15% and 45%, RE-CUT from
+  35/60 because amber never fired.** Bisecting 120 real pairings for the ratio at which each
+  edge opens, 35/60 gave an amber band **14%** wide in force ratio on open ground (1.10:1 to
+  1.26:1) and **6%** wide behind one fort (1.37:1 to 1.46:1) — a neighbour had to land inside a
+  few per cent to be marked amber at all, so a border went from unmarked to red with nothing in
+  between and Leigh had never seen an amber border in a game. **That is the CLIFF and not a bad
+  threshold**: an extra die is an unmatched die and an unmatched die is a free hit, so the real
+  odds move in jumps, and widening the band is the only thing available from here. At 15/45
+  amber opens at **0.90:1** and red at **1.24:1**, a **37%** window, so amber means *this border
+  is roughly even* — which is worth saying, because a defender at parity loses the province
+  24.3% of the time. Re-measure with the same sweep if the dice bands or `DICE_ATTACK_ADVANTAGE`
+  move. **`takeProbability()` is called DIRECTLY and never through
   `calculateTakeProbabilityPreBattle()`** — that function keeps module-level state, so a map
   refresh landing while the player allocates units in the attack window would overwrite the
-  setup of the battle they are about to fight. **The odds are asked once per PLAYER territory
-  and for nobody else's**, which is the bound the whole design rests on and which is invisible
-  in the running game, so `tests/unit/ui-military-shading.spec.js` counts the calls. And
+  setup of the battle they are about to fight. **The odds are asked for nobody but the
+  player, and only about a neighbour strong enough to be a candidate**, which is the bound the
+  whole design rests on and which is invisible in the running game, so
+  `tests/unit/ui-military-shading.spec.js` counts the calls. And
   **the figures are sized in screen pixels and redrawn on `onZoomChanged()`**, drawn wherever
-  the territory is big enough on screen to hold one — so the zoom IS the decluttering, and
-  Europe at zoom 1 is a dozen numbers and at zoom 4 is all of them.
+  the territory is big enough on screen to hold one — so the zoom declutters, and Europe at
+  zoom 1 is a dozen numbers and at zoom 4 is all of them. **THE FIGURES ARE THE FRONTIER'S**:
+  the player's own land and every enemy territory touching it (`entry.frontier`, folded from
+  the same neighbour walk the plan already does), and this has been both ways round. It drew a
+  subset first, was widened to the whole map on the argument that a subset is a decision about
+  what the player may compare, and was narrowed again by Leigh — 359 figures is a great deal of
+  ink for a question about your own border, and the number competes with the shade, which is
+  what the view is actually built on. What makes the narrowing safe is that **nothing is
+  hidden**: the shade still covers the world and the tooltip still answers for any territory
+  under the pointer, and the legend says so in words. With no player at all (spectator mode)
+  the whole world is frontier, because there is nobody to draw one around.
+- **EVERY OVERLAY DRAWN ON THE MAP LIVES IN ONE GROUP, AND `src/ui/map/overlayLayers.js` OWNS
+  BEING LAST.** SVG has no z-index and clicking a territory re-appends its path to the end of
+  the map document, so anything drawn over the map has to be put back on top — which the
+  military view enforced with a `MutationObserver` of its own. **Two overlays each enforcing
+  "I am last" is not two fixes, it is a LOOP**: each re-append fires the other's observer for
+  ever. So there is a single parent (`mapOverlayLayer`) kept last by one observer, the overlays
+  are ordered groups inside it (`GROUP_ORDER`, flags under the military marks), and the
+  `pointer-events: none` that keeps a decoration from swallowing a click is on the parent. An
+  e2e spec asserts the PARENT is last and the military group is inside it; asserting the
+  military group itself is last is what that spec used to say and is now wrong.
+- **THE OWNER FLAGS ARE AN OVERLAY ON EVERY VIEW, NOT A FIFTH VIEW** (`src/ui/map/flagOverlay.js`,
+  Leigh's call). A flag chip on each territory showing who holds it NOW — a colour tells you two
+  territories share an owner and never which owner, so reading the political map means hovering
+  province by province. It composes with the continent bands, the political map, the force ramp
+  and the relief rather than replacing one, which is why it is a second button in
+  `mapModeContainer` (`flagOverlayButton`, `aria-pressed`) instead of another stop on the view
+  cycle. Four things. **A RELATIVE URL CANNOT BE USED FOR THE IMAGE, and it fails only in the
+  build**: the map is an `<object>` with its own document, and Vite hashes that document into
+  `/assets/svgMaster-<hash>.svg`, so `flags/Spain.png` means `/resources/flags/…` under
+  `npm run dev` and `/assets/flags/…` in a build, where nothing is. It is worse than a 404 — the
+  preview server answers an unknown path with `index.html` and a 200, so nothing looks like it
+  failed and the map fills with broken-image glyphs. The href is resolved against the HOST
+  document instead, and the e2e spec asserts the CONTENT TYPE rather than the status, because
+  the status is the thing that lies. **It defers to the military view's figures**: while that
+  view is up a flag is drawn only where a figure is not (`militaryFrontierIds()`, asked live
+  rather than remembered), so the war zone is measured and the rest of the world is named. **The
+  chip is a fixed 3:2 plate with the flag fitted inside it** — the artwork is not one aspect
+  ratio (Switzerland is square, Nepal a tall pennant, the United States 1.9:1), so `meet` keeps
+  every flag undistorted and the dark plate shows where it does not reach, which also stops a
+  white flag disappearing into pale terrain. And **it is sized in screen pixels and redrawn on
+  `onZoomChanged()`**, the same rule as everything else on this map, with a conquest reaching it
+  as a coalesced `TERRITORY_CHANGED`.
 - **The military view's ramp is TWO theme tokens, and its weak end may never be blue.**
   `--force-weak` and `--force-strong`; the five bands are mixed between them in JS, because a
   theme should be choosing a feel (olive, sepia, phosphor) rather than balancing five swatches.

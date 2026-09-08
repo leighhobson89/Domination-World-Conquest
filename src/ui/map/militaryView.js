@@ -37,13 +37,16 @@
 // at zoom 1 and at zoom 6. Every size below is a pixel figure multiplied by
 // `userUnitsPerPixel()`, and the labels are redrawn on `onZoomChanged()`.
 //
-// **THE ZOOM IS THE DECLUTTERING, and it is why every territory is a candidate.** A figure is
-// drawn wherever the territory is big enough ON SCREEN to hold it, so the world map carries
-// the figures of the countries large enough to read and zooming in fills in the rest -- Europe
-// at zoom 1 is a dozen numbers and at zoom 4 is all of them. That is a better rule than
-// choosing a subset in advance, which is what this did first (the player's own land and its
-// neighbours): a subset is a decision about what the player is allowed to compare, and the
-// question "who is massing two provinces away" is a perfectly good one.
+// **THE FIGURES ARE THE FRONTIER'S, AND THE ZOOM DECLUTTERS WITHIN IT.** A figure is drawn on
+// the player's own land and on every enemy territory that touches it, wherever the territory is
+// big enough ON SCREEN to hold one -- so zooming in fills in the smaller provinces of that
+// frontier rather than the rest of the world. This has been both ways round. It first drew a
+// subset, was widened to the whole map on the argument that a subset is a decision about what
+// the player is allowed to compare, and was narrowed again by Leigh: 359 figures is a great
+// deal of ink for a question about your own border, and the number competes with the shade,
+// which is the thing the view is actually built on. What makes the narrowing safe is that
+// **nothing is hidden** -- the shade still covers the whole world, and the TOOLTIP still gives
+// the full comparison for any territory the pointer is over, frontier or not.
 
 import { allTerritories, getTerritoryByName, playerColour, playerCountryName } from "../../state/selectors.js";
 import { takeProbability } from "../../rules/military/takeProbability.js";
@@ -54,14 +57,16 @@ import {
 import { getInteractableFrom, isAdjacencyLoaded } from "../../data/adjacency.js";
 import { Events, on } from "../../state/events.js";
 import { onZoomChanged, userUnitsPerPixel } from "./camera.js";
+import { zoomWeight } from "./strokes.js";
 import { ids } from "../core/registry.js";
 import { mapInk, parseColour, tokenColour } from "./themeColours.js";
+import { anchorKeys, parseSegments, sharedBorderPath } from "./borderSegments.js";
+import { attachOverlayLayers, overlayGroup, removeOverlayGroup } from "./overlayLayers.js";
 import { HAIRLINE_PX } from "./strokes.js";
 import { THEME_CHANGED } from "../theme/theme.js";
 import {
     FORCE_BAND_COUNT,
     THREAT_CRITICAL,
-    THREAT_WARNED,
     planMilitaryView,
     rampFor
 } from "./militaryShading.js";
@@ -106,6 +111,25 @@ const STROKE_ENEMY = HAIRLINE_PX;
 const STROKE_PLAYER = 3.2;
 const STROKE_THREAT = 4.4;
 
+/**
+ * The shadow the marked border casts INTO the player's own territory.
+ *
+ * A stroke is centred on the line it is drawn along, so half of the mark necessarily lies in
+ * the neighbour -- which is right for a border, since a border belongs to both sides. What is
+ * NOT right is a mark that reads the same in both directions, because the warning is about one
+ * of them: this is the player's border being threatened, not the neighbour's.
+ *
+ * So the mark is backed by wider strokes CLIPPED TO THE SUBJECT TERRITORY, which is what makes
+ * the shadow fall on the player's side and only there -- the clip cuts away everything beyond
+ * the shared line, so no part of it reaches the neighbour whatever width it is drawn at. Three
+ * stacked layers rather than a Gaussian blur: an SVG filter needs a region, and a region big
+ * enough for a border that crosses half the map is a raster the size of the map allocated per
+ * marked territory. Stepping the width and the alpha costs three paths and reads as soft.
+ *
+ * Each row is `[width as a multiple of STROKE_THREAT, alpha]`, widest and faintest first.
+ */
+const THREAT_SHADOW_LAYERS = [[3.2, 0.10], [2.4, 0.14], [1.7, 0.20]];
+
 let mapDocument = null;
 let active = false;
 let plan = new Map();
@@ -120,6 +144,7 @@ let refreshQueued = false;
 /** Point the view at the map's contentDocument. Called from `svgMapLoaded()`. */
 export function attachMilitaryLayer(svgDocument) {
     mapDocument = svgDocument;
+    attachOverlayLayers(svgDocument);
 }
 
 /**
@@ -166,6 +191,31 @@ function oddsAgainst(attacker, defender) {
 
 export function isMilitaryViewActive() {
     return active;
+}
+
+/**
+ * The territories that carry a force figure while this view is up: the player's own land and
+ * every enemy territory touching it.
+ *
+ * Exported for `flagOverlay.js`, which draws a flag on everything ELSE -- so the war zone is
+ * measured and the rest of the world is named, and the two never fight for the same few pixels
+ * in the middle of a territory. It is derived rather than remembered from the last render, so
+ * the two overlays cannot disagree about a frame: whichever redraws first, both are asking the
+ * same plan the same question.
+ *
+ * @returns {Set<string>} empty when the view is off
+ */
+export function militaryFrontierIds() {
+    const frontier = new Set();
+    if (!active) {
+        return frontier;
+    }
+    for (const [uniqueId, entry] of plan) {
+        if (entry.frontier) {
+            frontier.add(uniqueId);
+        }
+    }
+    return frontier;
 }
 
 /** Rebuild the ramp and the two threat colours from the theme in force. */
@@ -233,7 +283,15 @@ export function militaryFillFor(path) {
     return entry ? ramp[entry.band] ?? null : null;
 }
 
-/** The outline: the threat mark if there is one, otherwise who owns it. */
+/**
+ * The outline: who owns it, and nothing else.
+ *
+ * **THE THREAT IS NOT DRAWN HERE ANY MORE.** Colouring a territory's whole outline red says
+ * "somewhere around here you are in trouble", so a country facing one dangerous neighbour and
+ * six harmless ones read as encircled -- Leigh: *"i would want the border section only which
+ * touches the stronger country to have the red border"*. The mark is a separate overlay along
+ * the shared stretch now; see `renderThreatBorders()`.
+ */
 export function militaryStrokeFor(path) {
     if (!active) {
         return null;
@@ -242,12 +300,6 @@ export function militaryStrokeFor(path) {
     if (!entry) {
         return null;
     }
-    if (entry.threat === THREAT_CRITICAL) {
-        return { colour: colours.critical, width: STROKE_THREAT };
-    }
-    if (entry.threat === THREAT_WARNED) {
-        return { colour: colours.warned, width: STROKE_THREAT };
-    }
     if (entry.player) {
         //Asked LIVE rather than cached beside the theme colours: the player can change their
         //colour from the phase bar, which repaints the map without touching the theme, and a
@@ -255,6 +307,98 @@ export function militaryStrokeFor(path) {
         return { colour: playerColour(), width: STROKE_PLAYER };
     }
     return { colour: mapInk(), width: STROKE_ENEMY };
+}
+
+/**
+ * The comparison as a ratio, written the way round that keeps a figure in it.
+ *
+ * `n : 1` is the natural form until the territory is the weaker side, where it collapses --
+ * a thousand men facing nine hundred thousand is "0.0 : 1", which is a rounding artefact
+ * pretending to be information. Below parity it is inverted to `1 : n`, so the sentence always
+ * carries the number a player would quote.
+ */
+function describeRatio(force, faced) {
+    if (force >= faced) {
+        return `${(force / faced).toFixed(1)} : 1`;
+    }
+    const inverse = faced / force;
+    return force > 0 ? `1 : ${inverse < 10 ? inverse.toFixed(1) : Math.round(inverse)}` : "0 : 1";
+}
+
+/** A neighbouring TERRITORY, named the way a player would name it. */
+function describeNeighbour(name, country) {
+    if (name && country && name !== country) {
+        return `${name} (${country})`;
+    }
+    return name || country || "an enemy";
+}
+
+/**
+ * How many threatening neighbours the tooltip lists before it counts the rest.
+ *
+ * The tooltip follows the pointer, so it cannot grow without covering the map it describes.
+ * Three is enough for the case this exists for -- a province facing two or three real dangers
+ * -- and the tail is counted rather than dropped, so the player is never told there is one
+ * threat when there are five.
+ */
+const TOOLTIP_THREAT_LINES = 3;
+
+/**
+ * What the tooltip says about a territory while this view is up.
+ *
+ * The shade is a RATIO and a colour cannot explain a ratio: two million men is pale next to a
+ * neighbour holding five and dark next to one holding one, and without this the map can only
+ * be read by somebody who already knows the rule. So the tooltip states both halves of the
+ * comparison and names the TERRITORY the figure belongs to -- the shade is measured against a
+ * single enemy province, so naming its country alone would be a slightly different claim from
+ * the one the colour is making.
+ *
+ * The threats are then listed one per line, because they are separate borders with separate
+ * answers: a colour on the map says which stretch is dangerous and only this can say how
+ * dangerous, and by whom.
+ *
+ * @returns {string[]} nothing when the view is off or the territory is not in the plan
+ */
+export function militaryTooltipLines(path) {
+    if (!active) {
+        return [];
+    }
+    const entry = entryFor(path);
+    if (!entry) {
+        return [];
+    }
+
+    const lines = [];
+    if (entry.faced > 0) {
+        const from = describeNeighbour(entry.facedName, entry.facedBy);
+        lines.push(
+            `Garrison ${formatForce(entry.force)} against ${formatForce(entry.faced)}` +
+            (from ? ` from ${from}` : "") +
+            ` — ${describeRatio(entry.force, entry.faced)}`
+        );
+    } else {
+        //The other half of the rule, and the one that surprises people: an interior province
+        //is drawn as secure whatever it holds, because nothing can attack it.
+        lines.push(`Garrison ${formatForce(entry.force)} — no enemy can reach it`);
+    }
+
+    const threats = entry.threats ?? [];
+    if (threats.length > 1) {
+        lines.push(`Threatened by ${threats.length} neighbours:`);
+    }
+    for (const threat of threats.slice(0, TOOLTIP_THREAT_LINES)) {
+        const verdict = threat.threat === THREAT_CRITICAL
+            ? "would likely take it"
+            : "could take it";
+        lines.push(
+            `${describeNeighbour(threat.name, threat.country)}` +
+            ` — ${Math.round(threat.odds)}%, ${verdict}`
+        );
+    }
+    if (threats.length > TOOLTIP_THREAT_LINES) {
+        lines.push(`…and ${threats.length - TOOLTIP_THREAT_LINES} more`);
+    }
+    return lines;
 }
 
 /**
@@ -278,26 +422,138 @@ export function threatColours() {
     };
 }
 
-/** The label layer, created on demand and always re-appended last so nothing covers it. */
+/**
+ * This view's group inside the shared overlay.
+ *
+ * `overlayLayers.js` owns being last in the document and owns the stacking between overlays --
+ * it has to, because two observers each enforcing "I am last" is a loop and not two fixes. The
+ * `pointer-events: none` that used to be written here is on the shared parent now.
+ */
 function labelLayer() {
-    if (!mapDocument) {
-        return null;
+    return overlayGroup("military", ids.militaryLabelLayer);
+}
+
+/**
+ * Draw the threatened stretches of border, and only those stretches.
+ *
+ * ONE OVERLAY PER THREATENING NEIGHBOUR, not one per territory. A province can be threatened
+ * from several directions at once -- Canada faces the United States along the 49th parallel and
+ * Alaska in the north-west -- and each of those is a different border with a different answer,
+ * so marking only the worst of them draws the other one clean and says it is safe. Each mark
+ * takes its own colour from its own forecast, so one border can be red while the next is amber.
+ *
+ * Along the segments the two outlines share: `sharedBorderPath()` finds those by EXACT
+ * coordinate equality, which is only meaningful because the map was welded -- before that, two
+ * neighbours had no points in common and this would have drawn nothing at all, everywhere.
+ *
+ * Drawn UNDER the figures (same layer, added first) and over the territory fills, so a warning
+ * never hides a number.
+ */
+function renderThreatBorders(layer, paths) {
+    const byId = new Map();
+    for (const path of paths) {
+        byId.set(path.getAttribute("uniqueid"), path);
     }
-    let layer = mapDocument.getElementById(ids.militaryLabelLayer);
-    if (!layer) {
-        layer = mapDocument.createElementNS(SVG_NS, "g");
-        layer.setAttribute("id", ids.militaryLabelLayer);
-        //Decoration, and decoration must never intercept a click: a label sits over the middle
-        //of the territory it describes, which is where the player clicks to select it. Same
-        //rule as the siege markers and `#tooltip`.
-        layer.setAttribute("style", "pointer-events: none");
+    //One parse per neighbour, however many of our territories that neighbour threatens.
+    const neighbourAnchors = new Map();
+    const scale = zoomWeight() * userUnitsPerPixel();
+    //Rebuilt with the marks rather than kept: the layer is emptied on every redraw, and a clip
+    //shape that outlived its mark would be a stale outline referenced by nothing.
+    const defs = mapDocument.createElementNS(SVG_NS, "defs");
+    layer.appendChild(defs);
+    //Every shadow is laid down before any mark, so two marked territories sharing a corner
+    //cannot have one's shadow fall across the other's line.
+    const marks = [];
+
+    for (const [uniqueId, entry] of plan) {
+        const threats = entry.threats ?? [];
+        if (threats.length === 0) {
+            continue;
+        }
+        const subject = byId.get(uniqueId);
+        if (!subject) {
+            continue;
+        }
+        //Parsed ONCE however many neighbours this province is threatened by. Canada's outline
+        //is several thousand tokens and the whole overlay is rebuilt on every zoom notch.
+        const subjectSubpaths = parseSegments(subject.getAttribute("d"));
+        //The clip is the player's own outline, so anything drawn through it stops dead at the
+        //shared line. `clipPathUnits` defaults to user space, which is the coordinate system
+        //the `d` is already in. One per territory, shared by all of its marks, and created
+        //only once something is actually going to be drawn against it.
+        const clipId = `${ids.militaryLabelLayer}-clip-${uniqueId}`;
+        let clipped = false;
+
+        for (const threat of threats) {
+            const neighbour = byId.get(threat.id);
+            if (!neighbour) {
+                continue;
+            }
+            if (!neighbourAnchors.has(threat.id)) {
+                neighbourAnchors.set(threat.id, anchorKeys(neighbour.getAttribute("d")));
+            }
+            const shared = sharedBorderPath(subjectSubpaths, neighbourAnchors.get(threat.id));
+            if (!shared) {
+                //Reachable but not touching: an amphibious neighbour across a strait. The shade
+                //and the tooltip still carry the warning; there is no border to draw it on.
+                continue;
+            }
+
+            if (!clipped) {
+                const clip = mapDocument.createElementNS(SVG_NS, "clipPath");
+                clip.setAttribute("id", clipId);
+                const clipShape = mapDocument.createElementNS(SVG_NS, "path");
+                clipShape.setAttribute("d", subject.getAttribute("d"));
+                clip.appendChild(clipShape);
+                defs.appendChild(clip);
+                clipped = true;
+            }
+
+            for (const [multiple, alpha] of THREAT_SHADOW_LAYERS) {
+                const shadow = mapDocument.createElementNS(SVG_NS, "path");
+                shadow.setAttribute("d", shared);
+                shadow.setAttribute("fill", "none");
+                shadow.setAttribute("stroke", `rgba(0, 0, 0, ${alpha})`);
+                shadow.setAttribute("stroke-width", String(STROKE_THREAT * multiple * scale));
+                shadow.setAttribute("stroke-linecap", "butt");
+                shadow.setAttribute("stroke-linejoin", "round");
+                shadow.setAttribute("clip-path", `url(#${clipId})`);
+                //Deliberately NOT `data-threat`: that attribute addresses the mark itself, in
+                //the e2e spec and in anything else that counts the warnings on the map.
+                shadow.setAttribute("data-threat-shadow", threat.threat);
+                layer.appendChild(shadow);
+            }
+
+            const mark = mapDocument.createElementNS(SVG_NS, "path");
+            mark.setAttribute("d", shared);
+            mark.setAttribute("fill", "none");
+            mark.setAttribute("stroke",
+                threat.threat === THREAT_CRITICAL ? colours.critical : colours.warned);
+            mark.setAttribute("stroke-width", String(STROKE_THREAT * scale));
+            //BUTT AND NEVER ROUND. A round cap extends half the stroke width PAST the last
+            //shared anchor, along the direction the outline was heading -- which at the end of
+            //a shared stretch is into the border with the NEXT neighbour, so the warning about
+            //one country put a red blob on another country's frontier. A butt cap ends the
+            //line where the shared border ends, which is the only place it means anything.
+            mark.setAttribute("stroke-linecap", "butt");
+            mark.setAttribute("stroke-linejoin", "round");
+            mark.setAttribute("data-threat", threat.threat);
+            mark.setAttribute("data-threat-from", threat.id);
+            marks.push(mark);
+        }
     }
-    mapDocument.documentElement.appendChild(layer);
-    return layer;
+
+    //A CRITICAL MARK IS NEVER COVERED BY AN AMBER ONE. Two threatened borders can meet at a
+    //corner, and what is painted last wins -- so the marks are laid down in band order rather
+    //than in the order the territories came out of the plan.
+    marks.sort((first, second) =>
+        Number(first.getAttribute("data-threat") === THREAT_CRITICAL) -
+        Number(second.getAttribute("data-threat") === THREAT_CRITICAL));
+    marks.forEach(mark => layer.appendChild(mark));
 }
 
 export function clearMilitaryLabels() {
-    mapDocument?.getElementById(ids.militaryLabelLayer)?.remove();
+    removeOverlayGroup(ids.militaryLabelLayer);
 }
 
 /**
@@ -317,12 +573,15 @@ export function renderMilitaryLabels(paths) {
         return;
     }
 
+    //The threat marks go in first so the figures sit on top of them.
+    renderThreatBorders(layer, paths);
+
     const scale = userUnitsPerPixel();
     const fontSize = LABEL_PX * scale;
 
     for (const path of paths) {
         const entry = entryFor(path);
-        if (!entry) {
+        if (!entry || !entry.frontier) {
             continue;
         }
         const text = formatForce(entry.force);

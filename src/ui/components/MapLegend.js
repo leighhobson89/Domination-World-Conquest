@@ -64,13 +64,26 @@ export function create() {
             el("span", { text: "secure" })
         ]),
         threatRows,
-        //Said once, here, rather than left to be inferred: the figure is the whole garrison,
-        //and the shade is that garrison measured against the largest army that can reach it.
-        //Those are two different statements about the same territory and a player who thinks
-        //the number IS the shade will misread every interior province on the map.
+        //THE RULE, STATED. It has to be, and the question that proved it was Leigh's: the
+        //United States holding two million was pale while France holding the same two million
+        //was dark, which is correct -- the shade is a COMPARISON and the two face different
+        //neighbours -- and is unreadable unless the map says so. The figure and the shade are
+        //two different statements about one territory, and a player who takes the number to BE
+        //the shade will misread every interior province on the board.
         el("div", {
             class: "map-legend-note",
-            text: "Figures are the garrison. Zoom in for smaller territories."
+            text: "Shade compares a garrison with the strongest army that can reach it — " +
+                "not its size."
+        }),
+        el("div", {
+            class: "map-legend-note",
+            //WHY IT SAYS "FRONTIER". The figures are drawn on the player's own land and on
+            //every enemy territory touching it, and a player who does not know that reads the
+            //blank interior of the world as territories holding nothing. The shade still
+            //covers everybody and the tooltip still answers for anybody, which is what makes
+            //the subset safe -- so the note says where to go for the rest.
+            text: "Figures are garrisons along your frontier. Hover any territory for its " +
+                "comparison; zoom in for smaller ones."
         })
     ]);
 

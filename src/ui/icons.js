@@ -84,6 +84,20 @@ export function mapSheetIcon() {
     ]);
 }
 
+/**
+ * A flag on a pole: the owner-flag overlay.
+ *
+ * A pennant rather than a rectangle, because at 24px a rectangle on a stick and a rectangle
+ * with a line beside it are the same picture, and the map-view button next to this one is
+ * already a rectangle of map.
+ */
+export function flagIcon() {
+    return icon("chrome-icon-flag", [
+        svgEl("line", { attrs: { x1: "6", y1: "3", x2: "6", y2: "21.5" } }),
+        svgEl("path", { attrs: { d: "M6 4.4h12l-3.2 4.2L18 12.8H6z" } }),
+    ]);
+}
+
 /** A mountain range: the physical relief map. */
 export function mountainIcon() {
     return icon("chrome-icon-mountain", [
