@@ -33,7 +33,16 @@ import { el, mount } from "../core/dom.js";
 const OFFSET_LEFT = 40;
 const OFFSET_BELOW = 25;
 
+/**
+ * How close to the edge of the window the box may come, and how far above the
+ * pointer it sits once it has been lifted.
+ */
+const EDGE_MARGIN = 8;
+const GAP_ABOVE = 18;
+
 let element = null;
+/** The last measured size, invalidated whenever the content changes. */
+let measured = null;
 
 /**
  * Build the tooltip element and attach it to the document.
@@ -61,6 +70,8 @@ function node() {
 /** Replace the contents. Markup, because most callers build a small table. */
 export function setContent(html) {
     node().innerHTML = html;
+    //A new box is a new size, and `placeNear()` cannot decide anything without one.
+    measured = null;
 }
 
 /** What the tooltip currently says. Used by the hover specs. */
@@ -97,16 +108,123 @@ export function moveTo(left, top) {
 }
 
 /**
- * Position the box next to the pointer, flipping it above when there is not
- * enough room below.
+ * Measure the box, once per change of content.
  *
- * The callers that measure their own content first still do so and call
- * `moveTo` directly -- a tall purchase or upgrade tooltip needs its real height
- * to decide, and that is only known once it is displayed.
+ * `offsetHeight` is zero while an element is `display: none`, which is why every
+ * caller used to guess the flip with a constant instead. This measures a hidden
+ * box by showing it INVISIBLY for the duration -- `visibility: hidden` takes
+ * layout where `display: none` does not -- and caches the answer, because
+ * `placeNear()` is called from a `mousemove` handler that fires dozens of times a
+ * second and `getBoundingClientRect()` forces a layout every time it is asked.
  */
-export function followPointer(x, y, { flipWithin = 100, liftBy = 30 } = {}) {
-    const clearsBottom = window.innerHeight - y >= flipWithin;
-    moveTo(x - OFFSET_LEFT, clearsBottom ? y + OFFSET_BELOW : y - liftBy);
+function measure() {
+    if (measured) {
+        return measured;
+    }
+    const box = node();
+    const hidden = box.style.display !== "block";
+    if (hidden) {
+        box.style.visibility = "hidden";
+        box.style.display = "block";
+    }
+    const rect = box.getBoundingClientRect();
+    if (hidden) {
+        box.style.display = "none";
+        box.style.visibility = "";
+    }
+    measured = { width: rect.width, height: rect.height };
+    return measured;
+}
+
+/**
+ * Put the box beside the pointer, and keep the whole of it on screen.
+ *
+ * THE ONE PLACE THIS DECISION IS MADE. There were eight copies of it, each with its
+ * own constant: `y - 30`, `y - 50`, `y - tooltipHeight`, `y - (tooltipHeight + 25)`,
+ * and three different guesses at how near the bottom counted as near. Leigh reported
+ * what that produced: *"tooltips near the bottom ... are causing the browser to
+ * flicker and resize when they get too near the bottom"*.
+ *
+ * BOTH HALVES OF THAT WERE REAL AND THEY HAD DIFFERENT CAUSES.
+ *
+ * The RESIZE was `#tooltip` being `position: absolute`, so a box placed near the foot
+ * of the window extended the DOCUMENT, raised a scrollbar, and reflowed the page --
+ * which moved the pointer's target, which moved the tooltip, which is the flicker. It
+ * is `position: fixed` now, and a fixed box cannot extend anything. That is the fix
+ * that matters, and it is one line of CSS.
+ *
+ * The FLICKER also had a second source, in the callers that DID measure: they set the
+ * content, showed the box, read `offsetHeight`, hid it, moved it and showed it again --
+ * two forced reflows and a visible flash of the box in the wrong place, on every
+ * `mousemove`. Measuring invisibly and caching removes both.
+ *
+ * The rule itself: below the pointer if the whole box fits, otherwise lifted so it
+ * sits ABOVE the pointer by its own height rather than by a constant -- a constant
+ * cannot be right for a one-line label and an eight-row territory tooltip at once.
+ * Then clamped into the window on both axes, so a tooltip at the right-hand edge is
+ * not half off screen.
+ */
+export function placeNear(x, y, { offsetLeft = OFFSET_LEFT } = {}) {
+    const { width, height: boxHeight } = measure();
+    const spot = placementFor({
+        x,
+        y,
+        width,
+        height: boxHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        offsetLeft
+    });
+    moveTo(spot.left, spot.top);
+}
+
+/**
+ * Where the box goes, as arithmetic.
+ *
+ * Separated from `placeNear()` above so the rule can be stated in Node: the placement
+ * has four edge cases and every one of them is a pixel comparison, which is exactly the
+ * kind of thing that is tedious to reach by hovering and trivial to assert. `placeNear()`
+ * is then only the part that measures a real element and writes two styles.
+ *
+ * @param {{x: number, y: number, width: number, height: number,
+ *          viewportWidth: number, viewportHeight: number, offsetLeft?: number}} input
+ * @returns {{left: number, top: number}}
+ */
+export function placementFor({
+    x,
+    y,
+    width,
+    height: boxHeight,
+    viewportWidth,
+    viewportHeight,
+    offsetLeft = OFFSET_LEFT
+}) {
+    let top = y + OFFSET_BELOW;
+    if (top + boxHeight > viewportHeight - EDGE_MARGIN) {
+        //LIFTED BY ITS OWN HEIGHT, not by a constant. The eight copies of this that used
+        //to exist lifted by 30, by 50, by the height, or by the height plus 25, and three
+        //of them decided "near the bottom" with a fixed 100px -- so a tall tooltip near
+        //the foot of the window was moved up by less than its own height and still ran off
+        //the end.
+        top = y - boxHeight - GAP_ABOVE;
+    }
+    //A box taller than the space above the pointer starts at the top of the window
+    //instead. It then overlaps the pointer, which is unavoidable and harmless: the
+    //tooltip carries `pointer-events: none`, so it still cannot eat the click.
+    if (top < EDGE_MARGIN) {
+        top = EDGE_MARGIN;
+    }
+
+    let left = x - offsetLeft;
+    const rightLimit = viewportWidth - width - EDGE_MARGIN;
+    if (left > rightLimit) {
+        left = rightLimit;
+    }
+    if (left < EDGE_MARGIN) {
+        left = EDGE_MARGIN;
+    }
+
+    return { left, top };
 }
 
 /** The rendered height, which is only meaningful while the box is displayed. */
@@ -139,7 +257,8 @@ export const tooltip = {
     clear,
     isVisible,
     moveTo,
-    followPointer,
+    placeNear,
+    placementFor,
     height,
     elementRef,
 };

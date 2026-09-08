@@ -85,6 +85,135 @@ describe("the move-phase button, for an enemy territory", () => {
         });
     });
 
+    it("greys the button out when the player is not at war with the owner", () => {
+        //Leigh's brief: *"in the case of the player has that option greyed out on
+        //territories of countrys with which it has peace"*. VISIBLE and disabled, never
+        //hidden -- a territory that simply stops responding tells the player nothing,
+        //where a greyed button carrying the state says the province is in reach and the
+        //obstacle is diplomatic rather than military.
+        const state = deriveMoveButtonState(
+            selection({
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false,
+                relationLabel: "Neutral"
+            })
+        );
+
+        expect(state).toMatchObject({
+            visible: true,
+            label: "NEUTRAL",
+            variant: "disabled",
+            enabled: false,
+            target: null
+        });
+    });
+
+    it("carries a hover sentence naming the country and the state", () => {
+        //DERIVED, and that is the point. The button's `mouseover` in ui.js decides its
+        //tooltip by matching `button.innerHTML` against a chain of fixed strings, which
+        //cannot work for a label that is now one of five relation names — reading a label
+        //back to decide anything is the defect the battle bar records at length. So the
+        //sentence comes from here and `ui.js` only shows it.
+        const hint = deriveMoveButtonState(
+            selection({
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false,
+                relationLabel: "Neutral",
+                relationCountry: "France"
+            })
+        ).hint;
+
+        expect(hint).toContain("France");
+        expect(hint).toContain("not at war");
+        //It states the FACT and promises no control: declaring war is Stage 3, so
+        //"click to declare war" would be a lie today and a stale string tomorrow.
+        expect(hint).not.toContain("Click");
+    });
+
+    it("gives peace, ceasefire and alliance their own sentences", () => {
+        const hintFor = (relationLabel) => deriveMoveButtonState(
+            selection({
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false,
+                relationLabel,
+                relationCountry: "France"
+            })
+        ).hint;
+
+        expect(hintFor("At peace")).toContain("breaking the peace");
+        expect(hintFor("Ceasefire")).toContain("ceasefire");
+        expect(hintFor("Allied")).toContain("ally");
+        //Each names the country as a NOUN. There are no demonym forms for 207 country
+        //names, so "the France garrison" is what a naive template produces — the rule a
+        //unit test already enforces on the activity feed.
+        for (const label of ["At peace", "Ceasefire", "Allied", "Neutral"]) {
+            expect(hintFor(label)).not.toMatch(/France[a-z]/);
+        }
+    });
+
+    it("falls back to a sentence when the owner is not known", () => {
+        const hint = deriveMoveButtonState(
+            selection({
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false
+            })
+        ).hint;
+        expect(hint).toContain("this country");
+    });
+
+    it("does not arm the territory as an attack target when it may not be attacked", () => {
+        //`target` is the one side effect the caller performs off this result, and arming a
+        //target the player cannot fight would leave the marker on the map with no way to
+        //take it off.
+        const state = deriveMoveButtonState(
+            selection({
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false
+            })
+        );
+
+        expect(state.target).toBeNull();
+        expect(state.mode).toBeNull();
+        expect(state.label).toBe("NOT AT WAR");
+    });
+
+    it("still offers VIEW SIEGE on a besieged territory whatever the relation", () => {
+        //A siege already standing is untouched by the gate, the same narrowness the
+        //player's grace period has: this refuses the OPENING of an interaction, never the
+        //continuation of one.
+        const state = deriveMoveButtonState(
+            selection({
+                isUnderSiege: true,
+                isAttackable: true,
+                isInRange: true,
+                sourceIsPlayerOwned: true,
+                mayAttack: false,
+                siegeTurns: 3
+            })
+        );
+
+        expect(state).toMatchObject({ variant: "viewSiege", enabled: true, target: "siege" });
+    });
+
+    it("attacks as it always did when nothing says otherwise", () => {
+        //The default is permission, so every caller that predates diplomacy behaves as it
+        //used to. That is the deliberate half of the choice recorded in `rateTarget()`.
+        const state = deriveMoveButtonState(
+            selection({ isAttackable: true, isInRange: true, sourceIsPlayerOwned: true })
+        );
+        expect(state.label).toBe("ATTACK");
+    });
+
     it("offers nothing when the previously selected territory was not the player's", () => {
         const state = deriveMoveButtonState(
             selection({ isAttackable: true, isInRange: true, sourceIsPlayerOwned: false })

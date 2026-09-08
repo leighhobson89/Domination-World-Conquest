@@ -19,6 +19,13 @@ async function openAttackFrom(game, source) {
     const target = await game.firstEnemyReachableFrom(source);
     expect(target, `${source} could reach no enemy territory`).not.toBeNull();
 
+    //A WAR HAS TO BE DECLARED FIRST. Since the diplomacy phase every pair of countries
+    //starts NEUTRAL and neutral refuses an attack, so without this the move button reads
+    //the relation instead of ATTACK and every test below fails on the setup rather than on
+    //what it is testing. Declaring is what the player will do here too -- this is not a
+    //back door around the gate, it goes through `state/mutations.js` like the game does.
+    await game.declareWarOn(target);
+
     await game.selectOnMap(target);
     expect(await game.moveButton.label()).toBe("ATTACK");
     await game.moveButton.click();

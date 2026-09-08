@@ -176,6 +176,24 @@ describe("the stylesheet knows the classes the controls carry", () => {
     });
 });
 
+describe("the tooltip cannot resize the page", () => {
+    it("is position: fixed and not absolute", () => {
+        //Leigh: *"tooltips near the bottom ... are causing the browser to flicker and
+        //resize when they get too near the bottom"*. An ABSOLUTELY positioned box placed
+        //near the foot of the window extends the DOCUMENT, which raises a scrollbar and
+        //reflows the page -- and the reflow moves whatever the pointer is over, which
+        //moves the tooltip, which is the flicker. A fixed box cannot extend anything.
+        //
+        //The placement arithmetic that keeps the whole box on screen is asserted in
+        //`ui-tooltip-placement.spec.js`; this is the other half, and it is the half that
+        //has no arithmetic to test -- only one declaration that must not drift back.
+        const block = CSS.slice(CSS.indexOf("#tooltip {"));
+        const rule = block.slice(0, block.indexOf("}"));
+        expect(rule).toMatch(/position:\s*fixed/);
+        expect(rule).not.toMatch(/position:\s*absolute/);
+    });
+});
+
 describe("the two resource windows are one design", () => {
     // `ResourceWindow.js` has built Upgrade Territory and Buy Military from one
     // spec since Phase 6.3, but the stylesheet described them twice -- 300 lines

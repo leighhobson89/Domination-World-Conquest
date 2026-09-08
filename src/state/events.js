@@ -24,6 +24,16 @@ export const Events = Object.freeze({
     /** The greyed-out / attackable highlight sets. UI selection, not world state. */
     SELECTION_CHANGED: "selectionChanged",
     /**
+     * The state between two countries changed.
+     *
+     * Payload: `{ a, b, state, previous, since, until }`, with `a` and `b` in the
+     * canonical sorted order the register keys on -- a listener that cares about
+     * one particular country must check BOTH, because a relation has no subject and
+     * no object. `{ replaced: true }` instead when the whole register was swapped by
+     * a save being loaded, which is the same shape the activity log uses.
+     */
+    DIPLOMACY_CHANGED: "diplomacyChanged",
+    /**
      * Something military was written to the activity feed.
      *
      * The one event NOT emitted by `mutations.js`. Its source is

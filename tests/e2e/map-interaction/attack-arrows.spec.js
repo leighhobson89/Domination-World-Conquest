@@ -33,12 +33,30 @@ async function attackableEnemyIds(game) {
     return ids;
 }
 
+/**
+ * Put the player at war with everything Germany can reach, then select it.
+ *
+ * AN ARROW MEANS "YOU CAN ATTACK HERE", and since the diplomacy phase that is a question
+ * about the register rather than about reach: every pair starts NEUTRAL, and no arrow is
+ * drawn at a country the player is not at war with. The hatched highlight still covers
+ * them, because the hatch means REACHABLE and they are -- which is what the last test in
+ * this file pins.
+ *
+ * Declaring on ALL of them rather than on one is what keeps the fan of arrows the subject:
+ * with a single declaration these tests would assert a fan against a world where one arrow
+ * of the fan is legal.
+ */
+async function selectAtWar(game, source) {
+    await game.endBuyPhase();
+    await game.declareWarOnReachable(source);
+    await game.selectOnMap(source);
+}
+
 test.describe("attack arrows", () => {
     test("draws one arrow per attackable territory when an owned one is selected", async ({
         startedGame: game,
     }) => {
-        await game.endBuyPhase();
-        await game.selectOnMap("Germany");
+        await selectAtWar(game, "Germany");
 
         const expected = await attackableEnemyIds(game);
         expect(expected.length).toBeGreaterThan(0);
@@ -52,8 +70,7 @@ test.describe("attack arrows", () => {
     test("points at the enemies only -- the player's own neighbours are a transfer", async ({
         startedGame: game,
     }) => {
-        await game.endBuyPhase();
-        await game.selectOnMap("Germany");
+        await selectAtWar(game, "Germany");
         await expect.poll(async () => (await game.map.attackArrows()).length).toBeGreaterThan(0);
 
         const drawnIds = new Set((await game.map.attackArrows()).map((arrow) => arrow.uniqueId));
@@ -68,8 +85,7 @@ test.describe("attack arrows", () => {
     test("gives every arrow a band that travels, and lets clicks through", async ({
         startedGame: game,
     }) => {
-        await game.endBuyPhase();
-        await game.selectOnMap("Germany");
+        await selectAtWar(game, "Germany");
         await expect.poll(async () => (await game.map.attackArrows()).length).toBeGreaterThan(0);
 
         for (const arrow of await game.map.attackArrows()) {
@@ -87,8 +103,7 @@ test.describe("attack arrows", () => {
     });
 
     test("comes off the map when the selection is cleared", async ({ startedGame: game, page }) => {
-        await game.endBuyPhase();
-        await game.selectOnMap("Germany");
+        await selectAtWar(game, "Germany");
         await expect.poll(async () => (await game.map.attackArrows()).length).toBeGreaterThan(0);
 
         // A click on the sea repaints the map, which is the one route the decorations
@@ -103,6 +118,31 @@ test.describe("attack arrows", () => {
         await expect.poll(async () => (await game.map.attackArrows()).length).toBe(0);
     });
 
+    test("draws no arrow at a country the player is not at war with", async ({
+        startedGame: game,
+    }) => {
+        //THE DIPLOMATIC GATE, on the map. Every pair starts NEUTRAL, so with no declaration
+        //at all there is nothing to attack and no arrow to draw -- while the hatched
+        //highlight still covers those same territories, because the hatch means REACHABLE
+        //and they are. That distinction is the whole reason the arrows are filtered and the
+        //highlight is not: an arrow is a promise the move button would then refuse, and a
+        //province the player cannot reach at all is a different fact from one they may not
+        //yet attack.
+        await game.endBuyPhase();
+        await game.selectOnMap("Germany");
+
+        const reachableEnemies = await attackableEnemyIds(game);
+        expect(reachableEnemies.length).toBeGreaterThan(0);
+        expect(await game.map.attackArrows()).toHaveLength(0);
+
+        //And they come back the moment war is declared, from the same selection.
+        await game.declareWarOnReachable("Germany");
+        await game.selectOnMap("Germany");
+        await expect
+            .poll(async () => (await game.map.attackArrows()).length)
+            .toBe(reachableEnemies.length);
+    });
+
     test("draws nothing in the Buy/Upgrade phase", async ({ startedGame: game }) => {
         await game.selectOnMap("Germany");
         expect(await game.map.attackArrows()).toHaveLength(0);
@@ -111,8 +151,7 @@ test.describe("attack arrows", () => {
     test("redraws on a zoom, thinner in map units so it holds its size on screen", async ({
         startedGame: game,
     }) => {
-        await game.endBuyPhase();
-        await game.selectOnMap("Germany");
+        await selectAtWar(game, "Germany");
         await expect.poll(async () => (await game.map.attackArrows()).length).toBeGreaterThan(0);
 
         const before = await game.map.attackArrows();

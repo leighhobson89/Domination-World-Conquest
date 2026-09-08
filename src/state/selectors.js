@@ -14,6 +14,7 @@
 
 import { __store, isSeeded } from "./GameState.js";
 import { Phase } from "./phases.js";
+import { allowsAttack, DEFAULT_DIPLOMATIC_STATE, relationKey, relationPair } from "./diplomacy.js";
 
 // --- territories -----------------------------------------------------------
 
@@ -242,6 +243,91 @@ export function siegeOn(territoryName) {
 export function besiegedTerritoryNames() {
     const { sieges } = __store();
     return [...new Set([...Object.keys(sieges.player), ...Object.keys(sieges.ai)])];
+}
+
+// --- diplomacy -------------------------------------------------------------
+
+/**
+ * The record for a pair of countries, or null when they have none.
+ *
+ * Null is not an error and is the common answer: the register is sparse, so a pair
+ * with no record is at `DEFAULT_DIPLOMATIC_STATE`. Callers that want the STATE
+ * rather than the record should ask `relationStateBetween()`, which never returns
+ * null.
+ */
+export function relationBetween(a, b) {
+    const key = relationKey(a, b);
+    if (!key) {
+        return null;
+    }
+    const record = __store().diplomacy.relations.get(key);
+    return record ? { ...record } : null;
+}
+
+/**
+ * The state between two countries. Always one of the five, never null.
+ *
+ * A country asked about itself answers NO_CONTACT rather than throwing: the
+ * callers are loops over neighbours, and a territory beside another of its own
+ * flag is an ordinary thing to walk past.
+ */
+export function relationStateBetween(a, b) {
+    return relationBetween(a, b)?.state ?? DEFAULT_DIPLOMATIC_STATE;
+}
+
+/**
+ * May these two attack each other?
+ *
+ * The one question the attack gates ask, on both sides of the game. It is here
+ * rather than at each call site so the player's greyed-out control and the AI's
+ * target rating cannot come to different conclusions.
+ */
+export function countriesMayFight(a, b) {
+    return allowsAttack(relationStateBetween(a, b));
+}
+
+/**
+ * Every country this one has a record with, as
+ * `{ country, state, since, until }`, unordered.
+ *
+ * Only pairs that have a record, so a country that has never met anybody answers
+ * with an empty array -- which is the truth about it rather than 206 rows of
+ * "no contact".
+ */
+export function relationsFor(country) {
+    if (!country) {
+        return [];
+    }
+    const out = [];
+    for (const [key, record] of __store().diplomacy.relations) {
+        const pair = relationPair(key);
+        if (!pair) {
+            continue;
+        }
+        const other = pair[0] === country ? pair[1] : pair[1] === country ? pair[0] : null;
+        if (other === null) {
+            continue;
+        }
+        out.push({ country: other, state: record.state, since: record.since, until: record.until });
+    }
+    return out;
+}
+
+/** The whole register, as `{ a, b, state, since, until }` rows. Diagnostics and saves. */
+export function allRelations() {
+    const out = [];
+    for (const [key, record] of __store().diplomacy.relations) {
+        const pair = relationPair(key);
+        if (pair) {
+            out.push({ a: pair[0], b: pair[1], ...record });
+        }
+    }
+    return out;
+}
+
+/** How many pairs have left NO_CONTACT. Zero at the start of every game. */
+export function relationCount() {
+    return __store().diplomacy.relations.size;
 }
 
 // --- wars ------------------------------------------------------------------

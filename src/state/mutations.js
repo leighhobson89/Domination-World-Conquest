@@ -14,6 +14,14 @@ import { vehicleArmyPersonnelWorth } from "../config/balance.js";
 import { __store, openWriteWindow, closeWriteWindow } from "./GameState.js";
 import { emit, Events } from "./events.js";
 import { isPhase, phaseName } from "./phases.js";
+import {
+    DEFAULT_DIPLOMATIC_STATE,
+    DiplomaticState,
+    isDiplomaticState,
+    relationKey,
+    relationPair,
+    relationRecord
+} from "./diplomacy.js";
 
 /** Run `fn` with the write guard held open. */
 function write(fn) {
@@ -401,6 +409,92 @@ export function setNextAiWarId(warId) {
         store.wars.nextAiWarId = warId;
     });
     return warId;
+}
+
+// --- diplomacy -------------------------------------------------------------
+
+/**
+ * Put a pair of countries into a state.
+ *
+ * The one way the register is written. Three things it enforces, none of which a
+ * caller should have to remember:
+ *
+ *   * the state has to be one of the five, because a typo would otherwise sit in
+ *     the register answering "no" to `allowsAttack()` for the rest of the game and
+ *     look exactly like a peace treaty nobody signed;
+ *   * a pair is stored under its canonical key, so the two directions are one
+ *     record and cannot disagree;
+ *   * setting a pair to the state it is already in changes nothing and emits
+ *     nothing, the same contract `updateTerritory()` has.
+ *
+ * Setting a pair back to NO_CONTACT is refused. Contact is a thing that has
+ * happened, and un-happening it is what a "we have never met" bug would look like.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @param {string} state       one of `DiplomaticState`
+ * @param {object} [options]
+ * @param {number} [options.since]  the turn this state began
+ * @param {number} [options.until]  the turn a CEASEFIRE expires on
+ * @returns {object|null} the new record, or null if nothing was written
+ */
+export function setRelationState(a, b, state, { since = null, until = null } = {}) {
+    const key = relationKey(a, b);
+    if (!key) {
+        console.warn("mutations.setRelationState: not a pair of countries: " + a + ", " + b);
+        return null;
+    }
+    if (!isDiplomaticState(state)) {
+        console.warn("mutations.setRelationState: not a diplomatic state: " + state);
+        return null;
+    }
+    if (state === DiplomaticState.NO_CONTACT) {
+        console.warn(
+            "mutations.setRelationState: " + a + " and " + b +
+            " have met; a pair cannot be returned to no contact"
+        );
+        return null;
+    }
+
+    const store = __store();
+    const existing = store.diplomacy.relations.get(key) ?? null;
+    if (existing && existing.state === state && existing.until === until) {
+        return { ...existing };
+    }
+
+    const record = relationRecord(state, { since, until });
+    write(() => {
+        store.diplomacy.relations.set(key, record);
+    });
+
+    const [first, second] = relationPair(key);
+    emit(Events.DIPLOMACY_CHANGED, {
+        a: first,
+        b: second,
+        state,
+        previous: existing?.state ?? DEFAULT_DIPLOMATIC_STATE,
+        since,
+        until
+    });
+    return { ...record };
+}
+
+/**
+ * Empty the register: every pair back to no contact.
+ *
+ * A new game, and nothing else. It empties the Map IN PLACE rather than replacing
+ * it, for the reason `snapshot.js` gives about the siege lists -- a fresh Map here
+ * would strand any module that had aliased the old one.
+ */
+export function clearRelations() {
+    const store = __store();
+    if (store.diplomacy.relations.size === 0) {
+        return;
+    }
+    write(() => {
+        store.diplomacy.relations.clear();
+    });
+    emit(Events.DIPLOMACY_CHANGED, { replaced: true });
 }
 
 /**

@@ -168,6 +168,34 @@ async function sampleWorld(page) {
         //it first ran away with the game. `continents()` is the same walk the rule reads.
         const continents = window.__game.continents?.() ?? [];
         const completed = continents.filter((row) => row.heldOutrightBy !== null);
+        //THE DIPLOMACY REGISTER. Sparse and derived, so these three are the only view of it
+        //a headless run has -- and without them this phase's characteristic failure is
+        //INVISIBLE. A world that has stopped fighting because everybody is neutral and a
+        //world that has stopped fighting because the AI has run out of targets produce
+        //identical numbers in every other column here: conquests fall, the map goes static,
+        //nothing throws. `atWar` against `agreements` is what separates them, and
+        //`atPeaceWithEveryone` is the count that says how much of the world is sitting out.
+        const relations = window.__game.relations?.() ?? [];
+        const diplomacy = { atWar: 0, neutral: 0, agreements: 0, alliances: 0 };
+        const belligerents = new Set();
+        for (const row of relations) {
+            if (row.state === "war") {
+                diplomacy.atWar++;
+                belligerents.add(row.a);
+                belligerents.add(row.b);
+            } else if (row.state === "neutral") {
+                diplomacy.neutral++;
+            } else {
+                diplomacy.agreements++;
+                if (row.state === "alliance") {
+                    diplomacy.alliances++;
+                }
+            }
+        }
+        diplomacy.contacts = relations.length;
+        //Of the countries still on the map, how many are at war with nobody at all.
+        diplomacy.atPeaceWithEveryone =
+            ranked.filter((row) => !belligerents.has(row.country)).length;
         return {
             turn,
             countries: ranked.length,
@@ -199,6 +227,7 @@ async function sampleWorld(page) {
                     share: row.total === 0 ? 0 : (row.holders[0]?.count ?? 0) / row.total
                 }))
                 .sort((a, b) => b.share - a.share)[0] ?? null,
+            diplomacy,
             activity: counts,
             inLog: totals,
             //The world's whole army, not just the top eight. A run whose army climbs while its
@@ -325,6 +354,13 @@ function formatRow(sample, elapsedMs) {
         `laid ${pad(sample.inLog?.siegeStarted ?? 0, 3)}`,
         `sgWon ${pad(sample.inLog?.siegeWon ?? 0, 3)}`,
         `player ${pad(sample.player, 3)}`,
+        //WHO IS ACTUALLY AT WAR. `war` is pairs at war, `qui` (quiet) is countries at war
+        //with nobody. On the world as it played before diplomacy every adjacent pair was
+        //effectively at war and `qui` would have been near zero; a run where `qui` is most
+        //of the map is a run the gates have stopped, which is a finding and not a bug.
+        `war ${pad(sample.diplomacy?.atWar ?? 0, 4)}`,
+        `qui ${pad(sample.diplomacy?.atPeaceWithEveryone ?? 0, 3)}`,
+        `pacts ${pad(sample.diplomacy?.agreements ?? 0, 3)}`,
         //The continent bonus: how many continents are complete, and how far along the
         //nearest one is. Both are needed -- a run stuck at "0 complete, 41% of Europe"
         //and one stuck at "0 complete, 96% of Europe" are different findings.

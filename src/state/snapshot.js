@@ -38,6 +38,7 @@ import { __store, isSeeded, openWriteWindow, closeWriteWindow } from "./GameStat
 import { referenceDefendingTerritory } from "./sieges.js";
 import { emit, Events } from "./events.js";
 import { isPhase, phaseName } from "./phases.js";
+import { isDiplomaticState, relationKey, relationPair } from "./diplomacy.js";
 
 /** Bumped when the shape below changes in a way an older save cannot satisfy. */
 export const SNAPSHOT_VERSION = 1;
@@ -101,6 +102,19 @@ export function captureState() {
         sieges: {
             player: plainSiegeMap(store.sieges.player),
             ai: plainSiegeMap(store.sieges.ai)
+        },
+        // The diplomacy register, as ROWS rather than as the Map's own entries: a
+        // key carries a control character between the two names, which survives
+        // JSON but is unreadable in a save anybody opens, and the key is derivable
+        // from the pair anyway. Absent from a save taken before diplomacy existed,
+        // and an absent register restores as an empty one -- which is exactly "every
+        // country at no contact", the register's own starting position, so the
+        // snapshot version does not need to move for this.
+        diplomacy: {
+            relations: [...store.diplomacy.relations].flatMap(([key, record]) => {
+                const pair = relationPair(key);
+                return pair ? [{ a: pair[0], b: pair[1], ...record }] : [];
+            })
         },
         ui: {
             greyedOutCountries: [...store.ui.greyedOutCountries],
@@ -200,9 +214,28 @@ export function restoreState(snapshot) {
             }
         }
 
+        //In place, like the siege lists and for the same reason.
+        store.diplomacy.relations.clear();
+        for (const row of snapshot.diplomacy?.relations ?? []) {
+            const key = relationKey(row?.a, row?.b);
+            if (key && isDiplomaticState(row.state)) {
+                store.diplomacy.relations.set(key, {
+                    state: row.state,
+                    since: row.since ?? null,
+                    until: row.until ?? null
+                });
+            }
+        }
+
         store.ui.greyedOutCountries = new Set(snapshot.ui?.greyedOutCountries ?? []);
         store.ui.attackableTerritories = new Set(snapshot.ui?.attackableTerritories ?? []);
     });
+
+    //ONE event for the whole register, the same shape `clearRelations()` uses. The
+    //territories deliberately do not emit -- 359 events to produce one repaint --
+    //but there is exactly one diplomacy register and anything caching a relation
+    //(the territory tooltip does) has to be told the world underneath it changed.
+    emit(Events.DIPLOMACY_CHANGED, { replaced: true });
 
     if (store.turn !== previousTurn) {
         emit(Events.TURN_CHANGED, { turn: store.turn, previous: previousTurn });

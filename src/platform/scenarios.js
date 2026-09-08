@@ -25,6 +25,8 @@
  * @property {string} [description]
  * @property {Array<{ territory: string, patch: object }>} [territories]
  * @property {Array<object>} [sieges]
+ * @property {Array<{ a: string, b: string, state: string, since?: number,
+ *                   until?: number }>} [relations]
  */
 
 /**
@@ -39,6 +41,7 @@ export function applyScenario(scenario, api) {
         name: scenario?.name ?? null,
         territories: [],
         sieges: [],
+        relations: [],
         errors: []
     };
 
@@ -57,6 +60,31 @@ export function applyScenario(scenario, api) {
         // stays quiet -- a scenario is a legitimate write, not a back door.
         api.updateTerritory(territory.uniqueId, entry.patch ?? {});
         report.territories.push(entry.territory);
+    }
+
+    //THE DIPLOMACY REGISTER. A relation is exactly the kind of fact this loader exists for:
+    //it is a state of the world with no route to it through the UI at all until Stage 5 of
+    //the diplomacy phase ships a negotiation panel, and even then "these two have been allied
+    //since turn 12" would be a long game rather than a test.
+    //
+    //It is applied BEFORE the sieges below, because a scenario that puts two countries at
+    //peace and then stands a siege between them is describing a siege that outlived the war
+    //it belongs to -- which is a real case worth testing (see Q1 in the plan) and has to be
+    //set up in that order to mean anything.
+    for (const entry of scenario.relations ?? []) {
+        const written = api.setRelationState?.(entry.a, entry.b, entry.state, {
+            since: entry.since ?? null,
+            until: entry.until ?? null
+        });
+        if (!written) {
+            //`setRelationState()` refuses an unknown state, a country paired with itself and
+            //any attempt to go back to no contact, and it warns as it does. A scenario that
+            //silently did not take is the failure this report exists to prevent.
+            report.errors.push(
+                `could not set ${entry.a} / ${entry.b} to "${entry.state}"`);
+            continue;
+        }
+        report.relations.push({ a: entry.a, b: entry.b, state: written.state });
     }
 
     for (const entry of scenario.sieges ?? []) {

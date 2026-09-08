@@ -38,6 +38,11 @@ const HIDDEN = Object.freeze({ visible: false, label: "", variant: null, enabled
  * @param {boolean} selection.isUnderSiege
  * @param {boolean} selection.isAttackable       flagged reachable this selection
  * @param {boolean} selection.isInRange          in the last player-owned reach list
+ * @param {boolean} selection.mayAttack         the player is at WAR with this territory's
+ *        owner. Defaults true, so a caller that does not know about diplomacy behaves as
+ *        the game did before it existed
+ * @param {string} [selection.relationLabel]    how the state reads, for the button
+ * @param {string} [selection.relationCountry]  who the territory belongs to, for the hint
  * @param {boolean} selection.sourceIsPlayerOwned  the PREVIOUS click was the player's
  * @param {number} selection.ownedTerritoryCount
  * @param {number|undefined} selection.siegeTurns
@@ -54,6 +59,9 @@ export function deriveMoveButtonState(selection) {
         isUnderSiege,
         isAttackable,
         isInRange,
+        mayAttack = true,
+        relationLabel = null,
+        relationCountry = null,
         sourceIsPlayerOwned,
         ownedTerritoryCount,
         siegeTurns
@@ -93,6 +101,29 @@ export function deriveMoveButtonState(selection) {
     //An enemy territory. Order matters: a besieged one offers VIEW SIEGE whether or
     //not it is in range, because the player may already have a siege running on it.
     if (sourceIsPlayerOwned && isAttackable && isInRange && !isUnderSiege) {
+        //NOT AT WAR WITH THEM. Leigh's brief for the diplomacy phase, in his own words:
+        //*"in the case of the player has that option greyed out on territories of countrys
+        //with which it has peace"*.
+        //
+        //It is a VISIBLE, DISABLED button and never a hidden one, and that distinction is
+        //the whole value of putting the refusal here rather than filtering the territory
+        //out of the reachable set upstream. A territory that simply stops responding tells
+        //the player nothing; a greyed button carrying the state tells them the province is
+        //in reach, that the reason they cannot take it is diplomatic rather than military,
+        //and — once declarations land in Stage 3 — exactly which control turns it back on.
+        if (!mayAttack) {
+            return {
+                visible: true,
+                label: relationLabel ? relationLabel.toUpperCase() : "NOT AT WAR",
+                variant: "disabled",
+                enabled: false,
+                //Left alone, like the deactivated branch above: this is not a live
+                //selection and must not overwrite whatever mode the last one chose.
+                mode: null,
+                target: null,
+                hint: diplomaticHint(relationLabel, relationCountry)
+            };
+        }
         return {
             visible: true,
             label: "ATTACK",
@@ -115,6 +146,46 @@ export function deriveMoveButtonState(selection) {
     }
 
     return HIDDEN;
+}
+
+
+/**
+ * What the greyed button says on hover.
+ *
+ * IT IS DERIVED AND NOT MATCHED ON THE LABEL. The move button's `mouseover` decides its
+ * tooltip by reading `button.innerHTML` against a chain of literals -- which worked while
+ * every label was a fixed string, and cannot work for a label that is now one of five
+ * relation names. Reading a label back to decide anything is the defect the battle bar
+ * records at length; this returns the sentence with the state, and `ui.js` only has to
+ * show it.
+ *
+ * The wording states the FACT and does not promise a control. Declaring war is Stage 3 of
+ * the diplomacy phase, so a hint saying "click to declare war" would be a lie today and
+ * would have to be found and changed later; "requires a declaration of war" is true now
+ * and stays true when the button that makes one arrives.
+ */
+function diplomaticHint(relationLabel, relationCountry) {
+    //Never a demonym: there are no adjective forms for 207 country names, so every
+    //phrasing here is built to use the name as a noun. The activity feed's own rule.
+    const them = relationCountry ? relationCountry : "this country";
+    switch (relationLabel) {
+        case "At peace":
+            return `You are at peace with ${them}. Attacking would mean breaking the peace, ` +
+                "which requires a declaration of war and carries a penalty.";
+        case "Ceasefire":
+            return `A ceasefire holds between you and ${them}. Neither side may attack ` +
+                "while it stands.";
+        case "Allied":
+            return `${them} is your ally. You cannot attack an ally without breaking the ` +
+                "alliance, which is the most costly thing you can do in this game.";
+        case "No contact":
+            return `You have never had dealings with ${them}, so there is nothing between ` +
+                "you to fight over yet.";
+        case "Neutral":
+        default:
+            return `You are not at war with ${them}. Neither side has declared, and until ` +
+                "one does, neither may attack the other.";
+    }
 }
 
 /**

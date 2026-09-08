@@ -1460,20 +1460,11 @@ function tooltipPurchaseMilitaryRow(territoryData, availablePurchases, event) {
     `;
 
     tooltip.setContent(tooltipContent);
-    tooltip.show();
-
-    const tooltipHeight = tooltip.height();
-    const verticalThreshold = tooltipHeight + 25;
-    const windowHeight = window.innerHeight;
-
-    tooltip.hide();
-
-    if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
-        tooltip.moveTo(x - 40, y - verticalThreshold);
-    } else {
-        tooltip.moveTo(x - 40, y + 25);
-    }
-
+    //`placeNear()` measures the box itself, invisibly and once per change of content.
+    //What stood here showed the box, read its height, hid it, moved it and showed it
+    //again -- two forced reflows and a visible flash in the wrong place, on every
+    //mousemove.
+    tooltip.placeNear(x, y);
     tooltip.show();
 }
 
@@ -1567,20 +1558,11 @@ function tooltipUpgradeTerritoryRow(territoryData, availableUpgrades, event) {
 
     tooltip.setContent(tooltipContent);
 
-    tooltip.show();
-
-    const tooltipHeight = tooltip.height();
-    const verticalThreshold = tooltipHeight + 25;
-    const windowHeight = window.innerHeight;
-
-    tooltip.hide();
-
-    if (windowHeight - y < verticalThreshold && y - verticalThreshold >= 0) {
-        tooltip.moveTo(x - 40, y - verticalThreshold);
-    } else {
-        tooltip.moveTo(x - 40, y + 25);
-    }
-
+    //`placeNear()` measures the box itself, invisibly and once per change of content.
+    //What stood here showed the box, read its height, hid it, moved it and showed it
+    //again -- two forced reflows and a visible flash in the wrong place, on every
+    //mousemove.
+    tooltip.placeNear(x, y);
     tooltip.show();
 }
 
@@ -1675,16 +1657,7 @@ function tooltipUIArmyRow(row, territoryData, event) {
         tooltip.setContent(tooltipContent);
     }
 
-    const tooltipHeight = tooltip.height();
-    const verticalThreshold = tooltipHeight + 25;
-
-    if (window.innerHeight - y < verticalThreshold) {
-
-        tooltip.moveTo(x - 40, y - tooltipHeight);
-    } else {
-        tooltip.moveTo(x - 40, 25 + y);
-    }
-
+    tooltip.placeNear(x, y);
     tooltip.show();
 
     row.style.cursor = "pointer";
@@ -1813,16 +1786,7 @@ function tooltipUITerritoryRow(row, territoryData, event) {
         tooltip.setContent(tooltipContent);
     }
 
-    const tooltipHeight = tooltip.height();
-    const verticalThreshold = tooltipHeight + 25;
-
-    if (window.innerHeight - y < verticalThreshold) {
-
-        tooltip.moveTo(x - 40, y - tooltipHeight);
-    } else {
-        tooltip.moveTo(x - 40, 25 + y);
-    }
-
+    tooltip.placeNear(x, y);
     tooltip.show();
 
     row.style.cursor = "pointer";

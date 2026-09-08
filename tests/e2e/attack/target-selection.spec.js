@@ -18,6 +18,10 @@ async function aimAtEnemy(game, source) {
     const target = await game.firstEnemyReachableFrom(source);
     expect(target, `${source} could reach no enemy territory`).not.toBeNull();
 
+    //Neutral refuses an attack, so the target has to be an enemy before the button can
+    //offer one. See the note in `attack-window.spec.js`.
+    await game.declareWarOn(target);
+
     await game.selectOnMap(target);
     return target;
 }
@@ -66,6 +70,10 @@ test.describe("choosing a target", () => {
 
         const target = await game.firstEnemyReachableFrom("Hokkaido");
         test.skip(!target, "Hokkaido could reach no enemy territory");
+
+        //This test builds its own sequence rather than using `aimAtEnemy()` above, because
+        //it starts a second game as a different country -- so it needs its own declaration.
+        await game.declareWarOn(target);
 
         await game.selectOnMap(target);
         expect(await game.moveButton.label()).toBe("ATTACK");

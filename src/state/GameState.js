@@ -66,6 +66,23 @@ const store = {
         ai: {}
     },
 
+    // The diplomacy register: what state each pair of countries is in.
+    //
+    // Keyed by `relationKey()` from `diplomacy.js`, which sorts the two names, so
+    // there is exactly one record per unordered pair and the two directions cannot
+    // disagree. The map is SPARSE and that is the whole design: 207 countries make
+    // 21,321 pairs, and a pair with no record is at NO_CONTACT -- so an empty map
+    // means "every country at no contact with every other", which is the register's
+    // documented starting position and costs nothing to store or to save.
+    //
+    // A record existing is therefore also the permanent proof that the two have
+    // MET: no contact can be left but never returned to, so there is no separate
+    // "have they ever touched" set to keep in step with this one.
+    diplomacy: {
+        /** @type {Map<string, {state: string, since: number|null, until: number|null}>} */
+        relations: new Map()
+    },
+
     // Transient selection state that used to be stored on the SVG paths as the
     // `greyedOut` and `attackableTerritory` attributes. It is UI state rather than
     // world state, but Phase 4.4's rule is that no game fact is read back out of a
@@ -240,6 +257,9 @@ export function __resetStateForTests() {
         nextAiWarId: 0
     };
     store.sieges = { player: {}, ai: {} };
+    //Emptied in place rather than replaced, for the reason `snapshot.js` records: a
+    //fresh Map here would strand anything holding a reference to the old one.
+    store.diplomacy.relations.clear();
     store.ui = { greyedOutCountries: new Set(), attackableTerritories: new Set() };
     store.seeded = false;
     violations.length = 0;

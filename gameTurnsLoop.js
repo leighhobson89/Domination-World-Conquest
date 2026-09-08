@@ -137,8 +137,12 @@ import {
     historicWarsList,
     warIds,
     greyedOutCountryNames,
-    siegeOn
+    siegeOn,
+    allRelations,
+    relationStateBetween
 } from './src/state/selectors.js';
+import { DiplomaticState } from './src/state/diplomacy.js';
+import { refreshDiplomaticContacts } from './src/state/diplomacyContacts.js';
 import {
     advanceTurn,
     setTerritoryOwner,
@@ -146,7 +150,8 @@ import {
     updateTerritory,
     addSiege,
     setNextWarId,
-    setNextAiWarId
+    setNextAiWarId,
+    setRelationState
 } from './src/state/mutations.js';
 import {
     Phase,
@@ -251,6 +256,21 @@ installTestHooks({
             holders: holders.slice(0, 4)
         };
     }),
+    //THE DIPLOMACY REGISTER. Sparse, derived from a walk of the map, and carried by no DOM
+    //anywhere -- so a spec has no other way to see it. `declareWar()` is a WRITE and goes
+    //through `mutations.js` like every other one; it exists so that the attacking half of
+    //the e2e suite still has a war to fight now that neutral refuses one.
+    relations: () => allRelations(),
+    relationBetween: (a, b) => ({ a, b, state: relationStateBetween(a, b) }),
+    declareWar: (a, b) => {
+        //The contact walk first: two countries with no record are at no contact, and war
+        //cannot be declared out of that. In the running game contact is made by their
+        //borders touching, which is exactly what a spec's two adjacent territories have
+        //already done -- it simply may not have been walked yet this turn.
+        refreshDiplomaticContacts();
+        setRelationState(a, b, DiplomaticState.WAR, { since: currentTurn() });
+        return { a, b, state: relationStateBetween(a, b) };
+    },
     economyFor: (nameOrId) => derivedEconomyFor(
         getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId)),
     //What the upgrade window would offer for a territory, WITHOUT opening it. `condition` is
@@ -264,6 +284,7 @@ installTestHooks({
     applyScenario: (scenario) => applyScenario(scenario, {
         getTerritoryByName,
         updateTerritory,
+        setRelationState,
         addSiege,
         referenceDefendingTerritory,
         nextWarId: (side) => {
@@ -540,6 +561,19 @@ on(Events.GAME_OVER, (result) => {
 });
 
 function beginTurn() {
+    //THE DIPLOMACY REGISTER, BROUGHT UP TO DATE BEFORE ANYBODY PLANS AGAINST IT.
+    //
+    //`diplomacyContacts.js` also refreshes on `TURN_CHANGED` and lazily when the tooltip
+    //reads it, and neither is early enough on its own: the counter is advanced by
+    //`endTurn`, so on TURN 1 no `TURN_CHANGED` has ever fired, and the tooltip is only
+    //asked if somebody happens to hover. Without this, the AI would plan its first turn
+    //against an EMPTY register — every pair reading as no contact rather than as neutral,
+    //which is a different fact about the world that happens to produce the same refusal.
+    //
+    //It is a no-op unless a territory has changed hands since the last walk, so calling it
+    //at every turn boundary costs nothing on a quiet turn.
+    refreshDiplomaticContacts();
+
     activateAllPlayerTerritoriesForNewTurn();
     activateAiTerritoriesForNewTurn();
 

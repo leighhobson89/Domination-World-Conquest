@@ -196,6 +196,25 @@ export function installTestHooks(accessors) {
         // in force stated alongside, plus the stored capacities so a spec can prove the
         // bonus was never written back onto the territory.
         continents: () => snapshot(accessors.continents?.() ?? []),
+
+        // THE DIPLOMACY REGISTER, read and written.
+        //
+        // `relations()` is every pair that has left no contact, and `relationBetween()` one
+        // pair's state -- the register is sparse and derived from a walk of the map, so
+        // there is no DOM anywhere that carries it.
+        //
+        // `declareWar()` is the WRITE, and it is the one hook here that changes the world
+        // rather than reporting it. It exists because the whole e2e suite fights: from the
+        // moment neutral stops permitting an attack, every attacking spec needs the two
+        // countries at war first, and the alternative to this was `test.fixme` across two
+        // whole functional areas until Stage 3 lands. `GameDriver.openAttackWindow()` calls
+        // it, so almost no spec names it directly.
+        //
+        // It goes through `state/mutations.js` exactly as `applyScenario()` does -- a hook
+        // that wrote the register directly would be testing a path the game never takes.
+        relations: () => snapshot(accessors.relations?.() ?? []),
+        relationBetween: (a, b) => snapshot(accessors.relationBetween?.(a, b) ?? null),
+        declareWar: (a, b) => snapshot(accessors.declareWar?.(a, b) ?? null),
         economyFor: (nameOrId) => snapshot(accessors.economyFor?.(nameOrId) ?? null),
 
         // What the upgrade window would offer for a territory, without opening it. Exists for

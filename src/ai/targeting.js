@@ -36,6 +36,7 @@ import {
     maxForts,
     PLAYER_GRACE_TURNS
 } from "../config/balance.js";
+import { allowsAttack, describeState, DiplomaticState } from "../state/diplomacy.js";
 import { campaignWeightForTarget, Posture } from "./strategy.js";
 import { debugPlanReach } from "./debugPlans.js";
 import { territoryValue } from "./value.js";
@@ -66,7 +67,7 @@ export const Verdict = Object.freeze({
  *
  * @param {{target: object, source: object, probability: number, threatScore: number,
  *          campaign: object, traits: object, country: string,
- *          targetAlreadyBesieged?: boolean}} input
+ *          targetAlreadyBesieged?: boolean, relationState?: string}} input
  * @returns {{verdict: string, score: number, reason: string, value: number, weight: number}}
  */
 export function rateTarget(input) {
@@ -78,11 +79,34 @@ export function rateTarget(input) {
         campaign,
         traits = {},
         country,
-        targetAlreadyBesieged = false
+        targetAlreadyBesieged = false,
+        relationState = DiplomaticState.WAR
     } = input;
 
     if (!target || !source) {
         return skip("no territory");
+    }
+
+    //WHETHER THE TWO COUNTRIES ARE AT WAR AT ALL, and it is asked FIRST -- before the grace
+    //period, before the setbacks and long before the odds -- because it is the only refusal
+    //here that is not a judgement. Everything else in this function weighs a target; this
+    //says the target is not available to be weighed.
+    //
+    //The state arrives as a VALUE rather than being looked up, which is what keeps this
+    //module pure: it reads no store, so the whole "pick your battles" policy stays testable
+    //in Node. `goals.js` is the one caller and it does the reading.
+    //
+    //It defaults to WAR, and that is a deliberate choice between two bad failure modes. A
+    //caller that forgot the field would either let an illegal attack through (this way) or
+    //silently freeze that country (the other way). The first is the one a measurement
+    //catches: `tools/ai-sim.mjs` is run immediately after this lands and the conquest
+    //column going to zero is the proof the gate holds. A silent freeze looks identical to
+    //the gate working.
+    if (!allowsAttack(relationState)) {
+        return skip(
+            "not at war with " + (target.dataName ?? "them") +
+            " (" + describeState(relationState).toLowerCase() + ")"
+        );
     }
 
     //THE PLAYER'S GRACE PERIOD. The AI plans its first turn with full information and there

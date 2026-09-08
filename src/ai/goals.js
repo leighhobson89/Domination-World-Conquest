@@ -46,7 +46,7 @@ import {
     PROBABILITY_THRESHOLD_FOR_SIEGE,
     THREAT_DISREGARD_CONSTANT
 } from "../config/balance.js";
-import { allTerritories } from "../state/selectors.js";
+import { allTerritories, relationStateBetween } from "../state/selectors.js";
 import { Posture } from "./strategy.js";
 import { debugPlanReach } from "./debugPlans.js";
 import { rateTarget, Verdict } from "./targeting.js";
@@ -152,7 +152,18 @@ function getPossibleTurnGoals(sortedThreatArrayInfo, leaderTraits, rng, planning
             campaign,
             traits: leaderTraits,
             country,
-            targetAlreadyBesieged: isBesieged(enemyTerritory.territoryName)
+            targetAlreadyBesieged: isBesieged(enemyTerritory.territoryName),
+            //WHETHER THE TWO ARE AT WAR. Read here rather than inside `rateTarget()`,
+            //which reads no store and must not start -- that purity is what lets the
+            //whole targeting policy be tested in Node.
+            //
+            //It is asked of the SOURCE TERRITORY's owner rather than of `country`, which
+            //falls back through two `??`s and is a fact about the planning country rather
+            //than about this pairing. The register is keyed by the current owner
+            //(`dataName`) on both sides, so a conquered province is asked about under its
+            //new flag from the turn it changes hands.
+            relationState: relationStateBetween(
+                friendlyTerritory.dataName, enemyTerritory.dataName)
         });
 
         //PROBABILITY_THRESHOLD_FOR_SIEGE stays as a hard floor beneath the campaign's own,

@@ -341,6 +341,7 @@ export class GameDriver {
         if (advancePhase) {
             await this.endBuyPhase();
         }
+        await this.declareWarOn(to);
         await this.selectOnMap(from);
         await this.selectOnMap(to);
         await this.page.waitForFunction(
@@ -355,6 +356,38 @@ export class GameDriver {
             ids.transferAttackWindowContainer,
             { timeout: 30_000 }
         );
+    }
+
+    /**
+     * Put the player and the owner of `territoryName` at war, so an attack is legal.
+     *
+     * FROM THE DIPLOMACY PHASE ONWARDS A NEUTRAL COUNTRY CANNOT BE ATTACKED, and every pair
+     * on the map starts neutral. Without this, every spec in `attack/` and `battle/` and a
+     * good part of `turn-loop/` would have to be `test.fixme` until declarations ship — for
+     * a state of the world that is a deliberate intermediate step rather than a defect.
+     *
+     * So the harness declares. It goes through `window.__game.declareWar()`, which writes
+     * the register through `state/mutations.js` exactly as the game will, so a spec is
+     * still exercising the real path and not a back door around it.
+     *
+     * It is called from `openAttackWindow()` rather than from each spec: that is the one
+     * door every attacking spec already goes through, which is why this is one change here
+     * instead of a hundred changes out there. A spec that wants to prove the GATE holds
+     * simply drives the map without it.
+     */
+    async declareWarOn(territoryName) {
+        const owner = await this.page.evaluate(
+            (name) => window.__game?.territory(name)?.dataName ?? null, territoryName);
+        //The player's COUNTRY, which is what the register is keyed by -- not "Player",
+        //which is the `owner` field. Taken off a territory they hold rather than through a
+        //hook of its own, because that accessor already exists.
+        const player = await this.page.evaluate(
+            () => window.__game?.territoriesOwnedBy("Player")?.[0]?.dataName ?? null);
+        if (!owner || !player || owner === player) {
+            return;
+        }
+        await this.page.evaluate(
+            ([a, b]) => window.__game.declareWar(a, b), [player, owner]);
     }
 
     async launchWholeGarrison({ from, to, unit = "naval", advancePhase = true }) {
@@ -546,6 +579,32 @@ export class GameDriver {
     }
 
     /** The first reachable territory NOT owned by the player, or null. */
+    /**
+     * Declare war on the owner of every enemy territory reachable from this one.
+     *
+     * The bulk form of `declareWarOn()`, for the specs that assert what the map draws for a
+     * SELECTION rather than for one chosen target -- the attack arrows are one per reachable
+     * enemy, so a spec that declared on only one of them would be asserting a fan of arrows
+     * against a world where only one of the fan is legal.
+     *
+     * @returns {string[]} the countries declared on, for a spec that wants to say so
+     */
+    async declareWarOnReachable(territoryName) {
+        const reachable = await this.interactableFrom(territoryName);
+        const declaredOn = [];
+        for (const name of reachable ?? []) {
+            const territory = await this.territory(name);
+            if (!territory || territory.owner === "Player") {
+                continue;
+            }
+            if (!declaredOn.includes(territory.dataName)) {
+                await this.declareWarOn(name);
+                declaredOn.push(territory.dataName);
+            }
+        }
+        return declaredOn;
+    }
+
     async firstEnemyReachableFrom(territoryName) {
         const reachable = await this.interactableFrom(territoryName);
         for (const name of reachable ?? []) {

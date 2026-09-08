@@ -164,6 +164,8 @@ import {
     playerCountryName,
     playerColour,
     playerTerritories,
+    relationsFor,
+    relationStateBetween,
 } from './src/state/selectors.js';
 import {
     setPhase,
@@ -223,6 +225,9 @@ import {
     militaryTooltipLines
 } from './src/ui/map/militaryView.js';
 import { upgradeTooltipRows } from './src/ui/map/upgradeTooltip.js';
+import { diplomacyTooltipRows } from './src/ui/map/diplomacyTooltip.js';
+import { allowsAttack, describeState } from './src/state/diplomacy.js';
+import { ensureDiplomaticContacts } from './src/state/diplomacyContacts.js';
 import {
     CLOUD_MODES,
     attachCloudOverlay,
@@ -581,6 +586,9 @@ export function svgMapLoaded() {
     //pointer arrived -- which is precisely the turn a player is watching it for.
     onStateEvent(Events.TERRITORY_CHANGED, () => { tooltipStale = true; });
     onStateEvent(Events.TURN_CHANGED, () => { tooltipStale = true; });
+    //A declaration, a truce or an alliance changes what the tooltip says about a territory
+    //without changing anything on it, so neither of the two above would catch it.
+    onStateEvent(Events.DIPLOMACY_CHANGED, () => { tooltipStale = true; });
 
     svgMap.addEventListener("mouseover", function(e) {
         const element = e.target;
@@ -1922,10 +1930,18 @@ function highlightInteractableCountriesAfterSelectingOne(targetPath, destCoordsA
         //attack, so they are drawn only to the enemy territories in the set, and not
         //to one still inside its post-conquest lockout, which cannot be attacked at
         //all.
+        //
+        //AND NOT TO A COUNTRY THE PLAYER IS NOT AT WAR WITH. The hatching stays on those,
+        //deliberately: the hatch means REACHABLE and they are, which is the fact the player
+        //needs in order to understand why a border is worth a declaration. An arrow means
+        //*you can attack here*, so drawing one at a neutral neighbour would be a promise
+        //the move button then refuses.
         showAttackArrows(
             targetPath,
             validDestinationsArray.filter(
-                destination => !pathIsPlayerOwned(destination) && !pathIsDeactivated(destination)
+                destination => !pathIsPlayerOwned(destination) &&
+                    !pathIsDeactivated(destination) &&
+                    playerAttackPermission(destination).mayAttack
             )
         );
     } else {
@@ -2168,6 +2184,32 @@ function setAllGreyedOutAttributesToFalseOnGameStart() {
     clearGreyedOutCountries();
 }
 
+
+/**
+ * Whether the player may attack this territory, and how to say so if not.
+ *
+ * The register is keyed by COUNTRY, and a country is `dataName` -- the current owner, which
+ * changes on conquest. `pathOwner()` is not it: that answers "Player" on the player's own
+ * land, and the tooltip's first version was wrong in exactly this way.
+ *
+ * Spectator mode has no player, so there is nobody to be at war; the permission is granted
+ * rather than refused, because a debug mode that froze the world it exists to watch would be
+ * useless.
+ */
+function playerAttackPermission(path) {
+    const player = playerCountryName();
+    const owner = pathCountry(path);
+    if (!player || !owner || owner === player) {
+        return { mayAttack: true, relationLabel: null };
+    }
+    const state = relationStateBetween(player, owner);
+    return {
+        mayAttack: allowsAttack(state),
+        relationLabel: describeState(state),
+        relationCountry: owner
+    };
+}
+
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
     moveButton.hide();
     transferAttackButtonDisplayed = false;
@@ -2204,6 +2246,12 @@ function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinati
         isUnderSiege: pathIsUnderSiege(path),
         isAttackable: pathIsAttackable(path),
         isInRange: inRange,
+        //THE DIPLOMATIC GATE ON THE PLAYER'S ATTACK. `countriesMayFight()` is the same
+        //selector the AI's `rateTarget()` is refused by, and that is deliberate: two gates
+        //answering the same question separately will eventually answer it differently,
+        //which is the rule the dice model established when the AI stopped having its own
+        //combat resolver.
+        ...playerAttackPermission(path),
         sourceIsPlayerOwned: pathIsPlayerOwned(lastClickedPathExternal),
         ownedTerritoryCount: playerOwnedTerritories.length,
         siegeTurns: siege ? siege.turnsInSiege : undefined
@@ -2241,6 +2289,11 @@ function applyMoveButtonState(state) {
     moveButton.setEnabled(state.enabled);
     moveButton.show();
     transferAttackButtonDisplayed = true;
+    //THE HOVER TEXT IS DERIVED, NOT MATCHED ON THE LABEL. The `mouseover` below decides its
+    //tooltip from `button.innerHTML` against a chain of fixed strings, which cannot work now
+    //that a label may be any of five relation names. Anything that carries a `hint` is
+    //answered from it and the chain is not consulted at all.
+    moveButtonHint = state.hint ?? null;
     if (state.mode !== null) {
         transferAttackButtonState = state.mode;
     }
@@ -2248,6 +2301,8 @@ function applyMoveButtonState(state) {
 
 let moveButtonOwnedTerritories = [];
 let moveButtonSource = null;
+/** The sentence `deriveMoveButtonState()` chose for this selection, or null. */
+let moveButtonHint = null;
 
 function recordMoveButtonContext(ownedTerritories, source) {
     moveButtonOwnedTerritories = ownedTerritories;
@@ -2400,13 +2455,10 @@ function installMoveButtonHandlers() {
         const x = e.clientX;
         const y = e.clientY;
 
-        if (window.innerHeight - y < 100) {
-            tooltip.moveTo(x - 40, y - 50);
-        } else {
-            tooltip.moveTo(x - 40, 25 + y);
-        }
-
-        if (button.disabled) {
+        if (moveButtonHint) {
+            //Derived, so it survives a label that changes with the diplomatic state.
+            tooltip.setContent(moveButtonHint);
+        } else if (button.disabled) {
             if (button.innerHTML === "DEACTIVATED") {
                 tooltip.setContent("You cannot transfer or attack from this territory until next turn!");
             } else if (button.innerHTML === "TRANSFER") {
@@ -2426,6 +2478,8 @@ function installMoveButtonHandlers() {
             tooltip.setContent("Click to view the war and options to lift the siege!");
         }
 
+        //After the content, because the box has to be measured to be placed.
+        tooltip.placeNear(x, y);
         tooltip.show();
 
     });
@@ -2603,12 +2657,6 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
             const x = e.clientX;
             const y = e.clientY;
 
-            if (window.innerHeight - y < 100) {
-                tooltip.moveTo(x - 40, y - 50);
-            } else {
-                tooltip.moveTo(x - 40, 25 + y);
-            }
-
             let tooltipContent = `
             <div style="white-space: nowrap;">
                 <div>Army Breakdown:</div>
@@ -2660,6 +2708,7 @@ function setTransferAttackWindowTitleText(territory, country, territoryComingFro
 
             tooltip.setContent(tooltipContent);
 
+            tooltip.placeNear(x, y);
             tooltip.show();
         });
         headerRow.addEventListener("mouseout", () => {
@@ -4975,7 +5024,10 @@ function updateTerritoryTooltip(event) {
 
     const x = event.clientX;
     const y = event.clientY;
-    tooltip.moveTo(x - 40, window.innerHeight - y < 100 ? y - 30 : 25 + y);
+    //One rule for every tooltip in the game, and it needs the content already set:
+    //below the pointer when the whole box fits, lifted above it by its OWN height
+    //when it does not, clamped into the window on both axes. See `placeNear()`.
+    tooltip.placeNear(x, y);
     tooltip.show();
 }
 
@@ -4999,7 +5051,29 @@ function territoryTooltipLabel(path, countryName) {
     //selecting a province and opening a window. Nothing is drawn for a kind with none of it --
     //four zero rows on nine tenths of the map is a tooltip people stop reading.
     const upgradeRows = upgradeTooltipRows(territory, { owned: pathIsPlayerOwned(path) });
-    if (!continentLine && !leaderLine && militaryLines.length === 0 && upgradeRows.length === 0) {
+    //WHO THIS COUNTRY IS AT WAR, AT PEACE OR ALLIED WITH. The register is brought up to date
+    //first: a border that closed during the AI's turn should be in contact the moment somebody
+    //looks at it, rather than only after the next turn boundary. It is a no-op unless the world
+    //has changed since the last ask.
+    ensureDiplomaticContacts();
+    const relationCountry = territory?.dataName ?? countryName;
+    const relations = diplomacyTooltipRows({
+        //`dataName` and NOT `countryName`. The label above is `pathOwner()`, which reads
+        //"Player" on the player's own land -- so passing it here made the player's own
+        //territory take the "somebody else's country" branch and list the player's country
+        //as a foreign power at no contact with itself. The register is keyed by COUNTRY,
+        //and the country is `dataName`: the current owner, which is what changes on
+        //conquest. Confirmed in the browser rather than by reading, which is where it
+        //surfaced.
+        country: relationCountry,
+        //Spectator mode has no player, so there is nobody to put first.
+        playerCountry: isAiGameActive() ? null : playerCountryName(),
+        relations: relationsFor(relationCountry)
+    });
+    if (
+        !continentLine && !leaderLine && militaryLines.length === 0 &&
+        upgradeRows.length === 0 && relations.rows.length === 0
+    ) {
         return label;
     }
 
@@ -5017,6 +5091,16 @@ function territoryTooltipLabel(path, countryName) {
         html += '<div class="tooltip-upgrade">' +
             '<img src="./resources/' + row.icon + '" alt="">' +
             "<span>" + row.label + ": " + row.count + "</span></div>";
+    }
+    if (relations.rows.length > 0) {
+        html += '<div class="tooltip-relations-heading">Relations</div>';
+        for (const row of relations.rows) {
+            html += '<div class="tooltip-relation is-' + row.tone + '">' + row.label + "</div>";
+        }
+        if (relations.more > 0) {
+            html += '<div class="tooltip-relation is-muted">…and ' + relations.more +
+                " more</div>";
+        }
     }
     return html;
 }

@@ -44,6 +44,18 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   which is where **E1, the military map view**, now lives.
   The numerical items — the cliff, the target band, the unspent army — stay in the register and
   are deliberately NOT on it.
+- [docs/06-diplomacy.md](./docs/06-diplomacy.md) — **the phase in flight**, with
+  [its checklist](./docs/06-diplomacy-checklist.md). Peace and war as a STATE PER PAIR of
+  countries, rather than the permanent undeclared all-out war the map has always been in. Six
+  states — no contact, neutral, war, ceasefire, peace, alliance — and **first contact is
+  NEUTRAL**, which is Leigh's decision and the one that orders the whole phase: `allowsAttack()`
+  permits WAR and nothing else, so wiring the attack gates before the declaration rules exist
+  would freeze the entire world, which is known-issue **BA** exactly — nothing throws, every
+  turn completes, and the map quietly stops changing. **Stage 0 has landed and changes no
+  outcome**: the register, first contact, save/load and the map tooltip are in, and nothing
+  reads the register to decide anything, so the AI still attacks whoever it likes while the
+  register calls the pair neutral. That disagreement is the ordering, not a defect. Nine
+  questions are open in its §7.
 - **Combat and Conquest is DELIVERED and ARCHIVED**
   ([audit](./docs/archived/05-combat-and-conquest-audit.md),
   [checklist](./docs/archived/06-combat-and-conquest-checklist.md)). Read the checklist's closing
@@ -71,8 +83,9 @@ there. They
 record why the code is shaped as it is, but they do not describe outstanding work — where one
 contradicts a numbered document, the numbered document wins. **The numbers are reused when a
 plan is archived**, so `05` and `06` are the current phase and the archived documents keep the
-numbers they were written under. **There is no phase in flight right now**: `05` is the standing
-list of what to do next and `06` is free for whichever item is taken up as the next phase.
+numbers they were written under. **The phase in flight is DIPLOMACY** — `05` is still the
+standing list of what to do next, and `06` is now [the diplomacy design](./docs/06-diplomacy.md)
+and [its checklist](./docs/06-diplomacy-checklist.md).
 
 One thing in the archived Goals and Victory is still live rather than historical: its §5 table
 of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
@@ -557,6 +570,26 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   And **clearing the CONTENT rather than merely hiding** is what makes re-entering the same
   territory rebuild. `hover.spec.js` counts the listeners a hover adds and the answer must be
   zero.
+- **EVERY TOOLTIP IS PLACED BY `placeNear()`, AND `#tooltip` IS `position: fixed`.** Leigh,
+  playing: *"tooltips near the bottom should move above the mouse pointer because they are
+  causing the browser to flicker and resize when they get too near the bottom"*. **Two
+  separate faults produced that and only one of them was arithmetic.** The RESIZE was the box
+  being `position: absolute`, so one placed near the foot of the window extended the DOCUMENT,
+  raised a scrollbar and reflowed the page — and the reflow moved whatever the pointer was
+  over, which moved the tooltip, which is the flicker. It is FIXED now, which is also the more
+  correct of the two since every caller passes `clientX`/`clientY`. The PLACEMENT was **eight
+  copies of the decision** across `ui.js`, `resourceCalculations.js`, `InfoTable.js` and
+  `tableDom.js`, lifting the box by 30, by 50, by its height, or by its height plus 25, with
+  three of them calling "near the bottom" a fixed 100px — measured in the running game, a
+  territory tooltip is **148–216px** tall, so the box was moved up by less than its own height
+  and still ran off the end. There is one rule now: below the pointer when the whole box fits,
+  otherwise lifted by its OWN height, then clamped into the window on both axes.
+  `placementFor()` is the arithmetic, pure and unit-tested for every edge, because that bug
+  survived for years precisely because reproducing it meant hovering the right pixel.
+  **The size is measured INVISIBLY and cached per change of content**: `offsetHeight` is zero
+  while an element is `display: none`, which is why the old callers guessed with a constant —
+  and the four that did measure showed the box, read it, hid it, moved it and showed it again,
+  two forced reflows and a visible flash in the wrong place on every `mousemove`.
 - **THE TOOLTIP SAYS WHAT A TERRITORY HAS BUILT** (`src/ui/map/upgradeTooltip.js`, register item
   M1's second half). Farms, forests, oil wells and forts, each with the game's own artwork
   beside the count — the same picture the Upgrade Territory window draws. Before it, the only
@@ -1520,6 +1553,30 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   through `state/selectors.js`, write it through `state/mutations.js`, and subscribe to
   `state/events.js`. `mainGameArray` is gone: the replacement for "all territories" is
   `allTerritories()`, and for a lookup `getTerritory(uniqueId)` / `getTerritoryByName(name)`.
+- **WHO MAY FIGHT WHOM IS A STATE PER PAIR OF COUNTRIES NOW, AND THE REGISTER IS SPARSE.**
+  `src/state/diplomacy.js` is the vocabulary — six states, and it **imports nothing at all**,
+  the arrangement `phases.js` has, because the enum is read by the store, the selectors, the
+  mutations, the AI and the UI. Five things follow. **A relation is ONE record per UNORDERED
+  pair**, keyed by `relationKey()`, which sorts the two names: there is no "France's relation to
+  Spain" and "Spain's relation to France" to drift apart, which is known-issue **BS** — five
+  straits listed on one side only for the life of the project — designed out rather than
+  asserted after the fact. **The register is SPARSE and an empty one is the whole starting
+  position**: 207 countries make 21,321 pairs, a pair with no record is at NO_CONTACT, and a
+  record existing is also the permanent proof the two have met, so there is no second "have they
+  ever touched" set to keep in step. That is also why **the snapshot version did not move** — a
+  save taken before diplomacy existed restores an empty register, which is correct. **The
+  country is `dataName` and never `owner`**: `pathOwner()` reads "Player" on the player's own
+  land, and passing it to the tooltip made the player's own territory list the player's own
+  country as a foreign power at no contact with itself — found by hovering the running game,
+  not by reading it. **Contact is RE-DERIVED, coalesced, and only ever one-way**: a conquest is
+  precisely how two countries on opposite sides of the world come to share a border, so
+  `diplomacyContacts.js` walks on a dirty flag rather than at seeding (a busy turn 1 logs
+  fifty-one conquests against a ~1,900-pairing walk), and a border that closes up again never
+  undoes a relationship. And **`FIRST_CONTACT_STATE` is NEUTRAL, which is why nothing gates on
+  the register yet**: `allowsAttack()` permits WAR and nothing else, so pointing the attack
+  gates at it before the declaration rules exist would freeze the world exactly as known-issue
+  **BA** did. Until then the register and the running game disagree on purpose. See
+  [docs/06-diplomacy.md](./docs/06-diplomacy.md).
 - **The SVG path attributes are output, not state.** `owner`, `data-name`, `deactivated`,
   `underSiege`, `greyedOut` and `attackableTerritory` are written **only** by
   `src/ui/mapAttributeSync.js`, from store events. Never write one directly and never read one

@@ -94,7 +94,13 @@
 }
 
 #tooltip {
-  position: absolute;
+  /* FIXED, not absolute. An absolutely-positioned box placed near the foot of the
+     window extends the DOCUMENT, which raises a scrollbar and reflows the page --
+     and the reflow moves whatever the pointer is over, which moves the tooltip,
+     which is the flicker Leigh reported. A fixed box cannot extend anything. The
+     coordinates every caller passes are clientX/clientY, which are viewport
+     coordinates, so fixed is also the more correct of the two. */
+  position: fixed;
   display: none;
   pointer-events: none;
   padding: 5px;
@@ -5063,6 +5069,40 @@ td {
 .tooltip-leader {
   opacity: 0.85;
   font-style: italic;
+}
+
+/* The diplomacy block on the territory tooltip: who this country is at war, at truce, at
+   peace or allied with. The heading earns its line because the rows underneath are country
+   names, which would otherwise be indistinguishable from the leader and continent lines
+   above them. The tone is a class rather than a colour at the call site, because style.css
+   is the only place allowed to name a colour and it may only do so as a token. */
+.tooltip-relations-heading {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85em;
+  letter-spacing: var(--display-tracking);
+  opacity: 0.7;
+}
+
+.tooltip-relation {
+  font-size: 0.95em;
+}
+
+.tooltip-relation.is-hostile {
+  color: var(--negative);
+}
+
+.tooltip-relation.is-caution {
+  color: var(--siege-amber);
+}
+
+.tooltip-relation.is-friendly {
+  color: var(--positive);
+}
+
+.tooltip-relation.is-muted {
+  color: var(--text-muted);
 }
 
 .activity-card {
