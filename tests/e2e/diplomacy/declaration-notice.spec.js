@@ -68,9 +68,13 @@ test.describe("being declared on", () => {
             via: "declared",
         });
 
-        //The queue is drained at the END of the turn, after the defences -- a call answered
-        //over a battle-results screen would be answered through it.
-        await game.endTurn();
+        //A WHOLE TURN, not `endTurn()`. The driver's `endTurn()` presses the phase button ONCE
+        //and then waits for the counter; pressed from Buy/Upgrade that only reaches the
+        //Military phase, so the counter never moves and the wait times out with the button
+        //still offering END TURN. `playTurn()` is the complete cycle, and the queue is drained
+        //at the end of it -- after the defences, because a call answered over a
+        //battle-results screen would be answered through it.
+        await game.playTurn();
 
         const seen = await game.page.evaluate(() => window.__seenDialogs);
         const declarations = seen.filter(entry => entry.title.includes("declares war on you"));
@@ -93,7 +97,7 @@ test.describe("being declared on", () => {
         await watchDialogs(game);
 
         await game.declareWarOn("France");
-        await game.endTurn();
+        await game.playTurn();
 
         const seen = await game.page.evaluate(() => window.__seenDialogs);
         expect(seen.filter(entry => entry.title.includes("declares war on you"))).toHaveLength(0);
@@ -111,7 +115,7 @@ test.describe("being declared on", () => {
             by: null,
             via: "expired",
         });
-        await game.endTurn();
+        await game.playTurn();
 
         const seen = await game.page.evaluate(() => window.__seenDialogs);
         expect(seen.filter(entry => entry.title.includes("declares war on you"))).toHaveLength(0);

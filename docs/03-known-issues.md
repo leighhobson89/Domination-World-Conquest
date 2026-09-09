@@ -123,6 +123,22 @@ not fixed in passing.
 
 ---
 
+## Left unverified
+
+| What | Why |
+|---|---|
+| **`tests/e2e/diplomacy/declaration-notice.spec.js` has not been run since its last fix.** Three specs in it failed on `page.waitForFunction` timing out, and the failure artefact settles the cause beyond reasonable doubt: the page snapshot shows the phase button still offering **END TURN**, so the turn had not completed. The specs called `GameDriver.endTurn()`, which presses the phase button ONCE and then waits for the turn counter — pressed from Buy/Upgrade that only reaches the Military phase, so the counter never moves. `playTurn()` is the complete cycle and is what they call now. **The behaviour itself is verified** — driven in a browser, three countries declared on a one-territory player on turn 7 and each raised a one-button notice, and the turn loop ran fifteen turns without blocking — so what is outstanding is the SPEC and not the feature | include `diplomacy` in the next run |
+
+**A finding worth keeping from the same session, because it cost three false failures.**
+`playwright.config.js` sets `reuseExistingServer: !process.env.CI`, so the first e2e run of a
+session builds and serves `build/` and **every run after it reuses that server against the build
+as it was at the first run**. Three specs — both of `diplomacy/defeated.spec.js` and
+`gates.spec.js` — failed in a seven-area run and passed on the next run with nothing changed
+except that the previous server had exited. `CLAUDE.md` has carried this as a gotcha for a long
+time; what this adds is the symptom, which is a spec failing for a fix that is already in the
+tree. **Check `netstat -ano | grep :4173` for a LISTENING socket before trusting any e2e result
+taken after an edit.**
+
 ## How this register is kept
 
 - **One entry per open issue, and the entry leaves when the issue closes** — moved to
