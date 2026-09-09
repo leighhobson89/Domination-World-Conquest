@@ -265,6 +265,87 @@ describe("the move-phase button, for an enemy territory", () => {
     });
 });
 
+describe("declaring war, from the attack control", () => {
+    // Diplomacy checklist stage 3.2. Leigh named two ways into a war -- *"changing state by
+    // communication diplomacy and also declaring without chatting too"* -- and this is the
+    // second: a bare declaration, no negotiation, taken from the control the player was
+    // already reaching for.
+    //
+    // `mayDeclare` DEFAULTS TO FALSE, deliberately. A caller that has not been taught about
+    // declarations behaves exactly as the game did in stage 2: the button is greyed and says
+    // why. The alternative default would offer a control that leads nowhere.
+    const declarable = (overrides = {}) => selection({
+        isAttackable: true,
+        isInRange: true,
+        sourceIsPlayerOwned: true,
+        mayAttack: false,
+        mayDeclare: true,
+        relationLabel: "Neutral",
+        relationCountry: "France",
+        ...overrides
+    });
+
+    it("offers DECLARE WAR in place of the greyed button", () => {
+        expect(deriveMoveButtonState(declarable())).toMatchObject({
+            visible: true,
+            label: "DECLARE WAR",
+            enabled: true,
+            mode: MoveMode.DECLARE,
+            target: null
+        });
+    });
+
+    it("does not wear the attack colour", () => {
+        //A declaration is not an attack and must not look like the button that opens one:
+        //the next click after this one is ATTACK, in the same place, and two identical red
+        //buttons a click apart is how a player invades a country they meant to threaten.
+        expect(deriveMoveButtonState(declarable()).variant).not.toBe("attack");
+    });
+
+    it("arms no attack target", () => {
+        //The marker and its target are one fact (`markers.js`), and arming one for a
+        //territory the player may not yet attack would leave it on the map with no way off.
+        const state = deriveMoveButtonState(declarable());
+        expect(state.target).toBeNull();
+    });
+
+    it("says why the territory cannot be attacked BEFORE it offers the declaration", () => {
+        //The design's own order: *"the attack control says why a territory cannot be
+        //attacked before it offers the declaration. A greyed control with no reason is a
+        //bug report waiting to be filed."*
+        const hint = deriveMoveButtonState(declarable()).hint;
+        expect(hint).toContain("France");
+        expect(hint).toContain("not at war");
+        expect(hint.indexOf("not at war")).toBeLessThan(hint.indexOf("Declaring war"));
+    });
+
+    it("warns that an agreement would be broken", () => {
+        const hintFor = (relationLabel) =>
+            deriveMoveButtonState(declarable({ relationLabel })).hint;
+        expect(hintFor("At peace")).toMatch(/breach|breaking the peace/i);
+        expect(hintFor("Allied")).toMatch(/ally/i);
+        //Still never a demonym.
+        for (const label of ["At peace", "Ceasefire", "Allied", "Neutral"]) {
+            expect(hintFor(label)).not.toMatch(/France[a-z]/);
+        }
+    });
+
+    it("greys out instead when a declaration is not possible", () => {
+        //NO_CONTACT is the one state war cannot be declared out of, and the contact walk is
+        //coalesced -- so a border that opened during the AI's turn can genuinely read this
+        //way for a moment.
+        const state = deriveMoveButtonState(
+            declarable({ mayDeclare: false, relationLabel: "No contact" })
+        );
+        expect(state).toMatchObject({ enabled: false, variant: "disabled", mode: null });
+    });
+
+    it("prefers VIEW SIEGE on a besieged territory", () => {
+        const state = deriveMoveButtonState(declarable({ isUnderSiege: true, siegeTurns: 2 }));
+        expect(state.label).toBe("VIEW SIEGE (2)");
+    });
+});
+
 describe("closing the transfer/attack window", () => {
     it("puts TRANSFER back", () => {
         expect(stateAfterWindowClosed(MoveMode.TRANSFER)).toMatchObject({

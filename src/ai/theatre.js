@@ -124,6 +124,24 @@ export function isWall(country, rival, turn = 0) {
     return true;
 }
 
+/**
+ * How many attacks this country has lost against a rival since committing to it.
+ *
+ * ONLY THE COMMITTED RIVAL IS TRACKED, and that is a real limit rather than an oversight:
+ * `noteAttemptOutcome()` counts a defeat only when the target belonged to the theatre rival,
+ * because the ledger exists to answer "is this war working" about the ONE war the country
+ * chose. A country asked to make peace with somebody it never committed to therefore reads
+ * zero here, which understates how badly it may be doing on that front. What makes that
+ * acceptable is where the figure is used: `proposalOutcomeFor()` weighs it as one term among
+ * six, and the case it matters most for -- a theatre rival being beaten badly enough to want
+ * a ceasefire -- is exactly the case the ledger does know about. Widening it means a per-rival
+ * ledger, which is a change to what `theatre.js` remembers rather than a reading of it.
+ */
+export function theatreFailuresAgainst(country, rival) {
+    const theatre = theatres.get(country);
+    return theatre && theatre.rival === rival ? (Number(theatre.failures) || 0) : 0;
+}
+
 /** Every rival this country is currently refusing to attack, for the debug panel. */
 export function wallsFor(country, turn = 0) {
     const byRival = walls.get(country);

@@ -153,12 +153,19 @@ describe("the register", () => {
         expect(countriesMayFight("France", "Chile")).toBe(false);
     });
 
-    it("keeps a ceasefire's expiry turn", () => {
-        setRelationState("France", "Spain", DiplomaticState.CEASEFIRE, { since: 10, until: 20 });
+    it("keeps a ceasefire's expiry turn, and what it falls back to", () => {
+        //`revertsTo` is the answer to Q2: a fact recorded at signing rather than a rule
+        //applied at expiry. With NEUTRAL as the first-contact state, "back to war" and
+        //"back to neutral" are genuinely different outcomes and the register does not keep
+        //the history a rule would need to reconstruct.
+        setRelationState("France", "Spain", DiplomaticState.CEASEFIRE, {
+            since: 10, until: 20, revertsTo: DiplomaticState.WAR
+        });
         expect(relationBetween("France", "Spain")).toEqual({
             state: DiplomaticState.CEASEFIRE,
             since: 10,
-            until: 20
+            until: 20,
+            revertsTo: DiplomaticState.WAR
         });
     });
 

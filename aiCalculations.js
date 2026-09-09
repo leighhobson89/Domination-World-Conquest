@@ -97,6 +97,7 @@ import {
 } from './src/ai/goals.js';
 import {
     captureCampaigns,
+    currentCampaign,
     planCampaign,
     recordAttackOutcome,
     releaseSiegeSlot,
@@ -122,7 +123,8 @@ import {
     restoreMusters
 } from './src/ai/muster.js';
 import {
-    currentTheatre
+    currentTheatre,
+    theatreFailuresAgainst
 } from './src/ai/theatre.js';
 import {
     getInteractableFrom,
@@ -136,9 +138,45 @@ import {
     registerSaveSlice
 } from './src/platform/saveSlices.js';
 import {
+    queueCallIn,
+    queueProposal
+} from './src/state/diplomacyInbox.js';
+import {
+    alliesOf,
+    besiegedTerritoryNames,
     isUnderSiege,
+    playerCountryName,
+    relationsFor,
+    relationStateBetween,
+    siegeOn,
     territoriesOwnedByCountry
 } from './src/state/selectors.js';
+import {
+    setRelationState
+} from './src/state/mutations.js';
+import {
+    DiplomaticState,
+    PROPOSAL_RESULT,
+    ProposalKind
+} from './src/state/diplomacy.js';
+import {
+    allCallIns,
+    bindJoiner,
+    recordBreach,
+    callInOutcomeFor,
+    captureDiplomacyMemory,
+    isBoundJoiner,
+    planDeclarations,
+    planAgreementOffer,
+    proposalOutcomeFor,
+    releaseAllFor,
+    releaseJoiners,
+    restoreDiplomacyMemory
+} from './src/ai/diplomacy.js';
+import {
+    peaceDiscipline,
+    PLAYER_GRACE_TURNS
+} from './src/config/balance.js';
 import {
     ids
 } from './src/ui/core/registry.js';
@@ -178,17 +216,467 @@ registerSaveSlice("aiStrategy", {
     capture: () => ({
         campaigns: captureCampaigns(),
         victory: captureVictoryCondition(),
-        musters: captureMusters()
+        musters: captureMusters(),
+        //The refusal cooldown RIDES IN THIS SLICE rather than registering one of its own,
+        //which is the rule the campaign table and the theatres already follow: `platform/`
+        //must not import `src/ai/`, and a module that registered its own slice would need
+        //to be imported from somewhere to do it.
+        diplomacy: captureDiplomacyMemory()
     }),
     restore: (data) => {
         restoreCampaigns(data?.campaigns);
         restoreVictoryCondition(data?.victory);
         restoreMusters(data?.musters);
+        restoreDiplomacyMemory(data?.diplomacy);
     }
 });
 
+/**
+ * This country's plan for the turn, and the wars it opens to carry it out.
+ *
+ * The declarations are applied HERE and not inside `planCampaign()`, for the reason every
+ * rule in `src/ai/` is split this way: `strategy.js` derives and `src/ai/diplomacy.js`
+ * decides, both without touching the store, and this file is the one that writes. It is also
+ * the correct MOMENT. `handleAITurn()` runs the succession first, so a leader who has just
+ * died is never the one declaring the war; the goals are planned afterwards, so a war
+ * declared now is fought now -- Leigh's rule that a declaration takes effect at once, with
+ * no waiting period anywhere in this system.
+ */
+let callInsPrunedForTurn = -1;
+
+/**
+ * Drop call-in bindings that describe a war nobody is fighting any more.
+ *
+ * SELF-HEALING RATHER THAN HOOKED TO ELIMINATION, deliberately. A binding says "this country
+ * joined that one's war and may not settle out of it alone", and it is released when the
+ * principal settles -- but a principal that is CONQUERED never settles anything, and the
+ * joiner would be barred from ever making peace with the adversary for the rest of the game.
+ * Hooking the moment a country loses its last territory means finding every route by which
+ * that can happen, which is the shape of mistake the eight territory-losing paths already
+ * taught this codebase. Asking "does this war still exist" once a turn cannot miss one.
+ */
+function pruneCallIns(turn) {
+    if (callInsPrunedForTurn === turn) {
+        return;
+    }
+    callInsPrunedForTurn = turn;
+    for (const row of allCallIns()) {
+        const principalGone = territoriesOwnedByCountry(row.principal).length === 0;
+        const adversaryGone = territoriesOwnedByCountry(row.adversary).length === 0;
+        const warOver = relationStateBetween(row.principal, row.adversary) !== DiplomaticState.WAR;
+        if (principalGone || adversaryGone) {
+            releaseAllFor(principalGone ? row.principal : row.adversary);
+        } else if (warOver) {
+            releaseJoiners(row.principal, row.adversary);
+        }
+    }
+}
+
 export function planAiCampaign(country, leader, turn) {
-    return planCampaign(country, { turn, leader, rng: aiRng });
+    pruneCallIns(turn);
+    const campaign = planCampaign(country, { turn, leader, rng: aiRng });
+    applyAiDeclarations(country, campaign, leader, turn);
+    return campaign;
+}
+
+/**
+ * Open whatever wars `src/ai/diplomacy.js` says this country should open.
+ *
+ * The result is left on the campaign as `declarations` / `declarationsSkipped` so the plan
+ * log, the spectator console and the AI debug panel can print WHY a country went to war --
+ * the same contract `rateTarget()`'s `reason` has, and for the same reason: a country that
+ * quietly declines to declare for fifty turns looks exactly like one that was never asked.
+ *
+ * It is memoised on the campaign, because `planCampaign()` is itself memoised per turn and a
+ * second call must not declare a second time.
+ */
+function applyAiDeclarations(country, campaign, leader, turn) {
+    if (!campaign || campaign.declarations) {
+        return campaign;
+    }
+    const player = playerCountryName();
+    const atWar = relationsFor(country)
+        .filter(row => row.state === DiplomaticState.WAR).length;
+
+    const { declarations, skipped } = planDeclarations({
+        country,
+        turn,
+        campaign,
+        //The register is keyed by COUNTRY, and a country is `dataName` -- the CURRENT owner.
+        //`relationStateBetween()` never returns null, so a pair with no record answers with
+        //the sparse default rather than with an absence to be handled here.
+        relationStateOf: (other) => relationStateBetween(country, other),
+        warCount: atWar,
+        traits: leader?.traits ?? {},
+        playerCountry: player,
+        graceTurns: PLAYER_GRACE_TURNS
+    });
+
+    for (const row of declarations) {
+        //THE BREACH IS CHARGED BEFORE THE DECLARATION IS WRITTEN, because the state it charges
+        //for is the one about to be replaced. `src/ai/diplomacy.js` refuses to declare out of
+        //an agreement at all today, so this fires only if that ever changes -- and the rule
+        //must not depend on the caller's restraint to be correct.
+        row.breach = applyBreach(country, row.target, turn);
+        setRelationState(country, row.target, DiplomaticState.WAR, { since: turn });
+        console.log("%c" + country + " declares war on " + row.target + " -- " + row.reason,
+            "color: rgb(208,70,59);");
+        //THE CALL TO ARMS, on both sides. See `resolveCallIns()`: an ally is asked, never
+        //enrolled, and a joiner's own allies are not asked at all -- which is what keeps a war
+        //spreading one country per yes instead of closing over the whole map.
+        row.callIns = resolveCallIns(country, row.target, turn);
+    }
+
+    campaign.declarations = declarations;
+    campaign.declarationsSkipped = skipped;
+    applyAiPeaceOffer(country, campaign, leader, turn);
+    return campaign;
+}
+
+/**
+ * The one agreement this country offers somebody this turn, asked and answered on the spot.
+ *
+ * Stage 5.1, and the half of the diplomacy rules that can END a war. Stage 3 measured a world
+ * in which a declaration was permanent -- pairs at war climbed 536 to 749 across a 150-turn
+ * run under every goal -- and a declaration rule with no matching peace rule is a ratchet.
+ *
+ * THE ANSWER IS COMPUTED WITHOUT DERIVING THE RECIPIENT'S CAMPAIGN, deliberately. The country
+ * being asked may not have taken its turn yet, and `planCampaign()` for it would be a whole
+ * extra derivation per offer -- up to 207 a turn. `proposalOutcomeFor()` takes plain values
+ * for exactly this reason and every term it is not given contributes nothing, so the answer
+ * is less informed rather than wrong. What it IS given is everything cheap: the leader, the
+ * theatre commitment, the war count off the register, the setback ledger and both sizes.
+ *
+ * A siege between the two blocks it -- Q1, and see `proposalOutcomeFor()` for why refusing is
+ * the least bad of the three available answers.
+ */
+function applyAiPeaceOffer(country, campaign, leader, turn) {
+    if (!campaign || campaign.peaceOffer !== undefined) {
+        return;
+    }
+    campaign.peaceOffer = null;
+
+    const offer = planAgreementOffer({
+        country,
+        turn,
+        relations: relationsFor(country),
+        theatreRival: currentTheatre(country)?.rival ?? null,
+        traits: leader?.traits ?? {},
+        posture: campaign.posture ?? null,
+        urgency: campaign.doctrine?.urgency ?? 0,
+        failuresAgainst: (rival) => theatreFailuresAgainst(country, rival)
+    });
+    if (!offer) {
+        return;
+    }
+
+    //AN OFFER TO THE PLAYER IS A QUESTION, NOT A CALCULATION -- the direction stage 5.1 left
+    //unbuilt. It joins the same queue the call-in uses and is put to them at the end of the
+    //turn; nothing is decided on their behalf, which is the rule the whole prompt exists for.
+    if (offer.target === playerCountryName()) {
+        queueProposal({ from: country, proposal: offer.kind, reason: offer.reason });
+        campaign.peaceOffer = { ...offer, accepted: null, reason: "put to the player" };
+        return;
+    }
+
+    const answer = answerProposal({
+        country: offer.target,
+        proposer: country,
+        kind: offer.kind,
+        turn
+    });
+    campaign.peaceOffer = { ...offer, ...answer };
+
+    if (answer.accepted) {
+        acceptProposal(country, offer.target, offer.kind, turn);
+    }
+    console.log("%c" + country + " offers " + offer.target + " " + offer.kind + " -- " +
+        offer.reason + " -- " + (answer.accepted ? "ACCEPTED" : "refused") +
+        " (" + answer.reason + ")",
+        "color: rgb(127,196,232);");
+}
+
+/**
+ * Everything `proposalOutcomeFor()` needs about a country, gathered from the live world.
+ *
+ * The ONE door both directions go through -- an AI asking another AI, and the player asking
+ * anybody -- so the two cannot come to different conclusions about the same offer. That is
+ * the rule `countriesMayFight()` established for the attack gates.
+ */
+export function answerProposal({ country, proposer, kind, turn }) {
+    const state = relationStateBetween(country, proposer);
+    const relations = relationsFor(country);
+    const otherWars = relations.filter(
+        row => row.state === DiplomaticState.WAR && row.country !== proposer).length;
+
+    return proposalOutcomeFor({
+        country,
+        proposer,
+        kind,
+        state,
+        turn,
+        traits: leaderTraitsFor(country),
+        //Only if this country's campaign has already been derived this turn. Asking for one
+        //would derive it, which is the cost the comment above `applyAiPeaceOffer()` records.
+        posture: currentCampaign(country)?.posture ?? null,
+        urgency: currentCampaign(country)?.doctrine?.urgency ?? 0,
+        theatreRival: currentTheatre(country)?.rival ?? null,
+        otherWars,
+        failuresAgainstProposer: theatreFailuresAgainst(country, proposer),
+        territories: territoriesOwnedByCountry(country).length,
+        proposerTerritories: territoriesOwnedByCountry(proposer).length,
+        siegeStanding: siegeStandsBetween(country, proposer),
+        //Leigh's rule: a country called into somebody else's war may not settle out of it
+        //alone. The proposer is the one that would be settling, so it is the proposer's
+        //binding that matters here.
+        boundToPrincipal: isBoundJoiner(proposer, country),
+        //Both free to gather -- the register already holds every war list.
+        sharedEnemies: sharedEnemiesBetween(country, proposer),
+        existingAllies: alliesOf(country).length
+    });
+}
+
+/** How many countries these two are BOTH at war with. The reason two countries ally. */
+function sharedEnemiesBetween(a, b) {
+    const theirs = new Set(relationsFor(b)
+        .filter(row => row.state === DiplomaticState.WAR)
+        .map(row => row.country));
+    return relationsFor(a)
+        .filter(row => row.state === DiplomaticState.WAR && theirs.has(row.country))
+        .length;
+}
+
+/**
+ * Write an accepted agreement into the register.
+ *
+ * The ceasefire's two extra fields are set HERE and only here. `until` is the turn it runs
+ * out on, and `revertsTo` is what it falls back to then -- recorded at signing rather than
+ * guessed at expiry, which is the answer to Q2: with NEUTRAL as the first-contact state,
+ * "back to war" and "back to neutral" are genuinely different outcomes and the register keeps
+ * no history a rule could reconstruct the right one from.
+ */
+export function acceptProposal(proposer, country, kind, turn) {
+    const previous = relationStateBetween(proposer, country);
+    const state = PROPOSAL_RESULT[kind];
+    if (!state) {
+        return null;
+    }
+    const ceasefire = kind === ProposalKind.CEASEFIRE;
+    const written = setRelationState(proposer, country, state, {
+        since: turn,
+        until: ceasefire ? turn + peaceDiscipline.ceasefireTurns : null,
+        revertsTo: ceasefire ? previous : null
+    });
+
+    //THE SECOND HALF OF LEIGH'S CALL-IN RULE: *"the peace must be asked either by the ally
+    //under attack or by the adversary, and agreed, where it then applies peace to the ally
+    //aiding the attacked ally as well."* So whoever settles this war settles it for everybody
+    //they called into it, on the same terms, in the same breath. Both directions are released
+    //because either party to the war may have called somebody in.
+    for (const [principal, adversary] of [[proposer, country], [country, proposer]]) {
+        for (const joiner of releaseJoiners(principal, adversary)) {
+            if (joiner === adversary) {
+                continue;
+            }
+            setRelationState(joiner, adversary, state, {
+                since: turn,
+                until: ceasefire ? turn + peaceDiscipline.ceasefireTurns : null,
+                revertsTo: ceasefire ? relationStateBetween(joiner, adversary) : null
+            });
+            console.log("%c" + joiner + " comes out of the war with " + adversary +
+                " alongside " + principal + " -- " + state,
+                "color: rgb(127,196,232);");
+        }
+    }
+    return written;
+}
+
+/**
+ * Every ally that has to be ASKED because these two have gone to war, and what each said.
+ *
+ * **Q3 IS ANSWERED AND AN ALLY IS CALLED IN ON DEFENCE AS WELL AS ON AGGRESSION** (Leigh:
+ * *"yes they are"*), so BOTH sides' allies are asked -- the declarer's, and the declared-upon's.
+ * The two are weighed differently: `defensive: true` carries real weight because coming to the
+ * aid of somebody who has been attacked is what an alliance is understood to be for, and being
+ * dragged into a war your partner started is not.
+ *
+ * NOTHING CASCADES, and that is what makes calling in on defence safe. A joiner's OWN allies
+ * are never asked -- this walks the two belligerents' ally lists once and stops. Without that
+ * one signature would put the whole map at war in three hops, which is precisely the transitive
+ * closure the first draft of this design had to forbid by rule and this one cannot produce.
+ *
+ * The PLAYER is never answered here: `answerCallIn` is only asked of AI countries, and a call
+ * on the player is returned in `asked` for the caller to put to them. That is the one place a
+ * refusal has a consequence somebody has to choose rather than compute.
+ *
+ * @returns {Array<{ally: string, principal: string, adversary: string, defensive: boolean,
+ *                  joins: boolean|null, reason: string}>} `joins: null` means "ask the player"
+ */
+export function resolveCallIns(declarer, target, turn) {
+    const player = playerCountryName();
+    const answers = [];
+
+    for (const [principal, adversary, defensive] of
+        [[declarer, target, false], [target, declarer, true]]) {
+        for (const ally of alliesOf(principal)) {
+            //An ally that IS the other belligerent is not called in against itself, and an
+            //ally already bound to this same war has nothing to answer.
+            if (!ally || ally === adversary || isBoundJoiner(ally, adversary)) {
+                continue;
+            }
+            if (ally === player) {
+                //THE PLAYER IS ASKED RATHER THAN CALCULATED. It is queued because the AI
+                //phase is not a moment the player is present for -- see `diplomacyInbox.js`
+                //-- and answered at the end of the turn, which settles the open half of Q3:
+                //by the start of your next turn.
+                queueCallIn({ principal, adversary, defensive });
+                answers.push({
+                    ally, principal, adversary, defensive, joins: null,
+                    reason: "the player has to answer this one"
+                });
+                continue;
+            }
+            const outcome = answerCallIn({ ally, principal, adversary, defensive, turn });
+            answers.push({ ally, principal, adversary, defensive, ...outcome });
+            applyCallInAnswer({ ally, principal, adversary, joins: outcome.joins, turn });
+        }
+    }
+    return answers;
+}
+
+/** One AI ally's answer, gathered from the live world. */
+export function answerCallIn({ ally, principal, adversary, defensive, turn }) {
+    return callInOutcomeFor({
+        ally,
+        principal,
+        adversary,
+        traits: leaderTraitsFor(ally),
+        urgency: currentCampaign(ally)?.doctrine?.urgency ?? 0,
+        defensive: Boolean(defensive),
+        alreadyAtWar: relationStateBetween(ally, adversary) === DiplomaticState.WAR,
+        existingWars: relationsFor(ally)
+            .filter(row => row.state === DiplomaticState.WAR).length,
+        allyTerritories: territoriesOwnedByCountry(ally).length,
+        adversaryTerritories: territoriesOwnedByCountry(adversary).length
+    });
+}
+
+/**
+ * Write what an ally decided.
+ *
+ * THREE ENDINGS AND ONLY ONE OF THEM COSTS -- Leigh's §3.4, and the whole penalty rule is one
+ * sentence: *the penalty is for ending an alliance when both sides do not agree, and for
+ * nothing else.* Answering a call joins the war and keeps the alliance. DECLINING one ends the
+ * alliance and costs NEITHER side a thing: the aggressor chose a war their ally would not
+ * fight, the ally chose not to fight it, and both have decided. The aggressor's cost is
+ * exactly the thing that happened -- they have gone to war without an ally they were relying
+ * on, which is a consequence rather than a fine.
+ *
+ * @returns {boolean} whether the ally joined
+ */
+export function applyCallInAnswer({ ally, principal, adversary, joins, turn }) {
+    if (joins) {
+        //A declaration is not needed and would be wrong: the ally is entering a war that
+        //already exists rather than starting one of its own.
+        setRelationState(ally, adversary, DiplomaticState.WAR, { since: turn });
+        bindJoiner(principal, ally, adversary);
+        console.log("%c" + ally + " answers " + principal + "'s call and enters the war with " +
+            adversary, "color: rgb(208,70,59);");
+        return true;
+    }
+    //THE ALLIANCE ENDS, FREE FOR BOTH. Back to NEUTRAL rather than to peace: the two have not
+    //agreed anything, they have stopped having an agreement.
+    setRelationState(ally, principal, DiplomaticState.NEUTRAL, { since: turn });
+    console.log("%c" + ally + " refuses " + principal + "'s call to arms -- the alliance ends, " +
+        "with no penalty to either", "color: rgb(208,70,59);");
+    return false;
+}
+
+/**
+ * Tear up an agreement, and pay for it.
+ *
+ * THE ONE DOOR, called from both declaration paths — the AI's and the player's — for the
+ * reason `countriesMayFight()` established: a breach charged on one route and not the other is
+ * a rule the game applies to one side of itself.
+ *
+ * IT MUST BE CALLED BEFORE THE DECLARATION IS WRITTEN, because the state it charges for is the
+ * one being torn up and `setRelationState()` will have replaced it a line later. That ordering
+ * is the whole of what this function is fragile about.
+ *
+ * @returns {{breach: boolean, severity: string|null, drops: string[]}} what it cost
+ */
+export function applyBreach(betrayer, victim, turn) {
+    const broken = relationStateBetween(betrayer, victim);
+    const outcome = recordBreach({
+        betrayer,
+        victim,
+        broken,
+        turn,
+        relations: relationsFor(betrayer)
+    });
+    if (!outcome.breach) {
+        return outcome;
+    }
+
+    //NOBODY KEEPS A TREATY WITH SOMEBODY WHO HAS JUST TORN ONE UP. The drops are the heart of
+    //the penalty and the reason it needs no gold figure: an alliance pays a standing share of
+    //income, so losing the others is a material cost exactly proportional to what being
+    //trustworthy was worth to this country.
+    for (const other of outcome.drops) {
+        setRelationState(betrayer, other, DiplomaticState.NEUTRAL, { since: turn });
+        console.log("%c" + other + " tears up its agreement with " + betrayer +
+            " -- nobody keeps a treaty with somebody who has just broken one",
+            "color: rgb(208,70,59);");
+    }
+    console.log("%c" + betrayer + " " + outcome.reason + " -- marked treacherous until turn " +
+        outcome.until, "color: rgb(208,70,59);");
+    return outcome;
+}
+
+/**
+ * Both sides agree to end an alliance. Free for both, and the second of the two penalty-free
+ * ways out.
+ *
+ * It is what makes an alliance something a country can PLAN its way out of rather than only
+ * betray its way out of -- and that asymmetry is what makes the breach penalty in stage 5.6
+ * safe to make large, because choosing the breach instead is then a choice to be treacherous
+ * rather than a choice to be free.
+ */
+export function dissolveAlliance(a, b, turn) {
+    if (relationStateBetween(a, b) !== DiplomaticState.ALLIANCE) {
+        return null;
+    }
+    return setRelationState(a, b, DiplomaticState.NEUTRAL, { since: turn });
+}
+
+/**
+ * Is either side besieging a territory the other holds?
+ *
+ * Q1's predicate, and it is about the PAIR -- so it cannot be dodged by asking from the other
+ * side, which is what makes it a rule rather than a penalty on whoever laid the siege.
+ * `besiegedTerritoryNames()` is every besieged territory in the world and there are never
+ * many: nought to five standing across the whole map at every sample ever taken.
+ */
+function siegeStandsBetween(a, b) {
+    for (const territoryName of besiegedTerritoryNames()) {
+        const siege = siegeOn(territoryName);
+        const territory = getTerritoryByName(territoryName);
+        const besieger = siege?.attackingCountry ?? null;
+        const besieged = territory?.dataName ?? null;
+        if (!besieger || !besieged) {
+            continue;
+        }
+        if ((besieger === a && besieged === b) || (besieger === b && besieged === a)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** This country's leader traits, or an empty set. The table is rebuilt every turn. */
+function leaderTraitsFor(country) {
+    const row = getArrayOfLeadersAndCountries().find(entry => entry[0] === country);
+    return row?.[1]?.traits ?? {};
 }
 
 export function calculateTurnGoals(arrayOfTerritoriesInRangeThreats, campaign = null) {

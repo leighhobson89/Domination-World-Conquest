@@ -103,9 +103,21 @@ export function create() {
  * @param {string} options.message
  * @param {string} [options.confirmLabel]  defaults to "Yes"
  * @param {string} [options.cancelLabel]   defaults to "Cancel"
+ * @param {string} [options.kind]  what sort of question this is, written to `data-kind` on
+ *        the container. It exists for ONE reader: the e2e driver, which has to tell a
+ *        question the AI put to the player -- and which blocks the turn until it is answered
+ *        -- from a confirmation the player opened themselves by pressing New Game. Without it
+ *        a driver that dismissed every dialog would answer both, and a spec that opens a
+ *        confirm on purpose could never assert anything about it.
  * @returns {Promise<boolean>}
  */
-export function open({ title, message, confirmLabel = "Yes", cancelLabel = "Cancel" } = {}) {
+export function open({
+    title,
+    message,
+    confirmLabel = "Yes",
+    cancelLabel = "Cancel",
+    kind = null
+} = {}) {
     if (!root) create();
     // A second ask while one is open resolves the first as a cancel rather than
     // stranding its promise forever.
@@ -115,6 +127,12 @@ export function open({ title, message, confirmLabel = "Yes", cancelLabel = "Canc
     messageNode.textContent = message ?? "";
     confirmButton.textContent = confirmLabel;
     cancelButton.textContent = cancelLabel;
+
+    if (kind) {
+        root.setAttribute("data-kind", kind);
+    } else {
+        root.removeAttribute("data-kind");
+    }
 
     root.style.display = "flex";
     document.addEventListener("keydown", onKeyDown, true);

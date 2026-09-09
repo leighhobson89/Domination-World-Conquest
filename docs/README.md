@@ -14,7 +14,7 @@ the register (4) is the one to check first if you only read one.
 | 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
 | 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
 | 5 | [What Is Missing](./05-what-is-missing.md) | **What to do next, and why — the standing list.** Not "does the simulation behave?" (it does) but "does a person experience a game?" Fifteen verified findings grouped under four diagnoses — the board carries no state, the world has no characters, nothing acknowledges what the player does, and there is no arc — then seven easy wins that need no acceptance run, three medium items, and five larger ones drawn from the genre. **A finished item is cut out of it entirely** and moves to [archived/05-what-is-missing-delivered.md](./archived/05-what-is-missing-delivered.md), so the document always reads as outstanding work and nothing else |
-| 6 | [Diplomacy](./06-diplomacy.md) + [checklist](./06-diplomacy-checklist.md) | **The phase in flight.** Peace, war, ceasefire, alliance and no contact, as a state per pair of countries — what each one permits, the four decisions Leigh took (first contact is NEUTRAL, a declaration takes effect at once, an alliance shares four things, co-belligerence is automatic), the nine questions still open, and the seven-stage breakdown. **The stage order is not a preference**: first contact being neutral means wiring the attack gates before the declaration rules would freeze the world |
+| 6 | [Diplomacy](./06-diplomacy.md) + [checklist](./06-diplomacy-checklist.md) | **The phase in flight.** Peace, war, ceasefire, alliance and no contact, as a state per pair of countries — what each one permits, the four decisions Leigh took (first contact is NEUTRAL, a declaration takes effect at once, an alliance shares four things, an ally is called in rather than enrolled), the questions answered and the ones still open, and the seven-stage breakdown. **The stage order is not a preference**: first contact being neutral means wiring the attack gates before the declaration rules would freeze the world, so the gates are stage 2 and the declarations stage 3, with a deliberately silent world in between as the checkpoint. **Stages 0 to 5.1 have landed** — the register, the gates, declarations on both sides, the player's panel, and peace and ceasefires. The alliance and everything hanging off it is what is left |
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
 battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and its
@@ -24,7 +24,8 @@ the simulation to the point where the remaining question stopped being a numeric
 They record why the code is shaped as it is; they do not describe outstanding work. **The numbers
 are reused when a plan is archived**, so `05` is the standing list of what to do next and `06` is
 free for whichever item is taken up as the next phase. **The phase in flight is
-[Diplomacy](./06-diplomacy.md)**, and its Stage 0 — the register and the map tooltip — has landed.
+[Diplomacy](./06-diplomacy.md)**, and it is through stage 5.1: a war now has a beginning and,
+since that stage, an end.
 
 ---
 

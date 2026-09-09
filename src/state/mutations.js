@@ -436,9 +436,12 @@ export function setNextAiWarId(warId) {
  * @param {object} [options]
  * @param {number} [options.since]  the turn this state began
  * @param {number} [options.until]  the turn a CEASEFIRE expires on
+ * @param {string} [options.revertsTo]  what a CEASEFIRE falls back to when it lapses --
+ *        recorded at signing rather than guessed at expiry, which is the answer to Q2 in
+ *        the diplomacy design. See `relationRecord()`
  * @returns {object|null} the new record, or null if nothing was written
  */
-export function setRelationState(a, b, state, { since = null, until = null } = {}) {
+export function setRelationState(a, b, state, { since = null, until = null, revertsTo = null } = {}) {
     const key = relationKey(a, b);
     if (!key) {
         console.warn("mutations.setRelationState: not a pair of countries: " + a + ", " + b);
@@ -462,7 +465,7 @@ export function setRelationState(a, b, state, { since = null, until = null } = {
         return { ...existing };
     }
 
-    const record = relationRecord(state, { since, until });
+    const record = relationRecord(state, { since, until, revertsTo });
     write(() => {
         store.diplomacy.relations.set(key, record);
     });
@@ -474,7 +477,8 @@ export function setRelationState(a, b, state, { since = null, until = null } = {
         state,
         previous: existing?.state ?? DEFAULT_DIPLOMATIC_STATE,
         since,
-        until
+        until,
+        revertsTo
     });
     return { ...record };
 }

@@ -256,17 +256,32 @@ export class GameDriver {
      * nothing when the path is clear, which is the usual case.
      */
     async withBlockersCleared(action, attempts = 3) {
-        for (let attempt = 1; attempt <= attempts; attempt += 1) {
-            await this.dismissBlockingPanels();
-            try {
-                return await action();
-            } catch (error) {
-                if (attempt === attempts) {
-                    throw error;
+        //THE DIPLOMATIC PROMPTS ARE ANSWERED FOR THE WHOLE OF THE ACTION, not before it. They
+        //are the one blocker raised DURING a driver action rather than left behind by a
+        //previous one: an AI country offering the player a ceasefire, or an ally calling them
+        //into a war, comes up at the end of the AI phase and the turn does not proceed until
+        //it is answered -- deliberately, because "not dismissible into a default" is the whole
+        //point of the prompt. So `dismissBlockingPanels()` above cannot reach them.
+        //
+        //IT WRAPS EVERY ACTION AND NOT JUST `endTurn()`, which is what the first version got
+        //wrong. The AI phase is entered by whichever click happens to be next, and in a spec
+        //that lays a siege during the Military phase that click is `endBuyPhase()`'s -- so a
+        //poller attached to `endTurn()` alone left that path hanging for the full thirty
+        //seconds, three times over. Found by bisecting against a stashed tree, because the
+        //spec it broke passes before the change and fails after it.
+        return this.answeringDiplomacy(async () => {
+            for (let attempt = 1; attempt <= attempts; attempt += 1) {
+                await this.dismissBlockingPanels();
+                try {
+                    return await action();
+                } catch (error) {
+                    if (attempt === attempts) {
+                        throw error;
+                    }
                 }
             }
-        }
-        return undefined;
+            return undefined;
+        });
     }
 
     /** Buy/Upgrade -> Military. */
@@ -281,9 +296,14 @@ export class GameDriver {
     async endTurn() {
         const before = await this.turn();
         await this.withBlockersCleared(() => this.phaseBar.confirm.click({ timeout: 30_000 }));
-        await this.page.waitForFunction((previous) => window.__game.turn() > previous, before, {
-            timeout: 120_000,
-        });
+        //AND FOR THE WAIT AS WELL AS THE CLICK. The counter does not advance until every
+        //prompt has been answered, so this wait is where a diplomatic question is most likely
+        //to be sitting.
+        await this.answeringDiplomacy(() =>
+            this.page.waitForFunction((previous) => window.__game.turn() > previous, before, {
+                timeout: 120_000,
+            })
+        );
         await this.page.waitForFunction(
             ({ selector, label }) => {
                 const button = document.querySelector(selector);
@@ -292,6 +312,46 @@ export class GameDriver {
             { selector: phaseBarSelectors.confirm, label: phaseButtonLabel[Phase.BUY_UPGRADE] },
             { timeout: 120_000 }
         );
+    }
+
+    /**
+     * Decline any question the AI puts to the player while `task` is running.
+     *
+     * DECLINE RATHER THAN ACCEPT, and it is the safer default of the two: refusing an offered
+     * ceasefire or peace costs nothing at all and changes no relation, so a spec about
+     * something else is not quietly handed a world at peace. Refusing a CALL to arms does end
+     * an alliance -- but nothing in this suite forms one except by asking for it directly, and
+     * a spec that wants a different answer should drive the dialog itself rather than rely on
+     * the driver's default.
+     *
+     * It polls rather than waiting on the dialog, because the dialog may never appear: on the
+     * overwhelming majority of turns there is nothing to ask.
+     */
+    async answeringDiplomacy(task) {
+        let done = false;
+        const running = task().finally(() => {
+            done = true;
+        });
+
+        const answering = (async () => {
+            while (!done) {
+                const dialog = this.page.locator('#confirm-dialog-container[data-kind="diplomacy"]');
+                if (await dialog.isVisible().catch(() => false)) {
+                    await this.page
+                        .locator("#confirm-dialog-cancel")
+                        .click({ timeout: 5_000 })
+                        .catch(() => {});
+                }
+                await this.page.waitForTimeout(250);
+            }
+        })();
+
+        try {
+            return await running;
+        } finally {
+            done = true;
+            await answering.catch(() => {});
+        }
     }
 
     /** One complete cycle from Buy/Upgrade back to Buy/Upgrade. */

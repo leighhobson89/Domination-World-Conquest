@@ -222,7 +222,11 @@ export function restoreState(snapshot) {
                 store.diplomacy.relations.set(key, {
                     state: row.state,
                     since: row.since ?? null,
-                    until: row.until ?? null
+                    until: row.until ?? null,
+                    //Null on a save taken before ceasefires could be agreed, which is
+                    //correct: `expiredRelations()` falls back to NEUTRAL when a ceasefire
+                    //does not say what it was signed out of.
+                    revertsTo: row.revertsTo ?? null
                 });
             }
         }

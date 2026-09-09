@@ -38,6 +38,13 @@ test.describe("?e2e=1 state hook", () => {
                 "continents",
                 "countryStrengths",
                 "currentTrack",
+                //THE DIPLOMACY REGISTER, and it is carried by no DOM anywhere -- a relation is
+                //exactly the kind of thing a spec cannot reach by clicking. `declareWar()` and
+                //`setRelation()` are WRITES and both go through `mutations.js`: the first
+                //exists because the attacking half of this suite still needs a war to fight
+                //now that neutral refuses one, and the second because nothing in the game
+                //agrees a peace or an alliance except by asking an AI that may say no.
+                "declareWar",
                 //What the 3D dice are SHOWING, as opposed to what the rules rolled. The two
                 //are supposed to be the same list and for as long as the dice have existed
                 //they were not, and the invariant cannot be checked from the DOM -- the dice
@@ -65,12 +72,18 @@ test.describe("?e2e=1 state hook", () => {
                 //`setAlwaysSkipPlayback()` reaches the player's own preference, which the fixture
                 //turns ON for every spec so a replay does not add seconds to every ended turn.
                 "pendingDefences",
+                //What the AI has put to the PLAYER and is waiting on: a call to arms, or an
+                //offer. It is filled during the AI phase and emptied at the end of it, so a
+                //spec can only see one by looking mid-turn.
+                "pendingDiplomacy",
                 "phase",
                 "playQueuedDefences",
                 "queueDefence",
                 "randomEventProbability",
                 "ready",
                 "recordActivity",
+                "relationBetween",
+                "relations",
                 "retrievals",
                 "seed",
                 "setAlwaysSkipPlayback",
@@ -86,6 +99,11 @@ test.describe("?e2e=1 state hook", () => {
                 //goals produce five visibly different worlds over 150 headless turns, and
                 //that cannot be measured without a way to start a run under a named goal.
                 "setGoal",
+                //The other five diplomatic states. `declareWar()` above cannot reach them,
+                //and nothing in the game agrees a peace, a ceasefire or an alliance except by
+                //asking an AI country that may say no -- so a spec that needs one of those
+                //states to exist has no reliable way to reach it by clicking.
+                "setRelation",
                 "siegeAt",
                 //Combat stage 1. The odds the Siege button is gated on, which moved from
                 //`winProbability()` to the real `takeProbability()` so that

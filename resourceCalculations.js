@@ -42,6 +42,7 @@ import {
 } from './sfx.js';
 import {
     allTerritories,
+    alliesOf,
     getTerritory,
     currentTurn,
     currentPhase,
@@ -137,6 +138,10 @@ import {
     initialConsMatsCapacityFor,
     initialOilCapacityFor
 } from './src/rules/economy/seeding.js';
+import {
+    allianceCapacityMultiplier,
+    allianceGoldMultiplier
+} from './src/rules/economy/allianceShare.js';
 import {
     continentCapacityBonusFor,
     continentGoldBonusFor,
@@ -841,12 +846,20 @@ function calculateTerritoryResourceIncomesEachTurn() {
 }
 
 function economyContext(isSimulation, territory) {
+    //THE ALLIANCE SHARE ARRIVES HERE, exactly as the continent bonus and the random event do,
+    //so `income.js` stays a pure function of `(territory, context)`. It is DERIVED from the
+    //register on every read and written onto nothing: a stored transfer would need an exact
+    //inverse write the moment an alliance ended, and an ally who kept the income afterwards
+    //is the silent bug `continentBonus.js` exists to prevent.
+    const allies = territory?.dataName ? alliesOf(territory.dataName).length : 0;
     return {
         randomEventHappening: randomEventHappening,
         randomEvent: randomEvent,
         isSimulation: Boolean(isSimulation),
         continentBonus: continentGoldBonusFor(territory),
-        continentCapacityBonus: continentCapacityBonusFor(territory)
+        continentCapacityBonus: continentCapacityBonusFor(territory),
+        allianceBonus: allianceGoldMultiplier(allies),
+        allianceCapacityBonus: allianceCapacityMultiplier(allies)
     };
 }
 
@@ -907,7 +920,11 @@ export function derivedEconomyFor(territory) {
         continent: territory.continent ?? "Unknown",
         bonus: {
             gold: context.continentBonus,
-            capacity: context.continentCapacityBonus
+            capacity: context.continentCapacityBonus,
+            //Reported separately from the continent's, because a spec that could only see the
+            //product could not tell which of the two had gone wrong.
+            allianceGold: context.allianceBonus,
+            allianceCapacity: context.allianceCapacityBonus
         },
         income: {
             gold: goldChangeFor(territory, context),

@@ -8,7 +8,13 @@
 // is the same arrangement `src/ui/infoTable/columns.js` records for the info
 // panel's five tabs and `src/ui/theme/themes.js` for the palettes.
 //
-// This file imports nothing and touches no DOM. That is what lets the navigation
+// This file touches no DOM, and it imports ONLY `config/balance.js` -- which itself imports
+// nothing, so the property that matters is intact. That one import is deliberate and it
+// serves the rule below: a page that QUOTES a balance figure reads it rather than remembering
+// it, so a tuning pass moves the manual with the game instead of leaving it confidently
+// wrong. That has happened twice already.
+//
+// This file touches no DOM. That is what lets the navigation
 // -- the part with the interesting edge cases -- be unit-tested in Node:
 // `tests/unit/ui-dominapedia-topics.spec.js` pins the wrap at both ends of the
 // book without opening a browser.
@@ -60,6 +66,13 @@
 // measuring it against the running game). Quote a number here only after reading
 // it out of `src/config/balance.js` or `node tools/econ-lab.mjs`.
 
+import {
+    allianceShare,
+    declarationDiscipline,
+    peaceDiscipline,
+    PLAYER_GRACE_TURNS
+} from "../../config/balance.js";
+
 /** A paragraph. */
 const p = (text) => ({ kind: "p", text });
 /** A sub-heading inside a page. */
@@ -98,6 +111,11 @@ const todo = (text) => ({ kind: "todo", text });
  * The book. Order here IS reading order, and reading order is what the Previous
  * and Next buttons walk.
  */
+//THE MANUAL QUOTES REAL NUMBERS AND MUST READ THEM RATHER THAN REMEMBER THEM. The War
+//section had to be rewritten wholesale once because it still described a combat model that
+//had been deleted, and three pages told the player infantry were not worth buying when they
+//are the joint best value in the game. Importing the dials means a balance change that moves
+//one of these figures moves the page with it.
 export const DOMINAPEDIA_SECTIONS = Object.freeze(
     [
         {
@@ -2017,6 +2035,271 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
             ],
         },
         {
+            id: "diplomacy",
+            title: "Diplomacy",
+            topics: [
+                {
+                    id: "the-six-states",
+                    title: "Who You May Fight",
+                    summary: "Six states, one per pair of countries, and only one of them lets you attack.",
+                    body: [
+                        p(
+                            "Every pair of countries on this map stands in exactly one state, " +
+                                "and it is the same state read from either side. There is no " +
+                                "such thing as your view of France and France's view of you: " +
+                                "there is one fact about the two of you."
+                        ),
+                        p(
+                            "WAR is the only one of the six that lets either side attack the " +
+                                "other. Everything else on this list is a reason you cannot."
+                        ),
+                        table(
+                            ["State", "May attack?", "How it begins", "How it ends"],
+                            [
+                                ["No contact", "No", "The starting state for every pair", "Their borders touch, once"],
+                                ["Neutral", "No", "First contact", "Somebody declares, or something is agreed"],
+                                ["War", "YES", "Declared", "A ceasefire or a peace is agreed"],
+                                ["Ceasefire", "No", "Agreed, with an end date", "It runs out, or firms into a peace"],
+                                ["Peace", "No", "Agreed, no end date", "War is declared out of it — a breach"],
+                                ["Alliance", "No", "Agreed, out of a peace", "See the alliance page"],
+                            ]
+                        ),
+                        h("Meeting somebody is not fighting them"),
+                        p(
+                            "When your border first touches another country's you become " +
+                                "NEUTRAL with them, not hostile. Neither of you may attack " +
+                                "until one of you declares war. That is the single most " +
+                                "important rule in this section: a war has a beginning, and " +
+                                "somebody chose it."
+                        ),
+                        p(
+                            "You will meet countries you never fight, and countries you fight " +
+                                "for a hundred turns. Which is which is a decision, and it is " +
+                                "yours as much as theirs."
+                        ),
+                        h("Where to see it"),
+                        p(
+                            "Hover any territory and the tooltip names where its owner stands " +
+                                "with you. The diplomacy panel — the two-flags button in the " +
+                                "left-hand column over the map — lists every country you have " +
+                                "met, grouped by state, with everything you can do about each."
+                        ),
+                    ],
+                },
+                {
+                    id: "declaring-war",
+                    title: "Declaring War",
+                    summary: "How a war starts, what it costs, and why the attack button is sometimes grey.",
+                    body: [
+                        p(
+                            "Select one of your territories, then a neighbouring territory you " +
+                                "are not at war with, and the move button reads DECLARE WAR " +
+                                "instead of ATTACK. Hover it and it tells you exactly why you " +
+                                "cannot attack yet."
+                        ),
+                        p(
+                            "A declaration takes effect AT ONCE. There is no waiting period " +
+                                "anywhere in this system: declare, and the same selection reads " +
+                                "ATTACK a moment later. You can declare and invade in the same " +
+                                "turn."
+                        ),
+                        h("What it costs"),
+                        p(
+                            "Out of NEUTRAL, nothing at all. Nothing was promised, so nothing " +
+                                "is broken."
+                        ),
+                        p(
+                            "Out of a peace, a ceasefire or an alliance it is a BREACH — the " +
+                                "one act in the whole system that carries a price — and you " +
+                                "will be asked to confirm before it happens. The confirmation " +
+                                "names which agreement you are breaking and how long it has " +
+                                "stood."
+                        ),
+                        h("The opening grace period"),
+                        p(
+                            "For the first " + String(PLAYER_GRACE_TURNS) + " turns no AI " +
+                                "country will declare war on you, or open an attack or a siege " +
+                                "against you. Two hundred and six countries plan their first " +
+                                "turn with full information, and without this a player who " +
+                                "chose a small country could be gone before they had made a " +
+                                "decision that mattered."
+                        ),
+                        p(
+                            "It protects the OPENING of a war and nothing else. You may attack " +
+                                "throughout, and from turn " + String(PLAYER_GRACE_TURNS + 1) +
+                                " the AI fights exactly as hard as it ever would."
+                        ),
+                        h("How the AI chooses its wars"),
+                        p(
+                            "Every country commits to absorbing one neighbour at a time, and " +
+                                "that commitment IS its declaration of war — so a country with " +
+                                "a reachable neighbour always has a war. On top of that it will " +
+                                "open at most one more against a neighbour whose border is " +
+                                "visibly weaker than its own, and one more again when some " +
+                                "power is running away with the game. It will not fight more " +
+                                "than " + String(declarationDiscipline.concurrentWarCap) +
+                                " countries by choice."
+                        ),
+                        p(
+                            "A cautious leader will not start an opportunistic war at all. Who " +
+                                "is in charge of a country matters, and leaders change."
+                        ),
+                    ],
+                },
+                {
+                    id: "peace-and-ceasefires",
+                    title: "Peace and Ceasefires",
+                    summary: "How to stop a war you no longer want, and what makes somebody say yes.",
+                    body: [
+                        p(
+                            "Open the diplomacy panel, pick a country, and you can offer it a " +
+                                "ceasefire or a peace. It answers immediately. Refusing costs " +
+                                "you nothing, but you cannot ask the same country the same " +
+                                "thing again for " + String(peaceDiscipline.proposalCooldown) +
+                                " turns — asking every turn until the answer changes is not " +
+                                "negotiating."
+                        ),
+                        h("Which to ask for"),
+                        p(
+                            "A CEASEFIRE is a pause. It runs for " +
+                                String(peaceDiscipline.ceasefireTurns) + " turns and then " +
+                                "lapses back to whatever it was signed out of, usually war. It " +
+                                "is much easier to get than a peace, because it costs the other " +
+                                "side far less to agree to."
+                        ),
+                        p(
+                            "A PEACE has no end date. It is harder to get, and breaking it " +
+                                "later is a breach. You can offer one out of a war, out of " +
+                                "neutral — which turns an absence into an agreement worth " +
+                                "something — or to firm up a ceasefire that is holding, which " +
+                                "is the cheapest permanent way out of a war in the game."
+                        ),
+                        h("What makes them say yes"),
+                        p(
+                            "Six things, and the panel tells you which ones actually moved the " +
+                                "answer: how many other wars they are fighting, whether they " +
+                                "are defending or building rather than expanding, how badly " +
+                                "you have beaten them, how cautious their leader is, whether " +
+                                "some other power is running away with the game, and whether " +
+                                "they are simply much larger than you."
+                        ),
+                        p(
+                            "That last one is worth remembering. A country that is beating you " +
+                                "has no reason to stop, and asking will usually just spend your " +
+                                "cooldown."
+                        ),
+                        h("The one country that will not listen"),
+                        p(
+                            "Each country has committed to absorbing ONE particular neighbour. " +
+                                "If that is you, it will not agree a peace at any price — the " +
+                                "whole of its medium-term plan is taking your land."
+                        ),
+                        p(
+                            "It will take a CEASEFIRE, but only once you have beaten it back " +
+                                "at least " + String(peaceDiscipline.theatreCeasefireFailures) +
+                                " times. A country that is losing wants a breather, and that is " +
+                                "your window. Win two defences and then ask."
+                        ),
+                        h("A siege stops everything"),
+                        p(
+                            "While a siege stands between you and another country, neither of " +
+                                "you can agree anything with the other. Finish it, or lift it, " +
+                                "and then talk. A refusal for this reason does not spend your " +
+                                "cooldown, so you can ask the moment it ends."
+                        ),
+                        h("They will ask you too"),
+                        p(
+                            "AI countries sue for peace with each other constantly, and they " +
+                                "will come to you. An offer arrives at the end of the AI turn " +
+                                "as a prompt: accept and it takes effect at once, decline and " +
+                                "nothing at all is owed."
+                        ),
+                    ],
+                },
+                {
+                    id: "alliances",
+                    title: "Alliances",
+                    summary: "The only agreement that gives you something, and the price of taking it.",
+                    body: [
+                        p(
+                            "Peace and a ceasefire are promises not to do something. An " +
+                                "alliance PAYS. It is offered out of a peace and nothing else: " +
+                                "a country that will not first agree not to fight you is not " +
+                                "going to share its oil."
+                        ),
+                        h("What it gives"),
+                        ul(
+                            "A standing share of income. Each ally raises your gold income by " +
+                                String(Math.round(allianceShare.gold * 100)) + "%.",
+                            "The same on your ceilings for oil, construction materials and " +
+                                "food, at " + String(Math.round(allianceShare.capacity * 100)) +
+                                "% each.",
+                            "Shared intelligence: your ally's frontier appears on the military " +
+                                "map with the same force figures and threat marks as your own.",
+                            "Both of you get all of it. Nothing is taken from either side."
+                        ),
+                        p(
+                            "Only your first " + String(allianceShare.maxAllies) + " allies " +
+                                "count towards the money. Beyond that an alliance is worth " +
+                                "having for what it does on the map, not for what it pays."
+                        ),
+                        h("The price: you will be called"),
+                        p(
+                            "When an ally goes to war — or is attacked, which counts just as " +
+                                "much — you are ASKED to join. Never enrolled. The prompt " +
+                                "arrives at the end of the AI turn and it says what refusing " +
+                                "will cost before you answer."
+                        ),
+                        p(
+                            "If you JOIN, you are at war with their enemy at once, and you may " +
+                                "not make peace with that enemy on your own afterwards. The " +
+                                "ally who called you has to agree it — and when they do, you " +
+                                "come out of the war with them, on the same terms."
+                        ),
+                        p(
+                            "If you REFUSE, the alliance ends. Neither of you pays a penalty " +
+                                "for that: they chose a war you would not fight, you chose not " +
+                                "to fight it, and the alliance is simply over. Their cost is " +
+                                "exactly what happened — they went to war without you."
+                        ),
+                        h("The three ways an alliance ends"),
+                        p(
+                            "Only one of them costs anything, and the rule is one sentence: " +
+                                "the penalty is for ending an alliance when both sides do not " +
+                                "agree, and for nothing else."
+                        ),
+                        table(
+                            ["Ending", "Penalty?", "Why"],
+                            [
+                                ["A call to arms is refused", "None, either side", "Both of you decided"],
+                                ["Both agree to end it", "None, either side", "Both of you agreed"],
+                                ["You walk out, or attack your own ally", "The full breach", "Only one of you decided"],
+                            ]
+                        ),
+                        p(
+                            "The panel offers \"Propose ending it\" on any alliance, and it is " +
+                                "almost always accepted. That free and honest exit is exactly " +
+                                "what makes walking out unilaterally a choice to be treacherous " +
+                                "rather than a choice to be free."
+                        ),
+                        h("When the AI wants one"),
+                        p(
+                            "Countries start looking for allies when one power is running away " +
+                                "with the game, and they prefer a partner already fighting the " +
+                                "same enemies. That is the whole point of the system: the world " +
+                                "can gang up on whoever is winning — including you."
+                        ),
+                        p(
+                            "A country with several allies already is less interested in " +
+                                "another, and a large country will not ally with a very small " +
+                                "one: an alliance with somebody who cannot help you is a " +
+                                "promise to fight their wars for nothing."
+                        ),
+                    ],
+                },
+            ],
+        },
+        {
             id: "strategy",
             title: "Strategy",
             topics: [
@@ -2379,58 +2662,6 @@ export const DOMINAPEDIA_SECTIONS = Object.freeze(
                                 "harvest, an oil strike, a defector bringing an army — and " +
                                 "military events would make the roll something to look forward " +
                                 "to rather than only to dread."
-                        ),
-                    ],
-                },
-                {
-                    id: "diplomacy",
-                    title: "Diplomacy",
-                    summary: "The one conversation the AI will have with you.",
-                    body: [
-                        p(
-                            "There is exactly one piece of diplomacy in the game, and it only " +
-                                "happens in one situation."
-                        ),
-                        h("The gold offer"),
-                        p(
-                            "When an AI country wants to besiege a territory YOU are already " +
-                                "besieging, it opens the dialogue box and offers you gold to " +
-                                "lift your siege and withdraw. Accept and the gold transfers, " +
-                                "your siege is removed and your army is queued for return. " +
-                                "Refuse and nothing happens."
-                        ),
-                        p(
-                            "How much they offer is a function of how much gold that country " +
-                                "holds, how large the territory is relative to their empire, and " +
-                                "how expansionist their leader is — and it DOUBLES if the " +
-                                "territory originally belonged to them. A high-reconquista " +
-                                "leader trying to buy back its own land will pay well over the " +
-                                "odds."
-                        ),
-                        h("Whether to take it"),
-                        p(
-                            "Usually yes, if the siege was going badly. You get paid, your army " +
-                                "comes home intact, and the AI takes on the cost of a siege you " +
-                                "had already decided you could not finish. Refuse when your " +
-                                "margin is strongly positive and the territory is worth more " +
-                                "than the offer — you are close to a rout victory that also " +
-                                "absorbs half the garrison."
-                        ),
-                        h("Everything else that does not exist"),
-                        planned(
-                            "There are no alliances, no non-aggression pacts, no trade " +
-                                "agreements, no war declarations, no reputation and no shared " +
-                                "war. The AI countries do not talk to each other either. The " +
-                                "gold offer works and is a good seed: it is a concrete " +
-                                "negotiation over a concrete thing, with a price derived from " +
-                                "the world state and a personality. Everything else could be " +
-                                "built in that shape."
-                        ),
-                        planned(
-                            "Diplomacy is hard to make meaningful with 206 actors — you would " +
-                                "need a treaty screen the size of the map. It becomes a real " +
-                                "feature only after the AI is consolidated into eight to sixteen " +
-                                "powers, which is why the two are sequenced together."
                         ),
                     ],
                 },

@@ -345,6 +345,44 @@ export const ids = Object.freeze({
     // player was shown. This switch reveals the turn that has just begun as well.
     checkBoxActivityShowCurrentTurn: "checkBoxActivityShowCurrentTurn",
 
+    // --- Diplomacy panel (diplomacy stage 4) ----------------------------------
+    // Who the player has met, where they stand with each of them, and what can be
+    // done about it. Q6 in the diplomacy design is settled as its own full-screen
+    // window rather than a sixth info-panel tab, and the reason is stage 5 rather
+    // than stage 4: a proposal, a counter-offer and a call-in are a conversation,
+    // and a conversation does not fit in a column beside four tables of numbers.
+    //
+    // It borrows the Dominapedia's shape -- a list on the left, the subject on the
+    // right, each column owning its own overflow -- and the ActivityPanel's split
+    // of button from window, because the button belongs in the map's left-hand
+    // chrome column and the window does not.
+    diplomacyButtonContainer: "diplomacy-button-container",
+    diplomacyToggleButton: "diplomacyToggleButton",
+    diplomacyPanelContainer: "diplomacy-panel-container",
+    diplomacyPanel: "diplomacy-panel",
+    diplomacyPanelTitle: "diplomacy-panel-title",
+    diplomacyPanelSummary: "diplomacy-panel-summary",
+    diplomacyPanelSearch: "diplomacy-panel-search",
+    // The two scrolling columns. The panel itself never scrolls -- it is a fixed
+    // height with `overflow: hidden`, the same contract the Dominapedia has, which
+    // is what keeps the title bar and the actions on screen.
+    diplomacyPanelList: "diplomacy-panel-list",
+    diplomacyPanelDetail: "diplomacy-panel-detail",
+    diplomacyPanelEmpty: "diplomacy-panel-empty",
+    // The three things the player can do to a country. The two agreements need somebody
+    // to say yes; the declaration does not, which is why only it wears the danger colour.
+    diplomacyCeasefireBtn: "diplomacy-ceasefire-btn",
+    diplomacyPeaceBtn: "diplomacy-peace-btn",
+    diplomacyAllianceBtn: "diplomacy-alliance-btn",
+    // Mutual dissolution: the second of the two penalty-free ways out of an
+    // alliance, and the reason the breach penalty can be made large.
+    diplomacyDissolveBtn: "diplomacy-dissolve-btn",
+    diplomacyDeclareBtn: "diplomacy-declare-btn",
+    // What the other side said. A proposal is answered on the spot, so the answer has
+    // nowhere to live but in the column the player is already looking at.
+    diplomacyAnswer: "diplomacy-answer",
+    xButtonDiplomacy: "xButtonDiplomacy",
+
     // --- AI debug panel -------------------------------------------------------
     // A developer window, toggled with numpad /, showing what the AI is thinking.
     // It has NO button over the map: it is not part of the game, and a piece of map

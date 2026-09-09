@@ -19,7 +19,16 @@
 export const MoveMode = Object.freeze({
     TRANSFER: 0,
     ATTACK: 1,
-    VIEW_SIEGE: 2
+    VIEW_SIEGE: 2,
+    /**
+     * Declare war on the owner of the selected territory. Diplomacy stage 3.2.
+     *
+     * It is a MODE rather than a `target`, because `target` names something the caller has
+     * to ARM on the map -- an attack marker, a siege -- and a declaration arms nothing. What
+     * it does is change the world and then ask for the button to be worked out again, which
+     * is a click handler's job and not a selection's.
+     */
+    DECLARE: 3
 });
 
 /** Nothing to offer for this selection: the button is hidden and does nothing. */
@@ -41,6 +50,11 @@ const HIDDEN = Object.freeze({ visible: false, label: "", variant: null, enabled
  * @param {boolean} selection.mayAttack         the player is at WAR with this territory's
  *        owner. Defaults true, so a caller that does not know about diplomacy behaves as
  *        the game did before it existed
+ * @param {boolean} selection.mayDeclare        war can be declared out of the current state.
+ *        Defaults FALSE, the opposite way round from `mayAttack` and for the same reason: a
+ *        caller that has not been taught about declarations behaves as the game did at the
+ *        stage 2 checkpoint -- greyed, and saying why -- rather than offering a control that
+ *        leads nowhere
  * @param {string} [selection.relationLabel]    how the state reads, for the button
  * @param {string} [selection.relationCountry]  who the territory belongs to, for the hint
  * @param {boolean} selection.sourceIsPlayerOwned  the PREVIOUS click was the player's
@@ -60,6 +74,7 @@ export function deriveMoveButtonState(selection) {
         isAttackable,
         isInRange,
         mayAttack = true,
+        mayDeclare = false,
         relationLabel = null,
         relationCountry = null,
         sourceIsPlayerOwned,
@@ -112,6 +127,30 @@ export function deriveMoveButtonState(selection) {
         //in reach, that the reason they cannot take it is diplomatic rather than military,
         //and — once declarations land in Stage 3 — exactly which control turns it back on.
         if (!mayAttack) {
+            //THE DECLARATION, when one is possible. Stage 3.2, and Leigh's second route into
+            //a war: *"declaring without chatting too"*. It is offered from the control the
+            //player was already reaching for, and it takes effect at once -- declare and
+            //attack the same turn, because there is no waiting period anywhere in this
+            //system.
+            //
+            //It is NOT the attack colour. The next click after this one is ATTACK, in the
+            //same place, and two identical red buttons a click apart is how somebody invades
+            //a country they meant only to threaten.
+            if (mayDeclare) {
+                return {
+                    visible: true,
+                    label: "DECLARE WAR",
+                    variant: "open",
+                    enabled: true,
+                    mode: MoveMode.DECLARE,
+                    //Nothing is armed. `target` names something the caller puts on the map,
+                    //and a marker for a territory that cannot yet be attacked would have no
+                    //way off it (`markers.js` -- the marker and its target are one fact).
+                    target: null,
+                    hint: diplomaticHint(relationLabel, relationCountry) + " " +
+                        declarationOffer(relationLabel)
+                };
+            }
             return {
                 visible: true,
                 label: relationLabel ? relationLabel.toUpperCase() : "NOT AT WAR",
@@ -159,10 +198,12 @@ export function deriveMoveButtonState(selection) {
  * records at length; this returns the sentence with the state, and `ui.js` only has to
  * show it.
  *
- * The wording states the FACT and does not promise a control. Declaring war is Stage 3 of
- * the diplomacy phase, so a hint saying "click to declare war" would be a lie today and
- * would have to be found and changed later; "requires a declaration of war" is true now
- * and stays true when the button that makes one arrives.
+ * The wording states the FACT and nothing else. What the player may DO about it is a
+ * separate sentence (`declarationOffer()` below), appended only on the branch that actually
+ * offers the control -- which is the design's own order: *"the attack control says why a
+ * territory cannot be attacked before it offers the declaration"*. Keeping the two apart is
+ * what let the fact survive stage 3 unedited when the control it deliberately did not
+ * promise finally arrived.
  */
 function diplomaticHint(relationLabel, relationCountry) {
     //Never a demonym: there are no adjective forms for 207 country names, so every
@@ -185,6 +226,32 @@ function diplomaticHint(relationLabel, relationCountry) {
         default:
             return `You are not at war with ${them}. Neither side has declared, and until ` +
                 "one does, neither may attack the other.";
+    }
+}
+
+/**
+ * What the DECLARE WAR button does, said after the fact that explains why it is there.
+ *
+ * A declaration out of NEUTRAL costs nothing, because nothing was promised. Out of one of
+ * the three agreements it is a BREACH -- the one act the whole penalty rule attaches to --
+ * and the sentence says so before the click rather than after it. The confirmation dialog in
+ * stage 4 says it again at greater length; this is the version a player reads while deciding
+ * whether to move the pointer at all.
+ *
+ * It names no number. The price of a breach is stage 5.6 and does not exist yet, and a hint
+ * quoting a penalty the game does not levy is exactly the class of lie this file's other
+ * sentence was written to avoid.
+ */
+function declarationOffer(relationLabel) {
+    switch (relationLabel) {
+        case "At peace":
+        case "Ceasefire":
+        case "Allied":
+            return "Declaring war would break that agreement -- a breach, and the one way " +
+                "out of an agreement that costs anything. Click to declare.";
+        default:
+            return "Declaring war costs nothing, because nothing was agreed. It takes " +
+                "effect at once, so you may attack this turn. Click to declare.";
     }
 }
 

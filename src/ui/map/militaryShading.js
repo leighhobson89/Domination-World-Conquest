@@ -191,6 +191,9 @@ function strongestOf(neighbours) {
  * @param {(territory: object) => object[]} input.enemyNeighboursOf  reachable territories under
  *        another flag
  * @param {(territory: object) => boolean} input.isPlayerOwned
+ * @param {(territory: object) => boolean} [input.isAlliedOwned]  held by an ALLY of the
+ *        player. Diplomacy stage 5.4 -- shared intelligence. Defaults to "nobody", so a
+ *        caller that predates alliances gets exactly the view it had
  * @param {(attacker: object, defender: object) => number} [input.oddsFor]  0..100; omitted in
  *        spectator mode, where there is no player and so nothing to warn
  * @returns {Map<string, {band: number, threat: string, odds: number, force: number,
@@ -199,20 +202,45 @@ function strongestOf(neighbours) {
  *          odds: number, threat: string}[], frontier: boolean, player: boolean}>} keyed by
  *          uniqueId
  */
-export function planMilitaryView({ territories, enemyNeighboursOf, isPlayerOwned, oddsFor }) {
+export function planMilitaryView({
+    territories,
+    enemyNeighboursOf,
+    isPlayerOwned,
+    isAlliedOwned = null,
+    oddsFor
+}) {
     const plan = new Map();
 
-    //THE FRONTIER: the player's own land, and every enemy territory that touches it. It is
+    //SHARED INTELLIGENCE -- diplomacy stage 5.4, and the cheapest of the four things an
+    //alliance gives. Nothing new is computed: this function already walks the whole map, and
+    //the widening is one predicate. An ally's frontier gets the same figures and the same
+    //threat marks the player's own does, which is what "you can see what your ally sees"
+    //means on a map made of numbers.
+    const alliedOwned = typeof isAlliedOwned === "function" ? isAlliedOwned : () => false;
+    const friendly = (territory) => Boolean(isPlayerOwned(territory)) || alliedOwned(territory);
+
+    //THE FRONTIER: the coalition's own land, and every enemy territory that touches it. It is
     //gathered as the plan is built rather than walked for separately, because the enemy
-    //neighbours of each player territory are exactly what the loop is already asking for.
+    //neighbours of each watched territory are exactly what the loop is already asking for.
     const frontier = new Set();
     let anyPlayer = false;
 
     for (const territory of territories ?? []) {
-        const neighbours = enemyNeighboursOf(territory) ?? [];
-        const { territory: strongest, power } = strongestOf(neighbours);
+        const reachable = enemyNeighboursOf(territory) ?? [];
         const player = Boolean(isPlayerOwned(territory));
-        if (player) {
+        const allied = !player && alliedOwned(territory);
+        const watched = player || allied;
+
+        //AN ALLY IS NOT AN ENEMY, AND THE SHADE HAS TO KNOW IT. `enemyNeighboursOf()` means
+        //"under another flag", which an ally's territory also is -- so without this filter the
+        //moment two countries signed, each would start shading its own border with the other
+        //dark and marking it as a threat. The filter applies only to a WATCHED territory,
+        //because "friendly" is a fact about the player's coalition: for some third country on
+        //the far side of the world, the player and their allies are enemies like anybody else,
+        //and its shade is right to count them.
+        const neighbours = watched ? reachable.filter(other => !friendly(other)) : reachable;
+        const { territory: strongest, power } = strongestOf(neighbours);
+        if (watched) {
             anyPlayer = true;
             frontier.add(String(territory.uniqueId));
             for (const neighbour of neighbours) {
@@ -224,7 +252,7 @@ export function planMilitaryView({ territories, enemyNeighboursOf, isPlayerOwned
         //threatened from several directions at once, each of them a different border with a
         //different answer -- marking only the worst of them says the others are safe.
         const threats = [];
-        if (player && typeof oddsFor === "function") {
+        if (watched && typeof oddsFor === "function") {
             const candidates = threatCandidatesFor(neighbours, territory.armyForCurrentTerritory);
             for (const neighbour of candidates) {
                 const chance = Number(oddsFor(neighbour, territory)) || 0;
@@ -271,10 +299,12 @@ export function planMilitaryView({ territories, enemyNeighboursOf, isPlayerOwned
             facedName: strongest?.territoryName ?? null,
             facedId: strongest ? String(strongest.uniqueId) : null,
             threats,
-            //Filled in below: the whole frontier is not known until every player territory has
-            //been seen, and a territory can be the neighbour of one visited later.
+            //Filled in below: the whole frontier is not known until every watched territory
+            //has been seen, and a territory can be the neighbour of one visited later.
             frontier: false,
-            player
+            player,
+            /** Held by an ally. Drawn like the player's own land, and owned by somebody else. */
+            ally: allied
         });
     }
 

@@ -35,6 +35,11 @@ import { bonusMultiplier, effectiveCapacityFor } from "./capacity.js";
  *                                           condition. Two dials rather than one because
  *                                           capacity compounds into gold and gold compounds
  *                                           into nothing -- see `config/balance.js`
+ * @property {number} [allianceBonus]        multiplier on GOLD income, 1 unless this
+ *                                           territory's owner has allies. Derived at the
+ *                                           point of use and never written onto a territory,
+ *                                           for the reason `allianceShare.js` records
+ * @property {number} [allianceCapacityBonus] the same for the three CAPACITIES
  */
 
 /**
@@ -47,8 +52,29 @@ export const QUIET_TURN = Object.freeze({
     randomEventHappening: false,
     randomEvent: "",
     continentBonus: 1,
-    continentCapacityBonus: 1
+    continentCapacityBonus: 1,
+    allianceBonus: 1,
+    allianceCapacityBonus: 1
 });
+
+/**
+ * The whole multiplier on a CEILING: the continent bonus and the alliance share together.
+ *
+ * They multiply rather than add, which is the only composition that keeps each one meaning
+ * what it says on its own -- "a quarter more" and "a sixth more" is a bit over half as much
+ * again, whichever order they arrived in. It is one function because three call sites need
+ * the same answer and `effectiveCapacityFor()` takes a single figure; a fourth bonus becomes
+ * one more term here rather than a fourth argument threaded through all of them.
+ */
+export function capacityBonusOf(context) {
+    return numberOr(context.continentCapacityBonus, 1) *
+        numberOr(context.allianceCapacityBonus, 1);
+}
+
+function numberOr(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : fallback;
+}
 
 /**
  * How a stock moves towards its capacity in one turn.
@@ -86,7 +112,7 @@ export function regenerationTowardsCapacity(stock, capacity, rates, context) {
 export function consMatsChangeFor(territory, context = QUIET_TURN) {
     return regenerationTowardsCapacity(
         territory.consMatsForCurrentTerritory,
-        effectiveCapacityFor(territory, "consMats", context.continentCapacityBonus),
+        effectiveCapacityFor(territory, "consMats", capacityBonusOf(context)),
         resourceRegeneration.consMats,
         context);
 }
@@ -95,7 +121,7 @@ export function consMatsChangeFor(territory, context = QUIET_TURN) {
 export function oilChangeFor(territory, context = QUIET_TURN) {
     return regenerationTowardsCapacity(
         territory.oilForCurrentTerritory,
-        effectiveCapacityFor(territory, "oil", context.continentCapacityBonus),
+        effectiveCapacityFor(territory, "oil", capacityBonusOf(context)),
         resourceRegeneration.oil,
         context);
 }
@@ -109,7 +135,7 @@ export function oilChangeFor(territory, context = QUIET_TURN) {
 export function foodChangeFor(territory, context = QUIET_TURN) {
     const change = regenerationTowardsCapacity(
         territory.foodForCurrentTerritory * FOOD_UNIT_SCALE,
-        effectiveCapacityFor(territory, "food", context.continentCapacityBonus),
+        effectiveCapacityFor(territory, "food", capacityBonusOf(context)),
         resourceRegeneration.food,
         context);
     return change / FOOD_UNIT_SCALE;
@@ -165,5 +191,9 @@ export function goldChangeFor(territory, context = QUIET_TURN) {
     //it to the earned part alone would make it nearly worthless on a continent of small
     //territories, and Oceania -- 65 islands, the hardest continent on the map to complete -- is
     //exactly such a continent. It would punish the hardest objective in the game for being hard.
-    return (TERRITORY_BASE_INCOME + earned) * bonusMultiplier(context.continentBonus);
+    //THE TWO BONUSES MULTIPLY. A continent held whole and an alliance are independent
+    //achievements and each should be worth what it says on its own, whichever came first.
+    return (TERRITORY_BASE_INCOME + earned) *
+        bonusMultiplier(context.continentBonus) *
+        bonusMultiplier(context.allianceBonus);
 }

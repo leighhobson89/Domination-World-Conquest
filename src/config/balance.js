@@ -1707,3 +1707,336 @@ export const theatreCommitment = {
         sizeScale: 12
     }
 };
+
+/**
+ * WHEN A COUNTRY DECLARES WAR, and how many wars it will open at once.
+ *
+ * Read by `src/ai/diplomacy.js` and by nothing else. Diplomacy checklist stage 3.
+ *
+ * THE THEATRE DECLARATION IS NOT ON THIS TABLE, AND THAT IS THE FREEZE GUARD.
+ * `theatre.js` already commits a country to absorbing ONE neighbour and keeps the
+ * commitment until the rival becomes a wall -- that commitment IS the country's answer to
+ * "who is my enemy", so it becomes a declaration unconditionally: no posture may refuse it,
+ * and `concurrentWarCap` does not apply to it. Everything below bounds the OPPORTUNISTIC
+ * declarations that sit on top of it.
+ *
+ * The reason for that split is known-issue BA, which this phase can reproduce exactly. A
+ * posture rule that disqualified 93% of the world from expanding froze the map at 163
+ * countries with the largest empire never passing 30, and nothing threw. `postureAllowance`
+ * below has that shape, so if it governed the theatre war as well, a world in which most
+ * countries sit in DEVELOP or DEFEND would simply never declare on anybody and would look
+ * identical to stage 2's deliberate silence.
+ */
+export const declarationDiscipline = {
+    /**
+     * Extra wars a country will OPEN in one turn on top of its theatre war, by posture.
+     *
+     * A country that is developing or defending opens no new front by choice; one that is
+     * expanding will take a second if a neighbour is visibly weak. These are small numbers
+     * on purpose -- a war never ends in the game as it stands (peace is stage 5), so every
+     * declaration is permanent and a generous allowance would put the whole map back into
+     * the undeclared all-out war this phase exists to replace, inside twenty turns.
+     */
+    postureAllowance: {
+        DEVELOP: 0,
+        DEFEND: 0,
+        CONSOLIDATE: 1,
+        EXPAND: 1
+    },
+    /**
+     * How many countries this one may be at war with before it opens no MORE opportunistic
+     * wars. The theatre war is exempt, so a country is never left with no enemy at all.
+     */
+    concurrentWarCap: 3,
+    /**
+     * How much stronger our border has to be than theirs before a war is worth starting for
+     * its own sake. `weakness` in `rankRivals()` is `ourArmy / (ourArmy + theirArmy)` over
+     * the shared frontier, so 0.5 is parity and this is comfortably above it: an
+     * opportunistic war is one a country expects to win, and the ones it merely hopes to win
+     * are what the theatre commitment is for.
+     */
+    opportunistWeakness: 0.62,
+    /**
+     * A leader below this `risk_taking` makes no opportunistic declaration at all.
+     *
+     * A pacifist (0.0-0.4) still fights the war their country has committed to and still
+     * defends itself; what they will not do is start a second one because a neighbour looks
+     * weak. That is the difference the trait is for, and it is why this is a trait gate
+     * rather than a lower allowance for everybody.
+     */
+    opportunistRiskFloor: 0.35,
+    /**
+     * `urgency` at or above which a country gets one further opportunistic declaration.
+     *
+     * `doctrine.js` computes urgency as the strongest rival's share of the world's land, so
+     * this is the diplomatic form of the runaway-leader response the attack budget already
+     * has: when somebody is winning, the rest of the world starts more wars.
+     */
+    urgencyForExtra: 0.7
+};
+
+/**
+ * WHETHER A COUNTRY WILL AGREE TO STOP FIGHTING, and how long a ceasefire runs.
+ *
+ * Read by `src/ai/diplomacy.js` and by nothing else. Diplomacy checklist stage 5.1.
+ *
+ * WHY THIS MATTERS MORE THAN THE DECLARATION TABLE ABOVE IT. Stage 3 measured a world in
+ * which a war, once declared, could never end: pairs at war climbed 536 -> 749 across a
+ * 150-turn run under every goal, which is the map walking back towards the permanent
+ * undeclared war this whole phase exists to replace. A declaration rule with no matching
+ * peace rule is a ratchet. These dials are the pawl coming off it.
+ *
+ * THE THEATRE RIVAL IS THE ONE COUNTRY A PEACE CANNOT BE BOUGHT FROM, and that is what
+ * keeps the register meaningful. `theatre.js` commits a country to absorbing ONE neighbour
+ * and keeps the commitment while it takes ground; if that war could be ended by asking, the
+ * mid-term goal would be a suggestion. A CEASEFIRE is still available from a theatre rival
+ * that is losing, which is the deliberate escape: a country that is being beaten wants a
+ * breather, and that is exactly the moment a player most wants to buy one.
+ */
+export const peaceDiscipline = {
+    /**
+     * How many turns a ceasefire runs before it lapses back to whatever it was signed out
+     * of. Long enough to be worth having -- a besieged front can be rebuilt in fifteen
+     * turns -- and short enough that it is a breathing space rather than a peace by
+     * another name, which is what the peace itself is for.
+     */
+    ceasefireTurns: 15,
+    /**
+     * The score a proposal has to reach to be accepted, before the kind's own allowance.
+     * The terms below are all in the same currency and each says one thing about the
+     * country being asked.
+     */
+    acceptThreshold: 1.0,
+    /**
+     * A CEASEFIRE IS THE CHEAP ONE AND IS MEANT TO BE. The design's own words: *"a
+     * ceasefire is the cheap version and the AI should reach for it first."* It expires,
+     * so agreeing to one costs a country far less than agreeing never to fight again.
+     */
+    ceasefireAllowance: 0.6,
+    /** Weight per OTHER war this country is fighting. Two fronts is the classic reason. */
+    perOtherWar: 0.45,
+    /** Capped, so a country at war with nine neighbours is not automatically a pushover. */
+    maxOtherWarWeight: 1.5,
+    /** Weight for a posture that is not looking for a fight (DEFEND or DEVELOP). */
+    defensivePosture: 0.8,
+    /**
+     * Weight per attack this country has LOST against the proposer since committing.
+     * `theatre.js` already counts them, and losing is the most legible reason to want out.
+     */
+    perFailure: 0.35,
+    /** Cap on the above, for the same reason `maxOtherWarWeight` is capped. */
+    maxFailureWeight: 1.05,
+    /**
+     * How far a leader's `risk_taking` moves the answer, around the 0.5 that is neither
+     * warlike nor peaceable. A pacifist (0.0-0.4) leans towards yes and an aggressive
+     * leader (0.6-1.0) leans away, which is what makes WHO is in charge worth knowing.
+     */
+    riskSwing: 1.2,
+    /**
+     * Weight on `doctrine.urgency` -- the strongest rival's share of the world's land.
+     *
+     * THIS IS THE MECHANISM BEHIND LEIGH'S STATED GOAL FOR THE PHASE, *"countries will work
+     * together to overcome adversaries"*, and it arrives one handshake at a time: when
+     * somebody is running away with the game, everybody else becomes readier to stop
+     * fighting each other. The same number already raises the attack budget, so a runaway
+     * leader gets attacked harder AND finds the rest of the world less busy with itself.
+     */
+    urgencyWeight: 0.7,
+    /**
+     * Weight against a proposal from a country this one is much LARGER than. Agreeing not
+     * to fight somebody you are beating is what a country does not do, and without this
+     * term the strongest empire on the map signs peace with everybody it is about to eat.
+     */
+    strongerRefusal: 0.9,
+    /** Territory ratio at or above which `strongerRefusal` applies in full. */
+    strongerRatio: 2.0,
+    /**
+     * How badly a theatre rival has to be doing before it will take a ceasefire: attacks
+     * lost against the proposer, from the same ledger `perFailure` reads.
+     */
+    theatreCeasefireFailures: 2,
+    /**
+     * Turns before the same pair may be asked again after a refusal.
+     *
+     * A player who can ask every turn until the dice fall their way is not negotiating,
+     * they are rerolling -- and an AI asking every turn would fill the news with the same
+     * sentence. The memory is per pair per proposal kind.
+     */
+    proposalCooldown: 8
+};
+
+/**
+ * WHO WILL SIGN AN ALLIANCE, AND WHAT ONE IS WORTH.
+ *
+ * Read by `src/ai/diplomacy.js` and by the economy context. Diplomacy checklist stages
+ * 5.2 to 5.5.
+ *
+ * AN ALLIANCE IS THE ONLY AGREEMENT THAT GIVES SOMETHING RATHER THAN MERELY WITHHOLDING
+ * SOMETHING. Peace and a ceasefire are both promises not to do a thing. An alliance pays --
+ * income, capacity, reach and sight -- and that is what makes it worth the risk of being
+ * called into somebody else's war, which is the whole design in Leigh's §3.4.
+ *
+ * IT IS A MUTUAL DIVIDEND AND NOT A TRANSFER, and that is a decision rather than a
+ * simplification. The design asks for "a standing share of income"; a share taken from one
+ * treasury and put in another has to be written onto a territory, and a stored transfer needs
+ * an EXACT INVERSE WRITE the moment the alliance ends -- which is the silent bug
+ * `continentBonus.js` exists to prevent, and the class of defect (known-issue BJ, the
+ * free-attack bug) that has cost this project the most. So both allies simply earn more while
+ * the alliance stands, derived at the point of use and stored nowhere, and the instant it
+ * ends the multiplier is 1 again with nothing to unwind.
+ *
+ * SYMMETRIC, WHICH ANSWERS Q5. A percentage of a flow is worth more in absolute gold to the
+ * larger ally, which is Leigh's standing rule about balance -- being large stays an advantage
+ * -- while the smaller ally gets the larger proportional lift, which is the nudge. A rule
+ * that made the strong subsidise the weak would be the "price each upgrade against the
+ * territory's own income" idea that was proposed and turned down for the economy.
+ */
+export const allianceShare = {
+    /** Multiplier on GOLD INCOME per ally, as a fraction: 0.10 is +10%. A FLOW. */
+    gold: 0.10,
+    /**
+     * Multiplier on the three CEILINGS per ally -- oil, construction materials and food.
+     *
+     * Smaller than the gold figure and deliberately so: the economy phase established that a
+     * ceiling compounds into gold a few turns later while gold compounds into nothing, which
+     * is why `CONTINENT_BONUS_GOLD` and `CONTINENT_BONUS_CAPACITY` are two dials rather than
+     * one. The same asymmetry applies here.
+     */
+    capacity: 0.06,
+    /**
+     * How many allies count towards the economic benefit.
+     *
+     * Without a cap, an alliance web is a runaway: every signature raises the income of
+     * everybody in it, which pays for the army that wins the game. Three is enough for an
+     * alliance to be worth having and few enough that a coalition against a runaway leader is
+     * a military fact rather than an economic one.
+     */
+    maxAllies: 3
+};
+
+/**
+ * WHETHER A COUNTRY WILL ALLY, AND WHETHER IT WILL ANSWER A CALL TO ARMS.
+ *
+ * `urgency` -- the strongest rival's share of the world's land, already computed every turn
+ * by `doctrine.js` -- is the input the alliance rule was always going to want, because it is
+ * already the "somebody is running away with it" signal. This is where Leigh's stated goal
+ * for the whole phase finally arrives in full: *"the eventual idea is that countries will
+ * work together to overcome adversaries."*
+ */
+export const allianceDiscipline = {
+    /** The score an alliance proposal has to reach. Higher than a peace: it costs more. */
+    acceptThreshold: 1.6,
+    /**
+     * The `urgency` at which a country starts LOOKING for an ally rather than merely
+     * accepting one that asks.
+     *
+     * It is a gate rather than a term because seeking is a different act from agreeing: a
+     * country asked to ally weighs six things, and a country that goes out and asks has
+     * decided there is something to be afraid of. Below this it tidies up its own wars
+     * instead, which is `planAgreementOffer()`'s other branch.
+     */
+    seekAllyUrgency: 0.55,
+    /**
+     * Weight on `urgency`. The heaviest term by a distance, because a country with nothing to
+     * fear has no reason to tie itself to somebody else's wars.
+     */
+    urgency: 1.8,
+    /**
+     * Weight per enemy the two already have IN COMMON, capped by `maxSharedEnemyWeight`.
+     *
+     * The most legible reason two countries ally, and the one the design names: at high
+     * urgency a country seeks an alliance with a neighbour who is ALSO threatened by the same
+     * leader. It is cheap to ask -- both war lists are already in the register.
+     */
+    perSharedEnemy: 0.5,
+    maxSharedEnemyWeight: 1.5,
+    /** Weight per ally the asked country already has, NEGATIVE: a web has diminishing worth. */
+    perExistingAlly: -0.45,
+    /** How far the leader's `risk_taking` moves it, around 0.5. Cautious leaders ally. */
+    riskSwing: 1.0,
+    /**
+     * Weight against allying with somebody far smaller. An alliance with a country that
+     * cannot help you is a promise to fight their wars for nothing.
+     */
+    strongerRefusal: 0.8,
+    strongerRatio: 3.0,
+
+    /**
+     * THE CALL-IN. When a party to an alliance goes to war, its ally is ASKED to join --
+     * never enrolled, and nothing cascades. See the design document's §3.4.
+     */
+    callIn: {
+        /** The score a call to arms has to reach before an AI ally answers it. */
+        acceptThreshold: 1.0,
+        /** Weight on urgency: a shared fear is what makes an ally turn up. */
+        urgency: 1.2,
+        /** Weight when the ally is ALREADY at war with the adversary. Nothing is risked. */
+        alreadyFighting: 2.0,
+        /** Weight when the alliance partner is the one being ATTACKED rather than attacking. */
+        defensive: 0.8,
+        /** Weight per war the ally is already fighting, NEGATIVE. */
+        perExistingWar: -0.3,
+        /** How far `risk_taking` moves it. An aggressive leader answers a call to arms. */
+        riskSwing: 1.0,
+        /** Weight against joining a war on a country far larger than the ally. */
+        strongerAdversary: 0.9,
+        strongerRatio: 3.0
+    }
+};
+
+/**
+ * WHAT BREAKING AN AGREEMENT COSTS. Diplomacy checklist stage 5.6.
+ *
+ * Leigh: *"a very large penalty indeed if broken"* -- narrowed by §3.4 to exactly ONE act.
+ * There are three ways an alliance can end and only this one is a breach:
+ *
+ *   an ally DECLINES A CALL-IN     free, both sides. Both of them decided
+ *   both agree to DISSOLVE it      free, both sides. Both of them agreed
+ *   one side WALKS OUT, or declares war on its own ally     THE FULL PENALTY
+ *
+ * THE ASYMMETRY IS THE WHOLE DESIGN, and it is what makes it safe to make the penalty large.
+ * A country that wants out of an alliance has a free, honest route available every single
+ * turn -- propose dissolution -- so choosing the breach instead is a choice to be TREACHEROUS
+ * rather than a choice to be free, and the price is set against that rather than against
+ * wanting to leave.
+ *
+ * **Q4 IS ANSWERED HERE AND THE PENALTY IS REPUTATIONAL ONLY.** There is no fine, and that is
+ * a decision rather than an omission. A gold penalty is a number nobody can calibrate -- what
+ * is a treaty worth in gold? -- and it would fall hardest on the countries least able to
+ * absorb it, which is backwards. What the reputation costs instead is DERIVED and therefore
+ * self-calibrating: a breach drops every OTHER agreement the betrayer holds, and an alliance
+ * pays a standing share of income, so tearing one treaty up is paid for in the dividends of
+ * all the rest. The material cost falls out of the reputational one and needs no dial.
+ */
+export const betrayalPenalty = {
+    /**
+     * How long the treachery mark lasts, by what was broken.
+     *
+     * An alliance costs most, a peace less, a ceasefire least -- which is the ordering the
+     * design asks for, and it is the same ordering as how hard each was to get. Leaving
+     * NEUTRAL is not on this table at all, because nothing was promised.
+     *
+     * It DECAYS rather than being permanent, the way `theatreCommitment.wallMemoryTurns` does
+     * and for the same reason: "they tore up a treaty on turn 12" stops being the most useful
+     * thing to know about a country forty turns later, and a permanent exclusion would make a
+     * single betrayal an unrecoverable game state.
+     */
+    treacheryTurns: {
+        alliance: 25,
+        peace: 15,
+        ceasefire: 10
+    },
+    /**
+     * Does a breach drop the betrayer's OTHER agreements to neutral?
+     *
+     * Yes, and this is the heart of the penalty: nobody keeps a treaty with somebody who has
+     * just torn one up. It is also what makes the cost proportional to what the betrayer had
+     * -- a country with one peace loses little, and a country at the centre of an alliance web
+     * loses the web and the income that came with it.
+     *
+     * A dial rather than a fact because it is the single most consequential line here, and one
+     * that a measurement might argue with: it is the difference between a betrayal being a
+     * setback and being a catastrophe.
+     */
+    dropsOtherAgreements: true
+};

@@ -216,13 +216,97 @@ export function describeState(state) {
 }
 
 /**
+ * The three things one country can OFFER another.
+ *
+ * A declaration is not on this list, and that is the distinction the whole stage rests
+ * on: a declaration of war is UNILATERAL and takes effect at once, while these three
+ * need somebody on the other side to say yes. `allowsDeclaration()` above governs the
+ * first; `canPropose()` below governs these.
+ *
+ * ALLIANCE is listed here before it is built, because the shape of the vocabulary is
+ * what decides whether adding it later is one row or a refactor. Nothing offers one
+ * yet -- see the checklist's stage 5.2.
+ */
+export const ProposalKind = Object.freeze({
+    CEASEFIRE: "ceasefire",
+    PEACE: "peace",
+    ALLIANCE: "alliance"
+});
+
+/** What state a proposal of each kind would put the pair into, if it were accepted. */
+export const PROPOSAL_RESULT = Object.freeze({
+    [ProposalKind.CEASEFIRE]: DiplomaticState.CEASEFIRE,
+    [ProposalKind.PEACE]: DiplomaticState.PEACE,
+    [ProposalKind.ALLIANCE]: DiplomaticState.ALLIANCE
+});
+
+/**
+ * May this kind of agreement be OFFERED out of the state the pair is in?
+ *
+ * Three rules, and each says something about what the agreement means.
+ *
+ * A CEASEFIRE is a pause in fighting, so it can only be offered by people who are
+ * fighting: out of WAR and nothing else. Offering one at neutral is offering to stop
+ * doing something nobody is doing.
+ *
+ * A PEACE can be offered out of WAR -- the ordinary case -- and also out of NEUTRAL and
+ * out of a CEASEFIRE, both of which are real and different. Neutral to peace is two
+ * countries who have merely met agreeing that they will not fight, which turns an
+ * absence into an agreement and gives it a price to break. A ceasefire firming into a
+ * peace is the classic move and the design table names it.
+ *
+ * An ALLIANCE is offered out of PEACE alone. It is peace plus shared resources, and a
+ * country that will not first agree not to fight you is not going to share its oil.
+ *
+ * Nothing may be offered at NO_CONTACT: two countries who have never touched have
+ * nothing to agree about, and the turn they can reach each other the contact rule has
+ * already made them neutral.
+ */
+export function canPropose(state, kind) {
+    switch (kind) {
+        case ProposalKind.CEASEFIRE:
+            return state === DiplomaticState.WAR;
+        case ProposalKind.PEACE:
+            return state === DiplomaticState.WAR ||
+                state === DiplomaticState.NEUTRAL ||
+                state === DiplomaticState.CEASEFIRE;
+        case ProposalKind.ALLIANCE:
+            return state === DiplomaticState.PEACE;
+        default:
+            return false;
+    }
+}
+
+/** How a proposal reads for a human. A noun, never an adjective, and carries no names. */
+export function describeProposal(kind) {
+    switch (kind) {
+        case ProposalKind.CEASEFIRE:
+            return "a ceasefire";
+        case ProposalKind.PEACE:
+            return "a peace";
+        case ProposalKind.ALLIANCE:
+            return "an alliance";
+        default:
+            return "an agreement";
+    }
+}
+
+/**
  * A fresh relation record.
  *
  * `since` is the turn the state began, which is what a "you broke a peace you
  * signed forty turns ago" penalty needs and what lets the UI say how long a thing
  * has held. `until` is the turn a CEASEFIRE expires on and is null for every other
  * state.
+ *
+ * `revertsTo` IS THE ANSWER TO Q2, AND IT IS A FACT ABOUT THE AGREEMENT RATHER THAN A
+ * RULE APPLIED AT EXPIRY. A ceasefire agreed during a war and allowed to lapse plainly
+ * goes back to WAR -- that is what a ceasefire IS. But with NEUTRAL as the first-contact
+ * state, "reverts to war" and "reverts to neutral" are genuinely different outcomes, and
+ * a rule that guessed at expiry would have to reconstruct a history the register does not
+ * keep. So the record remembers, at the moment it is signed, the state it was signed out
+ * of. It is null for everything but a ceasefire.
  */
-export function relationRecord(state, { since = null, until = null } = {}) {
-    return { state, since, until };
+export function relationRecord(state, { since = null, until = null, revertsTo = null } = {}) {
+    return { state, since, until, revertsTo };
 }

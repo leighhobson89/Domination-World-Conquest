@@ -1,3 +1,10 @@
+// THE `bonus` OBJECT CARRIES FOUR FIGURES NOW, not two. Diplomacy stage 5.3 added an
+// ALLIANCE share -- a multiplier on gold income and another on the three capacities -- and it
+// is reported separately from the continent's rather than pre-multiplied, because a spec that
+// could only see the product could not tell which of the two had gone wrong. Every assertion
+// here pins the alliance pair at 1: nobody in these scenarios has an ally, so the continent
+// bonus is measured exactly as it was.
+
 import { test, expect } from "../../support/fixtures.js";
 
 // The continent bonus, measured end to end.
@@ -86,7 +93,7 @@ test.describe("a continent held whole", () => {
             (name) => window.__game.economyFor(name),
             names[1]
         );
-        expect(economy.bonus).toEqual({ gold: 1, capacity: 1 });
+        expect(economy.bonus).toEqual({ gold: 1, capacity: 1, allianceGold: 1, allianceCapacity: 1 });
     });
 
     test("multiplies gold income and the three capacities on the turn it is completed", async ({
@@ -109,13 +116,13 @@ test.describe("a continent held whole", () => {
         );
 
         const before = await page.evaluate((name) => window.__game.economyFor(name), subject);
-        expect(before.bonus).toEqual({ gold: 1, capacity: 1 });
+        expect(before.bonus).toEqual({ gold: 1, capacity: 1, allianceGold: 1, allianceCapacity: 1 });
 
         await handContinentTo(game, page, continent.continent, "Player");
 
         const after = await page.evaluate((name) => window.__game.economyFor(name), subject);
 
-        expect(after.bonus).toEqual({ gold: 1.5, capacity: 1.25 });
+        expect(after.bonus).toEqual({ gold: 1.5, capacity: 1.25, allianceGold: 1, allianceCapacity: 1 });
         expect(after.income.gold).toBeCloseTo(before.income.gold * 1.5, 6);
         expect(after.capacities.oil).toBeCloseTo(before.capacities.oil * 1.25, 6);
         expect(after.capacities.food).toBeCloseTo(before.capacities.food * 1.25, 6);
@@ -170,7 +177,7 @@ test.describe("a continent held whole", () => {
         );
 
         const lost = await page.evaluate((name) => window.__game.economyFor(name), names[1]);
-        expect(lost.bonus).toEqual({ gold: 1, capacity: 1 });
+        expect(lost.bonus).toEqual({ gold: 1, capacity: 1, allianceGold: 1, allianceCapacity: 1 });
         expect(lost.income.gold).toBeCloseTo(held.income.gold / 1.5, 6);
     });
 
@@ -186,7 +193,7 @@ test.describe("a continent held whole", () => {
 
         const economy = await page.evaluate((name) => window.__game.economyFor(name), names[0]);
         expect(economy.owner).toBe("Sealand");
-        expect(economy.bonus).toEqual({ gold: 1.5, capacity: 1.25 });
+        expect(economy.bonus).toEqual({ gold: 1.5, capacity: 1.25, allianceGold: 1, allianceCapacity: 1 });
     });
 
     test("survives a save and a load with nothing about it in the snapshot", async ({

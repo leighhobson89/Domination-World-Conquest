@@ -51,11 +51,14 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   NEUTRAL**, which is Leigh's decision and the one that orders the whole phase: `allowsAttack()`
   permits WAR and nothing else, so wiring the attack gates before the declaration rules exist
   would freeze the entire world, which is known-issue **BA** exactly — nothing throws, every
-  turn completes, and the map quietly stops changing. **Stage 0 has landed and changes no
-  outcome**: the register, first contact, save/load and the map tooltip are in, and nothing
-  reads the register to decide anything, so the AI still attacks whoever it likes while the
-  register calls the pair neutral. That disagreement is the ordering, not a defect. Nine
-  questions are open in its §7.
+  turn completes, and the map quietly stops changing. **Stages 0 to 5.5 have landed except
+  5.2**: the register, the gates, declarations on both sides, the player's panel, peace and
+  ceasefires, and the alliance with its standing share, its shared map and its call-in. **5.2
+  (passage and stacking) is BLOCKED on the data model** — a territory holds one garrison and
+  there is no field for whose an army is, so allied stacking is a rewrite of every reader of a
+  garrison rather than a stage. **5.6 (the betrayal penalty) is not built**, so the breach is
+  defined and free. Q1, Q2, Q3, Q5, Q6 and Q7 are answered in the design document; Q4, Q4b,
+  Q8, Q9 and Q10 are open in its §7.
 - **Combat and Conquest is DELIVERED and ARCHIVED**
   ([audit](./docs/archived/05-combat-and-conquest-audit.md),
   [checklist](./docs/archived/06-combat-and-conquest-checklist.md)). Read the checklist's closing
@@ -1572,11 +1575,90 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   precisely how two countries on opposite sides of the world come to share a border, so
   `diplomacyContacts.js` walks on a dirty flag rather than at seeding (a busy turn 1 logs
   fifty-one conquests against a ~1,900-pairing walk), and a border that closes up again never
-  undoes a relationship. And **`FIRST_CONTACT_STATE` is NEUTRAL, which is why nothing gates on
-  the register yet**: `allowsAttack()` permits WAR and nothing else, so pointing the attack
-  gates at it before the declaration rules exist would freeze the world exactly as known-issue
-  **BA** did. Until then the register and the running game disagree on purpose. See
+  undoes a relationship. And **`FIRST_CONTACT_STATE` is NEUTRAL, which is the line the whole
+  phase is ordered around**: `allowsAttack()` permits WAR and nothing else, so pointing the
+  attack gates at it before the declaration rules existed would have frozen the world exactly
+  as known-issue **BA** did — which is why the gates are stage 2 and the declarations are
+  stage 3, and why the quiet world in between was a deliberate checkpoint. See
   [docs/06-diplomacy.md](./docs/06-diplomacy.md).
+- **`src/ai/diplomacy.js` IS THE ONLY MODULE IN `src/ai/` ALLOWED TO DECIDE A DIPLOMATIC
+  ACTION**, the containment `doctrine.js` has over victory conditions. It declares wars and it
+  ends them, it is pure, and it draws no randomness at all — so nothing in it moves a seeded
+  outcome. Four things about it are load-bearing. **A THEATRE COMMITMENT IS A DECLARATION OF
+  WAR AND IS UNCONDITIONAL**, which is the freeze guard: no posture refuses it and no war cap
+  applies to it, so every country with a reachable neighbour has a war. `postureAllowance` in
+  `declarationDiscipline` gives DEVELOP and DEFEND nothing and most of this map is small
+  countries, so it has precisely the shape that caused **BA** — it therefore governs the
+  OPPORTUNISTIC declarations and nothing else. **A DECLARATION WITH NO MATCHING PEACE RULE IS
+  A RATCHET**, and it was measured as one: at stage 3 pairs at war climbed 536 → 749 across a
+  150-turn run under every goal, which is the map walking back to the permanent undeclared war
+  the phase exists to replace. Stage 5.1's `proposalOutcomeFor()` and `planPeaceOffer()` are
+  the pawl coming off it, and the same measurement now FALLS. **THE THEATRE RIVAL IS THE ONE
+  COUNTRY A PEACE CANNOT BE BOUGHT FROM** — otherwise the mid-term goal is a suggestion — with
+  one deliberate escape: a rival that has lost `theatreCeasefireFailures` attacks will take a
+  CEASEFIRE, because a country being beaten wants a breather and that is exactly when the
+  other side wants to buy one. And **the refusal reason names only the terms that argued the
+  way the answer went**: an accepted offer explained by *"its leader is aggressive, it is much
+  the larger of the two"* is printing the reasons it should have said no, and the panel did
+  exactly that until it was driven in a browser.
+- **A CEASEFIRE REMEMBERS WHAT IT WAS SIGNED OUT OF, AND THAT IS Q2's ANSWER.** `revertsTo` on
+  the relation record is set at signing and read by `src/rules/diplomacy/expiry.js` when the
+  clock runs out. A rule that guessed at expiry cannot work: with NEUTRAL as first contact,
+  "back to war" and "back to neutral" are genuinely different outcomes and the register keeps
+  no history to reconstruct the right one from. The fallback when a record does not say is
+  NEUTRAL — a save taken before ceasefires existed restores rows without the field, and
+  putting two countries into a war neither declared, on the strength of an absent field, is
+  the worse of the two mistakes. Expiry runs from ONE place, `diplomacyExpiry.js` on
+  `TURN_CHANGED`, so every reader of the register on turn N sees the same world; it is reached
+  by a **side-effect import in `ui.js`** and nothing else imports it, so deleting that line
+  means a ceasefire never ends.
+- **AN ALLIANCE IS A MUTUAL DIVIDEND AND NEVER A TRANSFER** (`src/rules/economy/allianceShare.js`,
+  Q5's answer). Both allies simply earn more while it stands — `allianceShare.gold` on the
+  income FLOW and `allianceShare.capacity` on the three CEILINGS, the same two-dial split the
+  continent bonus has and for the same reason. It arrives in the ECONOMY CONTEXT and is
+  written onto nothing, so the multiplier is 1 again the instant the alliance ends with
+  nothing to unwind. **A share moved between treasuries would need an exact inverse write**,
+  which is the silent bug `continentBonus.js` exists to prevent and the class of defect
+  (known-issue **BJ**; the free-attack bug) that has cost this project the most. Symmetric,
+  because a percentage of a flow is worth more in absolute gold to the larger ally — Leigh's
+  standing rule that being large stays an advantage — while the smaller takes the larger
+  proportional lift. Capped at `maxAllies`, or an alliance web is a runaway that pays for the
+  army that wins the game.
+- **AN ALLY IS ASKED, NEVER ENROLLED, AND A JOINER IS BOUND TO THE WAR IT ANSWERED.** Leigh's
+  §3.4, and his answer to Q3: an ally is called in **on defence as well as on aggression**,
+  which reopens the cascade the first draft designed out — so the guard is that **nothing
+  cascades**: `resolveCallIns()` walks the two belligerents' ally lists ONCE and a joiner's own
+  allies are never asked, so a war spreads exactly one country per yes. **A joiner may not
+  settle out of the war alone** (*"the peace must be asked either by the ally under attack or
+  by the adversary, and agreed, where it then applies peace to the ally aiding the attacked
+  ally as well"*): `isBoundJoiner()` refuses its proposals to that adversary and
+  `acceptProposal()` releases every joiner on the same terms when the principal settles.
+  Without the first half a call-in is a free favour. The binding **prunes itself** once a turn,
+  because a principal that is CONQUERED never settles and would bar its joiner from peace for
+  the rest of the game. **Three endings, one price**: refusing a call and mutual dissolution
+  are free for both, and only walking out or turning on your own ally is a breach — which is
+  what makes the free, honest exit the thing that keeps the breach meaningful.
+- **THE AI ASKS THE PLAYER THROUGH A QUEUE, NOT A MODAL MID-TURN** (`src/state/diplomacyInbox.js`).
+  A call to arms and an unsolicited offer both reach the player the same way, because they
+  share one problem: an AI country decides during a phase the player is not present for. A
+  modal raised inside a two-hundred-country loop stops the turn dead; a decision taken on the
+  player's behalf is what the design forbids outright. So the AI turn queues and
+  `showQueuedDiplomacy()` empties it at the end, AFTER `showQueuedDefences()` — a call answered
+  over a battle-results screen would be answered through it. **The prompts are awaited one at a
+  time**: `confirmDialog.open()` resolves a previous dialog as a CANCEL when a second is raised
+  over it, so asking two at once would refuse a call to arms on the player's behalf and end an
+  alliance they never heard about.
+- **A SIEGE BLOCKS AN AGREEMENT, WHICH IS Q1's ANSWER, AND THE COST IS ACCEPTED.** Peace
+  agreed while an army is three turns from starving a province out is a contradiction, and
+  both alternatives are worse: LIFTING the siege means moving an army out of a siege object
+  from two unrelated code paths, and a write that creates or destroys army is the single
+  largest class of defect this project has had (known-issue **BJ**, and the free-attack bug
+  before it); LETTING IT RUN makes the register say something untrue about the map. The
+  predicate is about the PAIR, so it cannot be dodged by asking from the other side. The cost
+  is that a player besieged by the AI cannot lift that siege and so cannot buy peace while it
+  stands — bearable only because `siegeReview.js` already lifts a stalled siege, sieges are
+  rare (nought to five standing worldwide at every sample ever taken), and the refusal says
+  why. **A refusal a player can act on does not spend the proposal cooldown.**
 - **The SVG path attributes are output, not state.** `owner`, `data-name`, `deactivated`,
   `underSiege`, `greyedOut` and `attackableTerritory` are written **only** by
   `src/ui/mapAttributeSync.js`, from store events. Never write one directly and never read one

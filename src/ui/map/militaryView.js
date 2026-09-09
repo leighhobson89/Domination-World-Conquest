@@ -48,7 +48,13 @@
 // **nothing is hidden** -- the shade still covers the whole world, and the TOOLTIP still gives
 // the full comparison for any territory the pointer is over, frontier or not.
 
-import { allTerritories, getTerritoryByName, playerColour, playerCountryName } from "../../state/selectors.js";
+import {
+    allTerritories,
+    alliesOf,
+    getTerritoryByName,
+    playerColour,
+    playerCountryName
+} from "../../state/selectors.js";
 import { takeProbability } from "../../rules/military/takeProbability.js";
 import {
     attackingDevelopmentIndex,
@@ -256,10 +262,16 @@ function buildPlan() {
         return;
     }
     const player = playerCountryName();
+    //SHARED INTELLIGENCE, diplomacy stage 5.4. Read ONCE per rebuild into a Set rather than
+    //asked per territory: `alliesOf()` walks the whole register, and this loop visits 359
+    //territories. The plan is rebuilt on `DIPLOMACY_CHANGED` like everything else that reads
+    //the register, so a new alliance lights up its frontier on the turn it is signed.
+    const allies = new Set(player ? alliesOf(player) : []);
     plan = planMilitaryView({
         territories: allTerritories(),
         enemyNeighboursOf,
         isPlayerOwned: (territory) => Boolean(player) && territory.dataName === player,
+        isAlliedOwned: (territory) => allies.has(territory.dataName),
         //Spectator mode has no player, so there is nobody to warn and nothing to forecast.
         oddsFor: player ? oddsAgainst : null
     });
@@ -680,7 +692,12 @@ export function setMilitaryViewActive(enabled, paths = []) {
     };
     unsubscribes = [
         on(Events.TERRITORY_CHANGED, queue),
-        on(Events.TURN_CHANGED, queue)
+        on(Events.TURN_CHANGED, queue),
+        //A NEW ALLIANCE CHANGES WHAT THIS VIEW SHOWS WITHOUT CHANGING ANYTHING ON THE MAP --
+        //an ally's frontier gains figures and threat marks, and the border between the two
+        //stops being shaded as a threat at all. Nothing else would rebuild the plan for it,
+        //because no territory changed hands and no turn passed.
+        on(Events.DIPLOMACY_CHANGED, queue)
     ];
 
     refreshMilitaryView(paths);

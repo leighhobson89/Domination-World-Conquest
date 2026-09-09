@@ -317,6 +317,92 @@ describe("the plan", () => {
     });
 });
 
+describe("shared intelligence — an ally's frontier", () => {
+    // Diplomacy stage 5.4, and the cheapest of the four things an alliance gives: nothing new
+    // is computed, because this function already walks the whole map. The widening is one
+    // predicate.
+    //
+    //     Enemy A -- Front(player) -- Rear(player)      Ally -- Enemy A
+    //
+    // The ally touches Enemy A too, so allying should light up a second stretch of frontier.
+    function coalition() {
+        const enemyA = territory("a", "Redland", 1000);
+        const enemyB = territory("b", "Redland", 4000);
+        const front = territory("f", "Blueland", 500);
+        const rear = territory("r", "Blueland", 10);
+        const ally = territory("g", "Greenland", 300);
+
+        const links = new Map([
+            ["a", [front, enemyB, ally]],
+            ["b", [enemyA]],
+            ["f", [enemyA, rear, ally]],
+            ["r", [front]],
+            ["g", [enemyA, front]]
+        ]);
+
+        return {
+            territories: [enemyA, enemyB, front, rear, ally],
+            enemyNeighboursOf: (subject) =>
+                links.get(subject.uniqueId).filter(other => other.dataName !== subject.dataName),
+            isPlayerOwned: (subject) => subject.dataName === "Blueland",
+            isAlliedOwned: (subject) => subject.dataName === "Greenland"
+        };
+    }
+
+    it("changes nothing at all for a caller that does not pass the predicate", () => {
+        //Every existing caller, and the whole of spectator mode.
+        const before = planMilitaryView({ ...world(), oddsFor: () => 50 });
+        expect(before.get("f").frontier).toBe(true);
+        expect(before.get("f").ally).toBe(false);
+    });
+
+    it("puts an ally's land and its enemies on the frontier", () => {
+        const plan = planMilitaryView({ ...coalition(), oddsFor: () => 50 });
+        expect(plan.get("g").frontier).toBe(true);
+        expect(plan.get("g").ally).toBe(true);
+        expect(plan.get("a").frontier).toBe(true);
+    });
+
+    it("marks the threats against an ally, which is the point of the sharing", () => {
+        const plan = planMilitaryView({ ...coalition(), oddsFor: () => 88 });
+        expect(plan.get("g").threats.map(entry => entry.id)).toEqual(["a"]);
+    });
+
+    it("does not treat an ally as an enemy of the player, or the player of the ally", () => {
+        //`enemyNeighboursOf()` means "under another flag", which an ally's territory also is.
+        //Without the friendly filter, the moment two countries signed, each would start
+        //shading its own border with the other dark and marking it as a threat — an alliance
+        //that made the map say you were about to be invaded by your ally.
+        const plan = planMilitaryView({ ...coalition(), oddsFor: () => 99 });
+        expect(plan.get("f").threats.map(entry => entry.country)).not.toContain("Greenland");
+        expect(plan.get("g").threats.map(entry => entry.country)).not.toContain("Blueland");
+        expect(plan.get("f").facedBy).not.toBe("Greenland");
+    });
+
+    it("still counts the coalition as enemies for a third country", () => {
+        //"Friendly" is a fact about the PLAYER's coalition. For some country on the far side
+        //of the world the player and their allies are enemies like anybody else, and its
+        //shade is right to count them.
+        const plan = planMilitaryView({ ...coalition(), oddsFor: () => 50 });
+        expect(plan.get("a").faced).toBeGreaterThan(0);
+    });
+
+    it("asks for the odds on the coalition's frontier and nowhere else", () => {
+        //THE BOUND THE WHOLE VIEW RESTS ON, widened by exactly one country. `oddsFor` plays
+        //out hundreds of battles per call, and it is asked for the player, now their allies,
+        //and for nobody else.
+        const asked = [];
+        planMilitaryView({
+            ...coalition(),
+            oddsFor: (attacker, defender) => {
+                asked.push(defender.uniqueId);
+                return 50;
+            }
+        });
+        expect(new Set(asked)).toEqual(new Set(["f", "g"]));
+    });
+});
+
 describe("the ramp", () => {
     it("runs from the weak colour to the strong one, inclusive", () => {
         const ramp = rampFor({ r: 0, g: 0, b: 0 }, { r: 100, g: 200, b: 40 });

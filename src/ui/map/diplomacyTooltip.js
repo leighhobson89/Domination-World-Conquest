@@ -33,28 +33,14 @@
 // silence.
 
 import { DiplomaticState, describeState, RELATION_DISPLAY_ORDER } from "../../state/diplomacy.js";
+//The tone lookup is SHARED with the diplomacy panel (`src/ui/diplomacy/relationTone.js`).
+//It used to live here; it moved out when a second surface started reading it, because a
+//second copy would be right until somebody decided neutral should read differently and
+//would then be a map and a panel disagreeing about what the same relation means.
+import { toneFor } from "../diplomacy/relationTone.js";
 
 /** How many relations are listed before the rest become a count. */
 export const TOOLTIP_RELATION_ROWS = 6;
-
-/**
- * The class suffix each state is drawn in.
- *
- * A name rather than a colour: `style.css` may carry no colour literal outside its
- * `:root` block, so the token lookup belongs there and this says only which of the
- * four kinds of news a row is.
- */
-const TONES = Object.freeze({
-    [DiplomaticState.WAR]: "hostile",
-    [DiplomaticState.CEASEFIRE]: "caution",
-    [DiplomaticState.PEACE]: "friendly",
-    [DiplomaticState.ALLIANCE]: "friendly",
-    //Neutral reads like no contact rather than like peace, and deliberately: peace
-    //was AGREED and neutral is merely the absence of a declaration, so a player who
-    //could not tell them apart at a glance would think themselves safe.
-    [DiplomaticState.NEUTRAL]: "muted",
-    [DiplomaticState.NO_CONTACT]: "muted"
-});
 
 function orderOf(state) {
     const index = RELATION_DISPLAY_ORDER.indexOf(state);
@@ -82,7 +68,7 @@ function rowFor(country, state, until, { isPlayerRow = false } = {}) {
         country,
         state,
         isPlayerRow,
-        tone: TONES[state] ?? "muted",
+        tone: toneFor(state),
         label: labelFor(country, state, until)
     };
 }

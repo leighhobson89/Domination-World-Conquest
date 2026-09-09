@@ -152,6 +152,12 @@ import {
     closestToVictory,
     setAiResponseFlag,
     setVictoryCondition,
+    acceptProposal,
+    answerProposal,
+    applyBreach,
+    applyCallInAnswer,
+    dissolveAlliance,
+    resolveCallIns,
     victoryProgress,
     worldStandings
 } from "./aiCalculations.js";
@@ -164,6 +170,7 @@ import {
     playerCountryName,
     playerColour,
     playerTerritories,
+    relationBetween,
     relationsFor,
     relationStateBetween,
 } from './src/state/selectors.js';
@@ -176,6 +183,7 @@ import {
     clearGreyedOutCountries,
     setAttackableTerritories,
     clearAttackableTerritories,
+    setRelationState,
     setTerritoryArmy
 } from './src/state/mutations.js';
 import {
@@ -226,7 +234,7 @@ import {
 } from './src/ui/map/militaryView.js';
 import { upgradeTooltipRows } from './src/ui/map/upgradeTooltip.js';
 import { diplomacyTooltipRows } from './src/ui/map/diplomacyTooltip.js';
-import { allowsAttack, describeState } from './src/state/diplomacy.js';
+import { allowsAttack, allowsDeclaration, describeState, DiplomaticState } from './src/state/diplomacy.js';
 import { ensureDiplomaticContacts } from './src/state/diplomacyContacts.js';
 import {
     CLOUD_MODES,
@@ -378,6 +386,12 @@ import {
     activityPanel
 } from './src/ui/components/ActivityPanel.js';
 import {
+    diplomacyPanel
+} from './src/ui/components/DiplomacyPanel.js';
+import {
+    declarationPromptFor
+} from './src/ui/diplomacy/declarationPrompt.js';
+import {
     aiDebugPanel
 } from './src/ui/components/AiDebugPanel.js';
 import {
@@ -406,6 +420,25 @@ import {
 import {
     resetMusters
 } from './src/ai/muster.js';
+import {
+    isBoundJoiner,
+    resetDiplomacyMemory
+} from './src/ai/diplomacy.js';
+import {
+    clearDiplomacyInbox,
+    InboxKind,
+    pendingDiplomacy,
+    takePendingDiplomacy
+} from './src/state/diplomacyInbox.js';
+import {
+    describeInboxEntry
+} from './src/ui/diplomacy/describeInbox.js';
+//SIDE-EFFECT IMPORT. `diplomacyExpiry.js` subscribes to `TURN_CHANGED` at module load and
+//exports nothing anybody here calls -- it is what puts a lapsed ceasefire back to whatever it
+//was signed out of, once, at the turn boundary, so that every reader of the register on turn
+//N sees the same world. Nothing else imports it, so without this line it would never load and
+//a ceasefire would simply never end.
+import './src/state/diplomacyExpiry.js';
 import {
     resetAllWindowPositions
 } from './src/ui/core/draggable.js';
@@ -929,6 +962,11 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     audioPanel.create({ onSound: () => playSoundClip("button") });
     activityPanel.create({ onSound: () => playSoundClip("switch") });
+    diplomacyPanel.create({
+        onSound: () => playSoundClip("switch"),
+        onDeclareWar: declareWarOnCountry,
+        onPropose: proposeToCountry
+    });
     aiDebugPanel.create();
     aiGameConsole.create({ onSound: () => playSoundClip("button") });
     debugPlanPanel.create({ onSound: () => playSoundClip("button") });
@@ -2205,9 +2243,168 @@ function playerAttackPermission(path) {
     const state = relationStateBetween(player, owner);
     return {
         mayAttack: allowsAttack(state),
+        //WHETHER THE PLAYER MAY DECLARE, which is a different question from whether they may
+        //attack and is asked here so that `deriveMoveButtonState()` stays a pure function of
+        //the selection. No contact is the one state war cannot be declared out of, and the
+        //contact walk is coalesced -- so a border that opened during the AI's turn can
+        //genuinely read that way for a moment, and the button greys rather than offering a
+        //control that would be refused.
+        mayDeclare: allowsDeclaration(state),
         relationLabel: describeState(state),
         relationCountry: owner
     };
+}
+
+/**
+ * Offer a country a ceasefire or a peace, and get its answer.
+ *
+ * Diplomacy stage 5.1, and the player's half of the only rules in this phase that can END a
+ * war. It goes through `answerProposal()` in `aiCalculations.js`, which is the SAME door an
+ * AI's offer to another AI goes through -- the rule `countriesMayFight()` established for the
+ * attack gates, and for the same reason: two paths answering the same question separately
+ * will eventually answer it differently, and here that would be a player told no by a
+ * calculation the world never made.
+ *
+ * THE ANSWER COMES BACK AT ONCE, and is returned rather than shown. There is no waiting
+ * period anywhere in this system, and the panel is where the player is looking -- so it puts
+ * the sentence under the button that was pressed rather than raising a dialog over the one
+ * screen built for this.
+ *
+ * @returns {{accepted: boolean, reason: string}} always, so the panel can report a refusal
+ *          it was given as readily as one it worked out for itself
+ */
+function proposeToCountry(country, kind) {
+    const player = playerCountryName();
+    if (!player || !country || country === player) {
+        return { accepted: false, reason: "there is nobody to make an agreement with" };
+    }
+
+    const turn = currentTurn();
+
+    //MUTUAL DISSOLUTION is an offer like any other -- the other side may simply prefer the
+    //alliance -- but it is not a `ProposalKind`, because it does not put the pair into a new
+    //agreement; it takes one away. So it takes its own door rather than a fourth entry in a
+    //table whose every other row names a state to move to.
+    if (kind === "dissolve") {
+        const willing = answerDissolution(country, turn);
+        if (willing.accepted) {
+            dissolveAlliance(player, country, turn);
+        }
+        return willing;
+    }
+
+    const answer = answerProposal({ country, proposer: player, kind, turn });
+    if (answer.accepted) {
+        //The WRITE is `acceptProposal()` and not a bare `setRelationState()`: a ceasefire
+        //carries the turn it runs out on AND what it falls back to then, and a caller that
+        //set the state by hand would sign an agreement that never expires or one that
+        //expires into the wrong world. One door, both fields.
+        acceptProposal(player, country, kind, turn);
+    }
+    return answer;
+}
+
+/**
+ * The player asks an ally to end the alliance by agreement.
+ *
+ * IT IS ALMOST ALWAYS ACCEPTED, and that is the design rather than a shortcut. §3.4's whole
+ * force is that there are exactly two penalty-free ways out of an alliance and this is one of
+ * them: *"either side may propose ending the alliance; if the other accepts it ends free for
+ * both."* An AI that haggled over being let go would turn the honest route into a gamble, and
+ * the moment it is a gamble the breach becomes the reliable option -- which is precisely the
+ * incentive stage 5.6's penalty exists to remove.
+ *
+ * What it is NOT is automatic: a country that has just answered this ally's call to arms is
+ * in a war on their account, and walking away from that in the same breath is the thing the
+ * call-in rule already refuses.
+ */
+function answerDissolution(country, turn) {
+    const player = playerCountryName();
+    if (relationStateBetween(player, country) !== DiplomaticState.ALLIANCE) {
+        return { accepted: false, reason: "there is no alliance to end" };
+    }
+    if (isBoundJoiner(country, player) || isBoundJoiner(player, country)) {
+        return {
+            accepted: false,
+            reason: "one of you answered the other's call to arms and is fighting on their " +
+                "account -- that war has to end first"
+        };
+    }
+    return {
+        accepted: true,
+        reason: "the alliance ends by agreement, with nothing owed either way"
+    };
+}
+
+/**
+ * Declare war on a country, asking first when doing so breaks an agreement.
+ *
+ * Diplomacy stage 3.2 and stage 4. THE TWO SURFACES GO THROUGH HERE -- the DECLARE WAR
+ * button on the map and the diplomacy panel's action both call this, which is the same
+ * rule `openUpgradeWindowFor()` records: an entry point that did half of it would be a
+ * declaration the register recorded and the map never repainted, or a confirmation one
+ * route asked for and the other did not.
+ *
+ * The confirmation is `declarationPromptFor()`, which returns NULL out of neutral -- nothing
+ * was promised, so nothing is asked, and a dialog in front of every declaration would be a
+ * click-through inside three turns.
+ *
+ * @returns {Promise<boolean>} whether war was actually declared
+ */
+async function declareWarOnCountry(country) {
+    const player = playerCountryName();
+    if (!player || !country || country === player) {
+        return false;
+    }
+    const record = relationBetween(player, country);
+    const state = record?.state ?? DiplomaticState.NO_CONTACT;
+    if (!allowsDeclaration(state)) {
+        return false;
+    }
+
+    const prompt = declarationPromptFor({
+        country,
+        state,
+        since: record?.since ?? null,
+        turn: currentTurn()
+    });
+    if (prompt && !(await confirmDialog.open(prompt))) {
+        return false;
+    }
+
+    const turn = currentTurn();
+    //CHARGED BEFORE THE WRITE: the state being paid for is the one about to be replaced. The
+    //player goes through the same door the AI does, because a penalty the game applies to one
+    //side of itself is not a rule.
+    applyBreach(player, country, turn);
+    setRelationState(player, country, DiplomaticState.WAR, { since: turn });
+
+    //THE CALL TO ARMS. Both sides' allies are asked -- Q3, answered by Leigh: an ally is
+    //called in on defence as well as on aggression. The player's own allies are AI, so they
+    //answer here and now; an ally that says no ends the alliance, free for both, which is the
+    //cost the player carries for a war their partner would not fight.
+    const answers = resolveCallIns(player, country, turn);
+    for (const answer of answers) {
+        if (answer.joins === null) {
+            continue;
+        }
+        recordCallInNews(answer);
+    }
+    return true;
+}
+
+/**
+ * Say out loud what an ally decided, because the map will not.
+ *
+ * A call-in changes the register and nothing on the board: an ally joining a war is a fact
+ * about two other countries, and an alliance quietly ending is a control disappearing from a
+ * panel the player may not have open. The activity feed is the right home for it in stage 6;
+ * until then the console is better than silence.
+ */
+function recordCallInNews(answer) {
+    console.log(answer.joins
+        ? answer.ally + " answers your call and enters the war with " + answer.adversary
+        : answer.ally + " refuses your call to arms -- the alliance has ended");
 }
 
 function handleMovePhaseTransferAttackButton(path, lastPlayerOwnedValidDestinationsArray, playerOwnedTerritories, territoryComingFrom, xButtonClicked, xButtonFromWhere) {
@@ -2312,10 +2509,50 @@ function recordMoveButtonContext(ownedTerritories, source) {
 function installMoveButtonHandlers() {
     const button = moveButton.element();
 
-    button.addEventListener("click", function transferAttackClickHandler() {
+    button.addEventListener("click", async function transferAttackClickHandler() {
         tooltip.setContent("");
         tooltip.hide();
         playSoundClip("switch");
+
+        //DECLARING WAR, from the control the player was already reaching for. Diplomacy
+        //stage 3.2, and Leigh's second route into a war: *"declaring without chatting too"*.
+        //
+        //It is handled here, first and on its own, because it is the one mode that does not
+        //open a window: it changes the world and then asks for the button to be worked out
+        //again. Everything below this point is about the transfer/attack window.
+        //
+        //IT TAKES EFFECT AT ONCE, so the same selection immediately reads ATTACK -- there is
+        //no waiting period anywhere in this system, and the redraw below is what makes that
+        //visible rather than merely true. The arrows are redrawn from the SOURCE territory
+        //(`lastClickedPathExternal`, the click before this one), because an arrow means *you
+        //can attack here* and the newly-declared neighbour has just become one.
+        if (transferAttackButtonState === MoveMode.DECLARE && !button.disabled) {
+            const target = lastClickedPath;
+            const declared = await declareWarOnCountry(pathCountry(target));
+            if (!declared) {
+                return;
+            }
+            if (lastClickedPathExternal && pathIsPlayerOwned(lastClickedPathExternal)) {
+                showAttackArrows(
+                    lastClickedPathExternal,
+                    (lastPlayerOwnedValidDestinationsArray ?? []).filter(
+                        destination => !pathIsPlayerOwned(destination) &&
+                            !pathIsDeactivated(destination) &&
+                            playerAttackPermission(destination).mayAttack
+                    )
+                );
+            }
+            handleMovePhaseTransferAttackButton(
+                target,
+                lastPlayerOwnedValidDestinationsArray,
+                playerOwnedTerritories,
+                lastClickedPathExternal,
+                false,
+                MoveMode.VIEW_SIEGE
+            );
+            return;
+        }
+
         if (transferAttackButtonState === 0) {
             moveButtonSource = lastClickedPath;
         }
@@ -2881,8 +3118,10 @@ function toggleUIButton(makeVisible) {
         document.getElementById(ids.uiButtonContainer).style.display = "none";
     }
     activityPanel.setButtonVisible(makeVisible);
+    diplomacyPanel.setButtonVisible(makeVisible);
     if (!makeVisible) {
         activityPanel.close();
+        diplomacyPanel.close();
     }
 }
 
@@ -4086,9 +4325,14 @@ function resetChromeForCountrySelection() {
     bottomTable.reset();
     resetAllWindowPositions();
     activityPanel.reset();
+    diplomacyPanel.reset();
     clearPlans();
     resetCampaigns();
     resetMusters();
+    resetDiplomacyMemory();
+    //A question nobody is going to answer. The inbox is filled during an AI turn and emptied
+    //at the end of it, so one outstanding here means the player left mid-turn.
+    clearDiplomacyInbox();
     aiDebugPanel.close();
     toggleUIButton(false);
     toggleMapModeButton(false);
@@ -4543,6 +4787,65 @@ function defencePlaybackDeps() {
             clashPanel.hide();
         }
     };
+}
+
+/**
+ * Put every question the AI has asked the player, one at a time, and act on each answer.
+ *
+ * Diplomacy stage 5.5. Called at the end of the AI turn beside `showQueuedDefences()`, and
+ * for the same reason that exists: an AI country decides during a phase the player is not
+ * present for, and the two possible alternatives are both wrong. A modal raised inside a
+ * two-hundred-country loop stops the turn dead; a decision taken silently on the player's
+ * behalf is what the design forbids outright, because *"declining has a real consequence and
+ * a click-through would apply it silently"*.
+ *
+ * IT IS AWAITED AND IT IS SEQUENTIAL. `confirmDialog.open()` resolves the previous dialog as
+ * a cancel if a second is raised over it, so asking two questions at once would answer the
+ * first one NO on the player's behalf -- which is precisely the silent default this whole
+ * arrangement exists to prevent.
+ *
+ * ESCAPE AND THE SCRIM BOTH RESOLVE FALSE, which is a real answer here rather than a
+ * dismissal: refusing a call to arms ends the alliance and the dialog says so before it is
+ * answered. That is the design's "must not be dismissible into a default" met by making the
+ * default an answer the player has been warned about, rather than by trapping them in a modal
+ * they cannot leave.
+ */
+export async function showQueuedDiplomacy() {
+    if (pendingDiplomacy() === 0) {
+        return;
+    }
+    const turn = currentTurn();
+    const player = playerCountryName();
+    for (const entry of takePendingDiplomacy()) {
+        const prompt = describeInboxEntry(entry);
+        if (!prompt || !player) {
+            continue;
+        }
+        //`kind` marks this as a question the AI asked, which is what lets the e2e driver
+        //answer it without also answering a confirmation the player opened themselves. It
+        //blocks the turn until it is answered -- deliberately, because that is what "not
+        //dismissible into a default" means -- and a harness with no way to see it would hang
+        //every headless run. It did exactly that, for four e2e areas at once.
+        const answer = await confirmDialog.open({ ...prompt, kind: "diplomacy" });
+
+        if (entry.kind === InboxKind.CALL_IN) {
+            applyCallInAnswer({
+                ally: player,
+                principal: entry.principal,
+                adversary: entry.adversary,
+                joins: answer,
+                turn
+            });
+            continue;
+        }
+        if (answer) {
+            //The AI already decided it wants this, so there is nobody left to ask: accepting
+            //writes it. `acceptProposal()` is the one door, because a ceasefire carries the
+            //turn it runs out on AND what it falls back to, and a caller setting the state by
+            //hand would sign an agreement that never expires.
+            acceptProposal(entry.from, player, entry.proposal, turn);
+        }
+    }
 }
 
 export async function showQueuedDefences() {

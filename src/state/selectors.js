@@ -14,7 +14,13 @@
 
 import { __store, isSeeded } from "./GameState.js";
 import { Phase } from "./phases.js";
-import { allowsAttack, DEFAULT_DIPLOMATIC_STATE, relationKey, relationPair } from "./diplomacy.js";
+import {
+    allowsAttack,
+    DEFAULT_DIPLOMATIC_STATE,
+    DiplomaticState,
+    relationKey,
+    relationPair
+} from "./diplomacy.js";
 
 // --- territories -----------------------------------------------------------
 
@@ -323,6 +329,21 @@ export function allRelations() {
         }
     }
     return out;
+}
+
+/**
+ * Every country this one is ALLIED with. Derived, never stored.
+ *
+ * An alliance is a relation like any other, so there is no membership list to keep in step
+ * with the register -- which is the same reason the continent bonus is derived at the point
+ * of use rather than written onto a territory. A federation, if it is ever built, is the one
+ * thing that would need a second structure, because it is a fact about a SET rather than
+ * about a pair; see the design document's §3.5.
+ */
+export function alliesOf(country) {
+    return relationsFor(country)
+        .filter(row => row.state === DiplomaticState.ALLIANCE)
+        .map(row => row.country);
 }
 
 /** How many pairs have left NO_CONTACT. Zero at the start of every game. */

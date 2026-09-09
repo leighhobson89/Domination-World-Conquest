@@ -173,8 +173,18 @@ Nothing is designed for it yet. Stage 7 of the checklist holds a placeholder.
 
 ## 4. What is already built
 
-Stage 0 is delivered and in the working tree. It changes no outcome in the game: nothing reads
-the register to decide anything yet.
+**Stages 0 to 5.5 are delivered, except 5.2.** The register exists, the gates read it, both
+sides declare war, the player has a panel, a war can END, and an alliance can be signed — it
+pays a standing share, shares the military map, and carries the call-in that is the price of
+it. The game reaches all six states.
+
+**Two things are not built.** PASSAGE AND STACKING (5.2) is blocked on the data model rather
+than deferred: a territory holds ONE garrison, so "your army may sit in your ally's province"
+means a second army under a second flag on a tile with no field for whose it is, and every
+reader of a garrison — the battle model, income, upkeep, desertion, the muster, the threat
+array — would have to learn that question. And the BETRAYAL PENALTY (5.6) does not exist, so
+today the breach is defined, refused by the AI, named in the confirmation the player sees, and
+free.
 
 | Module | What it is |
 |---|---|
@@ -186,6 +196,20 @@ the register to decide anything yet.
 | [src/rules/diplomacy/contact.js](../src/rules/diplomacy/contact.js) | The pure walk: which countries' territories touch. Takes the neighbour lookup as an argument, because `src/data/adjacency.js` throws in Node |
 | [src/state/diplomacyContacts.js](../src/state/diplomacyContacts.js) | The live half: asks the real graph and records first contact. Dirty-flagged on `TERRITORY_CHANGED`, run at the turn boundary and lazily on read |
 | [src/ui/map/diplomacyTooltip.js](../src/ui/map/diplomacyTooltip.js) | The tooltip rows, pure and unit-tested |
+| [src/ui/diplomacy/relationTone.js](../src/ui/diplomacy/relationTone.js) | How a state is COLOURED, in one place: a class name and never a colour. Read by the tooltip and by the panel, and it is its own module for exactly that reason |
+| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stage 3.** Who the AI declares war on, and who it leaves alone. Pure, draws no randomness at all, and the only module in `src/ai/` allowed to decide a diplomatic action |
+| [aiCalculations.js](../aiCalculations.js) | `applyAiDeclarations()` — the WRITING half of the above, run from `planAiCampaign()` after the succession and before the goals |
+| [src/ui/moveButton/deriveMoveButtonState.js](../src/ui/moveButton/deriveMoveButtonState.js) | **Stage 3.2.** `MoveMode.DECLARE`: the greyed button becomes an enabled DECLARE WAR wherever a declaration is possible, in a colour that is deliberately not the attack colour |
+| [src/ui/diplomacy/declarationPrompt.js](../src/ui/diplomacy/declarationPrompt.js) | **Stage 4.** The confirmation before a declaration that would break an agreement — and `null`, meaning no dialog at all, out of neutral |
+| [src/ui/diplomacy/relationsPanelModel.js](../src/ui/diplomacy/relationsPanelModel.js) | **Stage 4.** What the panel says: the grouped list, one country's detail, and the actions with the reason each is offered or refused. Pure, unit-tested |
+| [src/ui/components/DiplomacyPanel.js](../src/ui/components/DiplomacyPanel.js) | **Stage 4.** The window that draws it, and the button in the map's left-hand chrome column |
+| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stage 5.1** as well: `proposalOutcomeFor()` decides whether a country accepts what it has been offered, and `planPeaceOffer()` decides who it asks. Still pure, still drawing no randomness |
+| [src/rules/diplomacy/expiry.js](../src/rules/diplomacy/expiry.js) | **Stage 5.1.** Which ceasefires have run out and what each falls back to — read off `revertsTo`, never guessed |
+| [src/state/diplomacyExpiry.js](../src/state/diplomacyExpiry.js) | The live half, on `TURN_CHANGED`. Reached by a side-effect import in `ui.js` and nothing else, so deleting that line means a ceasefire never ends |
+| [src/rules/economy/allianceShare.js](../src/rules/economy/allianceShare.js) | **Stage 5.3.** What an alliance pays, as two multipliers. Pure, importable by `econ-lab` |
+| [src/state/diplomacyInbox.js](../src/state/diplomacyInbox.js) | **Stage 5.5.** What the AI has put to the PLAYER and is waiting on: a call to arms, or an offer. Filled during the AI phase, emptied at the end of it, imports nothing |
+| [src/ui/diplomacy/describeInbox.js](../src/ui/diplomacy/describeInbox.js) | The wording of those prompts. Facts in the queue, sentences here — the activity feed's rule |
+| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stages 5.4 and 5.5 too**: `allianceScoreFor()`, `callInOutcomeFor()`, and the call-in bindings that stop a joiner settling out of somebody else's war |
 
 Four things worth knowing about that code before extending it.
 
@@ -216,29 +240,53 @@ would otherwise be missing precisely when it is most informative. Six rows, then
 
 ### 5.1 Who declares war, and why — `src/ai/diplomacy.js`
 
-The new module, and the one the whole phase stands on. It is the diplomatic counterpart of
-[doctrine.js](../src/ai/doctrine.js), and it should follow the same containment rule: **it is
-the only module in `src/ai/` allowed to decide a diplomatic action**, so the rest of the AI
-keeps reading a state rather than re-deriving an intention.
+**Built, stage 3.** The diplomatic counterpart of [doctrine.js](../src/ai/doctrine.js), and it
+follows the same containment rule: **it is the only module in `src/ai/` allowed to decide a
+diplomatic action**, so the rest of the AI keeps reading a state rather than re-deriving an
+intention.
 
-It needs to answer four questions per country per turn:
+**THE FREEZE GUARD IS THE SPLIT BETWEEN ITS TWO HALVES, AND IT IS THE ONE THING TO GET RIGHT
+HERE.** From stage 3 onwards a residual freeze looks exactly like the stage 2 silence that was
+the deliverable — nothing throws, every turn completes, the map quietly stops changing, which
+is known-issue **BA** in this phase's clothes. So the theatre commitment becomes a declaration
+UNCONDITIONALLY: no posture refuses it, and the concurrent-war cap does not apply to it, which
+means every country with a reachable neighbour has a war. `declarationDiscipline`'s
+`postureAllowance` gives DEVELOP and DEFEND nothing and most of this map is small countries, so
+it has precisely the shape that caused BA — and it therefore governs the opportunistic
+declarations and nothing else. Measured over 150 turns under all five goals, countries at war
+with nobody is **zero**, against 207 at every sample of the stage 2 silence.
 
-1. **Whom do we declare war on?** The natural hook already exists: `theatre.js` commits each
-   country to absorbing ONE neighbouring country and keeps that commitment until the rival
-   becomes a wall. **A theatre commitment is a declaration of war** — that is the rule, and it
-   costs almost nothing to implement because the commitment is already made, already
-   persistent and already the country's own answer to "who is my enemy".
-2. **Whom do we make peace with?** A country fighting on more than one front, losing ground,
-   or with a pacifist leader (`risk_taking` is already a trait, 0.0–0.4 on a pacifist) should
-   want out of its least valuable war. A ceasefire is the cheap version and the AI should
-   reach for it first.
-3. **Whom do we ally with?** `doctrine.js` already computes `urgency` — the strongest rival's
-   share of the world's land — every turn, memoised on the standings object. **That number is
-   already the "somebody is running away with it" signal**, and it is the input the alliance
-   rule wants. The shape is: at high urgency, a country seeks an alliance with a neighbour who
-   is *also* threatened by the same leader.
-4. **Do we accept what has been offered?** Symmetric with the above, plus a memory of who has
-   betrayed whom.
+It answers four questions per country per turn. Only the first is built:
+
+1. **Whom do we declare war on?** *(built)* The natural hook already existed: `theatre.js`
+   commits each country to absorbing ONE neighbouring country and keeps that commitment until
+   the rival becomes a wall. **A theatre commitment is a declaration of war** — that is the
+   rule, and it cost almost nothing to implement because the commitment is already made,
+   already persistent and already the country's own answer to "who is my enemy". On top of it
+   sits ONE opportunistic declaration in a fighting posture, against a neighbour whose shared
+   border is visibly weaker than ours, refused to a pacifist leader and capped by the number of
+   wars already running — plus one further war when `urgency` says somebody is running away
+   with the game, which is the diplomatic form of the runaway-leader response the attack budget
+   already had. **It never declares out of an agreement**, because stage 5.6 is what prices a
+   breach and nothing prices one yet.
+2. **Whom do we make peace with?** *(built, stage 5.1)* A country fighting on more than one
+   front, losing ground, or with a pacifist leader wants out of its least valuable war —
+   `planPeaceOffer()` gives it ONE offer a turn, never to its theatre rival, and among the
+   rest to whichever has beaten it most. A ceasefire is the cheap version and it reaches for
+   that first; a peace is offered only to somebody already under a ceasefire, which is the
+   classic move and the one case where the two have already stopped shooting.
+3. **Whom do we ally with?** *(built, stage 5.5)* `doctrine.js` already computes `urgency` —
+   the strongest rival's share of the world's land — every turn. **That number is the
+   "somebody is running away with it" signal**, and it is both the heaviest term in
+   `allianceScoreFor()` and the gate on whether a country goes LOOKING for a partner at all.
+   Above `seekAllyUrgency` it offers an alliance ahead of tidying up its own wars, and it
+   prefers a partner already fighting the same enemies — which is the design's own shape, and
+   the point at which Leigh's stated goal for the phase finally arrives in full.
+4. **Do we accept what has been offered?** *(built, stage 5.1)* `proposalOutcomeFor()`, and it
+   is asked from BOTH directions through one door in `aiCalculations.js` — the player's offer
+   and an AI's offer to another AI — so the two cannot come to different conclusions about the
+   same proposal. The memory of who has betrayed whom is stage 5.6; what exists today is a
+   memory of who has recently been refused, which is what stops a proposal being a reroll.
 
 **It must not reach into the siege budget.** `doctrine.js` deliberately exposes no siege dial
 because the siege budget's subtraction of running sieges is what ended the 17-to-67-concurrent
@@ -262,15 +310,52 @@ eventually answer it differently.
 
 ### 5.3 Negotiation, and what a ceasefire reverts to
 
-A ceasefire carries `until`, the turn it runs out on. The register record already has the
-field.
+**Built, stage 5.1.** A ceasefire carries `until`, the turn it runs out on, and `revertsTo`,
+what it falls back to then.
 
-**What it reverts to is an open design point and it needs a third field.** A ceasefire agreed
-during a war and allowed to lapse should plainly go back to WAR — that is what a ceasefire
-*is*. But with NEUTRAL as first contact, "reverts to war" and "reverts to neutral" are now
-genuinely different outcomes, and the record has to remember which. The proposal is a
-`revertsTo` field set at the moment the ceasefire is signed, so the answer is a fact about
-that agreement rather than a rule guessed at expiry. This is **Q2**.
+**Q2 IS ANSWERED: the agreement remembers.** A ceasefire agreed during a war and allowed to
+lapse plainly goes back to WAR — that is what a ceasefire *is*. But with NEUTRAL as first
+contact, "reverts to war" and "reverts to neutral" are genuinely different outcomes, and the
+register keeps no history a rule could reconstruct the right one from. So `revertsTo` is set
+at the moment of signing and `expiry.js` only has to read it. **The fallback when a record
+does not say is NEUTRAL**, and that is a decision rather than a tidy default: a save taken
+before ceasefires could be agreed restores rows without the field, and putting two countries
+into a war neither of them declared, on the strength of a field that was absent, is the worse
+of the two mistakes.
+
+**Expiry runs from one place**, `diplomacyExpiry.js` on `TURN_CHANGED`. A ceasefire that
+expired lazily — on the next read, wherever that happened to be — would lapse at a different
+moment for a player who opened the panel than for one who did not, and the AI plans its turn
+off the same register.
+
+**HOW HARD AN AGREEMENT IS TO GET IS THE WHOLE OF WHAT SEPARATES THE TWO.** There is no
+waiting period anywhere in this system: a proposal is answered on the spot, exactly as a
+declaration takes effect on the spot. What differs is price. A ceasefire expires, so agreeing
+to one costs a country far less than promising never to fight again, and `ceasefireAllowance`
+in `peaceDiscipline` is that difference written down. Six things move the answer — how many
+other wars the country is fighting, whether its posture is looking for a fight, how badly it
+has been beaten by the asker, its leader's appetite for risk, whether somebody is running away
+with the game, and whether it is simply much the larger of the two.
+
+**The last of those is what stops the strongest empire signing peace with everything it is
+about to eat**, and the fifth is where Leigh's stated goal for the phase first arrives:
+`urgency` is already the strongest rival's share of the world's land, so when somebody is
+winning, the rest of the world becomes readier to stop fighting each other. The same number
+raises the attack budget, so a runaway leader gets attacked harder *and* finds the world less
+busy with itself.
+
+**The theatre rival is the one country a peace cannot be bought from.** `theatre.js` commits a
+country to absorbing ONE neighbour and keeps the commitment while it takes ground; a war that
+could be ended by asking would make the mid-term goal a suggestion. The deliberate escape is
+that a rival which has been beaten badly enough will take a CEASEFIRE — a country losing wants
+a breather, and that is exactly the moment the other side most wants to buy one. Without it,
+the country a player most needs to talk to is the one that never listens.
+
+**A refusal sets a cooldown**, per pair and per kind. A player who can ask every turn until
+the dice fall their way is not negotiating, they are rerolling, and the answer is a pure
+function of a world that barely moves between turns.
+
+**Q1 IS ANSWERED TOO, and against a standing siege the agreement WAITS.** See §7.
 
 ### 5.4 Breaking an agreement — and the three ways of ending one that are not a breach
 
@@ -337,12 +422,32 @@ player's frontier, so this is a widening of `entry.frontier` and not a new deriv
 
 Two surfaces, and one of them exists.
 
-**The tooltip** (built) answers *what is the state*. **A diplomacy panel** has to answer *what
-can I do about it*: the countries in contact, their state, who they are allied with, and the
-actions available against each. Where that panel lives is **Q6** — a sixth tab in the info
-panel is the cheap answer and the standings tab is the precedent, but a full-screen window in
-the Dominapedia's shape is the one that would take a proposal, a counter-offer and a list of
-who is at war with whom.
+**The tooltip** answers *what is the state*. **The diplomacy panel** answers *what can I do
+about it*: the countries in contact, grouped by state, with one country's detail and the
+actions available against it beside the list.
+
+**Q6 IS ANSWERED — its own full-screen window, not a sixth info-panel tab**, and the reason is
+stage 5 rather than stage 4. A proposal, a counter-offer and a call-in are a CONVERSATION, and
+a conversation does not fit in a column beside four tables of numbers. It borrows the
+Dominapedia's shape — a list on the left, the subject on the right, each column owning its own
+overflow while the panel itself never scrolls — because that is already this game's shape for
+"browse a set, read one".
+
+Three rules the panel keeps, each of which has a scar behind it.
+`relationsPanelModel.js` DECIDES and `DiplomacyPanel.js` DRAWS, which matters more here than
+usual: nothing in the game agrees a peace or an alliance until stage 5, so most of what the
+panel can say describes states a browser cannot be used to check. **Every action carries its
+reason whether it is offered or refused**, which is the standing rule about a control that
+refuses to act — and it is the whole argument for a panel, since a map can grey a button and
+only a panel has room for the sentence saying what would change the answer. And **stage 4
+offers exactly one action**, which is not an oversight: dead buttons for peace, ceasefire and
+alliance would advertise a game that does not exist yet.
+
+**One deliberate absence.** The panel shows who a country is at war with and who it is allied
+with — facts about the world both parties already know, which the territory tooltip lists too
+— and never what anybody is ABOUT to do. The AI's diplomatic intentions go to the console with
+the rest of its plan; a panel naming who is about to declare war would be a cheat, and the line
+is already drawn for the activity feed.
 
 ### 5.7 The news
 
@@ -393,19 +498,40 @@ Listed because each one has a precedent in this codebase.
 
 Answers to these become edits to this document, and then rows in the checklist.
 
-* **Q1 — a standing siege when a war ends.** Peace is agreed while a siege of yours is three
-  turns from starving a province out. Does the siege lift immediately, does it run to its
-  conclusion, or can peace not be agreed while a siege stands?
-* **Q2 — what a ceasefire reverts to.** Back to war (what a ceasefire classically means), or
-  back to neutral (which the sixth state now makes possible)? The proposal is that the
-  agreement remembers, in a `revertsTo` field. And: can a ceasefire be broken early, or is it
-  the one agreement that genuinely binds?
-* **Q3 — the call-in, at its edges.** §3.4 settles the aggressor's case. Three edges are not
-  settled. Is an ally called in when the partner is *attacked* rather than attacking — defence
-  being arguably the one case an alliance ought to bind, and also the one case that reopens the
-  cascade? When must the call be answered: before the declaring country may attack, or by the
-  start of the next turn? And when an ally who joined later makes peace, does the country that
-  called them in leave the war too, or stay in it alone?
+* **Q1 — a standing siege when a war ends. ANSWERED, stage 5.1: peace cannot be agreed while
+  a siege stands, and the refusal is symmetric.** Both alternatives are worse. LIFTING the
+  siege means moving an army back out of a siege object from two unrelated code paths, the
+  player's and the AI's, and a write that creates or destroys army is the single largest class
+  of defect this project has had — known-issue **BJ**, and the free-attack bug before it.
+  LETTING IT RUN under a peace makes the register say something untrue about the map. So the
+  agreement waits: finish the siege, or lift it, then talk. **The cost is real and is
+  accepted** — a player besieged by the AI cannot lift that siege themselves, so peace is
+  unavailable to them for as long as it stands, which is exactly when they most want it. What
+  makes it bearable is that `siegeReview.js` already lifts a siege that stalls, that sieges
+  are rare (nought to five standing across the whole world at every sample ever taken), and
+  that a refusal a player can act on does not spend the proposal cooldown. If this turns out
+  to bite in play, the next answer is a LIFT that goes through `writeGarrison()` and nowhere
+  else, and it should be built once for both sides.
+* **Q2 — what a ceasefire reverts to. ANSWERED, stage 5.1: the agreement remembers, in
+  `revertsTo`.** See §5.3. What is still open is the smaller half of the original question:
+  **can a ceasefire be broken early?** Today it cannot — nothing offers it, and
+  `allowsDeclaration()` permits a declaration out of a ceasefire, so the vocabulary allows one
+  while the panel does not offer it. That is a gap to close deliberately in stage 5.6, when a
+  breach has a price, rather than by accident now.
+* **Q3 — the call-in, at its edges. ANSWERED BY LEIGH, and all three edges are built.**
+  **An ally IS called in on defence as well as on aggression** (*"yes they are"*), which
+  reopens the cascade the first draft designed out — and what makes that safe is the thing
+  that made it safe in the first place: nothing is automatic, a joiner's own allies are never
+  asked, and a war spreads exactly one country per yes. **The call is answered by the start of
+  the next turn**: an AI country decides during a phase the player is not present for, so the
+  question is queued and put to them at the end of the AI turn. And **a joiner may not settle
+  out of the war alone** — Leigh: *"an ally brought in to aid an attacked ally against an
+  adversary may not independently make peace with that adversary, the peace must be asked
+  either by the ally under attack or by the adversary, and agreed, where it then applies peace
+  to the ally aiding the attacked ally as well."* Both halves are enforced: the joiner's own
+  proposals to that adversary are refused, and every joiner is released on the same terms the
+  moment the principal settles. Without the first half a call-in is a free favour — an ally
+  turns up, is thanked, and buys its own way out on the next turn.
 * **Q4 — the betrayal penalty.** Now that §3.4 narrows it to one act — walking out, or turning
   on your own ally — is the shape in §5.4 right, and how long is the treachery mark? Is there a
   material cost as well as a reputational one?
@@ -414,15 +540,27 @@ Answers to these become edits to this document, and then rows in the checklist.
   Should a country that has just *refused* its ally carry any memory of it at all — nothing is
   owed, but a country that agrees to alliances and never honours one is a country the world
   might reasonably stop allying with.
-* **Q5 — the income share.** Symmetric (each ally pays the other the same percentage), or does
-  the stronger support the weaker? And is a share of FOOD meaningful, given food is a stock
-  against a ceiling rather than a treasury?
-* **Q6 — where the player's diplomacy panel lives.** A sixth info-panel tab, or its own
-  full-screen window?
-* **Q7 — the player's protection.** `PLAYER_GRACE_TURNS` refuses the AI the *opening* of an
-  attack or siege against the player for five turns. With declarations, should the grace
-  period become a refusal to declare war — which is the same idea expressed in the new
-  vocabulary and is strictly cleaner?
+* **Q5 — the income share. ANSWERED, stage 5.3: symmetric, and a DIVIDEND rather than a
+  transfer.** Nobody pays anybody: both allies simply earn more while it stands, derived at
+  the point of use and stored nowhere. A share moved between treasuries has to be written onto
+  a territory, and a stored transfer needs an exact inverse write the moment the alliance ends
+  — the silent bug `continentBonus.js` exists to prevent. Symmetric because a percentage of a
+  flow is worth more in absolute gold to the larger ally, which is Leigh's standing rule that
+  being large stays an advantage, while the smaller ally takes the larger proportional lift.
+  And the FOOD question answers itself once it is a dividend: food is a stock against a
+  ceiling, so the alliance raises the CEILING, which is the same dial oil and construction
+  materials take and a different one from gold.
+* **Q6 — where the player's diplomacy panel lives. ANSWERED, stage 4: its own full-screen
+  window.** See §5.6 for the reasoning, which is about stage 5 rather than stage 4 — a
+  negotiation is a conversation, and a conversation does not fit in a column beside four tables
+  of numbers.
+* **Q7 — the player's protection. ANSWERED, stage 3: BOTH, and the attack gate stays.**
+  `PLAYER_GRACE_TURNS` now also refuses the AI the DECLARATION, which is the same idea said
+  better — the player is not merely un-attackable during the grace period, nobody has declared
+  on them, so the map, the tooltip and the rule all agree. The existing refusal in
+  `rateTarget()` is deliberately kept as well rather than replaced: it is the belt to this
+  braces, and it is what covers a war standing before the player existed, which a loaded save
+  can produce.
 * **Q8 — does an alliance change the victory condition?** Under CONTINENTAL, do allies' holdings
   count together for a shared win, or does an alliance remain a means to a solo end? The
   standings tab and `victory.js` both depend on the answer.

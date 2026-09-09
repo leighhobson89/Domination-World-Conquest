@@ -215,6 +215,9 @@ export function installTestHooks(accessors) {
         relations: () => snapshot(accessors.relations?.() ?? []),
         relationBetween: (a, b) => snapshot(accessors.relationBetween?.(a, b) ?? null),
         declareWar: (a, b) => snapshot(accessors.declareWar?.(a, b) ?? null),
+        setRelation: (a, b, state, options) =>
+            snapshot(accessors.setRelation?.(a, b, state, options) ?? null),
+        pendingDiplomacy: () => accessors.pendingDiplomacy?.() ?? 0,
         economyFor: (nameOrId) => snapshot(accessors.economyFor?.(nameOrId) ?? null),
 
         // What the upgrade window would offer for a territory, without opening it. Exists for

@@ -5399,6 +5399,7 @@ td {
 #buy-container,
 #transfer-attack-window-container,
 #activity-panel-container,
+#diplomacy-panel-container,
 #ai-debug-panel-container,
 #ai-game-console-container {
   z-index: 9100;
@@ -6494,5 +6495,340 @@ td {
   font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Diplomacy panel (diplomacy stage 4) ---------------------------------------------
+   Q6 answered as its own window rather than a sixth info-panel tab. It borrows the
+   Dominapedia's shape and its contract: the PANEL never scrolls -- fixed height with
+   `overflow: hidden` -- and the two columns each own their overflow, which is what keeps
+   the title bar and the actions on screen when the list of countries reaches two hundred
+   rows, as it genuinely can on this map. */
+#diplomacy-button-container {
+  position: fixed;
+  top: 192px;
+  left: 10px;
+  display: none;
+  z-index: 9000;
+}
+
+#diplomacy-panel-container {
+  position: fixed;
+  top: 88px;
+  left: 64px;
+  display: none;
+}
+
+.diplomacy-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 84vw);
+  /* A HEIGHT AND NOT A MAX-HEIGHT. A box that resizes as the player browses reads as a
+     rendering fault and moves the buttons while somebody is reaching for one -- the rule
+     the goal chooser and the Dominapedia both record. */
+  height: min(560px, 74vh);
+  background-color: var(--surface-panel);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.diplomacy-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background-color: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.diplomacy-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diplomacy-panel-summary {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diplomacy-panel-columns {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.diplomacy-panel-column-list {
+  display: flex;
+  flex-direction: column;
+  /* Sized from the longest country name in the world rather than from a percentage, so no
+     row is ever ellipsised -- the rule the goal chooser's dropdowns record. */
+  flex: 0 0 250px;
+  min-width: 0;
+  border-right: 1px solid var(--border-color);
+}
+
+.diplomacy-panel-search {
+  flex: 0 0 auto;
+  margin: 8px;
+  padding: 6px 8px;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  background-color: var(--surface-control);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.diplomacy-panel-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.diplomacy-panel-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.diplomacy-group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 6px 3px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diplomacy-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.diplomacy-row:hover {
+  background-color: var(--surface-control-hover);
+  border-color: var(--border-color);
+}
+
+.diplomacy-row.is-selected {
+  background-color: var(--surface-control);
+  border-color: var(--border-strong);
+}
+
+.diplomacy-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.diplomacy-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diplomacy-row-size {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* The tone is the same vocabulary the territory tooltip uses, from one lookup
+   (`src/ui/diplomacy/relationTone.js`) -- a map and a panel disagreeing about what a
+   relation means is the two-rows-per-relation mistake in a different costume. */
+.diplomacy-row.is-hostile .diplomacy-row-name,
+.diplomacy-detail-state.is-hostile {
+  color: var(--negative);
+}
+
+.diplomacy-row.is-caution .diplomacy-row-name,
+.diplomacy-detail-state.is-caution {
+  color: var(--siege-amber);
+}
+
+.diplomacy-row.is-friendly .diplomacy-row-name,
+.diplomacy-detail-state.is-friendly {
+  color: var(--positive);
+}
+
+.diplomacy-row.is-muted .diplomacy-row-name,
+.diplomacy-detail-state.is-muted {
+  color: var(--text-muted);
+}
+
+.diplomacy-panel-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.diplomacy-panel-empty {
+  margin: 0;
+  padding: 14px 4px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.diplomacy-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.diplomacy-detail-flag {
+  width: 42px;
+  height: 28px;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+}
+
+.diplomacy-detail-names {
+  min-width: 0;
+}
+
+.diplomacy-detail-country {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.diplomacy-detail-state {
+  font-size: 0.82rem;
+}
+
+.diplomacy-detail-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  margin: 0 0 12px;
+  font-size: 0.84rem;
+}
+
+.diplomacy-detail-facts dt {
+  color: var(--text-muted);
+}
+
+.diplomacy-detail-facts dd {
+  margin: 0;
+}
+
+.diplomacy-detail-list {
+  margin-bottom: 10px;
+}
+
+.diplomacy-detail-list h4 {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diplomacy-detail-list p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.diplomacy-detail-actions {
+  display: grid;
+  /* Two columns: the button and the sentence beside it. The sentence is what makes a
+     refused action legible, so it gets the room rather than being a title attribute. */
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.diplomacy-detail-actions .options-button {
+  /* The three labels are different lengths and a row of ragged buttons reads as three
+     unrelated controls rather than as one set of choices. */
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.diplomacy-answer {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+  border-left: 3px solid var(--border-color);
+}
+
+.diplomacy-answer.is-friendly {
+  color: var(--positive);
+  border-left-color: var(--positive);
+}
+
+.diplomacy-answer.is-hostile {
+  color: var(--negative);
+  border-left-color: var(--negative);
+}
+
+/* A DISABLED ACTION IS A CLASS AND `aria-disabled`, never the `disabled` property -- the
+   rule the battle bar and the steppers both record. A control the browser has disabled
+   cannot be hovered, and a control that refuses to act must be able to say why. */
+.diplomacy-detail-actions .options-button.is-disabled {
+  color: var(--text-muted);
+  background: var(--surface-control);
+  border-color: var(--border-color);
+  cursor: not-allowed;
+}
+
+.diplomacy-action-reason {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
   color: var(--text-muted);
 }

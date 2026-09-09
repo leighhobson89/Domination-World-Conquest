@@ -8,6 +8,7 @@ import {
     svg,
     setColorOnMap,
     showQueuedDefences,
+    showQueuedDiplomacy,
     refreshGoalLine,
     strongestCountries
 } from './ui.js';
@@ -56,6 +57,8 @@ import {
     updateArrayOfLeadersAndCountries
 } from "./cpuPlayerGenerationAndLoading.js";
 import { isSuccessionTurn } from "./src/ai/succession.js";
+import { peaceDiscipline } from "./src/config/balance.js";
+import { pendingDiplomacy } from "./src/state/diplomacyInbox.js";
 import { clearPlansFor } from "./src/ai/strategy.js";
 import {
     createTurnEngine
@@ -271,6 +274,26 @@ installTestHooks({
         setRelationState(a, b, DiplomaticState.WAR, { since: currentTurn() });
         return { a, b, state: relationStateBetween(a, b) };
     },
+    //THE OTHER FIVE STATES, and this exists for the same reason `declareWar()` does: nothing
+    //in the game agrees a peace, a ceasefire or an alliance except by asking an AI country
+    //that may say no, so a spec that needs one of those states to exist has no reliable way
+    //to reach it by clicking. It goes through `mutations.js` like every other write and it
+    //sets the ceasefire's two extra fields properly -- a spec that wrote a ceasefire with no
+    //`until` would be testing an agreement the game cannot produce.
+    setRelation: (a, b, state, options) => {
+        refreshDiplomaticContacts();
+        const turn = currentTurn();
+        const ceasefire = state === DiplomaticState.CEASEFIRE;
+        setRelationState(a, b, state, {
+            since: options?.since ?? turn,
+            until: options?.until ?? (ceasefire ? turn + peaceDiscipline.ceasefireTurns : null),
+            revertsTo: options?.revertsTo ?? (ceasefire ? relationStateBetween(a, b) : null)
+        });
+        return { a, b, state: relationStateBetween(a, b) };
+    },
+    //Every question the AI has put to the player and is waiting on. It is filled during the
+    //AI phase and emptied at the end of it, so a spec can only see one by looking mid-turn.
+    pendingDiplomacy: () => pendingDiplomacy(),
     economyFor: (nameOrId) => derivedEconomyFor(
         getTerritoryByName(String(nameOrId)) ?? getTerritory(nameOrId)),
     //What the upgrade window would offer for a territory, WITHOUT opening it. `condition` is
@@ -898,6 +921,12 @@ async function handleAITurn() {
     summaryWarsLostArray.length = 0;
     console.log("AI DONE!");
     await showQueuedDefences();
+    //THE DIPLOMATIC INBOX, after the battles the player has to watch and before their turn
+    //begins. Order matters: a call to arms answered over a battle-results screen would be
+    //answered through it, and `confirmDialog.open()` resolves a previous dialog as a CANCEL
+    //when a second is raised over it -- which here would refuse a call to arms on the
+    //player's behalf and end an alliance they never heard about.
+    await showQueuedDiplomacy();
 
     initialiseNewPlayerTurn();
 

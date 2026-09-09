@@ -99,6 +99,30 @@ export function flagIcon() {
 }
 
 /**
+ * Two pennants leaning towards each other: the diplomacy panel.
+ *
+ * A HANDSHAKE IS THE OBVIOUS PICTURE AND IT DOES NOT SURVIVE 22 PIXELS at hairline weight --
+ * two hands become one grey lump. Two flags do survive it, they are already this game's
+ * vocabulary for "a country" (`flagIcon()` beside it, and a flag chip on every territory in
+ * the overlay), and two of them facing each other is the whole subject of the panel: a
+ * relation is a fact about a PAIR of countries and never about one.
+ *
+ * They lean IN rather than crossing. Crossed poles is the crossed-swords silhouette this file
+ * already uses for war, and the panel is about all six states rather than about that one.
+ */
+export function diplomacyIcon() {
+    return icon("chrome-icon-diplomacy", [
+        //The left pennant, flying right.
+        svgEl("line", { attrs: { x1: "5.2", y1: "3.4", x2: "5.2", y2: "20.6" } }),
+        svgEl("path", { attrs: { d: "M5.2 4.6h6.2l-1.8 2.6 1.8 2.6H5.2z" } }),
+        //The right pennant, flying left and hung a little lower, so the two read as a pair
+        //in conversation rather than as one shape mirrored.
+        svgEl("line", { attrs: { x1: "18.8", y1: "3.4", x2: "18.8", y2: "20.6" } }),
+        svgEl("path", { attrs: { d: "M18.8 8.4h-6.2l1.8 2.6-1.8 2.6h6.2z" } }),
+    ]);
+}
+
+/**
  * A cloud: the weather overlay.
  *
  * Three lobes on a flat base, which is the same silhouette the overlay draws on the map -- one
