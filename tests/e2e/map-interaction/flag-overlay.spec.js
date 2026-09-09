@@ -1,5 +1,5 @@
 // The owner-flag overlay.
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 // A flag on each territory showing who holds it NOW -- an overlay rather than a view, so it
 // composes with whichever map view is up instead of replacing one.

@@ -329,9 +329,9 @@ spectated game is where the doctrine layer is actually watched.
       urgency response to a runaway leader, and the mid-term theatre
 - [x] Dominapedia "Design Notes" led with "THE GAME CANNOT END", which was the top of its list
       for the life of the project
-- [x] `docs/04-known-issues.md` item 1 closed, and the **Currently open** list carries what
+- [x] `docs/03-known-issues.md` item 1 closed, and the **Currently open** list carries what
       this phase deliberately leaves behind: the ending has no screen
-- [x] `docs/02-game-design-document.md` — §1, §6.1, §6.5, §8.5 and §11 items 1, 6, 8, 12 and
+- [x] `docs/01-game-design-document.md` — §1, §6.1, §6.5, §8.5 and §11 items 1, 6, 8, 12 and
       15 updated, and §6.6 "The end of a game" is new
 - [x] Plan document §5 carries the measured AI numbers; §9 records the four pages that moved;
       §10's three open questions are resolved (the Great Powers line already names the next

@@ -1,5 +1,5 @@
 // The weather over the world.
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 // Two forms of cloud that the zoom cross-fades between -- storm systems seen from orbit when the
 // whole world is on screen, individual cartoon clouds with shadows on the ground when it is not.

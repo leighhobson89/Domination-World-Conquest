@@ -50,8 +50,10 @@ import {
     allianceDiscipline,
     betrayalPenalty,
     declarationDiscipline,
+    opinionDiscipline,
     peaceDiscipline
 } from "../config/balance.js";
+import { describeOpinionReason } from "./opinion.js";
 import {
     allowsDeclaration,
     canPropose,
@@ -379,6 +381,9 @@ export function restoreDiplomacyMemory(data) {
  * @param {number} [input.urgency]          0..1, the runaway-leader signal
  * @param {string|null} [input.theatreRival]  who the asked country is committed to absorbing
  * @param {number} [input.otherWars]        wars it is fighting BESIDES this one
+ * @param {number} [input.opinion]  what the asked country thinks of the proposer, -100..100
+ *        -- see `src/ai/opinion.js`. A TERM and never a gate, which is what keeps it
+ *        incapable of freezing the world however far it swings
  * @param {number} [input.failuresAgainstProposer]  attacks it has lost against the proposer
  * @param {number} [input.territories]              how much the asked country holds
  * @param {number} [input.proposerTerritories]
@@ -399,6 +404,7 @@ export function proposalOutcomeFor({
     posture = null,
     urgency = 0,
     theatreRival = null,
+    opinion = 0,
     otherWars = 0,
     failuresAgainstProposer = 0,
     territories = 0,
@@ -512,6 +518,7 @@ export function proposalOutcomeFor({
         const { score: allianceScore, parts: allianceParts } = allianceScoreFor({
             traits,
             urgency,
+            opinion,
             sharedEnemies,
             existingAllies,
             territories,
@@ -581,6 +588,28 @@ export function proposalOutcomeFor({
     score += alarm;
     note(alarm, "a bigger threat is growing elsewhere");
 
+    //WHAT IT THINKS OF YOU SPECIFICALLY, which is the seventh term and the only one on this
+    //list that is a MEMORY rather than a fact about today. Every term above it would read
+    //exactly the same whether the two countries had never met or had been sacking each
+    //other's provinces for eighty turns.
+    //
+    //IT IS THE HEAVIEST SINGLE INPUT HERE and that is deliberate -- at the ends of the scale
+    //it is worth more than the whole personality range, so a full grudge sinks an offer on
+    //its own and full warmth carries one on its own. Leigh's brief asked for acceptance to
+    //become "70% opinion", and this is that intent expressed as a term rather than as a
+    //percentage of the answer: a normalised blend would make seventy per cent of every
+    //negotiation in the first fifty turns a CONSTANT, because every pair starts at its
+    //resting point, and it would re-base every threshold in this file at the same time as
+    //introducing the mechanic. See `docs/archived/08-opinion.md` §1.1.
+    //
+    //IT IS A TERM AND NEVER A GATE. A rule that can refuse is a rule that can freeze the
+    //world -- known-issue BA -- and a term added to a score cannot, whatever value it takes.
+    const regard = opinionTerm(opinion, opinionDiscipline.weights.peace);
+    score += regard.weight;
+    if (regard.text) {
+        note(regard.weight, regard.text);
+    }
+
     //AGREEING NOT TO FIGHT SOMEBODY YOU ARE BEATING IS WHAT A COUNTRY DOES NOT DO. Without
     //this the strongest empire on the map signs peace with everything it is about to eat.
     const mine = Math.max(0, Number(territories) || 0);
@@ -626,6 +655,7 @@ export function proposalOutcomeFor({
  * @param {string|null} [input.posture]
  * @param {number} [input.urgency]
  * @param {(rival: string) => number} [input.failuresAgainst]
+ * @param {(other: string) => number} [input.opinionOf]  what this country thinks of another
  * @returns {{target: string, kind: string, reason: string}|null}
  */
 export function planAgreementOffer({
@@ -636,7 +666,8 @@ export function planAgreementOffer({
     traits = {},
     posture = null,
     urgency = 0,
-    failuresAgainst = null
+    failuresAgainst = null,
+    opinionOf = null
 } = {}) {
     if (!country) {
         return null;
@@ -659,9 +690,15 @@ export function planAgreementOffer({
                 //Only the enemies THIS country can see are counted, which is the honest half
                 //of a shared fear: it is not asking the other side who it is fighting, it is
                 //noticing that they are fighting the same people.
-                shared: (row.theirWars ?? []).filter(name => enemies.has(name)).length
+                shared: (row.theirWars ?? []).filter(name => enemies.has(name)).length,
+                //YOU ALLY WITH PEOPLE YOU LIKE, so where two candidates fight the same
+                //number of the same enemies the warmer one is asked. A TIE-BREAK and not a
+                //term: a shared enemy is the reason for an alliance and opinion decides only
+                //which of two equally good reasons to act on.
+                regard: opinionOf ? (Number(opinionOf(row.country)) || 0) : 0
             }))
-            .sort((a, b) => b.shared - a.shared || a.country.localeCompare(b.country))[0];
+            .sort((a, b) => b.shared - a.shared || b.regard - a.regard ||
+                a.country.localeCompare(b.country))[0];
         if (partner) {
             return {
                 target: partner.country,
@@ -716,12 +753,24 @@ export function planAgreementOffer({
             proposalCooldownLeft(country, row.country, ProposalKind.CEASEFIRE, turn) === 0)
         .map(row => ({
             country: row.country,
-            failures: failuresAgainst ? (Number(failuresAgainst(row.country)) || 0) : 0
+            failures: failuresAgainst ? (Number(failuresAgainst(row.country)) || 0) : 0,
+            regard: opinionOf ? (Number(opinionOf(row.country)) || 0) : 0
         }))
-        //Most beaten first, then alphabetical. The tie-break is there so a world of countries
-        //with no losses yet still produces a stable, reproducible choice rather than one that
+        //Most beaten first, then the one it LEAST dislikes, then alphabetical.
+        //
+        //THE SECOND KEY IS WHERE THE WORK ACTUALLY HAPPENS, and the acceptance document
+        //explains why: `theatreFailuresAgainst()` counts defeats only against the committed
+        //theatre rival, who is excluded from this list, so every candidate here reads ZERO
+        //failures and the choice used to fall straight through to the alphabet. "The war it
+        //values least" was a stated intention with no effective mechanism behind it. It has
+        //one now -- a country sues for peace with the enemy it minds least, which is what
+        //anybody would have assumed it already did.
+        //
+        //The alphabetical tie-break stays underneath both, so a world in which nothing has
+        //happened yet still produces a stable, reproducible choice rather than one that
         //follows `Map` insertion order.
-        .sort((a, b) => b.failures - a.failures || a.country.localeCompare(b.country));
+        .sort((a, b) => b.failures - a.failures || b.regard - a.regard ||
+            a.country.localeCompare(b.country));
 
     const chosen = candidates[0];
     if (!chosen) {
@@ -757,6 +806,33 @@ function reasonFrom(parts, accepted) {
     //An offer refused with nothing arguing against it is the common case and the one worth
     //saying plainly: nobody talked them out of it, there was simply never enough for it.
     return accepted ? "it sees no reason to keep fighting" : "nothing in particular moves it";
+}
+
+/**
+ * One opinion, as a weight and the sentence that goes with it.
+ *
+ * THE WORDING IS THE POINT OF HAVING THIS AT ALL. `reasonFrom()` names only the terms that
+ * argued the way the answer went, so a grudge has to be able to say so in the country's own
+ * voice -- and this is the term a player can actually DO something about, which is most of
+ * what the mechanic is for: the reason you are told no becomes a thing you can change rather
+ * than a fact about arithmetic you cannot see.
+ *
+ * THE WORDING IS `opinion.js`'s AND NOT A SECOND COPY OF IT, which also settles when an
+ * opinion is worth mentioning: `describeOpinionReason()` returns null below `notableFrom`,
+ * and a term with no sentence is simply not offered to `reasonFrom()`. Two independent floors
+ * -- this file's 0.15 on the weight and that file's 20 points on the value -- would disagree
+ * with each other the first time either was tuned, and the visible symptom would be a
+ * refusal explained by a grudge the tooltip draws as neutral.
+ */
+function opinionTerm(opinion, perPoint) {
+    const value = clampOpinion(finiteOr(opinion, 0));
+    return { weight: perPoint * value, text: describeOpinionReason(value) };
+}
+
+/** Opinion arrives from a caller, so it is clamped here rather than trusted. */
+function clampOpinion(value) {
+    const limit = opinionDiscipline.range;
+    return Math.max(-limit, Math.min(limit, value));
 }
 
 function clamp01(value) {
@@ -880,6 +956,7 @@ export function allCallIns() {
 export function allianceScoreFor({
     traits = {},
     urgency = 0,
+    opinion = 0,
     sharedEnemies = 0,
     existingAllies = 0,
     territories = 0,
@@ -913,6 +990,15 @@ export function allianceScoreFor({
     const temperament = tuning.riskSwing * (0.5 - risk);
     score += temperament;
     note(temperament, risk < 0.5 ? "its leader is cautious" : "its leader is aggressive");
+
+    //YOU ALLY WITH PEOPLE YOU LIKE, so opinion is weighted HEAVIER here than on a peace --
+    //an alliance is the only agreement that gives something rather than merely withholding
+    //something, and it is the one that can drag you into somebody else's war.
+    const regard = opinionTerm(opinion, opinionDiscipline.weights.alliance);
+    score += regard.weight;
+    if (regard.text) {
+        note(regard.weight, regard.text);
+    }
 
     //AN ALLIANCE WITH A COUNTRY THAT CANNOT HELP YOU is a promise to fight their wars for
     //nothing. The asymmetry is one-way on purpose: a SMALLER country is glad of a large
@@ -949,6 +1035,7 @@ export function callInOutcomeFor({
     adversary,
     traits = {},
     urgency = 0,
+    opinion = 0,
     defensive = false,
     alreadyAtWar = false,
     existingWars = 0,
@@ -993,6 +1080,15 @@ export function callInOutcomeFor({
     const temperament = tuning.riskSwing * (risk - 0.5);
     score += temperament;
     note(temperament, risk > 0.5 ? "its leader is aggressive" : "its leader is cautious");
+
+    //YOU TURN UP FOR PEOPLE YOU LIKE. The opinion here is the ally's of the PRINCIPAL -- the
+    //partner doing the asking -- and not of the adversary, because the question a call to
+    //arms puts is "will you fight for me", not "do you dislike them".
+    const regard = opinionTerm(opinion, opinionDiscipline.weights.callIn);
+    score += regard.weight;
+    if (regard.text) {
+        note(regard.weight, regard.text);
+    }
 
     const theirs = Math.max(0, Number(adversaryTerritories) || 0);
     const mine = Math.max(0, Number(allyTerritories) || 0);

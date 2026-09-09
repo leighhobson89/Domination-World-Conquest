@@ -1,7 +1,7 @@
 # E2E Test Implementation Plan — Domination: World Conquest
 
 **Baseline:** commit `b7ae0af`
-**Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) · [02-game-design-document.md](./02-game-design-document.md) · [archived/03-refactor-plan.md](./archived/03-refactor-plan.md)
+**Companion documents:** [01-codebase-audit.md](./archived/01-codebase-audit.md) · [01-game-design-document.md](./01-game-design-document.md) · [archived/03-refactor-plan.md](./archived/03-refactor-plan.md)
 
 ---
 
@@ -822,6 +822,38 @@ Two hooks were added to `window.__game`: `activity()` reads the log as data, and
 on the far side of the map, a siege in its fourth turn) are unreachable by clicking in any
 reasonable time. What it does not bypass is the panel: the entry goes through
 `recordActivity()` and the panel re-renders from the event.
+
+### 5.20 `diplomacy/` — ✅ delivered (the diplomacy and opinion phases)
+
+Who may fight whom, what can be agreed, and what the player is shown about it. The division
+with the unit suite is the sharpest in the project and it has to be: **every rule in this area
+is pure and none of the wording is asserted here.** `proposalOutcomeFor()`, `allianceScoreFor()`
+and `callInOutcomeFor()` are decided in `tests/unit/ai-alliance.spec.js`; the tooltip rows, the
+panel model, the news and the opinion bar each have their own unit spec. What is left for a
+browser is everything those cannot see.
+
+| Spec | Covers |
+|---|---|
+| `register.spec.js` | The register is sparse, one record per unordered pair, symmetric whichever way it is asked, and survives a save. A ceasefire carries its expiry and what it reverts to |
+| `gates.spec.js` | A neutral country cannot be attacked — the move button offers no ATTACK — and the same pairing offers one once war is declared |
+| `panel.spec.js` | The button appears with the in-game chrome; the panel lists exactly the countries met and never the player; what it will and will not let the player do, and that a refusal sets a cooldown so the same offer cannot be re-rolled |
+| `tooltip.spec.js` | The register drawn on the map: the player's own standing first on somebody else's territory, never the player listed as a foreign power on their own, and the two **opinion bars** — including that the geometry reaches the element as an inline style, which is the half a unit test cannot see |
+| `news.spec.js` | First contact is not news (a fresh game walks the whole map and writes no entry); a declaration, a treaty and a betrayal each reach the feed as their own kind |
+| `defeated.spec.js` | A country conquered out of existence leaves the tooltip and the panel, is not COUNTED in a group heading, and appears in the standings table marked *defeated* — where it had previously vanished from the table altogether |
+| `declaration-notice.spec.js` | A war opened against the player raises a notice with ONE button, and the turn still ends. It plays a one-territory country: measured, nobody declares on Germany for fifteen turns, which is `opportunistWeakness` working correctly and makes a large country useless for this |
+
+**Two things in this area cost real wall-clock time and both are deliberate.**
+`declaration-notice.spec.js` plays ten turns, because the only honest way to see an AI
+declaration is to let the AI make one — `PLAYER_GRACE_TURNS` is 5, so nothing can arrive before
+turn 6. And the dialog is recorded by a `MutationObserver` installed in the page rather than by
+polling, because `GameDriver.answeringDiplomacy()` answers diplomatic prompts while it waits for
+the turn counter and would otherwise dismiss the thing the spec is looking at.
+
+**The driver had to learn two things for this area**, and both are the same lesson the ending
+screen taught: `answeringDiplomacy()` clicks cancel when there is one and confirm when there is
+not, because a NOTICE has no cancel and clicking a hidden element never succeeds; and
+`GameDriver.declareWarOn()` exists at all because from the diplomacy phase onwards every spec
+that attacks has to open a war first.
 
 ## 6. Delivery sequence
 

@@ -30,7 +30,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked or
 No rule reads the register, so the game plays exactly as it did. This is the stage that makes
 the state a fact before anything depends on it.
 
-### 0.1 The vocabulary — [src/state/diplomacy.js](../src/state/diplomacy.js)
+### 0.1 The vocabulary — [src/state/diplomacy.js](../../src/state/diplomacy.js)
 
 - [x] Six states: no contact, neutral, war, ceasefire, peace, alliance
 - [x] **Imports nothing at all**, the arrangement `phases.js` has — the enum is read by the
@@ -50,7 +50,7 @@ the state a fact before anything depends on it.
 
 ### 0.2 The store, the reads, the writes
 
-- [x] `store.diplomacy.relations` in [GameState.js](../src/state/GameState.js), cleared **in
+- [x] `store.diplomacy.relations` in [GameState.js](../../src/state/GameState.js), cleared **in
       place** on reset rather than replaced
 - [x] Selectors: `relationBetween()`, `relationStateBetween()` (never null), `relationsFor()`,
       `allRelations()`, `relationCount()`, and `countriesMayFight()` — the one question every
@@ -62,7 +62,7 @@ the state a fact before anything depends on it.
 - [x] Save and load. Rows rather than `Map` entries, and **the snapshot version did not move**:
       an old save restores an empty register, which is exactly the pristine starting position
 
-### 0.3 First contact — [contact.js](../src/rules/diplomacy/contact.js) + [diplomacyContacts.js](../src/state/diplomacyContacts.js)
+### 0.3 First contact — [contact.js](../../src/rules/diplomacy/contact.js) + [diplomacyContacts.js](../../src/state/diplomacyContacts.js)
 
 - [x] The pure walk takes its neighbour lookup as an argument, because `src/data/adjacency.js`
       throws in Node
@@ -74,7 +74,7 @@ the state a fact before anything depends on it.
 - [x] It only ever moves a pair OFF no contact. A border that closes up again does not undo a
       relationship
 
-### 0.4 The tooltip — [diplomacyTooltip.js](../src/ui/map/diplomacyTooltip.js)
+### 0.4 The tooltip — [diplomacyTooltip.js](../../src/ui/map/diplomacyTooltip.js)
 
 - [x] Your own territory: everybody you have a relation with, no contact filtered out
 - [x] Somebody else's: the state between them and YOU first, **always, even at no contact**
@@ -98,7 +98,7 @@ the state a fact before anything depends on it.
       took the *somebody else's country* branch and listed the player's own country as a
       foreign power at no contact with itself. The register is keyed by COUNTRY, and the
       country is `dataName`
-- [ ] An e2e spec for the tooltip. Deferred to Stage 6 with the rest of the e2e work, because
+- [x] An e2e spec for the tooltip. Deferred to Stage 6 with the rest of the e2e work, because
       the wording is already pinned in Node and no e2e spec in this suite asserts prose
 
 ---
@@ -137,7 +137,7 @@ known-issue **BA** repeating itself.
 - [x] Every gate goes through `countriesMayFight()` in `state/selectors.js` and **nothing
       re-derives it**. Two gates that answer the same question separately will eventually
       answer it differently — the rule the dice model established for combat
-- [x] `rateTarget()` in [targeting.js](../src/ai/targeting.js) refuses a target whose owner is
+- [x] `rateTarget()` in [targeting.js](../../src/ai/targeting.js) refuses a target whose owner is
       not at war, **with a stated reason**, beside the player's grace period. That is the one
       place in the AI a target is declined with a reason the debug window and the plan log read
 - [x] The player's attack destinations exclude a country not at war: no hatched highlight and
@@ -379,7 +379,7 @@ Stage 3 gives the player a bare declaration on the attack control. This is the r
       DECLARE WAR button and the panel's action — the same rule `openUpgradeWindowFor()`
       records. An entry point that did half of it would be a declaration the register recorded
       and the map never repainted
-- [x] Every id in [registry.js](../src/ui/core/registry.js); no hand-written selector
+- [x] Every id in [registry.js](../../src/ui/core/registry.js); no hand-written selector
 - [x] Listeners installed **once**, from bootstrap, with the rows and the action reached by
       ONE delegated listener each rather than one per render. `removeEventListener` cannot take
       off a handler built fresh at each call — the move button's defect, the territory
@@ -636,10 +636,10 @@ gives and does not mention passage.
 - [x] `tests/unit/rules-alliance-share.spec.js` — 10 cases, including that the two bonuses
       MULTIPLY rather than add, and that a context which has never heard of alliances plays
       exactly the game it played before
-- [ ] `node tools/econ-lab.mjs` does not measure it yet. The rule is pure and importable
-      (`src/rules/economy/allianceShare.js` imports only `config/`), so the tool can IMPORT it
-      when a section is written — which is the standing rule, because a measuring instrument
-      holding its own copy of the thing it measures will eventually measure the copy
+- [x] **`node tools/econ-lab.mjs alliance` measures it now** (delivered in stage 6.4). The rule
+      is pure and importable (`src/rules/economy/allianceShare.js` imports only `config/`), and
+      the tool IMPORTS it rather than restating it — the standing rule, because a measuring
+      instrument holding its own copy of the thing it measures will eventually measure the copy
 
 ### 5.4 Alliance — shared intelligence — **DONE**
 
@@ -750,7 +750,7 @@ that broke four e2e areas at once.
 
 ---
 
-### 5.5a The alliance was NOT measured, and the reason is worth recording
+### 5.5a The alliance was NOT measured, and the reason is worth recording — **MEASURED AT 6.6**
 
 - [ ] **The five-goal run for stages 5.2–5.6 was started and is VOID.** Four of the five goals
       stopped between turns 22 and 60 with `Cannot read properties of undefined (reading
@@ -760,11 +760,16 @@ that broke four e2e areas at once.
       edit did it, and a transient half-applied state of that file supplied the page error in
       the log. Leigh's direction afterwards was to stop measuring and finish the stage, so it
       has not been retaken
-- [ ] **What that leaves unknown is specific and worth naming**: whether alliances form often
-      enough to matter, whether the alliance income share moves consolidation, and whether the
-      call-in spreads wars faster than peace ends them. The 5.1 table is the last trustworthy
-      one. `node tools/ai-sim.mjs --turns=150 --seed=goals --every=25 --goal=KIND` for the five
-      goals is the run, and **nothing may be edited while it is going**
+- [x] **What that left unknown was specific, and stage 6.6 answers most of it for three goals
+      of five.** The questions were whether alliances form often enough to matter, whether the
+      alliance income share moves consolidation, and whether the call-in spreads wars faster
+      than peace ends them. Against the 5.1 table: pairs at war are **modestly UP** (241–255
+      against 195–216) and standing agreements **modestly DOWN** (449–463 against 479–533),
+      which is the call-in doing exactly what it was designed to do — an alliance is a war
+      multiplier as well as an income one — without anything approaching stage 3's 692–749
+      ratchet. Consolidation is unchanged inside the noise: 87–92 countries against 84–93, and
+      the same ordering between the goals. **DOMINATION and TURN_LIMIT are still unmeasured
+      since 5.1**, and the run is thirteen minutes a goal
 
 ---
 
@@ -832,35 +837,192 @@ Leigh asked for *"a very large penalty indeed if broken"*, and §3.4 then narrow
 
 ---
 
-## Stage 6 — the news, the manual and the measurement
+## Stage 6 — the news, the manual and the measurement — **DONE**
 
-- [ ] New `ActivityKind` entries: declaration, treaty, alliance, betrayal. The set is **closed**
-      and `recordActivity()` rejects anything else, because the card writer switches on it
-- [ ] **A card only for the player's own diplomacy**; everything else joins "elsewhere in the
-      world". 207 countries negotiating will produce far more events than 207 countries fighting
-- [ ] **No country name used as an adjective** — there are no demonyms for 207 countries, and a
-      unit test fails the build if one reappears
-- [ ] The AI's diplomatic *intentions* go to the console, never to the feed. The feed reports
-      what happened; a panel showing who is about to declare war is a cheat
-- [x] **A Dominapedia section — DONE.** Diplomacy is a top-level section now, not a page in
-      Reference: *Who You May Fight*, *Declaring War*, *Peace and Ceasefires* and *Alliances*.
-      The old Reference page has been narrowed to *The Siege Offer*, which is the one thing on
-      it that was still true — everything else it said (*"there are no alliances, no
-      non-aggression pacts, no war declarations"*) had become confidently wrong, which is the
-      exact failure this rule exists to catch
+### 6.1 The feed learns about diplomacy — **DONE**
+
+- [x] New `ActivityKind` entries: **declaration, treaty, alliance, betrayal**. The set is still
+      **closed** and `recordActivity()` still rejects anything else, because the card writer
+      switches on it. Four and not eight: a ceasefire and a peace are one TREATY kind, and the
+      three ways an alliance ends are one ALLIANCE kind, because what separates them is the
+      `via` the card writer already reads
+- [x] **DERIVED FROM ONE EVENT, ANNOTATED AT THE CALL SITES, AND THAT SPLIT IS THE WHOLE
+      DESIGN.** `setRelationState()` is the one way the register is written, so no declaration
+      and no treaty can be missed by a caller that forgot to log it — the same argument that
+      makes a conquest *"a territory's `dataName` changed"*. But the register cannot say WHO
+      acted or by what route, and a pair arriving at WAR looks identical whether somebody
+      declared, an ally answered a call to arms, or a ceasefire lapsed. So `by`, `via` and
+      `onBehalfOf` ride on the EVENT and are stored nowhere: they are facts about a
+      transition, which stops being true the moment the next one happens, and storing them
+      would grow the save by two strings on every one of up to 21,321 pairs to answer a
+      question only the news asks
+- [x] **A BETRAYAL IS DERIVED AND NOT ANNOTATED**, alone among the four. Going to war out of an
+      AGREEMENT is exactly the transition `applyBreach()` is charged on, so the feed asks the
+      register the same question the penalty asks rather than trusting a caller to have
+      labelled it — which is what keeps the news and the price of a breach from ever
+      disagreeing about whether one happened
+- [x] **FIRST CONTACT IS NOT NEWS, AND IT IS GUARDED TWICE.** `diplomacyContacts.js` writes
+      NEUTRAL for every pair whose borders have met and a busy turn 1 walks something like
+      1,900 pairings; recording those would flush every real entry out of the bounded ring
+      inside one turn. The recorder drops them on the `via: "contact"` annotation AND on the
+      NO_CONTACT → NEUTRAL transition, deliberately independently: either alone would be a
+      single point of failure for the one write that must never be reported
+- [x] **A card only for the player's own diplomacy**; everything else joins *"elsewhere in the
+      world"*. Measured, a 150-turn run ends with ~500 agreements standing and ~200 pairs at
+      war, against a map on which 51 territories change hands on turn 1 — so this rule matters
+      more here than it does for the war entries it was written for
+- [x] **No country name used as an adjective.** There are no demonyms for 207 countries, and
+      the diplomatic phrasings are the ones most tempted by it (*"the Spain delegation"*). A
+      genitive is fine and is used — *"Germany's call to arms"* — so the test sweeps every
+      wording the file can produce and matches a bare name directly in front of a noun
+- [x] **`playerAttacking` means "the player is the one who ACTED"** on a diplomatic entry. It
+      speaks the war vocabulary deliberately: `involvesPlayer()` and the panel decide what
+      gets a card from those two flags, and a third pair for one family of kinds would mean
+      teaching the panel a second vocabulary
+- [x] The AI's diplomatic *intentions* still go to the console and never to the feed. Nothing
+      changed to keep that true: the feed derives from register WRITES, so an offer that was
+      refused leaves no trace and a plan that was never acted on cannot reach it
+- [x] Amber is left alone. The feed's colour vocabulary says amber means a siege, and a
+      diplomatic event borrowing it would cost the one tone in the panel that means exactly
+      one thing. Green when an agreement is made, red when a war opens or an agreement is lost
+- [x] `recordCallInNews()` in `ui.js` is now the ECHO rather than the record — its own comment
+      said the feed was *"the right home for it in stage 6"*. Both outcomes go through
+      `setRelationState()` inside `applyCallInAnswer()`, so the news is already written by the
+      time it runs; the console line stays for the reason the AI's plan log does
+- [x] `tests/unit/state-diplomacy-news.spec.js` — 14 cases on the derivation, and
+      `tests/unit/ui-diplomacy-news.spec.js` — 18 on the wording
+
+### 6.2 The manual — **DONE**
+
+- [x] **A Dominapedia section.** Diplomacy is a top-level section now, not a page in Reference:
+      *Who You May Fight*, *Declaring War*, *Peace and Ceasefires* and *Alliances*. The old
+      Reference page has been narrowed to *The Siege Offer*, which is the one thing on it that
+      was still true — everything else it said (*"there are no alliances, no non-aggression
+      pacts, no war declarations"*) had become confidently wrong, which is the exact failure
+      that rule exists to catch
 - [x] **The figures are IMPORTED rather than remembered.** `topics.js` now imports
       `config/balance.js` — which itself imports nothing, so the property that mattered is
       intact — and every number on those pages comes off a dial. A tuning pass moves the manual
       with the game instead of leaving it wrong, which is the stronger form of *quote a number
       only after reading it out of `balance.js`*
-- [ ] E2E: a new functional area under `tests/e2e/diplomacy/`, the tooltip spec deferred from
-      Stage 0, and the register surfaced on `window.__game` — a relation is exactly the kind of
-      thing a spec cannot reach by clicking
-- [ ] **The five-goal 150-turn acceptance table**, against the Stage 1 control, with a paragraph
-      per goal. This is the criterion for any change to `src/ai/` and this phase is nothing but
-      changes to `src/ai/`
-- [ ] `docs/02-game-design-document.md` gains the mechanic; `docs/04-known-issues.md` gains
-      whatever this opened and loses whatever it closed, **in the same change**
+
+### 6.3 The e2e area — **DONE**
+
+- [x] A new functional area under `tests/e2e/diplomacy/`, **five specs, 25 cases, 25/25**:
+      `register.spec.js`, `gates.spec.js`, `panel.spec.js`, `tooltip.spec.js`, `news.spec.js`
+- [x] **The tooltip spec deferred from Stage 0 is delivered**, and it carries the one case that
+      was found by hovering rather than by reading: the player's own territory must never list
+      the player's own country as a foreign power at no contact with itself
+- [x] **The register was already on `window.__game`** — `relations()`, `relationBetween()`,
+      `declareWar()`, `setRelation()`, `pendingDiplomacy()` — because the attacking half of the
+      suite needed a war from the moment neutral stopped permitting one. What stage 6 added is
+      the area that uses them for their own sake
+- [x] **`gates.spec.js` is the one spec in the suite that must NOT declare war first.** Every
+      other attacking spec goes through `GameDriver.openAttackWindow()`, which declares; this
+      one drives the map without it and asserts the move button offers no `ATTACK`, then
+      declares and asserts the same pairing does. `countriesMayFight()` being correct and the
+      game actually refusing the attack are two different claims, and only the second is what a
+      player experiences
+- [x] **NO WORDING IS ASSERTED ANYWHERE IN THE AREA.** Four pure modules own every sentence the
+      phase produces and each has its own unit spec; the README tabulates which is which
+- [x] `tests/support/pages/diplomacyPanel.js` is the page object, wired in as `game.diplomacy`.
+      The four tooltip classes it addresses are named in `registry.js` now — they are built by
+      string concatenation in `ui.js` because the tooltip is one `innerHTML` write rebuilt
+      dozens of times a second, and `tests/support/selectors.js` holds no literal selector
+- [x] **`ActivityPanelPage.showCurrentTurn()` had to be added, and the reason is worth
+      keeping.** The panel HIDES the turn that has just begun, because `endTurn: advanceTurn`
+      files the news under the turn that ENDED — and on turn 1 there is no turn behind it, so
+      the first two card specs failed against a panel reading *"No news yet"* while the log
+      held the entry. It presses the switch in the panel's own title bar; it is not a harness
+      back door
+- [x] Ran alongside: `activity-feed` **27/28**, and the one failure is **C7**, which fails at
+      HEAD as well and has been diagnosed rather than retargeted — see the register
+
+### 6.4 The alliance share is measured — **DONE**
+
+- [x] `node tools/econ-lab.mjs alliance` (the outstanding item from 5.3). It IMPORTS
+      `src/rules/economy/allianceShare.js` rather than restating it, which is the standing rule
+      for that tool. Three tables: the multiplier ladder and where the cap bites; the same
+      percentage against five real territories, which is what SYMMETRIC means in absolute gold
+      (Falkland Islands +13.3 a turn, China +1,050.3 — the same 30%); and the alliance against
+      the continent bonus, which is the only other standing multiplier in the game
+- [x] **The alliance is deliberately the smaller of the two** — gold ×1.30 at the cap against
+      the continent's ×1.50 — because a continent held whole is dozens of conquests and *is*
+      the CONTINENTAL victory condition, while an alliance is one handshake the other side may
+      agree to in a single turn. They COMPOSE, both arriving in the economy context, so an
+      allied country holding a continent earns **×1.95**: the strongest position the economy can
+      be in, and it takes both a war and a negotiation to reach
+
+### 6.5 The documents — **DONE**
+
+- [x] `docs/01-game-design-document.md` gains the mechanic as **§8.6**, written where §8.4 said
+      *"this is the only diplomacy in the game and is a good seed for more"* — which is now
+      struck through and answered rather than left standing. §11 item 7 is closed with what is
+      still absent named: passage and stacking, and trade, which was never in this phase.
+      **The document is NOT renumbered**: ten references to §11 and §12.x exist across the
+      archived plans, and archived documents keep the numbers they were written under
+- [x] `docs/03-known-issues.md` gains **DP1** — an alliance gives no passage and no stacking,
+      blocked on the one-garrison data model, with the deliverable REACH version and the
+      explicit warning not to widen `getInteractableFrom()` — and **C7 is diagnosed**: the spec
+      predates the news cards, so a conquest the player is a party to no longer draws an
+      `.activity-entry` row at all. It is left failing rather than quietly retargeted
+- [x] The lint baseline line was corrected from 73 errors to the **76** measured with
+      `npx eslint .`, because the baseline is what a change is judged against
+
+### 6.6 Measured — the acceptance table, THREE goals of five
+
+`node tools/ai-sim.mjs --turns=150 --seed=goals --every=25 --goal=KIND`, at turn 150, against
+the **stage 5.1** table in brackets.
+
+**THREE GOALS AND NOT FIVE, AND THAT IS LEIGH'S CALL RATHER THAN AN OMISSION.** Measured, this
+run does about 11.5 turns a minute — roughly thirteen minutes a goal and a little over an hour
+for the full table — and an hour of a saturated machine is an hour the game cannot be played
+on. The three taken are the two extremes of consolidation plus the default: **GREAT_POWERS**
+has been the least consolidated world at every measurement this project has made and
+**CONTINENTAL** among the most, so if the doctrine layer had stopped separating the goals it
+would show between those two. DOMINATION and TURN_LIMIT are not run.
+
+| goal | countries | largest | top 16 | pairs at war | at war with nobody | agreements | continents | nearest |
+|---|---|---|---|---|---|---|---|---|
+| CONQUEST | 87 *(88)* | 57 *(54)* | 73% *(72%)* | 242 *(207)* | 17 *(8)* | 452 *(505)* | 0 *(1)* | 98% |
+| CONTINENTAL | 92 *(84)* | 65 *(65)* | 71% *(73%)* | 241 *(207)* | 17 *(17)* | 463 *(479)* | **1** *(1)* | 100% |
+| GREAT_POWERS | 87 *(93)* | 37 *(38)* | 68% *(67%)* | 255 *(195)* | 15 *(17)* | 449 *(533)* | 0 *(0)* | 60% |
+
+- [x] **STAGE 6 CHANGED NO AI BEHAVIOUR, AND THE TABLE IS HOW THAT IS KNOWN RATHER THAN
+      ASSERTED.** Everything this stage added is a derivation off an event that was already
+      emitted, plus three annotations that are read by nothing but the news. It draws no
+      randomness, it writes nothing to the register, and it is not consulted by any rule. The
+      run is therefore not testing stage 6 so much as **closing 5.5a**, whose own five-goal run
+      was voided by an edit made while it was in flight — so the alliance share, the shared
+      intelligence, the call-in and the betrayal penalty have never been measured until now
+- [x] **THE RATCHET IS STILL OFF, WHICH IS THE NUMBER THIS PHASE EXISTS FOR.** Pairs at war
+      settle at **241–255** against stage 3's **692–749**, which was a world walking back to
+      the permanent undeclared war the phase replaced. They are modestly higher than stage
+      5.1's 195–216 and there are modestly fewer agreements (449–463 against 479–533), which
+      is the alliance layer paying for itself: an alliance is a war multiplier as well as an
+      income one, because a call to arms puts a third country into somebody else's war
+- [x] **THE WORLD IS SETTLED, NOT STOPPED**, and the distinction is the one this phase has to
+      keep proving. `qui` — countries at war with nobody at all — is **15–17** and not 207.
+      Conquests are non-zero at every sample under every goal (2–8 at each), sieges are laid
+      throughout, and the economy is still climbing at turn 150: upgrades 2,330–2,463, forts
+      625–665, world army 155M–170M and gold three to four times what it was at turn 25
+- [x] **THE THREE GOALS STILL PRODUCE THREE VISIBLY DIFFERENT WORLDS**, which is the claim the
+      doctrine layer makes and the reason these two extremes were the ones chosen. The largest
+      empire runs **37 (Great Powers) to 65 (Continental)** and the top-sixteen share 68% to
+      73%; Continental banks North America outright by turn 50 and holds it to the end, Conquest
+      gets to 98% of one and never closes it, and Great Powers — which is scored in something
+      other than territory — reaches 60%. That ordering is the same one the archived Goals and
+      Victory table found, through two more layers of gating
+- [x] **Countries surviving, 87–92, is inside the archived pre-diplomacy band of 78–114**, so
+      the over-consolidation stage 3 opened has stayed corrected
+- [~] **GREAT POWERS' NEAREST CONTINENT IS 60%, WHERE STAGE 5.1 READ 46%.** A finding rather
+      than a task, and the more encouraging half of the pair that stage 5.1 flagged: it was the
+      largest single movement in that table and it has moved back. It still holds none, which is
+      consistent with a goal scored in something other than land
+- [~] **DOMINATION AND TURN_LIMIT ARE UNMEASURED SINCE STAGE 5.1.** Named here rather than left
+      implied. The invocation is above, it is thirteen minutes a goal, and **nothing may be
+      edited while it is going** — that is what voided the run at 5.5a, and it is documented in
+      `CLAUDE.md` as the one thing that must not be done
 
 ---
 

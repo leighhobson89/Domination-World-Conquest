@@ -21,6 +21,13 @@
 // they lost -- and the store cannot tell them apart after the fact. Those four
 // callers say what happened.
 //
+// **Diplomacy (stage 6) is the third case and it is a HYBRID of the two.** The event
+// is derived -- `setRelationState()` is the one way the register is written, so no
+// declaration and no treaty can be missed by a caller that forgot to log it -- but
+// two facts the register cannot supply are ANNOTATED on it: who acted, and by what
+// route. A pair arriving at WAR looks identical whether somebody declared, an ally
+// answered a call to arms, or a ceasefire lapsed. See `onDiplomacyChanged()`.
+//
 // **A leader's name is INJECTED, not imported.** The names live in
 // `cpuPlayerGenerationAndLoading.js`, which reaches the whole game; importing it here
 // would drag the UI in through the back door and cost this module the property the
@@ -36,6 +43,7 @@
 // This module imports only from `state/`, so it stays loadable in Node.
 
 import { ActivityKind, recordActivity } from "./activityLog.js";
+import { DiplomaticState, isAgreement } from "./diplomacy.js";
 import { Events, on } from "./events.js";
 import { playerCountryName } from "./selectors.js";
 
@@ -68,10 +76,12 @@ export function installActivityRecorder({ leaderNameFor: lookup } = {}) {
 
     const offTerritory = on(Events.TERRITORY_CHANGED, onTerritoryChanged);
     const offSiege = on(Events.SIEGE_CHANGED, onSiegeChanged);
+    const offDiplomacy = on(Events.DIPLOMACY_CHANGED, onDiplomacyChanged);
 
     return () => {
         offTerritory();
         offSiege();
+        offDiplomacy();
         installed = false;
     };
 }
@@ -136,6 +146,110 @@ function onSiegeChanged({ action, siege, territoryName, side }) {
         playerAttacking: side === "player",
         playerDefending: siege.defendingTerritory?.owner === "Player"
     });
+}
+
+/**
+ * A pair of countries changed diplomatic state (diplomacy stage 6).
+ *
+ * DERIVED FROM ONE EVENT RATHER THAN REPORTED FROM TEN CALL SITES, which is the division
+ * this module's header draws and the reason a conquest cannot be missed by a new attack
+ * route: `setRelationState()` is the one way the register is written, so every declaration,
+ * every treaty and every alliance passes through here whether or not whoever wrote it
+ * remembered the news. What the event cannot supply -- who acted, and by what route -- is
+ * ANNOTATED on it as `by` and `via`, because a pair arriving at WAR looks identical whether
+ * somebody declared, an ally answered a call to arms, or a ceasefire lapsed.
+ *
+ * TWO TRANSITIONS ARE DELIBERATELY NOT NEWS, and both would otherwise flood the log.
+ *
+ *   FIRST CONTACT. `diplomacyContacts.js` writes NEUTRAL for every pair whose borders have
+ *   met, and a busy turn 1 walks something like 1,900 pairings. "Two countries can now see
+ *   each other" is the map's geometry rather than an event, and fifty turns of it would
+ *   flush every real entry out of the bounded ring.
+ *
+ *   A DROP TO NEUTRAL OUT OF NOTHING. A scenario, or a restore, can set a pair to neutral
+ *   from neutral-adjacent states; only losing an AGREEMENT is a thing that happened.
+ */
+function onDiplomacyChanged(payload) {
+    if (!payload || payload.replaced || !payload.state) {
+        return;
+    }
+    const { a, b, state, previous, via = null, by = null, onBehalfOf = null } = payload;
+    if (!a || !b || via === "contact") {
+        return;
+    }
+    if (previous === DiplomaticState.NO_CONTACT && state === DiplomaticState.NEUTRAL) {
+        return;
+    }
+    if (state === DiplomaticState.NEUTRAL && !isAgreement(previous)) {
+        return;
+    }
+
+    const kind = diplomaticKind(state, previous, via);
+    if (!kind) {
+        return;
+    }
+
+    //WHO ACTED IS THE ACTOR AND THE OTHER SIDE IS THE SUBJECT, and when nobody acted -- a
+    //ceasefire running out -- the pair is taken in the register's own canonical order. The
+    //wording layer never says "X did this to Y" for those, precisely because nobody did.
+    const actor = (by === a || by === b) ? by : null;
+    const player = playerCountryName();
+    const first = actor ?? a;
+    const second = actor === b ? a : b;
+
+    recordActivity({
+        kind,
+        territory: "",
+        diplomacy: {
+            //Null when nobody acted -- a ceasefire running out. `a` and `b` are always both
+            //there, actor first when there is one, so a wording with no actor still has two
+            //countries to name.
+            actor: actor,
+            a: first,
+            b: second,
+            from: previous ?? DiplomaticState.NO_CONTACT,
+            to: state,
+            via: via,
+            onBehalfOf: onBehalfOf
+        },
+        //`playerAttacking` and `playerDefending` are how `involvesPlayer()` and the panel
+        //decide what gets a card, so a diplomatic entry has to speak that vocabulary. Read
+        //them here as "the player is the one who ACTED" and "the player is the one it was
+        //done to" -- an agreement has no attacker, and inventing a third pair of flags for
+        //one kind of entry would mean teaching `involvesPlayer()` about diplomacy.
+        playerAttacking: Boolean(player) && first === player,
+        playerDefending: Boolean(player) && second === player,
+        attackerLeader: safeLeaderName(first),
+        defenderLeader: safeLeaderName(second)
+    });
+}
+
+/**
+ * Which of the four diplomatic kinds this transition is, or null when it is not news.
+ *
+ * A BETRAYAL IS DERIVED AND NOT ANNOTATED, and that is the one judgement here. Going to war
+ * out of an AGREEMENT is exactly what `betrayalPenalty` charges for -- `applyBreach()` is
+ * called on that transition and on no other -- so asking the register is asking the same
+ * question the penalty asks, rather than trusting a caller to have labelled it.
+ */
+function diplomaticKind(state, previous, via) {
+    if (state === DiplomaticState.WAR) {
+        return isAgreement(previous) ? ActivityKind.BETRAYAL : ActivityKind.DECLARATION;
+    }
+    if (state === DiplomaticState.ALLIANCE) {
+        return ActivityKind.ALLIANCE;
+    }
+    if (state === DiplomaticState.NEUTRAL) {
+        //An agreement was lost: a call declined, a dissolution, or somebody else's breach
+        //taking this one down with it. Which of the three is `via`.
+        return previous === DiplomaticState.ALLIANCE
+            ? ActivityKind.ALLIANCE
+            : ActivityKind.TREATY;
+    }
+    if (state === DiplomaticState.CEASEFIRE || state === DiplomaticState.PEACE) {
+        return ActivityKind.TREATY;
+    }
+    return null;
 }
 
 // --- the explicit half -----------------------------------------------------

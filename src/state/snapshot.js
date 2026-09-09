@@ -39,6 +39,7 @@ import { referenceDefendingTerritory } from "./sieges.js";
 import { emit, Events } from "./events.js";
 import { isPhase, phaseName } from "./phases.js";
 import { isDiplomaticState, relationKey, relationPair } from "./diplomacy.js";
+import { resetDefeatedCache } from "./defeated.js";
 
 /** Bumped when the shape below changes in a way an older save cannot satisfy. */
 export const SNAPSHOT_VERSION = 1;
@@ -182,6 +183,12 @@ export function restoreState(snapshot) {
 
     write(() => {
         missing = restoreTerritories(store, snapshot.territories);
+        //WHO IS OUT OF THE GAME IS DERIVED FROM THE MAP, and a restore patches territories in
+        //place without emitting anything -- so loading a save in which a country is dead,
+        //over a running game in which it is alive, would leave the previous world's answer
+        //cached. This is the one path neither `TERRITORY_CHANGED` nor the territory count
+        //covers.
+        resetDefeatedCache();
 
         Object.assign(store.players, snapshot.players ?? {});
 

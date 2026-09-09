@@ -100,7 +100,7 @@ test.describe("the dice stage", () => {
         // Out of the first war. Retreating after a round has been fought is a scatter -- it
         // costs the committed force -- which does not matter here: what matters is that the
         // battle ENDS so that another can be opened.
-        await game.battle.retreat.click({ force: true });
+        await game.battle.retreatFromBattle();
         await game.dismissBattleResults();
 
         // Both fleets back to four hundred. `launchWholeGarrison` means it: one press of the

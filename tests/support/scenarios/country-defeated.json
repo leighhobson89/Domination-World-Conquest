@@ -1,0 +1,16 @@
+{
+  "name": "country-defeated",
+  "description": "Luxembourg holds exactly one territory on this map, so handing that territory to the player takes the country out of the game entirely. Reported by Leigh: the register in src/state/diplomacy.js is keyed by COUNTRY NAME and knows nothing about the map, so the war with Luxembourg outlived Luxembourg -- it went on being listed in the diplomacy panel and on the territory tooltip. The relation is written first so the pair is genuinely at war before the conquest, which is the state the defect was reported in.",
+  "relations": [
+    { "a": "Germany", "b": "Luxembourg", "state": "war", "since": 1 }
+  ],
+  "territories": [
+    {
+      "territory": "Luxembourg",
+      "patch": {
+        "dataName": "Germany",
+        "owner": "Player"
+      }
+    }
+  ]
+}

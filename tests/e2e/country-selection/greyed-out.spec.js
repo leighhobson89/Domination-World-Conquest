@@ -11,9 +11,9 @@ import { phaseBar } from "../../support/selectors.js";
 // Fixed in refactor Phase 3: the gate is now a RANK, COUNTRY_GREYOUT_RANK, because
 // the intent ("the top few countries are too strong") is a rank and not a magnitude
 // on whatever scale the normaliser happens to produce. See
-// docs/01-codebase-audit.md section 5.2 Z.
+// docs/archived/01-codebase-audit.md section 5.2 Z.
 //
-// docs/03-e2e-test-plan.md section 5.2.
+// docs/02-e2e-test-plan.md section 5.2.
 
 /** The name of the first territory whose country is greyed out / playable. */
 async function firstTerritoryWhere(page, greyed) {

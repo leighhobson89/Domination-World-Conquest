@@ -502,6 +502,13 @@ export const ids = Object.freeze({
     //container rather than living inside the battle window, because `#battleContainer` is
     //transformed and a transform creates a stacking context -- see the header of ClashPanel.js.
     battleClashContainer: "battle-clash-container",
+    //THE SCRIM AND THE CLOSE BUTTON. The panel used to carry `pointer-events: none` so that
+    //the click it would otherwise swallow -- the one that dismisses the battle-results screen
+    //underneath it -- still landed. That made it possible to press the battle window's own
+    //buttons THROUGH it, which is what Leigh reported. It is modal now, and the scrim is what
+    //makes it so; the X is what makes that bearable, because the linger is seven seconds.
+    battleClashScrim: "battle-clash-scrim",
+    battleClashClose: "battle-clash-close",
     battleClashPanel: "battleClashPanel",
     battleClashTitle: "battleClashTitle",
     battleClashPairs: "battleClashPairs",
@@ -739,6 +746,23 @@ export const classNames = Object.freeze({
     activityToneVictory: "tone-victory",
     activityToneLoss: "tone-loss",
     activityToneSiege: "tone-siege",
+
+    // The territory tooltip's own rows. They are built by string concatenation in
+    // `ui.js` rather than through `el()` -- the tooltip is one `innerHTML` write,
+    // rebuilt dozens of times a second -- so these are the one family of classes the
+    // application writes as text. They are named HERE all the same, because the e2e
+    // suite has to be able to find a relation row and `tests/support/selectors.js`
+    // holds no literal selector of its own.
+    tooltipLeader: "tooltip-leader",
+    tooltipUpgrade: "tooltip-upgrade",
+    tooltipRelationsHeading: "tooltip-relations-heading",
+    tooltipRelation: "tooltip-relation",
+    //THE OPINION BAR (docs/archived/08-opinion.md §4). Two of them on any territory the player does
+    //not own -- how that country sees the player, and how the player sees it.
+    tooltipOpinion: "tooltip-opinion",
+    tooltipOpinionLabel: "tooltip-opinion-label",
+    tooltipOpinionTrack: "tooltip-opinion-track",
+    tooltipOpinionFill: "tooltip-opinion-fill",
 
     // Dominapedia (Phase 7.6). The contents column is a list of collapsible
     // sections, each holding sub-topic links; the two state classes are the same

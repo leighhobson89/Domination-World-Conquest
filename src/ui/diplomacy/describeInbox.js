@@ -31,7 +31,40 @@ export function describeInboxEntry(entry) {
     if (entry?.kind === InboxKind.PROPOSAL) {
         return proposalPrompt(entry);
     }
+    if (entry?.kind === InboxKind.DECLARATION) {
+        return declarationPrompt(entry);
+    }
     return null;
+}
+
+/**
+ * Somebody has gone to war with the player, and there is nothing to answer.
+ *
+ * `dismissOnly` is what makes it a notice rather than a question. Every other prompt in this
+ * file states the consequence of saying no, because refusing is a real choice with a real
+ * price; here refusing is not available at all -- a declaration takes effect at once, which
+ * is Leigh's rule for the whole system -- and offering two buttons would be asking the player
+ * to decide something that has already happened.
+ *
+ * IT SAYS WHAT THE PLAYER CAN DO ABOUT IT, which is the part that makes the modal worth
+ * raising rather than merely alarming. Being at war is the only state an attack is legal out
+ * of, so the news is also the news that this border is now live in both directions.
+ */
+function declarationPrompt({ by, via, onBehalfOf }) {
+    const joined = via === "calledIn" && onBehalfOf && onBehalfOf !== by;
+    return {
+        title: by + " declares war on you",
+        message: (joined
+            ? by + " has answered " + onBehalfOf + "'s call to arms and entered the war " +
+              "against you."
+            : by + " has declared war on you. It takes effect at once.") +
+            " Your border with " + by + " is now open in both directions: they may attack " +
+            "you, and you may attack them. You can sue for a ceasefire or a peace from the " +
+            "diplomacy panel, though a country that has just declared is unlikely to listen " +
+            "yet.",
+        confirmLabel: "Understood",
+        dismissOnly: true
+    };
 }
 
 function callInPrompt({ principal, adversary, defensive }) {

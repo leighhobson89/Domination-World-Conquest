@@ -15,6 +15,7 @@
 //   node tools/econ-lab.mjs units           what a gold buys in combat force
 //   node tools/econ-lab.mjs consmats        the construction-materials bottleneck
 //   node tools/econ-lab.mjs bonus           what a continent held whole is worth, per continent
+//   node tools/econ-lab.mjs alliance        what an alliance pays, per ally, against that bonus
 //
 // The sample is one territory per COUNTRY -- `percentOfWholeArea` is 1 for a single-path
 // country, so the reconstruction below is exact for those and representative for the rest.
@@ -33,6 +34,7 @@ const population = await load("src/rules/economy/population.js");
 const maintenance = await load("src/rules/economy/maintenance.js");
 const upgrades = await load("src/rules/economy/upgrades.js");
 const seeding = await load("src/rules/economy/seeding.js");
+const alliance = await load("src/rules/economy/allianceShare.js");
 
 const QUIET = income.QUIET_TURN;
 
@@ -397,6 +399,77 @@ function reportBonus() {
     console.log("completed in a 150-turn game, so weakening this dial would be the wrong way.");
 }
 
+// --- what an alliance pays -------------------------------------------------------------------
+
+function reportAlliance() {
+    console.log("=== WHAT AN ALLIANCE IS WORTH, PER ALLY ===\n");
+    console.log("Diplomacy stage 5.3. An alliance is the only agreement in the game that GIVES");
+    console.log("something -- peace and a ceasefire are both promises not to do a thing -- and");
+    console.log("what it gives has to be worth the risk of being called into somebody else's");
+    console.log("war. This is that worth, measured rather than asserted.\n");
+    console.log("The rule is IMPORTED from src/rules/economy/allianceShare.js, not restated");
+    console.log("here: a measuring instrument holding its own copy of the thing it measures");
+    console.log("will eventually measure the copy.\n");
+
+    const cap = balance.allianceShare.maxAllies;
+    console.log(`allies   gold multiplier   capacity multiplier`);
+    for (let allies = 0; allies <= cap + 1; allies += 1) {
+        const gold = alliance.allianceGoldMultiplier(allies);
+        const capacity = alliance.allianceCapacityMultiplier(allies);
+        const capped = allies > cap ? "   (capped)" : "";
+        console.log(`  ${String(allies).padEnd(7)}${gold.toFixed(3).padStart(15)}` +
+            `${capacity.toFixed(3).padStart(22)}${capped}`);
+    }
+    console.log(`\nThe cap is ${cap} and it is doing real work. Without one an alliance web is a`);
+    console.log("runaway: every signature raises the income of everybody in it, which pays for");
+    console.log("the army that wins the game, and a coalition against a runaway leader would be");
+    console.log("an economic fact rather than a military one.\n");
+
+    // --- symmetric, and what that means in absolute gold -------------------------------------
+    //
+    // Q5's answer, and the one thing about this rule that a table can settle better than a
+    // paragraph: the SAME percentage is worth more in absolute gold to the larger ally, which
+    // is Leigh's standing rule that being large stays an advantage -- and the smaller ally
+    // takes the larger proportional lift, which is the nudge.
+
+    const goldAtCap = alliance.allianceGoldMultiplier(cap);
+    const sorted = [...territories]
+        .map((territory) => ({
+            name: territory.territoryName,
+            gold: income.goldChangeFor(territory, QUIET)
+        }))
+        .sort((a, b) => a.gold - b.gold);
+    const at = (fraction) => sorted[Math.floor(fraction * (sorted.length - 1))];
+
+    console.log(`SYMMETRIC, AT THE ${cap}-ALLY CAP (x${goldAtCap.toFixed(2)} on gold):\n`);
+    console.log("territory                       gold/turn   with allies   gained/turn");
+    for (const fraction of [0, 0.25, 0.5, 0.75, 1]) {
+        const row = at(fraction);
+        const boosted = row.gold * goldAtCap;
+        console.log(`  ${row.name.padEnd(30)}${pad(row.gold, 10)}${pad(boosted, 14)}` +
+            `${pad(boosted - row.gold, 14)}`);
+    }
+    console.log("\nEvery row gains the same PROPORTION and a very different amount, which is the");
+    console.log("decision: a rule that made the strong subsidise the weak is the \"price each");
+    console.log("upgrade against the territory's own income\" idea that was proposed for the");
+    console.log("economy and turned down.\n");
+
+    // --- against the continent bonus, which is the only comparable multiplier -----------------
+
+    console.log("AGAINST THE CONTINENT BONUS, the only other standing multiplier in the game:\n");
+    console.log(`  continent held whole    gold x${balance.CONTINENT_BONUS_GOLD.toFixed(2)}` +
+        `   capacity x${balance.CONTINENT_BONUS_CAPACITY.toFixed(2)}`);
+    console.log(`  ${cap} allies               gold x${goldAtCap.toFixed(2)}` +
+        `   capacity x${alliance.allianceCapacityMultiplier(cap).toFixed(2)}`);
+    console.log("\nDeliberately the smaller of the two. A continent held whole is dozens of");
+    console.log("conquests and is the CONTINENTAL victory condition itself; an alliance is one");
+    console.log("handshake that the other side may agree to in a single turn. They also compose");
+    console.log("-- both arrive in the economy context and multiply -- so an allied country");
+    console.log(`holding a continent earns x${(balance.CONTINENT_BONUS_GOLD * goldAtCap).toFixed(2)}`
+        + ", which is the strongest position the economy");
+    console.log("can be in and takes both a war and a negotiation to reach.");
+}
+
 // --- main ---------------------------------------------------------------------------------
 
 const sections = {
@@ -404,7 +477,8 @@ const sections = {
     upgrades: reportUpgrades,
     units: reportUnits,
     consmats: reportConsMats,
-    bonus: reportBonus
+    bonus: reportBonus,
+    alliance: reportAlliance
 };
 
 const requested = process.argv.slice(2).filter((argument) => !argument.startsWith("-"));

@@ -7,7 +7,7 @@
 //     }
 //
 // There were around ninety of these, several of them nested inside per-turn loops
-// over all 359 paths -- see docs/01-codebase-audit.md section 4.2. This index
+// over all 359 paths -- see docs/archived/01-codebase-audit.md section 4.2. This index
 // replaces them.
 //
 // The territory half of this module has gone. It indexed `mainGameArray` by

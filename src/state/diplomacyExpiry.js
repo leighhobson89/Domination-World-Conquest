@@ -40,7 +40,9 @@ export function expireDiplomaticAgreements() {
         //follows an expiry is a fresh standing between the two, and a "how long has this
         //held" figure that counted from the signing of the agreement it replaced would be
         //answering a question nobody asked.
-        setRelationState(row.a, row.b, row.to, { since: turn });
+        //NOBODY ACTED, which is why no `by` is passed: an expiry is a clock running out,
+        //and the feed words it without an agent for exactly that reason.
+        setRelationState(row.a, row.b, row.to, { since: turn, via: "expired" });
         console.log("The ceasefire between " + row.a + " and " + row.b +
             " has run out -- back to " + row.to);
     }

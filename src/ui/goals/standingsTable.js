@@ -51,15 +51,27 @@ export const STANDINGS_LIMIT = 16;
  * @param {(country: string) => {fraction: number, detail: object}} options.progressFor
  * @param {(country: string) => number} [options.armyFor]
  * @param {string} [options.player]    the player's country, marked and always included
+ * @param {string[]|Set<string>} [options.defeated]  countries that hold no territory, from
+ *        `src/state/defeated.js`. They are NOT in `standings.byCountry` -- see below
  * @param {number} [options.limit]
- * @returns {{rows: object[], playerRow: object|null, surviving: number}}
+ * @returns {{rows: object[], playerRow: object|null, surviving: number,
+ *            defeatedRows: object[]}}
  *          `rows` is the top `limit`, best first. `playerRow` is set ONLY when the player
  *          fell outside them, so the caller appends it rather than testing for a duplicate.
+ *          `defeatedRows` is everybody who is out, alphabetically, for the caller to append
+ *          below a separator.
  */
-export function rankedStandings({ standings, progressFor, armyFor, player, limit = STANDINGS_LIMIT }) {
+export function rankedStandings({
+    standings,
+    progressFor,
+    armyFor,
+    player,
+    defeated = [],
+    limit = STANDINGS_LIMIT
+}) {
     const byCountry = standings?.byCountry;
     if (!byCountry || byCountry.size === 0) {
-        return { rows: [], playerRow: null, surviving: 0 };
+        return { rows: [], playerRow: null, surviving: 0, defeatedRows: [] };
     }
 
     const worldArea = Number(standings.worldArea) || 0;
@@ -92,7 +104,37 @@ export function rankedStandings({ standings, progressFor, armyFor, player, limit
         ? (all.find(row => row.isPlayer) ?? null)
         : null;
 
-    return { rows, playerRow, surviving: all.length };
+    //WHO IS OUT, AND WHY THEY HAVE TO BE ADDED RATHER THAN FILTERED. `worldStandings()` is a
+    //fold over TERRITORIES, so a country holding none is not in `byCountry` at all -- it does
+    //not rank badly, it is simply absent, and the table quietly stopped mentioning it the
+    //turn it lost its last province. That is the right ranking and the wrong record: a player
+    //who has just conquered somebody wants to see that they did.
+    //
+    //THEY ARE A SEPARATE LIST AND NOT PART OF THE RANKING. Sorting them in would put them
+    //below every survivor anyway (no progress, no territory), so they would never reach the
+    //top sixteen and the change would be invisible -- which is the whole complaint. The
+    //caller appends them under a separator instead.
+    //
+    //ALPHABETICAL, because there is nothing else to order them by: the register does not
+    //record the turn a country fell, and inventing an order out of `Set` iteration would
+    //reshuffle the list between renders for no visible reason.
+    const defeatedRows = [...defeated]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+        .map((country, index) => ({
+            country,
+            defeated: true,
+            rank: all.length + index + 1,
+            territories: 0,
+            area: 0,
+            areaShare: 0,
+            army: 0,
+            fraction: 0,
+            detail: {},
+            isPlayer: Boolean(player) && country === player
+        }));
+
+    return { rows, playerRow, surviving: all.length, defeatedRows };
 }
 
 /**

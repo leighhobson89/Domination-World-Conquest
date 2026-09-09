@@ -1111,7 +1111,7 @@ export const randomEventLikelihood = {
 // every reachable enemy territory, ranked the results by its leader's personality and
 // executed the list, which is why it started far more sieges than it could ever finish
 // and why it fought equally hard for a Caribbean island and for the last territory it
-// needed to own a continent outright. See docs/04-known-issues.md section 6.
+// needed to own a continent outright. See docs/03-known-issues.md section 6.
 
 /**
  * The default victory condition, and the one the AI campaigns towards until the player
@@ -2039,4 +2039,176 @@ export const betrayalPenalty = {
      * setback and being a catastrophe.
      */
     dropsOtherAgreements: true
+};
+
+/**
+ * HOW A COUNTRY FEELS ABOUT YOU SPECIFICALLY, AND WHAT IT IS WORTH.
+ *
+ * Read by `src/ai/opinion.js`, and through it by the three acceptance scores and by
+ * `rankRivals()`. See `docs/archived/08-opinion.md` for the five decisions behind these numbers.
+ *
+ * WHAT IT IS FOR. Every diplomatic term in this file before it is a PRESENT-TENSE FACT about
+ * the world -- how many wars a country is fighting, what its posture is, how big it is next to
+ * you, how alarmed it is by the runaway leader, who is in charge of it this decade. Not one is
+ * a memory of what the two of you have done to each other, which is why taking a province off
+ * a country changed its army, its income and its posture and changed nothing at all about how
+ * it felt toward you. Opinion is that missing word.
+ *
+ * IT IS A TERM AND NEVER A GATE, which is the one rule here that is not a matter of taste.
+ * A rule that can REFUSE is a rule that can freeze the world -- known-issue BA, where a
+ * posture check disqualified 93% of the map from expanding and cost a hundred turns of
+ * measurement to find, because nothing throws and every turn completes. A term added to a
+ * score cannot do that whatever value it takes.
+ *
+ * NOTHING HERE DRAWS RANDOMNESS. `src/ai/diplomacy.js` draws none, which is why no diplomatic
+ * decision in this game can move a seeded outcome, and an opinion with a random component
+ * would put the whole layer on the game's stream.
+ */
+export const opinionDiscipline = {
+    /**
+     * The end of the scale, in both directions. An opinion is clamped to this either way.
+     *
+     * A hundred because it is the scale the player is SHOWN -- the tooltip's bar runs -100 to
+     * +100 -- and a rule whose internal units differ from its displayed ones is a rule that
+     * will eventually be displayed wrongly.
+     */
+    range: 100,
+    /**
+     * WHERE AN OPINION SETTLES, BY THE STANDING RELATIONSHIP, and this is the decision the
+     * whole mechanic hangs off.
+     *
+     * Everything decays toward the value its own state implies rather than toward zero, and
+     * that buys three things no set of hooks would. "A maintained peace warms a relationship"
+     * costs no hook at all -- it is what a resting point above zero MEANS. An opinion never
+     * drifts to neutral while the shooting continues, where decay-to-zero would have a
+     * fifty-turn war and a fifty-turn peace arrive at the same number. And it answers the
+     * ratchet warning STRUCTURALLY: diplomacy stage 3 shipped declarations with no peace rule
+     * and watched pairs at war climb 536 to 749 across a run, and a grudge that only grows is
+     * that same mistake in new clothes. Here the pawl is not a rule, it is the shape of the
+     * thing -- everything returns to where the relationship says it belongs.
+     *
+     * THIS DOES NOT DOUBLE-COUNT THE STATE in the acceptance score, because that score has no
+     * term for the state at all: `canPropose()` gates on it and nothing weighs it.
+     */
+    resting: {
+        noContact: 0,
+        neutral: 0,
+        war: -40,
+        ceasefire: 10,
+        peace: 25,
+        alliance: 50
+    },
+    /**
+     * The fraction of the distance to the resting point closed each turn.
+     *
+     * 0.06 is a half-life of about eleven turns, which is deliberately shorter than a leader's
+     * 15-20 turn tenure: a grudge should be capable of outliving whoever earned it (it
+     * survives a succession untouched) without being the only thing that ever explains a
+     * country's behaviour fifty turns later.
+     */
+    settleRate: 0.06,
+    /**
+     * WHAT MOVES IT. Every one of these already passes through exactly one door, which is what
+     * makes the layer affordable -- most are DERIVED from `DIPLOMACY_CHANGED` and
+     * `TERRITORY_CHANGED`, the same two events the activity feed derives its news from, and
+     * for the same reason: there are eight places that take a territory, and a list of eight
+     * hooks is one new attack route away from being wrong.
+     *
+     * The magnitudes are set against the settle rate rather than against each other: a single
+     * conquest is roughly four turns of settling, so a war of conquest outruns the pull toward
+     * the resting point while an isolated raid does not.
+     */
+    events: {
+        /** Somebody declared war on you. Felt by the victim only -- the declarer chose it. */
+        declaredWar: -30,
+        /** They took a province. Scaled by `reconquista`; see `reconquistaSwing`. */
+        conquest: -25,
+        /** An army sat down outside one of your cities. */
+        siegeLaid: -15,
+        /** An attack came in and was thrown back. Small, and felt BOTH ways. */
+        failedAttack: -8,
+        /** The shooting stopped. */
+        ceasefireAgreed: 10,
+        /** It stopped for good. */
+        peaceAgreed: 18,
+        /** You signed. */
+        allianceAgreed: 25,
+        /**
+         * They answered your call to arms.
+         *
+         * The largest positive in the table, because it is the largest thing one country can
+         * do for another in this game: an ally that turns up is taking on a war it had no
+         * part in starting.
+         */
+        callAnswered: 35,
+        /** They did not. Felt both ways -- one is let down, and the other knows it. */
+        callRefused: -30,
+        /**
+         * They tore up an agreement with you.
+         *
+         * The largest number in the table in either direction, and PERSONAL where the existing
+         * treachery mark is global: a country that betrays Spain is refused by everybody, and
+         * until now Spain was no angrier about it than Chile.
+         *
+         * IT HAS TO CLEAR THE RESTING POINT IT IS FALLING FROM, which is why it is nearly
+         * three times `declaredWar` rather than merely larger than it. A betrayal is by
+         * definition committed out of an AGREEMENT, and an agreement rests warm -- an
+         * alliance at +50. At -60 the victim of a betrayed alliance landed on -10, which is
+         * MILDER than being declared on out of neutral, and a unit test caught it. From
+         * alliance this lands at -35, from a peace at -60 and from a ceasefire at -75: worse
+         * than any declaration from any state, which is the ordering the whole betrayal
+         * penalty rests on.
+         */
+        betrayal: -85
+    },
+    /**
+     * HOW MUCH `reconquista` SCALES A CONQUEST, either side of the 0.5 that is neither.
+     *
+     * The one trait that scales an event, and it is the trait for exactly this: how much a
+     * country wants lost territory back. At 0.5 the multiplier is 1, at 1.0 it is 1.5 and at
+     * 0.0 it is 0.5. Read at the moment the territory changes hands, so a later succession
+     * does not re-price a grudge already formed.
+     */
+    reconquistaSwing: 1.0,
+    /**
+     * WHAT AN OPINION IS WORTH TO EACH RULE THAT READS IT, per point.
+     *
+     * Multiply by `range` for the swing at the extremes: 1.4 either way on a peace against a
+     * threshold of 1.0, 1.8 on an alliance against 1.6, 1.6 on a call to arms against 1.0. In
+     * every case that is enough for a full grudge to sink an offer on its own and for full
+     * warmth to carry one on its own, which makes opinion the heaviest single input in each
+     * rule -- the intent behind the brief's "70% opinion", expressed as a term rather than as
+     * a percentage so that every existing threshold survives and the `ai-sim` table stays
+     * comparable across the change.
+     *
+     * ALLIANCE IS THE HEAVIEST because you ally with people you like; the call to arms is next
+     * because you turn up for them.
+     */
+    weights: {
+        /** Per point, on a peace or a ceasefire. */
+        peace: 0.014,
+        /** Per point, on an alliance. */
+        alliance: 0.018,
+        /** Per point, on a call to arms. */
+        callIn: 0.016,
+        /**
+         * Per point, on `rankRivals()` -- and this one is a SUBTRACTION, so a disliked
+         * neighbour is a more attractive thing to absorb and a liked one is less.
+         *
+         * 1.0 at the extremes, against weakness 2.2 and onFocusContinent 1.5. Large enough to
+         * pick a grudge over a slightly softer target and too small to pick one over a target
+         * that is genuinely open, which is the balance the goal's own `preferredRivals` tier
+         * had to be built as a TIER to achieve -- the difference being that a grudge, unlike a
+         * great power, is not systematically one of the strongest countries on the map.
+         */
+        theatre: 0.010
+    },
+    /**
+     * THE MINIMUM OPINION WORTH NAMING IN THE SENTENCE THE PLAYER READS.
+     *
+     * `reasonFrom()` names only the terms that argued the way the answer went, and only those
+     * over 0.15 in weight -- this is the same idea in opinion's own units, so a pair fifteen
+     * points off neutral is not described as bearing a grudge.
+     */
+    notableFrom: 20
 };

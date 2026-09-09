@@ -72,7 +72,14 @@ import {
     postureThresholds,
     siegeDiscipline
 } from "../config/balance.js";
-import { allTerritories, aiSieges, playerSieges, territoriesOwnedByCountry } from "../state/selectors.js";
+import {
+    allTerritories,
+    aiSieges,
+    playerSieges,
+    relationStateBetween,
+    territoriesOwnedByCountry
+} from "../state/selectors.js";
+import { opinionOf } from "./opinion.js";
 //The SECOND module in `src/ai/` to reach for adjacency (`theatre.js` is the other), and for
 //the same reason it is gated the same way: the module THROWS when its data has not been
 //loaded, which is the case in Node, so every call sits behind `isAdjacencyLoaded()`. Only the
@@ -355,6 +362,11 @@ export function planCampaign(country, context = {}) {
         //Without this the ranking runs a 359-territory scan per candidate rival per country
         //per turn -- the same shape of mistake Phase 1.5 took out of the goal planner.
         sizeOf: (name) => standings.byCountry.get(name)?.territories ?? 0,
+        //A GRUDGE IS A REASON TO PICK A RIVAL. The state is passed with it because an
+        //unrecorded pair reads as the RESTING point its standing relationship implies rather
+        //than as zero -- two countries that have been at war for eighty turns without a
+        //recorded incident are not neutral about each other.
+        opinionOf: (rival) => opinionOf(country, rival, relationStateBetween(country, rival)),
         rng
     });
 

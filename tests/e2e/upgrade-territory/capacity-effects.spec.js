@@ -33,7 +33,7 @@ import { test, expect } from "../../support/fixtures.js";
 // balance number in a spec is what economy stage 4.1 had to go and fix in
 // `buy-military/purchase.spec.js`.
 //
-// docs/03-e2e-test-plan.md section 5.7.
+// docs/02-e2e-test-plan.md section 5.7.
 
 import { upgradeFlatCapacityGain } from "../../../src/config/balance.js";
 

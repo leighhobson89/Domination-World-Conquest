@@ -5,7 +5,7 @@
 // object happened to be holding. Keeping those three in step was the job of a
 // scattering of manual sync-backs (`setMainArrayToArmyRemaining`,
 // `normalizeSiegeState`, the buildings copy-back loops in `battle.js`), and they
-// did not always win. See docs/01-codebase-audit.md section 3.
+// did not always win. See docs/archived/01-codebase-audit.md section 3.
 //
 // This module owns the state. It imports nothing -- not the UI, not the rules, not
 // the DOM -- so it can be loaded in Node and cannot join the legacy import cycle.

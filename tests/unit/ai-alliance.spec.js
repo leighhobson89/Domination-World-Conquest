@@ -346,3 +346,142 @@ describe("a succession does not void anything a country agreed", () => {
         expect(isTreacherous("Alba", 11)).toBe(true);
     });
 });
+
+// ---------------------------------------------------------------------------
+// OPINION AS A TERM (docs/archived/08-opinion.md).
+//
+// Every other term in these three rules is a PRESENT-TENSE fact about the world and would
+// read the same whether the two countries had never met or had been sacking each other's
+// provinces for eighty turns. These are the assertions that the memory reaches the answer,
+// and -- more importantly -- that it reaches it as a TERM, which is the property that makes
+// it incapable of freezing the world however far it swings.
+// ---------------------------------------------------------------------------
+
+describe("what a country thinks of you specifically", () => {
+    const peaceOffer = (overrides = {}) => proposalOutcomeFor({
+        country: "Brava",
+        proposer: "Alba",
+        kind: ProposalKind.CEASEFIRE,
+        state: DiplomaticState.WAR,
+        turn: 40,
+        traits: { risk_taking: 0.5 },
+        otherWars: 1,
+        territories: 5,
+        proposerTerritories: 5,
+        ...overrides
+    });
+
+    it("can carry a ceasefire on its own, and can sink one on its own", () => {
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: 100 }).accepted).toBe(true);
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: -100 }).accepted).toBe(false);
+    });
+
+    it("is worth more than the whole personality range", () => {
+        //The observation the mechanic started from: before it, one other war was worth more
+        //than the difference between the most pacifist and the most aggressive leader alive.
+        resetDiplomacyMemory();
+        const cautious = peaceOffer({ traits: { risk_taking: 0 } }).score;
+        resetDiplomacyMemory();
+        const aggressive = peaceOffer({ traits: { risk_taking: 1 } }).score;
+        resetDiplomacyMemory();
+        const warm = peaceOffer({ opinion: 100 }).score;
+        resetDiplomacyMemory();
+        const cold = peaceOffer({ opinion: -100 }).score;
+
+        expect(warm - cold).toBeGreaterThan(cautious - aggressive);
+    });
+
+    it("says so in the sentence, on whichever side of the argument it fell", () => {
+        //A refusal a player can act on is the whole point: the reason you are told no
+        //becomes a thing you can change rather than a fact about arithmetic you cannot see.
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: -100 }).reason).toContain("will not forgive");
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: 100 }).reason).toContain("friend");
+    });
+
+    it("says nothing about an opinion too small to be worth a sentence", () => {
+        //Two independent floors -- the 0.15 on the weight and the 20 points on the value --
+        //would disagree the first time either was tuned, and the symptom would be a refusal
+        //explained by a grudge the tooltip draws as neutral.
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: 10 }).reason).not.toContain("thinks well");
+        resetDiplomacyMemory();
+        expect(peaceOffer({ opinion: -10 }).reason).not.toContain("grudge");
+    });
+
+    it("weighs heavier on an alliance than on a peace, because you ally with friends", () => {
+        const swing = (kind, state) => {
+            resetDiplomacyMemory();
+            const warm = proposalOutcomeFor({
+                country: "Brava", proposer: "Alba", kind, state, turn: 40,
+                traits: { risk_taking: 0.5 }, territories: 5, proposerTerritories: 5,
+                opinion: 100
+            }).score;
+            resetDiplomacyMemory();
+            const cold = proposalOutcomeFor({
+                country: "Brava", proposer: "Alba", kind, state, turn: 40,
+                traits: { risk_taking: 0.5 }, territories: 5, proposerTerritories: 5,
+                opinion: -100
+            }).score;
+            return warm - cold;
+        };
+        expect(swing(ProposalKind.ALLIANCE, DiplomaticState.PEACE))
+            .toBeGreaterThan(swing(ProposalKind.CEASEFIRE, DiplomaticState.WAR));
+    });
+
+    it("brings an ally to a call to arms, and keeps a resented one at home", () => {
+        const answer = (opinion) => callInOutcomeFor({
+            ally: "Brava",
+            principal: "Alba",
+            adversary: "Carda",
+            traits: { risk_taking: 0.5 },
+            defensive: true,
+            existingWars: 1,
+            allyTerritories: 5,
+            adversaryTerritories: 5,
+            opinion
+        });
+        expect(answer(100).score).toBeGreaterThan(answer(-100).score);
+        expect(answer(100).joins).toBe(true);
+        expect(answer(-100).joins).toBe(false);
+    });
+
+    it("is a TERM and never a gate, so no opinion can refuse an offer outright", () => {
+        //The one rule here that is not a matter of taste. A rule that can refuse is a rule
+        //that can freeze the world -- known-issue BA -- and the guard is structural: at the
+        //very bottom of the scale a strong enough case still gets through.
+        resetDiplomacyMemory();
+        const desperate = peaceOffer({
+            opinion: -100,
+            otherWars: 5,
+            posture: "DEFEND",
+            urgency: 1,
+            traits: { risk_taking: 0 }
+        });
+        expect(desperate.accepted).toBe(true);
+    });
+
+    it("decides who a country sues for peace with, among equally beaten enemies", () => {
+        //THE TIE-BREAK IS WHERE THE WORK HAPPENS. `theatreFailuresAgainst()` counts defeats
+        //only against the committed theatre rival, who is excluded from this list -- so every
+        //candidate reads ZERO failures and the choice used to fall straight through to the
+        //alphabet. "The war it values least" had no mechanism behind it until now.
+        resetDiplomacyMemory();
+        const offer = planAgreementOffer({
+            country: "Alba",
+            turn: 20,
+            relations: [
+                { country: "Brava", state: DiplomaticState.WAR },
+                { country: "Carda", state: DiplomaticState.WAR }
+            ],
+            traits: { risk_taking: 0.5 },
+            posture: "DEFEND",
+            opinionOf: (other) => (other === "Carda" ? 40 : -80)
+        });
+        expect(offer.target).toBe("Carda");
+        expect(offer.kind).toBe(ProposalKind.CEASEFIRE);
+    });
+});

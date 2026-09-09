@@ -1,5 +1,5 @@
 // A map view is a mode the player chose, and only the view button takes it away.
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 // Two defects, reported one after the other, and they turned out to be one rule and one bug.
 //

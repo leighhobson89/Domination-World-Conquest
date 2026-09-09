@@ -46,6 +46,7 @@ import {
     castleShieldIcon,
     chevronIcon,
     crossedSwordsIcon,
+    diplomacyIcon,
     disasterIcon,
     repeatPanelIcon,
 } from "../icons.js";
@@ -459,10 +460,14 @@ function turnSection(turn, entries) {
     return group;
 }
 
-/** The icon for a card or a row: four pictures, one meaning each. */
+/** The icon for a card or a row: five pictures, one meaning each. */
 function iconFor(kind) {
     if (kind === "siege") return castleShieldIcon();
     if (kind === "disaster") return disasterIcon();
+    //The same handshake the diplomacy panel's own button wears, so one picture means one
+    //thing across the game -- the rule the crossed swords and the siege shield already keep
+    //with the Wars & Sieges tab.
+    if (kind === "diplomacy") return diplomacyIcon();
     //The briefing wears the panel's own icon, because it is the report the panel is
     //named for rather than another thing that happened.
     if (kind === "briefing") return activityLogIcon();

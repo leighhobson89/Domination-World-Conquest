@@ -78,7 +78,34 @@ export class BattlePage {
         );
     }
 
+    /**
+     * Take the clash panel down if it is up, and leave everything else alone.
+     *
+     * THE CLASH PANEL IS MODAL NOW. It used to carry `pointer-events: none`, so a click aimed
+     * at the advance button went straight through it; it raises a full-screen scrim instead,
+     * and a click aimed at any battle-window button lands on that. The harness has to know,
+     * the same way it had to learn about the ending screen -- and the failure has the same
+     * shape, a click that "intercepts pointer events" reading exactly like a game defect.
+     *
+     * TWO PRESSES, because that is what the control does: the first finishes the animation,
+     * the second takes the panel down. Driven by dispatching a click on the scrim rather than
+     * by reaching into the module, so the spec exercises the listener a player would.
+     */
+    async dismissClashPanel() {
+        await this.page.evaluate((scrimId) => {
+            for (let press = 0; press < 2; press += 1) {
+                const scrim = document.getElementById(scrimId);
+                if (!scrim || getComputedStyle(scrim).display === "none") {
+                    return;
+                }
+                scrim.click();
+            }
+        }, battle.clashScrimId);
+    }
+
     async advanceRound() {
+        //The clash panel from the PREVIOUS round is modal and sits over this button.
+        await this.dismissClashPanel();
         //`force: true` for the reason CLAUDE.md records for the steppers, and which battle
         //overhaul B.6.6 brought to the battle bar: "inert" is `aria-disabled` plus the
         //`is-disabled` class, never the `disabled` PROPERTY. The property would swallow the
@@ -103,12 +130,27 @@ export class BattlePage {
         }, id);
     }
 
+    /**
+     * Retreat, with the clash panel out of the way first.
+     *
+     * `retreat` is a bare locator and four specs click it directly. Since the clash panel
+     * became modal a forced click at those coordinates lands on the SCRIM instead -- and
+     * because the panel takes itself down after its seven-second linger, the specs went on
+     * passing while testing nothing. That is the worst outcome available, so the retreat has
+     * a method now and the locator is kept only for assertions.
+     */
+    async retreatFromBattle() {
+        await this.dismissClashPanel();
+        await this.retreat.click({ force: true });
+    }
+
     /** The bottom bar's third button while it carries the "Last Push!" offer (overhaul B.7). */
     get lastPush() {
         return this.page.locator(battle.lastPush);
     }
 
     async takeLastPush() {
+        await this.dismissClashPanel();
         await this.lastPush.click({ force: true });
     }
 
@@ -123,6 +165,7 @@ export class BattlePage {
 
     /** Arm or read the two mid-battle decisions (overhaul B.7). */
     async digIn() {
+        await this.dismissClashPanel();
         await this.page.locator(battle.digIn).click({ force: true });
     }
 
@@ -132,6 +175,7 @@ export class BattlePage {
     }
 
     async commitReserves() {
+        await this.dismissClashPanel();
         await this.page.locator(battle.reserves).click({ force: true });
     }
 
@@ -158,6 +202,9 @@ export class BattlePage {
 
     /** The results screen's single button: "Accept Victory!" / "Accept Defeat!". */
     async acceptResult() {
+        //The results screen sits UNDER the clash panel: a battle that ends on its last round
+        //leaves the account of that round up on top of the button this is aiming at.
+        await this.dismissClashPanel();
         await this.page.locator(`${containers.battleResults} button`).first().click();
     }
 }

@@ -2,7 +2,7 @@
 // run N turns. Specs never click the phase button directly; setup goes through
 // here and only the thing under test is driven by hand.
 //
-// See docs/03-e2e-test-plan.md section 3.6.
+// See docs/02-e2e-test-plan.md section 3.6.
 
 import {
     MenuPage,
@@ -17,6 +17,7 @@ import {
     TransferAttackPage,
     BattlePage,
     ActivityPanelPage,
+    DiplomacyPanelPage,
 } from "./pages/index.js";
 import { readFile } from "node:fs/promises";
 
@@ -44,6 +45,7 @@ export class GameDriver {
         this.transferAttack = new TransferAttackPage(page);
         this.battle = new BattlePage(page);
         this.activityPanel = new ActivityPanelPage(page);
+        this.diplomacy = new DiplomacyPanelPage(page);
     }
 
     // ---------------------------------------------------------------- lifecycle
@@ -196,6 +198,10 @@ export class GameDriver {
         //10000, so it covers the other two -- clearing the start-of-turn panel underneath it
         //times out waiting to click an X that is visibly there and cannot be reached.
         await this.dismissEndingScreen();
+        //THE CLASH PANEL BEFORE THE RESULTS, because it is over them. It is modal since the
+        //scrim landed, and a battle that ends on its last round leaves the account of that
+        //round up on top of the results screen the click below is aiming at.
+        await this.battle.dismissClashPanel();
         await this.dismissBattleResults();
         await this.dismissStartOfTurnPanel();
     }
@@ -337,10 +343,17 @@ export class GameDriver {
             while (!done) {
                 const dialog = this.page.locator('#confirm-dialog-container[data-kind="diplomacy"]');
                 if (await dialog.isVisible().catch(() => false)) {
-                    await this.page
-                        .locator("#confirm-dialog-cancel")
-                        .click({ timeout: 5_000 })
-                        .catch(() => {});
+                    //CANCEL WHEN THERE IS ONE, AND CONFIRM WHEN THERE IS NOT. A DECLARATION
+                    //is a NOTICE rather than a question -- a war opened against the player
+                    //takes effect at once and cannot be refused -- so it is raised with
+                    //`dismissOnly`, which HIDES the cancel button. Clicking a hidden element
+                    //never succeeds, so a driver that only knew about cancel would poll at it
+                    //for the rest of the run and the turn would never advance.
+                    const cancel = this.page.locator("#confirm-dialog-cancel");
+                    const button = (await cancel.isVisible().catch(() => false))
+                        ? cancel
+                        : this.page.locator("#confirm-dialog-confirm");
+                    await button.click({ timeout: 5_000 }).catch(() => {});
                 }
                 await this.page.waitForTimeout(250);
             }
@@ -579,7 +592,7 @@ export class GameDriver {
      * Put the world into a named state that clicking cannot reach -- a rout, an
      * all-naval defender, two concurrent sieges. Scenarios live in
      * `tests/support/scenarios/*.json` and are applied through `state/mutations.js`,
-     * the same path the game writes by. See docs/03-e2e-test-plan.md section 3.7.
+     * the same path the game writes by. See docs/02-e2e-test-plan.md section 3.7.
      *
      * The JSON is read here rather than fetched by the page, because the preview
      * server serves `build/` and not the repository.

@@ -439,9 +439,35 @@ export function setNextAiWarId(warId) {
  * @param {string} [options.revertsTo]  what a CEASEFIRE falls back to when it lapses --
  *        recorded at signing rather than guessed at expiry, which is the answer to Q2 in
  *        the diplomacy design. See `relationRecord()`
+ * @param {string|null} [options.by]   WHO ACTED. An annotation on the EVENT and not a field
+ *        on the record -- see the note below
+ * @param {string|null} [options.via]  HOW it happened: `declared`, `agreed`, `calledIn`,
+ *        `declinedCall`, `dissolved`, `dropped`, `released`, `expired`, `contact`
+ * @param {string|null} [options.onBehalfOf]  the principal, when `via` is `calledIn`
  * @returns {object|null} the new record, or null if nothing was written
  */
-export function setRelationState(a, b, state, { since = null, until = null, revertsTo = null } = {}) {
+export function setRelationState(a, b, state, {
+    since = null,
+    until = null,
+    revertsTo = null,
+    //WHO DID THIS AND HOW, ANNOTATED ON THE EVENT AND STORED NOWHERE.
+    //
+    //A relation record is the STATE two countries are in; who put them there and by what
+    //route is a fact about the transition, which stops being true the moment the next one
+    //happens. Storing it would grow the save envelope by two strings on every one of up to
+    //21,321 pairs to answer a question only the news asks.
+    //
+    //It is annotated rather than derived because the register cannot answer it. A pair
+    //arriving at WAR looks identical whether somebody declared, an ally answered a call to
+    //arms, or a ceasefire lapsed -- and `activityRecorder.js` has to tell a betrayal from a
+    //declaration to write either one. This is the same division `activityRecorder.js`
+    //already draws for sieges: derive it where the state change IS the event, and have the
+    //caller say so where it is not. A caller that passes neither gets a less informative
+    //entry rather than no entry at all.
+    by = null,
+    via = null,
+    onBehalfOf = null
+} = {}) {
     const key = relationKey(a, b);
     if (!key) {
         console.warn("mutations.setRelationState: not a pair of countries: " + a + ", " + b);
@@ -478,7 +504,10 @@ export function setRelationState(a, b, state, { since = null, until = null, reve
         previous: existing?.state ?? DEFAULT_DIPLOMATIC_STATE,
         since,
         until,
-        revertsTo
+        revertsTo,
+        by,
+        via,
+        onBehalfOf
     });
     return { ...record };
 }

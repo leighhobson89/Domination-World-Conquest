@@ -1,5 +1,5 @@
 // The military map view (register item E1).
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 // The view shades every territory by how its garrison stands against the strongest enemy that
 // can reach it, marks the player's threatened borders from the real battle model, and draws

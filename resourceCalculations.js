@@ -179,6 +179,9 @@ import {
     rankedStandings
 } from './src/ui/goals/standingsTable.js';
 import {
+    defeatedCountries
+} from './src/state/defeated.js';
+import {
     tooltip
 } from './src/ui/components/Tooltip.js';
 import {
@@ -1260,7 +1263,11 @@ export function rankedWorldStandings() {
             standings,
             progressFor: (country) => victoryProgress(country, condition, standings, currentTurn()),
             armyFor: (country) => armyByCountry.get(country) ?? 0,
-            player: playerCountryName()
+            player: playerCountryName(),
+            //WHO IS OUT. They are absent from `worldStandings()` rather than last in it,
+            //because that fold is over TERRITORIES -- so the table has to be given them
+            //separately or it simply stops mentioning a country the turn it is conquered.
+            defeated: defeatedCountries()
         }),
         victoryConditionKind: condition.kind,
         turn: currentTurn()

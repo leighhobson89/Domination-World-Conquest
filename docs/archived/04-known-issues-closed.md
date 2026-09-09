@@ -2,7 +2,7 @@
 
 Every defect that has been **closed**, with the analysis that found it and the record of how it
 was fixed. Nothing here is outstanding. The live register — which holds only what is still
-open — is [../04-known-issues.md](../04-known-issues.md).
+open — is [../03-known-issues.md](../03-known-issues.md).
 
 This file exists because the register had grown to about 870 lines of which the great majority
 described things that no longer existed, so the one question it is supposed to answer — *what is
@@ -22,8 +22,8 @@ inside them is original — it is how the register recorded a closure before thi
 ## The register's own preamble, as it stood at the split
 
 **Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) ·
-[02-game-design-document.md](./02-game-design-document.md) ·
-[archived/03-refactor-plan.md](./archived/03-refactor-plan.md) · [03-e2e-test-plan.md](./03-e2e-test-plan.md)
+[01-game-design-document.md](.././01-game-design-document.md) ·
+[archived/03-refactor-plan.md](.././archived/03-refactor-plan.md) · [02-e2e-test-plan.md](.././02-e2e-test-plan.md)
 
 This is the **register**: every defect found so far, in one table, with its current status, the
 code that is wrong today, the test that covers it, and the refactor phase that closes it.
@@ -91,7 +91,7 @@ which are sequenced into Phase 7 — see **Currently open** at the top.
 
 | Id | Issue | Status | Now at | Fixed by | Covered by |
 |---|---|---|---|---|---|
-| **AE** | ~~**The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL~~ | 🟢 Fixed | [src/ui/map/markers.js](../src/ui/map/markers.js) | **6.7 — DONE** | `attack/attack-window.spec.js`, two specs — one per cancel route |
+| **AE** | ~~**The attack marker survives a cancel** by either route — the window's X, or the move button's CANCEL~~ | 🟢 Fixed | [src/ui/map/markers.js](../../src/ui/map/markers.js) | **6.7 — DONE** | `attack/attack-window.spec.js`, two specs — one per cancel route |
 
 ~~It is not a patch.~~ **AE** was the marker half of the map-state desync, and Phase 6.7 removed
 the whole class by making the marker a function of state rather than something pushed onto the
@@ -122,7 +122,7 @@ Real, understood, deliberately not being fixed yet.
 | Id | Issue | Fixed by | Notes |
 |---|---|---|---|
 | **S** | ~~~60 bare `tooltip` / `uiTable` identifiers resolve **only via named window access**~~ | **DONE in 6.3** | ~~`tooltip` (128 sites across `ui.js` and `resourceCalculations.js`) is now an imported handle from `src/ui/components/Tooltip.js`, which also creates the element — it is no longer a `<div>` in index.html. `uiTable` went with `InfoTable`; the remaining lookups take `ids.uiTable` from the registry~~ |
-| — | ~~Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path~~ | **DONE in 6.7** | ~~The snapshot is gone. `repaintMap()` in [src/ui/map/MapView.js](../src/ui/map/MapView.js) computes every path's fill and stroke from the store, so restoring the map after a selection, a cancel or a battle is the same call as painting it — there is no clean moment to miss and no flag to pass. `saveMapColorState()`, `restoreMapColorState()`, `setCurrentMapColorAndStrokeArray()` and `currentMapColorAndStrokeArrayFromExternal()` are all deleted, across `ui.js`, `battle.js`, `aiCalculations.js`, `gameTurnsLoop.js` and `resourceCalculations.js`~~ |
+| — | ~~Map colour is snapshotted and restored from ~30 call sites, with `false` and `"true"` both truthy in one path~~ | **DONE in 6.7** | ~~The snapshot is gone. `repaintMap()` in [src/ui/map/MapView.js](../../src/ui/map/MapView.js) computes every path's fill and stroke from the store, so restoring the map after a selection, a cancel or a battle is the same call as painting it — there is no clean moment to miss and no flag to pass. `saveMapColorState()`, `restoreMapColorState()`, `setCurrentMapColorAndStrokeArray()` and `currentMapColorAndStrokeArrayFromExternal()` are all deleted, across `ui.js`, `battle.js`, `aiCalculations.js`, `gameTurnsLoop.js` and `resourceCalculations.js`~~ |
 | — | ~~**Every besieged or freshly-conquered territory was painted the PLAYER's colour**, whoever owned it. `endPlayerTurn()` re-asserts the fill on paths that keep their stroke decoration, and its `else` branch wrote `playerColour()` unconditionally — so an AI territory besieged by another AI took the player's colour with the player nowhere near the war. `saveMapColorState()` three lines later captured the result, so every later `restoreMapColorState()` replayed it and it never washed out: 45 mis-painted territories by turn 4, 55 by turn 8, monotonically increasing. With the picker on its default white it read as blank land; with any colour picked it read as player-held land~~ | **DONE** (found during Phase 6.3) | ~~Ask the owner: `playerColour()` only when `pathIsPlayerOwned()`, otherwise the territory's own `countryColor`. That also repairs a path an earlier turn mis-painted. Guarded by `tests/e2e/siege/besieged-colouring.spec.js`~~ |
 | — | **Bootstrap ordering is timing-luck**: CPU leaders and the AI's starting forts are created *after* `initialiseGame()` resolves, which is after the engine has run turn 1 — so turn 1 plans and earns over a world with no leaders and no forts, and `newTurnResources()` skips the income pass on turn 1 to hide it | **7.x — balance pass** (was 5.7) | ~~Re-sequenced in 5.8, with a measurement. Moving the setup inside `initialiseGame()` was implemented and tried: the ten-turn `long-run` went from **6/6 green to 0/6**, the player eliminated every time.~~ A fully-formed AI first turn is a balance change, not a tidy-up. The finding is recorded at the site in `gameTurnsLoop.js` so nobody repeats it blind |
 | — | ~~`eventHandlerExecuted` plus `setTimeout(…, 200)` as a click de-bounce — timing, not state~~ | **DONE in 6.6** | ~~It was suppressing a real defect, not debouncing a fast finger: the move button's click handler was re-created and re-attached on every territory selection, and `removeEventListener` could never remove the previous one because each call built a new function object. Listeners accumulated, so one click fired once per selection made since the window opened. There is one listener now, installed once from bootstrap, reading the current state — so there is nothing to de-bounce and the latch and all four timers are gone~~ |
@@ -233,7 +233,7 @@ ones, where Alaska reached fewer.~~
 ### K — cross-type skirmishes, with a matchup matrix
 
 ~~Refactor 3.15 offered two ways out of the deadlock and recommended this one, because it makes
-army composition matter.~~ `UNIT_MATCHUP_EFFECTIVENESS` in [battle.js](../battle.js) scales the
+army composition matter.~~ `UNIT_MATCHUP_EFFECTIVENESS` in [battle.js](../../battle.js) scales the
 attacker's odds by how effective its unit type is against the one it engages. Same-type values
 are `1`, so a conventional battle fights exactly as it always did; an attacker with no
 matching opponent engages the type it is best against instead of stalling.
@@ -340,7 +340,7 @@ Two things are worth keeping from it:
   (`~~like this~~`) and say in plain text what closed it and where the code is now. Strike the
   *description of the broken behaviour*, not the explanation of the fix — a reader skimming for
   what is still true should be able to read the un-struck text and get only the present tense.
-  The same convention applies to [03-e2e-test-plan.md](./03-e2e-test-plan.md).
+  The same convention applies to [02-e2e-test-plan.md](.././02-e2e-test-plan.md).
 - **Add a new issue to both places at once**: a line in `Currently open`, and an entry with its
   detail in the section that will own it.
 - **Never renumber an id.** They are cited by the e2e specs and by the refactor plan.
@@ -405,12 +405,12 @@ regression in the extraction stays bisectable. Each is a one-commit fix on its o
 
 | Ref | Where | What |
 |---|---|---|
-| **AM** | ~~[ui.js](../ui.js) `getHistoricWarObject()`~~ | ~~**FIXED in Phase 5.7.** It returned the **string** `"Error - Siege not found in either array in getHistoricWarObject()"` when the siege was not in the historic array, and `removeSiegeImageFromPath()` read `.defendingTerritory.territoryName` off it — `Cannot read properties of undefined`, which escaped the `gameLoop()` promise chain and froze the game on `AI MOVING...`. The `TurnEngine` caught it on the first Phase 5.7 `turn-loop` run, which is what made it reproducible at last. The lookup was never needed: the only thing taken from the siege was the besieged territory's name, and `removeSiegeImageFromPath()` is handed that territory's path — `territory-name` is identity, so it reads it directly. `getHistoricWarObject()` now returns `null` and has no callers.~~ |
-| **AN** | [src/rules/economy/population.js](../src/rules/economy/population.js) `planArmyStarvation()` | A famine whose losses **exactly equal** the infantry count falls into the `else` branch for all three vehicle types and destroys the entire mechanised army. `remaining === 0` is not `remaining > 0`, so the partial-loss branch is skipped. Preserved verbatim from `starveArmyInstead()` and commented at the site. Owner: **Phase 7** balance pass. |
-| **AO** | [resourceCalculations.js](../resourceCalculations.js) `calculateAllTerritoryCapacitiesForPlayerCountry()` | `playerOwnedTerritories` is appended to on conquest without a duplicate check, and the capacity/demand totals used to count a duplicated path twice for the rest of that turn. ~~Phase 5.2 replaced the nested scan with a `Set` of unique ids, which incidentally **fixes** this — the only behaviour change in the extraction, and it is a strict improvement.~~ Recorded so it is not mistaken for drift. |
-| ~~**AP**~~ — **FIXED, battle overhaul B.4; the file it lived in was DELETED at B.10.1** | ~~`src/rules/military/battle.js` `classifyOutcome()`~~ → [src/rules/military/battleModel.js](../src/rules/military/battleModel.js) `classifyBattleState()` | The rout / last-push / attacker-rout thresholds used to be compared against each side's combined force **as it stood at the start of the round**, not after that round's casualties — a full round of lag. The dice model checks one symmetric `BREAK_THRESHOLD` **after** casualties are applied, against each side's own starting force, so the lag is gone by construction rather than by a guard. The five-round skirmish model that carried the defect no longer exists. |
-| **AQ** | ~~[resourceCalculations.js](../resourceCalculations.js)~~ | ~~**CLOSED in Phase 5.5.** The initial-data seeding computed the defence bonus as `Math.ceil(f*(f+1)*10) * dev + landlocked`, with the ceiling around the fort term rather than the whole expression — different brackets from the three other sites. It never actually diverged, because `fortsBuilt` is 0 at seeding and both forms then reduce to the land-locked bonus; a fourth copy of the formula is how the divergence would have arrived. It calls the shared `defenseBonusFor()` now.~~ |
-| **AR** (description corrected, battle overhaul B.2.6) | [src/rules/military/probability.js](../src/rules/military/probability.js) `areaBonusFor()` | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the intended small-territory defence bonus does not exist: every territory at or below the threshold scores exactly 1, and every territory above it is **penalised** instead — the reverse of what the comment and `AREA_BONUS_DAMPENING` describe. Almost certainly a `min`/`max` slip, of a piece with **P** (`Math.max(x), 1` discarding the area term from gold income). **IT IS NOT A ONE-CHARACTER FIX**, which the wording above implied and battle overhaul B.2.6 measured: the ratio is UNBOUNDED as area approaches zero and there is no cap anywhere. A naive `min` -> `max` gives the smallest territory on the map (167 km2) a **1,047x** defence bonus; 296 of 359 territories sit below the threshold, 248 would defend above 2x and 161 above 10x. The documented intent needs a CAP that was never written, and choosing it is a design decision rather than a correction. Measured with the most conservative form (capped at 2x, so at most 1.5x after dampening), over 60 turns on one seed: countries surviving 118 -> 148, largest empire **80 -> 33**, top-sixteen share 65% -> 52%. `tests/unit/rules-military.spec.js` asserts what it does, not what it was meant to do.
+| **AM** | ~~[ui.js](../../ui.js) `getHistoricWarObject()`~~ | ~~**FIXED in Phase 5.7.** It returned the **string** `"Error - Siege not found in either array in getHistoricWarObject()"` when the siege was not in the historic array, and `removeSiegeImageFromPath()` read `.defendingTerritory.territoryName` off it — `Cannot read properties of undefined`, which escaped the `gameLoop()` promise chain and froze the game on `AI MOVING...`. The `TurnEngine` caught it on the first Phase 5.7 `turn-loop` run, which is what made it reproducible at last. The lookup was never needed: the only thing taken from the siege was the besieged territory's name, and `removeSiegeImageFromPath()` is handed that territory's path — `territory-name` is identity, so it reads it directly. `getHistoricWarObject()` now returns `null` and has no callers.~~ |
+| **AN** | [src/rules/economy/population.js](../../src/rules/economy/population.js) `planArmyStarvation()` | A famine whose losses **exactly equal** the infantry count falls into the `else` branch for all three vehicle types and destroys the entire mechanised army. `remaining === 0` is not `remaining > 0`, so the partial-loss branch is skipped. Preserved verbatim from `starveArmyInstead()` and commented at the site. Owner: **Phase 7** balance pass. |
+| **AO** | [resourceCalculations.js](../../resourceCalculations.js) `calculateAllTerritoryCapacitiesForPlayerCountry()` | `playerOwnedTerritories` is appended to on conquest without a duplicate check, and the capacity/demand totals used to count a duplicated path twice for the rest of that turn. ~~Phase 5.2 replaced the nested scan with a `Set` of unique ids, which incidentally **fixes** this — the only behaviour change in the extraction, and it is a strict improvement.~~ Recorded so it is not mistaken for drift. |
+| ~~**AP**~~ — **FIXED, battle overhaul B.4; the file it lived in was DELETED at B.10.1** | ~~`src/rules/military/battle.js` `classifyOutcome()`~~ → [src/rules/military/battleModel.js](../../src/rules/military/battleModel.js) `classifyBattleState()` | The rout / last-push / attacker-rout thresholds used to be compared against each side's combined force **as it stood at the start of the round**, not after that round's casualties — a full round of lag. The dice model checks one symmetric `BREAK_THRESHOLD` **after** casualties are applied, against each side's own starting force, so the lag is gone by construction rather than by a guard. The five-round skirmish model that carried the defect no longer exists. |
+| **AQ** | ~~[resourceCalculations.js](../../resourceCalculations.js)~~ | ~~**CLOSED in Phase 5.5.** The initial-data seeding computed the defence bonus as `Math.ceil(f*(f+1)*10) * dev + landlocked`, with the ceiling around the fort term rather than the whole expression — different brackets from the three other sites. It never actually diverged, because `fortsBuilt` is 0 at seeding and both forms then reduce to the land-locked bonus; a fourth copy of the formula is how the divergence would have arrived. It calls the shared `defenseBonusFor()` now.~~ |
+| **AR** (description corrected, battle overhaul B.2.6) | [src/rules/military/probability.js](../../src/rules/military/probability.js) `areaBonusFor()` | `Math.min(1, MAX_AREA_THRESHOLD / area)` can never exceed 1, so the intended small-territory defence bonus does not exist: every territory at or below the threshold scores exactly 1, and every territory above it is **penalised** instead — the reverse of what the comment and `AREA_BONUS_DAMPENING` describe. Almost certainly a `min`/`max` slip, of a piece with **P** (`Math.max(x), 1` discarding the area term from gold income). **IT IS NOT A ONE-CHARACTER FIX**, which the wording above implied and battle overhaul B.2.6 measured: the ratio is UNBOUNDED as area approaches zero and there is no cap anywhere. A naive `min` -> `max` gives the smallest territory on the map (167 km2) a **1,047x** defence bonus; 296 of 359 territories sit below the threshold, 248 would defend above 2x and 161 above 10x. The documented intent needs a CAP that was never written, and choosing it is a design decision rather than a correction. Measured with the most conservative form (capped at 2x, so at most 1.5x after dampening), over 60 turns on one seed: countries surviving 118 -> 148, largest empire **80 -> 33**, top-sixteen share 65% -> 52%. `tests/unit/rules-military.spec.js` asserts what it does, not what it was meant to do.
 
 **DECIDED at battle overhaul B.10.4, and this row is now a record rather than a to-do.** Leigh's call was to **leave `areaBonusFor()` exactly as it is and correct the description instead**, which is what this entry has become. The reasoning is the measurement above: even the most conservative form of the "fix" is a major balance change (largest empire 80 -> 33 over sixty turns, thirty more countries alive), so applying it as a bug fix would have re-baselined the whole game under the heading of a typo. `probability.js` is byte-for-byte unchanged; the trial was applied, measured and reverted, and the raw series are in `test-reports/ai-sim/ar-baseline.json` and `ar-capped.json`.
 
@@ -539,7 +539,7 @@ asserting the flag on any other outcome would have passed against the bug.
 
 | Issue | Why not |
 |---|---|
-| `generateDistinctRGBs()` in [src/ui/map/colouring.js](../src/ui/map/colouring.js) is **dead code that is still called**. `ui.js` assigned its result to `colorArray` at module load and never read it — dead since before the refactor began. It cannot simply be deleted: it draws from `Math.random` at module load, on the same stream the economy, combat and the AI read from, so removing it shifts every seeded outcome in the game | **Measured, not assumed.** With the call gone, the whole-garrison attack on France in `conquest-lifecycle/ownership-transfer.spec.js` resolves as a last push rather than an outright victory, and three more exact-outcome specs move with it. That is a balance change, and Phase 6 is a decomposition — behaviour is preserved unless a defect is being fixed deliberately. The draws stay, isolated in one function with the reason written at the site. Removing them and re-baselining the four specs is one Phase 7 change, and doing both together is the only way it stays bisectable. Same species as audit 5.3 **Y**, with the difference that this one IS reproducible, which is why it can wait |
+| `generateDistinctRGBs()` in [src/ui/map/colouring.js](../../src/ui/map/colouring.js) is **dead code that is still called**. `ui.js` assigned its result to `colorArray` at module load and never read it — dead since before the refactor began. It cannot simply be deleted: it draws from `Math.random` at module load, on the same stream the economy, combat and the AI read from, so removing it shifts every seeded outcome in the game | **Measured, not assumed.** With the call gone, the whole-garrison attack on France in `conquest-lifecycle/ownership-transfer.spec.js` resolves as a last push rather than an outright victory, and three more exact-outcome specs move with it. That is a balance change, and Phase 6 is a decomposition — behaviour is preserved unless a defect is being fixed deliberately. The draws stay, isolated in one function with the reason written at the site. Removing them and re-baselining the four specs is one Phase 7 change, and doing both together is the only way it stays bisectable. Same species as audit 5.3 **Y**, with the difference that this one IS reproducible, which is why it can wait |
 
 ---
 
@@ -624,7 +624,7 @@ player ended the turn holding Estonia. Not a one-off — territories were arrivi
 player's hands across several games with no battle ever fought for them.**
 
 There are two ways a siege ends: an arrest, and the besieged garrison starving out. The second
-is resolved by `calculatePopulationChange()` in [resourceCalculations.js](../resourceCalculations.js),
+is resolved by `calculatePopulationChange()` in [resourceCalculations.js](../../resourceCalculations.js),
 from the income pass inside `beginTurn()`. It takes an `ai` flag that decides everything about
 what happens next — whether the siege is closed through `addRemoveWarSiegeObject()` or
 `addRemoveWarSiegeObjectAi()`, whether `routeSiegeUIProcesses()` raises the rout screen, and
@@ -684,7 +684,7 @@ test that reads what a round produced.
 dice don't show, no animation. The clash UI shows the numbers fine but the 3D dice are
 missing."**
 
-The dice stage is deliberately PERMANENT. `ensureStage()` in [dices.js](../dices.js) builds one
+The dice stage is deliberately PERMANENT. `ensureStage()` in [dices.js](../../dices.js) builds one
 `WebGLRenderer` for the life of the page, because a fresh renderer per roll leaks a GL context
 and browsers cap those at around sixteen — a battle is five to eight rounds, so two battles
 would exhaust them and the canvas would go blank. The consequence is that `ensureStage()`
@@ -716,7 +716,7 @@ the rolls are much too fast — they should be displayed for the same time as wh
 attacks, and we should have the same visibility of the clash UI to know what is going on."**
 
 Both halves were in `drawRound()` and `playNext()` in
-[src/ui/battle/DefenderPlayback.js](../src/ui/battle/DefenderPlayback.js).
+[src/ui/battle/DefenderPlayback.js](../../src/ui/battle/DefenderPlayback.js).
 
 `drawRound()` wrote the two armies, updated the force ledger and threw the dice, and **never
 called `clashPanel` at all**. So the one battle the player has no control over — their own
@@ -1270,3 +1270,134 @@ zero one-way edges in the raw geometry *and* in the adjacency the game actually 
 (`getInteractableFrom()` — geometry, plus additions, minus denials). Asserting only the table
 would miss a future change to `tools/build-adjacency.mjs`; asserting only the geometry would
 have missed all five of these.
+
+---
+
+# Reported while playing, after the diplomacy and opinion phases
+
+Four defects Leigh found in one session with the finished diplomacy layer in front of him.
+Three of the four are the same shape and it is a shape worth naming: **a subsystem that is
+correct in isolation, wired to a surface that was written before it existed.** None of them
+throws, none of them fails a test that existed, and all four are obvious within a minute of
+playing.
+
+---
+
+## DF1 — A conquered country goes on being an enemy
+
+**The report:** *"i took a territory of a country that only had 1, effectively defeating that
+country. however it still shows as being at war with me in diplomacy and in the tooltip."*
+
+The register in `src/state/diplomacy.js` is keyed by COUNTRY NAME and knows nothing about the
+map, so a relation outlives the country it describes. Both surfaces list every relation they
+are handed, so the panel and the tooltip filled up with wars against countries that had already
+been conquered — and the group headings COUNTED them, so *"At war: 3"* could be three countries
+none of which still existed.
+
+It was also invisible in the STANDINGS table for the opposite reason: `worldStandings()` is a
+fold over TERRITORIES, so a country holding none is **absent** from it rather than last in it.
+The table simply stopped mentioning a country the turn it was conquered, which is the opposite
+of what somebody who has just conquered it wants.
+
+**Closed by `src/state/defeated.js`**, and the shape of the fix is the decision worth recording:
+it is **DERIVED, not stored**. A country with no territory has nowhere to attack from, so defeat
+is permanent and a derived answer can never go stale the way a flag can be missed — and conquest
+goes through `mutations.js` from at least eight call sites, so a register maintained by hand
+would need every one of them to remember. That is the argument `activityRecorder.js` records for
+deriving a conquest from the event, and `continentBonus.js` for deriving the bonus rather than
+writing it onto a territory. It needs no save slice, so the snapshot version did not move.
+
+Three consequences worth keeping. **The filter runs BEFORE the count and the search box runs
+after it** — a heading must not change while somebody types, but a heading that counts beaten
+countries is not a filtered count, it is a wrong number. **The bootstrap window is safe by
+construction rather than by a guard**, because both halves of the answer come from one walk: an
+empty store yields an empty roster and an empty defeated set. And **a restore is the one path
+neither the event nor the territory count covers** — it patches territories in place and emits
+nothing — so `restoreState()` drops the cache by hand.
+
+---
+
+## DF2 — A war declared on the player was the quietest thing in the game
+
+**The report:** *"when a country declares war on me, it is shown in the event log but there
+should be a popup as well that the user can close."*
+
+A war opened against the player is the single most consequential thing that can happen on
+somebody else's turn, and the only record of it was a line in the activity feed.
+
+**Closed as a third `InboxKind`, `DECLARATION`**, and the reason it is in that queue rather than
+raised where it happens is the reason the queue exists at all: the declaration is made inside
+the AI turn, in the middle of a loop over two hundred countries, and a modal there stops the
+turn dead. It is drained by `showQueuedDiplomacy()` at the end of the turn with the call to arms
+and the unsolicited offer.
+
+**IT IS A NOTICE AND NOT A QUESTION**, which needed one new thing rather than a third prompt
+shaped like the other two: `dismissOnly` on `ConfirmDialog`, which hides the cancel button. A
+declaration takes effect at once and cannot be refused — Leigh's rule for the whole system — so
+offering two buttons would ask the player to decide something that has already happened.
+
+**It is DERIVED from `DIPLOMACY_CHANGED`**, so no future declaration route can miss it, and
+three transitions are excluded for their own reasons: a war the PLAYER declared, a ceasefire
+LAPSING (`via: "expired"` — a clock running out is not an act, and the player agreed to the
+clock), and a `replaced` payload, which is a restore putting the whole register back and would
+otherwise raise one modal per standing war on load.
+
+**The harness had to learn about it**, exactly as it did for the ending screen.
+`GameDriver.answeringDiplomacy()` answered prompts by clicking cancel; a notice has no cancel,
+and clicking a hidden element never succeeds — so it would have polled at it for the rest of the
+run and the turn would never have advanced. It clicks cancel when there is one and confirm when
+there is not.
+
+---
+
+## DF3 — The clash panel could be clicked through
+
+**The report:** *"the clash dice ui needs to block the ui behind it ie the battle ui when it is
+on screen, and it needs a X to close it faster rather than waiting for the timer as the only
+way."*
+
+The panel carried `pointer-events: none` — the rule the siege markers and `#tooltip` follow —
+and the recorded reason was sound as far as it went: the panel sits over the middle of the
+screen for several seconds and the click it would otherwise swallow is the one that dismisses
+the battle-results screen underneath it. What that argument missed is that it also let the
+battle window's OWN buttons be pressed straight through the panel, so a player reading the
+account of a round could advance past it by clicking where a button happened to be.
+
+**Closed with a scrim and an X**, and the two halves are not separable: making it modal without
+a way out would have replaced a panel you could click through with a seven-second linger you
+could not shorten. The scrim runs the same `diceStage.skip()` + `finish()` pair the battle
+container's capture listener has always run, and takes the panel down on a second press.
+
+**A `dismissed` flag was needed and the reason is not obvious.** `reveal()` is called from a
+promise chained before the player pressed anything (`rolled?.finally?.(...)`), so closing the
+panel while the dice were still tumbling put it straight back up a moment later — which reads
+as the X not working.
+
+**TWO EXISTING SPECS WENT ON PASSING AND STOPPED TESTING ANYTHING**, which is the transferable
+part. Playwright RETRIES an intercepted click, and the panel takes itself down after its linger
+— so *"never intercepts a click, so the window underneath stays usable"* passed by waiting out
+the very thing it was asserting, and a forced retreat click landed on the scrim while the panel
+hid on its own timer. Both were rewritten to assert the new contract with a real hit test
+(`document.elementFromPoint`), and `BattlePage` grew `dismissClashPanel()` and
+`retreatFromBattle()` so that no spec drives a battle button through a modal.
+
+---
+
+## DF4 — Three battle specs never declared war
+
+Not reported — found by running the `battle/` area at `--workers=1` while checking DF3. Eight
+specs failed, deterministically, in three files.
+
+`rounds.spec.js`, `known-broken.spec.js` and `mid-battle-decisions.spec.js` each open the attack
+window by hand, with helpers written before the diplomacy phase. From that phase onwards
+`allowsAttack()` permits WAR and nothing else and first contact is NEUTRAL, so the move button
+never reads ATTACK and the window never opens. `GameDriver.openAttackWindow()` learned to
+declare first; these three did not.
+
+**They had been failing since the gate landed, and the register had attributed them to load.**
+The hygiene entry about the `battle/` area's spec races recorded the area going 9 → 5 → 2
+failures across three runs with the failing set changing each time, which is a correct
+observation about load and a wrong conclusion about these eight: they fail identically every
+time, at any worker count. Both causes were real and only one of them was written down.
+
+Closed by declaring war in each helper. Nothing else in the specs changed.

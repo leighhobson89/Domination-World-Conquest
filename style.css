@@ -5105,6 +5105,75 @@ td {
   color: var(--text-muted);
 }
 
+/* THE OPINION BAR (docs/archived/08-opinion.md §4). Two of them on any territory the player does not
+   own: how that country sees the player, and how the player sees it.
+
+   THE TRACK IS CENTRED AND THE FILL GROWS OUT OF THE MIDDLE, which is the one thing about
+   this control that had to be decided rather than copied. A left-to-right fill would put
+   "hostile" at the empty end and read as a progress bar -- more is better, and a short bar
+   is one that has not finished. An opinion is a POSITION either side of neutral, not a
+   quantity of anything, so the centre is marked and a relation at zero draws nothing at all.
+   `opinionBar.js` computes the offset and the width; the tone is a class, because this file
+   is the only place allowed to name a colour and only as a token. */
+.tooltip-opinion {
+  margin-top: 3px;
+  font-size: 0.85em;
+}
+
+.tooltip-opinion-label {
+  opacity: 0.85;
+}
+
+.tooltip-opinion-track {
+  position: relative;
+  height: 5px;
+  margin-top: 2px;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-control);
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  /* THE NEUTRAL MARK: a hairline down the MIDDLE of the track, so a relation at zero -- which
+     draws no fill at all -- still says where nothing is, and every other bar is read against
+     a visible origin rather than against the ends. A gradient rather than a pseudo-element
+     because the fill is absolutely positioned over this and would cover one. */
+  background-image: linear-gradient(var(--border-color), var(--border-color));
+  background-size: 1px 100%;
+  background-position: 50% 0;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.tooltip-opinion-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+
+.tooltip-opinion.is-hostile .tooltip-opinion-fill {
+  background-color: var(--negative);
+}
+
+.tooltip-opinion.is-caution .tooltip-opinion-fill {
+  background-color: var(--siege-amber);
+}
+
+.tooltip-opinion.is-friendly .tooltip-opinion-fill {
+  background-color: var(--positive);
+}
+
+.tooltip-opinion.is-hostile .tooltip-opinion-label {
+  color: var(--negative);
+}
+
+.tooltip-opinion.is-caution .tooltip-opinion-label {
+  color: var(--siege-amber);
+}
+
+.tooltip-opinion.is-friendly .tooltip-opinion-label {
+  color: var(--positive);
+}
+
 .activity-card {
   border-left: 3px solid var(--border-color);
   background-color: var(--surface-panel);
@@ -5771,6 +5840,30 @@ td {
   pointer-events: none;
 }
 
+/* THE CLICK BLOCKER RAISED WITH THE PANEL.
+
+   The panel used to carry `pointer-events: none` so that the click it would otherwise swallow
+   -- the one that dismisses the battle-results screen underneath it -- still landed. That was
+   right about the results screen and wrong about everything else: the battle window's own
+   buttons could be pressed straight THROUGH the panel, so a player reading the account of a
+   round could advance past it by clicking where a button happened to be.
+
+   It is a SIBLING of the panel and earlier in the DOM, which is what puts it underneath: both
+   sit in `#battle-clash-container`'s stacking context, and SVG-style painting order applies.
+   `display: none` rather than a transparent overlay, because a full-screen element that is
+   always present is a full-screen element that will one day be left switched on.
+
+   NO DIM AND NO BLUR. `.options-scrim` washes the screen because a modal menu is meant to take
+   the game away; this sits over a battle the player is in the middle of watching, and the
+   numbers behind it -- both armies, the round log -- are what the panel is commentary ON. */
+.clashScrim {
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: auto;
+  background: transparent;
+}
+
 .clashPanel {
   position: fixed;
   left: 50%;
@@ -5796,6 +5889,31 @@ td {
 .clashPanel.is-open {
   opacity: 1;
   transform: translate(-50%, 0);
+  /* Only while it is up. The container is `pointer-events: none`, so this is what lets the X
+     be pressed -- and what stops the fading panel eating clicks on its way out. */
+  pointer-events: auto;
+}
+
+/* The X. Sized and coloured off the title row it sits in rather than as a button, because it
+   is the last thing in the panel anybody should be looking at while a round is resolving. */
+.clashClose {
+  flex: 0 0 auto;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.clashClose:hover,
+.clashClose:focus-visible {
+  color: var(--text-primary);
+  background-color: var(--surface-control);
 }
 
 
@@ -6522,7 +6640,15 @@ td {
 .diplomacy-panel {
   display: flex;
   flex-direction: column;
-  width: min(680px, 84vw);
+  /* WIDER THAN THE LIST NEEDS, BECAUSE THE DETAIL COLUMN IS PROSE. Leigh, playing: the text
+     in the last column wrapped every few words. The left column is sized from the longest
+     country name and does not move, so every pixel added here goes to the right one -- which
+     carries the refusal sentences, and a refusal broken across four lines is one a player
+     skims instead of reads. 880 rather than 680 takes the detail column from about 430px to
+     about 630, which is roughly eighty characters at this size. The `vw` cap is what keeps
+     it on a small window, and it went up with it or the panel would simply stop growing on
+     the screens most likely to need the room. */
+  width: min(880px, 92vw);
   /* A HEIGHT AND NOT A MAX-HEIGHT. A box that resizes as the player browses reads as a
      rendering fault and moves the buttons while somebody is reaching for one -- the rule
      the goal chooser and the Dominapedia both record. */

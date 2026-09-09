@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { containers } from "../../support/selectors.js";
 
 // Hovering lightens the path and shows the owner tooltip.
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 // The tooltip is TWO lines since the continent-bonus phase: the owner (plus the besieger,
 // when there is one) and the continent, with how much of it the owner holds. So these

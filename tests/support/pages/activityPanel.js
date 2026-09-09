@@ -18,6 +18,7 @@ export class ActivityPanelPage {
         this.button = page.locator(activityPanel.button);
         this.closeButton = page.locator(activityPanel.close);
         this.startOfTurnToggle = page.locator(activityPanel.appearsAtStartOfTurn);
+        this.showCurrentTurnToggle = page.locator(activityPanel.showCurrentTurn);
     }
 
     async isOpen() {
@@ -103,5 +104,20 @@ export class ActivityPanelPage {
 
     async toggleStartOfTurn() {
         await this.startOfTurnToggle.click();
+    }
+
+    /**
+     * Reveal the turn that has just begun.
+     *
+     * The panel hides it by default -- `endTurn: advanceTurn`, so everything the player is
+     * shown belongs to the turn that just ENDED. On turn 1 there is no turn behind it, so a
+     * spec that acts and then asserts what the panel DREW sees "No news yet" until this is
+     * pressed. Idempotent, so a spec can call it without first asking.
+     */
+    async showCurrentTurn() {
+        if ((await this.showCurrentTurnToggle.getAttribute("aria-pressed")) === "true") {
+            return;
+        }
+        await this.showCurrentTurnToggle.click();
     }
 }

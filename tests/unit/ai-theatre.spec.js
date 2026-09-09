@@ -319,6 +319,75 @@ describe("noticing that DEVELOPING is not working either", () => {
 });
 
 // ---------------------------------------------------------------------------
+// A grudge as a reason to pick a rival (the opinion mechanic, docs/archived/08-opinion.md).
+//
+// The mid-term goal is the single most consequential choice a country makes, and until
+// opinion existed it was decided almost entirely by `weakness` -- so a country picked
+// whoever was softest, every time, whatever had passed between them.
+// ---------------------------------------------------------------------------
+
+describe("a grudge in the ranking", () => {
+    /** The scored rival, so a term can be measured rather than inferred from a winner. */
+    const scoreOf = (rival, opinionOf) => rankRivals(
+        frontierFor("Alba", { interactableFrom: neighbours }),
+        { rng: HALF, opinionOf }
+    ).find(row => row.rival === rival).score;
+
+    it("raises a hated rival and lowers a liked one, by the same amount", () => {
+        //The term is SUBTRACTED, which is what stops a country committing to absorbing its
+        //own ally or its peace partner -- and it is the reason it is a term at all rather
+        //than a bonus.
+        borderWorld();
+        const neutral = scoreOf("Carda", null);
+        const hated = scoreOf("Carda", (rival) => (rival === "Carda" ? -100 : 0));
+        const liked = scoreOf("Carda", (rival) => (rival === "Carda" ? 100 : 0));
+
+        expect(hated).toBeGreaterThan(neutral);
+        expect(liked).toBeLessThan(neutral);
+        expect(hated - neutral).toBeCloseTo(neutral - liked, 6);
+    });
+
+    it("picks the enemy it hates over a comparable neighbour", () => {
+        //Comparable on purpose. Against a rival that is genuinely softer the grudge loses,
+        //which is the next test and is the whole difference between a term and a tier.
+        borderWorld({ bravaArmy: 400, cardaArmy: 400 });
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+        expect(rankRivals(frontier, { rng: HALF })[0].rival).toBe("Brava");
+        expect(rankRivals(frontier, {
+            rng: HALF,
+            opinionOf: (rival) => (rival === "Carda" ? -100 : 0)
+        })[0].rival).toBe("Carda");
+    });
+
+    it("is a term and not a tier, so it cannot lift a hopeless target on its own", () => {
+        //Deliberately unlike `preferredRivals`, which had to be a TIER because a great power
+        //is by definition one of the strongest countries on the map. A grudge is not, so it
+        //does not need lifting past the terms -- and must not be able to send a country at a
+        //neighbour a hundred times its strength.
+        borderWorld();
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+        expect(rankRivals(frontier, {
+            rng: HALF,
+            opinionOf: (rival) => (rival === "Carda" ? -100 : 0)
+        })[0].rival).toBe("Brava");
+    });
+
+    it("reports the regard it used, so the debug panel can say why", () => {
+        borderWorld();
+        const ranked = rankRivals(frontierFor("Alba", { interactableFrom: neighbours }),
+            { rng: HALF, opinionOf: (rival) => (rival === "Carda" ? -80 : 0) });
+        expect(ranked.find(row => row.rival === "Carda").regard).toBe(-80);
+    });
+
+    it("changes nothing at all when nobody is asked", () => {
+        borderWorld();
+        const frontier = frontierFor("Alba", { interactableFrom: neighbours });
+        expect(rankRivals(frontier, { rng: HALF })[0].rival)
+            .toBe(rankRivals(frontier, { rng: HALF, opinionOf: null })[0].rival);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // The goal's opinion about who the enemy is (Q2.2).
 //
 // `doctrine.js` names the countries a goal is ABOUT -- under Great Powers, the powers still

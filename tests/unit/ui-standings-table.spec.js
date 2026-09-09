@@ -62,7 +62,7 @@ describe("ranking", () => {
 
     it("copes with an empty world rather than throwing", () => {
         expect(rankedStandings({ standings: world({}), progressFor: noProgress }))
-            .toEqual({ rows: [], playerRow: null, surviving: 0 });
+            .toEqual({ rows: [], playerRow: null, surviving: 0, defeatedRows: [] });
         expect(rankedStandings({ standings: null, progressFor: noProgress }).rows).toEqual([]);
     });
 
@@ -209,5 +209,69 @@ describe("the goal columns", () => {
                 expect(String(text), kind).not.toContain("NaN");
             }
         }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// WHO IS OUT OF THE GAME.
+//
+// Reported by Leigh: taking a one-territory country's only province left it still shown as an
+// enemy in the diplomacy panel and on the tooltip, and vanished from the standings table
+// entirely rather than being marked beaten. `worldStandings()` is a fold over TERRITORIES, so
+// a country holding none is ABSENT from it rather than last in it — which is why these have to
+// be added rather than filtered.
+// ---------------------------------------------------------------------------
+
+describe("countries that are out", () => {
+    it("are a separate list, so the ranking is untouched", () => {
+        const result = rankedStandings({
+            standings: world({ Alba: [10, 100], Brava: [4, 40] }),
+            progressFor: noProgress,
+            defeated: ["Carda", "Dorne"]
+        });
+        expect(result.rows.map(row => row.country)).toEqual(["Alba", "Brava"]);
+        expect(result.surviving).toBe(2);
+        expect(result.defeatedRows.map(row => row.country)).toEqual(["Carda", "Dorne"]);
+    });
+
+    it("are marked, so a cell can say so rather than printing a zero", () => {
+        const [row] = rankedStandings({
+            standings: world({ Alba: [10, 100] }),
+            progressFor: noProgress,
+            defeated: ["Carda"]
+        }).defeatedRows;
+        expect(row.defeated).toBe(true);
+        expect(row.territories).toBe(0);
+        expect(row.army).toBe(0);
+    });
+
+    it("are alphabetical, because nothing records the turn a country fell", () => {
+        //A `Set` iteration order would reshuffle the list between renders for no visible
+        //reason, which is the same argument the ranking's own name tie-break records.
+        const result = rankedStandings({
+            standings: world({ Alba: [10, 100] }),
+            progressFor: noProgress,
+            defeated: new Set(["Zeta", "Brava", "Carda"])
+        });
+        expect(result.defeatedRows.map(row => row.country)).toEqual(["Brava", "Carda", "Zeta"]);
+    });
+
+    it("rank after every survivor", () => {
+        const result = rankedStandings({
+            standings: world({ Alba: [10, 100], Brava: [4, 40] }),
+            progressFor: noProgress,
+            defeated: ["Carda"]
+        });
+        expect(result.defeatedRows[0].rank).toBeGreaterThan(result.rows.at(-1).rank);
+    });
+
+    it("marks the player when the player is the one who is out", () => {
+        const result = rankedStandings({
+            standings: world({ Alba: [10, 100] }),
+            progressFor: noProgress,
+            player: "Carda",
+            defeated: ["Carda"]
+        });
+        expect(result.defeatedRows[0].isPlayer).toBe(true);
     });
 });

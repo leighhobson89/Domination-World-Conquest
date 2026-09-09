@@ -87,10 +87,10 @@ code that no bundler rewrites.
 
 | Document | What it answers |
 |---|---|
-| [Codebase Audit](./docs/01-codebase-audit.md) | Architecture, performance, and 20 catalogued defects with line references |
-| [Game Design Document](./docs/02-game-design-document.md) | Every mechanic, marked implemented / buggy / partial / missing |
+| [Codebase Audit](./docs/archived/01-codebase-audit.md) | Architecture, performance, and 20 catalogued defects with line references |
+| [Game Design Document](./docs/01-game-design-document.md) | Every mechanic, marked implemented / buggy / partial / missing |
 | [Refactor Plan](./docs/archived/03-refactor-plan.md) | Target architecture and an eight-phase sequence |
-| [E2E Test Plan](./docs/03-e2e-test-plan.md) | 17 functional areas, ~105 specs, the Playwright harness |
+| [E2E Test Plan](./docs/02-e2e-test-plan.md) | 17 functional areas, ~105 specs, the Playwright harness |
 
 ## Generated data
 

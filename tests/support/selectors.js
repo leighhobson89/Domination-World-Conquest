@@ -8,7 +8,7 @@
 //
 // What stays here is the suite's own knowledge -- column indices, phase labels,
 // row orderings -- because those are facts about the assertions, not about the
-// DOM. See docs/03-e2e-test-plan.md section 7.
+// DOM. See docs/02-e2e-test-plan.md section 7.
 
 import {
     ATTACK_ARROW_PREFIX,
@@ -343,6 +343,10 @@ export const activityPanel = {
     empty: sel.activityPanelEmpty,
     close: sel.xButtonActivity,
     appearsAtStartOfTurn: sel.checkBoxActivityAtStartOfTurn,
+    //The panel HIDES the turn that has just begun, because `endTurn: advanceTurn` means the
+    //news the player wants is filed under the turn that just ended. On turn 1 there is no
+    //turn behind, so a spec asserting what is DRAWN has to press this.
+    showCurrentTurn: sel.checkBoxActivityShowCurrentTurn,
     turnGroup: cls.activityTurnGroup,
     turnHeader: cls.activityTurnHeader,
     entry: cls.activityEntry,
@@ -352,6 +356,46 @@ export const activityPanel = {
     toneVictory: cls.activityToneVictory,
     toneLoss: cls.activityToneLoss,
     toneSiege: cls.activityToneSiege,
+};
+
+/**
+ * The diplomacy panel (diplomacy stage 4) and the tooltip's relation rows.
+ *
+ * `row` and the group headings are class selectors because the list is rebuilt on every
+ * render and a row is addressed by its `data-country` attribute rather than by an id -- the
+ * same shape the info table's rows have. The five ACTIONS do have ids, because each one is a
+ * single control whose enabled state is the thing a spec asserts.
+ */
+export const diplomacyPanel = {
+    button: sel.diplomacyToggleButton,
+    buttonContainer: sel.diplomacyButtonContainer,
+    container: sel.diplomacyPanelContainer,
+    panel: sel.diplomacyPanel,
+    title: sel.diplomacyPanelTitle,
+    summary: sel.diplomacyPanelSummary,
+    search: sel.diplomacyPanelSearch,
+    list: sel.diplomacyPanelList,
+    detail: sel.diplomacyPanelDetail,
+    close: sel.xButtonDiplomacy,
+    answer: sel.diplomacyAnswer,
+    ceasefire: sel.diplomacyCeasefireBtn,
+    peace: sel.diplomacyPeaceBtn,
+    alliance: sel.diplomacyAllianceBtn,
+    dissolve: sel.diplomacyDissolveBtn,
+    declare: sel.diplomacyDeclareBtn,
+};
+
+/** The territory tooltip's relation rows, which are the register drawn on the map. */
+export const tooltipRelations = {
+    heading: cls.tooltipRelationsHeading,
+    row: cls.tooltipRelation,
+};
+
+/** The two opinion bars: how that country sees the player, and how the player sees it. */
+export const tooltipOpinion = {
+    row: cls.tooltipOpinion,
+    label: cls.tooltipOpinionLabel,
+    fill: cls.tooltipOpinionFill,
 };
 
 /** Draggable windows (Phase 7.4): which container moves, and what moves it. */
@@ -431,6 +475,11 @@ export const battle = {
     // element and the LABEL is what says which job it is doing.
     lastPush: sel.siegeBottomBarButton,
     lastPushId: registryIds.siegeBottomBarButton,
+    // The clash panel is MODAL: it raises a full-screen scrim, so a click aimed at any button
+    // in the battle window lands on that instead. `BattlePage.dismissClashPanel()` presses it.
+    clashScrim: sel.battleClashScrim,
+    clashScrimId: registryIds.battleClashScrim,
+    clashClose: sel.battleClashClose,
     digIn: sel.digInButton,
     digInId: registryIds.digInButton,
     reserves: sel.reservesButton,

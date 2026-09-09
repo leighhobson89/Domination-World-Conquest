@@ -20,6 +20,14 @@ import { battle as battleSelectors } from "../../support/selectors.js";
 // paint over the dice canvas), it covers the middle of the screen for several seconds, and the
 // click it would swallow is the one that dismisses the results screen underneath it. That is the
 // same class of bug as the siege marker eating the click on the territory it marked.
+//
+// AND IT IS MODAL NOW, WHICH REVERSES HALF OF THAT. The panel used to carry
+// `pointer-events: none` for the reason above, and Leigh reported what it cost: the battle
+// window's own buttons could be pressed straight THROUGH the panel, so a player reading the
+// account of a round could advance past it by clicking where a button happened to be. It raises
+// a scrim instead, and the two things the old rule was protecting are answered separately -- the
+// scrim takes the skip click, and there is an X because a seven-second linger you cannot shorten
+// would be a worse trade than the bug.
 
 test.describe("the clash panel", () => {
     test.setTimeout(180_000);
@@ -123,20 +131,40 @@ test.describe("the clash panel", () => {
             .toBe(ordered(panelFaces));
     });
 
-    test("never intercepts a click, so the window underneath stays usable", async ({ game }) => {
+    test("blocks the window underneath, and hands it back when dismissed", async ({ game }) => {
+        //THIS SPEC USED TO ASSERT THE OPPOSITE and it is worth saying why, because the change
+        //is Leigh's rather than a discovery. It read "never intercepts a click, so the window
+        //underneath stays usable": the panel carried `pointer-events: none` so the click that
+        //dismisses the results screen still landed. That protected the results screen and let
+        //the battle window's own buttons be pressed straight THROUGH the panel, which is what
+        //was reported.
+        //
+        //IT ALSO SHOWS WHY THE OLD ASSERTION HAD TO BE REPLACED RATHER THAN LEFT. With the
+        //scrim up it went on PASSING -- Playwright retries an intercepted click, the panel
+        //takes itself down after its seven-second linger, and the click then lands. A spec
+        //that passes by waiting out the thing it is meant to be testing is worse than one
+        //that fails.
         await fightOneRound(game, "clash-click-through");
         await expect(game.page.locator(revealed)).toBeVisible({ timeout: 20_000 });
 
-        //Not `force: true`. The point of this spec is that Playwright's actionability check --
-        //which is a hit test at the element's centre -- finds the advance button and not a
-        //decoration lying over it. A forced click would pass whether or not the bug were there.
-        const box = await game.page.locator(panel).boundingBox();
-        expect(box, "the panel is on screen, so it is genuinely in front of something").not
-            .toBeNull();
+        //THE HIT TEST, which is the assertion. Playwright's own actionability check is the
+        //same question asked less directly, and it would answer it by waiting.
+        const covering = await game.page.evaluate((advanceId) => {
+            const button = document.getElementById(advanceId);
+            const box = button.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+                box.x + box.width / 2, box.y + box.height / 2);
+            return hit?.id ?? null;
+        }, battleSelectors.advanceId);
+        expect(covering).toBe(battleSelectors.clashScrimId);
 
+        //AND THE WINDOW COMES BACK. Modal is only acceptable because there is a way out of it
+        //that does not involve waiting: this is the scrim's own click, which finishes the
+        //animation and then takes the panel down.
+        await game.battle.dismissClashPanel();
         await game.page.locator(`#${battleSelectors.advanceId}`).click();
 
-        //The click both settled the animation and fought a round, so the log has two of them.
+        //A round was fought, so the log has two of them.
         await expect(game.page.locator(battleSelectors.roundLogToggle))
             .toContainText("(2)", { timeout: 15_000 });
     });
@@ -145,12 +173,70 @@ test.describe("the clash panel", () => {
         await fightOneRound(game, "clash-gone");
         await expect(game.page.locator(revealed)).toBeVisible({ timeout: 20_000 });
 
-        await game.battle.retreat.click({ force: true });
+        await game.battle.retreatFromBattle();
 
         //Every ending routes through `toggleDiceCanvas(false)`, which is what takes the panel down
         //with the dice. It is not a child of the battle window, so nothing hides it by accident --
         //and a pairing animation still playing over the battle-results screen is the one thing it
         //must never do.
         await expect(game.page.locator(panel)).toBeHidden({ timeout: 15_000 });
+    });
+});
+
+test.describe("the clash panel is modal", () => {
+    test.setTimeout(180_000);
+
+    /** Open a battle and fight exactly one round, leaving the clash mid-play. */
+    async function fightOneRound(game, seed) {
+        await game.start({ country: "Germany", seed });
+        await game.loadScenario("evenly-matched");
+        await game.launchWholeGarrison({ from: "Germany", to: "France" });
+        await game.battle.advanceRound();
+        await game.page.waitForTimeout(80);
+        await game.battle.advanceRound();
+    }
+
+    const revealedPanel = `${battleSelectors.clashPanel}.is-revealed`;
+
+    test("raises a scrim over the battle window while it is up", async ({ game, page }) => {
+        await fightOneRound(game, "clash-modal");
+        await expect(page.locator(revealedPanel)).toBeVisible({ timeout: 20_000 });
+
+        const state = await page.evaluate((ids) => ({
+            scrim: getComputedStyle(document.getElementById(ids.scrim)).display,
+            //The panel takes clicks too, or its own X could not be pressed. The container is
+            //`pointer-events: none`, so this has to be turned on by the `is-open` class.
+            panel: getComputedStyle(document.getElementById(ids.panel)).pointerEvents,
+        }), { scrim: battleSelectors.clashScrimId, panel: "battleClashPanel" });
+
+        expect(state.scrim).not.toBe("none");
+        expect(state.panel).toBe("auto");
+    });
+
+    test("has an X that takes it down without waiting out the linger", async ({ game, page }) => {
+        //THE LINGER IS SEVEN SECONDS and the panel is modal, so without this the player is
+        //made to sit out a round they have finished reading. Leigh asked for the X by name.
+        await fightOneRound(game, "clash-close");
+        await expect(page.locator(revealedPanel)).toBeVisible({ timeout: 20_000 });
+
+        await page.locator(battleSelectors.clashClose).click();
+
+        await expect(page.locator(battleSelectors.clashPanel)).toBeHidden({ timeout: 5_000 });
+        const scrim = await page.evaluate((id) =>
+            getComputedStyle(document.getElementById(id)).display, battleSelectors.clashScrimId);
+        expect(scrim).toBe("none");
+    });
+
+    test("does not come back after being closed mid-round", async ({ game, page }) => {
+        //`reveal()` is called from a promise chained BEFORE the player pressed the X
+        //(`rolled?.finally?.(() => clashPanel.reveal())`), so without the dismissed flag the
+        //panel reopened a moment later and the X read as broken.
+        await fightOneRound(game, "clash-dismissed");
+        await expect(page.locator(battleSelectors.clashPanel)).toBeVisible({ timeout: 20_000 });
+
+        await page.locator(battleSelectors.clashClose).click();
+        await page.waitForTimeout(2_500);
+
+        await expect(page.locator(battleSelectors.clashPanel)).toBeHidden();
     });
 });

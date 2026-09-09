@@ -15,7 +15,7 @@ import { test, expect } from "../../support/fixtures.js";
 // applies after a purchase. Reconciling them belongs with Phase 5.1, where the
 // formula moves into `rules/`.
 //
-// docs/03-e2e-test-plan.md section 5.7.
+// docs/02-e2e-test-plan.md section 5.7.
 
 function expectedDefence(forts, devIndex, landlockedBonus) {
     return Math.ceil(forts * (forts + 1) * 10 * devIndex + landlockedBonus);

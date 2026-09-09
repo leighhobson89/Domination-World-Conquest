@@ -13,12 +13,20 @@
 // player has to watch, and it answers the open half of **Q3** — *when must the call be
 // answered* — with "by the start of your next turn".
 //
-// TWO KINDS, ONE QUEUE:
+// THREE KINDS, ONE QUEUE:
 //
-//   CALL_IN    an ally has gone to war (or been attacked) and asks the player to join.
-//              Refusing ends the alliance, free for both.
-//   PROPOSAL   a country offers the player a ceasefire, a peace or an alliance. Refusing
-//              costs nothing at all; this is the direction stage 5.1 left unbuilt.
+//   CALL_IN      an ally has gone to war (or been attacked) and asks the player to join.
+//                Refusing ends the alliance, free for both.
+//   PROPOSAL     a country offers the player a ceasefire, a peace or an alliance. Refusing
+//                costs nothing at all; this is the direction stage 5.1 left unbuilt.
+//   DECLARATION  somebody has gone to war with the player. THERE IS NOTHING TO ANSWER, which
+//                is exactly why it is here rather than anywhere else: a declaration takes
+//                effect at once and cannot be refused, so it is a NOTICE, and it rides this
+//                queue because it has the same problem the other two have -- it is decided
+//                during a phase the player is not present for. Reported by Leigh, who found
+//                the only record of being attacked was a line in the activity feed: a war
+//                opened against you is the single most consequential thing that can happen
+//                on somebody else's turn, and it was the quietest.
 //
 // IT HOLDS FACTS AND NEVER SENTENCES, the rule `activityLog.js` established: the wording is
 // derived when the prompt is drawn, so a save file does not bake in today's phrasing. It is
@@ -32,7 +40,8 @@
 /** What kind of thing is being put to the player. A CLOSED set: the prompt switches on it. */
 export const InboxKind = Object.freeze({
     CALL_IN: "callIn",
-    PROPOSAL: "proposal"
+    PROPOSAL: "proposal",
+    DECLARATION: "declaration"
 });
 
 const queue = [];
@@ -75,6 +84,27 @@ export function queueProposal({ from, proposal, reason = "" }) {
         return;
     }
     queue.push({ kind: InboxKind.PROPOSAL, from, proposal, reason });
+}
+
+/**
+ * Somebody has gone to war with the player.
+ *
+ * @param {{by: string, via: string, onBehalfOf: string|null}} entry `by` is who declared;
+ *        `via` is the route the register was written by, which is the only thing separating
+ *        a declaration from an ally answering somebody else's call to arms; `onBehalfOf` is
+ *        whose call it was, in the second case.
+ */
+export function queueDeclaration({ by, via = "declared", onBehalfOf = null }) {
+    if (!by) {
+        return;
+    }
+    //ONE NOTICE PER COUNTRY. A pair can only reach WAR once without leaving it first, so a
+    //duplicate here means two code paths reported the same transition -- and two identical
+    //modals in a row is the thing a player remembers about a turn.
+    if (queue.some(entry => entry.kind === InboxKind.DECLARATION && entry.by === by)) {
+        return;
+    }
+    queue.push({ kind: InboxKind.DECLARATION, by, via, onBehalfOf });
 }
 
 /** How many questions are waiting. Zero on almost every turn. */

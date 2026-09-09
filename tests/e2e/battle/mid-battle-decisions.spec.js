@@ -107,6 +107,8 @@ test.describe("mid-battle decisions", () => {
 
         // Send part of the garrison, so there is something left to follow it.
         await game.endBuyPhase();
+        //A NEUTRAL COUNTRY CANNOT BE ATTACKED since the diplomacy phase.
+        await game.declareWarOn("France");
         await game.selectOnMap("Germany");
         await game.selectOnMap("France");
         await game.moveButton.click();

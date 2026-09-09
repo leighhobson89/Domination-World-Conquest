@@ -272,18 +272,18 @@ have been holding the world's balance up (see the E-summary at the end of this s
 **E1. An AI country's economy upgrades raise no capacity at all.** *This is the big one.*
 **CLOSED, stage 1.4** — both sides call `applyUpgrade()` in `src/rules/economy/upgrades.js`.
 `analyzeAllocatedResourcesAndPrioritizeUpgradesThenBuild()` in
-[aiCalculations.js:1046](../aiCalculations.js#L1046) debits gold and construction materials and
+[aiCalculations.js:1046](../../aiCalculations.js#L1046) debits gold and construction materials and
 increments `farmsBuilt` / `forestsBuilt` / `oilWellsBuilt` — and never touches `foodCapacity`,
 `consMatsCapacity` or `oilCapacity`. The only three writes to those fields in the whole codebase
 that come from an upgrade are in `addPlayerUpgrades()`
-([resourceCalculations.js:3585](../resourceCalculations.js#L3585)), which only the player
+([resourceCalculations.js:3585](../../resourceCalculations.js#L3585)), which only the player
 reaches. **Every farm, forest and oil well the AI has ever built has been a pure cost.** Worse,
 the AI's *desire* logic reads the effective capacity to decide what to build next, so the
 ceiling it is trying to raise never moves and it keeps buying the next one up a quadratic price
 ladder forever.
 
 **E2. An AI country's forts raise no defence bonus, and the fort loop is wrong three ways.** **CLOSED, stage 1.5.**
-`analyzeAndBuildFortDefenses()` at [aiCalculations.js:1119](../aiCalculations.js#L1119):
+`analyzeAndBuildFortDefenses()` at [aiCalculations.js:1119](../../aiCalculations.js#L1119):
 `defenseBonus` is never recomputed, so an AI fort contributes nothing to the die band that forts
 exist to move. Additionally, inside the loop the price is never recalculated (so N forts all
 cost the price of the first), `consMatsToSpend` is never decremented, and `fortsBuilt` is
@@ -298,7 +298,7 @@ AI defenders are softer than they should be, AI economies are poorer than they s
 the AI is burning its gold on nothing instead of on army.
 
 **E3. The AI buys its main tranche of infantry at a tenth of the price.** **CLOSED, stage 1.10.**
-[aiCalculations.js:1238](../aiCalculations.js#L1238):
+[aiCalculations.js:1238](../../aiCalculations.js#L1238):
 
 ```js
 let finalInfantryQuantity = goldToSpend / armyGoldPrices.infantry   // a COUNT of troops
@@ -314,7 +314,7 @@ The first tranche a few lines above is charged correctly, which is why it is eas
 
 **E4. The affordability check and the price charged are computed by different formulas.** **CLOSED, stage 1.7.**
 `calculateAvailableUpgrades()` at
-[resourceCalculations.js:2215](../resourceCalculations.js#L2215) prices a farm at
+[resourceCalculations.js:2215](../../resourceCalculations.js#L2215) prices a farm at
 `base · 1.05 · devIndex/4` — **the n = 1 price, with no `n²` term** — floored by
 `Math.max(simulatedCostsAll[i], …)`, where `simulatedCostsAll` is a module-level array written
 by the *previously rendered* upgrade table and never reset. `calculateAvailableUpgrades()` is
@@ -447,7 +447,7 @@ named in the Design Notes.
 upgrade slots; China needs one. Because the initial capacity is `f(area, devIndex, continent)`
 and the price ladder is `f(devIndex)`, a small developed country is locked out of its own
 upgrade tree while a large one is not. The AI's `forestWorkAround` in
-[aiCalculations.js:1031](../aiCalculations.js#L1031) — *"sometimes the cost of a forest upgrade
+[aiCalculations.js:1031](../../aiCalculations.js#L1031) — *"sometimes the cost of a forest upgrade
 in consMats is too much for the country when it has max consmats, so this helps it out"* — is a
 plaster over exactly this.
 
@@ -635,7 +635,7 @@ criteria are measurements, not a playthrough.
    construction-material bottleneck. Every one of those tables is a regression test for a
    balance change.
 2. **`tools/ai-sim.mjs`, 150 turns per goal**, against
-   [archived/05-goals-and-victory.md](./archived/05-goals-and-victory.md) §5 — the standing
+   [archived/05-goals-and-victory.md](.././archived/05-goals-and-victory.md) §5 — the standing
    acceptance criterion for any change to `src/ai/`, and Stage 1 changes what the AI can afford.
    New columns needed: mean upgrades built per country, mean fort count, and gold held versus
    gold earned.

@@ -11,7 +11,7 @@ import { test, expect } from "../../support/fixtures.js";
 // takes an injected RNG -- the canary is
 // `bootstrap/e2e-hook.spec.js`'s "the same seed produces the same world".
 //
-// docs/03-e2e-test-plan.md section 5.10.
+// docs/02-e2e-test-plan.md section 5.10.
 
 /** Attack a reachable enemy of `source` with everything the window will allow. */
 async function startBattleFrom(game, source, { units = "infantry" } = {}) {
@@ -21,6 +21,11 @@ async function startBattleFrom(game, source, { units = "infantry" } = {}) {
     const target = await game.firstEnemyReachableFrom(source);
     expect(target, `${source} could reach no enemy territory`).not.toBeNull();
 
+    //A NEUTRAL COUNTRY CANNOT BE ATTACKED since the diplomacy phase: `allowsAttack()`
+    //permits WAR and nothing else, and first contact is NEUTRAL. Without this the move
+    //button never reads ATTACK and the window never opens, which is how this helper's five
+    //specs came to fail on a game that works.
+    await game.declareWarOn(target);
     await game.selectOnMap(target);
     await game.moveButton.click();
     await expect.poll(async () => game.transferAttack.isOpen()).toBe(true);

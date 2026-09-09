@@ -12,7 +12,7 @@
 // calculatePathAreas() samples 80 points along every one of the 359 territory
 // paths with getPointAtLength(), then applies the shoelace formula. That is ~230ms
 // of main-thread work on every single page load, and the answer never changes
-// unless the SVG does. See docs/01-codebase-audit.md section 4.2.
+// unless the SVG does. See docs/archived/01-codebase-audit.md section 4.2.
 //
 // The sampling needs real SVG geometry APIs (getTotalLength, getPointAtLength),
 // which is why this runs the *same* algorithm inside headless Chromium rather than

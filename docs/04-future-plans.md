@@ -1,4 +1,13 @@
-# What Is Missing — the gap between a working prototype and a game
+# Future Plans — the standing list of what to do next
+
+**Nothing in this document is committed.** It is the list of what could be built next and the
+argument for each, kept in one place so that a decision about what to do is made against the
+alternatives rather than against whatever was most recently annoying.
+
+**It was called *What Is Missing* until the diplomacy and opinion phases closed**, and the
+rename is not cosmetic: with no phase in flight this is now the only document that says what
+happens next, and a reader looking for that should not have to work out that a document about
+absence is also the plan.
 
 **This document is the standing list of what to do next.** It replaces
 [Outstanding Improvements](./archived/05-outstanding-improvements.md) and
@@ -9,7 +18,7 @@ map. **This document asks a different question, and it is the one now worth aski
 person sitting in front of it experience a game?***
 
 The distinction matters, because almost everything open in
-[04-known-issues.md](./04-known-issues.md) is of the first kind and nothing on this list is.
+[03-known-issues.md](./03-known-issues.md) is of the first kind and nothing on this list is.
 The register's remaining items (**G1** the cliff, **G6** the target band, **G7** the unspent
 army, **BO** the third continent, **C5** the player's starting forts) are all questions about
 numbers converging in a headless run. They are real and they are worth closing. **None of them
@@ -18,7 +27,7 @@ experience of playing a turn.
 
 **Written against the working tree at `dd86e01`.** Every claim below was checked against the
 code, not against the design document — where §11 of the
-[GDD](./02-game-design-document.md) disagrees with what follows, this is right and the GDD's
+[GDD](./01-game-design-document.md) disagrees with what follows, this is right and the GDD's
 row is stale (item 4, army maintenance, is the known case: it was re-enabled in Phase 3.16).
 
 ---
@@ -77,6 +86,15 @@ simulation came from leaders *dying and being replaced* — a country's characte
 breaks a stalemate. That is a genuinely good story generator and it is still mostly going to a
 console nobody reads: a name on a tooltip is the smallest possible share of it. The expensive
 half is built, and almost all of the telling is still missing.
+
+**THIS FINDING IS SMALLER THAN IT WAS, and M5 in the table above is now stale.** The opinion
+layer ([archived/08-opinion.md](./archived/08-opinion.md)) gave every country a directional
+memory of what every other country has done to it, and the diplomacy panel gives the player a
+reason in words every time an offer is accepted or refused — *"it bears you a grudge"*, *"this
+is the war it has committed to"*. So countries do now say something, and what they say is
+derived from what actually happened between the two of you. What is still missing is the half
+M4 names: the LEADERS remain almost invisible, and a succession — the thing that moves the
+simulation most — still reaches the player as nothing at all.
 
 ### 1.3 Nothing acknowledges what the player does
 
@@ -165,18 +183,77 @@ is the one thing that would make a 200-turn game feel like it had a shape.
 
 *Effort: a day.*
 
-### M-c — Diplomacy, first course *(M5)*
+### M-d — A country's SCORE, and an honourable order among the defeated
 
-Extend `populateAiDialogueBox()` past its single case: a non-aggression offer, a tribute demand,
-a joint-war proposal against a runaway leader. The last is nearly free on the AI side, because
-`urgency` already *is* "the strongest rival's share of the world's land" — the whole map already
-fights a runaway leader harder, and this would let the player hear about it.
+**Leigh's item.** Every country accumulates a **score** as the game runs: points for good
+diplomacy and for military victories. It is the first number in this game that measures a
+country's whole career rather than its present position.
 
-**The honest caveat**: real diplomacy across 206 countries is not a UI problem, it is the
-consolidation problem below wearing a different hat. A treaty screen listing 206 rows is not a
-feature. Do M-c as three set-piece offers, or do L-a first and then do it properly.
+**IT ONLY EVER GOES UP, AND THAT IS THE DESIGN RATHER THAN A SIMPLIFICATION.** Leigh's rule in
+his own words: *"they don't lose score for bad things they just don't gain points for bad
+things."* A losing streak stops earning; it does not erase what was earned before it. Three
+things follow from that, and each is why the rule is worth stating rather than assuming:
 
-*Effort: two days for the set pieces. **Needs the five-goal table.***
+- **It cannot be gamed by hiding.** A monotonic score is a record of what a country DID, so a
+  country that achieved a great deal and then collapsed keeps the achievement — which is
+  exactly what makes it usable as an epitaph.
+- **It needs no floor, no clamp and no decay.** Every other accumulating number in this
+  codebase needed an argument for why it terminates; this one has none to make.
+- **It is not a strength rating and must never be read as one.** A score is history and an army
+  is now. The moment somebody uses it to decide who is winning, it becomes a second, worse
+  answer to a question `victoryProgress()` already answers correctly.
+
+**WHERE IT IS SHOWN, AND WHERE IT IS DELIBERATELY NOT.** Leigh: *"when they are defeated the
+score is used as a way of ordering the defeated countries to give them some honor, but should
+not affect countries in play as they are ordered on other things and should stay that way."*
+
+So it has exactly one job in the interface. The standings tab already lists the beaten
+countries below a separator, and today they are **alphabetical** — a fallback chosen because
+nothing else was available, and stated as such in `rankedStandings()`. Score replaces that
+ordering and nothing else:
+
+| | ordered by | changed by this |
+|---|---|---|
+| countries still in play | `victoryProgress().fraction`, then territories, then name | **no** |
+| countries that are out | alphabetical | **yes — by score, best career first** |
+
+The separation is the whole point and it is easy to lose. The living ranking answers *who is
+about to win*; a country with a magnificent history and two provinces left is not winning, and
+sorting the live table by career would say it is.
+
+**What earns points, in the shape the code is already in.** Every candidate below already
+passes through exactly one door, which is what makes this affordable — the same property that
+made the opinion layer cheap:
+
+| Earned for | Where it is already observable |
+|---|---|
+| taking a territory | the `CONQUEST` activity entry |
+| winning a battle without taking ground | `ATTACK_FAILED` on the other side |
+| breaking a siege, or finishing one | the siege entries |
+| an agreement REACHED — a ceasefire, a peace, an alliance | `DIPLOMACY_CHANGED`, `via: "agreed"` |
+| answering a call to arms | `DIPLOMACY_CHANGED`, `via: "calledIn"` |
+| keeping an agreement for a long time | the relation's own `since`, read at the turn boundary |
+| holding a continent outright | `continentsHeldOutrightBy()` |
+
+**Two open questions, and neither should be settled by guessing.**
+
+1. **Is a betrayal worth zero, or is it worth what it gained?** "No penalty" is the stated rule,
+   but a country that breaks an alliance to take six provinces earns six conquests' worth of
+   score for the treachery. Not gaining for the *breach itself* is clearly right; whether the
+   conquests it enabled should count is a real design question.
+2. **Does the player have a score?** They are a country like any other, so yes by default — but
+   the player is the one country whose defeat ends the game, so the only place their score
+   could be read is the ending screen. That may be the best argument for having one.
+
+**Where it would live.** A single number per country, monotonic, in a save slice of its own or
+riding `aiStrategy` as the opinion store does. It is NOT derived — unlike who is defeated,
+which is a fact about the map, a career cannot be reconstructed from the present world, so this
+is one of the few things in this codebase that genuinely has to be stored. That makes the
+snapshot version question real for the first time in a while: a save taken before it existed
+restores no scores, and every country reading zero is a correct and harmless answer.
+
+*Effort: a day for the store and the earning hooks, an afternoon for the standings ordering.
+No acceptance run: it reads nothing and decides nothing, so it cannot move a measurement.*
 
 ---
 
@@ -292,7 +369,21 @@ item that makes the other three large ones worth building, and it is the one who
 the longer it is deferred, because every measurement taken before it has to be taken again
 after it.
 
-**The register stays separate.** [04-known-issues.md](./04-known-issues.md) is defects and
+**M-d, the score, is the cheapest thing on this list and is worth doing whenever.** It reads
+nothing and decides nothing — it accumulates, and it orders a list that is currently
+alphabetical — so it cannot move a measurement and needs no acceptance run. It is also the only
+item here that makes the game say something about a country AFTER it is beaten, which is a
+surprisingly large share of what "the world has characters" means over a long game.
+
+**And the diplomacy block is finished**, which is why M-c is no longer on this list. What was
+built is much larger than the item asked for: a state per pair of countries, agreements that
+can be proposed and refused with a stated reason, alliances with a call to arms and a price for
+breaking one, and — in the phase after it — an OPINION, so that what two countries have done to
+each other is remembered and decides who will deal with whom. Both are archived, and
+[archived/05-what-is-missing-delivered.md](./archived/05-what-is-missing-delivered.md) records
+what the item predicted correctly and what it got wrong.
+
+**The register stays separate.** [03-known-issues.md](./03-known-issues.md) is defects and
 convergence; this is design and experience. An item does not move between them — **G7** appears
 on both because it is genuinely both, and it is the only one.
 
@@ -300,8 +391,8 @@ on both because it is genuinely both, and it is the only one.
 
 ## 6. Cross-references
 
-- What is wrong with the code: [04-known-issues.md](./04-known-issues.md)
-- What each mechanic does today: [02-game-design-document.md](./02-game-design-document.md)
+- What is wrong with the code: [03-known-issues.md](./03-known-issues.md)
+- What each mechanic does today: [01-game-design-document.md](./01-game-design-document.md)
   (§11's table is partly stale — see the header note above)
 - Why combat and the economy are shaped as they are:
   [archived/05-combat-and-conquest-audit.md](./archived/05-combat-and-conquest-audit.md),

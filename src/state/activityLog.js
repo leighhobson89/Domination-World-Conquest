@@ -100,7 +100,41 @@ export const ActivityKind = Object.freeze({
      * because that is where the news is. A briefing filed under the turn it was computed in
      * would sit in the hidden section and the player would read it one turn late.
      */
-    BRIEFING: "briefing"
+    BRIEFING: "briefing",
+    /**
+     * A war was declared (diplomacy stage 6). Red.
+     *
+     * Includes an ally entering a war it was CALLED into, which is a declaration in
+     * everything but name -- the register cannot tell the two apart and a player who is
+     * suddenly fighting a country they never quarrelled with needs telling either way. The
+     * `via` on the entry's `diplomacy` object is what separates them in the wording.
+     */
+    DECLARATION: "declaration",
+    /**
+     * A ceasefire or a peace was agreed, lapsed, or was torn up. Green when it is signed and
+     * red when it goes.
+     *
+     * ONE kind for both agreements and for all four ways one arrives or leaves, because the
+     * card writer already switches on `via` and a fifth and sixth kind would be two more
+     * rows in `ActivityKind` saying what one field already says.
+     */
+    TREATY: "treaty",
+    /**
+     * An alliance was signed or ended. The three endings are `via`, and they are three
+     * different pieces of news: an ally refused a call to arms, both sides agreed to end it,
+     * or somebody's agreements were torn up because they broke faith elsewhere.
+     */
+    ALLIANCE: "alliance",
+    /**
+     * Somebody declared war on a country they had an agreement with -- the one act this
+     * system calls a BREACH, and the only one that costs anything (`betrayalPenalty`).
+     *
+     * Distinct from DECLARATION for the same reason SIEGE_ABANDONED is distinct from
+     * SIEGE_LIFTED: from the register both are "a pair went to war", and a feed that called
+     * them the same thing would lose the only piece of diplomatic news in the game that
+     * says something about a country's character rather than about its army.
+     */
+    BETRAYAL: "betrayal"
 });
 
 const KINDS = new Set(Object.values(ActivityKind));
@@ -142,6 +176,11 @@ let nextId = 1;
  * @param {string} [entry.event]     disaster entries only: the disaster's name
  * @param {number} [entry.territoriesHit]  disaster entries only: how many were struck
  * @param {object} [entry.briefing]  briefing entries only: the figures, from `briefingFacts()`
+ * @param {object} [entry.diplomacy]  diplomacy entries only: `{actor, other, from, to, via,
+ *        onBehalfOf}`. A SUB-OBJECT rather than six more flat fields, the arrangement
+ *        `briefing` already has and for the same reason: a diplomatic entry names two
+ *        COUNTRIES and no territory, so flattening it would put six permanently-empty
+ *        properties on every conquest in the log.
  */
 export function recordActivity(entry) {
     if (!entry || !KINDS.has(entry.kind)) {
@@ -166,7 +205,10 @@ export function recordActivity(entry) {
         defenderLeader: entry.defenderLeader ?? "",
         event: entry.event ?? "",
         territoriesHit: Number.isFinite(entry.territoriesHit) ? entry.territoriesHit : null,
-        briefing: entry.briefing ?? null
+        briefing: entry.briefing ?? null,
+        //Frozen SHALLOW, like everything else here: the sub-object is built fresh by
+        //`activityRecorder.js` on each event and handed over, so nothing else holds it.
+        diplomacy: entry.diplomacy ? Object.freeze({ ...entry.diplomacy }) : null
     });
 
     if (!byTurn.has(turn)) {

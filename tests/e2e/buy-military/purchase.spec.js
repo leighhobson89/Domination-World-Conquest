@@ -11,7 +11,7 @@ import { test, expect } from "../../support/fixtures.js";
 // asserting the old figures, so this spec failed while telling the truth about
 // nothing. They are imported now.
 //
-// docs/03-e2e-test-plan.md section 5.6.
+// docs/02-e2e-test-plan.md section 5.6.
 
 import {
     INFANTRY_IN_A_TROOP,

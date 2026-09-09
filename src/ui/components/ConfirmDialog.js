@@ -103,6 +103,10 @@ export function create() {
  * @param {string} options.message
  * @param {string} [options.confirmLabel]  defaults to "Yes"
  * @param {string} [options.cancelLabel]   defaults to "Cancel"
+ * @param {boolean} [options.dismissOnly]  a NOTICE rather than a question: the cancel button
+ *        is hidden and the one that is left simply closes it. There is nothing to decide, so
+ *        offering two buttons would be asking the player to answer something that has already
+ *        happened -- and the resolved value is `true` for a caller that ignores it
  * @param {string} [options.kind]  what sort of question this is, written to `data-kind` on
  *        the container. It exists for ONE reader: the e2e driver, which has to tell a
  *        question the AI put to the player -- and which blocks the turn until it is answered
@@ -116,6 +120,7 @@ export function open({
     message,
     confirmLabel = "Yes",
     cancelLabel = "Cancel",
+    dismissOnly = false,
     kind = null
 } = {}) {
     if (!root) create();
@@ -127,6 +132,10 @@ export function open({
     messageNode.textContent = message ?? "";
     confirmButton.textContent = confirmLabel;
     cancelButton.textContent = cancelLabel;
+    //A NOTICE HAS ONE BUTTON. `hidden` rather than removing it, so the same element is
+    //reused and the listeners installed once at `create()` stay attached -- and so a later
+    //question puts it back simply by clearing the flag.
+    cancelButton.hidden = Boolean(dismissOnly);
 
     if (kind) {
         root.setAttribute("data-kind", kind);
@@ -138,7 +147,11 @@ export function open({
     document.addEventListener("keydown", onKeyDown, true);
     // Focus lands on Cancel, not on the destructive button: an Enter left over from
     // whatever the player was doing a moment ago must not confirm the dialog.
-    cancelButton.focus();
+    //
+    // A NOTICE HAS NO CANCEL TO FOCUS, and a hidden element cannot take focus anyway -- the
+    // close button is the only one there is and it destroys nothing, so the reason for the
+    // rule above does not apply to it.
+    (dismissOnly ? confirmButton : cancelButton).focus();
 
     return new Promise((resolve) => {
         settle = resolve;

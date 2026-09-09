@@ -36,8 +36,27 @@
 //
 // IT NEVER GATES THE ROUND. Same contract as the dice (see the header of `DiceStage.js`): the
 // numbers in the battle window are already correct when this starts, `play()` is not awaited, and
-// a click anywhere over the battle window runs `finish()` to jump to the end state. A player who
-// does not want to watch never has to, and no e2e spec's timing depends on a render loop.
+// a click over the panel or its scrim runs `finish()` to jump to the end state. A player who does
+// not want to watch never has to, and no e2e spec's timing depends on a render loop.
+//
+// IT IS MODAL WHILE IT IS UP, AND IT USED NOT TO BE. The panel carried `pointer-events: none` --
+// the rule the siege markers and `#tooltip` follow -- on the argument that it sits over the middle
+// of the screen for several seconds and the click it would otherwise swallow is the one that
+// dismisses the battle-results screen underneath it. That argument was right about the results
+// screen and wrong about everything else: it also meant the battle window's own buttons could be
+// pressed straight THROUGH the panel, so a player reading the account of a round could advance
+// past it by clicking where a button happened to be. Leigh reported it.
+//
+// So there is a SCRIM, and the two things that made the old rule necessary are answered
+// separately rather than by making the panel transparent to clicks:
+//
+//   THE CLICK THAT SKIPS still works -- the scrim takes it, and `ui.js` wires it to the same
+//        `diceStage.skip()` + `finish()` pair the battle container's capture listener has always
+//        run. Nothing is lost; the click simply lands one layer higher.
+//   THE SEVEN-SECOND LINGER is no longer a wait the player cannot shorten. There is an X, and a
+//        second click on the scrim after the round has resolved takes the panel down. Making it
+//        modal without that would have replaced a panel you could click through with a panel you
+//        had to sit out.
 
 import { ids } from "../core/registry.js";
 import { el, mount } from "../core/dom.js";
@@ -84,6 +103,23 @@ const FADE_MS = 260;
 
 let root = null;
 let parts = null;
+
+/** The full-screen click blocker raised with the panel. See the header. */
+let scrim = null;
+
+/** What `ui.js` wants done when the X is pressed -- settling the dice, in practice. */
+let closeHandler = null;
+
+/**
+ * True once the panel has been TAKEN DOWN, as opposed to never having been up.
+ *
+ * It exists because the panel can now be closed by hand in the middle of a round, and
+ * `reveal()` is called from a promise that was chained before that happened
+ * (`rolled?.finally?.(() => clashPanel.reveal())` in `battle.js`). Without this, closing the
+ * panel while the dice were still tumbling put it straight back up a moment later, which
+ * reads as the X not working. `play()` clears it, so the next round opens normally.
+ */
+let dismissed = false;
 
 /** Every pending timer, so a skip or a close can cancel the sequence mid-flight. */
 let timers = [];
@@ -261,8 +297,9 @@ export function summaryFor(record, names = {}) {
     return { headline, detail, cost };
 }
 
-export function create() {
+export function create({ onClose = null } = {}) {
     if (root) return root;
+    closeHandler = typeof onClose === "function" ? onClose : null;
 
     //The header names both sides and says how many dice each brought, because "why do they get
     //four" is the first question the panel has to answer and the answer is a column heading.
@@ -271,12 +308,29 @@ export function create() {
         el("div", { class: "clashTitleRound" }),
         el("div", { class: "clashTitleSide clashTitleSide-defender" })
     ]);
+    //THE X, and it is a real control rather than a decoration: the linger is seven seconds and
+    //this panel is modal now, so without it the only way past a round you have finished reading
+    //is to wait. `type="button"` because it is inside no form and a bare <button> submits one.
+    const close = el("button", {
+        id: ids.battleClashClose,
+        class: "clashClose",
+        text: "×",
+        attrs: { type: "button", "aria-label": "Close" }
+    });
+    title.appendChild(close);
     const pairs = el("div", { id: ids.battleClashPairs, class: "clashPairs" });
     const headline = el("div", { class: "clashHeadline" });
     const detail = el("div", { class: "clashDetail" });
     const cost = el("div", { class: "clashCost" });
     const summary = el("div", { id: ids.battleClashSummary, class: "clashSummary" },
         [headline, detail, cost]);
+
+    //THE SCRIM IS A SIBLING AND NOT A PARENT. The panel is `position: fixed` and centred on the
+    //viewport; wrapping it in a full-screen box would make it a child of a positioned element and
+    //re-anchor it, which is the same trap `draggable.js` records for the transfer window's header.
+    //DOM order is what puts the scrim underneath: both sit in one stacking context.
+    scrim = el("div", { id: ids.battleClashScrim, class: "clashScrim" });
+    scrim.style.display = "none";
 
     root = el("div", { id: ids.battleClashPanel, class: "clashPanel" }, [title, pairs, summary]);
     root.style.display = "none";
@@ -291,8 +345,24 @@ export function create() {
         cost
     };
 
+    mount(ids.battleClashContainer, scrim);
     mount(ids.battleClashContainer, root);
+    close.addEventListener("click", (event) => {
+        //The click must not also reach the scrim underneath, which would run the skip as well.
+        event.stopPropagation();
+        hide();
+        closeHandler?.();
+    });
     return root;
+}
+
+/** Raise or drop the scrim with the panel. The one place its display is written. */
+function setScrim(open) {
+    if (!scrim) {
+        return;
+    }
+    scrim.style.display = open ? "block" : "none";
+    scrim.classList.toggle("is-open", Boolean(open));
 }
 
 /**
@@ -347,8 +417,10 @@ export function play(record, names = {}) {
     parts.cost.innerHTML = summary.cost;
 
     root.style.display = "flex";
+    setScrim(true);
     revealed = false;
     playing = true;
+    dismissed = false;
     //The CLASS as well as the flag. Only `hide()` used to take `is-revealed` off, and `hide()` has
     //not run when a second round is fought before the first one's panel has finished lingering --
     //which, with a linger measured in seconds, is most rounds. The panel then opened for round two
@@ -368,7 +440,7 @@ export function play(record, names = {}) {
  * that settles the dice also arrive here without starting the sequence twice.
  */
 export function reveal() {
-    if (!root || revealed || !parts) {
+    if (!root || revealed || !parts || dismissed) {
         return;
     }
     revealed = true;
@@ -406,7 +478,7 @@ function resolveRow(row) {
  * what it was showing. It finishes instantly and then lingers as normal.
  */
 export function finish() {
-    if (!root || !playing) {
+    if (!root || !playing || dismissed) {
         return;
     }
     clearTimers();
@@ -432,6 +504,12 @@ export function hide() {
     clearTimers();
     playing = false;
     revealed = false;
+    dismissed = true;
+    //THE SCRIM COMES DOWN AT ONCE AND THE PANEL FADES. They are deliberately not synchronised:
+    //a quarter of a second of a fading panel still blocking the buttons underneath it is a
+    //quarter of a second of clicks going nowhere, which is exactly the complaint this whole
+    //change is answering, only smaller.
+    setScrim(false);
     if (!root) {
         return;
     }
@@ -449,9 +527,13 @@ export function destroy() {
     clearTimers();
     playing = false;
     revealed = false;
+    dismissed = false;
     root?.remove();
+    scrim?.remove();
     root = null;
+    scrim = null;
     parts = null;
+    closeHandler = null;
 }
 
 export const clashPanel = {

@@ -23,6 +23,7 @@
 //     AND large, a distant AI conquest is green and small.
 
 import { ActivityKind, involvesPlayer } from "../../state/activityLog.js";
+import { DiplomaticState } from "../../state/diplomacy.js";
 import { classNames } from "../core/registry.js";
 
 /** The three tones, which are the three classes `style.css` colours. */
@@ -52,6 +53,17 @@ function place(entry) {
  */
 export function describeActivity(entry) {
     const isPlayer = involvesPlayer(entry);
+
+    //The four diplomatic kinds share one wording function, because what separates them is
+    //`via` rather than the kind -- see the diplomacy section below.
+    if (DIPLOMATIC_KINDS.has(entry.kind)) {
+        return {
+            text: diplomaticLine(entry),
+            tone: diplomaticTone(entry),
+            isPlayer,
+            icon: "diplomacy"
+        };
+    }
 
     switch (entry.kind) {
         case ActivityKind.CONQUEST:
@@ -152,6 +164,131 @@ export function summariseTurn(entries) {
     }
     const plural = total === 1 ? "action" : "actions";
     return mine > 0 ? `${total} ${plural}, ${mine} involving you` : `${total} ${plural}`;
+}
+
+// --- diplomacy: the compact line -------------------------------------------
+//
+// Diplomacy stage 6. The register is the one part of this game whose events leave NO mark on
+// the board: a declaration repaints nothing, a peace repaints nothing, and an alliance ending
+// is a control quietly disappearing from a panel the player may not have open. Before this
+// the whole of it went to `console.log`, which is where `recordCallInNews()` in `ui.js` said
+// it was living "until stage 6".
+//
+// **THE VIA IS WHAT THE WORDING IS BUILT ON, not the states.** A pair arriving at NEUTRAL out
+// of an alliance is three different pieces of news -- an ally refused a call to arms, both
+// sides agreed to part, or a third country's breach took this agreement down with it -- and
+// they are as different from each other as SIEGE_LIFTED is from SIEGE_ABANDONED. The states
+// alone cannot tell them apart, which is why `setRelationState()` carries the annotation.
+//
+// **NO COUNTRY NAME IS EVER USED AS AN ADJECTIVE.** There are no demonyms for 207 countries,
+// so "the France garrison" is what a naive template produces and there is no table that would
+// fix it. Every phrasing here names a country as a noun or as a genitive ("Germany's call to
+// arms"), and `tests/unit/ui-diplomacy-news.spec.js` fails the build if one reappears.
+
+/**
+ * The four kinds this file words as diplomacy. A SET rather than four `||`s, because it is
+ * asked in two places and the two must not drift.
+ */
+const DIPLOMATIC_KINDS = new Set([
+    ActivityKind.DECLARATION,
+    ActivityKind.TREATY,
+    ActivityKind.ALLIANCE,
+    ActivityKind.BETRAYAL
+]);
+
+/** An agreement as a NOUN, for "breaks ___ with". `describeState()` is sentence-shaped. */
+const AGREEMENT_NOUN = Object.freeze({
+    [DiplomaticState.CEASEFIRE]: "a ceasefire",
+    [DiplomaticState.PEACE]: "a peace",
+    [DiplomaticState.ALLIANCE]: "an alliance"
+});
+
+function agreementNoun(state) {
+    return AGREEMENT_NOUN[state] ?? "an agreement";
+}
+
+/** The two countries and the manner, with every field guaranteed to be something. */
+function diplomaticFacts(entry) {
+    const d = entry?.diplomacy ?? {};
+    return {
+        a: d.a ?? "",
+        b: d.b ?? "",
+        actor: d.actor ?? null,
+        from: d.from ?? "",
+        to: d.to ?? "",
+        via: d.via ?? "",
+        onBehalfOf: d.onBehalfOf ?? null
+    };
+}
+
+/**
+ * The one-line form, for the "Elsewhere in the world" list.
+ *
+ * Two hundred countries negotiating produce far more events than two hundred countries
+ * fighting, and almost none of them are the player's -- so this is the form most diplomatic
+ * news takes, and it has to say the whole thing in one clause.
+ */
+function diplomaticLine(entry) {
+    const f = diplomaticFacts(entry);
+
+    switch (entry.kind) {
+        case ActivityKind.BETRAYAL:
+            return `${f.a} breaks ${agreementNoun(f.from)} with ${f.b} and declares war`;
+
+        case ActivityKind.DECLARATION:
+            if (f.via === "calledIn") {
+                return f.onBehalfOf
+                    ? `${f.a} answers ${f.onBehalfOf} and enters the war with ${f.b}`
+                    : `${f.a} enters the war with ${f.b}`;
+            }
+            return f.actor
+                ? `${f.a} declares war on ${f.b}`
+                : `${f.a} and ${f.b} are at war`;
+
+        case ActivityKind.ALLIANCE:
+            if (f.to === DiplomaticState.ALLIANCE) {
+                return `${f.a} and ${f.b} sign an alliance`;
+            }
+            if (f.via === "declinedCall") {
+                return `${f.a} refuses ${f.b}'s call to arms — the alliance ends`;
+            }
+            if (f.via === "dropped") {
+                return `${f.a} tears up its alliance with ${f.b}`;
+            }
+            return `${f.a} and ${f.b} end their alliance by agreement`;
+
+        default:
+            //TREATY. A ceasefire or a peace, arriving or going.
+            if (f.to === DiplomaticState.CEASEFIRE || f.to === DiplomaticState.PEACE) {
+                if (f.via === "released" && f.onBehalfOf) {
+                    return `${f.a} comes out of the war with ${f.b} alongside ${f.onBehalfOf}`;
+                }
+                return `${f.a} and ${f.b} agree ${agreementNoun(f.to)}`;
+            }
+            if (f.via === "expired") {
+                return f.to === DiplomaticState.WAR
+                    ? `The ceasefire between ${f.a} and ${f.b} runs out and the war resumes`
+                    : `The ceasefire between ${f.a} and ${f.b} runs out`;
+            }
+            return `${f.a} tears up ${agreementNoun(f.from)} with ${f.b}`;
+    }
+}
+
+/**
+ * Green when an agreement is made, red when one is lost or a war is opened.
+ *
+ * AMBER IS LEFT ALONE, and that is deliberate: the feed's colour vocabulary says amber means
+ * a siege, and a diplomatic event borrowing it would cost the one tone in the panel that
+ * currently means exactly one thing. A ceasefire lapsing back into a war is bad news, so it
+ * is red; there is no third case that wants a third colour.
+ */
+function diplomaticTone(entry) {
+    const f = diplomaticFacts(entry);
+    if (f.to === DiplomaticState.CEASEFIRE || f.to === DiplomaticState.PEACE ||
+        f.to === DiplomaticState.ALLIANCE) {
+        return Tone.VICTORY;
+    }
+    return Tone.LOSS;
 }
 
 // --- the news cards --------------------------------------------------------
@@ -370,6 +507,168 @@ const SIEGE_CARDS = Object.freeze({
                 "garrison of " + e.defender + " held it." }
 });
 
+// --- the diplomacy cards ---------------------------------------------------
+//
+// The player's OWN diplomacy, and nothing else. Everything above is the compact line, which
+// is where the other two hundred countries' negotiations go -- and there are a great many of
+// them: a measured 150-turn run ends with something like five hundred agreements standing and
+// two hundred pairs at war, against a map on which fifty-one territories change hands on turn
+// one. A card for each would be a spreadsheet with more whitespace.
+//
+// **THE OTHER COUNTRY IS WORKED OUT FROM WHICH SIDE THE PLAYER IS ON**, never from a fixed
+// slot. A diplomatic entry stores the ACTOR first, so the player is `a` when they did it and
+// `b` when it was done to them, and a card that read `f.b` unconditionally would name the
+// player's own country back at them half the time.
+
+/** The country on the other side of this, and whoever rules it. */
+function counterparty(entry) {
+    const f = diplomaticFacts(entry);
+    return {
+        them: entry.playerAttacking ? f.b : f.a,
+        //`attackerLeader` is the leader of whoever is stored FIRST, so the other side's
+        //leader is the opposite field. Both may be empty -- old saves and spectated games
+        //carry none -- which is why a leader is always a separate trailing sentence.
+        theirLeader: entry.playerAttacking ? entry.defenderLeader : entry.attackerLeader
+    };
+}
+
+function declarationCard(entry) {
+    const f = diplomaticFacts(entry);
+    const { them, theirLeader } = counterparty(entry);
+
+    if (f.via === "calledIn") {
+        return entry.playerAttacking
+            ? { headline: "We enter the war with " + them,
+                story: "Our ally " + (f.onBehalfOf ?? "a partner") + " called, and we answered. " +
+                    "The war with " + them + " is ours now as well." }
+            : { headline: them + " joins the war against us",
+                story: them + " has answered " + (f.onBehalfOf ?? "an ally") +
+                    "'s call to arms. There is a second army in the field against us." +
+                    leaderNote(theirLeader, "%s did not have to come.") };
+    }
+    if (entry.playerAttacking) {
+        return {
+            headline: "War declared on " + them,
+            story: variant(entry, [
+                "The declaration was delivered this morning. Nothing now stands between our " +
+                    "armies and " + them + " but the border itself.",
+                "We are at war with " + them + ". The garrisons along that frontier have " +
+                    "been told to expect orders."
+            ]) + leaderNote(theirLeader, "%s is said to have expected it.")
+        };
+    }
+    return {
+        headline: them + " declares war",
+        story: variant(entry, [
+            them + " has declared war on us. The frontier is closed and the first reports " +
+                "of movement are already in.",
+            "A declaration of war has arrived from " + them + ". Whatever was holding that " +
+                "border together is no longer holding it."
+        ]) + leaderNote(theirLeader, "%s gave the order.")
+    };
+}
+
+function betrayalCard(entry) {
+    const f = diplomaticFacts(entry);
+    const { them, theirLeader } = counterparty(entry);
+    const broken = agreementNoun(f.from);
+
+    return entry.playerAttacking
+        ? { headline: "We break " + broken + " with " + them,
+            story: "We had " + broken + " with " + them + " and we have gone to war anyway. " +
+                "No other country will agree anything with us until this is forgotten, and " +
+                "what we had agreed elsewhere has gone with it." }
+        : { headline: them + " breaks faith",
+            story: them + " had " + broken + " with us and has declared war regardless." +
+                leaderNote(theirLeader, "%s will find nobody willing to sign anything for " +
+                    "some time.") };
+}
+
+function treatyCard(entry) {
+    const f = diplomaticFacts(entry);
+    const { them, theirLeader } = counterparty(entry);
+
+    if (f.to === DiplomaticState.CEASEFIRE || f.to === DiplomaticState.PEACE) {
+        const signed = f.to === DiplomaticState.CEASEFIRE ? "Ceasefire" : "Peace";
+        return {
+            headline: signed + " with " + them,
+            story: f.to === DiplomaticState.CEASEFIRE
+                ? "The guns are down along the border with " + them + ". It will not last " +
+                    "for ever, and while it holds there is a front we do not have to garrison."
+                : "There is peace with " + them + ". Neither of us will attack the other " +
+                    "again unless one of us tears this up." +
+                    leaderNote(theirLeader, "%s signed for the other side.")
+        };
+    }
+    if (f.via === "expired") {
+        return {
+            headline: "The ceasefire with " + them + " runs out",
+            story: f.to === DiplomaticState.WAR
+                ? "The clock has run down on the ceasefire with " + them +
+                    " and the war it paused is back on."
+                : "The ceasefire with " + them + " has lapsed. Neither of us is bound to " +
+                    "anything now."
+        };
+    }
+    return {
+        headline: them + " tears up " + agreementNoun(f.from),
+        story: them + " will not stand by what we agreed. It was torn up because they " +
+            "broke faith somewhere else, and nobody keeps a treaty with a country that has " +
+            "just broken one."
+    };
+}
+
+function allianceCard(entry) {
+    const f = diplomaticFacts(entry);
+    const { them, theirLeader } = counterparty(entry);
+
+    if (f.to === DiplomaticState.ALLIANCE) {
+        return {
+            headline: "Alliance with " + them,
+            story: "We are allied with " + them + ". Both treasuries are the better for it, " +
+                "we can see what they can see, and either of us may call on the other when " +
+                "the fighting starts." +
+                leaderNote(theirLeader, "%s put a name to it.")
+        };
+    }
+    if (f.via === "declinedCall") {
+        return entry.playerAttacking
+            ? { headline: "We refuse " + them + "'s call to arms",
+                story: "We would not fight the war " + them + " chose, and the alliance " +
+                    "has ended. Nothing is owed either way." }
+            : { headline: them + " will not answer the call",
+                story: them + " has refused to join the war and the alliance is over. " +
+                    "Nothing is owed either way, and we are fighting it alone." +
+                    leaderNote(theirLeader, "%s would not be moved.") };
+    }
+    if (f.via === "dropped") {
+        return {
+            headline: them + " tears up our alliance",
+            story: them + " has broken faith elsewhere, and the alliance went with every " +
+                "other agreement they held."
+        };
+    }
+    return {
+        headline: "The alliance with " + them + " ends",
+        story: "Both sides agreed to it and nothing is owed either way. The income it paid " +
+            "stops this turn."
+    };
+}
+
+/** The diplomacy card for an entry, with the tone and the icon the four kinds share. */
+function diplomacyCard(entry) {
+    const card = entry.kind === ActivityKind.BETRAYAL ? betrayalCard(entry)
+        : entry.kind === ActivityKind.DECLARATION ? declarationCard(entry)
+            : entry.kind === ActivityKind.ALLIANCE ? allianceCard(entry)
+                : treatyCard(entry);
+    return {
+        ...card,
+        tone: diplomaticTone(entry),
+        isPlayer: true,
+        icon: "diplomacy"
+    };
+}
+
 // --- the briefing card -----------------------------------------------------
 //
 // Register item E7, and the one card that is a SUMMARY rather than an event. Everything else
@@ -523,6 +822,9 @@ export function newsCardFor(entry) {
     }
     if (entry.kind === ActivityKind.ATTACK_FAILED) {
         return battleCard(entry);
+    }
+    if (DIPLOMATIC_KINDS.has(entry.kind)) {
+        return diplomacyCard(entry);
     }
     const siege = SIEGE_CARDS[entry.kind];
     if (siege) {

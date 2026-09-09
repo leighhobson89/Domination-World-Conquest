@@ -32,6 +32,7 @@ import {
     ProposalKind,
     RELATION_DISPLAY_ORDER
 } from "../../state/diplomacy.js";
+import { describeOpinion } from "../../ai/opinion.js";
 import { toneFor } from "./relationTone.js";
 
 /** How a group of relations is headed. Plural, because a group holds a list. */
@@ -57,11 +58,18 @@ const GROUP_HEADING = Object.freeze({
  * @param {Array<{country: string, state: string, since: number|null, until: number|null}>}
  *        input.relations   from `relationsFor(player)`
  * @param {(country: string) => number} [input.territoryCountOf]
+ * @param {(country: string) => boolean} [input.isDefeated]  a country that holds no territory
+ *        is out of the game and is dropped entirely -- see below
  * @param {string} [input.search]  a substring filter on the country name, case-insensitive
  * @returns {{groups: Array<{state: string, heading: string, rows: Array}>, total: number,
  *            counts: object}}
  */
-export function diplomacyGroups({ relations = [], territoryCountOf = null, search = "" } = {}) {
+export function diplomacyGroups({
+    relations = [],
+    territoryCountOf = null,
+    isDefeated = null,
+    search = ""
+} = {}) {
     const needle = String(search ?? "").trim().toLowerCase();
     const counts = {};
     const byState = new Map();
@@ -69,6 +77,16 @@ export function diplomacyGroups({ relations = [], territoryCountOf = null, searc
     for (const relation of relations) {
         const country = relation?.country;
         if (!country) {
+            continue;
+        }
+        //A DEFEATED COUNTRY IS DROPPED BEFORE IT IS COUNTED, and it is the one filter here
+        //that comes before the count rather than after it. The search box is a filter on a
+        //list; this is a fact about the world. A country that holds no territory is out of
+        //the game, and a heading reading "At war: 3" that includes two countries the player
+        //has already conquered is not a count with a filter applied to it -- it is a wrong
+        //number. Reported by Leigh, who took a one-territory country's only province and
+        //went on being shown at war with it.
+        if (isDefeated && isDefeated(country)) {
             continue;
         }
         const state = relation.state ?? DiplomaticState.NO_CONTACT;
@@ -132,6 +150,7 @@ export function diplomacyGroups({ relations = [], territoryCountOf = null, searc
  * @param {number|null} [input.territories]  how many territories they hold
  * @param {Array<{country: string, state: string}>} [input.theirRelations]  everybody THEY
  *        have a relation with, from `relationsFor(country)`
+ * @param {number|null} [input.opinion]  what THEY think of the player, -100..100
  * @returns {object}
  */
 export function countryDetail({
@@ -141,7 +160,8 @@ export function countryDetail({
     until = null,
     turn = null,
     territories = null,
-    theirRelations = []
+    theirRelations = [],
+    opinion = null
 } = {}) {
     const facts = [];
     const held = asNumber(territories);
@@ -165,6 +185,20 @@ export function countryDetail({
     }
     if (state === DiplomaticState.CEASEFIRE && asNumber(until) !== null) {
         facts.push({ label: "Runs out", value: "turn " + until });
+    }
+
+    //HOW THEY REGARD THE PLAYER (docs/archived/08-opinion.md §4). This is the panel where the offers
+    //are actually made and refused, so it is the place the number most needs to be: an
+    //opinion is the one input to a refusal that the player can DO something about, and
+    //`describeOpinion()` is the same wording the tooltip's bars carry -- the bands live in
+    //`opinion.js` precisely so that the two surfaces cannot describe one number differently.
+    const regard = asNumber(opinion);
+    if (regard !== null) {
+        facts.push({
+            label: "Regards you as",
+            value: describeOpinion(regard) + " (" + (regard > 0 ? "+" : "") +
+                Math.round(regard) + ")"
+        });
     }
 
     //WHO ELSE THEY ARE FIGHTING. Not a cheat and not intelligence-sharing: a war is a fact

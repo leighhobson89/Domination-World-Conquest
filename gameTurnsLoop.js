@@ -173,6 +173,7 @@ import {
     recordActivity,
     restoreActivityLog
 } from './src/state/activityLog.js';
+import { installOpinionRecorder } from "./src/ai/opinionRecorder.js";
 import {
     installActivityRecorder,
     recordBriefing,
@@ -271,7 +272,9 @@ installTestHooks({
         //borders touching, which is exactly what a spec's two adjacent territories have
         //already done -- it simply may not have been walked yet this turn.
         refreshDiplomaticContacts();
-        setRelationState(a, b, DiplomaticState.WAR, { since: currentTurn() });
+        setRelationState(a, b, DiplomaticState.WAR, {
+            since: currentTurn(), by: a, via: "declared"
+        });
         return { a, b, state: relationStateBetween(a, b) };
     },
     //THE OTHER FIVE STATES, and this exists for the same reason `declareWar()` does: nothing
@@ -287,7 +290,16 @@ installTestHooks({
         setRelationState(a, b, state, {
             since: options?.since ?? turn,
             until: options?.until ?? (ceasefire ? turn + peaceDiscipline.ceasefireTurns : null),
-            revertsTo: options?.revertsTo ?? (ceasefire ? relationStateBetween(a, b) : null)
+            revertsTo: options?.revertsTo ?? (ceasefire ? relationStateBetween(a, b) : null),
+            //WHO ACTED AND BY WHAT ROUTE, overridable. They default to "`a` agreed it", which
+            //is what every caller before the declaration notice wanted and is why they were
+            //written as literals. They have to be reachable now because a pair arriving at WAR
+            //looks identical whichever route wrote it, and the things that READ the transition
+            //-- the news, the opinion recorder, the notice put to the player -- all switch on
+            //exactly these two fields. A hook that could only ever say "agreed" could set up
+            //any STATE and not one of the events that produce it.
+            by: options?.by === undefined ? a : options.by,
+            via: options?.via ?? "agreed"
         });
         return { a, b, state: relationStateBetween(a, b) };
     },
@@ -786,6 +798,21 @@ installActivityRecorder({
         const row = getArrayOfLeadersAndCountries()
             .find((entry) => entry[0] === countryName);
         return row?.[1]?.name ?? "";
+    }
+});
+
+//WHAT THE WORLD DOES TO WHAT COUNTRIES THINK OF EACH OTHER. It is installed beside the
+//activity recorder because it reads the same events for the same reason, and its one
+//injected dependency is the same one and for the same reason: `reconquista` decides how
+//much a country minds losing a province, and the leader table lives in this file.
+installOpinionRecorder({
+    traitsFor: (countryName) => {
+        if (!countryName) {
+            return {};
+        }
+        const row = getArrayOfLeadersAndCountries()
+            .find((entry) => entry[0] === countryName);
+        return row?.[1]?.traits ?? {};
     }
 });
 

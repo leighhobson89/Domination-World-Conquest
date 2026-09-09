@@ -5,7 +5,7 @@ from a full audit of the battle UI and the battle system, and from thirteen desi
 with Leigh (recorded verbatim in §3).
 
 This document is the spec and the phase order that replaced open battle. It supersedes
-[../02-game-design-document.md](../02-game-design-document.md) §7.1–7.3 and §7.7, which now describe
+[../01-game-design-document.md](../01-game-design-document.md) §7.1–7.3 and §7.7, which now describe
 the dice model. The live tracker, with what each phase deliberately left out and why, is
 [battle_overhaul_checklist.md](./battle_overhaul_checklist.md).
 
@@ -21,12 +21,12 @@ two — see the note on `DICE_ATTACK_ADVANTAGE` in `src/config/balance.js`.
 
 | Path | Resolver | Model |
 |---|---|---|
-| Player attacks | [battle.js:687](../battle.js#L687) `processRound` → [src/rules/military/battle.js:120](../src/rules/military/battle.js#L120) `resolveRound` | 5 rounds, per-unit skirmishes, `UNIT_MATCHUP_EFFECTIVENESS`, six outcomes |
-| AI attacks (including on the player) | [aiCalculations.js:1475](../aiCalculations.js#L1475) `doAttack` | a `while` loop fighting to the death on combined force, one flat probability, chunked 1000/100/10/1 |
+| Player attacks | [battle.js:687](../../battle.js#L687) `processRound` → [src/rules/military/battle.js:120](../src/rules/military/battle.js#L120) `resolveRound` | 5 rounds, per-unit skirmishes, `UNIT_MATCHUP_EFFECTIVENESS`, six outcomes |
+| AI attacks (including on the player) | [aiCalculations.js:1475](../../aiCalculations.js#L1475) `doAttack` | a `while` loop fighting to the death on combined force, one flat probability, chunked 1000/100/10/1 |
 
 The AI's version has no rounds, no unit types, no matchup matrix, no rout, no last push, no
 war weariness and no per-exchange odds cap. The only thing the two share is
-[probability.js:81](../src/rules/military/probability.js#L81) `winProbability`.
+[probability.js:81](../../src/rules/military/probability.js#L81) `winProbability`.
 
 **This is the largest structural finding in the audit.** The odds the player is shown are
 produced by a model the AI does not use, so what the number means when *you* attack and what
@@ -37,7 +37,7 @@ one of the two systems at a time.
 ### 1.2 The skirmish count is the felt problem
 
 `totalSkirmishes = min(attackerUnits, defenderUnits)`, split over `BATTLE_ROUNDS = 5`
-([battle.js:377](../battle.js#L377)). Garrisons run 10^5–10^6 personnel; the test scenarios
+([battle.js:377](../../battle.js#L377)). Garrisons run 10^5–10^6 personnel; the test scenarios
 use 800,000 infantry for Germany. So:
 
 - one press of Advance resolves up to ~200,000 individual RNG coin flips, each killing
@@ -52,30 +52,30 @@ whole battle — twenty a round. The same force as infantry produces a million.
 
 ### 1.3 The dice are built and disconnected
 
-[dices.js](../dices.js) is a complete Three.js + cannon-es physics roller: two dice, coloured
+[dices.js](../../dices.js) is a complete Three.js + cannon-es physics roller: two dice, coloured
 against the enemy's colour, the result read off the resting quaternion in
-[dices.js:375](../dices.js#L375). Its one call site is commented out at
-[battle.js:688](../battle.js#L688). `toggleDiceCanvas(true)` still fires on *Begin War!*
-([ui.js:1484](../ui.js#L1484)) and shows an empty 800×600 container. The `dist/` UMD bundles
+[dices.js:375](../../dices.js#L375). Its one call site is commented out at
+[battle.js:688](../../battle.js#L688). `toggleDiceCanvas(true)` still fires on *Begin War!*
+([ui.js:1484](../../ui.js#L1484)) and shows an empty 800×600 container. The `dist/` UMD bundles
 (~1 MB of THREE and CANNON) load on every page view to support it.
 
 Three facts about it decide how it can be used:
 
-- **`throwDice()` draws from `Math.random`** ([dices.js:440](../dices.js#L440)) — on the
+- **`throwDice()` draws from `Math.random`** ([dices.js:440](../../dices.js#L440)) — on the
   game's stream. As written, wiring it up would break every seeded outcome in the suite.
 - **The physics decides the number.** It cannot be seeded reliably (float accumulation across
   `fixedStep`), so it can never be the source of truth for a deterministic battle.
 - `document.querySelector(sel.canvas)` runs at module load and resolves to `null`
-  ([dices.js:12](../dices.js#L12)); the real element is created later in `createCanvas()`.
+  ([dices.js:12](../../dices.js#L12)); the real element is created later in `createCanvas()`.
 
 ### 1.4 What the player sees
 
-[BattleUI.js](../src/ui/components/BattleUI.js) — five rows: flags and title, the probability
+[BattleUI.js](../../src/ui/components/BattleUI.js) — five rows: flags and title, the probability
 bar, eight army figures (four attacker, four defender), a defender stat strip (productive
 population, food, fort defence, mountain defence), and three buttons.
 
 The button state machine is ~180 lines inside `ui.js`'s `DOMContentLoaded`
-([ui.js:1477](../ui.js#L1477)), switching on a module-level `advanceButtonState` of 0–3 and,
+([ui.js:1477](../../ui.js#L1477)), switching on a module-level `advanceButtonState` of 0–3 and,
 in two places, on the button's own **label** (`if (advanceButton.innerHTML === "Start Attack!")`).
 Row 4's four stats are the only account of the odds the player is given, and nothing connects
 them to the number in the bar.
@@ -84,17 +84,17 @@ them to the number in the bar.
 
 | | |
 |---|---|
-| **`firstSetOfRounds` is a one-way latch** | Set `false` at [battle.js:793](../battle.js#L793) and never set back to `true` anywhere in the codebase. After the first battle in a session reaches a second set of rounds, every later battle takes the "End Round" branch at [ui.js:1517](../ui.js#L1517) for the rest of the session. |
-| **An army array that is sometimes five long** | [battle.js:463](../battle.js#L463) and [battle.js:557](../battle.js#L557) do `defendingArmyRemaining.push(0)` / `.push(1)` to record a *defeat type*, read back as `defendingArmyRemaining[4]` in the retreat handler ([ui.js:1439](../ui.js#L1439)). A unit-count array carrying a discriminant in slot 4. |
-| **Retreat writes territory state directly** | Three near-identical blocks from [ui.js:1399](../ui.js#L1399) set `infantryForCurrentTerritory` … and recompute `armyForCurrentTerritory` by hand, bypassing `state/mutations.js`. Every retreat is a state-guard violation, and the personnel formula is duplicated four times in the one handler. |
+| **`firstSetOfRounds` is a one-way latch** | Set `false` at [battle.js:793](../../battle.js#L793) and never set back to `true` anywhere in the codebase. After the first battle in a session reaches a second set of rounds, every later battle takes the "End Round" branch at [ui.js:1517](../../ui.js#L1517) for the rest of the session. |
+| **An army array that is sometimes five long** | [battle.js:463](../../battle.js#L463) and [battle.js:557](../../battle.js#L557) do `defendingArmyRemaining.push(0)` / `.push(1)` to record a *defeat type*, read back as `defendingArmyRemaining[4]` in the retreat handler ([ui.js:1439](../../ui.js#L1439)). A unit-count array carrying a discriminant in slot 4. |
+| **Retreat writes territory state directly** | Three near-identical blocks from [ui.js:1399](../../ui.js#L1399) set `infantryForCurrentTerritory` … and recompute `armyForCurrentTerritory` by hand, bypassing `state/mutations.js`. Every retreat is a state-guard violation, and the personnel formula is duplicated four times in the one handler. |
 | **`battle.js` exports ~25 module-level `let`s of per-battle scratch** | `updatedProbability`, `defendingTerritory`, `skirmishesPerRound`, `attackingArmyRemaining` … all live bindings other modules read. Already noted in known-issues as a Phase 5.3 leftover; it is now a blocker, because a battle that can be watched, saved and replayed needs to be *state*. |
 
 ### 1.6 Already logged and directly relevant
 
 - **AP** — the rout / last-push thresholds compare each side against its force as it stood at
-  the **start** of the round, a full round of lag ([battle.js:766](../battle.js#L766)).
+  the **start** of the round, a full round of lag ([battle.js:766](../../battle.js#L766)).
 - **AR** — `areaBonusFor()` has a `min`/`max` slip
-  ([probability.js:44](../src/rules/military/probability.js#L44)), so small territories get
+  ([probability.js:44](../../src/rules/military/probability.js#L44)), so small territories get
   **no** defensive bonus and large ones are penalised — the reverse of the intent.
 - `SKIRMISH_ODDS_CAP = 0.65` means a 10:1 attacker still loses a third of its exchanges
   (GDD §12.2).
@@ -408,7 +408,7 @@ What changes is the **vocabulary**, so the two halves of the war model read as o
 - The siege screen rolls **visible dice** each turn: the siege train's dice against the
   fortress's, both derived from the existing `scoreDifferenceFor()` bands rather than from
   §4.2. The hit / destroy / collateral maths in
-  [src/rules/military/siege.js](../src/rules/military/siege.js) is unchanged underneath; the
+  [src/rules/military/siege.js](../../src/rules/military/siege.js) is unchanged underneath; the
   dice are the *presentation* of `siegeHitProbability()` and `rollBuildingDestruction()`.
 - **Siege grinding carries into the assault** as the attacker die modifier in §4.4 — the
   reward for patience, and the reason to lay a siege you intend to finish yourself.
@@ -663,7 +663,7 @@ Visible dice on the siege screen; the siege-grinding modifier carried into the a
 every colour literal is out of `battle.js` — the logs because what they narrated is now on screen
 in the ledger and the round log, the literals because "inert" became a class. `dist/` came off the
 critical path: ~785 KB of physics and rendering runtime is fetched on the first dice roll of a
-session instead of on every page view. GDD §7, `04-known-issues.md` and `03-e2e-test-plan.md`
+session instead of on every page view. GDD §7, `03-known-issues.md` and `02-e2e-test-plan.md`
 updated.
 
 **Four things B.10 found that were not on its list**, all of them consequences of removing a
@@ -741,9 +741,9 @@ almost every assertion in §8.1 costs a second.
 
 ## 10. Cross-references
 
-- Current behaviour: [../02-game-design-document.md](../02-game-design-document.md) §7
-- Defect register: [../04-known-issues.md](../04-known-issues.md) — **AP**, **AR**, and the
+- Current behaviour: [../01-game-design-document.md](../01-game-design-document.md) §7
+- Defect register: [../03-known-issues.md](../03-known-issues.md) — **AP**, **AR**, and the
   `dices.js` row under §6
-- Harness and scenarios: [../03-e2e-test-plan.md](../03-e2e-test-plan.md) §3.7
-- The one dial: `ATTACK_ADVANTAGE` in [src/config/balance.js](../src/config/balance.js), and
+- Harness and scenarios: [../02-e2e-test-plan.md](../02-e2e-test-plan.md) §3.7
+- The one dial: `ATTACK_ADVANTAGE` in [src/config/balance.js](../../src/config/balance.js), and
   the measurement recorded in GDD §7.0

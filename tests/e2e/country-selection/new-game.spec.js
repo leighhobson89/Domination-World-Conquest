@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { containers, phaseBar } from "../../support/selectors.js";
 
 // New Game through to a country being picked.
-// docs/03-e2e-test-plan.md section 5.2.
+// docs/02-e2e-test-plan.md section 5.2.
 
 
 test.describe("new game", () => {

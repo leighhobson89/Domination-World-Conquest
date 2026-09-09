@@ -12,7 +12,7 @@
 // dynamic import of resourceCalculations.js. If the territory model was not ready
 // within that second, every `id[...]` lookup returned undefined and the entire
 // Map collapsed into a single `undefined` key -- silently disabling every island
-// rule below. See docs/01-codebase-audit.md section 3.1.
+// rule below. See docs/archived/01-codebase-audit.md section 3.1.
 //
 // Two defects were fixed while porting; both are covered by tests:
 //

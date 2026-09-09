@@ -3,7 +3,7 @@ import { battle } from "../../support/selectors.js";
 import { armyMaintenanceFor } from "../../../src/rules/economy/maintenance.js";
 
 // What a turn does to a siege, and what a siege does to the territory under it.
-// docs/03-e2e-test-plan.md section 5.11.
+// docs/02-e2e-test-plan.md section 5.11.
 
 /** Put France under a player siege and return once it is in the store. */
 async function besiegeFrance(game, page) {

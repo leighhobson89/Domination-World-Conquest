@@ -11,7 +11,7 @@ import { territoryNames } from "../../support/territories.js";
 // `refinedTurnGoals` from inside a loop indexed against the old length. The
 // rejection escapes the `gameLoop()` promise chain uncaught, so the turn counter
 // never advances again and the game is frozen on "AI MOVING...". See
-// docs/01-codebase-audit.md section 5.1 AA; refactor Phase 3.1a fixes it and
+// docs/archived/01-codebase-audit.md section 5.1 AA; refactor Phase 3.1a fixes it and
 // un-fixmes the ten-turn spec below.
 //
 // Measured over six seeds the earliest crash was turn 3, but the sparkle timer
@@ -21,7 +21,7 @@ import { territoryNames } from "../../support/territories.js";
 // rather than left to flake. The single-turn specs stay green, so the loop still
 // has a guard while the defect stands.
 //
-// docs/03-e2e-test-plan.md section 5.3.
+// docs/02-e2e-test-plan.md section 5.3.
 
 const TURNS = 10;
 const SAFE_TURNS = 2;

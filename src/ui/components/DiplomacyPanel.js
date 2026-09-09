@@ -51,6 +51,8 @@ import {
     diplomacyGroups,
     diplomacySummary
 } from "../diplomacy/relationsPanelModel.js";
+import { opinionOf } from "../../ai/opinion.js";
+import { isDefeated } from "../../state/defeated.js";
 import { diplomacyIcon } from "../icons.js";
 
 let buttonRoot = null;
@@ -328,6 +330,10 @@ export function render() {
     const { groups, counts } = diplomacyGroups({
         relations,
         territoryCountOf: (country) => territoriesOwnedByCountry(country).length,
+        //OUT OF THE GAME, SO OFF THE LIST. The register outlives the countries in it, so
+        //without this the panel accumulates wars against countries the player has already
+        //conquered -- and the group headings count them.
+        isDefeated,
         search,
     });
 
@@ -385,6 +391,11 @@ function renderDetail(player) {
         turn: currentTurn(),
         territories: territoriesOwnedByCountry(selected).length,
         theirRelations: relationsFor(selected),
+        //THEIR opinion of the player and not the player's of them, because this panel is
+        //where the offers are made and refused and theirs is the one that decides the
+        //answer. The state goes with it: an unrecorded pair reads as the resting point its
+        //standing relationship implies rather than as zero.
+        opinion: opinionOf(selected, player, record?.state ?? DiplomaticState.NO_CONTACT),
     });
 
     detailNode.append(el("div", { class: "diplomacy-detail-header" }, [

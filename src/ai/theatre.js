@@ -35,7 +35,7 @@
 // leaf sibling. It runs in Node -- adjacency is not loaded there, so the frontier is an
 // injectable dependency and defaults to the real one only when it is available.
 
-import { postureThresholds, theatreCommitment } from "../config/balance.js";
+import { opinionDiscipline, postureThresholds, theatreCommitment } from "../config/balance.js";
 import { getInteractableFrom, isAdjacencyLoaded } from "../data/adjacency.js";
 import { getTerritoryByName, territoriesOwnedByCountry } from "../state/selectors.js";
 import { territoryValue } from "./value.js";
@@ -233,7 +233,7 @@ function tierOf(candidate) {
  * neighbour whose border territories are held more thinly than ours can actually be taken,
  * and one whose are not cannot, however valuable it is.
  */
-export function rankRivals(frontier, { focusContinent = null, country = "", turn = 0, rng = () => 0.5, sizeOf = null, preferredRivals = [] } = {}) {
+export function rankRivals(frontier, { focusContinent = null, country = "", turn = 0, rng = () => 0.5, sizeOf = null, preferredRivals = [], opinionOf = null } = {}) {
     const weights = theatreCommitment.weights;
     const rivals = [...frontier.values()];
     const widestFrontage = Math.max(1, ...rivals.map(entry => entry.frontage));
@@ -267,18 +267,42 @@ export function rankRivals(frontier, { focusContinent = null, country = "", turn
             //powers rather than to talk the country out of fighting one.
             const preferred = preferredRivals.includes(entry.rival);
 
+            //A GRUDGE, AND THIS IS WHERE OPINION STOPS BEING A DIPLOMATIC MODIFIER AND
+            //BECOMES A REASON THE WORLD GOES TO WAR. The mid-term goal is the single most
+            //consequential choice a country makes -- `theatre.js` commits it to absorbing ONE
+            //neighbour and keeps the commitment until that rival becomes a wall -- and until
+            //now it was decided almost entirely by `weakness`, the army ratio across the
+            //shared frontier. So a country picked whoever was softest, every time, whatever
+            //had passed between them.
+            //
+            //IT IS SUBTRACTED, so it cuts both ways by construction: a disliked neighbour
+            //gains up to a point of score and a LIKED one loses up to a point, which is what
+            //stops a country choosing its own ally or its peace partner to absorb. Against
+            //`weakness` at 2.2 it is large enough to pick a grudge over a slightly softer
+            //target and too small to pick one over a target that is genuinely open --
+            //deliberately a TERM rather than the tier `preferredRivals` had to be, because a
+            //grudge, unlike a great power, is not systematically one of the strongest
+            //countries on the map and so does not need lifting past a term that would bury
+            //it.
+            //
+            //INJECTED rather than imported, so this module still runs in Node: it is the
+            //arrangement the seeded rng and `sizeOf` already have here.
+            const regard = opinionOf ? (Number(opinionOf(entry.rival)) || 0) : 0;
+
             const score =
                 (entry.frontage / widestFrontage) * weights.frontage +
                 weakness * weights.weakness +
                 Math.min(1, entry.value / Math.max(1, entry.territories.length)) * weights.value +
                 onFocus * weights.onFocusContinent -
-                sizePenalty * weights.size +
+                sizePenalty * weights.size -
+                regard * opinionDiscipline.weights.theatre +
                 rng() * 0.2;
 
             return {
                 ...entry,
                 size,
                 weakness,
+                regard,
                 onFocusContinent: Boolean(onFocus),
                 preferred,
                 walled: isWall(country, entry.rival, turn),
@@ -305,7 +329,7 @@ export function rankRivals(frontier, { focusContinent = null, country = "", turn
  *
  * @param {{country: string, turn: number, focusContinent?: string|null, frontier?: Map,
  *          sizeOf?: (country: string) => number, rng?: () => number,
- *          preferredRivals?: string[]}} input
+ *          preferredRivals?: string[], opinionOf?: (rival: string) => number}} input
  * @returns {{rival: string|null, continent: string|null, reason: string, committedOnTurn: number,
  *            takenFromRival: number, failures: number, turnsCommitted: number, changed: boolean,
  *            candidates: Array}}
@@ -323,7 +347,8 @@ export function reviewTheatre(input) {
         turn,
         rng,
         sizeOf,
-        preferredRivals: input?.preferredRivals ?? []
+        preferredRivals: input?.preferredRivals ?? [],
+        opinionOf: typeof input?.opinionOf === "function" ? input.opinionOf : null
     });
 
     const standing = theatres.get(country);

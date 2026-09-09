@@ -1,6 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 
-// Regression coverage for docs/01-codebase-audit.md section 3.1.
+// Regression coverage for docs/archived/01-codebase-audit.md section 3.1.
 //
 // The manual island adjacency rules used to be built inside a
 // `setTimeout(..., 1000)` before a dynamic import of resourceCalculations.js. If

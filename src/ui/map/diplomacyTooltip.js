@@ -31,6 +31,13 @@
 // that fills the screen is one people stop reading -- the military view's threat
 // lines settled this the same way, with a count of what was left out rather than
 // silence.
+//
+// AND A DEFEATED COUNTRY IS NOT ON IT AT ALL. The register is keyed by country name
+// and knows nothing about the map, so a relation outlives the country it describes.
+// Reported by Leigh: taking a one-territory country's only province left the tooltip
+// still reporting a war with it. That is worse than clutter -- it is the game telling
+// a player they have an enemy they have already beaten. `src/state/defeated.js` is
+// the answer and it is INJECTED here, because this module is pure and runs in Node.
 
 import { DiplomaticState, describeState, RELATION_DISPLAY_ORDER } from "../../state/diplomacy.js";
 //The tone lookup is SHARED with the diplomacy panel (`src/ui/diplomacy/relationTone.js`).
@@ -82,6 +89,7 @@ function rowFor(country, state, until, { isPlayerRow = false } = {}) {
  *        no player to put first and every country is somebody else
  * @param {{country: string, state: string, until: number|null}[]} input.relations
  *        the register's rows for `country`, in any order
+ * @param {(country: string) => boolean} [input.isDefeated]  a country out of the game
  * @param {number} [input.maxRows]
  * @returns {{rows: object[], more: number}}
  */
@@ -89,11 +97,13 @@ export function diplomacyTooltipRows({
     country,
     playerCountry = null,
     relations = [],
+    isDefeated = null,
     maxRows = TOOLTIP_RELATION_ROWS
 }) {
     if (!country) {
         return { rows: [], more: 0 };
     }
+    const beaten = (name) => Boolean(isDefeated) && isDefeated(name);
 
     const isPlayerCountry = Boolean(playerCountry) && country === playerCountry;
     const others = relations.filter(
@@ -102,6 +112,8 @@ export function diplomacyTooltipRows({
             relation.country &&
             relation.country !== country &&
             relation.state !== DiplomaticState.NO_CONTACT &&
+            //Out of the game, so there is no relationship left to describe.
+            !beaten(relation.country) &&
             //Held back only when it is going to be re-added at the top. On the
             //player's OWN territory there is no such row, so the player's country
             //is not in this list to begin with.
@@ -114,7 +126,11 @@ export function diplomacyTooltipRows({
     });
 
     const rows = [];
-    if (!isPlayerCountry && playerCountry) {
+    //THE PLAYER'S OWN ROW IS SUBJECT TO THE SAME RULE, and from BOTH sides: it is dropped
+    //when the country being hovered is out of the game, which is the case Leigh reported,
+    //and it would be dropped if the player were out too -- at which point the ending screen
+    //is up and nobody is reading a tooltip.
+    if (!isPlayerCountry && playerCountry && !beaten(country) && !beaten(playerCountry)) {
         //ALWAYS, and even at no contact -- see the note at the top. Absent from the
         //register means the two have never met, which is a fact worth stating.
         const withPlayer = relations.find((relation) => relation?.country === playerCountry);

@@ -1,6 +1,6 @@
 # What Is Missing — the items that have been delivered
 
-The companion archive to [05-what-is-missing.md](../05-what-is-missing.md). That document is the
+The companion archive to [04-future-plans.md](../04-future-plans.md). That document is the
 standing list of **what is left to do**, and an item leaves it the moment it is finished — cut
 out entirely rather than marked done, struck through, or left as a stub, so that reading it top
 to bottom gives a list of outstanding work and nothing else.
@@ -291,6 +291,28 @@ Leigh chose all four of the things it covers: income, standing, weakened borders
 and the table cannot tell the player two different things about where they stand.
 
 ---
+
+## M-c — Diplomacy *(finding M5)*
+
+**Delivered far past what this item asked for, which is why it is worth recording rather than
+merely ticking.** The item wanted `populateAiDialogueBox()` extended past its single case: three
+set-piece offers, with the honest caveat that *"real diplomacy across 206 countries is not a UI
+problem, it is the consolidation problem wearing a different hat — a treaty screen listing 206
+rows is not a feature."*
+
+What was built instead is a **state per pair of countries** — six of them, with first contact at
+NEUTRAL — and the caveat turned out to be answerable rather than blocking: the panel groups the
+register BY STATE and lists only countries the player has actually met, so the 206-row problem
+never arises. See [Diplomacy](./06-diplomacy.md) and [its checklist](./06-diplomacy-checklist.md).
+
+The item's own suggestion did land, and almost exactly as predicted: a joint war against a
+runaway leader is nearly free on the AI side because `urgency` already is *"the strongest rival's
+share of the world's land"*. It is the heaviest single term in `allianceScoreFor()`.
+
+**And it grew a half nobody had asked for**: [Opinion](./08-opinion.md), which gives every
+country a directional memory of what every other country has done to it. That is the piece that
+turns a register of states into relationships — and it is why finding **1.2, "the world has no
+characters"**, is a smaller finding than it was when it was written.
 
 ## What the panel had already, and what only looked new
 

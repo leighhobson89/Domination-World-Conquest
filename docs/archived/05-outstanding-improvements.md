@@ -1,8 +1,8 @@
 # Outstanding Improvements — what the combat and conquest measurements left
 
 Combat and Conquest is delivered and archived
-([audit](./archived/05-combat-and-conquest-audit.md),
-[checklist](./archived/06-combat-and-conquest-checklist.md)). It closed four defects and two
+([audit](.././archived/05-combat-and-conquest-audit.md),
+[checklist](.././archived/06-combat-and-conquest-checklist.md)). It closed four defects and two
 design problems and it moved the world a long way. It did not reach its own target band, and it
 produced a measurement that says why — which is more useful than reaching it would have been.
 
@@ -11,7 +11,7 @@ is sequenced or committed. It is the findings, ranked by what the numbers say th
 that whoever chooses the next phase chooses it from evidence rather than from memory. Each item
 says what was measured, what it points at, and what would settle it.
 
-The live defect register is still [04-known-issues.md](./04-known-issues.md) and it stays the one
+The live defect register is still [03-known-issues.md](.././03-known-issues.md) and it stays the one
 to read first. This is the analysis behind the entries that combat left open.
 
 ---
@@ -214,8 +214,8 @@ case.
   a counter kept by the game rather than derived from the feed.** Worth doing; not done.
 - **Relative links in `docs/archived/` are broken, and it is the same defect this phase's archive
   move nearly reproduced.** Files archived in earlier phases kept links written from `docs/`, so
-  their `../ui.js` now resolves to `docs/ui.js` and their `./04-known-issues.md` to
-  `docs/archived/04-known-issues.md`. About forty links across six files. Combat and Conquest's
+  their `../ui.js` now resolves to `docs/ui.js` and their `./03-known-issues.md` to
+  `docs/archived/03-known-issues.md`. About forty links across six files. Combat and Conquest's
   own two were corrected as it was moved; the rest were left alone as out of scope. **Whatever
   archives the next plan should fix the whole directory once**, and it is a mechanical change —
   a code link gains one `../`, a sibling-document link loses one.

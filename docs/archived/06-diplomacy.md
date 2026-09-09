@@ -53,7 +53,7 @@ separate "have they ever touched" set to keep in step.
 **A relation is one record per unordered pair.** There is no "France's relation to Spain" and
 "Spain's relation to France" — a relation has no subject and no object, so the two directions
 cannot drift apart. This is not fussiness: five straits in
-[manualAdjacencyExceptions.js](../src/data/manualAdjacencyExceptions.js) were listed on ONE
+[manualAdjacencyExceptions.js](../../src/data/manualAdjacencyExceptions.js) were listed on ONE
 SIDE ONLY for the life of the project (known-issue **BS**), and a one-way border has no
 signature at all — nothing throws, both countries plan normally. A one-way *relation* would
 be worse, because the country on the wrong side of it would plan a war its opponent did not
@@ -66,7 +66,7 @@ know it was in.
 ### 3.1 First contact is NEUTRAL, not war
 
 **This is the single most consequential line in the system**, and it is one constant:
-`FIRST_CONTACT_STATE` in [diplomacy.js](../src/state/diplomacy.js). Two countries who have
+`FIRST_CONTACT_STATE` in [diplomacy.js](../../src/state/diplomacy.js). Two countries who have
 merely met may not attack each other. War is a thing a country **declares**.
 
 **The consequence, stated plainly: until declarations exist, wiring the attack gates to the
@@ -188,28 +188,28 @@ free.
 
 | Module | What it is |
 |---|---|
-| [src/state/diplomacy.js](../src/state/diplomacy.js) | The vocabulary. The six states, the canonical pair key, `allowsAttack()`, `allowsDeclaration()`, `isAgreement()`, `sharesResources()`, `describeState()`. **Imports nothing at all**, the same arrangement `phases.js` has, so it can be read by the store, the rules, the AI and the UI without dragging anything into any of them |
-| [src/state/GameState.js](../src/state/GameState.js) | The register itself: `store.diplomacy.relations`, a sparse `Map` keyed by the pair key |
-| [src/state/selectors.js](../src/state/selectors.js) | `relationBetween()`, `relationStateBetween()`, `countriesMayFight()`, `relationsFor()`, `allRelations()`, `relationCount()` |
-| [src/state/mutations.js](../src/state/mutations.js) | `setRelationState()` and `clearRelations()`, and `Events.DIPLOMACY_CHANGED` |
-| [src/state/snapshot.js](../src/state/snapshot.js) | Save and load, as rows rather than as `Map` entries. **The snapshot version did not move**: a save taken before diplomacy existed restores an empty register, which is exactly "every country at no contact", so an old save is still a valid one |
-| [src/rules/diplomacy/contact.js](../src/rules/diplomacy/contact.js) | The pure walk: which countries' territories touch. Takes the neighbour lookup as an argument, because `src/data/adjacency.js` throws in Node |
-| [src/state/diplomacyContacts.js](../src/state/diplomacyContacts.js) | The live half: asks the real graph and records first contact. Dirty-flagged on `TERRITORY_CHANGED`, run at the turn boundary and lazily on read |
-| [src/ui/map/diplomacyTooltip.js](../src/ui/map/diplomacyTooltip.js) | The tooltip rows, pure and unit-tested |
-| [src/ui/diplomacy/relationTone.js](../src/ui/diplomacy/relationTone.js) | How a state is COLOURED, in one place: a class name and never a colour. Read by the tooltip and by the panel, and it is its own module for exactly that reason |
-| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stage 3.** Who the AI declares war on, and who it leaves alone. Pure, draws no randomness at all, and the only module in `src/ai/` allowed to decide a diplomatic action |
-| [aiCalculations.js](../aiCalculations.js) | `applyAiDeclarations()` — the WRITING half of the above, run from `planAiCampaign()` after the succession and before the goals |
-| [src/ui/moveButton/deriveMoveButtonState.js](../src/ui/moveButton/deriveMoveButtonState.js) | **Stage 3.2.** `MoveMode.DECLARE`: the greyed button becomes an enabled DECLARE WAR wherever a declaration is possible, in a colour that is deliberately not the attack colour |
-| [src/ui/diplomacy/declarationPrompt.js](../src/ui/diplomacy/declarationPrompt.js) | **Stage 4.** The confirmation before a declaration that would break an agreement — and `null`, meaning no dialog at all, out of neutral |
-| [src/ui/diplomacy/relationsPanelModel.js](../src/ui/diplomacy/relationsPanelModel.js) | **Stage 4.** What the panel says: the grouped list, one country's detail, and the actions with the reason each is offered or refused. Pure, unit-tested |
-| [src/ui/components/DiplomacyPanel.js](../src/ui/components/DiplomacyPanel.js) | **Stage 4.** The window that draws it, and the button in the map's left-hand chrome column |
-| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stage 5.1** as well: `proposalOutcomeFor()` decides whether a country accepts what it has been offered, and `planPeaceOffer()` decides who it asks. Still pure, still drawing no randomness |
-| [src/rules/diplomacy/expiry.js](../src/rules/diplomacy/expiry.js) | **Stage 5.1.** Which ceasefires have run out and what each falls back to — read off `revertsTo`, never guessed |
-| [src/state/diplomacyExpiry.js](../src/state/diplomacyExpiry.js) | The live half, on `TURN_CHANGED`. Reached by a side-effect import in `ui.js` and nothing else, so deleting that line means a ceasefire never ends |
-| [src/rules/economy/allianceShare.js](../src/rules/economy/allianceShare.js) | **Stage 5.3.** What an alliance pays, as two multipliers. Pure, importable by `econ-lab` |
-| [src/state/diplomacyInbox.js](../src/state/diplomacyInbox.js) | **Stage 5.5.** What the AI has put to the PLAYER and is waiting on: a call to arms, or an offer. Filled during the AI phase, emptied at the end of it, imports nothing |
-| [src/ui/diplomacy/describeInbox.js](../src/ui/diplomacy/describeInbox.js) | The wording of those prompts. Facts in the queue, sentences here — the activity feed's rule |
-| [src/ai/diplomacy.js](../src/ai/diplomacy.js) | **Stages 5.4 and 5.5 too**: `allianceScoreFor()`, `callInOutcomeFor()`, and the call-in bindings that stop a joiner settling out of somebody else's war |
+| [src/state/diplomacy.js](../../src/state/diplomacy.js) | The vocabulary. The six states, the canonical pair key, `allowsAttack()`, `allowsDeclaration()`, `isAgreement()`, `sharesResources()`, `describeState()`. **Imports nothing at all**, the same arrangement `phases.js` has, so it can be read by the store, the rules, the AI and the UI without dragging anything into any of them |
+| [src/state/GameState.js](../../src/state/GameState.js) | The register itself: `store.diplomacy.relations`, a sparse `Map` keyed by the pair key |
+| [src/state/selectors.js](../../src/state/selectors.js) | `relationBetween()`, `relationStateBetween()`, `countriesMayFight()`, `relationsFor()`, `allRelations()`, `relationCount()` |
+| [src/state/mutations.js](../../src/state/mutations.js) | `setRelationState()` and `clearRelations()`, and `Events.DIPLOMACY_CHANGED` |
+| [src/state/snapshot.js](../../src/state/snapshot.js) | Save and load, as rows rather than as `Map` entries. **The snapshot version did not move**: a save taken before diplomacy existed restores an empty register, which is exactly "every country at no contact", so an old save is still a valid one |
+| [src/rules/diplomacy/contact.js](../../src/rules/diplomacy/contact.js) | The pure walk: which countries' territories touch. Takes the neighbour lookup as an argument, because `src/data/adjacency.js` throws in Node |
+| [src/state/diplomacyContacts.js](../../src/state/diplomacyContacts.js) | The live half: asks the real graph and records first contact. Dirty-flagged on `TERRITORY_CHANGED`, run at the turn boundary and lazily on read |
+| [src/ui/map/diplomacyTooltip.js](../../src/ui/map/diplomacyTooltip.js) | The tooltip rows, pure and unit-tested |
+| [src/ui/diplomacy/relationTone.js](../../src/ui/diplomacy/relationTone.js) | How a state is COLOURED, in one place: a class name and never a colour. Read by the tooltip and by the panel, and it is its own module for exactly that reason |
+| [src/ai/diplomacy.js](../../src/ai/diplomacy.js) | **Stage 3.** Who the AI declares war on, and who it leaves alone. Pure, draws no randomness at all, and the only module in `src/ai/` allowed to decide a diplomatic action |
+| [aiCalculations.js](../../aiCalculations.js) | `applyAiDeclarations()` — the WRITING half of the above, run from `planAiCampaign()` after the succession and before the goals |
+| [src/ui/moveButton/deriveMoveButtonState.js](../../src/ui/moveButton/deriveMoveButtonState.js) | **Stage 3.2.** `MoveMode.DECLARE`: the greyed button becomes an enabled DECLARE WAR wherever a declaration is possible, in a colour that is deliberately not the attack colour |
+| [src/ui/diplomacy/declarationPrompt.js](../../src/ui/diplomacy/declarationPrompt.js) | **Stage 4.** The confirmation before a declaration that would break an agreement — and `null`, meaning no dialog at all, out of neutral |
+| [src/ui/diplomacy/relationsPanelModel.js](../../src/ui/diplomacy/relationsPanelModel.js) | **Stage 4.** What the panel says: the grouped list, one country's detail, and the actions with the reason each is offered or refused. Pure, unit-tested |
+| [src/ui/components/DiplomacyPanel.js](../../src/ui/components/DiplomacyPanel.js) | **Stage 4.** The window that draws it, and the button in the map's left-hand chrome column |
+| [src/ai/diplomacy.js](../../src/ai/diplomacy.js) | **Stage 5.1** as well: `proposalOutcomeFor()` decides whether a country accepts what it has been offered, and `planPeaceOffer()` decides who it asks. Still pure, still drawing no randomness |
+| [src/rules/diplomacy/expiry.js](../../src/rules/diplomacy/expiry.js) | **Stage 5.1.** Which ceasefires have run out and what each falls back to — read off `revertsTo`, never guessed |
+| [src/state/diplomacyExpiry.js](../../src/state/diplomacyExpiry.js) | The live half, on `TURN_CHANGED`. Reached by a side-effect import in `ui.js` and nothing else, so deleting that line means a ceasefire never ends |
+| [src/rules/economy/allianceShare.js](../../src/rules/economy/allianceShare.js) | **Stage 5.3.** What an alliance pays, as two multipliers. Pure, importable by `econ-lab` |
+| [src/state/diplomacyInbox.js](../../src/state/diplomacyInbox.js) | **Stage 5.5.** What the AI has put to the PLAYER and is waiting on: a call to arms, or an offer. Filled during the AI phase, emptied at the end of it, imports nothing |
+| [src/ui/diplomacy/describeInbox.js](../../src/ui/diplomacy/describeInbox.js) | The wording of those prompts. Facts in the queue, sentences here — the activity feed's rule |
+| [src/ai/diplomacy.js](../../src/ai/diplomacy.js) | **Stages 5.4 and 5.5 too**: `allianceScoreFor()`, `callInOutcomeFor()`, and the call-in bindings that stop a joiner settling out of somebody else's war |
 
 Four things worth knowing about that code before extending it.
 
@@ -240,7 +240,7 @@ would otherwise be missing precisely when it is most informative. Six rows, then
 
 ### 5.1 Who declares war, and why — `src/ai/diplomacy.js`
 
-**Built, stage 3.** The diplomatic counterpart of [doctrine.js](../src/ai/doctrine.js), and it
+**Built, stage 3.** The diplomatic counterpart of [doctrine.js](../../src/ai/doctrine.js), and it
 follows the same containment rule: **it is the only module in `src/ai/` allowed to decide a
 diplomatic action**, so the rest of the AI keeps reading a state rather than re-deriving an
 intention.
@@ -301,10 +301,10 @@ eventually answer it differently.
 
 | Gate | Where | What changes |
 |---|---|---|
-| The AI's target rating | `rateTarget()` in [targeting.js](../src/ai/targeting.js) | A refusal with a **stated reason**, next to the player's grace period — that is the one place a target is declined with a reason the debug panel and the plan log can read |
-| The player's attack destinations | the highlight walk in [ui.js](../ui.js) | A territory of a country not at war is not a valid destination; the attack arrows do not reach it |
+| The AI's target rating | `rateTarget()` in [targeting.js](../../src/ai/targeting.js) | A refusal with a **stated reason**, next to the player's grace period — that is the one place a target is declined with a reason the debug panel and the plan log can read |
+| The player's attack destinations | the highlight walk in [ui.js](../../ui.js) | A territory of a country not at war is not a valid destination; the attack arrows do not reach it |
 | The player's attack control | the move button / attack window | Says *why*, and offers the declaration |
-| The siege gates | [siege.js](../src/rules/military/siege.js), `siegeReview.js` | A siege may not be **opened** against a country not at war |
+| The siege gates | [siege.js](../../src/rules/military/siege.js), `siegeReview.js` | A siege may not be **opened** against a country not at war |
 
 **A standing siege is not cancelled by a peace** unless §5.3 says so — see **Q1**.
 

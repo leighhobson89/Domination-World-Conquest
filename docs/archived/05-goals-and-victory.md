@@ -398,11 +398,11 @@ Four pages moved:
 * **"Design Notes"** led with "THE GAME CANNOT END", which was the top of its list for the
   life of the project.
 
-`docs/04-known-issues.md` item 1 — "No win or lose condition" — is closed, and the register's
+`docs/03-known-issues.md` item 1 — "No win or lose condition" — is closed, and the register's
 **Currently open** list carries the one thing this phase deliberately leaves behind: the
 ending has no screen.
 
-`docs/02-game-design-document.md` §1, §6.1, §6.5, §8.5 and §11 items 1 and 6 are updated, and
+`docs/01-game-design-document.md` §1, §6.1, §6.5, §8.5 and §11 items 1 and 6 are updated, and
 §6.6 "The end of a game" is new.
 
 ---

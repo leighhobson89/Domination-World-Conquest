@@ -235,6 +235,21 @@ function renderStandings(table, deps) {
             rowClass: "ui-table-row ui-table-row-player"
         }));
     }
+
+    //WHO IS OUT, BELOW A SEPARATOR. They are not ranked -- `worldStandings()` is a fold over
+    //territories, so a country holding none is absent from it rather than last in it -- and
+    //sorting them into the table would bury them below the top sixteen where nobody would
+    //ever see one. A player who has just conquered somebody wants the table to say so.
+    for (const [index, row] of (standings.defeatedRows ?? []).entries()) {
+        if (index === 0) {
+            table.appendChild(emptyRow());
+        }
+        table.appendChild(dataRow(columns, row, {
+            rowClass: row.isPlayer
+                ? "ui-table-row ui-table-row-player ui-table-row-defeated"
+                : "ui-table-row ui-table-row-defeated"
+        }));
+    }
 }
 
 const RENDERERS = {

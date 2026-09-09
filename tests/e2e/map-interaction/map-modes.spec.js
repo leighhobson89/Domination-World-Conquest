@@ -2,7 +2,7 @@ import { test, expect } from "../../support/fixtures.js";
 import { map } from "../../support/selectors.js";
 
 // The map-view button: one control, four views.
-// docs/03-e2e-test-plan.md section 5.4.
+// docs/02-e2e-test-plan.md section 5.4.
 //
 //     continent  political map + continent boundaries   <- the DEFAULT
 //     normal     political map, no continent boundaries

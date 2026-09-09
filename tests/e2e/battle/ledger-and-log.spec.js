@@ -182,7 +182,7 @@ test.describe("the battle window's ledger and round log", () => {
         await openAndFightOne(game, "round-log-reset");
         await expect(game.page.locator(battleSelectors.roundLogToggle)).toContainText("(1)");
 
-        await game.battle.retreat.click({ force: true });
+        await game.battle.retreatFromBattle();
         await game.page.waitForTimeout(300);
         await game.dismissBlockingPanels();
 

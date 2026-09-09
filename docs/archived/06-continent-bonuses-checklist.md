@@ -250,10 +250,10 @@ nothing throws.
       and the last five territories of a continent are the hardest five on the map to take
 - [x] `CONTINENT_BONUS_GOLD` stays at **1.5** and `CONTINENT_BONUS_CAPACITY` at **1.25**. §3
       now says they are measured and retained rather than a defensible guess
-- [x] `docs/02-game-design-document.md` §11 item 9 closed, and §3.6 written where the mechanic
+- [x] `docs/01-game-design-document.md` §11 item 9 closed, and §3.6 written where the mechanic
       belongs — the two dials, why there are two, why it is derived, why it is not a die, the
       per-continent table and the Oceania warning
-- [x] `docs/04-known-issues.md` updated with the two things the measurement turned up: **BI**,
+- [x] `docs/03-known-issues.md` updated with the two things the measurement turned up: **BI**,
       three sources disagreeing about which continent a territory is on (Easter Island), and
       **BJ**, a large empire's army total going hugely negative — the second found only because
       a control was run, and demonstrably not caused by this phase

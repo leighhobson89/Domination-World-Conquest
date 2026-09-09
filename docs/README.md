@@ -2,30 +2,41 @@
 
 Planning and reference documents. **These are breathing documents** — they are edited as work
 lands, and they describe the code as it is today. Finished plans move to
-[archived/](./archived/README.md) rather than being left in the sequence to go stale.
+[archived/](./archived/README.md) rather than being left in the sequence to go stale, and
+**the numbers are reused when one is**: an archived document keeps the number it was written
+under, and the living sequence is renumbered so it stays gap-free.
 
-The audit (1) was written against commit `b7ae0af` and is the analysis behind the register;
-the register (4) is the one to check first if you only read one.
+The register (3) is the one to check first if you only read one.
 
 | # | Document | What it answers |
 |---|---|---|
-| 1 | [Codebase Audit](./01-codebase-audit.md) | What is here, how it is put together, and everything that is wrong with it — every catalogued defect with file and line references, and the analysis behind each one |
-| 2 | [Game Design Document](./02-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented / buggy / partial / missing |
-| 3 | [E2E Test Plan](./03-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them — ~475 specs, plus 980 unit tests, and **no `test.fixme` left** |
-| 4 | [Known Issues](./04-known-issues.md) | The live register — every defect found so far, its status, where it is in the code today, and the phase that closes it |
-| 5 | [What Is Missing](./05-what-is-missing.md) | **What to do next, and why — the standing list.** Not "does the simulation behave?" (it does) but "does a person experience a game?" Fifteen verified findings grouped under four diagnoses — the board carries no state, the world has no characters, nothing acknowledges what the player does, and there is no arc — then seven easy wins that need no acceptance run, three medium items, and five larger ones drawn from the genre. **A finished item is cut out of it entirely** and moves to [archived/05-what-is-missing-delivered.md](./archived/05-what-is-missing-delivered.md), so the document always reads as outstanding work and nothing else |
-| 6 | [Diplomacy](./06-diplomacy.md) + [checklist](./06-diplomacy-checklist.md) | **The phase in flight.** Peace, war, ceasefire, alliance and no contact, as a state per pair of countries — what each one permits, the four decisions Leigh took (first contact is NEUTRAL, a declaration takes effect at once, an alliance shares four things, an ally is called in rather than enrolled), the questions answered and the ones still open, and the seven-stage breakdown. **The stage order is not a preference**: first contact being neutral means wiring the attack gates before the declaration rules would freeze the world, so the gates are stage 2 and the declarations stage 3, with a deliberately silent world in between as the checkpoint. **Stages 0 to 5.1 have landed** — the register, the gates, declarations on both sides, the player's panel, and peace and ceasefires. The alliance and everything hanging off it is what is left |
+| 1 | [Game Design Document](./01-game-design-document.md) | What the game actually is, mechanic by mechanic, with every feature marked implemented, partial or missing. The place to look for what a rule is *supposed* to do |
+| 2 | [E2E Test Plan](./02-e2e-test-plan.md) | The functional areas and the Playwright harness that runs them, plus the unit suite — how to run one area, how the page objects are organised, and how a scenario reaches a state clicking cannot |
+| 3 | [Known Issues](./03-known-issues.md) | **The live register.** Every defect still open, where it is in the code today, and why the ones that look like bugs and are not have been left alone. An entry moves to [archived/04-known-issues-closed.md](./archived/04-known-issues-closed.md) in the same change that closes it |
+| 4 | [Future Plans](./04-future-plans.md) | **What to do next, and why — the standing list, and nothing on it is committed.** It asks a different question from every document before it: not whether the simulation behaves (it does) but whether a person sitting in front of it experiences a game. A delivered item is cut out of it entirely and recorded in [archived/05-what-is-missing-delivered.md](./archived/05-what-is-missing-delivered.md) |
+| 5 | [Diplomatic Acceptance](./05-diplomatic-acceptance.md) | **What actually decides yes and no** — every term, every constant and every hard refusal behind a ceasefire, a peace, an alliance, a call to arms and a declaration of war. A reference to read before touching `peaceDiscipline`, `allianceDiscipline` or `declarationDiscipline`; its §7 has been delivered as the opinion layer |
+
+**There is no phase in flight.** Diplomacy and the opinion layer that finished it are both
+delivered and archived — [Diplomacy](./archived/06-diplomacy.md) with
+[its checklist](./archived/06-diplomacy-checklist.md), and [Opinion](./archived/08-opinion.md)
+with [its checklist](./archived/08-opinion-checklist.md). Between them a war now has a
+beginning, an end, a price for breaking the peace that ends it, a place in the player's news,
+and — since the opinion layer — a memory: what one country has done to another is a number that
+each of them carries about the other, and it decides who will deal with whom and who a country
+sets out to absorb. The next phase is whichever item comes off [Future Plans](./04-future-plans.md).
+
+The **[Codebase Audit](./archived/01-codebase-audit.md)** is archived too. It was written on
+23 August 2026 against commit `b7ae0af`, it is the analysis the register was built from, and it
+describes a codebase that has since been rebuilt underneath it — every phase it planned has
+landed. It is kept because it records *why* the code is shaped as it is, and cited throughout
+the history below for the same reason; it is not a description of the code today.
 
 Finished plans live in [archived/](./archived/README.md): the eight-phase refactor plan, the
-battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and its
-checklist, the Economy audit and its checklist, Combat and Conquest and its checklist, and now
-Outstanding Improvements and Force and Succession — the two documents that between them carried
-the simulation to the point where the remaining question stopped being a numerical one.
-They record why the code is shaped as it is; they do not describe outstanding work. **The numbers
-are reused when a plan is archived**, so `05` is the standing list of what to do next and `06` is
-free for whichever item is taken up as the next phase. **The phase in flight is
-[Diplomacy](./06-diplomacy.md)**, and it is through stage 5.1: a war now has a beginning and,
-since that stage, an end.
+battle overhaul and its checklist, Goals and Victory and its checklist, Continent Bonuses and
+its checklist, the Economy audit and its checklist, Combat and Conquest and its checklist,
+Outstanding Improvements, Force and Succession, the codebase audit, and now Diplomacy and
+Opinion. They record why the code is shaped as it is; they do not describe outstanding work.
+**Where an archived document contradicts a numbered one, the numbered one wins.**
 
 ---
 
@@ -53,25 +64,25 @@ is the honest next step; see [Refactor §2](./archived/03-refactor-plan.md).
 
 1. **Cold start parses a 19 MB JSON once per territory** — about 6.8 GB of redundant parsing
    before the first turn. Nothing can be iterated on or tested until this is fixed.
-   ([Audit §4.1](./01-codebase-audit.md), [Refactor 1.1](./archived/03-refactor-plan.md))
+   ([Audit §4.1](./archived/01-codebase-audit.md), [Refactor 1.1](./archived/03-refactor-plan.md))
 2. **Circular imports resolved by racing timers** — behaviour differs between machines and
    silently disables the island adjacency rules.
-   ([Audit §3.1](./01-codebase-audit.md), [Refactor 1.7](./archived/03-refactor-plan.md))
+   ([Audit §3.1](./archived/01-codebase-audit.md), [Refactor 1.7](./archived/03-refactor-plan.md))
 3. **No single source of truth for territory state** — every feature had to sync three copies,
    and each sync was a place to get it wrong. Closed by Phase 4: `mainGameArray` is gone.
-   ([Audit §3.2](./01-codebase-audit.md), [Refactor Phase 4](./archived/03-refactor-plan.md))
+   ([Audit §3.2](./archived/01-codebase-audit.md), [Refactor Phase 4](./archived/03-refactor-plan.md))
 
 **The three defects most likely behind "it doesn't play very well"** — all three fixed in
-Phase 3; see [Known Issues](./04-known-issues.md) for the live status of everything:
+Phase 3; see [Known Issues](./03-known-issues.md) for the live status of everything:
 
 - Territory upgrade capacity bonuses **compounded catastrophically** — a 5th farm applied +50 %,
-  not +10 %, on top of an already-inflated figure ([Audit §5.1 A](./01-codebase-audit.md)).
+  not +10 %, on top of an already-inflated figure ([Audit §5.1 A](./archived/01-codebase-audit.md)).
 - Battle rout thresholds compared the defender's remaining force against **the attacker's**
   starting force, so battles resolved at the wrong moments
-  ([Audit §5.1 E](./01-codebase-audit.md)).
+  ([Audit §5.1 E](./archived/01-codebase-audit.md)).
 - The AI wrote the literal string `"no match"` into the game state when a goal's territory
   lookup failed, poisoning every later calculation with `NaN`
-  ([Audit §5.1 B/C](./01-codebase-audit.md)).
+  ([Audit §5.1 B/C](./archived/01-codebase-audit.md)).
 
 **The plan.** Eight phases, roughly 4–6 focused weeks. Phases 0–3 (~1.5 weeks) make the game
 fast, correct and testable — that is where nearly all of the felt improvement lands. Phases
@@ -88,23 +99,23 @@ was allowed to assert an exact combat or economy outcome (audit §5.3 Y). It has
 now. That single change let five whole functional areas be written — `siege/`, `ai-turn/`,
 `conquest-lifecycle/`, `info-panels/`, `random-events/` — and writing them found seven further
 defects, including a battle debiting its source territory **twice** and an empty battle-results
-screen appearing at the start of almost every turn ([Known Issues §8](./04-known-issues.md)).
+screen appearing at the start of almost every turn ([Known Issues §8](./03-known-issues.md)).
 
 **There is no 🔴 left in the register.** Phase 6.7 closed the last one — audit §5.2 AE, the
 attack marker surviving a cancel — by making the marker and the target it draws one fact, and
 with it went the last `test.fixme` in the suite. Phase 6 also deleted the colour snapshot the
 map had been restored from at ~30 call sites, so map colour is now derived from the store, and
 removed the accumulating click listener on the move button that `eventHandlerExecuted` and four
-`setTimeout(…, 200)` calls had been suppressing ([Known Issues §9](./04-known-issues.md)).
+`setTimeout(…, 200)` calls had been suppressing ([Known Issues §9](./03-known-issues.md)).
 
 **What is outstanding is now one list**, at the top of
-[Known Issues](./04-known-issues.md#currently-open) — one line per open issue, deleted when it
+[Known Issues](./03-known-issues.md#currently-open) — one line per open issue, deleted when it
 closes. Everything on it is Phase 7 or Phase 6.9.
 
 What Phase 3 started — sieges, famine, AI conquest actually running — surfaced two *design*
 problems that are now the most player-visible things left: the AI besieges far more than it can
 finish, and a besieged territory earns nothing indefinitely. Both are Phase 7 work
-([Known Issues §6](./04-known-issues.md)), and Phase 5.8 added a third to the same list: giving
+([Known Issues §6](./03-known-issues.md)), and Phase 5.8 added a third to the same list: giving
 the AI a fully-formed first turn eliminates a single-territory player within ten turns, which
 is why the bootstrap-ordering fix was measured, reverted and re-sequenced there.
 

@@ -341,3 +341,81 @@ describe("the confirmation before a declaration", () => {
         }
     });
 });
+
+// ---------------------------------------------------------------------------
+// THE OPINION FACT (docs/archived/08-opinion.md §4).
+//
+// This is the panel where offers are made and refused, so it is where an opinion most needs
+// to be readable: it is the one input to a refusal a player can actually do something about.
+// ---------------------------------------------------------------------------
+
+describe("how a country regards the player", () => {
+    it("is a fact on the detail, in the same words the tooltip's bar carries", () => {
+        const detail = countryDetail({
+            country: "Brava",
+            state: DiplomaticState.WAR,
+            opinion: -82
+        });
+        const regard = detail.facts.find(fact => fact.label === "Regards you as");
+        expect(regard.value).toContain("hostile");
+        expect(regard.value).toContain("-82");
+    });
+
+    it("signs a positive one, so the scale reads as running either side of zero", () => {
+        const detail = countryDetail({
+            country: "Brava",
+            state: DiplomaticState.PEACE,
+            opinion: 40
+        });
+        expect(detail.facts.find(fact => fact.label === "Regards you as").value)
+            .toContain("+40");
+    });
+
+    it("is left off entirely when nobody asked", () => {
+        //A panel that printed "neutral (0)" for a country the caller had no figure for would
+        //be stating a fact it had not been told.
+        const detail = countryDetail({ country: "Brava", state: DiplomaticState.NEUTRAL });
+        expect(detail.facts.some(fact => fact.label === "Regards you as")).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// A DEFEATED COUNTRY IS OFF THE LIST ENTIRELY.
+//
+// Reported by Leigh. Note the ORDER of the two filters, which is the only subtle thing here:
+// the search box is filtered AFTER the count, so a heading keeps saying how many countries the
+// player is at war with while they type — but a beaten country is dropped BEFORE it, because a
+// heading reading "At war: 3" that includes a country already conquered is not a filtered
+// count, it is a wrong number.
+// ---------------------------------------------------------------------------
+
+describe("countries that are out of the game", () => {
+    const relations = [
+        { country: "Brava", state: DiplomaticState.WAR },
+        { country: "Carda", state: DiplomaticState.WAR },
+        { country: "Dorne", state: DiplomaticState.PEACE }
+    ];
+
+    it("does not list one", () => {
+        const { groups } = diplomacyGroups({
+            relations,
+            isDefeated: (country) => country === "Carda"
+        });
+        const listed = groups.flatMap(group => group.rows.map(row => row.country));
+        expect(listed).not.toContain("Carda");
+        expect(listed).toContain("Brava");
+    });
+
+    it("does not COUNT one either, unlike the search box", () => {
+        const { counts } = diplomacyGroups({
+            relations,
+            isDefeated: (country) => country === "Carda"
+        });
+        expect(counts[DiplomaticState.WAR]).toBe(1);
+    });
+
+    it("changes nothing when nobody is asked", () => {
+        const { counts } = diplomacyGroups({ relations });
+        expect(counts[DiplomaticState.WAR]).toBe(2);
+    });
+});

@@ -1,9 +1,9 @@
 # Continent Bonuses
 
 **Companion documents:** [01-codebase-audit.md](./01-codebase-audit.md) ·
-[02-game-design-document.md](./02-game-design-document.md) ·
-[03-e2e-test-plan.md](./03-e2e-test-plan.md) · [04-known-issues.md](./04-known-issues.md) ·
-[archived/05-goals-and-victory.md](./archived/05-goals-and-victory.md)
+[01-game-design-document.md](.././01-game-design-document.md) ·
+[02-e2e-test-plan.md](.././02-e2e-test-plan.md) · [03-known-issues.md](.././03-known-issues.md) ·
+[archived/05-goals-and-victory.md](.././archived/05-goals-and-victory.md)
 
 The task breakdown is [06-continent-bonuses-checklist.md](./06-continent-bonuses-checklist.md).
 
@@ -21,7 +21,7 @@ territory on three continents outright*. The map can draw their boundaries, and 
 cycle was swapped it does so by default.
 
 And yet **holding one whole grants nothing at all**. That is item 9 on the "Not implemented"
-list in [02-game-design-document.md](./02-game-design-document.md#11-not-implemented), where
+list in [01-game-design-document.md](.././01-game-design-document.md#11-not-implemented), where
 it has sat since the document was written, and it is the missing half of the goal layer: the
 long-term objective is a continent, the mid-term objective is a country, and the short-term
 objective is a territory — but only the last of those pays.
@@ -251,7 +251,7 @@ So the acceptance criterion is `tools/ai-sim.mjs`, run for each of the five goal
 
 ### 6.1 The baseline had to be re-measured
 
-The numbers recorded in [archived/05-goals-and-victory.md](./archived/05-goals-and-victory.md)
+The numbers recorded in [archived/05-goals-and-victory.md](.././archived/05-goals-and-victory.md)
 §5 are not a usable control. They were taken before Goals and Victory Q4 and before two
 further commits, and re-running today's code with the two dials set to **1.0** reproduces four
 of those five rows exactly and the fifth not at all:
@@ -345,7 +345,7 @@ Large empires accumulate a hugely **negative** `armyForCurrentTerritory`: India 
 Continental run at −6.5 billion, the United States at −520 million. It is present identically
 in the control runs, so it predates this phase and this phase did not cause it — but it is new
 information, it appears only in the goals where an empire grows very large, and it is logged as
-**BJ** in [04-known-issues.md](./04-known-issues.md) §13.
+**BJ** in [03-known-issues.md](.././03-known-issues.md) §13.
 
 ### 6.6 How to reproduce any of this
 

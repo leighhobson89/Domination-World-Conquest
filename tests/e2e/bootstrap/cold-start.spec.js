@@ -1,6 +1,6 @@
 import { test, expect } from "../../support/fixtures.js";
 
-// The regression guard for docs/01-codebase-audit.md section 4.1.
+// The regression guard for docs/archived/01-codebase-audit.md section 4.1.
 //
 // Before refactor Phase 1, starting a game re-fetched and re-parsed the 19 MB
 // closestPathsData.json once per territory -- 359 fetches and roughly 6.8 GB of

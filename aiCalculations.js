@@ -111,6 +111,11 @@ import {
     decideCommitment
 } from './src/ai/commitment.js';
 import {
+    allOpinions,
+    opinionOf,
+    restoreOpinions
+} from './src/ai/opinion.js';
+import {
     debugPlanPush,
     debugPlanReach
 } from './src/ai/debugPlans.js';
@@ -221,13 +226,19 @@ registerSaveSlice("aiStrategy", {
         //which is the rule the campaign table and the theatres already follow: `platform/`
         //must not import `src/ai/`, and a module that registered its own slice would need
         //to be imported from somewhere to do it.
-        diplomacy: captureDiplomacyMemory()
+        diplomacy: captureDiplomacyMemory(),
+        //The opinion store rides here for the same reason, and the fact that the snapshot
+        //version does not move is a feature rather than an oversight: a save taken before
+        //opinion existed restores an EMPTY map, and an empty map is a correct world -- every
+        //pair sitting at the resting point its standing relationship implies.
+        opinions: allOpinions()
     }),
     restore: (data) => {
         restoreCampaigns(data?.campaigns);
         restoreVictoryCondition(data?.victory);
         restoreMusters(data?.musters);
         restoreDiplomacyMemory(data?.diplomacy);
+        restoreOpinions(data?.opinions);
     }
 });
 
@@ -318,7 +329,9 @@ function applyAiDeclarations(country, campaign, leader, turn) {
         //an agreement at all today, so this fires only if that ever changes -- and the rule
         //must not depend on the caller's restraint to be correct.
         row.breach = applyBreach(country, row.target, turn);
-        setRelationState(country, row.target, DiplomaticState.WAR, { since: turn });
+        setRelationState(country, row.target, DiplomaticState.WAR, {
+            since: turn, by: country, via: "declared"
+        });
         console.log("%c" + country + " declares war on " + row.target + " -- " + row.reason,
             "color: rgb(208,70,59);");
         //THE CALL TO ARMS, on both sides. See `resolveCallIns()`: an ally is asked, never
@@ -364,7 +377,8 @@ function applyAiPeaceOffer(country, campaign, leader, turn) {
         traits: leader?.traits ?? {},
         posture: campaign.posture ?? null,
         urgency: campaign.doctrine?.urgency ?? 0,
-        failuresAgainst: (rival) => theatreFailuresAgainst(country, rival)
+        failuresAgainst: (rival) => theatreFailuresAgainst(country, rival),
+        opinionOf: (other) => opinionOf(country, other, relationStateBetween(country, other))
     });
     if (!offer) {
         return;
@@ -421,6 +435,12 @@ export function answerProposal({ country, proposer, kind, turn }) {
         posture: currentCampaign(country)?.posture ?? null,
         urgency: currentCampaign(country)?.doctrine?.urgency ?? 0,
         theatreRival: currentTheatre(country)?.rival ?? null,
+        //WHAT IT THINKS OF THE PROPOSER SPECIFICALLY. Gathered HERE, in the one door both
+        //directions go through, so a player's offer and an AI's offer are answered from the
+        //same number -- the rule `countriesMayFight()` established for the attack gates. The
+        //state goes with it because an unrecorded pair reads as the resting point its
+        //standing relationship implies rather than as zero.
+        opinion: opinionOf(country, proposer, state),
         otherWars,
         failuresAgainstProposer: theatreFailuresAgainst(country, proposer),
         territories: territoriesOwnedByCountry(country).length,
@@ -465,7 +485,9 @@ export function acceptProposal(proposer, country, kind, turn) {
     const written = setRelationState(proposer, country, state, {
         since: turn,
         until: ceasefire ? turn + peaceDiscipline.ceasefireTurns : null,
-        revertsTo: ceasefire ? previous : null
+        revertsTo: ceasefire ? previous : null,
+        by: proposer,
+        via: "agreed"
     });
 
     //THE SECOND HALF OF LEIGH'S CALL-IN RULE: *"the peace must be asked either by the ally
@@ -481,7 +503,10 @@ export function acceptProposal(proposer, country, kind, turn) {
             setRelationState(joiner, adversary, state, {
                 since: turn,
                 until: ceasefire ? turn + peaceDiscipline.ceasefireTurns : null,
-                revertsTo: ceasefire ? relationStateBetween(joiner, adversary) : null
+                revertsTo: ceasefire ? relationStateBetween(joiner, adversary) : null,
+                by: joiner,
+                via: "released",
+                onBehalfOf: principal
             });
             console.log("%c" + joiner + " comes out of the war with " + adversary +
                 " alongside " + principal + " -- " + state,
@@ -552,6 +577,9 @@ export function answerCallIn({ ally, principal, adversary, defensive, turn }) {
         adversary,
         traits: leaderTraitsFor(ally),
         urgency: currentCampaign(ally)?.doctrine?.urgency ?? 0,
+        //THE ALLY'S OPINION OF THE PARTNER DOING THE ASKING, not of the adversary: the
+        //question a call to arms puts is "will you fight for me", not "do you dislike them".
+        opinion: opinionOf(ally, principal, relationStateBetween(ally, principal)),
         defensive: Boolean(defensive),
         alreadyAtWar: relationStateBetween(ally, adversary) === DiplomaticState.WAR,
         existingWars: relationsFor(ally)
@@ -578,7 +606,9 @@ export function applyCallInAnswer({ ally, principal, adversary, joins, turn }) {
     if (joins) {
         //A declaration is not needed and would be wrong: the ally is entering a war that
         //already exists rather than starting one of its own.
-        setRelationState(ally, adversary, DiplomaticState.WAR, { since: turn });
+        setRelationState(ally, adversary, DiplomaticState.WAR, {
+            since: turn, by: ally, via: "calledIn", onBehalfOf: principal
+        });
         bindJoiner(principal, ally, adversary);
         console.log("%c" + ally + " answers " + principal + "'s call and enters the war with " +
             adversary, "color: rgb(208,70,59);");
@@ -586,7 +616,9 @@ export function applyCallInAnswer({ ally, principal, adversary, joins, turn }) {
     }
     //THE ALLIANCE ENDS, FREE FOR BOTH. Back to NEUTRAL rather than to peace: the two have not
     //agreed anything, they have stopped having an agreement.
-    setRelationState(ally, principal, DiplomaticState.NEUTRAL, { since: turn });
+    setRelationState(ally, principal, DiplomaticState.NEUTRAL, {
+        since: turn, by: ally, via: "declinedCall"
+    });
     console.log("%c" + ally + " refuses " + principal + "'s call to arms -- the alliance ends, " +
         "with no penalty to either", "color: rgb(208,70,59);");
     return false;
@@ -623,7 +655,13 @@ export function applyBreach(betrayer, victim, turn) {
     //income, so losing the others is a material cost exactly proportional to what being
     //trustworthy was worth to this country.
     for (const other of outcome.drops) {
-        setRelationState(betrayer, other, DiplomaticState.NEUTRAL, { since: turn });
+        //THE ACTOR IS THE OTHER COUNTRY, not the betrayer: this agreement is being torn up
+        //BY the country that kept faith, because nobody keeps a treaty with somebody who has
+        //just broken one. Naming the betrayer here would have the feed report the victim of
+        //the drop as its author.
+        setRelationState(betrayer, other, DiplomaticState.NEUTRAL, {
+            since: turn, by: other, via: "dropped"
+        });
         console.log("%c" + other + " tears up its agreement with " + betrayer +
             " -- nobody keeps a treaty with somebody who has just broken one",
             "color: rgb(208,70,59);");
@@ -646,7 +684,9 @@ export function dissolveAlliance(a, b, turn) {
     if (relationStateBetween(a, b) !== DiplomaticState.ALLIANCE) {
         return null;
     }
-    return setRelationState(a, b, DiplomaticState.NEUTRAL, { since: turn });
+    return setRelationState(a, b, DiplomaticState.NEUTRAL, {
+        since: turn, by: a, via: "dissolved"
+    });
 }
 
 /**

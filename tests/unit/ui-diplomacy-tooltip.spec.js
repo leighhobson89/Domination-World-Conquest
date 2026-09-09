@@ -226,3 +226,72 @@ describe("the cap", () => {
             .toEqual({ rows: [], more: 0 });
     });
 });
+
+// ---------------------------------------------------------------------------
+// A DEFEATED COUNTRY IS NOT A RELATION.
+//
+// Reported by Leigh: taking a one-territory country's only province left the tooltip still
+// reporting a war with it. The register is keyed by country name and knows nothing about the
+// map, so a relation outlives the country it describes — and that is worse than clutter, it
+// is the game telling a player they have an enemy they have already beaten.
+// ---------------------------------------------------------------------------
+
+describe("countries that are out of the game", () => {
+    const beaten = (names) => (country) => names.includes(country);
+
+    it("drops one from somebody else's relation list", () => {
+        const { rows } = diplomacyTooltipRows({
+            country: "Brava",
+            playerCountry: "Alba",
+            relations: [
+                { country: "Alba", state: DiplomaticState.WAR },
+                { country: "Carda", state: DiplomaticState.WAR },
+                { country: "Dorne", state: DiplomaticState.PEACE }
+            ],
+            isDefeated: beaten(["Carda"])
+        });
+        expect(rows.map(row => row.country)).not.toContain("Carda");
+        expect(rows.map(row => row.country)).toContain("Dorne");
+    });
+
+    it("drops the player's OWN row when the hovered country is the one that is out", () => {
+        //The reported case exactly: the player conquered this country, and its territory is
+        //not theirs yet or belongs to somebody else — hovering it must not say "at war".
+        const { rows } = diplomacyTooltipRows({
+            country: "Carda",
+            playerCountry: "Alba",
+            relations: [{ country: "Alba", state: DiplomaticState.WAR }],
+            isDefeated: beaten(["Carda"])
+        });
+        expect(rows).toHaveLength(0);
+    });
+
+    it("drops them from the player's own territory too", () => {
+        const { rows } = diplomacyTooltipRows({
+            country: "Alba",
+            playerCountry: "Alba",
+            relations: [
+                { country: "Carda", state: DiplomaticState.WAR },
+                { country: "Dorne", state: DiplomaticState.WAR }
+            ],
+            isDefeated: beaten(["Carda"])
+        });
+        expect(rows.map(row => row.country)).toEqual(["Dorne"]);
+    });
+
+    it("changes nothing when nobody is asked", () => {
+        const withOut = diplomacyTooltipRows({
+            country: "Brava",
+            playerCountry: "Alba",
+            relations: [{ country: "Alba", state: DiplomaticState.WAR }]
+        });
+        const withNull = diplomacyTooltipRows({
+            country: "Brava",
+            playerCountry: "Alba",
+            relations: [{ country: "Alba", state: DiplomaticState.WAR }],
+            isDefeated: null
+        });
+        expect(withNull.rows).toEqual(withOut.rows);
+        expect(withOut.rows).toHaveLength(1);
+    });
+});

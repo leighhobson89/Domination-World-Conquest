@@ -48,7 +48,7 @@ rewritten. Full findings in the header of `tools/dice-spike.mjs`.
 
 ### B.2.6 — what the AR investigation actually found
 
-`04-known-issues.md` records AR as a `min`/`max` slip in `areaBonusFor()`, implying a
+`03-known-issues.md` records AR as a `min`/`max` slip in `areaBonusFor()`, implying a
 one-character fix. It is not. The ratio `MAX_AREA_THRESHOLD / area` is **unbounded as area
 approaches zero**, and there is no cap anywhere:
 
@@ -80,7 +80,7 @@ applied, measured and reverted. Raw series in `test-reports/ai-sim/ar-baseline.j
 `ar-capped.json`.
 
 **DECIDED at B.10.4.** Leigh chose to leave the code and correct the documentation, which is what
-`04-known-issues.md` now says: AR is recorded there as a design decision rather than a defect, with
+`03-known-issues.md` now says: AR is recorded there as a design decision rather than a defect, with
 the measurement attached, and CLAUDE.md carries a "do not fix it" note. What remains open is a
 design question for a balance pass — whether a small-territory defence bonus is wanted at all and
 what caps it — and it is no longer part of this overhaul.
@@ -292,7 +292,7 @@ out of a siege now carries the besieger's turns of grinding with it (+1 per thre
 - [x] **B.10.1** Delete plan §5.3 — and it was a whole FILE, not a list of functions
 - [x] **B.10.2** The `console.log`s and the colour literals in `battle.js`
 - [x] **B.10.3** `dist/` decided: it comes OFF the critical path
-- [x] **B.10.4** GDD §7, `04-known-issues.md`, `03-e2e-test-plan.md`, CLAUDE.md and this document
+- [x] **B.10.4** GDD §7, `03-known-issues.md`, `02-e2e-test-plan.md`, CLAUDE.md and this document
 
 **B.10.1 — the deletion was larger than the list.** Every function §5.3 named lived in one file,
 `src/rules/military/battle.js`, and nothing imported it but its own spec — so the five-round

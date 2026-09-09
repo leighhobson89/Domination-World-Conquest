@@ -10,7 +10,7 @@
 // `setMainArrayToArmyRemaining()`, the `farmsBuilt`/`forestsBuilt`/`oilWellsBuilt`/
 // `fortsBuilt` copy-back loops in `battle.js`, and the food/population write-back in
 // `resourceCalculations.js`. Miss one and a siege quietly diverged from the world.
-// See docs/01-codebase-audit.md section 3 and section 5.1 AD.
+// See docs/archived/01-codebase-audit.md section 3 and section 5.1 AD.
 //
 // A siege now stores `defendingTerritoryId` and exposes `defendingTerritory` as a
 // live lookup into `GameState`. Every existing reader -- and there are around sixty

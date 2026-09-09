@@ -1,7 +1,7 @@
 import { test, expect } from "../../support/fixtures.js";
 
 // The animated attack arrows drawn from the selected territory to each enemy it may
-// attack. docs/03-e2e-test-plan.md section 5.4.
+// attack. docs/02-e2e-test-plan.md section 5.4.
 //
 // What is checked HERE and what is checked in `tests/unit/ui-arrow-geometry.spec.js`
 // is a deliberate split, and it is the same one the Dominapedia and the move button

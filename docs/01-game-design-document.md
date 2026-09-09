@@ -9,7 +9,7 @@ intent, the intent is recorded under *Not implemented* or *Broken*.
 | Mark | Meaning |
 |---|---|
 | ✅ | Implemented and appears to work |
-| ⚠️ | Implemented but known-buggy — see [01-codebase-audit.md](./01-codebase-audit.md) §5 |
+| ⚠️ | Implemented but known-buggy — see [01-codebase-audit.md](./archived/01-codebase-audit.md) §5 |
 | 🚧 | Partially implemented / stubbed |
 | ❌ | Designed or implied but not implemented |
 
@@ -222,7 +222,7 @@ there is no per-continent bonus table and there should not be one.
 ⚠️ Those counts come from the MODEL and not from the map. A territory's `continent` is its
 original owner's `continent` in `initialData.js`, never the `continent=` attribute on its SVG
 path, and the two disagree about Easter Island — Chilean, so South American to the game and
-Oceanian to the map data. See **BI** in [04-known-issues.md](./04-known-issues.md).
+Oceanian to the map data. See **BI** in [03-known-issues.md](./03-known-issues.md).
 
 ⚠️ Oceania is the trap: 65 island territories, almost every one needing a naval crossing, and
 worth no more for being the hardest continent on the map to complete. That is a fact about
@@ -760,7 +760,10 @@ The one place the AI talks to the player. When an AI wants to besiege a territor
 The player accepts or declines in the AI dialogue box; on acceptance the gold transfers, the
 player's siege is removed and the besieging army returns home.
 
-This is the only diplomacy in the game and is a good seed for more.
+~~This is the only diplomacy in the game and is a good seed for more.~~ It was, and the
+diplomacy phase is what grew out of it (§8.6). This particular exchange is untouched and stays
+the one place a *negotiation about a specific territory* happens; everything in §8.6 is about
+the standing state between two countries rather than about one siege.
 
 ### 8.5 Long-term AI goals ✅
 
@@ -789,6 +792,131 @@ measurement is the acceptance criterion for any change to `src/ai/`.
 
 ❌ Still absent: **coordination and route planning.** Each country plans alone, has no model of
 what the player is about to do, and weighs each target on its own rather than as a sequence.
+
+### 8.6 Diplomacy — who may fight whom ✅
+
+**Peace and war are a STATE PER PAIR of countries**, where the map was in a permanent
+undeclared all-out war for the whole life of the project before it. `src/state/diplomacy.js`
+is the vocabulary and imports nothing at all; `src/state/GameState.js` holds the register.
+
+| State | What it means |
+|---|---|
+| No contact | Their borders have never met. The absence of a relationship rather than one of them |
+| Neutral | They have met and nothing is agreed. **This is what first contact is** |
+| War | The only state in which one may attack the other |
+| Ceasefire | Shooting stopped, with a turn it runs out on and a memory of what it reverts to |
+| Peace | A standing agreement not to fight |
+| Alliance | A peace that also pays, sees and can be called on |
+
+Six rules carry the design.
+
+**A relation is ONE record per UNORDERED pair**, keyed by `relationKey()`, so there is no
+"France's relation to Spain" and "Spain's relation to France" to drift apart. The register is
+**sparse** — 207 countries make 21,321 pairs, a pair with no record is at no contact, and a
+record existing is also the permanent proof the two have met. Contact is re-derived on a dirty
+flag rather than at seeding, because a conquest is exactly how two countries on opposite sides
+of the world come to share a border.
+
+**First contact is NEUTRAL**, and that single decision ordered the whole phase. `allowsAttack()`
+permits WAR and nothing else, so the attack gates had to land *before* the declaration rules —
+which produced a deliberate checkpoint at which nobody on the map could attack anybody: not one
+conquest, not one siege, 207 countries surviving. A gate you can watch stop the world is a gate
+you can trust.
+
+**A declaration takes effect at once and there is no waiting period anywhere in this system.**
+`src/ai/diplomacy.js` is the only module in `src/ai/` allowed to decide a diplomatic action —
+the containment `doctrine.js` has over victory conditions — and it splits declarations in two:
+a country's THEATRE commitment (§8.5) becomes a war unconditionally, which is what makes a
+frozen world impossible rather than merely unlikely, and opportunistic second fronts are
+governed by `declarationDiscipline`.
+
+**A declaration rule with no matching peace rule is a ratchet, and it was measured as one.**
+Before peace existed, pairs at war climbed 536 → 749 across a 150-turn run under every goal.
+Proposals — a ceasefire, a peace, an alliance — go through ONE door, `proposalOutcomeFor()`, so
+the player's offer and an AI's offer to another AI cannot be answered differently. A refusal
+sets an eight-turn cooldown per pair per kind. A **siege blocks any agreement** between the two,
+symmetrically. A country's **theatre rival is the one country a peace cannot be bought from**,
+with one escape: a rival that is losing will take a ceasefire.
+
+**An alliance is a mutual dividend and never a transfer** (`allianceShare`): both allies simply
+earn more while it stands — ×1.10 on gold income and ×1.06 on the three ceilings per ally,
+capped at three — plus shared sight over each other's frontier on the military map. Nothing is
+written onto a territory, so the instant it ends the multiplier is 1 again with nothing to
+unwind. A party to an alliance that goes to war has its ally **asked** to join, never enrolled,
+and nothing cascades: a joiner's own allies are not asked, so a war spreads exactly one country
+per yes. A joiner may not settle out of the war it was called into alone.
+
+**There are three ways an alliance ends and only one costs anything.** Refusing a call to arms
+and mutual dissolution are free for both sides; walking out unilaterally, or declaring war on
+your own ally, is a BREACH. The penalty is **reputational only** — no fine — and it is severe:
+the betrayer's every *other* agreement is torn up, and while the mark stands (25 turns for an
+alliance, 15 for a peace, 10 for a ceasefire, decaying) no AI will agree anything with them.
+Leaving neutral costs nothing at all, which is why the rule almost never fires. The material
+cost is therefore *derived* from the reputational one and is self-calibrating: a country with
+one peace loses little, and a country at the centre of an alliance web loses the web and the
+income that came with it.
+
+**Where the player meets it.** A full-screen diplomacy panel (its own button in the map's
+left-hand chrome) lists every country met, grouped by state, with the five actions and a
+sentence saying why each is offered or refused; the territory tooltip carries the same register
+as relation rows, the player's own standing first; questions the AI asks — a call to arms, an
+unsolicited offer — are queued during the AI turn and put to the player one at a time at the
+end of it, never as a modal mid-loop and never decided on their behalf; a country DECLARING war
+on the player raises a notice with one button, queued the same way, because a declaration takes
+effect at once and there is nothing to answer; and the activity feed carries declarations,
+treaties, alliances and betrayals as news.
+
+**A COUNTRY THAT HOLDS NO TERRITORY IS OUT OF THE GAME AND STOPS BEING A RELATION.** The
+register is keyed by country name and knows nothing about the map, so without this a relation
+outlives the country it describes and the panel fills with wars against countries already
+conquered. `src/state/defeated.js` answers it and the answer is DERIVED — a country with no
+territory has nowhere to attack from, so defeat is permanent. Such a country is dropped from
+the panel (before the group counts, not after) and from the tooltip, and appears in the
+standings table below a separator marked *defeated*, where it had previously vanished from the
+table altogether: `worldStandings()` is a fold over territories, so a country holding none is
+absent from it rather than last in it.
+
+### 8.6.1 Opinion — how a country feels about you specifically ✅
+
+Every diplomatic term above is a **present-tense fact about the world**: how many wars a country
+is fighting, its posture, its size next to yours, how alarmed it is by whoever is running away
+with the game. None of them is a memory. Taking a province off a country changed its army, its
+income and its posture, and changed nothing at all about how it felt toward you.
+
+An **opinion** is a number from −100 to +100 that each country holds about each other country.
+It is **directional** — France may resent Spain more than Spain resents France, which the
+register deliberately cannot say, since a relation is one record per unordered pair — and it is
+moved by what happens between them: declarations, conquests, sieges, treaties signed, calls to
+arms answered or refused, and betrayals.
+
+**It decays toward a resting point the standing relationship implies**, not toward zero — war
+rests at −40 and an alliance at +50 — which is what makes a maintained peace warm a
+relationship with no extra rule, stops a fifty-turn war and a fifty-turn peace arriving at the
+same number, and prevents a grudge becoming a ratchet.
+
+**It is a TERM in four decisions and a gate in none**: whether a ceasefire or peace is accepted,
+whether an alliance is signed, whether an ally answers a call to arms, and — the one that makes
+it a reason the world goes to war rather than only a diplomatic modifier — which neighbour a
+country commits to absorbing. A rule that can refuse is a rule that can freeze the world; a term
+added to a score cannot, whatever value it takes.
+
+**The player sees it** as two bars on the tooltip of any foreign territory — how that country
+sees them, and how they see it — and as a fact in the diplomacy panel, which is where the offers
+are actually made and refused. That is deliberate: an opinion is a consequence of the player's
+own actions, so the reason they are told no has to be a thing they can see and change.
+
+Design and task breakdown: [06-diplomacy.md](./archived/06-diplomacy.md) and
+[archived/06-diplomacy-checklist.md](./archived/06-diplomacy-checklist.md) for the register and
+the agreements; [08-opinion.md](./archived/08-opinion.md) and
+[archived/08-opinion-checklist.md](./archived/08-opinion-checklist.md) for the memory;
+[05-diplomatic-acceptance.md](./05-diplomatic-acceptance.md) for the term-by-term account of
+what decides yes and no.
+
+❌ Still absent: **passage and stacking** (checklist 5.2), blocked on the data model — a
+territory holds ONE garrison and there is no field for whose an army is, so "your army may sit
+in your ally's province" is a rewrite of every reader of a garrison rather than a stage. And
+**federations** (stage 7), which are a fact about a SET rather than about a pair and would need
+a second structure.
 
 ---
 
@@ -865,7 +993,7 @@ Things the game needs but does not have. Ordered roughly by how badly they are m
 | ❌ 4 | **Per-turn army maintenance** | Implemented but the call site is commented out (§3.4). Removing the main economic brake on militarisation. |
 | ❌ 5 | **Multiplayer / online** | Despite the repo name. No sockets, no server logic. |
 | ✅ 6 | ~~**Long-term AI goals**~~ | **Done, refactor Phase 7.8 and Goals and Victory Q2.** Three horizons — continents, a country to absorb, a target this turn — all derived from the chosen goal (§8.5). Coordination and route planning are still absent. |
-| ❌ 7 | **AI diplomacy beyond the siege gold offer** | No alliances, no trade, no non-aggression, no war declarations. |
+| ✅ 7 | ~~**AI diplomacy beyond the siege gold offer**~~ | **Done, the diplomacy phase.** ~~No alliances, no trade, no non-aggression, no war declarations.~~ Peace and war are a state per PAIR of countries now — six states, first contact neutral, and `allowsAttack()` permits war alone (§8.6). Declarations, ceasefires, peace, alliances with a standing income share and a call to arms, and one act that counts as a breach. What is still absent is **passage and stacking**, blocked on the one-garrison data model, and **trade**, which was never in this phase. |
 | ✅ 8 | ~~**Player-visible AI activity**~~ | **Done, refactor Phase 7.4 — the activity feed.** ~~AI conquests happen silently.~~ `src/state/activityLog.js` stores facts and the feed derives the wording when a row is drawn. It is military only, by design: the AI's *plans* go to the console, because a panel showing them would be a cheat. |
 | ✅ 9 | ~~**Continent control bonuses**~~ | **Done, the continent-bonus phase.** ~~Continents exist as modifiers but holding one grants nothing.~~ A country holding every territory on a continent earns 1.5x gold from each of them and holds 1.25x oil, food and construction-materials capacity (§3.6). All or nothing, derived every turn from ownership, and paid to the player and to all 206 AI countries alike. |
 | ❌ 10 | **Technology / research** | `dev_index` is static; nothing raises it. |
@@ -906,6 +1034,6 @@ explicitly before the refactor bakes them in.
 
 ## 13. Cross-references
 
-- Defect detail and line numbers: [01-codebase-audit.md](./01-codebase-audit.md)
+- Defect detail and line numbers: [01-codebase-audit.md](./archived/01-codebase-audit.md)
 - Sequencing for fixes and restructuring: [archived/03-refactor-plan.md](./archived/03-refactor-plan.md)
-- Functional areas and their test coverage: [03-e2e-test-plan.md](./03-e2e-test-plan.md)
+- Functional areas and their test coverage: [02-e2e-test-plan.md](./02-e2e-test-plan.md)

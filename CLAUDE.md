@@ -10,55 +10,67 @@ despite the repository being named `OnlineRiskGame`.
 
 ## Read first
 
-Before any non-trivial change, read the relevant document in [docs/](./docs/):
+Before any non-trivial change, read the relevant document in [docs/](./docs/). **The living
+sequence is five documents and it is gap-free**: a finished plan moves to
+[docs/archived/](./docs/archived/README.md) keeping the number it was written under, and the
+living documents are renumbered so the sequence never has a hole in it. Where an archived
+document contradicts a numbered one, **the numbered one wins**.
 
-- [docs/01-codebase-audit.md](./docs/01-codebase-audit.md) — architecture and the catalogued
-  defects with file/line references. **Check here before "fixing" something odd** — it is
-  probably already logged, with the reason.
-- [docs/02-game-design-document.md](./docs/02-game-design-document.md) — what each mechanic
+- [docs/01-game-design-document.md](./docs/01-game-design-document.md) — what each mechanic
   does, and what is implemented vs. missing.
-- [docs/03-e2e-test-plan.md](./docs/03-e2e-test-plan.md) — functional areas and the test
+- [docs/02-e2e-test-plan.md](./docs/02-e2e-test-plan.md) — functional areas and the test
   harness.
-- [docs/04-known-issues.md](./docs/04-known-issues.md) — the live defect register, and it
+- [docs/03-known-issues.md](./docs/03-known-issues.md) — the live defect register, and it
   holds **only what is still open**: defects, design problems, what is missing, and hygiene.
   An entry moves to
   [docs/archived/04-known-issues-closed.md](./docs/archived/04-known-issues-closed.md) **in the
   same change that closes it** — never struck through and left, and never batched up for a
   tidy-up later. Ids are permanent and survive the move, because source comments cite them.
-  This is the one that stays current; the audit is the analysis behind it.
-- [docs/05-what-is-missing.md](./docs/05-what-is-missing.md) — **what to do next, and why.**
-  Not a phase plan and nothing in it is committed. It replaced Outstanding Improvements and
-  Force and Succession when both were archived, and it asks a **different question from every
-  document before it**: those asked whether the simulation behaves, and it does — the world
-  consolidates, conquest is non-zero at every sample, no goal freezes the map. This asks whether
-  a person sitting in front of it experiences a game, and answers no, in four specific ways: the
-  board carries little state (force and threatened borders reach it now, through the military
-  view — no fort, no development, no economy), the world has no characters (206 leaders with
-  traits, successions and grudges, surfaced only in `AiDebugPanel` and the spectator console),
-  nothing acknowledges what the player does (two sound clips in the whole game), and there is no
-  arc. **Its §2 is the easy wins and they share no code with `src/ai/`, `src/rules/` or
-  `balance.js`** — so alone among the work on that list they need no five-goal acceptance run,
-  which is the argument for doing them first. What has been delivered off that list is cut out
-  of it and recorded in
-  [docs/archived/05-what-is-missing-delivered.md](./docs/archived/05-what-is-missing-delivered.md),
-  which is where **E1, the military map view**, now lives.
-  The numerical items — the cliff, the target band, the unspent army — stay in the register and
-  are deliberately NOT on it.
-- [docs/06-diplomacy.md](./docs/06-diplomacy.md) — **the phase in flight**, with
-  [its checklist](./docs/06-diplomacy-checklist.md). Peace and war as a STATE PER PAIR of
-  countries, rather than the permanent undeclared all-out war the map has always been in. Six
-  states — no contact, neutral, war, ceasefire, peace, alliance — and **first contact is
-  NEUTRAL**, which is Leigh's decision and the one that orders the whole phase: `allowsAttack()`
-  permits WAR and nothing else, so wiring the attack gates before the declaration rules exist
-  would freeze the entire world, which is known-issue **BA** exactly — nothing throws, every
-  turn completes, and the map quietly stops changing. **Stages 0 to 5.5 have landed except
-  5.2**: the register, the gates, declarations on both sides, the player's panel, peace and
-  ceasefires, and the alliance with its standing share, its shared map and its call-in. **5.2
-  (passage and stacking) is BLOCKED on the data model** — a territory holds one garrison and
-  there is no field for whose an army is, so allied stacking is a rewrite of every reader of a
-  garrison rather than a stage. **5.6 (the betrayal penalty) is not built**, so the breach is
-  defined and free. Q1, Q2, Q3, Q5, Q6 and Q7 are answered in the design document; Q4, Q4b,
-  Q8, Q9 and Q10 are open in its §7.
+- [docs/04-future-plans.md](./docs/04-future-plans.md) — **what to do next, and why. Nothing
+  on it is committed.** It was called *What Is Missing* until diplomacy and opinion closed, and
+  it asks a **different question from every document before it**: those asked whether the
+  simulation behaves, and it does — the world consolidates, conquest is non-zero at every
+  sample, no goal freezes the map. This asks whether a person sitting in front of it
+  experiences a game. **Its §2 is the easy wins and they share no code with `src/ai/`,
+  `src/rules/` or `balance.js`** — so alone among the work on that list they need no five-goal
+  acceptance run, which is the argument for doing them first. What has been delivered off that
+  list is cut out of it and recorded in
+  [docs/archived/05-what-is-missing-delivered.md](./docs/archived/05-what-is-missing-delivered.md).
+  **M-d is Leigh's SCORE item** — every country earns points for good diplomacy and military
+  victories, never loses them, and the total orders the DEFEATED countries in the standings
+  table and nothing else, because the living ranking answers *who is about to win* and a career
+  is not that. The numerical items — the cliff, the target band, the unspent army — stay in the
+  register and are deliberately NOT on it.
+- [docs/05-diplomatic-acceptance.md](./docs/05-diplomatic-acceptance.md) — **the term-by-term
+  account of what decides whether a proposal is accepted**, plus what makes a country want to
+  declare war on you. It is the document to read before touching `peaceDiscipline`,
+  `allianceDiscipline` or `declarationDiscipline`. Its §7 proposed the opinion layer and has
+  been delivered; the four proposals of it that were **overturned** are listed at the top of
+  that section.
+
+**THERE IS NO PHASE IN FLIGHT.** The next one is whichever item comes off `04`.
+
+**DIPLOMACY IS DELIVERED AND ARCHIVED** ([design](./docs/archived/06-diplomacy.md),
+[checklist](./docs/archived/06-diplomacy-checklist.md)). Peace and war as a STATE PER PAIR of
+countries, rather than the permanent undeclared all-out war the map used to be in. Six states —
+no contact, neutral, war, ceasefire, peace, alliance — and **first contact is NEUTRAL**, which
+is Leigh's decision and the one that ordered the whole phase: `allowsAttack()` permits WAR and
+nothing else, so wiring the attack gates before the declaration rules existed would freeze the
+entire world, which is known-issue **BA** exactly — nothing throws, every turn completes, and
+the map quietly stops changing. Everything landed except **5.2 (passage and stacking)**, which
+is BLOCKED on the data model — a territory holds one garrison and there is no field for whose
+an army is — and is known-issue **DP1**; the deliverable version of it is REACH rather than
+occupation. **Stage 7 (federations) is a back burner** and is deliberately not scheduled.
+Q4b, Q8, Q9 and Q10 are still open in its §7. The mechanic is summarised in
+[docs/01-game-design-document.md](./docs/01-game-design-document.md) §8.6.
+
+**OPINION IS DELIVERED AND ARCHIVED** ([design](./docs/archived/08-opinion.md),
+[checklist](./docs/archived/08-opinion-checklist.md)) — the layer that gives diplomacy a memory.
+Its five decisions are the ones to read before touching `opinionDiscipline`. **Its §5.4, the
+five-goal 150-turn `ai-sim` table, has NOT been run**: the phase touches the theatre choice as
+well as the three acceptance scores, so it moves the consolidation numbers and the diplomatic
+ones together, and that measurement is outstanding.
+
 - **Combat and Conquest is DELIVERED and ARCHIVED**
   ([audit](./docs/archived/05-combat-and-conquest-audit.md),
   [checklist](./docs/archived/06-combat-and-conquest-checklist.md)). Read the checklist's closing
@@ -68,27 +80,27 @@ Before any non-trivial change, read the relevant document in [docs/](./docs/):
   the cliff at all, and the devIndex/continent rebase was applied at `DICE_ATTACK_ADVANTAGE`
   (1.0 → 1.54) rather than to the two tables, because `devIndex` also feeds the economy. **A wider
   3..7 table was built, measured better on the cliff, and was reverted** for wall-clock reasons —
-  stage 5.2 holds both side by side, so going back is one balance edit. And **it did not reach its
-  target band**, which is why `05` above exists.
+  the archived diplomacy checklist's stage 5.2 holds both side by side, so going back is one
+  balance edit. And **it did not reach its target band**, which is why `04` above exists.
+
+- **The Codebase Audit is ARCHIVED** ([docs/archived/01-codebase-audit.md](./docs/archived/01-codebase-audit.md)).
+  Written on 23 August 2026 against commit `b7ae0af`, it is the analysis the register was built
+  from and it is cited by id throughout — but every phase it planned has landed and the code it
+  describes has been rebuilt underneath it. Read it for **why** something is shaped as it is,
+  never as a description of the code today.
 
 The numbered documents are **breathing** — they are edited as work lands and describe the code
 as it is today. Finished plans move to [docs/archived/](./docs/archived/README.md) rather than
-going stale in the sequence: the eight-phase
-[refactor plan](./docs/archived/03-refactor-plan.md), the
-[battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
-[Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist, and
+going stale in the sequence: the eight-phase [refactor plan](./docs/archived/03-refactor-plan.md),
+the [battle overhaul](./docs/archived/battle_overhaul.md) and its checklist,
+[Goals and Victory](./docs/archived/05-goals-and-victory.md) and its checklist,
 [Continent Bonuses](./docs/archived/05-continent-bonuses.md) and its checklist,
 [the Economy](./docs/archived/05-economy-audit.md) and its checklist,
 [Combat and Conquest](./docs/archived/05-combat-and-conquest-audit.md) and its checklist,
-[Outstanding Improvements](./docs/archived/05-outstanding-improvements.md) and
-[Force and Succession](./docs/archived/06-force-and-succession.md) are
-there. They
-record why the code is shaped as it is, but they do not describe outstanding work — where one
-contradicts a numbered document, the numbered document wins. **The numbers are reused when a
-plan is archived**, so `05` and `06` are the current phase and the archived documents keep the
-numbers they were written under. **The phase in flight is DIPLOMACY** — `05` is still the
-standing list of what to do next, and `06` is now [the diplomacy design](./docs/06-diplomacy.md)
-and [its checklist](./docs/06-diplomacy-checklist.md).
+[Outstanding Improvements](./docs/archived/05-outstanding-improvements.md),
+[Force and Succession](./docs/archived/06-force-and-succession.md), the codebase audit, and
+Diplomacy and Opinion. They record why the code is shaped as it is, but they do not describe
+outstanding work.
 
 One thing in the archived Goals and Victory is still live rather than historical: its §5 table
 of 150 headless turns per goal is the **acceptance criterion for any change to `src/ai/`**, and
@@ -101,9 +113,9 @@ the control run, and the reason a slow economic mechanic cannot be judged by pla
 npm run dev            # Vite dev server, port 3000
 npm run build          # production build -> build/
 npm run preview        # serve build/ on port 4173
-npm run lint           # ESLint (baseline: 73 errors, 270 warnings)
+npm run lint           # ESLint (baseline: 76 errors, 270 warnings -- re-measured)
 npm run format         # Prettier (legacy root sources are ignored on purpose)
-npm run test:unit      # Vitest, 1,176 tests, ~2s
+npm run test:unit      # Vitest, 1,666 tests, ~3s
 npm run test:e2e       # Playwright, ~426 tests, 4 workers headless, ~7-14 min
 node tests/run-e2e.mjs --list            # list the functional areas and their spec counts
 node tests/run-e2e.mjs turn-loop         # one area
@@ -1580,7 +1592,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   attack gates at it before the declaration rules existed would have frozen the world exactly
   as known-issue **BA** did — which is why the gates are stage 2 and the declarations are
   stage 3, and why the quiet world in between was a deliberate checkpoint. See
-  [docs/06-diplomacy.md](./docs/06-diplomacy.md).
+  [docs/archived/06-diplomacy.md](./docs/archived/06-diplomacy.md).
 - **`src/ai/diplomacy.js` IS THE ONLY MODULE IN `src/ai/` ALLOWED TO DECIDE A DIPLOMATIC
   ACTION**, the containment `doctrine.js` has over victory conditions. It declares wars and it
   ends them, it is pure, and it draws no randomness at all — so nothing in it moves a seeded
@@ -1601,6 +1613,44 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   way the answer went**: an accepted offer explained by *"its leader is aggressive, it is much
   the larger of the two"* is printing the reasons it should have said no, and the panel did
   exactly that until it was driven in a browser.
+- **HOW A COUNTRY FEELS ABOUT YOU SPECIFICALLY IS `src/ai/opinion.js`, AND IT IS A TERM AND
+  NEVER A GATE.** A directional -100..+100 number per ORDERED pair -- the register is one
+  record per UNORDERED pair on purpose, so it cannot say *"you wronged me"*, which is most of
+  the point. See [docs/archived/08-opinion.md](./docs/archived/08-opinion.md). Six things. **IT DECAYS TOWARD A
+  RESTING POINT THE STANDING STATE IMPLIES** -- war -40, neutral 0, ceasefire +10, peace +25,
+  alliance +50 -- and never toward zero: that is what gives *"a maintained peace warms a
+  relationship"* with no hook at all, what stops a fifty-turn war and a fifty-turn peace
+  arriving at the same number, and what answers the RATCHET warning structurally, since the
+  pawl is the shape of the mechanism rather than a rule. **AN ABSENT PAIR READS AS ITS RESTING
+  POINT, NOT AS ZERO**, which is what makes the sparse map correct rather than merely small --
+  and `settleOpinions()` is therefore driven from the REGISTER'S rows rather than from the
+  stored opinions, or a pair at war with no recorded incident would never drift. **"ARRIVED"
+  IS A DISTANCE DERIVED FROM THE SETTLE RATE**, never an equality: a geometric approach
+  rounded to one decimal place has a genuine FIXED POINT at `half the last digit / rate`, so
+  an entry within about eight tenths of its target rounds back to where it started and sits
+  there for the rest of the game, stored and saved and never equal to the value it is
+  supposedly at (a unit test walks five hundred turns for this). **IT IS A TERM IN FOUR PLACES
+  AND A GATE IN NONE** -- `proposalOutcomeFor()` (+/-1.4 against a threshold of 1.0),
+  `allianceScoreFor()` (+/-1.8 against 1.6), `callInOutcomeFor()` (+/-1.6 against 1.0) and
+  `rankRivals()` in `theatre.js` (+/-1.0 against weakness 2.2, SUBTRACTED so a country stops
+  choosing its own ally to absorb) -- because a rule that can refuse is a rule that can freeze
+  the world, which is known-issue **BA** exactly. Leigh's brief asked for acceptance to become
+  *"70% opinion"*; that is SEQUENCED rather than refused, because a literal normalised blend
+  would make seventy per cent of every negotiation in the first fifty turns a CONSTANT (every
+  pair starts at its resting point) while re-basing every threshold in the file at the same
+  time as introducing the mechanic. **A BETRAYAL HAS TO CLEAR THE RESTING POINT IT FALLS
+  FROM**: it is by definition committed out of an AGREEMENT, and an alliance rests at +50, so
+  the -60 the design first proposed left the victim on -10 -- MILDER than being declared on
+  out of neutral. It is -85. And **the three military events are derived from
+  `ACTIVITY_LOGGED` rather than from `TERRITORY_CHANGED`**, because `activityRecorder.js`
+  already owns the hard part of reading that event (which changes are conquests, and which are
+  the bootstrap or a restore) and a second copy of that rule is a rule already got wrong once.
+  A pair arriving at WAR is charged only on `via: "declared"` or `"calledIn"` -- a ceasefire
+  LAPSING puts two countries back to war with nobody to blame. **The player holds opinions too,
+  by the same rules, and in this phase nothing reads them** -- they are shown as two bars on
+  the territory tooltip (which overturns `07`'s §7.5: a trait is fixed and secret, an opinion
+  is a consequence of the player's own actions, and a relation the player cannot see is a rule
+  they cannot play against) and as a fact in the diplomacy panel.
 - **A CEASEFIRE REMEMBERS WHAT IT WAS SIGNED OUT OF, AND THAT IS Q2's ANSWER.** `revertsTo` on
   the relation record is set at signing and read by `src/rules/diplomacy/expiry.js` when the
   clock runs out. A rule that guessed at expiry cannot work: with NEUTRAL as first contact,
@@ -1864,7 +1914,7 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
 - **Scenarios beat clicking** for anything the UI cannot reach — a rout, an all-naval
   defender, two concurrent sieges. `await game.loadScenario("two-sieges")` in a spec;
   the JSON lives in `tests/support/scenarios/` and is applied through `state/mutations.js`.
-  See [docs/03-e2e-test-plan.md](./docs/03-e2e-test-plan.md) §3.7.
+  See [docs/02-e2e-test-plan.md](./docs/02-e2e-test-plan.md) §3.7.
 - **Since Phase 3 the AI actually conquers — and attacks the player.** A turn can end with a
   battle results screen sitting on top of the phase button, and it can appear a beat AFTER the
   turn counter advances. `GameDriver.dismissBlockingPanels()` and `withBlockersCleared()` handle
@@ -2137,6 +2187,24 @@ npm run build:music    # just the music folder listing (Vite also does it on sta
   runs the store only knows who holds the territory NOW, and the line is about who it was
   taken from. Only what the store cannot answer afterwards is reported explicitly: a failed
   attack (nothing changed) and a siege ENDING (one change, three meanings).
+- **DIPLOMATIC NEWS IS DERIVED FROM ONE EVENT AND ANNOTATED AT THE CALL SITES, AND WHO ACTED
+  IS STORED NOWHERE.** `setRelationState()` is the one way the register is written, so no
+  declaration and no treaty can be missed — but a pair arriving at WAR looks identical
+  whether somebody declared, an ally answered a call to arms, or a ceasefire lapsed, so `by`,
+  `via` and `onBehalfOf` ride on the emitted event and are NOT fields on the relation record:
+  they are facts about a transition, and storing them would grow the save by two strings on
+  every one of up to 21,321 pairs. Four things follow. **A BETRAYAL is the one kind derived
+  rather than annotated** — going to war out of an AGREEMENT is exactly the transition
+  `applyBreach()` is charged on, so the feed asks the register the same question the penalty
+  asks. **FIRST CONTACT IS NOT NEWS AND IS GUARDED TWICE**, on `via: "contact"` and on the
+  NO_CONTACT → NEUTRAL transition, independently: a busy turn 1 walks ~1,900 pairings and
+  recording them would flush every real entry out of the bounded ring. **The four kinds are
+  DECLARATION, TREATY, ALLIANCE and BETRAYAL, and `via` is what separates the cases inside
+  them** — a ceasefire and a peace are one kind, and the three ways an alliance ends
+  (`declinedCall`, `dissolved`, `dropped`) are one kind, because the card writer already reads
+  `via`. And **`playerAttacking` means "the player is the one who ACTED"** on these entries:
+  they speak the war vocabulary deliberately, because `involvesPlayer()` and the panel decide
+  what gets a card from those two flags.
 - **The turn boundary is not where it looks.** `endTurn: advanceTurn`, so the AI moves
   during turn N and the counter reaches N+1 afterwards — everything the player is shown
   when the feed raises itself is filed under the turn that just ENDED. `onTurnStarted()`

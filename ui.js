@@ -281,6 +281,7 @@ import {
 import { continentHoldingFor } from './src/state/continentBonus.js';
 import { describeContinentHolding } from './src/ui/continents/continentBonusText.js';
 import {
+    classNames,
     dynamicIds,
     indexedIds,
     ids
@@ -425,9 +426,16 @@ import {
     resetDiplomacyMemory
 } from './src/ai/diplomacy.js';
 import {
+    opinionOf,
+    resetOpinions
+} from './src/ai/opinion.js';
+import { opinionTooltipBars } from './src/ui/diplomacy/opinionBar.js';
+import { isDefeated } from './src/state/defeated.js';
+import {
     clearDiplomacyInbox,
     InboxKind,
     pendingDiplomacy,
+    queueDeclaration,
     takePendingDiplomacy
 } from './src/state/diplomacyInbox.js';
 import {
@@ -622,6 +630,8 @@ export function svgMapLoaded() {
     //A declaration, a truce or an alliance changes what the tooltip says about a territory
     //without changing anything on it, so neither of the two above would catch it.
     onStateEvent(Events.DIPLOMACY_CHANGED, () => { tooltipStale = true; });
+    //A WAR OPENED AGAINST THE PLAYER IS PUT TO THEM, and this is where it is noticed.
+    onStateEvent(Events.DIPLOMACY_CHANGED, noticeWarOnPlayer);
 
     svgMap.addEventListener("mouseover", function(e) {
         const element = e.target;
@@ -1412,12 +1422,32 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     battleUI.create();
-    clashPanel.create();
+    //THE X SETTLES THE DICE TOO. Closing the commentary while the dice are still tumbling
+    //would otherwise leave the table rolling with nothing left on screen explaining it, and
+    //the roll is capped at over two seconds. `ClashPanel.js` cannot reach the dice stage
+    //itself -- it draws and owns no state beyond its own timers -- so the one thing it needs
+    //from outside is injected, the arrangement every other pure module here has.
+    clashPanel.create({ onClose: () => diceStage.skip() });
 
     document.getElementById(ids.battleContainer)?.addEventListener("click", function() {
         diceStage.skip();
         clashPanel.finish();
     }, true);
+
+    //THE SAME CLICK, ONE LAYER HIGHER. The clash panel is modal now, so the capture listener
+    //above never sees a click while it is up -- and that listener is how a player skips a
+    //roll they do not want to watch. The scrim runs the same pair, and then takes the panel
+    //down on a second press: read it at your own pace, or click twice and move on. Without
+    //the second half, making the panel modal would have replaced a panel you could click
+    //through with a seven-second wait you could not shorten.
+    document.getElementById(ids.battleClashScrim)?.addEventListener("click", function() {
+        diceStage.skip();
+        if (clashPanel.isPlaying()) {
+            clashPanel.finish();
+        } else {
+            clashPanel.hide();
+        }
+    });
 
     battleResults.create();
     battleWindow.create({
@@ -2377,7 +2407,9 @@ async function declareWarOnCountry(country) {
     //player goes through the same door the AI does, because a penalty the game applies to one
     //side of itself is not a rule.
     applyBreach(player, country, turn);
-    setRelationState(player, country, DiplomaticState.WAR, { since: turn });
+    setRelationState(player, country, DiplomaticState.WAR, {
+        since: turn, by: player, via: "declared"
+    });
 
     //THE CALL TO ARMS. Both sides' allies are asked -- Q3, answered by Leigh: an ally is
     //called in on defence as well as on aggression. The player's own allies are AI, so they
@@ -2398,8 +2430,14 @@ async function declareWarOnCountry(country) {
  *
  * A call-in changes the register and nothing on the board: an ally joining a war is a fact
  * about two other countries, and an alliance quietly ending is a control disappearing from a
- * panel the player may not have open. The activity feed is the right home for it in stage 6;
- * until then the console is better than silence.
+ * panel the player may not have open.
+ *
+ * STAGE 6 GAVE IT A HOME AND THIS IS NOW THE ECHO RATHER THAN THE RECORD. Both outcomes go
+ * through `setRelationState()` inside `applyCallInAnswer()`, so `activityRecorder.js` has
+ * already written the news by the time this runs -- an ally joining is a DECLARATION entry
+ * with `via: "calledIn"`, and one refusing is an ALLIANCE entry with `via: "declinedCall"`.
+ * What is left here is the console line, which is worth keeping for the same reason the AI's
+ * plan log is: the feed is the player's news and the console is the diagnostic.
  */
 function recordCallInNews(answer) {
     console.log(answer.joins
@@ -4330,6 +4368,7 @@ function resetChromeForCountrySelection() {
     resetCampaigns();
     resetMusters();
     resetDiplomacyMemory();
+    resetOpinions();
     //A question nobody is going to answer. The inbox is filled during an AI turn and emptied
     //at the end of it, so one outstanding here means the player left mid-turn.
     clearDiplomacyInbox();
@@ -4810,6 +4849,43 @@ function defencePlaybackDeps() {
  * default an answer the player has been warned about, rather than by trapping them in a modal
  * they cannot leave.
  */
+/**
+ * Somebody has gone to war with the player: queue a notice for the end of the AI turn.
+ *
+ * DERIVED FROM THE ONE EVENT, not reported from the call sites. `setRelationState()` is the
+ * only way the register is written, so a war opened by a route nobody has written yet still
+ * reaches the player -- which is the argument `activityRecorder.js` makes for deriving the
+ * news, and the reason the two now read the same event.
+ *
+ * IT IS QUEUED AND NOT RAISED. This fires inside the AI turn, in the middle of a loop over
+ * two hundred countries; a modal here would stop the turn dead. `showQueuedDiplomacy()`
+ * empties the queue at the end of it, after the defences, which is the same arrangement the
+ * call to arms and the unsolicited offer already have and for the same reason.
+ *
+ * THREE TRANSITIONS ARE NOT NEWS and each is excluded for its own reason. A war the PLAYER
+ * declared is not something to be told about. A ceasefire LAPSING (`via: "expired"`) is a
+ * clock running out rather than an act -- the player agreed to the clock, and the ceasefire
+ * row already carries the turn it runs out on. And a `replaced` payload is a restore putting
+ * the whole register back, which would otherwise raise a modal per standing war on load.
+ */
+function noticeWarOnPlayer(payload) {
+    if (!payload || payload.replaced || payload.state !== DiplomaticState.WAR) {
+        return;
+    }
+    const player = playerCountryName();
+    if (!player || (payload.a !== player && payload.b !== player)) {
+        return;
+    }
+    const by = payload.by;
+    if (!by || by === player) {
+        return;
+    }
+    if (payload.via !== "declared" && payload.via !== "calledIn") {
+        return;
+    }
+    queueDeclaration({ by, via: payload.via, onBehalfOf: payload.onBehalfOf ?? null });
+}
+
 export async function showQueuedDiplomacy() {
     if (pendingDiplomacy() === 0) {
         return;
@@ -4828,6 +4904,13 @@ export async function showQueuedDiplomacy() {
         //every headless run. It did exactly that, for four e2e areas at once.
         const answer = await confirmDialog.open({ ...prompt, kind: "diplomacy" });
 
+        if (entry.kind === InboxKind.DECLARATION) {
+            //Nothing to apply: the register was written the moment war was declared, which
+            //is what this is a notice OF. It is awaited like the other two so that two
+            //countries declaring on the same turn are read one at a time -- `open()` resolves
+            //a previous dialog as a cancel when a second is raised over it.
+            continue;
+        }
         if (entry.kind === InboxKind.CALL_IN) {
             applyCallInAnswer({
                 ally: player,
@@ -5371,18 +5454,36 @@ function territoryTooltipLabel(path, countryName) {
         country: relationCountry,
         //Spectator mode has no player, so there is nobody to put first.
         playerCountry: isAiGameActive() ? null : playerCountryName(),
-        relations: relationsFor(relationCountry)
+        relations: relationsFor(relationCountry),
+        //A COUNTRY WITH NO TERRITORY IS OUT OF THE GAME and its relations are not news. The
+        //register is keyed by country name and knows nothing about the map, so without this
+        //a conquered neighbour goes on being listed as an enemy for the rest of the run.
+        isDefeated
+    });
+    //HOW THEY SEE YOU, AND HOW YOU SEE THEM (docs/archived/08-opinion.md §4). Directional, so it is
+    //two numbers and not one, and the state goes with each because an unrecorded pair reads
+    //as the RESTING point its standing relationship implies rather than as zero. Empty on the
+    //player's own land and in spectator mode, where there is nobody to hold an opinion.
+    const opinionCountry = isAiGameActive() ? null : playerCountryName();
+    const opinionState = opinionCountry
+        ? relationStateBetween(relationCountry, opinionCountry)
+        : null;
+    const opinionBars = opinionTooltipBars({
+        country: relationCountry,
+        playerCountry: opinionCountry,
+        theirs: opinionOf(relationCountry, opinionCountry, opinionState),
+        ours: opinionOf(opinionCountry, relationCountry, opinionState)
     });
     if (
         !continentLine && !leaderLine && militaryLines.length === 0 &&
-        upgradeRows.length === 0 && relations.rows.length === 0
+        upgradeRows.length === 0 && relations.rows.length === 0 && opinionBars.length === 0
     ) {
         return label;
     }
 
     let html = "<div>" + (label ?? "") + "</div>";
     if (leaderLine) {
-        html += '<div class="tooltip-leader">' + leaderLine + "</div>";
+        html += '<div class="' + classNames.tooltipLeader + '">' + leaderLine + "</div>";
     }
     if (continentLine) {
         html += "<div>" + continentLine + "</div>";
@@ -5391,14 +5492,24 @@ function territoryTooltipLabel(path, countryName) {
         html += "<div>" + line + "</div>";
     }
     for (const row of upgradeRows) {
-        html += '<div class="tooltip-upgrade">' +
+        html += '<div class="' + classNames.tooltipUpgrade + '">' +
             '<img src="./resources/' + row.icon + '" alt="">' +
             "<span>" + row.label + ": " + row.count + "</span></div>";
     }
+    for (const bar of opinionBars) {
+        html += '<div class="' + classNames.tooltipOpinion + ' is-' + bar.tone + '">' +
+            '<div class="' + classNames.tooltipOpinionLabel + '">' + bar.label + ": " +
+            bar.word + " (" + (bar.value > 0 ? "+" : "") + bar.value + ")</div>" +
+            '<div class="' + classNames.tooltipOpinionTrack + '">' +
+            '<div class="' + classNames.tooltipOpinionFill + '" style="left: ' +
+            bar.offsetPercent + "%; width: " + bar.fillPercent + '%"></div>' +
+            "</div></div>";
+    }
     if (relations.rows.length > 0) {
-        html += '<div class="tooltip-relations-heading">Relations</div>';
+        html += '<div class="' + classNames.tooltipRelationsHeading + '">Relations</div>';
         for (const row of relations.rows) {
-            html += '<div class="tooltip-relation is-' + row.tone + '">' + row.label + "</div>";
+            html += '<div class="' + classNames.tooltipRelation + ' is-' + row.tone + '">' +
+                row.label + "</div>";
         }
         if (relations.more > 0) {
             html += '<div class="tooltip-relation is-muted">…and ' + relations.more +

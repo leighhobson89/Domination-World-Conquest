@@ -90,7 +90,15 @@ export function refreshDiplomaticContacts() {
         if (!pair) {
             continue;
         }
-        setRelationState(pair[0], pair[1], FIRST_CONTACT_STATE, { since: currentTurn() });
+        //`via: "contact"` is what keeps the activity feed out of this: a busy turn 1 walks
+        //something like 1,900 pairings, and "two countries can now see each other" is the
+        //map's geometry rather than news. `activityRecorder.js` drops it on that annotation
+        //and on the NO_CONTACT -> NEUTRAL transition both, because either alone would be a
+        //single point of failure for the one write here that must never be reported.
+        setRelationState(pair[0], pair[1], FIRST_CONTACT_STATE, {
+            since: currentTurn(),
+            via: "contact"
+        });
         made.push(pair[0] + " / " + pair[1]);
     }
     return made;

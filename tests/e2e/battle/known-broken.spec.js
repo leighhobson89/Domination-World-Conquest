@@ -4,7 +4,7 @@ import { test, expect } from "../../support/fixtures.js";
 // reach the situation being asserted -- a rout, a naval-only defender, two live sieges,
 // a retreat with something to return.
 //
-// That way is the scenario loader (docs/03-e2e-test-plan.md section 3.7), delivered in
+// That way is the scenario loader (docs/02-e2e-test-plan.md section 3.7), delivered in
 // Phase 4 because it needs the single state layer to be safe: a scenario is applied
 // through `state/mutations.js`, the same path the game writes by, so it cannot produce a
 // world the game could not have produced itself.
@@ -15,11 +15,15 @@ import { test, expect } from "../../support/fixtures.js";
 // moved cosmetic randomness to src/platform/cosmeticRng.js), so `?seed=` makes a run repeat
 // exactly and `rout.spec.js` next door does assert an exact outcome.
 //
-// docs/archived/03-refactor-plan.md step 2.5 · docs/03-e2e-test-plan.md section 5.10.
+// docs/archived/03-refactor-plan.md step 2.5 · docs/02-e2e-test-plan.md section 5.10.
 
 /** Aim at a named enemy of `source` and open the attack window. */
 async function openAttackOn(game, source, target) {
     await game.endBuyPhase();
+    //A NEUTRAL COUNTRY CANNOT BE ATTACKED since the diplomacy phase: `allowsAttack()` permits
+    //WAR and nothing else. The assertion on the button's label below is exactly what catches
+    //it, and it is kept for that reason.
+    await game.declareWarOn(target);
     await game.selectOnMap(source);
     await game.selectOnMap(target);
     expect(await game.moveButton.label()).toBe("ATTACK");
@@ -143,7 +147,7 @@ test.describe("battle behaviour that needs a scenario", () => {
 
         expect(await game.retrievals()).toEqual([]);
 
-        await game.battle.retreat.click();
+        await game.battle.retreatFromBattle();
 
         // Before Phase 4.7 this branch only queued a retrieval when the button read
         // "Pull Out" -- a siege pullout. A plain retreat from a fresh battle queued

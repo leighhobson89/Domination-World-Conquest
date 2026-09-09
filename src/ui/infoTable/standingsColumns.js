@@ -52,7 +52,12 @@ export function standingsColumns(conditionKind, context = {}) {
                 //table is ordered by goal progress, so the player can be anywhere in it,
                 //and hunting for a highlighted row in sixteen is exactly the sort of thing
                 //a table should not make somebody do.
-                cell.textContent = row.isPlayer ? row.country + " (you)" : row.country;
+                const name = row.isPlayer ? row.country + " (you)" : row.country;
+                //A COUNTRY THAT IS OUT SAYS SO IN ITS OWN CELL, because the two goal columns
+                //to the right of it are the ones that would otherwise have to carry the news
+                //-- and under some goals they read "0 of 3" for a surviving country too, so
+                //a reader could not tell a beaten country from a losing one.
+                cell.textContent = row.defeated ? name + " — defeated" : name;
             }
         },
         {
@@ -73,14 +78,19 @@ export function standingsColumns(conditionKind, context = {}) {
             label: goal.valueLabel,
             headerText: goal.valueLabel,
             render: (cell, row) => {
-                cell.textContent = goal.value(row, context);
+                //A BEATEN COUNTRY HAS NO PROGRESS TOWARD ANYTHING, and printing the zero the
+                //goal column would compute says something false: under CONTINENTAL that
+                //renders "0 of 3 · 0%", which is exactly what a surviving country with a
+                //bad start reads. The em dash is the absence of a figure rather than a
+                //figure of zero.
+                cell.textContent = row.defeated ? "—" : goal.value(row, context);
             }
         },
         {
             label: goal.detailLabel,
             headerText: goal.detailLabel,
             render: (cell, row) => {
-                cell.textContent = goal.detail(row, context);
+                cell.textContent = row.defeated ? "—" : goal.detail(row, context);
             }
         }
     ];
